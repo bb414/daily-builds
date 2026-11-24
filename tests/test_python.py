@@ -58,7 +58,7 @@ class CommandLineTests(unittest.TestCase):
     def test_classify_lists_what_would_change_the_result(self):
         code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"))
         self.assertIn("What would change the result (20 single changes tried, 10 matter):", out)
-        self.assertIn('"Annex III use" from Employment to none: becomes Minimal risk; 8 duties removed, maximum fine none (was €15m).', out)
+        self.assertIn('"Annex III use" from Employment to none: becomes Minimal risk; 8 duties removed, no specific fine tier (was up to €15m).', out)
         self.assertIn('"SME or start-up" from no to yes: stays High-risk (Annex III use); maximum fine €12m (was €15m).', out)
 
     def test_bad_input(self):

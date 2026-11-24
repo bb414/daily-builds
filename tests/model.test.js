@@ -253,3 +253,15 @@ test('register CSV: written, read back, and messy files read with notes', functi
   assert.equal(M.readRegisterCsv('title\nx\n').error, 'it needs a "name" column');
   assert.equal(M.readRegisterCsv('name,role\n').error, 'it lists no systems');
 });
+
+test('critical infrastructure is registered nationally and has no right to an explanation', function () {
+  const infra = ids(M.classify({ role: 'both', annex3: 'infrastructure', deployerType: 'publicAuthority' }, AS_OF));
+  assert.ok(infra.indexOf('p_register_national') >= 0, 'Art 49(5)');
+  assert.equal(infra.indexOf('p_register'), -1);
+  assert.equal(infra.indexOf('d_register'), -1, 'Art 49(3) excludes point 2');
+  assert.equal(infra.indexOf('d_explain'), -1, 'Art 86(1) excludes point 2');
+  assert.equal(infra.indexOf('d_fria'), -1, 'Art 27(1) excludes point 2');
+  const jobs = ids(M.classify({ role: 'both', annex3: 'employment' }, AS_OF));
+  assert.ok(jobs.indexOf('p_register') >= 0 && jobs.indexOf('d_explain') >= 0);
+  assert.equal(jobs.indexOf('p_register_national'), -1);
+});

@@ -1,0 +1,57 @@
+system,classification,duty,who,article,applies_from,original_date,status,days_until
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Use the system in line with the provider's instructions,deployer,Art 26(1),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),"Give human oversight to people with the competence, training and authority to do it",deployer,Art 26(2),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Make sure input data you control is relevant and sufficiently representative,deployer,Art 26(4),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),"Monitor how it operates, and tell the provider and authorities about risks and serious incidents",deployer,Art 26(5),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Keep the automatically generated logs for at least six months,deployer,Art 26(6),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Inform workers' representatives and affected workers before using it at work,deployer,Art 26(7),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Tell people when they are subject to decisions the system makes or helps to make,deployer,Art 26(11),2027-12-02,2026-08-02,upcoming,373
+Shortlister: CV screening for a retail chain,High-risk (Annex III use),Be ready to explain the system's role in a decision to an affected person who asks,deployer,Art 86,2027-12-02,2026-08-02,upcoming,373
+Helpdesk chatbot on a shop website,Transparency duties,Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Helpdesk chatbot on a shop website,Transparency duties,"Make sure people are told they are interacting with an AI system, unless that is obvious",provider,Art 50(1),2026-08-02,2026-08-02,applies,-114
+Helpdesk chatbot on a shop website,Transparency duties,"Mark generated audio, images, video and text in a machine-readable way so they can be detected as AI-generated",provider,Art 50(2),2026-12-02,2026-08-02,upcoming,8
+Mood monitor for call-centre staff,Banned practice,"Stop: emotion recognition in a workplace or educational institution, other than for medical or safety reasons",both,Art 5(1)(f),2025-02-02,2025-02-02,applies,-660
+Mood monitor for call-centre staff,Banned practice,Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Loan decision engine at a credit union,High-risk (Annex III use),Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Loan decision engine at a credit union,High-risk (Annex III use),Use the system in line with the provider's instructions,deployer,Art 26(1),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),"Give human oversight to people with the competence, training and authority to do it",deployer,Art 26(2),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),Make sure input data you control is relevant and sufficiently representative,deployer,Art 26(4),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),"Monitor how it operates, and tell the provider and authorities about risks and serious incidents",deployer,Art 26(5),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),Keep the automatically generated logs for at least six months,deployer,Art 26(6),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),Tell people when they are subject to decisions the system makes or helps to make,deployer,Art 26(11),2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),Be ready to explain the system's role in a decision to an affected person who asks,deployer,Art 86,2027-12-02,2026-08-02,upcoming,373
+Loan decision engine at a credit union,High-risk (Annex III use),Carry out a fundamental rights impact assessment before first use,deployer,Art 27,2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Benefits eligibility checker for a council,High-risk (Annex III use),Use the system in line with the provider's instructions,deployer,Art 26(1),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),"Give human oversight to people with the competence, training and authority to do it",deployer,Art 26(2),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Make sure input data you control is relevant and sufficiently representative,deployer,Art 26(4),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),"Monitor how it operates, and tell the provider and authorities about risks and serious incidents",deployer,Art 26(5),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Keep the automatically generated logs for at least six months,deployer,Art 26(6),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Tell people when they are subject to decisions the system makes or helps to make,deployer,Art 26(11),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Be ready to explain the system's role in a decision to an affected person who asks,deployer,Art 86,2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Register your use of the system in the EU database,deployer,Arts 26(8) and 49(3),2027-12-02,2026-08-02,upcoming,373
+Benefits eligibility checker for a council,High-risk (Annex III use),Carry out a fundamental rights impact assessment before first use,deployer,Art 27,2027-12-02,2026-08-02,upcoming,373
+Interview notes tidier,"Annex III use, but not high-risk",Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Interview notes tidier,"Annex III use, but not high-risk","Document why the system is not high-risk before placing it on the market, and give the assessment to authorities on request",provider,Art 6(4),2027-12-02,2026-08-02,upcoming,373
+Interview notes tidier,"Annex III use, but not high-risk",Register the system in the EU database (simplified content),provider,Art 49(2),2027-12-02,2026-08-02,upcoming,373
+Insulin dosing app (a medical device),High-risk (product under Annex I),Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Insulin dosing app (a medical device),High-risk (product under Annex I),"Make sure people are told they are interacting with an AI system, unless that is obvious",provider,Art 50(1),2026-08-02,2026-08-02,applies,-114
+Insulin dosing app (a medical device),High-risk (product under Annex I),Run a risk management system across the whole life cycle,provider,Art 9,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),"Govern training, validation and testing data, including checks for bias",provider,Art 10,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Draw up technical documentation (a simplified form is allowed for SMEs and small mid-caps),provider,"Art 11, Annex IV",2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Build in automatic logging of events,provider,Art 12,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Give deployers clear instructions for use,provider,Art 13,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Design the system so people can oversee it effectively,provider,Art 14,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),"Achieve appropriate accuracy, robustness and cybersecurity",provider,Art 15,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Operate a quality management system (proportionate for SMEs and small mid-caps),provider,Art 17,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Keep documentation for 10 years and keep the logs under your control,provider,Arts 18 and 19,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),"Complete the conformity assessment, sign the EU declaration of conformity and affix the CE marking",provider,"Arts 43, 47 and 48",2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),"Take corrective action, and inform others, if the system stops conforming",provider,Art 20,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Monitor the system after it is placed on the market,provider,Art 72,2028-08-02,2027-08-02,upcoming,617
+Insulin dosing app (a medical device),High-risk (product under Annex I),Report serious incidents to the market surveillance authority,provider,Art 73,2028-08-02,2027-08-02,upcoming,617
+Open-weights language model,General-purpose AI model,Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660
+Open-weights language model,General-purpose AI model,Put in place a policy to comply with EU copyright law,provider,Art 53(1)(c),2025-08-02,2025-08-02,applies,-479
+Open-weights language model,General-purpose AI model,Publish a sufficiently detailed summary of the content used for training,provider,Art 53(1)(d),2025-08-02,2025-08-02,applies,-479
+Open-weights language model,General-purpose AI model,"Mark generated audio, images, video and text in a machine-readable way so they can be detected as AI-generated",provider,Art 50(2),2026-08-02,2026-08-02,applies,-114
+Duplicate invoice detector,Minimal risk,Take measures to support the AI literacy of staff and others who operate or use the system for you,both,Art 4,2025-02-02,2025-02-02,applies,-660

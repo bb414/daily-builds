@@ -256,7 +256,10 @@ def _triggered(trigger, res, a):
         "highRisk": res["highRisk"],
         "annex3": annex3_hr,
         "highRiskWorkplace": res["highRisk"] and a["workplace"],
-        "annex3PublicAuthority": annex3_hr and a["deployerType"] == "publicAuthority",
+        # Critical infrastructure (Annex III, point 2) is registered nationally and has no right to an explanation.
+        "annex3EU": annex3_hr and area != "infrastructure",
+        "annex3National": annex3_hr and area == "infrastructure",
+        "annex3PublicAuthority": annex3_hr and area != "infrastructure" and a["deployerType"] == "publicAuthority",
         "fria": annex3_hr and area != "infrastructure" and (a["deployerType"] != "private" or area in ("credit", "insurance")),
         "exempt63": res["exempt"],
         "interacts": a["interacts"],
@@ -369,14 +372,21 @@ def _penalty(res, a):
              "max": js_round(min(p["amount"], share) if sme_rule else max(p["amount"], share))}
         if best is None or c["max"] > best["max"]:
             best = c
+    if best:
+        best["publicAuthority"] = a["deployerType"] == "publicAuthority"  # national rules decide, Art 99(8)
     return best
+
+
+def _list_and(items):
+    """['a', 'b', 'c'] -> 'a, b and c'."""
+    return ", ".join(items[:-1]) + " and " + items[-1] if len(items) > 1 else "".join(items)
 
 
 def _uk_notes(res, a):
     notes = list(RULES["ukBaseline"])
     if a["annex3"]:
         area = _by_id(RULES["annex3"], a["annex3"])
-        notes.append("For this use (%s), regulators whose remits are likely to be engaged include %s." % (_lower(area["label"].split(":")[0]), ", ".join(area["uk"])))
+        notes.append("For this use (%s), regulators whose remits are likely to be engaged include %s." % (_lower(area["label"].split(":")[0]), _list_and(area["uk"])))
     if a["annex1"]:
         notes.append(RULES["ukAnnex1"])
     if "transparency" in res["tags"]:

@@ -323,9 +323,16 @@
     {
       "id": "p_register",
       "role": "provider",
-      "trigger": "annex3",
+      "trigger": "annex3EU",
       "article": "Art 49(1)",
       "text": "Register the system in the EU database before placing it on the market"
+    },
+    {
+      "id": "p_register_national",
+      "role": "provider",
+      "trigger": "annex3National",
+      "article": "Art 49(5)",
+      "text": "Register the system at national level (critical infrastructure systems are not registered in the EU database)"
     },
     {
       "id": "p_corrective",
@@ -400,7 +407,7 @@
     {
       "id": "d_explain",
       "role": "deployer",
-      "trigger": "annex3",
+      "trigger": "annex3EU",
       "article": "Art 86",
       "text": "Be ready to explain the system's role in a decision to an affected person who asks"
     },

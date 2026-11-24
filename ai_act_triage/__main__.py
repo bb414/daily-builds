@@ -30,6 +30,8 @@ def describe(res):
     if p:
         out += ["", "Maximum fine: %s (%s of %s and %d%% of worldwide turnover, %s)." % (
             euros(p["max"]), "the lower" if p["sme"] else "the higher", euros(p["amount"]), round(p["share"] * 100), p["article"])]
+        if p["publicAuthority"]:
+            out.append("For public authorities, national rules decide how far fines apply (Art 99(8)).")
     out += ["", "The UK view:"] + ["  - " + n for n in res["uk"]]
     piv = model.pivots(a, res["asOf"])
     out += ["", "What would change the result (%d single changes tried, %d matter):" % (piv["tested"], len(piv["pivots"]))]
@@ -51,8 +53,9 @@ def pivot_sentence(p):
     if p["moved"]:
         parts.append("%d %s" % (len(p["moved"]), "date moves" if len(p["moved"]) == 1 else "dates move"))
     if p["fine"]:
-        show = lambda x: euros(x) if x is not None else "none"
-        parts.append("maximum fine %s (was %s)" % (show(p["fine"]["to"]), show(p["fine"]["from"])))
+        f = p["fine"]
+        parts.append("no specific fine tier (was up to %s)" % euros(f["from"]) if f["to"] is None else "maximum fine %s (was %s)" % (
+            euros(f["to"]), "no specific fine tier" if f["from"] is None else euros(f["from"])))
     return '"%s" from %s to %s: %s %s%s.' % (p["question"], p["from"], p["to"], "becomes" if p["tierChanged"] else "stays",
                                          p["tierLabel"], "; " + ", ".join(parts) if parts else "")
 
