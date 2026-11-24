@@ -1,0 +1,1992 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crutch check</title>
+<meta name="description" content="A self-test of how you use an AI scam checker: does it sharpen your judgement or stand in for it?">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #ffffff;
+  --surface-2: #f2f1ed;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6b6964;
+  --line: #e1e0d9;
+  --line-2: #c3c2b7;
+  --accent: #2a78d6;
+  --accent-ink: #1c5cab;
+  --accent-soft: #e8f1fc;
+  --checker: #eb6834;
+  --checker-ink: #a8431b;
+  --checker-soft: #fdf0e9;
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --good-soft: #e7f5e7;
+  --bad: #d03b3b;
+  --bad-ink: #a82828;
+  --bad-soft: #fbeaea;
+  --bubble: #eceae4;
+  --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #a3a29b;
+    --line: #2c2c2a;
+    --line-2: #44443f;
+    --accent: #3987e5;
+    --accent-ink: #86b6ef;
+    --accent-soft: #15263b;
+    --checker: #d95926;
+    --checker-ink: #f2a27f;
+    --checker-soft: #36211a;
+    --good: #0ca30c;
+    --good-ink: #5fd35f;
+    --good-soft: #142a16;
+    --bad: #e66767;
+    --bad-ink: #f29a9a;
+    --bad-soft: #391c1c;
+    --bubble: #2a2a27;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #242422;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #a3a29b;
+  --line: #2c2c2a;
+  --line-2: #44443f;
+  --accent: #3987e5;
+  --accent-ink: #86b6ef;
+  --accent-soft: #15263b;
+  --checker: #d95926;
+  --checker-ink: #f2a27f;
+  --checker-soft: #36211a;
+  --good: #0ca30c;
+  --good-ink: #5fd35f;
+  --good-soft: #142a16;
+  --bad: #e66767;
+  --bad-ink: #f29a9a;
+  --bad-soft: #391c1c;
+  --bubble: #2a2a27;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.logo { width: 30px; height: 30px; flex: none; }
+.brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+.tagline { color: var(--ink-2); font-size: 14px; margin: 0; }
+main { padding: 24px 0 48px; }
+footer { color: var(--muted); font-size: 13px; padding: 24px 0 40px; border-top: 1px solid var(--line); }
+h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: 28px; margin: 0 0 12px; }
+h2 { font-size: 21px; margin: 0 0 10px; }
+h3 { font-size: 17px; margin: 0 0 8px; }
+p { margin: 0 0 12px; }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 680px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.stack > * + * { margin-top: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.btn {
+  appearance: none;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.big { font-size: 17px; padding: 12px 22px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Intro */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; padding: 0; list-style: none; }
+.step { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--surface); }
+.step .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.step.assisted .num { background: var(--checker-soft); color: var(--checker-ink); }
+.step h3 { margin-bottom: 4px; }
+.step p { margin: 0; font-size: 14px; color: var(--ink-2); }
+details.settings { margin-top: 20px; }
+details.settings > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg label {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 12px;
+  cursor: pointer; font-size: 14px; background: var(--surface);
+}
+.seg input { accent-color: var(--accent); }
+.check { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; font-size: 15px; }
+.check input { margin-top: 4px; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+.demo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+select, input[type="text"] {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px; min-height: 44px;
+}
+
+/* Progress */
+.progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.round-pill { font-weight: 700; font-size: 15px; }
+.round-pill .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; background: var(--accent-soft); color: var(--accent-ink); }
+.round-pill .tag.assisted { background: var(--checker-soft); color: var(--checker-ink); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-bottom: 18px; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.25s ease; }
+
+/* Trial layout */
+.trial { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.context { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-bottom: 14px; }
+.context strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 2px; }
+
+/* Message rendering */
+.msg { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.msg-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.msg-icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-2); flex: none; }
+.msg-icon svg { width: 18px; height: 18px; }
+.msg-channel { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.msg-from { font-weight: 600; overflow-wrap: anywhere; }
+.msg-subject { padding: 10px 16px 0; font-weight: 700; overflow-wrap: anywhere; }
+.msg-body { padding: 14px 16px 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bubble .msg-body { padding: 16px; }
+.msg.bubble .msg-text { display: inline-block; background: var(--bubble); border-radius: 16px 16px 16px 4px; padding: 10px 14px; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.voicemail .msg-text { font-style: italic; }
+.fake-link { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+
+/* Answers */
+.ask { font-weight: 700; margin: 0 0 10px; }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.answer {
+  appearance: none; font: inherit; text-align: left;
+  border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink);
+  border-radius: 12px; padding: 10px 12px; min-height: 56px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+}
+.answer:hover:not(:disabled) { border-color: var(--ink-2); }
+.answer .key { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line-2); font-size: 12px; color: var(--muted); flex: none; }
+.answer .lbl { font-weight: 600; line-height: 1.2; }
+.answer .lbl small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.answer.scam .dot, .answer.genuine .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.answer.scam .dot { background: var(--bad); }
+.answer.genuine .dot { background: var(--good); }
+.answer.chosen { border-color: var(--ink); background: var(--surface-2); }
+.answer:disabled { cursor: default; opacity: 0.55; }
+.answer.chosen:disabled { opacity: 1; }
+.hint { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+/* Checker panel */
+.checker { border: 1.5px solid var(--checker); background: var(--checker-soft); border-radius: var(--radius); padding: 14px 16px; margin: 16px 0; }
+.checker-head { display: flex; align-items: center; gap: 10px; }
+.checker-head svg { width: 26px; height: 26px; color: var(--checker-ink); flex: none; }
+.checker-name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--checker-ink); }
+.checker-verdict { font-size: 19px; font-weight: 700; }
+.checker ul { margin: 8px 0 0; padding-left: 20px; font-size: 15px; }
+.verdict-tag { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: 14px; }
+.verdict-tag.scam { background: var(--bad-soft); color: var(--bad-ink); }
+.verdict-tag.genuine { background: var(--good-soft); color: var(--good-ink); }
+.verdict-tag svg { width: 14px; height: 14px; }
+
+/* Break screen */
+.break-card { max-width: 640px; margin: 0 auto; text-align: left; }
+.break-card .eyebrow { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-ink); }
+.break-card.assisted .eyebrow { color: var(--checker-ink); }
+.break-card ol { padding-left: 20px; }
+
+/* Results */
+.results-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.banner { background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-bottom: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.tile-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.tile-value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin-top: 4px; }
+.tile-value small { font-size: 16px; color: var(--muted); font-weight: 600; }
+.tile-sub { font-size: 14px; color: var(--ink-2); }
+.profile { border-left: 4px solid var(--checker); padding: 4px 0 4px 14px; }
+.profile .name { font-size: 22px; font-weight: 700; }
+.hbars { display: grid; gap: 10px; margin: 8px 0 4px; }
+.hbar { display: grid; grid-template-columns: minmax(130px, 34%) 1fr 48px; gap: 10px; align-items: center; font-size: 14px; }
+.hbar .track { height: 14px; background: var(--surface-2); border-radius: 4px; position: relative; overflow: hidden; }
+.hbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 4px 4px 0; }
+.hbar.adv .fill { background: var(--checker); }
+.hbar.faint .fill { background: var(--accent); opacity: 0.45; }
+.hbar .val { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.axis-note { font-size: 12px; color: var(--muted); }
+.quad { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 14px; align-items: stretch; }
+.quad .hd { font-weight: 700; color: var(--ink-2); padding: 6px 8px; }
+.quad .cell { border-radius: 10px; padding: 10px; background: var(--surface-2); }
+.quad .cell .n { font-size: 24px; font-weight: 700; display: block; }
+.quad .cell.good { background: var(--good-soft); }
+.quad .cell.bad { background: var(--bad-soft); }
+.quad .cell .tagline-s { font-size: 13px; color: var(--ink-2); }
+.review-round { margin-top: 18px; }
+.review details { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-bottom: 8px; }
+.review summary { cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; list-style: none; }
+.review summary::-webkit-details-marker { display: none; }
+.review summary .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.review .inner { padding: 0 14px 14px; }
+.review .inner .msg { box-shadow: none; margin-bottom: 12px; }
+.icon-ok { color: var(--good-ink); }
+.icon-no { color: var(--bad-ink); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 14px; margin-bottom: 10px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.cue-list { margin: 4px 0 10px; padding-left: 20px; font-size: 14px; }
+.export { display: flex; flex-wrap: wrap; gap: 10px; }
+.note-box { font-size: 14px; color: var(--ink-2); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+
+@media (max-width: 760px) {
+  .trial { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr; }
+  .tiles { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+  h1 { font-size: 24px; }
+  .tagline { display: none; }
+  .hbar { grid-template-columns: 1fr 48px; }
+  .hbar .name { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar > span { transition: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2a78d6"/><path d="M16 6l8 3v6c0 5-3.4 9.2-8 11-4.6-1.8-8-6-8-11V9z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 16l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div>
+      <div class="brand">Crutch check</div>
+      <p class="tagline">Does an AI scam checker sharpen your judgement, or stand in for it?</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <!-- Intro -->
+  <section id="screen-intro" aria-labelledby="intro-title">
+    <h1 id="intro-title" tabindex="-1">How well do you spot scams, with and without an AI checker?</h1>
+    <p class="lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and a voicemail. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
+    <ol class="steps">
+      <li class="step"><span class="num">1</span><h3>On your own</h3><p>8 messages. Judge each one yourself.</p></li>
+      <li class="step assisted"><span class="num">2</span><h3>With the checker</h3><p>12 messages. Answer first, see what the checker says, then give your final answer.</p></li>
+      <li class="step"><span class="num">3</span><h3>On your own again</h3><p>8 more messages, without the checker. Did round 2 help or hinder?</p></li>
+    </ol>
+    <p class="muted small">Takes about 10 minutes. There is no time limit, you get your full results at the end, and nothing you do leaves this device.</p>
+    <div class="btn-row">
+      <button class="btn primary big" id="start-btn" type="button">Start the test</button>
+    </div>
+
+    <details class="settings card" id="settings">
+      <summary>Test settings</summary>
+      <fieldset>
+        <legend>How often is the checker right in round 2?</legend>
+        <div class="seg" id="acc-group">
+          <label><input type="radio" name="acc" value="1"> 11 of 12 (92%)</label>
+          <label><input type="radio" name="acc" value="2"> 10 of 12 (83%)</label>
+          <label><input type="radio" name="acc" value="3" checked> 9 of 12 (75%)</label>
+          <label><input type="radio" name="acc" value="4"> 8 of 12 (67%)</label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>What does the checker show?</legend>
+        <label class="check"><input type="checkbox" id="opt-reasons" checked> <span>Its reasons (the warning signs or reassuring signs it spotted)</span></label>
+        <label class="check"><input type="checkbox" id="opt-confidence" checked> <span>How sure it is, as a percentage</span></label>
+      </fieldset>
+    </details>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Not ready to take it?</h2>
+      <p class="small muted">See what the results look like for a simulated person.</p>
+      <div class="demo-row">
+        <label for="demo-persona" class="sr-only">Simulated person</label>
+        <select id="demo-persona">
+          <option value="calibrated">Someone who uses the checker well</option>
+          <option value="leaner">Someone who leans on the checker</option>
+          <option value="loner">Someone who ignores the checker</option>
+        </select>
+        <button class="btn" type="button" id="demo-btn">Show an example result</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Between rounds -->
+  <section id="screen-break" hidden aria-labelledby="break-title">
+    <div class="card break-card" id="break-card">
+      <div class="eyebrow" id="break-eyebrow"></div>
+      <h1 id="break-title" tabindex="-1"></h1>
+      <div id="break-body"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn primary big" type="button" id="break-go">Start</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- A message -->
+  <section id="screen-trial" hidden aria-labelledby="trial-title">
+    <div class="progress-head">
+      <div class="round-pill" id="round-pill"></div>
+      <div class="muted small" id="trial-count"></div>
+    </div>
+    <div class="bar" role="progressbar" aria-label="Progress through the test" aria-valuemin="0" aria-valuemax="28" aria-valuenow="0" id="progress"><span id="progress-fill" style="width:0%"></span></div>
+    <h1 class="sr-only" id="trial-title" tabindex="-1">Message</h1>
+    <div class="trial">
+      <div>
+        <div class="context" id="context"></div>
+        <div id="message"></div>
+      </div>
+      <div>
+        <div id="first-block">
+          <p class="ask" id="ask-first">Is this message a scam or genuine?</p>
+          <div class="answers" id="answers-first" role="group" aria-labelledby="ask-first"></div>
+        </div>
+        <div id="checker-block" hidden>
+          <div class="checker" id="checker-panel" aria-live="polite"></div>
+          <p class="ask" id="ask-final">Your final answer</p>
+          <div class="answers" id="answers-final" role="group" aria-labelledby="ask-final"></div>
+        </div>
+        <p class="hint">Keyboard: press 1, 2, 3 or 4 to answer.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section id="screen-results" hidden aria-labelledby="results-title">
+    <div id="results"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">All messages, people, organisations, phone numbers and web addresses here are fictional. Web addresses use the reserved .example domain and phone numbers come from ranges set aside for drama. The AI checker is simulated: its verdicts are scripted so that it is wrong on a known number of messages. Nothing you do here leaves this device.</div>
+</footer>
+
+<script>
+/* MODEL START */
+const BANK = /* MESSAGES START */{
+ "persona": "You are Sam, a second-year student at Wealdham University. You bank with Copperleaf Bank, your phone contract is with Northmoor Mobile and you subscribe to Streamly, a video streaming service.",
+ "cues": {
+  "urgency": "Pressure to act quickly",
+  "threat": "Threatens a penalty, suspension or loss",
+  "lookalike_link": "Link to a lookalike web address",
+  "credentials": "Asks for a password, PIN or one-time code",
+  "unusual_payment": "Asks for money by bank transfer, crypto or another hard-to-reverse method",
+  "too_good": "Offer that is too good to be true",
+  "unexpected": "Unexpected contact out of the blue",
+  "impersonation": "Pretends to be a person or organisation you trust",
+  "new_number": "Claims to be someone you know on a new number",
+  "secrecy": "Discourages you from checking or telling anyone",
+  "avoid_usual_route": "Steers you away from the usual app, website or number",
+  "number_in_message": "Gives you a number to call instead of one you already have",
+  "fee_first": "Wants money up front before you get anything",
+  "changed_details": "Says payment details have changed",
+  "your_account": "Wants to use your bank account to move money",
+  "off_platform": "Moves you off the platform or app you were using",
+  "generic_greeting": "Generic greeting instead of your name",
+  "expected": "Matches something you did or expected",
+  "known_domain": "Uses only the organisation's usual web address",
+  "official_route": "Points you to the app, website or number you already use",
+  "no_action": "Doesn't ask you to click, pay or share anything",
+  "never_ask": "Reminds you it will never ask for codes or passwords",
+  "specific_detail": "Includes details that match your own records",
+  "verifiable": "Easy to check in person or through someone you know",
+  "realistic": "Ordinary, realistic amount or offer",
+  "known_contact": "From a saved contact, about something normal",
+  "polished": "Professional tone and no spelling mistakes",
+  "uses_name": "Uses your name",
+  "familiar_brand": "Sender name matches an organisation you use",
+  "small_amount": "Only a small amount of money involved",
+  "precise_detail": "Includes precise amounts or reference numbers",
+  "replies_to_you": "Follows on from something you did",
+  "security_words": "Talks about keeping you safe",
+  "saved_contact": "Comes from a saved contact",
+  "has_link": "Contains a link",
+  "mentions_money": "Mentions money or a payment",
+  "deadline": "Mentions a deadline",
+  "unknown_sender": "Sender is not in your contacts",
+  "asks_action": "Asks you to do something",
+  "has_code": "Contains a code",
+  "risky_topic": "Topic often used in scams, such as deliveries, banks or refunds",
+  "new_number_topic": "Mentions a new phone number",
+  "prize": "Says you have won something"
+ },
+ "messages": [
+  {
+   "id": "s01",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "SMS",
+   "from": "+44 7700 900461",
+   "subject": "",
+   "context": "You are not expecting any parcels this week.",
+   "body": "PARCELORA: We tried to deliver your parcel today but no one was home. A redelivery fee of £1.45 is due. Pay within 24 hours or your parcel will be returned to the sender: parcelora-redelivery.example/pay",
+   "cues": [
+    "unexpected",
+    "urgency",
+    "lookalike_link",
+    "threat"
+   ],
+   "decoys": [
+    "small_amount",
+    "familiar_brand"
+   ],
+   "note": "Delivery firms do not text you to pay redelivery fees. The tiny fee is bait to collect your card details on a site that is not parcelora.example."
+  },
+  {
+   "id": "s02",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "Messaging app",
+   "from": "+44 7700 900318 (not in your contacts)",
+   "subject": "",
+   "context": "Jordan is a friend from your course. Their usual number is saved in your phone.",
+   "body": "Hey it's Jordan! Lost my phone so this is my new number, save it. Really awkward but I'm stuck at the station and my card's been blocked. Could you send £60 to my mate's account so I can get home? I'll send you his details and pay you back tonight. Don't ring, I've got no signal for calls.",
+   "cues": [
+    "new_number",
+    "impersonation",
+    "unusual_payment",
+    "secrecy",
+    "urgency"
+   ],
+   "decoys": [
+    "small_amount"
+   ],
+   "note": "A 'new number', money to somebody else's account and an excuse not to talk on the phone is the classic friend-in-need scam. Message or ring Jordan's old number first."
+  },
+  {
+   "id": "s03",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "Email",
+   "from": "Copperleaf Bank Security <alerts@copperleaf-secure-login.example>",
+   "subject": "Unusual sign-in detected: action required",
+   "context": "You bank with Copperleaf. Its website is copperleaf.example.",
+   "body": "Dear Customer,\n\nWe detected a sign-in to your account from a new device. If this was not you, your account will be suspended within 12 hours.\n\nVerify your identity now at copperleaf-secure-login.example/verify. You will need your card number, PIN and the one-time code we send you.\n\nCopperleaf Security Team",
+   "cues": [
+    "generic_greeting",
+    "threat",
+    "lookalike_link",
+    "credentials",
+    "urgency"
+   ],
+   "decoys": [
+    "familiar_brand",
+    "security_words"
+   ],
+   "note": "No bank asks for your PIN or a one-time code by email. The sender and the link are not copperleaf.example."
+  },
+  {
+   "id": "s04",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "Social media DM",
+   "from": "@crypto.mentor.amira",
+   "subject": "",
+   "context": "You have never interacted with this account before.",
+   "body": "Hey! Saw your profile and you seem really switched on. I've been helping students turn £100 into £1,500 in a week with my crypto trading signals. Only 5 spaces left this month. Want in? Just send £100 in USDT to my wallet to get started.",
+   "cues": [
+    "unexpected",
+    "too_good",
+    "unusual_payment",
+    "urgency"
+   ],
+   "decoys": [
+    "small_amount"
+   ],
+   "note": "Guaranteed huge returns, a stranger messaging first and payment in crypto are the hallmarks of an investment scam."
+  },
+  {
+   "id": "s05",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "SMS",
+   "from": "TaxRefund",
+   "subject": "",
+   "context": "You work a few shifts a month in a café and pay tax through your wages.",
+   "body": "Tax Refund Centre: You are eligible for a tax refund of £284.62. Claim before midnight at taxrefund-claim.example. Failure to claim will result in loss of funds.",
+   "cues": [
+    "unexpected",
+    "urgency",
+    "lookalike_link",
+    "threat",
+    "too_good"
+   ],
+   "decoys": [
+    "precise_detail"
+   ],
+   "note": "Tax refunds are not offered by text with a link to click. The exact-looking amount is there to make it seem official."
+  },
+  {
+   "id": "s06",
+   "truth": "scam",
+   "difficulty": 1,
+   "channel": "Marketplace",
+   "from": "Buyer: Chris_88",
+   "subject": "",
+   "context": "You are selling your old games console on a marketplace app for £120.",
+   "body": "Hi, is this still available? I'll pay full price plus £30 for postage. I've already sent the money through secure payment, you just need to click this link to receive it and enter your card details: marketplace-secure-pay.example/receive",
+   "cues": [
+    "lookalike_link",
+    "credentials",
+    "too_good",
+    "off_platform"
+   ],
+   "decoys": [
+    "security_words",
+    "replies_to_you"
+   ],
+   "note": "You never need to enter card details to receive money. Paying extra without asking questions and a 'secure payment' link outside the app point to a fake buyer."
+  },
+  {
+   "id": "s07",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Wealdham University Finance <finance-office@wealdham-uni-payments.example>",
+   "subject": "Outstanding tuition balance",
+   "context": "You study at Wealdham University, whose website is wealdham.example. Your fees are paid by a student loan.",
+   "body": "Dear student,\n\nOur records show an outstanding balance of £1,240 on your account. To avoid deregistration, please settle the balance by Friday using our new payment portal: wealdham-uni-payments.example/portal\n\nPlease note that due to a system upgrade, payments made through the usual student hub will not be processed.\n\nStudent Finance Office",
+   "cues": [
+    "threat",
+    "urgency",
+    "lookalike_link",
+    "avoid_usual_route",
+    "generic_greeting"
+   ],
+   "decoys": [
+    "familiar_brand",
+    "polished"
+   ],
+   "note": "It names your real university but uses a different web address and tells you to avoid the usual student hub, which is exactly what a scammer needs you to do."
+  },
+  {
+   "id": "s08",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "SMS",
+   "from": "Copperleaf",
+   "subject": "",
+   "context": "You bank with Copperleaf. You haven't bought anything for £649.99.",
+   "body": "Copperleaf: A payment of £649.99 to ELECTRO-HUB is pending on your account. If you did not make this payment, call our fraud team immediately on 020 7946 0381.",
+   "cues": [
+    "impersonation",
+    "number_in_message",
+    "urgency"
+   ],
+   "decoys": [
+    "familiar_brand",
+    "precise_detail",
+    "security_words"
+   ],
+   "note": "Texts can appear under a bank's name, even in the same thread as real ones. A genuine alert tells you to use the app or the number on your card. The 'fraud team' will try to talk you into moving your money."
+  },
+  {
+   "id": "s09",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Streamly <billing@streamly-account.example>",
+   "subject": "Your payment failed: update your details",
+   "context": "You subscribe to Streamly, a video streaming service.",
+   "body": "Hi Sam,\n\nWe couldn't process your monthly payment of £7.99. Your membership will be paused in 48 hours.\n\nUpdate your payment details here: streamly-account.example/billing\n\nThanks,\nThe Streamly team",
+   "cues": [
+    "lookalike_link",
+    "urgency",
+    "threat"
+   ],
+   "decoys": [
+    "uses_name",
+    "small_amount",
+    "familiar_brand",
+    "polished"
+   ],
+   "note": "Your name and a realistic small amount make it convincing, but the link is not Streamly's own address. Check your account in the app instead of clicking."
+  },
+  {
+   "id": "s10",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "Messaging app",
+   "from": "+44 7700 900227 (Hannah, Talent Bridge)",
+   "subject": "",
+   "context": "You haven't applied for any jobs recently.",
+   "body": "Hi! I'm Hannah from Talent Bridge recruitment. We're looking for flexible remote workers to rate products online, 30 to 60 minutes a day, earning £150 to £400 per day. No experience needed. Can I tell you more?",
+   "cues": [
+    "unexpected",
+    "too_good"
+   ],
+   "decoys": [
+    "polished"
+   ],
+   "note": "This is the opening of a 'task scam'. Unsolicited jobs paying far more than normal for simple online tasks later ask you to pay in to 'unlock' your earnings."
+  },
+  {
+   "id": "s11",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Mark Ellison <mark.ellison.lets@mail.example>",
+   "subject": "Re: Room on Elm Road",
+   "context": "You're looking for a room near campus and enquired about a listing on a property website.",
+   "body": "Hi Sam,\n\nThanks for your interest in the room on Elm Road. I'm working abroad at the moment so I can't do viewings, but I can hold it for you if you pay the deposit of £450 and the first month's rent by bank transfer today. Several other students are interested, so I can't keep it long.\n\nOnce the money arrives I'll post the keys to you.\n\nMark",
+   "cues": [
+    "fee_first",
+    "unusual_payment",
+    "urgency",
+    "avoid_usual_route"
+   ],
+   "decoys": [
+    "uses_name",
+    "replies_to_you",
+    "polished"
+   ],
+   "note": "A landlord who is abroad, no viewing, pressure from 'other applicants' and a bank transfer before you have seen the room is a very common rental scam."
+  },
+  {
+   "id": "s12",
+   "truth": "scam",
+   "difficulty": 2,
+   "channel": "SMS",
+   "from": "+44 7700 900155",
+   "subject": "",
+   "context": "A minute ago you received a text with a 6-digit code that you did not request.",
+   "body": "Hi, this is Northmoor Mobile. As a loyal customer you qualify for a free upgrade to the latest phone. To confirm your upgrade, reply with the 6-digit code we have just sent you.",
+   "cues": [
+    "credentials",
+    "unexpected",
+    "too_good",
+    "impersonation"
+   ],
+   "decoys": [
+    "familiar_brand"
+   ],
+   "note": "One-time codes protect your accounts. Anyone asking you to read one back is trying to take over an account, often your phone or bank account."
+  },
+  {
+   "id": "s13",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Mike Okafor <mike.okafor.property@mail.example>",
+   "subject": "New bank details for rent",
+   "context": "You rent your flat from a private landlord, Mike Okafor, and pay rent by bank transfer each month.",
+   "body": "Hi Sam,\n\nJust a quick one: I've moved my accounts to a new bank, so please pay this month's rent to the new account below rather than the old one. I'll send the details in my next email.\n\nThanks, and let me know if the boiler plays up again.\n\nMike",
+   "cues": [
+    "changed_details",
+    "impersonation"
+   ],
+   "decoys": [
+    "uses_name",
+    "polished",
+    "saved_contact"
+   ],
+   "note": "A change of bank details by email is the warning sign, however friendly the tone. Confirm by phone on the number you already have before paying anything new."
+  },
+  {
+   "id": "s14",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "SMS",
+   "from": "Parcelora",
+   "subject": "",
+   "context": "You ordered a jacket online yesterday and are expecting it to come by Parcelora.",
+   "body": "Parcelora: Your parcel is on its way. A delivery slot is needed to complete your order. Choose one here: parcelora.example.track-delivery.example/AB129",
+   "cues": [
+    "lookalike_link",
+    "impersonation"
+   ],
+   "decoys": [
+    "familiar_brand",
+    "replies_to_you"
+   ],
+   "note": "It arrives when you're expecting a parcel, which is why it works. Read web addresses from the right: this one belongs to track-delivery.example, with 'parcelora.example' only as a disguise at the front."
+  },
+  {
+   "id": "s15",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "Messaging app",
+   "from": "Ella (flatmate, saved contact)",
+   "subject": "",
+   "context": "Ella is your flatmate and is saved in your contacts. You've just received a text with a 6-digit code.",
+   "body": "Hey, can you do me a massive favour? I'm trying to log into my account and it sent the code to your number by mistake. Can you send me the code you just got? Thank you!!",
+   "cues": [
+    "credentials",
+    "impersonation"
+   ],
+   "decoys": [
+    "saved_contact"
+   ],
+   "note": "A message from a friend's real account can come from someone who has taken it over. A code sent to your phone protects your account, not theirs, so never pass it on."
+  },
+  {
+   "id": "s16",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Fairmount Logistics HR <jobs@fairmount-logistics.example>",
+   "subject": "Part-time Payments Assistant: work from home",
+   "context": "You posted your CV on a jobs website last month.",
+   "body": "Hello Sam,\n\nWe found your CV online and think you'd be a great fit for our part-time Payments Assistant role. You'll receive payments from our clients into your own bank account and forward them to our suppliers, keeping 10% as commission. Around 5 hours a week, fully remote.\n\nReply to this email to get started.\n\nFairmount Logistics HR",
+   "cues": [
+    "your_account",
+    "too_good",
+    "unexpected"
+   ],
+   "decoys": [
+    "uses_name",
+    "polished",
+    "replies_to_you"
+   ],
+   "note": "No real company pays people to move money through their personal account. This is money-mule recruitment, which is a criminal offence even if you didn't know."
+  },
+  {
+   "id": "s17",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "Social media DM",
+   "from": "@Copperleaf_Help_Desk",
+   "subject": "",
+   "context": "Yesterday you posted publicly that your Copperleaf card was declined in a shop.",
+   "body": "Hi Sam, sorry to hear about your card problem. We've opened a case for you. To resolve it quickly, please continue the chat with our secure support team at copperleaf-support.example/chat, where an agent will verify your account.",
+   "cues": [
+    "impersonation",
+    "lookalike_link",
+    "off_platform"
+   ],
+   "decoys": [
+    "replies_to_you",
+    "uses_name",
+    "familiar_brand",
+    "security_words"
+   ],
+   "note": "Scammers watch for public complaints and reply as fake support accounts. Contact support through the bank's own app or website instead."
+  },
+  {
+   "id": "s18",
+   "truth": "scam",
+   "difficulty": 3,
+   "channel": "Voicemail",
+   "from": "020 7946 0127",
+   "subject": "",
+   "context": "This voicemail was left while you were in a lecture.",
+   "body": "Hello, this is Daniel from the fraud department at Copperleaf Bank. We've stopped a suspicious payment on your card. To keep your money safe we need to move your balance to a protected account while we investigate. Please call me back on this number to authorise it, and avoid using your banking app until then as it may be compromised.",
+   "cues": [
+    "impersonation",
+    "unusual_payment",
+    "number_in_message",
+    "avoid_usual_route"
+   ],
+   "decoys": [
+    "security_words",
+    "familiar_brand"
+   ],
+   "note": "Banks never ask you to move money to a 'safe' or 'protected' account. Hang up and call the number on the back of your card."
+  },
+  {
+   "id": "g01",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "SMS",
+   "from": "Parcelora",
+   "subject": "",
+   "context": "You ordered a jacket from Northwind Outfitters two days ago.",
+   "body": "Parcelora: Your parcel from Northwind Outfitters will arrive today between 13:10 and 14:10. You can manage your delivery in the Parcelora app.",
+   "cues": [
+    "expected",
+    "no_action",
+    "official_route"
+   ],
+   "decoys": [
+    "risky_topic"
+   ],
+   "note": "It matches an order you placed, has no link and points you to the app you already use."
+  },
+  {
+   "id": "g02",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "Email",
+   "from": "Wealdham University Library <library@wealdham.example>",
+   "subject": "Reminder: 2 items due back on Friday",
+   "context": "You borrowed two books from the university library three weeks ago.",
+   "body": "Hi Sam,\n\nThis is a reminder that the following items are due back on Friday 14 March:\n\n- Organisational Behaviour (5th edition)\n- Introduction to Contract Law\n\nYou can renew them from your library account. No fines are charged for the first 3 days.\n\nWealdham University Library",
+   "cues": [
+    "expected",
+    "known_domain",
+    "specific_detail",
+    "official_route"
+   ],
+   "decoys": [
+    "deadline",
+    "mentions_money"
+   ],
+   "note": "It comes from the university's usual address, lists books you really borrowed and asks you to use your existing account."
+  },
+  {
+   "id": "g03",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "SMS",
+   "from": "Copperleaf",
+   "subject": "",
+   "context": "You are logging into your Copperleaf banking app right now.",
+   "body": "Copperleaf: Your one-time passcode is 482913. Never share this code with anyone, including Copperleaf staff. If you didn't request it, you can ignore this message.",
+   "cues": [
+    "expected",
+    "never_ask",
+    "no_action"
+   ],
+   "decoys": [
+    "has_code",
+    "risky_topic"
+   ],
+   "note": "This is what a genuine code text looks like: you asked for it, and it tells you never to share it."
+  },
+  {
+   "id": "g04",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "Messaging app",
+   "from": "Jordan (saved contact)",
+   "subject": "",
+   "context": "Jordan is a friend from your course. You're meeting for a lecture and pizza tonight.",
+   "body": "Running 10 mins late, save me a seat! Still up for pizza after? It's about £8 each, you can just pay me back in cash.",
+   "cues": [
+    "known_contact",
+    "expected",
+    "realistic"
+   ],
+   "decoys": [
+    "mentions_money"
+   ],
+   "note": "A saved contact, a normal plan you already made and a small cash amount with no pressure."
+  },
+  {
+   "id": "g05",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "Email",
+   "from": "Streamly <no-reply@streamly.example>",
+   "subject": "Your receipt from Streamly",
+   "context": "You subscribe to Streamly, a video streaming service.",
+   "body": "Hi Sam,\n\nThanks for your payment of £7.99 for your Streamly membership on 3 March. You can view your billing history any time in your account settings.\n\nThe Streamly team",
+   "cues": [
+    "expected",
+    "no_action",
+    "known_domain",
+    "realistic"
+   ],
+   "decoys": [
+    "mentions_money",
+    "risky_topic"
+   ],
+   "note": "A receipt that asks you to do nothing, from the service's own address."
+  },
+  {
+   "id": "g06",
+   "truth": "genuine",
+   "difficulty": 1,
+   "channel": "SMS",
+   "from": "Wealdham Dental",
+   "subject": "",
+   "context": "You booked a dental check-up last month.",
+   "body": "Wealdham Dental: Reminder of your appointment on Tue 18 March at 09:40. To cancel or rearrange, please call the practice.",
+   "cues": [
+    "expected",
+    "no_action",
+    "specific_detail"
+   ],
+   "decoys": [
+    "asks_action"
+   ],
+   "note": "It matches an appointment you made and doesn't ask for anything except to call the practice if you need to."
+  },
+  {
+   "id": "g07",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Copperleaf Bank <alerts@copperleaf.example>",
+   "subject": "Your new card is on its way",
+   "context": "You reported your bank card lost last week. Your old card ended 2290.",
+   "body": "Hi Sam,\n\nYour replacement debit card ending 4417 is on its way and should arrive within 5 working days. When it arrives, activate it in the Copperleaf app.\n\nWe will never ask for your PIN or full card number by email, text or phone.\n\nCopperleaf Bank",
+   "cues": [
+    "expected",
+    "known_domain",
+    "official_route",
+    "never_ask"
+   ],
+   "decoys": [
+    "risky_topic",
+    "asks_action"
+   ],
+   "note": "It follows the card you reported lost, comes from copperleaf.example and sends you to the app rather than a link."
+  },
+  {
+   "id": "g08",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "SMS",
+   "from": "Northmoor",
+   "subject": "",
+   "context": "Your phone contract is with Northmoor Mobile and you've been streaming a lot this month.",
+   "body": "Northmoor: You've used 80% of your data allowance this month. Your allowance resets on 21 March. To add more data, use the Northmoor app or dial 333 from your phone.",
+   "cues": [
+    "expected",
+    "official_route",
+    "no_action"
+   ],
+   "decoys": [
+    "asks_action"
+   ],
+   "note": "An ordinary usage alert that points you to the app or a short code from your own phone, with no link."
+  },
+  {
+   "id": "g09",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "Marketplace",
+   "from": "Buyer: Priya_W",
+   "subject": "",
+   "context": "You're selling a bike on a marketplace app for £90.",
+   "body": "Hi! Is the bike still for sale? I live nearby so could come and look at it on Saturday morning, and pay cash if it's all OK. Would 10am work?",
+   "cues": [
+    "verifiable",
+    "realistic",
+    "no_action"
+   ],
+   "decoys": [
+    "unknown_sender",
+    "mentions_money"
+   ],
+   "note": "Wanting to see the item and pay cash in person is how genuine buyers behave. Nothing is paid or clicked in advance."
+  },
+  {
+   "id": "g10",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Tidewell Energy <hello@tidewell.example>",
+   "subject": "Your March bill is ready",
+   "context": "Your shared house's energy account with Tidewell Energy is in your name and paid by Direct Debit.",
+   "body": "Hi Sam,\n\nYour March bill is ready: £64.20, which will be collected by Direct Debit on 28 March. You don't need to do anything.\n\nYou can view the full bill by logging in at tidewell.example or in the Tidewell app.\n\nTidewell Energy",
+   "cues": [
+    "expected",
+    "known_domain",
+    "no_action",
+    "realistic"
+   ],
+   "decoys": [
+    "mentions_money",
+    "has_link",
+    "deadline"
+   ],
+   "note": "It matches how you already pay, asks for nothing and points to the supplier's own website and app."
+  },
+  {
+   "id": "g11",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "Messaging app",
+   "from": "+44 7700 900742 (not in your contacts)",
+   "subject": "",
+   "context": "You sometimes play five-a-side football with your friend Kofi's group.",
+   "body": "Hi, this is Tom from Saturday five-a-side. Kofi gave me your number, we're one player short this week. Are you free at 11? No worries if not.",
+   "cues": [
+    "verifiable",
+    "no_action",
+    "realistic"
+   ],
+   "decoys": [
+    "unknown_sender",
+    "asks_action"
+   ],
+   "note": "Unknown numbers can be genuine. Nothing is asked of you except a reply, and you can check with Kofi."
+  },
+  {
+   "id": "g12",
+   "truth": "genuine",
+   "difficulty": 2,
+   "channel": "Email",
+   "from": "Wealdham Careers <careers@wealdham.example>",
+   "subject": "Paid summer research assistant roles: apply by 30 March",
+   "context": "You signed up for careers emails from your university.",
+   "body": "Hi Sam,\n\nThe Business School is recruiting paid research assistants for the summer: £13 an hour, up to 15 hours a week.\n\nRead the role descriptions and apply through CareerHub on the student portal. The deadline is 30 March.\n\nWealdham Careers",
+   "cues": [
+    "known_domain",
+    "official_route",
+    "realistic",
+    "expected"
+   ],
+   "decoys": [
+    "deadline",
+    "mentions_money"
+   ],
+   "note": "Ordinary pay, the university's own address and an application through the portal you already use."
+  },
+  {
+   "id": "g13",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "SMS",
+   "from": "Copperleaf",
+   "subject": "",
+   "context": "You've just booked a flight online for £89 and the payment was held for a moment.",
+   "body": "Copperleaf: Did you just try to pay £89.00 to SKYLINE AIRWAYS? Reply YES if this was you or NO if not. We will never ask you to call a number in a text or to move your money.",
+   "cues": [
+    "expected",
+    "specific_detail",
+    "never_ask"
+   ],
+   "decoys": [
+    "asks_action",
+    "mentions_money",
+    "risky_topic"
+   ],
+   "note": "It matches a payment you just made, asks only for a yes or no and warns you about the tricks scammers use."
+  },
+  {
+   "id": "g14",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Parcelora <updates@parcelora.example>",
+   "subject": "Customs charge to pay for your parcel",
+   "context": "Last week you ordered a mug from a small shop in Japan.",
+   "body": "Hi Sam,\n\nYour parcel from Kitano Ceramics (Japan) is being held at customs. Import VAT of £6.12 and a handling fee of £8.00 are due before we can deliver it.\n\nYou can pay in the Parcelora app or at parcelora.example/pay using your tracking number PX 4471 9902.\n\nParcelora",
+   "cues": [
+    "expected",
+    "known_domain",
+    "specific_detail",
+    "official_route"
+   ],
+   "decoys": [
+    "mentions_money",
+    "has_link",
+    "risky_topic"
+   ],
+   "note": "Import charges on overseas orders are real. This one matches your order, names the shop and uses Parcelora's own address and app."
+  },
+  {
+   "id": "g15",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "Messaging app",
+   "from": "Dad (saved contact)",
+   "subject": "",
+   "context": "This comes from your dad's usual number, which is saved in your contacts.",
+   "body": "Hi love, I've switched phone provider so this number stops working on Friday. My new number is 07700 900583. I'll ring you from it tonight so you know it's me.",
+   "cues": [
+    "known_contact",
+    "verifiable",
+    "no_action"
+   ],
+   "decoys": [
+    "new_number_topic"
+   ],
+   "note": "Unlike the 'new number' scam, it comes from the old, saved number, asks for no money and offers a call so you can check."
+  },
+  {
+   "id": "g16",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Wealdham IT Services <it-services@wealdham.example>",
+   "subject": "Action needed: set up multi-factor authentication by 10 April",
+   "context": "Your university has been talking about improving account security this term.",
+   "body": "Hi Sam,\n\nFrom 10 April you'll need multi-factor authentication to sign in to university systems. Set it up by logging in to the student portal as usual and choosing Security settings. There is a step-by-step guide on the IT pages.\n\nWe will never ask for your password by email. If you're unsure whether this message is genuine, visit the IT Service Desk in the library.\n\nWealdham IT Services",
+   "cues": [
+    "known_domain",
+    "official_route",
+    "never_ask",
+    "verifiable"
+   ],
+   "decoys": [
+    "deadline",
+    "asks_action",
+    "risky_topic"
+   ],
+   "note": "It looks like a phishing template, but there is no link, it sends you to the portal you already use and offers an in-person way to check."
+  },
+  {
+   "id": "g17",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Wealdham Students' Union <events@wealdhamsu.example>",
+   "subject": "You've won the Freshers' Fair prize draw!",
+   "context": "At the Students' Union fair last month you entered a prize draw by giving your email address.",
+   "body": "Hi Sam,\n\nCongratulations, you've won a £50 voucher for the SU shop in our Freshers' Fair draw!\n\nCollect it from SU reception with your student card any weekday before 25 April. You don't need to send us anything.\n\nWealdham Students' Union",
+   "cues": [
+    "expected",
+    "verifiable",
+    "no_action",
+    "realistic"
+   ],
+   "decoys": [
+    "prize",
+    "deadline",
+    "unknown_sender"
+   ],
+   "note": "You did enter this draw, the prize is modest and you collect it in person. Nothing is asked of you by email."
+  },
+  {
+   "id": "g18",
+   "truth": "genuine",
+   "difficulty": 3,
+   "channel": "Email",
+   "from": "Northwind Outfitters <orders@northwind-outfitters.example>",
+   "subject": "Your refund has been processed",
+   "context": "You returned a pair of trainers to Northwind Outfitters last week. Its website is northwind-outfitters.example.",
+   "body": "Hi Sam,\n\nWe've received your return (order NW-20418) and refunded £34.99 to the card you paid with. It can take up to 5 working days to appear on your statement.\n\nNo further action is needed.\n\nNorthwind Outfitters",
+   "cues": [
+    "expected",
+    "specific_detail",
+    "no_action",
+    "known_domain"
+   ],
+   "decoys": [
+    "mentions_money",
+    "risky_topic"
+   ],
+   "note": "It matches a return you made, comes from the shop's usual address and asks for nothing. Refunds go back to your card without you doing anything."
+  }
+ ]
+}/* MESSAGES END */;
+const MESSAGES = BANK.messages;
+const CUES = BANK.cues;
+const BY_ID = {};
+MESSAGES.forEach(m => { BY_ID[m.id] = m; });
+
+const FORMAT = 'crutch-check-session';
+const VERSION = 1;
+const ROUND_LABELS = {1: 'On your own', 2: 'With the checker', 3: 'On your own again'};
+const CONTROL_ROUND_LABELS = {1: 'On your own', 2: 'On your own (no checker)', 3: 'On your own again'};
+const ARMS = ['checker', 'control'];
+const CONF_SURE = 0.95;
+const CONF_UNSURE = 0.7;
+const MAX_CHECKER_WRONG = 6;
+const PROFILES = {
+  calibrated: 'Well calibrated',
+  over_reliant: 'Leaning on the checker',
+  under_reliant: 'Going it alone',
+  mixed: 'Swayed the wrong way',
+  few_disagreements: 'Too few disagreements to tell',
+  control: 'No checker in round 2',
+  incomplete: 'Not finished yet'
+};
+
+function defaultDesign() {
+  return {checkerWrong: 3, showReasons: true, showConfidence: true};
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(text) {
+  let h = 0x811C9DC5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function shuffle(items, rnd) {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = items[i]; items[i] = items[j]; items[j] = tmp;
+  }
+  return items;
+}
+
+function round2(x) { return Math.floor(x * 100 + 0.5) / 100; }
+function other(verdict) { return verdict === 'scam' ? 'genuine' : 'scam'; }
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+function assignArm(study, participant) {
+  return hashString('arm|' + study + '|' + participant) % 2 === 0 ? 'checker' : 'control';
+}
+
+function participantSeed(study, participant) {
+  return hashString(study + '|' + participant);
+}
+
+function intOr(x, dflt) {
+  let v = NaN;
+  if (typeof x === 'number') v = x;
+  else if (typeof x === 'string' && x.trim() !== '') v = Number(x);
+  return Number.isFinite(v) ? Math.trunc(v) : dflt;
+}
+
+function normaliseDesign(design) {
+  const d = defaultDesign();
+  if (design) {
+    Object.keys(d).forEach(k => { if (k in design) d[k] = design[k]; });
+  }
+  d.checkerWrong = clamp(intOr(d.checkerWrong, 3), 0, MAX_CHECKER_WRONG);
+  d.showReasons = Boolean(d.showReasons);
+  d.showConfidence = Boolean(d.showConfidence);
+  return d;
+}
+
+function buildSession(seed, arm, design, participant, study) {
+  arm = arm || 'checker';
+  if (ARMS.indexOf(arm) < 0) throw new Error("arm must be 'checker' or 'control'");
+  design = normaliseDesign(design);
+  seed = seed >>> 0;
+  const rnd = mulberry32(seed);
+  const cells = [];
+  ['scam', 'genuine'].forEach(truth => {
+    [1, 2, 3].forEach(difficulty => {
+      cells.push(shuffle(MESSAGES.filter(m => m.truth === truth && m.difficulty === difficulty), rnd));
+    });
+  });
+  const r1 = [], r2 = [], r3 = [];
+  cells.forEach(cell => {
+    r1.push(cell[0]);
+    r2.push(cell[1]);
+    r2.push(cell[2]);
+    r3.push(cell[3]);
+  });
+  [cells[1], cells[4]].forEach(cell => {
+    r1.push(cell[4]);
+    r3.push(cell[5]);
+  });
+  shuffle(r1, rnd);
+  shuffle(r2, rnd);
+  shuffle(r3, rnd);
+
+  const wrongCount = design.checkerWrong;
+  const misses = (wrongCount + 1) >> 1;
+  const falseAlarms = wrongCount >> 1;
+  const scamIdx = shuffle(r2.map((m, i) => i).filter(i => r2[i].truth === 'scam'), rnd);
+  const genuineIdx = shuffle(r2.map((m, i) => i).filter(i => r2[i].truth === 'genuine'), rnd);
+  const wrong = new Set(scamIdx.slice(0, misses).concat(genuineIdx.slice(0, falseAlarms)));
+  const advice = r2.map((m, i) => {
+    const correct = !wrong.has(i);
+    const u = rnd();
+    const confidence = round2(correct ? 0.78 + 0.2 * u : 0.6 + 0.25 * u);
+    return {verdict: correct ? m.truth : other(m.truth), confidence: confidence, correct: correct};
+  });
+
+  const trials = [];
+  [[1, r1], [2, r2], [3, r3]].forEach(([rnum, items]) => {
+    items.forEach((m, pos) => {
+      trials.push({
+        round: rnum,
+        position: pos,
+        messageId: m.id,
+        truth: m.truth,
+        difficulty: m.difficulty,
+        channel: m.channel,
+        checker: (rnum === 2 && arm === 'checker') ? Object.assign({}, advice[pos]) : null,
+        initial: null,
+        final: null
+      });
+    });
+  });
+  return {
+    format: FORMAT,
+    version: VERSION,
+    seed: seed,
+    arm: arm,
+    participant: participant || '',
+    study: study || '',
+    design: design,
+    trials: trials
+  };
+}
+
+function checkerReasons(trial) {
+  if (!trial.checker) return [];
+  const m = BY_ID[trial.messageId];
+  const tags = trial.checker.correct ? m.cues : m.decoys;
+  return tags.slice(0, 3).map(t => CUES[t]);
+}
+
+function confidence(resp) { return resp.sure ? CONF_SURE : CONF_UNSURE; }
+function pScam(resp) { const c = confidence(resp); return resp.verdict === 'scam' ? c : 1 - c; }
+function ratio(a, b) { return b === 0 ? null : a / b; }
+function mean(values) {
+  if (!values.length) return null;
+  let s = 0;
+  for (const v of values) s += v;
+  return s / values.length;
+}
+
+function roundStats(trials, key) {
+  key = key || 'final';
+  const answered = trials.filter(t => t[key]);
+  const n = answered.length;
+  let correct = 0, hits = 0, misses = 0, fas = 0, crs = 0, sureN = 0, sureC = 0, unsureN = 0, unsureC = 0;
+  const confs = [], sq = [];
+  answered.forEach(t => {
+    const r = t[key];
+    const right = r.verdict === t.truth;
+    if (right) correct += 1;
+    if (t.truth === 'scam') { if (right) hits += 1; else misses += 1; }
+    else { if (right) crs += 1; else fas += 1; }
+    confs.push(confidence(r));
+    const y = t.truth === 'scam' ? 1 : 0;
+    sq.push(Math.pow(pScam(r) - y, 2));
+    if (r.sure) { sureN += 1; if (right) sureC += 1; }
+    else { unsureN += 1; if (right) unsureC += 1; }
+  });
+  const accuracy = ratio(correct, n);
+  const meanConf = mean(confs);
+  return {
+    n: n,
+    correct: correct,
+    accuracy: accuracy,
+    scams: hits + misses,
+    genuines: crs + fas,
+    hits: hits,
+    misses: misses,
+    falseAlarms: fas,
+    correctRejections: crs,
+    hitRate: ratio(hits, hits + misses),
+    falseAlarmRate: ratio(fas, crs + fas),
+    meanConfidence: meanConf,
+    brier: mean(sq),
+    overconfidence: n === 0 ? null : meanConf - accuracy,
+    sure: {n: sureN, correct: sureC, accuracy: ratio(sureC, sureN)},
+    unsure: {n: unsureN, correct: unsureC, accuracy: ratio(unsureC, unsureN)}
+  };
+}
+
+function assistedStats(trials) {
+  const ts = trials.filter(t => t.checker && t.initial && t.final);
+  if (!ts.length) return null;
+  const n = ts.length;
+  const c = {bothRight: 0, bothWrong: 0, switchedToRight: 0, stayedWrong: 0, keptRight: 0, switchedToWrong: 0};
+  let initialCorrect = 0, finalCorrect = 0, checkerCorrect = 0;
+  let followedWrong = 0, checkerWrong = 0, rejectedRight = 0, switches = 0, otherChanges = 0;
+  ts.forEach(t => {
+    const truth = t.truth, ini = t.initial.verdict, fin = t.final.verdict, adv = t.checker.verdict;
+    const iOk = ini === truth, fOk = fin === truth, aOk = adv === truth;
+    if (iOk) initialCorrect += 1;
+    if (fOk) finalCorrect += 1;
+    if (aOk) checkerCorrect += 1;
+    if (fin !== ini) switches += 1;
+    if (aOk) { if (fin !== adv) rejectedRight += 1; }
+    else { checkerWrong += 1; if (fin === adv) followedWrong += 1; }
+    if (iOk && aOk) { c.bothRight += 1; if (fin !== ini) otherChanges += 1; }
+    else if (!iOk && !aOk) { c.bothWrong += 1; if (fin !== ini) otherChanges += 1; }
+    else if (aOk) { if (fOk) c.switchedToRight += 1; else c.stayedWrong += 1; }
+    else { if (fOk) c.keptRight += 1; else c.switchedToWrong += 1; }
+  });
+  const initialAcc = initialCorrect / n, finalAcc = finalCorrect / n, checkerAcc = checkerCorrect / n;
+  const disagreements = c.switchedToRight + c.stayedWrong + c.keptRight + c.switchedToWrong;
+  return {
+    n: n,
+    initialCorrect: initialCorrect,
+    finalCorrect: finalCorrect,
+    checkerCorrect: checkerCorrect,
+    initialAccuracy: initialAcc,
+    finalAccuracy: finalAcc,
+    checkerAccuracy: checkerAcc,
+    cases: c,
+    disagreements: disagreements,
+    switches: switches,
+    otherChanges: otherChanges,
+    rair: ratio(c.switchedToRight, c.switchedToRight + c.stayedWrong),
+    rsr: ratio(c.keptRight, c.keptRight + c.switchedToWrong),
+    checkerWrong: checkerWrong,
+    followedWrong: followedWrong,
+    overReliance: ratio(followedWrong, checkerWrong),
+    checkerRight: n - checkerWrong,
+    rejectedRight: rejectedRight,
+    underReliance: ratio(rejectedRight, n - checkerWrong),
+    complementarity: finalAcc - Math.max(initialAcc, checkerAcc)
+  };
+}
+
+function classify(arm, assisted, complete) {
+  if (!complete) return 'incomplete';
+  if (arm === 'control') return 'control';
+  if (!assisted || assisted.disagreements < 2) return 'few_disagreements';
+  const goodRely = assisted.rair === null || assisted.rair >= 0.5;
+  const goodSelf = assisted.rsr === null || assisted.rsr >= 0.5;
+  if (goodRely && goodSelf) return 'calibrated';
+  if (goodSelf) return 'under_reliant';
+  if (goodRely) return 'over_reliant';
+  return 'mixed';
+}
+
+function diff(a, b) { return (a === null || b === null) ? null : a - b; }
+
+function scoreSession(session) {
+  const trials = session.trials;
+  const rounds = [1, 2, 3].map(rnum => {
+    const st = roundStats(trials.filter(t => t.round === rnum));
+    st.round = rnum;
+    st.planned = trials.filter(t => t.round === rnum).length;
+    return st;
+  });
+  const complete = trials.every(t => t.final) && trials.filter(t => t.checker).every(t => t.initial);
+  const assisted = session.arm === 'checker' ? assistedStats(trials) : null;
+  const profile = classify(session.arm, assisted, complete);
+  return {
+    arm: session.arm,
+    complete: complete,
+    rounds: rounds,
+    assisted: assisted,
+    change: {
+      accuracy: diff(rounds[2].accuracy, rounds[0].accuracy),
+      brier: diff(rounds[2].brier, rounds[0].brier)
+    },
+    profile: profile,
+    profileTitle: PROFILES[profile]
+  };
+}
+
+// The demo in the app uses these seeds: each persona shows its typical pattern.
+const DEMO_SEEDS = {session: 2026, responses: 1};
+
+const PERSONAS = {
+  calibrated: {skill: 0.82, sureBias: 0.55, reliance: 0.45, learning: 0.05},
+  leaner: {skill: 0.72, sureBias: 0.45, reliance: 0.92, learning: -0.05},
+  loner: {skill: 0.72, sureBias: 0.7, reliance: 0.05, learning: 0.0}
+};
+
+function respond(truth, pCorrect, sureBias, rnd) {
+  const right = rnd() < pCorrect;
+  const verdict = right ? truth : other(truth);
+  const sure = rnd() < clamp(sureBias + (right ? 0.15 : -0.15), 0, 1);
+  return {verdict: verdict, sure: sure, ms: 2500 + Math.floor(rnd() * 9000)};
+}
+
+function simulateResponses(session, persona, seed) {
+  const rnd = mulberry32(seed >>> 0);
+  const out = JSON.parse(JSON.stringify(session));
+  const showConf = out.design.showConfidence;
+  out.trials.forEach(t => {
+    const shift = t.round === 3 ? persona.learning : 0;
+    const p = clamp(persona.skill - 0.12 * (t.difficulty - 1) + shift, 0.05, 0.98);
+    const own = respond(t.truth, p, persona.sureBias, rnd);
+    const adv = t.checker;
+    if (adv) {
+      t.initial = own;
+      const u = rnd();
+      const v = rnd();
+      let fin;
+      if (adv.verdict !== own.verdict) {
+        let ps = persona.reliance;
+        if (showConf && adv.confidence >= 0.9) ps += 0.1;
+        if (own.sure) ps -= 0.2;
+        ps = clamp(ps, 0, 1);
+        if (u < ps) fin = {verdict: adv.verdict, sure: v < persona.sureBias};
+        else fin = {verdict: own.verdict, sure: own.sure};
+      } else {
+        fin = {verdict: own.verdict, sure: own.sure || v < 0.5};
+      }
+      fin.ms = 1500 + Math.floor(rnd() * 4000);
+      t.final = fin;
+    } else {
+      t.initial = null;
+      t.final = own;
+    }
+  });
+  return out;
+}
+
+const CSV_COLUMNS = ['participant', 'study', 'arm', 'seed', 'round', 'position', 'messageId',
+  'truth', 'difficulty', 'channel', 'checkerVerdict', 'checkerConfidence',
+  'initialVerdict', 'initialSure', 'initialMs', 'finalVerdict', 'finalSure',
+  'finalMs', 'finalCorrect'];
+
+function sessionRows(session) {
+  return session.trials.map(t => {
+    const adv = t.checker || {}, ini = t.initial || {}, fin = t.final || {};
+    return {
+      participant: session.participant || '',
+      study: session.study || '',
+      arm: session.arm,
+      seed: session.seed,
+      round: t.round,
+      position: t.position,
+      messageId: t.messageId,
+      truth: t.truth,
+      difficulty: t.difficulty,
+      channel: t.channel,
+      checkerVerdict: adv.verdict !== undefined ? adv.verdict : '',
+      checkerConfidence: adv.confidence !== undefined ? adv.confidence : '',
+      initialVerdict: ini.verdict !== undefined ? ini.verdict : '',
+      initialSure: t.initial ? String(ini.sure) : '',
+      initialMs: ini.ms !== undefined ? ini.ms : '',
+      finalVerdict: fin.verdict !== undefined ? fin.verdict : '',
+      finalSure: t.final ? String(fin.sure) : '',
+      finalMs: fin.ms !== undefined ? fin.ms : '',
+      finalCorrect: t.final ? String(fin.verdict === t.truth) : ''
+    };
+  });
+}
+
+function toCSV(sessions) {
+  const esc = v => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [CSV_COLUMNS.join(',')];
+  sessions.forEach(s => sessionRows(s).forEach(r => lines.push(CSV_COLUMNS.map(c => esc(r[c])).join(','))));
+  return lines.join('\n') + '\n';
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    BANK, MESSAGES, CUES, BY_ID, FORMAT, VERSION, ROUND_LABELS, CONTROL_ROUND_LABELS, PROFILES,
+    PERSONAS, DEMO_SEEDS, CONF_SURE, CONF_UNSURE, CSV_COLUMNS, defaultDesign, mulberry32, hashString,
+    shuffle, round2, assignArm, participantSeed, normaliseDesign, buildSession, checkerReasons,
+    roundStats, assistedStats, classify, scoreSession, simulateResponses, sessionRows, toCSV
+  };
+}
+/* MODEL END */
+
+/* ------------------------------------------------------------------ */
+/* Interface                                                          */
+/* ------------------------------------------------------------------ */
+(function () {
+  if (typeof document === 'undefined') return;
+
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const ICONS = {
+    SMS: '<path d="M4 5h16v11H8l-4 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    'Messaging app': '<path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    Email: '<rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2"/>',
+    'Social media DM': '<circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="2"/>',
+    Marketplace: '<path d="M4 9h16l-1 11H5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9V7a4 4 0 0 1 8 0v2" fill="none" stroke="currentColor" stroke-width="2"/>',
+    Voicemail: '<circle cx="6.5" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 15.5h11" stroke="currentColor" stroke-width="2"/>'
+  };
+  const CHANNEL_NAMES = {
+    SMS: 'Text message', 'Messaging app': 'Messaging app', Email: 'Email',
+    'Social media DM': 'Social media message', Marketplace: 'Marketplace app message', Voicemail: 'Voicemail transcript'
+  };
+  const SHIELD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const TICK = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const CROSS = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+  const WARN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 10v5M12 17.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  const OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12.5l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const CHOICES = [
+    {verdict: 'scam', sure: true, label: 'Definitely a scam'},
+    {verdict: 'scam', sure: false, label: 'Probably a scam'},
+    {verdict: 'genuine', sure: false, label: 'Probably genuine'},
+    {verdict: 'genuine', sure: true, label: 'Definitely genuine'}
+  ];
+
+  const state = {session: null, index: 0, stage: 'initial', shownAt: 0, lockUntil: 0};
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  }
+  function linkify(s) {
+    return esc(s).replace(/\b((?:[a-z0-9-]+\.)+example(?:\/[^\s]*)?)/gi, '<span class="fake-link">$1</span>');
+  }
+  function pct(x) { return x === null || x === undefined ? 'n/a' : Math.round(x * 100) + '%'; }
+  function verdictTag(v) {
+    return '<span class="verdict-tag ' + v + '">' + (v === 'scam' ? WARN : OK) + (v === 'scam' ? 'Scam' : 'Genuine') + '</span>';
+  }
+  function answerText(r) {
+    if (!r) return 'No answer';
+    return (r.sure ? 'Definitely ' : 'Probably ') + (r.verdict === 'scam' ? 'a scam' : 'genuine');
+  }
+
+  function show(id) {
+    ['screen-intro', 'screen-break', 'screen-trial', 'screen-results'].forEach(s => {
+      document.getElementById(s).hidden = s !== id;
+    });
+    window.scrollTo(0, 0);
+  }
+  function focusEl(el) { if (el) el.focus({preventScroll: true}); }
+
+  function messageHTML(m) {
+    const bubble = m.channel !== 'Email';
+    let html = '<article class="msg ' + (bubble ? 'bubble' : 'doc') + (m.channel === 'Voicemail' ? ' voicemail' : '') + '" aria-label="' + esc(CHANNEL_NAMES[m.channel]) + ' from ' + esc(m.from) + '">';
+    html += '<div class="msg-head"><span class="msg-icon"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[m.channel] + '</svg></span>';
+    html += '<div><div class="msg-channel">' + esc(CHANNEL_NAMES[m.channel]) + '</div><div class="msg-from">' + (m.channel === 'Email' ? 'From: ' : '') + esc(m.from) + '</div></div></div>';
+    if (m.subject) html += '<div class="msg-subject">' + esc(m.subject) + '</div>';
+    html += '<div class="msg-body">' + (bubble ? '<span class="msg-text">' + linkify(m.body) + '</span>' : linkify(m.body)) + '</div>';
+    html += '</article>';
+    return html;
+  }
+
+  function answersHTML(prefix) {
+    return CHOICES.map((c, i) =>
+      '<button type="button" class="answer ' + c.verdict + '" data-choice="' + i + '" id="' + prefix + '-' + i + '">' +
+      '<span class="key" aria-hidden="true">' + (i + 1) + '</span><span class="dot" aria-hidden="true"></span>' +
+      '<span class="lbl">' + c.label + '</span></button>').join('');
+  }
+
+  /* ---------- Starting ---------- */
+  function readDesign() {
+    const acc = document.querySelector('input[name="acc"]:checked');
+    return normaliseDesign({
+      checkerWrong: acc ? Number(acc.value) : 3,
+      showReasons: $('#opt-reasons').checked,
+      showConfidence: $('#opt-confidence').checked
+    });
+  }
+
+  function randomSeed() {
+    let x = 0;
+    if (window.crypto && window.crypto.getRandomValues) {
+      const a = new Uint32Array(1);
+      window.crypto.getRandomValues(a);
+      x = a[0];
+    }
+    return (x ^ Date.now()) >>> 0;
+  }
+
+  function startTest() {
+    const design = readDesign();
+    state.session = buildSession(randomSeed(), 'checker', design, '', '');
+    state.session.startedAt = new Date().toISOString();
+    state.index = 0;
+    showBreak(1);
+  }
+
+  function showBreak(round) {
+    const s = state.session;
+    const assisted = round === 2 && s.arm === 'checker';
+    const count = s.trials.filter(t => t.round === round).length;
+    const card = $('#break-card');
+    card.classList.toggle('assisted', assisted);
+    $('#break-eyebrow').textContent = 'Round ' + round + ' of 3';
+    const labels = s.arm === 'checker' ? ROUND_LABELS : CONTROL_ROUND_LABELS;
+    $('#break-title').textContent = labels[round];
+    let body = '';
+    if (round === 1) {
+      body = '<p>You are Sam, a second-year student. Each message comes with a line about Sam\'s situation, so read that first.</p>' +
+        '<p>Decide whether each of these ' + count + ' messages is a scam or genuine, and how sure you are. You won\'t see the answers until the end.</p>';
+    } else if (assisted) {
+      const d = s.design;
+      const right = 12 - d.checkerWrong;
+      body = '<p>For the next ' + count + ' messages you get a second opinion from an AI checker.</p><ol>' +
+        '<li>Give your own answer first.</li>' +
+        '<li>See what the checker thinks' + (d.showReasons ? ' and why' : '') + '.</li>' +
+        '<li>Give your final answer. You can stick with yours or change your mind.</li></ol>' +
+        '<p class="note-box">The checker is usually right, but not always. In this test it is right on ' + right + ' of these ' + count + ' messages.</p>';
+    } else if (round === 2) {
+      body = '<p>Judge the next ' + count + ' messages on your own, just as in round 1.</p>';
+    } else {
+      body = '<p>The checker is not available for the last ' + count + ' messages. Judge them on your own, as in round 1.</p>' +
+        '<p class="muted">This round shows whether your own judgement changed after ' + (s.arm === 'checker' ? 'working with the checker.' : 'round 2.') + '</p>';
+    }
+    $('#break-body').innerHTML = body;
+    $('#break-go').textContent = 'Start round ' + round;
+    show('screen-break');
+    focusEl($('#break-title'));
+  }
+
+  function renderTrial() {
+    const s = state.session;
+    const t = s.trials[state.index];
+    const m = BY_ID[t.messageId];
+    const inRound = s.trials.filter(x => x.round === t.round);
+    const assisted = !!t.checker;
+    const labels = s.arm === 'checker' ? ROUND_LABELS : CONTROL_ROUND_LABELS;
+    $('#round-pill').innerHTML = 'Round ' + t.round + ' of 3 <span class="tag' + (assisted ? ' assisted' : '') + '">' + esc(labels[t.round]) + '</span>';
+    $('#trial-count').textContent = 'Message ' + (t.position + 1) + ' of ' + inRound.length;
+    const done = state.index;
+    $('#progress').setAttribute('aria-valuenow', String(done));
+    $('#progress').setAttribute('aria-valuemax', String(s.trials.length));
+    $('#progress-fill').style.width = (100 * done / s.trials.length) + '%';
+    $('#trial-title').textContent = 'Message ' + (state.index + 1) + ' of ' + s.trials.length + ': ' + CHANNEL_NAMES[m.channel] + ' from ' + m.from;
+    $('#context').innerHTML = '<strong>Sam\'s situation</strong>' + esc(m.context);
+    $('#message').innerHTML = messageHTML(m);
+    $('#answers-first').innerHTML = answersHTML('a1');
+    $('#ask-first').textContent = assisted ? 'Your first answer: is this a scam or genuine?' : 'Is this message a scam or genuine?';
+    $('#checker-block').hidden = true;
+    state.stage = 'initial';
+    state.shownAt = performance.now();
+    focusEl($('#trial-title'));
+  }
+
+  function renderChecker(t) {
+    const d = state.session.design;
+    const adv = t.checker;
+    let html = '<div class="checker-head">' + SHIELD + '<div><div class="checker-name">AI checker</div>' +
+      '<div class="checker-verdict">' + (adv.verdict === 'scam' ? 'Likely a scam' : 'Likely genuine') +
+      (d.showConfidence ? ' <span class="muted" style="font-weight:600;font-size:16px">' + Math.round(adv.confidence * 100) + '% sure</span>' : '') +
+      '</div></div></div>';
+    if (d.showReasons) {
+      html += '<ul>' + checkerReasons(t).map(r => '<li>' + esc(r) + '</li>').join('') + '</ul>';
+    }
+    $('#checker-panel').innerHTML = html;
+    $('#answers-final').innerHTML = answersHTML('a2');
+    $('#checker-block').hidden = false;
+  }
+
+  function choose(i) {
+    if (performance.now() < state.lockUntil) return;
+    const s = state.session;
+    const t = s.trials[state.index];
+    const c = CHOICES[i];
+    const resp = {verdict: c.verdict, sure: c.sure, ms: Math.round(performance.now() - state.shownAt)};
+    if (t.checker && state.stage === 'initial') {
+      t.initial = resp;
+      document.querySelectorAll('#answers-first .answer').forEach((b, k) => {
+        b.disabled = true;
+        b.classList.toggle('chosen', k === i);
+        if (k === i) b.setAttribute('aria-label', c.label + ' (your first answer)');
+      });
+      state.stage = 'final';
+      state.shownAt = performance.now();
+      state.lockUntil = performance.now() + 350;
+      renderChecker(t);
+      focusEl($('#a2-0'));
+      return;
+    }
+    t.final = resp;
+    state.lockUntil = performance.now() + 250;
+    next();
+  }
+
+  function next() {
+    const s = state.session;
+    state.index += 1;
+    if (state.index >= s.trials.length) { finish(); return; }
+    if (s.trials[state.index].round !== s.trials[state.index - 1].round) showBreak(s.trials[state.index].round);
+    else renderTrial();
+  }
+
+  function finish() {
+    const s = state.session;
+    s.finishedAt = new Date().toISOString();
+    renderResults(s, null);
+  }
+
+  /* ---------- Results ---------- */
+  const PROFILE_TEXT = {
+    calibrated: 'You took the checker\'s advice when it was right and stood your ground when it was wrong. That is what appropriate reliance looks like.',
+    over_reliant: 'When the checker was wrong, you tended to switch to its answer even though your first answer was right. Its confidence carried more weight than your own reasoning.',
+    under_reliant: 'When the checker was right and you were not, you mostly stuck with your own answer. You protected yourself from its mistakes but left useful help on the table.',
+    mixed: 'You tended to switch when the checker was wrong and stay put when it was right: the opposite of what helps. Look at the messages below to see where it happened.',
+    few_disagreements: 'You and the checker disagreed fewer than twice, so there isn\'t enough evidence to say how you used its advice. Try again with a less accurate checker in the settings.',
+    control: 'In this version of the test you judged round 2 on your own, as a comparison group. Your before and after scores show how much practice alone changes your judgement.',
+    incomplete: 'This session isn\'t finished, so these results only cover the messages answered so far.'
+  };
+
+  function hbar(name, value, cls, title) {
+    const w = value === null ? 0 : Math.max(0, Math.min(1, value)) * 100;
+    return '<div class="hbar ' + (cls || '') + '" title="' + esc(title || name) + '"><span class="name">' + esc(name) + '</span>' +
+      '<span class="track" aria-hidden="true"><span class="fill" style="width:' + w.toFixed(1) + '%"></span></span>' +
+      '<span class="val">' + pct(value) + '</span></div>';
+  }
+
+  function tile(label, st, sub) {
+    return '<div class="tile"><div class="tile-label">' + esc(label) + '</div>' +
+      '<div class="tile-value">' + st.correct + '<small> of ' + st.n + '</small></div>' +
+      '<div class="tile-sub">' + sub + '</div></div>';
+  }
+
+  function changeSentence(res) {
+    const ch = res.change.accuracy;
+    if (ch === null) return '';
+    const pts = Math.round(ch * 100);
+    if (pts === 0) return 'Your accuracy on your own was the same before and after round 2.';
+    return 'Your accuracy on your own went ' + (pts > 0 ? 'up' : 'down') + ' by ' + Math.abs(pts) + ' percentage points from round 1 to round 3.';
+  }
+
+  function renderResults(s, demoLabel) {
+    const res = scoreSession(s);
+    const [r1, r2, r3] = res.rounds;
+    const a = res.assisted;
+    let html = '';
+    if (demoLabel) html += '<div class="banner"><strong>Example result.</strong> ' + esc(demoLabel) + ' Start the test to see your own.</div>';
+    html += '<div class="results-head"><div><h1 id="results-title" tabindex="-1">' + (demoLabel ? 'Example results' : 'Your results') + '</h1>' +
+      '<p class="lede" style="margin:0">' + esc(changeSentence(res)) + '</p></div></div>';
+
+    html += '<div class="tiles" style="margin-top:18px">';
+    html += tile('Round 1: on your own', r1, pct(r1.accuracy) + ' right');
+    if (a) html += tile('Round 2: with the checker', r2, pct(r2.accuracy) + ' right. The checker alone: ' + a.checkerCorrect + ' of ' + a.n);
+    else html += tile('Round 2: on your own', r2, pct(r2.accuracy) + ' right');
+    html += tile('Round 3: on your own again', r3, pct(r3.accuracy) + ' right');
+    html += '</div>';
+
+    html += '<div class="grid-2" style="margin-top:16px">';
+    html += '<div class="card"><h2>Accuracy, round by round</h2><div class="hbars" role="list">';
+    html += hbar('Round 1: your answers', r1.accuracy, 'faint');
+    if (a) {
+      html += hbar('Round 2: your first answers', a.initialAccuracy, 'faint');
+      html += hbar('Round 2: the checker on its own', a.checkerAccuracy, 'adv');
+      html += hbar('Round 2: your final answers', a.finalAccuracy, '');
+    } else {
+      html += hbar('Round 2: your answers', r2.accuracy, 'faint');
+    }
+    html += hbar('Round 3: your answers', r3.accuracy, 'faint');
+    html += '</div><p class="axis-note">Share of messages judged correctly. 50% is what guessing would get.</p></div>';
+
+    html += '<div class="card"><h2>How you used the checker</h2>';
+    html += '<div class="profile"><div class="muted small">Your pattern</div><div class="name">' + esc(res.profileTitle) + '</div></div>';
+    html += '<p style="margin-top:10px">' + esc(PROFILE_TEXT[res.profile]) + '</p>';
+    if (a) {
+      const c = a.cases;
+      html += '<div class="quad" role="table" aria-label="What happened when you and the checker disagreed">' +
+        '<div role="row" style="display:contents"><span class="hd" role="columnheader"></span><span class="hd" role="columnheader">You switched to its answer</span><span class="hd" role="columnheader">You kept your answer</span></div>' +
+        '<div role="row" style="display:contents"><span class="hd" role="rowheader">Checker right, you wrong</span>' +
+        '<span class="cell good" role="cell"><span class="n">' + c.switchedToRight + '</span><span class="tagline-s">Good switch</span></span>' +
+        '<span class="cell bad" role="cell"><span class="n">' + c.stayedWrong + '</span><span class="tagline-s">Missed its help</span></span></div>' +
+        '<div role="row" style="display:contents"><span class="hd" role="rowheader">Checker wrong, you right</span>' +
+        '<span class="cell bad" role="cell"><span class="n">' + c.switchedToWrong + '</span><span class="tagline-s">Talked out of it</span></span>' +
+        '<span class="cell good" role="cell"><span class="n">' + c.keptRight + '</span><span class="tagline-s">Held firm</span></span></div></div>';
+      html += '<p class="small muted" style="margin-top:10px">You agreed with the checker from the start on ' + (c.bothRight + c.bothWrong) + ' messages' +
+        (c.bothWrong ? ', including ' + c.bothWrong + ' where you were both wrong' : '') + '. ' +
+        'You followed it when it was wrong on ' + a.followedWrong + ' of ' + a.checkerWrong + ' messages.</p>';
+    }
+    html += '</div></div>';
+
+    html += '<div class="card" style="margin-top:16px"><h2>How sure were you?</h2>';
+    const all = roundStats(s.trials);
+    html += '<p>When you said <strong>definitely</strong>, you were right ' + all.sure.correct + ' of ' + all.sure.n + ' times (' + pct(all.sure.accuracy) + '). ' +
+      'When you said <strong>probably</strong>, you were right ' + all.unsure.correct + ' of ' + all.unsure.n + ' times (' + pct(all.unsure.accuracy) + ').</p>';
+    html += '<p class="small muted">Your Brier score (final answers, all rounds) is ' + (all.brier === null ? 'n/a' : all.brier.toFixed(3)) +
+      '. Lower is better: 0 means always right and certain, 0.25 is what you would get by always saying "50:50".</p></div>';
+
+    html += '<div class="card review" style="margin-top:16px"><h2>Message by message</h2><p class="small muted">Open any message to see the answer, the warning signs and what made it look the other way.</p>';
+    [1, 2, 3].forEach(rnum => {
+      const labels = s.arm === 'checker' ? ROUND_LABELS : CONTROL_ROUND_LABELS;
+      html += '<div class="review-round"><h3>Round ' + rnum + ': ' + esc(labels[rnum]) + '</h3>';
+      s.trials.filter(t => t.round === rnum).forEach(t => { html += reviewItem(t); });
+      html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<div class="card" style="margin-top:16px"><h2>Keep your results</h2><p class="small muted">Files are created on this device. Nothing is uploaded.</p><div class="export">' +
+      '<button class="btn" type="button" data-act="json">Download session (JSON)</button>' +
+      '<button class="btn" type="button" data-act="csv">Download answers (CSV)</button>' +
+      '<button class="btn primary" type="button" data-act="restart">Back to the start</button></div></div>';
+
+    const root = $('#results');
+    root.innerHTML = html;
+    root.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+      const act = b.getAttribute('data-act');
+      if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, null, 2), 'application/json');
+      else if (act === 'csv') download(fileStem(s) + '.csv', toCSV([s]), 'text/csv');
+      else if (act === 'restart') { show('screen-intro'); focusEl($('#intro-title')); }
+    }));
+    show('screen-results');
+    focusEl($('#results-title'));
+  }
+
+  function reviewItem(t) {
+    const m = BY_ID[t.messageId];
+    const ok = t.final && t.final.verdict === t.truth;
+    let h = '<details><summary><span class="' + (ok ? 'icon-ok' : 'icon-no') + '">' + (ok ? TICK : CROSS) + '<span class="sr-only">' + (ok ? 'You got this right' : 'You got this wrong') + '</span></span>' +
+      '<span class="who">' + esc(CHANNEL_NAMES[m.channel]) + ' from ' + esc(m.from) + '</span>' + verdictTag(t.truth) + '</summary><div class="inner">';
+    h += '<div class="context"><strong>Sam\'s situation</strong>' + esc(m.context) + '</div>' + messageHTML(m);
+    h += '<dl class="kv">';
+    if (t.checker) {
+      h += '<dt>Your first answer</dt><dd>' + answerText(t.initial) + '</dd>';
+      h += '<dt>The checker said</dt><dd>' + (t.checker.verdict === 'scam' ? 'Likely a scam' : 'Likely genuine') + ', ' + Math.round(t.checker.confidence * 100) + '% sure' + (t.checker.correct ? '' : ' (wrong)') + '</dd>';
+      h += '<dt>Your final answer</dt><dd>' + answerText(t.final) + '</dd>';
+    } else {
+      h += '<dt>Your answer</dt><dd>' + answerText(t.final) + '</dd>';
+    }
+    h += '</dl><p>' + esc(m.note) + '</p>';
+    h += '<h4 class="small" style="margin:0">' + (m.truth === 'scam' ? 'Warning signs' : 'Reassuring signs') + '</h4><ul class="cue-list">' + m.cues.map(c => '<li>' + esc(CUES[c]) + '</li>').join('') + '</ul>';
+    h += '<h4 class="small" style="margin:0">' + (m.truth === 'scam' ? 'What made it look genuine' : 'What made it look like a scam') + '</h4><ul class="cue-list">' + m.decoys.map(c => '<li>' + esc(CUES[c]) + '</li>').join('') + '</ul>';
+    h += '</div></details>';
+    return h;
+  }
+
+  function fileStem(s) {
+    const who = s.participant ? s.participant.replace(/[^A-Za-z0-9_-]+/g, '-') : 'session';
+    return 'crutch-check-' + who + '-' + s.seed;
+  }
+
+  function download(name, text, type) {
+    const blob = new Blob([text], {type: type});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  /* ---------- Demo ---------- */
+  const DEMO_LABELS = {
+    calibrated: 'A simulated person who uses the checker well.',
+    leaner: 'A simulated person who leans heavily on the checker.',
+    loner: 'A simulated person who mostly ignores the checker.'
+  };
+  function showDemo() {
+    const key = $('#demo-persona').value;
+    const base = buildSession(DEMO_SEEDS.session, 'checker', defaultDesign(), '', '');
+    const filled = simulateResponses(base, PERSONAS[key], DEMO_SEEDS.responses);
+    renderResults(filled, DEMO_LABELS[key]);
+  }
+
+  /* ---------- Wiring ---------- */
+  $('#start-btn').addEventListener('click', startTest);
+  $('#demo-btn').addEventListener('click', showDemo);
+  $('#break-go').addEventListener('click', () => {
+    state.lockUntil = performance.now() + 250;
+    show('screen-trial');
+    renderTrial();
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.answer');
+    if (!b || b.disabled) return;
+    choose(Number(b.getAttribute('data-choice')));
+  });
+  document.addEventListener('keydown', e => {
+    if ($('#screen-trial').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    if (k >= '1' && k <= '4') {
+      e.preventDefault();
+      choose(Number(k) - 1);
+    }
+  });
+})();
+</script>
+</body>
+</html>
