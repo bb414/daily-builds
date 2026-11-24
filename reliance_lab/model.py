@@ -93,43 +93,6 @@ def norm_cdf(x: float) -> float:
     return 1 - c if x > 0 else c
 
 
-_A = (-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
-      1.38357751867269e2, -3.066479806614716e1, 2.506628277459239)
-_B = (-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
-      6.680131188771972e1, -1.328068155288572e1)
-_C = (-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
-      -2.549732539343734, 4.374664141464968, 2.938163982698783)
-_D = (7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
-      3.754408661907416)
-
-
-def norm_inv(p: float) -> float:
-    """Inverse standard normal CDF (Acklam's approximation plus one Halley step)."""
-    if not (0 < p < 1):
-        if p == 0:
-            return -math.inf
-        if p == 1:
-            return math.inf
-        return float("nan")
-    p_low = 0.02425
-    if p < p_low:
-        q = math.sqrt(-2 * math.log(p))
-        x = ((((((_C[0] * q + _C[1]) * q + _C[2]) * q + _C[3]) * q + _C[4]) * q + _C[5])
-             / ((((_D[0] * q + _D[1]) * q + _D[2]) * q + _D[3]) * q + 1))
-    elif p <= 1 - p_low:
-        q = p - 0.5
-        r = q * q
-        x = ((((((_A[0] * r + _A[1]) * r + _A[2]) * r + _A[3]) * r + _A[4]) * r + _A[5]) * q
-             / (((((_B[0] * r + _B[1]) * r + _B[2]) * r + _B[3]) * r + _B[4]) * r + 1))
-    else:
-        q = math.sqrt(-2 * math.log(1 - p))
-        x = -((((((_C[0] * q + _C[1]) * q + _C[2]) * q + _C[3]) * q + _C[4]) * q + _C[5])
-              / ((((_D[0] * q + _D[1]) * q + _D[2]) * q + _D[3]) * q + 1))
-    err = norm_cdf(x) - p
-    u = err * math.sqrt(2 * math.pi) * math.exp(x * x / 2)
-    return x - u / (1 + x * u / 2)
-
-
 def logit(p: float) -> float:
     return math.log(p / (1 - p))
 
@@ -317,3 +280,40 @@ def sensitivity(params: dict | None = None, policy: str = "optimal") -> list[dic
                      "high": high, "swing": abs(high - low), "order": order})
     rows.sort(key=lambda r: (-r["swing"], r["order"]))
     return rows
+
+
+OUTCOME_KEYS = ("agreedRight", "switchedRight", "heldFirm", "overRelied", "underRelied", "bothWrong")
+
+OUTCOME_LABELS = {
+    "agreedRight": "Agreed, both right",
+    "switchedRight": "Switched to a right AI",
+    "heldFirm": "Held firm against a wrong AI",
+    "overRelied": "Followed a wrong AI",
+    "underRelied": "Overrode a right AI",
+    "bothWrong": "Both wrong",
+}
+
+
+def per_100(params: dict | None = None, policy: str = "optimal") -> dict:
+    """Expected outcomes out of every 100 cases for one rule, rounded so they add up to exactly
+    100 (largest remainder, ties to the earlier outcome). ``exact`` keeps the unrounded values."""
+    p = normalise(params)
+    cells = joint_cells(p["human"], p["ai"], p["overlap"])
+    f1, f0 = follow_rates(p, policy, cells)
+    exact = {
+        "agreedRight": 100 * cells["p11"],
+        "switchedRight": 100 * cells["p01"] * f1,
+        "heldFirm": 100 * cells["p10"] * (1 - f0),
+        "overRelied": 100 * cells["p10"] * f0,
+        "underRelied": 100 * cells["p01"] * (1 - f1),
+        "bothWrong": 100 * cells["p00"],
+    }
+    counts = {k: math.floor(exact[k] + 1e-9) for k in OUTCOME_KEYS}
+    used = sum(counts.values())
+    order = sorted(((exact[k] - counts[k], i, k) for i, k in enumerate(OUTCOME_KEYS)), key=lambda t: (-t[0], t[1]))
+    for _, _, k in order:
+        if used >= 100:
+            break
+        counts[k] += 1
+        used += 1
+    return {"counts": counts, "exact": exact}

@@ -6,76 +6,9 @@ const { loadModel } = require('./model_harness.js');
 
 const M = loadModel();
 
-test('the same code gives the same payments; a different code does not', () => {
-  const a = M.generateCases({ n: 20, code: 'ABC12', aiAccuracy: 0.8 });
-  const b = M.generateCases({ n: 20, code: 'ABC12', aiAccuracy: 0.8 });
-  const c = M.generateCases({ n: 20, code: 'XYZ99', aiAccuracy: 0.8 });
-  assert.deepEqual(a, b);
-  assert.notDeepEqual(a.map((x) => x.levels), c.map((x) => x.levels));
-});
-
-test('payments are half fraud and the advisor is right exactly as often as set', () => {
-  for (const n of [12, 20, 30]) {
-    for (const acc of [0.7, 0.8, 0.9]) {
-      const cases = M.generateCases({ n, code: 'balance', aiAccuracy: acc });
-      assert.equal(cases.length, n);
-      assert.equal(cases.filter((c) => c.truth === 'fraud').length, n / 2);
-      assert.equal(cases.filter((c) => c.aiCorrect).length, Math.round(n * acc));
-      cases.forEach((c) => assert.equal(c.aiCorrect, c.ai === c.truth));
-    }
-  }
-});
-
-test('advisor settings change the advice but not the payments', () => {
-  const low = M.generateCases({ n: 20, code: 'class-1', aiAccuracy: 0.7, aiStyle: 'calibrated' });
-  const high = M.generateCases({ n: 20, code: 'class-1', aiAccuracy: 0.9, aiStyle: 'confident' });
-  assert.deepEqual(low.map((c) => [c.truth, c.levels, c.details]), high.map((c) => [c.truth, c.levels, c.details]));
-  low.forEach((c, i) => {
-    if (c.aiCorrect) assert.ok(high[i].aiCorrect, 'a better advisor keeps the weaker one’s right answers');
-  });
-});
-
-test('confidence styles produce the documented ranges', () => {
-  const cal = M.generateCases({ n: 60, code: 'styles', aiStyle: 'calibrated' });
-  const sure = M.generateCases({ n: 60, code: 'styles', aiStyle: 'confident' });
-  const hidden = M.generateCases({ n: 60, code: 'styles', aiStyle: 'hidden' });
-  cal.forEach((c) => assert.ok(c.aiConfidence >= 0.5 && c.aiConfidence <= 0.99));
-  sure.forEach((c) => assert.ok(c.aiConfidence >= 0.9 && c.aiConfidence <= 0.99));
-  hidden.forEach((c) => assert.equal(c.aiConfidence, null));
-  const meanRight = (cs, ok) => {
-    const sel = cs.filter((c) => c.aiCorrect === ok);
-    return sel.reduce((s, c) => s + c.aiConfidence, 0) / sel.length;
-  };
-  assert.ok(meanRight(cal, true) > meanRight(cal, false) + 0.05, 'honest confidence is higher when right');
-});
-
-test('an ideal reader of the six cues gets about 85% right', () => {
-  let acc = 0;
-  const walk = (i, levels, pg, pf) => {
-    if (i === M.FEATURES.length) {
-      acc += 0.5 * Math.max(pg, pf);
-      return;
-    }
-    const f = M.FEATURES[i];
-    f.levels.forEach((_, k) => walk(i + 1, levels.concat(k), pg * f.genuine[k], pf * f.fraud[k]));
-  };
-  walk(0, [], 1, 1);
-  assert.ok(Math.abs(acc - 0.85) < 0.005, 'ideal accuracy ' + acc);
-  M.FEATURES.forEach((f) => {
-    assert.ok(Math.abs(f.genuine.reduce((s, v) => s + v, 0) - 1) < 1e-9);
-    assert.ok(Math.abs(f.fraud.reduce((s, v) => s + v, 0) - 1) < 1e-9);
-  });
-});
-
-test('ideal fraud probability is the product of the cue odds', () => {
-  const levels = [2, 2, 1, 1, 3, 2];
-  let odds = 1;
-  M.FEATURES.forEach((f, i) => { odds *= f.fraud[levels[i]] / f.genuine[levels[i]]; });
-  assert.ok(Math.abs(M.idealFraudProbability(levels) - odds / (1 + odds)) < 1e-12);
-});
-
 test('every rule’s errors plus its accuracy add up to one', () => {
-  const rand = M.mulberry32(11);
+  let seed = 11;
+  const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
   for (let i = 0; i < 200; i++) {
     const p = {
       human: 0.5 + rand() * 0.49, ai: 0.5 + rand() * 0.49, overlap: rand() * 1.6 - 0.6,
@@ -92,48 +25,6 @@ test('every rule’s errors plus its accuracy add up to one', () => {
   }
 });
 
-test('scoring a small hand-made session', () => {
-  const trials = [
-    { truth: 'fraud', initial: 'genuine', initialConfidence: 0.55, ai: 'fraud', aiConfidence: 0.9, final: 'fraud' },
-    { truth: 'fraud', initial: 'fraud', initialConfidence: 0.95, ai: 'genuine', aiConfidence: 0.6, final: 'fraud' },
-    { truth: 'genuine', initial: 'genuine', initialConfidence: 0.7, ai: 'fraud', aiConfidence: 0.8, final: 'fraud' },
-    { truth: 'genuine', initial: 'fraud', initialConfidence: 0.85, ai: 'fraud', aiConfidence: 0.7, final: 'fraud' }
-  ];
-  const s = M.scoreSession(trials);
-  assert.equal(s.initialAccuracy, 0.5);
-  assert.equal(s.aiAccuracy, 0.25);
-  assert.equal(s.finalAccuracy, 0.5);
-  assert.equal(s.rair, 1);
-  assert.equal(s.rsr, 0.5);
-  assert.equal(s.outcomes.goodSwitch, 1);
-  assert.equal(s.outcomes.heldFirm, 1);
-  assert.equal(s.outcomes.overRelied, 1);
-  assert.equal(s.outcomes.sharedMiss, 1);
-  assert.throws(() => M.scoreSession([]), /at least one trial/);
-  assert.throws(() => M.scoreSession([{ truth: 'maybe' }]), /truth/);
-});
-
-test('mistakes on the tricky payments fall where the cues mislead', () => {
-  const pTruth = (c) => (c.truth === 'fraud' ? c.idealFraudProbability : 1 - c.idealFraudProbability);
-  const meanWrong = (mistakes) => {
-    let total = 0;
-    let count = 0;
-    for (let i = 0; i < 40; i++) {
-      M.generateCases({ n: 30, code: 'm' + i, aiAccuracy: 0.8, mistakes }).forEach((c) => {
-        if (!c.aiCorrect) { total += pTruth(c); count += 1; }
-      });
-    }
-    return total / count;
-  };
-  const hard = meanWrong('hard');
-  const random = meanWrong('random');
-  const easy = meanWrong('easy');
-  assert.ok(hard < random - 0.1 && random < easy - 0.05, [hard, random, easy].join(', '));
-  const a = M.generateCases({ n: 20, code: 'same', mistakes: 'hard' });
-  const b = M.generateCases({ n: 20, code: 'same', mistakes: 'easy' });
-  assert.deepEqual(a.map((c) => c.details), b.map((c) => c.details));
-});
-
 test('the gain map has the right shape and matches single evaluations', () => {
   const g = M.gainGrid({ aiSignal: 2 }, 'optimal', 12);
   assert.equal(g.values.length, 12);
@@ -146,28 +37,66 @@ test('the gain map has the right shape and matches single evaluations', () => {
   M.gainGrid({}, 'fixed', 10).gains.forEach((row) => row.forEach((v) => assert.ok(v <= 1e-12)));
 });
 
-test('honest confidence is calibrated: answers shown at c% are right about c% of the time', () => {
-  for (const acc of [0.7, 0.8, 0.9]) {
-    const bins = {};
-    for (let i = 0; i < 600; i++) {
-      M.generateCases({ n: 20, code: 'cal' + i, aiAccuracy: acc, aiStyle: 'calibrated' }).forEach((c) => {
-        const b = Math.min(4, Math.floor((c.aiConfidence - 0.5) / 0.1));
-        bins[b] = bins[b] || { n: 0, right: 0, shown: 0 };
-        bins[b].n += 1;
-        bins[b].right += c.aiCorrect ? 1 : 0;
-        bins[b].shown += c.aiConfidence;
-      });
-    }
-    Object.values(bins).forEach((b) => {
-      if (b.n < 400) return;
-      const gap = Math.abs(b.right / b.n - b.shown / b.n);
-      assert.ok(gap < 0.04, 'accuracy ' + acc + ': shown ' + (b.shown / b.n).toFixed(3) + ' vs right ' + (b.right / b.n).toFixed(3));
+test('out of every 100 cases always adds up to 100 and matches the rates', () => {
+  let seed = 12345;
+  const next = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  for (let i = 0; i < 300; i++) {
+    const p = { human: 0.5 + next() * 0.49, ai: 0.5 + next() * 0.49, overlap: next() * 2 - 1,
+      aiSignal: next() * 4, humanSignal: next() * 4, aiBias: next() * 4 - 2, humanBias: next() * 4 - 2,
+      threshold: 0.5 + next() * 0.49, deferRate: next() };
+    M.POLICIES.forEach((rule) => {
+      const r = M.per100(p, rule);
+      const total = M.OUTCOME_KEYS.reduce((s, k) => s + r.counts[k], 0);
+      assert.equal(total, 100);
+      M.OUTCOME_KEYS.forEach((k) => assert.ok(Math.abs(r.counts[k] - r.exact[k]) < 1, k));
+      const e = M.evaluate(p, rule);
+      assert.ok(Math.abs(r.exact.agreedRight + r.exact.switchedRight + r.exact.heldFirm - 100 * e.team) < 1e-9);
+      assert.ok(Math.abs(r.exact.overRelied - 100 * e.overErrors) < 1e-9);
+      assert.ok(Math.abs(r.exact.bothWrong - 100 * e.shared) < 1e-9);
     });
   }
 });
 
-test('session checks reject malformed trials', () => {
-  assert.throws(() => M.scoreSession([null]), /must be an object/);
-  assert.throws(() => M.counterfactuals([]), /at least one trial/);
-  assert.throws(() => M.scoreSession([{ truth: 'fraud', initial: 'fraud', ai: 'fraud', final: 'fraud', initialConfidence: 0.4 }]), /initialConfidence/);
+test('whoever is surer equals the best possible rule when honest and independent', () => {
+  const p = { human: 0.72, ai: 0.81, overlap: 0, aiSignal: 1.7, humanSignal: 0.6, aiBias: 0, humanBias: 0 };
+  assert.ok(Math.abs(M.evaluate(p, 'surer').team - M.evaluate(p, 'optimal').team) < 1e-12);
+  const biased = Object.assign({}, p, { aiBias: 1.2 });
+  assert.ok(M.evaluate(biased, 'surer').team < M.evaluate(biased, 'optimal').team - 0.005);
+});
+
+test('bad inputs are rejected and out-of-range ones clamped', () => {
+  assert.throws(() => M.normalise({ human: NaN }), /finite/);
+  assert.throws(() => M.normalise({ ai: '0.8' }), /finite/);
+  assert.throws(() => M.evaluate({}, 'coin-toss'), /Unknown policy/);
+  assert.equal(M.normalise({ human: 2 }).human, 0.99);
+  assert.equal(M.normalise({ deferRate: -1 }).deferRate, 0);
+});
+
+test('the normal CDF is accurate to double precision', () => {
+  const known = [[-3, 0.0013498980316300946], [-1, 0.15865525393145707], [0, 0.5], [1.5, 0.9331927987311419], [8, 0.9999999999999993]];
+  known.forEach(([x, p]) => assert.ok(Math.abs(M.normCdf(x) - p) < 1e-15, String(x)));
+  assert.equal(M.normCdf(Infinity), 1);
+  assert.equal(M.normCdf(-Infinity), 0);
+});
+
+test('levers are sorted by swing and respect the limits of each setting', () => {
+  const rows = M.sensitivity({}, 'surer');
+  assert.equal(rows.length, 7);
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i - 1].swing >= rows[i].swing);
+  const atTop = M.sensitivity({ ai: 0.99 }, 'optimal').find((r) => r.key === 'ai');
+  assert.equal(atTop.high, 0);
+  assert.ok(atTop.low < 0);
+  M.sensitivity({}, 'optimal').filter((r) => /Bias/.test(r.key)).forEach((r) => {
+    assert.equal(r.low, 0);
+    assert.equal(r.high, 0);
+  });
+});
+
+test('the threshold curve runs from 50% to 99% and never beats the best rule', () => {
+  const curve = M.thresholdCurve({}, 49);
+  assert.equal(curve.length, 50);
+  assert.equal(curve[0].threshold, 0.5);
+  assert.ok(Math.abs(curve[49].threshold - 0.99) < 1e-12);
+  const ceiling = M.analyse({}).ceiling;
+  curve.forEach((c) => assert.ok(c.team <= ceiling + 1e-12));
 });

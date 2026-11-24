@@ -1,24 +1,8 @@
-"""Plain-text and CSV reports for the command-line tool."""
+"""Plain-text report of the model for the command line."""
 
 from __future__ import annotations
 
-import csv
-import io
-
-from .model import POLICIES, analyse
-from .sessions import bootstrap, bootstrap_mean, counterfactuals, score_session
-
-MISTAKE_NAMES = {
-    "random": "mistakes anywhere",
-    "hard": "mistakes on tricky payments",
-    "easy": "mistakes on obvious payments",
-}
-
-STYLE_NAMES = {
-    "calibrated": "honest confidence",
-    "confident": "always sounds sure",
-    "hidden": "confidence hidden",
-}
+from .model import OUTCOME_KEYS, OUTCOME_LABELS, POLICIES, POLICY_LABELS, analyse, per_100
 
 
 def pct(v: float | None, digits: int = 1) -> str:
@@ -32,7 +16,7 @@ def pts(v: float | None) -> str:
     return "0.0 pts" if r == 0 else f"{r:+.1f} pts"
 
 
-def model_report(params: dict | None = None) -> str:
+def model_report(params: dict | None = None, rule: str = "surer") -> str:
     a = analyse(params)
     p = a["params"]
     lines = [
@@ -61,103 +45,10 @@ def model_report(params: dict | None = None) -> str:
         "",
         f"  Shared blind spots (no rule can fix these): {pct(a['cells']['p00'])} of cases",
         f"  Best possible team accuracy: {pct(a['ceiling'])} ({pts(a['ceiling'] - a['best'])} on the better solo)",
-    ]
-    return "\n".join(lines)
-
-
-def session_report(session: dict, threshold: float = 0.8) -> str:
-    trials = session["trials"]
-    m = score_session(trials)
-    s = session.get("settings", {})
-    style = STYLE_NAMES.get(s.get("aiStyle"), "unknown advisor")
-    if s.get("mistakes") in MISTAKE_NAMES:
-        style += ", " + MISTAKE_NAMES[s["mistakes"]]
-    tag = " (synthetic)" if session.get("synthetic") else ""
-    ci = bootstrap(trials)
-    lines = [
-        f"{session.get('label', 'session')}{tag}: {m['n']} cases, advisor {style}",
-        f"  First calls {pct(m['initialAccuracy'], 0)}, AI {pct(m['aiAccuracy'], 0)}, "
-        f"final {pct(m['finalAccuracy'], 0)} ({pts(m['complementarity'])} on the better of the two)",
-        f"  95% bootstrap interval for that gain: {interval(ci['complementarity'], points=True)}; "
-        f"for final accuracy: {interval(ci['finalAccuracy'])}",
-        f"  Switched to a right AI {m['switchedToAI']} of {m['aiOnlyRight']} times; "
-        f"held firm against a wrong AI {m['keptOwn']} of {m['youOnlyRight']} times",
-        f"  Confidence: mean {pct(m['meanConfidence'], 0)}, overconfidence {pts(m['overconfidence'])}, "
-        f"separates right from wrong with AUROC "
-        + ("n/a" if m["confidenceAuroc"] is None else f"{m['confidenceAuroc']:.2f}"),
-        "  Same cases, other strategies:",
-    ]
-    for cf in counterfactuals(trials, threshold):
-        value = pct(cf["accuracy"], 0) if cf["available"] else "n/a (AI confidence hidden)"
-        lines.append(f"    {cf['label']:<48}{value}")
-    return "\n".join(lines)
-
-
-def interval(ci: tuple | None, points: bool = False) -> str:
-    if ci is None:
-        return "n/a"
-    if points:
-        lo, hi = (round(v * 100, 1) + 0.0 for v in ci)
-        return f"{lo:+.1f} to {hi:+.1f} pts"
-    return f"{ci[0] * 100:.0f}% to {ci[1] * 100:.0f}%"
-
-
-def _mean(values: list[float | None]) -> float | None:
-    vals = [v for v in values if v is not None]
-    return sum(vals) / len(vals) if vals else None
-
-
-def class_rows(sessions: list[dict]) -> list[dict]:
-    rows = []
-    for session in sessions:
-        m = score_session(session["trials"])
-        rows.append({
-            "label": session.get("label", ""),
-            "habit": session.get("habit", ""),
-            "aiStyle": session.get("settings", {}).get("aiStyle", ""),
-            **m,
-        })
-    return rows
-
-
-def class_report(sessions: list[dict]) -> str:
-    rows = class_rows(sessions)
-    lines = [
-        f"Class summary: {len(rows)} sessions",
         "",
-        f"  {'Who':<8}{'Advisor':<22}{'First':>7}{'AI':>7}{'Final':>7}{'RAIR':>7}{'RSR':>7}{'vs best':>11}",
+        f"  Out of every 100 cases, with \"{POLICY_LABELS[rule].lower()}\":",
     ]
-    for r in rows:
-        lines.append(
-            f"  {r['label'][:7]:<8}{STYLE_NAMES.get(r['aiStyle'], r['aiStyle'] or 'unknown'):<22}"
-            f"{pct(r['initialAccuracy'], 0):>7}{pct(r['aiAccuracy'], 0):>7}{pct(r['finalAccuracy'], 0):>7}"
-            f"{pct(r['rair'], 0):>7}{pct(r['rsr'], 0):>7}{pts(r['complementarity']):>11}")
-    lines.append("")
-    groups: dict[str, list[dict]] = {}
-    for r in rows:
-        groups.setdefault(r["aiStyle"] or "unknown", []).append(r)
-    comp = [r["complementarity"] for r in rows]
-    lines.append(f"  Mean gain on the better of the two: {pts(_mean(comp))} "
-                 f"(95% bootstrap interval across sessions {interval(bootstrap_mean(comp), points=True)})")
-    for style, group in sorted(groups.items()):
-        beat = sum(r["complementarity"] > 0 for r in group)
-        lines.append(
-            f"  Advisor {STYLE_NAMES.get(style, style)} ({len(group)} sessions): final {pct(_mean([r['finalAccuracy'] for r in group]))}, "
-            f"RAIR {pct(_mean([r['rair'] for r in group]), 0)}, RSR {pct(_mean([r['rsr'] for r in group]), 0)}, "
-            f"{beat} of {len(group)} beat both the AI and their own first call")
+    counts = per_100(p, rule)["counts"]
+    for key in OUTCOME_KEYS:
+        lines.append(f"    {counts[key]:>3}  {OUTCOME_LABELS[key]}")
     return "\n".join(lines)
-
-
-CSV_FIELDS = ["label", "habit", "aiStyle", "n", "initialAccuracy", "aiAccuracy", "finalAccuracy",
-              "agreeRate", "switchRate", "rair", "rsr", "overRelianceRate", "underRelianceRate",
-              "helpfulSwitches", "harmfulSwitches", "meanConfidence", "overconfidence",
-              "confidenceAuroc", "aiConfidenceAuroc", "complementarity"]
-
-
-def class_csv(sessions: list[dict]) -> str:
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=CSV_FIELDS, extrasaction="ignore", lineterminator="\n")
-    writer.writeheader()
-    for row in class_rows(sessions):
-        writer.writerow({k: ("" if row.get(k) is None else row.get(k)) for k in CSV_FIELDS})
-    return buf.getvalue()

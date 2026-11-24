@@ -1,10 +1,9 @@
 import math
 import random
 import unittest
-from statistics import NormalDist
 
-from reliance_lab.model import (DEFAULTS, POLICIES, analyse, evaluate, joint_cells, logit, norm_cdf,
-                                norm_inv, normalise, sigmoid, threshold_curve)
+from reliance_lab.model import (DEFAULTS, OUTCOME_KEYS, POLICIES, analyse, evaluate, joint_cells, logit,
+                                norm_cdf, normalise, per_100, sigmoid, threshold_curve)
 
 
 def random_params(rng: random.Random) -> dict:
@@ -24,12 +23,6 @@ class NormalFunctionTests(unittest.TestCase):
         self.assertEqual(norm_cdf(math.inf), 1.0)
         self.assertEqual(norm_cdf(-math.inf), 0.0)
         self.assertTrue(math.isnan(norm_cdf(math.nan)))
-
-    def test_norm_inv_matches_the_standard_library(self):
-        for p in [1e-6, 0.001, 0.02, 0.2, 0.5, 0.77, 0.98, 0.9999]:
-            self.assertAlmostEqual(norm_inv(p), NormalDist().inv_cdf(p), places=9)
-        self.assertEqual(norm_inv(0), -math.inf)
-        self.assertEqual(norm_inv(1), math.inf)
 
 
 class ModelTests(unittest.TestCase):
@@ -159,6 +152,25 @@ class ModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Per100Tests(unittest.TestCase):
+    def test_counts_add_to_100_and_track_the_exact_values(self):
+        rng = random.Random(6)
+        for _ in range(300):
+            p = random_params(rng)
+            for rule in POLICIES:
+                r = per_100(p, rule)
+                self.assertEqual(sum(r["counts"].values()), 100)
+                for key in OUTCOME_KEYS:
+                    self.assertLess(abs(r["counts"][key] - r["exact"][key]), 1)
+                e = evaluate(p, rule)
+                right = r["exact"]["agreedRight"] + r["exact"]["switchedRight"] + r["exact"]["heldFirm"]
+                self.assertAlmostEqual(right, 100 * e["team"], places=9)
+
+    def test_defaults_for_whoever_is_surer(self):
+        self.assertEqual(per_100({}, "surer")["counts"], {
+            "agreedRight": 67, "switchedRight": 16, "heldFirm": 6, "overRelied": 2, "underRelied": 2, "bothWrong": 7})
 
 
 class SensitivityTests(unittest.TestCase):
