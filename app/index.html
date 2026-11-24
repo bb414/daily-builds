@@ -666,15 +666,6 @@ var RelianceModel = (function () {
   // Expected outcomes out of every 100 cases for one rule, rounded so they add up to exactly 100
   // (largest remainder). "exact" keeps the unrounded values.
   var OUTCOME_KEYS = ['agreedRight', 'switchedRight', 'heldFirm', 'overRelied', 'underRelied', 'bothWrong'];
-  var OUTCOME_LABELS = {
-    agreedRight: 'Agreed, both right',
-    switchedRight: 'Switched to a right AI',
-    heldFirm: 'Held firm against a wrong AI',
-    overRelied: 'Followed a wrong AI',
-    underRelied: 'Overrode a right AI',
-    bothWrong: 'Both wrong'
-  };
-
   function per100(params, policy) {
     var p = normalise(params);
     var cells = jointCells(p.human, p.ai, p.overlap);
@@ -711,7 +702,6 @@ var RelianceModel = (function () {
     DEFAULTS: DEFAULTS,
     RANGES: RANGES,
     OUTCOME_KEYS: OUTCOME_KEYS,
-    OUTCOME_LABELS: OUTCOME_LABELS,
     normCdf: normCdf,
     logit: logit,
     sigmoid: sigmoid,
@@ -924,7 +914,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function readHash() {
     var h = location.hash || '';
-    if (h.indexOf('#model?') !== 0) return false;
+    if (h.indexOf('#model?') !== 0) return;
     var out = Object.assign({}, M.DEFAULTS);
     h.slice(7).split('&').forEach(function (pair) {
       var bits = pair.split('=');
@@ -932,7 +922,6 @@ if (typeof module !== 'undefined' && module.exports) {
       if (Object.prototype.hasOwnProperty.call(M.DEFAULTS, bits[0]) && isFinite(v)) out[bits[0]] = v;
     });
     modelParams = M.normalise(out);
-    return true;
   }
 
   function buildSliders() {
@@ -970,13 +959,13 @@ if (typeof module !== 'undefined' && module.exports) {
     });
   }
 
-  function tile(key, label, value, sub, cls) {
+  function tile(key, label, value, sub) {
     var t = el('div', { class: 'tile' });
     var k = el('div', { class: 'k' });
-    if (key) k.appendChild(el('span', { class: 'dot ' + key, 'aria-hidden': 'true' }));
+    k.appendChild(el('span', { class: 'dot ' + key, 'aria-hidden': 'true' }));
     k.appendChild(document.createTextNode(label));
     t.appendChild(k);
-    t.appendChild(el('div', { class: 'v' + (cls ? ' ' + cls : '') }, value));
+    t.appendChild(el('div', { class: 'v' }, value));
     if (sub) t.appendChild(el('div', { class: 's' }, sub));
     return t;
   }
