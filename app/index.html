@@ -177,13 +177,14 @@ MONTHS.forEach(([, len]) => { MONTH_STARTS.push(DAYS); DAYS += len; });
 const LOAN_DAYS = [21, 126, 231];
 const BILL_DAY = 9;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const RULES = ['none', 'roundup', 'weekly', 'payday', 'smart'];
+const RULES = ['none', 'roundup', 'weekly', 'payday', 'smart', 'planner'];
 const RULE_NAMES = {
   none: 'No automatic saving',
   roundup: 'Round-ups',
   weekly: 'Fixed amount every Monday',
   payday: 'Share of every payment in',
-  smart: 'Smart saver (forecasts what is safe to save)'
+  smart: 'Smart saver (forecasts what is safe to save)',
+  planner: 'Term planner (budgets to the next loan payment)'
 };
 const RESCUE_MODES = ['overdrawn', 'near-limit', 'never'];
 const SHOCK_SPREAD = 0.6;
@@ -220,7 +221,8 @@ function defaultSettings(preset) {
       roundup: {multiplier: 1},
       weekly: {amount: 15},
       payday: {percent: 10},
-      smart: {horizon: 14, buffer: 100, aggressiveness: 0.5, cap: 100, knowsBills: true}
+      smart: {horizon: 14, buffer: 100, aggressiveness: 0.5, cap: 100, knowsBills: true},
+      planner: {buffer: 100, aggressiveness: 0.5, cap: 100}
     }
   });
   return s;
@@ -236,7 +238,8 @@ const RULE_LIMITS = {
   roundup: {multiplier: [1, 10]},
   weekly: {amount: [0, 1000]},
   payday: {percent: [0, 100]},
-  smart: {horizon: [1, 120], buffer: [0, 5000], aggressiveness: [0, 1], cap: [0, 5000]}
+  smart: {horizon: [1, 120], buffer: [0, 5000], aggressiveness: [0, 1], cap: [0, 5000]},
+  planner: {buffer: [0, 5000], aggressiveness: [0, 1], cap: [0, 5000]}
 };
 const INTEGER_KEYS = ['seed', 'horizon', 'multiplier'];
 
@@ -363,6 +366,11 @@ function scheduledOut(s, d) {
   return total;
 }
 
+function nextLoanDay(d) {
+  for (const x of LOAN_DAYS) if (x > d) return x;
+  return DAYS;
+}
+
 function rescuePoint(s) {
   if (s.rescue === 'overdrawn') return 0;
   if (s.rescue === 'near-limit') return -Math.max(0, pennies(s.overdraftLimit) - 10000);
@@ -381,7 +389,7 @@ function simulate(s, days, rule, trace) {
     overdraftCost: 0, interestEarned: 0, lowest: bal, potPeak: 0};
   const history = [];
   const daily = trace ? [] : null;
-  const sched = rule === 'smart' ? Array.from({length: DAYS}, (_, d) => scheduledOut(s, d)) : null;
+  const sched = (rule === 'smart' || rule === 'planner') ? Array.from({length: DAYS}, (_, d) => scheduledOut(s, d)) : null;
   const monthEnd = new Set(MONTH_STARTS.map((st, i) => st + MONTHS[i][1] - 1));
   for (let d = 0; d < DAYS; d++) {
     const day = days[d];
@@ -414,6 +422,18 @@ function simulate(s, days, rule, trace) {
         const to = Math.min(DAYS, d + 1 + Math.trunc(p.horizon));
         for (let k = d + 1; k < to; k++) expected += sched[k];
       }
+      const safe = bal - expected - pennies(p.buffer);
+      if (safe > 0) move = Math.min(Math.floor(safe * p.aggressiveness), pennies(p.cap));
+    } else if (rule === 'planner' && d >= LEARNING_DAYS) {
+      // Like the smart saver, but it budgets for every day until the next loan payment
+      // (wages are left out, to be safe) and for every bill due before then.
+      const from = Math.max(0, d - 27);
+      let spent = 0;
+      for (let k = from; k <= d; k++) spent += history[k];
+      const nxt = nextLoanDay(d);
+      let expected = spent / (d + 1 - from) * (nxt - d);
+      const to = Math.min(DAYS, nxt + 1);
+      for (let k = d + 1; k < to; k++) expected += sched[k];
       const safe = bal - expected - pennies(p.buffer);
       if (safe > 0) move = Math.min(Math.floor(safe * p.aggressiveness), pennies(p.cap));
     }
@@ -471,10 +491,21 @@ function percentile(sorted, q) {
   return sorted[lo] + (h - lo) * (sorted[lo + 1] - sorted[lo]);
 }
 
+function sumOf(xs) {
+  let total = 0;
+  for (let i = 0; i < xs.length; i++) total += xs[i];
+  return total;
+}
+
 function meanOf(xs) {
   let total = 0;
   for (let i = 0; i < xs.length; i++) total += xs[i];
   return total / xs.length;
+}
+
+function cameBack(results) {
+  const moved = sumOf(results.map(x => x.savedIn));
+  return moved > 0 ? sumOf(results.map(x => x.rescued)) / moved : 0;
 }
 
 function stressTest(s, years, rules) {
@@ -519,7 +550,8 @@ function stressTest(s, years, rules) {
       meanOverdraftCost: meanOf(rs.map(x => x.overdraftCost)),
       meanInterest: meanOf(rs.map(x => x.interestEarned)),
       meanLowest: meanOf(rs.map(x => x.lowest)),
-      meanAveragePot: meanOf(rs.map(x => x.averagePot))
+      meanAveragePot: meanOf(rs.map(x => x.averagePot)),
+      cameBack: cameBack(rs)
     };
   });
   return out;
@@ -542,7 +574,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     FORMAT, VERSION, MONTHS, MONTH_STARTS, DAYS, LOAN_DAYS, BILL_DAY, RULES, RULE_NAMES, RESCUE_MODES, PRESETS,
     LIMITS, RULE_LIMITS, defaultSettings, validateSettings, mulberry32, invNorm, pennies, generateYear,
-    scheduledOut, rescuePoint, simulate, yearSeed, percentile, stressTest, money
+    scheduledOut, nextLoanDay, rescuePoint, simulate, yearSeed, percentile, cameBack, stressTest, money
   };
 }
 /* MODEL END */
@@ -593,7 +625,10 @@ if (typeof module !== 'undefined' && module.exports) {
       {rule: 'smart', key: 'horizon', label: 'Smart saver: forecast window', min: 3, max: 60, step: 1, fmt: v => v + ' days'},
       {rule: 'smart', key: 'buffer', label: 'Smart saver: safety buffer', min: 0, max: 1000, step: 25, fmt: GBP},
       {rule: 'smart', key: 'aggressiveness', label: 'Smart saver: share of the spare money it saves', min: 0.05, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
-      {rule: 'smart', key: 'cap', label: 'Smart saver: most it saves in a day', min: 5, max: 500, step: 5, fmt: GBP}
+      {rule: 'smart', key: 'cap', label: 'Smart saver: most it saves in a day', min: 5, max: 500, step: 5, fmt: GBP},
+      {rule: 'planner', key: 'buffer', label: 'Term planner: safety buffer', min: 0, max: 1000, step: 25, fmt: GBP},
+      {rule: 'planner', key: 'aggressiveness', label: 'Term planner: share of the spare money it saves', min: 0.05, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
+      {rule: 'planner', key: 'cap', label: 'Term planner: most it saves in a day', min: 5, max: 500, step: 5, fmt: GBP}
     ]}
   ];
 
@@ -658,16 +693,29 @@ if (typeof module !== 'undefined' && module.exports) {
     const base = sum.none.beyondChance;
     const safe = savers.filter(r => sum[r].beyondChance <= base + 0.02);
     let h = '<h2>The verdict</h2>';
-    if (safe.length) {
-      const best = safe.reduce((a, b) => (sum[b].endPot.p50 > sum[a].endPot.p50 ? b : a));
+    const notes = [];
+    const best = safe.length ? safe.reduce((a, b) => (sum[b].endPot.p50 > sum[a].endPot.p50 ? b : a)) : null;
+    if (best && sum[best].endPot.p50 < 100) {
+      h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>no rule that is as safe as not saving keeps anything set aside</strong> until 31 August in a typical year. ' +
+        (state.s.rescue === 'never' ? 'The rules that do build a pot only manage it by pushing you deeper into your overdraft.' : 'Whatever goes in comes back out when money runs short.') +
+        ' Here the budget, not the saving rule, is the problem.</p>';
+    } else if (best) {
       h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>' + esc(shortName(best)) + '</strong> leaves the most set aside on 31 August (' +
         nm(sum[best].endPot.p50) + ' in a typical year) without adding to the risk of going past the interest-free overdraft.</p>';
+      if (sum[best].cameBack > 0.5) {
+        const calm = safe.filter(r => r !== best && sum[r].cameBack <= 0.25 && sum[r].endPot.p50 >= 0.75 * sum[best].endPot.p50);
+        if (calm.length) {
+          const c = calm.reduce((a, b) => (sum[b].endPot.p50 > sum[a].endPot.p50 ? b : a));
+          const n = Math.round(sum[c].meanRescues);
+          notes.push(esc(shortName(c)) + ' gets you most of the way there (' + nm(sum[c].endPot.p50) + ') ' +
+            (n < 1 ? 'and you would <strong>hardly ever</strong> need to raid it.' : 'while you raid it only about <strong>' + n + ' time' + (n === 1 ? '' : 's') + ' a year</strong>.'));
+        }
+      }
     } else {
       const least = savers.reduce((a, b) => (sum[b].beyondChance < sum[a].beyondChance ? b : a));
       h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>every saving rule adds to the risk</strong> of going past the interest-free overdraft. The gentlest is ' +
         esc(shortName(least)) + ' (' + pct(sum[least].beyondChance) + ' of years, against ' + pct(base) + ' with no automatic saving). Saving here mostly means borrowing to save.</p>';
     }
-    const notes = [];
     const most = savers.reduce((a, b) => (sum[b].meanRescues > sum[a].meanRescues ? b : a));
     if (sum[most].meanRescues >= 12) {
       notes.push(esc(shortName(most)) + ' moves the most money in and out: you would raid the pot about <strong>' + Math.round(sum[most].meanRescues) + ' times a year</strong>, so much of what it saves just goes round in circles.');
@@ -686,16 +734,17 @@ if (typeof module !== 'undefined' && module.exports) {
   function renderTable(sum) {
     let h = '<h2>Every rule, side by side</h2><p class="small muted">Typical year (median) unless it says average. All rules face exactly the same ' + YEARS + ' years.</p>' +
       '<div class="table-wrap"><table class="data"><thead><tr><th scope="col">Rule</th><th scope="col">Set aside on 31 August</th><th scope="col">Moved into savings</th>' +
-      '<th scope="col">Times you raid it</th><th scope="col">Past the overdraft limit</th><th scope="col">Better or worse off</th></tr></thead><tbody>';
+      '<th scope="col">Times you raid it</th><th scope="col">Came back out</th><th scope="col">Past the overdraft limit</th><th scope="col">Better or worse off</th></tr></thead><tbody>';
     RULES.forEach(r => {
       const x = sum[r];
       h += '<tr><th scope="row" style="font-weight:600">' + esc(RULE_NAMES[r]) + '</th>' +
         '<td class="num">' + nm(x.endPot.p50) + '</td><td class="num">' + nm(x.savedIn.p50) + '</td>' +
         '<td class="num">' + (r === 'none' ? 'n/a' : Math.round(x.meanRescues) + ' a year') + '</td>' +
+        '<td class="num">' + (r === 'none' ? 'n/a' : pct(x.cameBack)) + '</td>' +
         '<td class="num"><span class="risk ' + riskClass(x.beyondChance) + '">' + pct(x.beyondChance) + ' of years</span></td>' +
         '<td class="num">' + (r === 'none' ? 'n/a' : nm(x.net.p50, true)) + '</td></tr>';
     });
-    h += '</tbody></table></div><p class="note">"Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving. Moving your own money between accounts does not make you richer by itself.</p>';
+    h += '</tbody></table></div><p class="note">"Came back out" is the share of everything moved into savings that you later moved back. "Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving: moving your own money between accounts does not make you richer by itself.</p>';
     $('#table-card').innerHTML = h;
   }
 

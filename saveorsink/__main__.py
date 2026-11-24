@@ -6,9 +6,9 @@ import json
 import os
 import sys
 
-from .model import (PRESETS, RULES, default_settings, generate_year, simulate, stress_test, validate_settings,
-                    year_seed)
-from .report import summary_report, year_report
+from .model import (PRESETS, RULES, SWEEP_DEFAULTS, default_settings, generate_year, simulate, stress_test, sweep,
+                    validate_settings, year_seed)
+from .report import summary_report, sweep_report, year_report
 
 
 def load_settings(args):
@@ -62,6 +62,41 @@ def cmd_year(args):
     return 0
 
 
+def parse_dial(text):
+    """'horizon=7,14,28' -> ('horizon', [7.0, 14.0, 28.0])"""
+    name, sep, values = text.partition("=")
+    if not sep or not name.strip() or not values.strip():
+        raise ValueError("--dial must look like name=1,2,3 (got %r)" % text)
+    try:
+        nums = [float(v) for v in values.split(",") if v.strip()]
+    except ValueError:
+        raise ValueError("--dial %s has a value that is not a number" % name.strip()) from None
+    return name.strip(), [int(v) if v == int(v) else v for v in nums]
+
+
+def cmd_sweep(args):
+    s = load_settings(args)
+    dials = None
+    if args.dial:
+        dials = dict(parse_dial(d) for d in args.dial)
+        if len(dials) != len(args.dial):
+            raise ValueError("each --dial must name a different setting")
+    result = sweep(s, args.rule, dials, args.years)
+    print(sweep_report(s, result))
+    if args.csv:
+        ka, kb = result["dials"]
+        with open(args.csv, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f, lineterminator="\n")
+            w.writerow([ka, kb, "set_aside_median", "moved_in_median", "better_off_median", "chance_past_limit",
+                        "raids_per_year", "came_back", "frontier"])
+            for r in result["rows"]:
+                w.writerow([r[ka], r[kb], "%.2f" % (r["endPot"] / 100), "%.2f" % (r["savedIn"] / 100),
+                            "%.2f" % (r["net"] / 100), "%.4f" % r["beyondChance"], "%.2f" % r["meanRescues"],
+                            "%.4f" % r["cameBack"], "yes" if r["frontier"] else "no"])
+        print("\nWrote %d rows to %s" % (len(result["rows"]), args.csv))
+    return 0
+
+
 def cmd_settings(args):
     text = json.dumps(default_settings(args.preset), indent=2, ensure_ascii=False)
     if args.out:
@@ -95,6 +130,16 @@ def main(argv=None):
     y.add_argument("--year", type=int, default=1, help="which simulated year (1 is the app's first)")
     y.add_argument("--csv", help="also write every day to a CSV file")
     y.set_defaults(func=cmd_year)
+
+    w = sub.add_parser("sweep", help="try many settings of the smart saver or term planner and find the frontier")
+    common(w)
+    w.add_argument("--rule", choices=sorted(SWEEP_DEFAULTS), default="smart")
+    w.add_argument("--dial", action="append", metavar="NAME=V1,V2,...",
+                   help="a setting to vary and the values to try; give two (default: smart horizon and buffer, "
+                        "planner buffer and aggressiveness)")
+    w.add_argument("--years", type=int, default=200)
+    w.add_argument("--csv", help="also write every row to a CSV file")
+    w.set_defaults(func=cmd_sweep)
 
     t = sub.add_parser("settings", help="write a preset's settings to a file you can edit")
     t.add_argument("preset", choices=sorted(PRESETS))

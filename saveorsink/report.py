@@ -23,16 +23,58 @@ def summary_report(s, summary, years):
         "Interest-free overdraft %s; the student moves money back from savings %s." % (
             money(s["overdraftLimit"] * 100), rescue),
         "",
-        "  %-46s %12s %12s %10s %12s %12s" % ("Rule", "Set aside", "Moved in", "Raids", "Past limit", "Better off"),
+        "  %-48s %10s %10s %8s %11s %11s %11s" % ("Rule", "Set aside", "Moved in", "Raids", "Came back", "Past limit",
+                                                     "Better off"),
     ]
     for r in RULES:
+        if r not in summary:
+            continue
         x = summary[r]
-        lines.append("  %-46s %12s %12s %10s %11d%% %12s" % (
+        saving = r != "none"
+        lines.append("  %-48s %10s %10s %8s %11s %10d%% %11s" % (
             RULE_NAMES[r], money(x["endPot"]["p50"]), money(x["savedIn"]["p50"]),
-            "n/a" if r == "none" else "%d/yr" % whole(x["meanRescues"]),
-            percent(x["beyondChance"]), "n/a" if r == "none" else money(x["net"]["p50"], signed=True)))
+            "%d/yr" % whole(x["meanRescues"]) if saving else "n/a",
+            "%d%%" % percent(x["cameBack"]) if saving else "n/a",
+            percent(x["beyondChance"]), money(x["net"]["p50"], signed=True) if saving else "n/a"))
     lines += ["", "Set aside, moved in and better off are typical years (medians); raids are a yearly average;",
+              "came back is the share of everything moved into savings that was moved back out;",
               "past limit is the share of years that go beyond the interest-free overdraft at least once."]
+    return "\n".join(lines)
+
+
+DIAL_LABELS = {"horizon": "Looks ahead", "buffer": "Cushion", "aggressiveness": "Share of spare", "cap": "Daily cap"}
+
+
+def dial_text(key, value):
+    if key == "horizon":
+        return "%d days" % value
+    if key in ("buffer", "cap"):
+        return "£{:,}".format(value) if value == int(value) else money(value * 100)
+    return "%d%%" % percent(value)
+
+
+def sweep_report(s, result):
+    """The sweep as a table, best off first, with the frontier marked."""
+    ka, kb = result["dials"]
+    label = PRESETS.get(s.get("preset"), {}).get("label", "Custom settings")
+    lines = [
+        "Tuning the %s: %s, %s simulated years per row" % (
+            RULE_NAMES[result["rule"]].split(" (")[0].lower(), label, "{:,}".format(result["years"])),
+        "Without any saving, %d%% of years go past the overdraft limit." % percent(result["beyondWithoutSaving"]),
+        "",
+        "  %-14s %-14s %10s %8s %11s %11s %11s  %s" % (DIAL_LABELS[ka], DIAL_LABELS[kb], "Set aside", "Raids",
+                                                     "Came back", "Past limit", "Better off", "Frontier"),
+    ]
+    rows = sorted(result["rows"], key=lambda r: (-r["net"], r["beyondChance"], r["meanRescues"]))
+    for r in rows:
+        lines.append("  %-14s %-14s %10s %8s %10d%% %10d%% %11s  %s" % (
+            dial_text(ka, r[ka]), dial_text(kb, r[kb]), money(r["endPot"]), "%.1f/yr" % r["meanRescues"],
+            percent(r["cameBack"]), percent(r["beyondChance"]), money(r["net"], signed=True),
+            "yes" if r["frontier"] else ""))
+    best = [r for r in rows if r["frontier"]]
+    lines += ["", "%d of %d settings are on the frontier: no other setting leaves the student better off without"
+              % (len(best), len(rows)),
+              "also going past the overdraft limit in more years or being raided more often."]
     return "\n".join(lines)
 
 

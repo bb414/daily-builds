@@ -36,7 +36,8 @@ def variants():
     odd.update(seed=4294967295, startBalance=-2000, overdraftLimit=0, overdraftRate=99.9, savingsRate=19.5,
                spendVariability=1.5, hoursVariability=2, shockChance=1, shockSize=5000)
     odd["rules"] = {"roundup": {"multiplier": 10}, "weekly": {"amount": 1000}, "payday": {"percent": 100},
-                    "smart": {"horizon": 120, "buffer": 0, "aggressiveness": 1, "cap": 5000, "knowsBills": False}}
+                    "smart": {"horizon": 120, "buffer": 0, "aggressiveness": 1, "cap": 5000, "knowsBills": False},
+                    "planner": {"buffer": 0, "aggressiveness": 1, "cap": 5000}}
     out.append(odd)
     zero = M.default_settings("tight")
     zero.update(loanPerTerm=0, rent=0, bills=0, everydayPerWeek=0, socialPerWeek=0, shockChance=0, seed=0)
@@ -99,13 +100,18 @@ class AppAgreesWithPython(unittest.TestCase):
                  changed(lambda s: s.update(shockChance="0.5", startBalance=None))]
         got = js([{"fn": "validateSettings", "args": [c]} for c in cases])
         self.assertEqual(got, [M.validate_settings(c) for c in cases])
+        came = [[], [{"savedIn": 0, "rescued": 0}], [{"savedIn": 300, "rescued": 100}, {"savedIn": 7, "rescued": 3}]]
         amounts = [0, 5, 99, 100, 123456, 99999, 99999.6, -4570, 123449.5, 0.4, -0.4, 1e8, 2449, -123456.7]
         got = js([{"fn": "money", "args": [a]} for a in amounts] + [{"fn": "money", "args": [a, True]} for a in amounts]
                  + [{"fn": "yearSeed", "args": [s, k]} for s in (0, 1, 4294967295) for k in (0, 5, 999)]
-                 + [{"fn": "pennies", "args": [x]} for x in (0, 0.005, 1.234, 11.5, 2999.995)])
+                 + [{"fn": "pennies", "args": [x]} for x in (0, 0.005, 1.234, 11.5, 2999.995)]
+                 + [{"fn": "nextLoanDay", "args": [d]} for d in range(M.DAYS)]
+                 + [{"fn": "cameBack", "args": [rs]} for rs in came])
         expect = ([M.money(a) for a in amounts] + [M.money(a, signed=True) for a in amounts]
                   + [M.year_seed(s, k) for s in (0, 1, 4294967295) for k in (0, 5, 999)]
-                  + [M.pennies(x) for x in (0, 0.005, 1.234, 11.5, 2999.995)])
+                  + [M.pennies(x) for x in (0, 0.005, 1.234, 11.5, 2999.995)]
+                  + [M.next_loan_day(d) for d in range(M.DAYS)]
+                  + [M.came_back(rs) for rs in came])
         self.assertEqual(got, expect)
 
 

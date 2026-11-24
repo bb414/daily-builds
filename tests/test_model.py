@@ -120,6 +120,36 @@ class RuleTests(unittest.TestCase):
         blind = M.simulate(s, self.days, "smart")["savedIn"]
         self.assertGreater(blind, knows)
 
+    def test_next_loan_day(self):
+        self.assertEqual([M.next_loan_day(d) for d in (0, 20, 21, 22, 125, 126, 230, 231, 364)],
+                         [21, 21, 126, 126, 126, 231, 231, M.DAYS, M.DAYS])
+
+    def test_term_planner(self):
+        r = self.run_rule("planner", rescue="never")
+        self.assertTrue(all(x["moved"] == 0 for x in r["daily"][:M.LEARNING_DAYS]))
+        self.assertTrue(all(x["moved"] <= 10000 for x in r["daily"]))
+        self.assertGreater(r["savedIn"], 0)
+        s = copy.deepcopy(self.s)
+        s["rules"]["planner"]["cap"] = 0
+        self.assertEqual(M.simulate(s, self.days, "planner")["savedIn"], 0)
+        # Budgeting all the way to the next loan payment is far calmer than a two-week forecast.
+        smart = self.run_rule("smart")
+        planner = self.run_rule("planner")
+        self.assertLess(planner["rescues"] * 5, smart["rescues"])
+        self.assertLess(planner["savedIn"], smart["savedIn"])
+
+    def test_planner_counts_every_rent_before_the_next_loan(self):
+        # Each loan payment has to cover every rent payment until the next one, so higher rent leaves less to move.
+        s = copy.deepcopy(self.s)
+        s.update(rescue="never", shockChance=0)
+        saved = []
+        for rent in (300, 520, 700):
+            s["rent"] = rent
+            saved.append(M.simulate(s, M.generate_year(s, 5), "planner")["savedIn"])
+        self.assertGreater(saved[0], saved[1])
+        self.assertGreater(saved[1], saved[2])
+        self.assertGreater(saved[2], 0)
+
     def test_rescues(self):
         r = self.run_rule("smart", rescue="overdrawn")
         for x in r["daily"]:
@@ -157,6 +187,19 @@ class StressTests(unittest.TestCase):
             self.assertTrue(0 <= x["beyondChance"] <= 1)
         self.assertEqual(a["none"]["net"]["p50"], 0)
         self.assertEqual(a["weekly"]["savedIn"]["p50"], 79500)
+        self.assertEqual(a["none"]["cameBack"], 0)
+        for r in M.RULES[1:]:
+            self.assertTrue(0 <= a[r]["cameBack"] <= 1, r)
+        self.assertGreater(a["smart"]["cameBack"], a["planner"]["cameBack"])
+        self.assertEqual(M.stress_test(dict(s, rescue="never"), 10)["smart"]["cameBack"], 0)
+        just = M.stress_test(s, 30, rules=["planner"])
+        self.assertEqual(set(just), {"planner"})
+        self.assertEqual(just["planner"], a["planner"])
+
+    def test_came_back(self):
+        self.assertEqual(M.came_back([]), 0)
+        self.assertEqual(M.came_back([{"savedIn": 0, "rescued": 0}]), 0)
+        self.assertEqual(M.came_back([{"savedIn": 300, "rescued": 100}, {"savedIn": 100, "rescued": 100}]), 0.5)
 
     def test_bad_inputs(self):
         with self.assertRaises(ValueError):
@@ -165,6 +208,57 @@ class StressTests(unittest.TestCase):
         s["rent"] = -5
         with self.assertRaises(ValueError):
             M.stress_test(s, 10)
+
+
+class SweepTests(unittest.TestCase):
+    def test_grid_and_frontier(self):
+        s = M.default_settings("tight")
+        s["rescue"] = "never"
+        out = M.sweep(s, "smart", {"horizon": [14, 90], "buffer": [0, 800]}, years=20)
+        self.assertEqual(out["dials"], ["horizon", "buffer"])
+        self.assertEqual([(r["horizon"], r["buffer"]) for r in out["rows"]], [(14, 0), (14, 800), (90, 0), (90, 800)])
+        self.assertEqual(out, M.sweep(s, "smart", {"horizon": [14, 90], "buffer": [0, 800]}, years=20))
+        rows = out["rows"]
+        self.assertTrue(any(r["frontier"] for r in rows))
+        for r in rows:
+            dominated = any(o is not r and o["net"] >= r["net"] and o["beyondChance"] <= r["beyondChance"]
+                            and o["meanRescues"] <= r["meanRescues"]
+                            and (o["net"], -o["beyondChance"], -o["meanRescues"])
+                            != (r["net"], -r["beyondChance"], -r["meanRescues"]) for o in rows)
+            self.assertEqual(r["frontier"], not dominated)
+        # Looking further ahead with a bigger cushion is safer on the tight budget.
+        by = {(r["horizon"], r["buffer"]): r for r in rows}
+        self.assertLess(by[(90, 800)]["beyondChance"], by[(14, 0)]["beyondChance"])
+        # A row matches a plain stress test with the same settings.
+        t = copy.deepcopy(s)
+        t["rules"]["smart"].update(horizon=90, buffer=0)
+        x = M.stress_test(t, 20, rules=["none", "smart"])["smart"]
+        self.assertEqual((by[(90, 0)]["endPot"], by[(90, 0)]["net"], by[(90, 0)]["beyondChance"]),
+                         (x["endPot"]["p50"], x["net"]["p50"], x["beyondChance"]))
+        self.assertEqual(out["beyondWithoutSaving"], M.stress_test(s, 20, rules=["none"])["none"]["beyondChance"])
+
+    def test_defaults_and_errors(self):
+        s = M.default_settings()
+        out = M.sweep(s, "planner", years=2)
+        self.assertEqual(out["dials"], ["buffer", "aggressiveness"])
+        self.assertEqual(len(out["rows"]), 20)
+        for rule, dials, years, text in (
+                ("weekly", None, 5, "rule must be"),
+                ("smart", {"horizon": [7]}, 5, "exactly two"),
+                ("smart", {"horizon": [7], "colour": [1]}, 5, "no dial called colour"),
+                ("smart", {"horizon": [7.5], "buffer": [0]}, 5, "whole numbers"),
+                ("smart", {"horizon": [7], "buffer": []}, 5, "buffer values"),
+                ("planner", {"buffer": [0], "aggressiveness": [1.5]}, 5, "aggressiveness values"),
+                ("planner", {"buffer": [0], "aggressiveness": [1]}, 0, "years"),
+                ("planner", {"buffer": list(range(100)), "aggressiveness": [0.1 * i for i in range(10)]}, 5000,
+                 "too large")):
+            with self.assertRaises(ValueError) as ctx:
+                M.sweep(s, rule, dials, years)
+            self.assertIn(text, str(ctx.exception), (rule, dials))
+        bad = M.default_settings()
+        bad["rent"] = -1
+        with self.assertRaises(ValueError):
+            M.sweep(bad)
 
 
 class ValidationTests(unittest.TestCase):
@@ -218,10 +312,20 @@ class CliTests(unittest.TestCase):
             code, out = self.run_cli("run", "--settings", path, "--years", "10", "--json", str(Path(d) / "r.json"))
             self.assertEqual(code, 0)
             self.assertIn("smart", json.loads((Path(d) / "r.json").read_text()))
+            code, out = self.run_cli("sweep", "--preset", "tight", "--rescue", "never", "--years", "5",
+                                     "--dial", "horizon=14,90", "--dial", "buffer=0,800", "--csv", str(Path(d) / "w.csv"))
+            self.assertEqual(code, 0, out)
+            self.assertIn("Looks ahead", out)
+            self.assertIn("on the frontier", out)
+            rows = (Path(d) / "w.csv").read_text().splitlines()
+            self.assertEqual(len(rows), 5)
+            self.assertTrue(rows[0].startswith("horizon,buffer,set_aside_median"))
 
     def test_errors(self):
         for argv in (("run", "--years", "0"), ("run", "--settings", "missing.json"), ("year", "--rule", "magic"),
-                     ("year", "--year", "0")):
+                     ("year", "--year", "0"), ("sweep", "--dial", "horizon"), ("sweep", "--dial", "horizon=a,b"),
+                     ("sweep", "--dial", "horizon=7", "--dial", "horizon=14"), ("sweep", "--dial", "cap=1"),
+                     ("sweep", "--years", "0")):
             code, out = self.run_cli(*argv)
             self.assertEqual(code, 2, argv)
             self.assertIn("Error:", out)

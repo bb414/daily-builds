@@ -27,13 +27,14 @@ DAYS = _d                      # 365
 LOAN_DAYS = [21, 126, 231]     # 22 September, 5 January, 20 April
 BILL_DAY = 9                   # the 10th of each month
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-RULES = ["none", "roundup", "weekly", "payday", "smart"]
+RULES = ["none", "roundup", "weekly", "payday", "smart", "planner"]
 RULE_NAMES = {
     "none": "No automatic saving",
     "roundup": "Round-ups",
     "weekly": "Fixed amount every Monday",
     "payday": "Share of every payment in",
     "smart": "Smart saver (forecasts what is safe to save)",
+    "planner": "Term planner (budgets to the next loan payment)",
 }
 RESCUE_MODES = ("overdrawn", "near-limit", "never")
 SHOCK_SPREAD = 0.6
@@ -71,6 +72,7 @@ def default_settings(preset="steady"):
             "weekly": {"amount": 15},
             "payday": {"percent": 10},
             "smart": {"horizon": 14, "buffer": 100, "aggressiveness": 0.5, "cap": 100, "knowsBills": True},
+            "planner": {"buffer": 100, "aggressiveness": 0.5, "cap": 100},
         },
     })
     return s
@@ -88,6 +90,7 @@ RULE_LIMITS = {
     "weekly": {"amount": (0, 1000)},
     "payday": {"percent": (0, 100)},
     "smart": {"horizon": (1, 120), "buffer": (0, 5000), "aggressiveness": (0, 1), "cap": (0, 5000)},
+    "planner": {"buffer": (0, 5000), "aggressiveness": (0, 1), "cap": (0, 5000)},
 }
 INTEGER_KEYS = {"seed", "horizon", "multiplier"}
 
@@ -254,6 +257,14 @@ def scheduled_out(s, d):
     return total
 
 
+def next_loan_day(d):
+    """The next day a student loan payment is due after day d (or the end of the year)."""
+    for x in LOAN_DAYS:
+        if x > d:
+            return x
+    return DAYS
+
+
 def rescue_point(s):
     """The balance (pennies) below which the person moves money back from savings, or None."""
     if s["rescue"] == "overdrawn":
@@ -281,7 +292,7 @@ def simulate(s, days, rule, trace=False):
            "overdraftCost": 0, "interestEarned": 0, "lowest": bal, "potPeak": 0, "potDays": 0}
     history = []            # card spending per day, for the smart saver's forecast
     daily = [] if trace else None
-    sched = [scheduled_out(s, d) for d in range(DAYS)] if rule == "smart" else None
+    sched = [scheduled_out(s, d) for d in range(DAYS)] if rule in ("smart", "planner") else None
     month_end = set(st + length - 1 for st, (_, length) in zip(MONTH_STARTS, MONTHS))
     for d in range(DAYS):
         day = days[d]
@@ -315,6 +326,20 @@ def simulate(s, days, rule, trace=False):
             if p["knowsBills"]:
                 for k in range(d + 1, min(DAYS, d + 1 + int(p["horizon"]))):
                     expected += sched[k]
+            safe = bal - expected - pennies(p["buffer"])
+            if safe > 0:
+                move = min(int(math.floor(safe * p["aggressiveness"])), pennies(p["cap"]))
+        elif rule == "planner" and d >= LEARNING_DAYS:
+            # Like the smart saver, but it budgets for every day until the next loan payment
+            # (wages are left out, to be safe) and for every bill due before then.
+            window = history[max(0, d - 27):d + 1]
+            spent = 0
+            for x in window:
+                spent += x
+            nxt = next_loan_day(d)
+            expected = spent / len(window) * (nxt - d)
+            for k in range(d + 1, min(DAYS, nxt + 1)):
+                expected += sched[k]
             safe = bal - expected - pennies(p["buffer"])
             if safe > 0:
                 move = min(int(math.floor(safe * p["aggressiveness"])), pennies(p["cap"]))
@@ -376,11 +401,24 @@ def percentile(sorted_values, q):
     return sorted_values[lo] + (h - lo) * (sorted_values[lo + 1] - sorted_values[lo])
 
 
+def _sum(xs):
+    total = 0
+    for x in xs:
+        total += x
+    return total
+
+
 def _mean(xs):
     total = 0.0
     for x in xs:
         total += x
     return total / len(xs)
+
+
+def came_back(results):
+    """Share of everything moved into savings that was moved back out again."""
+    moved = _sum([x["savedIn"] for x in results])
+    return _sum([x["rescued"] for x in results]) / moved if moved > 0 else 0.0
 
 
 def stress_test(s, years=200, rules=None):
@@ -426,8 +464,87 @@ def stress_test(s, years=200, rules=None):
             "meanInterest": _mean([x["interestEarned"] for x in rs]),
             "meanLowest": _mean([x["lowest"] for x in rs]),
             "meanAveragePot": _mean([x["averagePot"] for x in rs]),
+            "cameBack": came_back(rs),
         }
     return out
+
+
+SWEEP_DEFAULTS = {
+    "smart": {"horizon": (7, 14, 28, 56, 90), "buffer": (0, 100, 200, 400, 800)},
+    "planner": {"buffer": (0, 100, 200, 400, 800), "aggressiveness": (0.25, 0.5, 0.75, 1)},
+}
+
+
+def _beats(o, r):
+    """True when sweep row o is at least as good as row r on every count and better on one."""
+    keys = (("net", 1), ("beyondChance", -1), ("meanRescues", -1))
+    if o is r or any((o[k] - r[k]) * sign < 0 for k, sign in keys):
+        return False
+    return any((o[k] - r[k]) * sign > 0 for k, sign in keys)
+
+
+def sweep(s, rule="smart", dials=None, years=200):
+    """Try every combination of two dials of a forecasting rule over the same synthetic years.
+
+    dials maps exactly two of the rule's settings to the values to try, for example
+    {"horizon": [7, 14, 28], "buffer": [0, 200]}. Returns one row per combination (amounts in pennies).
+    A row is on the "frontier" when no other row is at least as good on all three counts (better off in a
+    typical year, fewer years past the overdraft limit, fewer raids) and better on at least one. "Set aside"
+    is not one of the counts: a big pot means little if the current account is deep in paid overdraft.
+    """
+    problems = validate_settings(s)
+    if problems:
+        raise ValueError(problems[0])
+    if rule not in SWEEP_DEFAULTS:
+        raise ValueError("rule must be one of: %s" % ", ".join(SWEEP_DEFAULTS))
+    if not _is_num(years) or years != int(years) or not 1 <= years <= 20000:
+        raise ValueError("years must be a whole number from 1 to 20000")
+    dials = dict(SWEEP_DEFAULTS[rule] if dials is None else dials)
+    if len(dials) != 2:
+        raise ValueError("choose exactly two dials to sweep")
+    for key, values in dials.items():
+        if key not in RULE_LIMITS[rule]:
+            raise ValueError("%s has no dial called %s; try: %s" % (rule, key, ", ".join(RULE_LIMITS[rule])))
+        lo, hi = RULE_LIMITS[rule][key]
+        whole = key in INTEGER_KEYS
+        if not values or any(not _is_num(v) or not lo <= v <= hi or (whole and v != int(v)) for v in values):
+            raise ValueError("%s values must be %snumbers from %s to %s" % (key, "whole " if whole else "", lo, hi))
+    (ka, va), (kb, vb) = dials.items()
+    if len(va) * len(vb) * years > 2000000:
+        raise ValueError("that sweep is too large; use fewer values or fewer years")
+    combos = [(a, b) for a in va for b in vb]
+    trial = []
+    for a, b in combos:
+        t = json.loads(json.dumps(s))
+        t["rules"][rule][ka] = a
+        t["rules"][rule][kb] = b
+        trial.append(t)
+    runs = [[] for _ in combos]
+    beyond_without = 0
+    for k in range(years):
+        days = generate_year(s, year_seed(s["seed"], k))
+        base = simulate(s, days, "none")
+        beyond_without += 1 if base["daysBeyond"] > 0 else 0
+        for i, t in enumerate(trial):
+            res = simulate(t, days, rule)
+            res["net"] = (res["endBalance"] + res["endPot"]) - (base["endBalance"] + base["endPot"])
+            runs[i].append(res)
+    rows = []
+    for (a, b), rs in zip(combos, runs):
+        rows.append({
+            ka: a,
+            kb: b,
+            "endPot": percentile(sorted(x["endPot"] for x in rs), 0.5),
+            "savedIn": percentile(sorted(x["savedIn"] for x in rs), 0.5),
+            "net": percentile(sorted(x["net"] for x in rs), 0.5),
+            "beyondChance": sum(1 for x in rs if x["daysBeyond"] > 0) / years,
+            "meanRescues": _mean([x["rescues"] for x in rs]),
+            "cameBack": came_back(rs),
+        })
+    for r in rows:
+        r["frontier"] = not any(_beats(o, r) for o in rows)
+    return {"rule": rule, "dials": [ka, kb], "years": years, "beyondWithoutSaving": beyond_without / years,
+            "rows": rows}
 
 
 # ---------------------------------------------------------------------------

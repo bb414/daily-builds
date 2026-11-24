@@ -3,6 +3,8 @@
 import unittest
 from pathlib import Path
 
+from saveorsink import model as M
+
 ROOT = Path(__file__).resolve().parents[1]
 APP_URL = (ROOT / "app" / "index.html").as_uri()
 
@@ -44,7 +46,7 @@ class BrowserTests(unittest.TestCase):
     def test_loads_with_results_and_no_requests(self):
         page = self.open()
         self.assertIn("The verdict", page.inner_text("#verdict-card"))
-        self.assertEqual(page.locator("#table-card tbody tr").count(), 5)
+        self.assertEqual(page.locator("#table-card tbody tr").count(), len(M.RULES))
         self.assertTrue(page.locator("#year-card path.bal").count() == 1)
         self.assertEqual(self.errors, [])
         self.assertTrue(all(u.startswith(("file:", "data:", "blob:")) for u in self.requests), self.requests)

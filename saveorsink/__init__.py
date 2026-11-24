@@ -5,6 +5,8 @@ the same engine from the command line, over many more simulated years, and
 writes reports and files for other tools.
 """
 
-from .model import PRESETS, RULES, default_settings, generate_year, simulate, stress_test, validate_settings
+from .model import (PRESETS, RULES, default_settings, generate_year, simulate, stress_test, sweep,
+                    validate_settings)
 
-__all__ = ["PRESETS", "RULES", "default_settings", "generate_year", "simulate", "stress_test", "validate_settings"]
+__all__ = ["PRESETS", "RULES", "default_settings", "generate_year", "simulate", "stress_test", "sweep",
+           "validate_settings"]
