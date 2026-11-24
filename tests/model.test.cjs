@@ -333,3 +333,16 @@ test('replaying rules finds the confidence cut-off that avoids the checker\'s mi
   assert.deepEqual([rp.best.key, rp.best.threshold, rp.best.correct], ['confident', 80, 15]);
   assert.equal(M.score(M.buildSession(4)).replay.best, null);
 });
+
+test('malformed sessions never throw', () => {
+  const s = fill(M.buildSession(5), (t) => [t.truth, 70]);
+  s.trials[0] = null;
+  s.trials[1] = [1];
+  s.trials[7].ai = {};
+  s.trials[8].ai = { verdict: 'scam' };
+  const r = M.score(s);
+  assert.equal(r.n.total, 24);
+  [undefined, null, {}, { trials: 'abc' }, { trials: {} }, []].forEach((x) => assert.equal(M.score(x).n.total, 0));
+  assert.deepEqual(M.validateSession([s]), ['The file does not contain a session.']);
+  assert.match(M.validateSession(s).join(' '), /unreadable/);
+});

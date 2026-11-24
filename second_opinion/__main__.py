@@ -112,8 +112,9 @@ def build_parser():
 
     p = sub.add_parser("synth", help="generate synthetic sessions to try the analysis")
     p.add_argument("--n", type=int, default=40, help="people per condition (default 40)")
-    p.add_argument("--advice", choices=ADVICE_STYLES, action="append",
-                   help="how the checker shows advice; repeat to make several groups (default: reason)")
+    p.add_argument("--advice", choices=ADVICE_STYLES + ("random",), action="append",
+                   help="how the checker shows advice; repeat to make several groups, or use random "
+                        "to assign each person a style at random (default: reason)")
     p.add_argument("--feedback", action="store_true", help="people see the right answer after each message")
     p.add_argument("--crutch", type=float, default=0.0,
                    help="assumed loss of solo skill after using the checker, in log-odds (default 0)")

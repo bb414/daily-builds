@@ -37,11 +37,18 @@ def _answered(response):
             and not isinstance(response.get("confidence"), bool))
 
 
+def _has_verdict(ai):
+    return (isinstance(ai, dict) and ai.get("verdict") in ("scam", "genuine")
+            and isinstance(ai.get("confidence"), (int, float)) and not isinstance(ai.get("confidence"), bool))
+
+
 def is_complete(trial):
+    if not isinstance(trial, dict):
+        return False
     if not _answered(trial.get("initial")):
         return False
     if trial.get("phase") == "with":
-        return _answered(trial.get("final")) and bool(trial.get("ai"))
+        return _answered(trial.get("final")) and _has_verdict(trial.get("ai"))
     return True
 
 
@@ -144,7 +151,9 @@ def profile_for(rair, rsr, n_correctable, n_misleading):
 
 def score(session):
     """Score a session dict (as saved by the app). Unfinished trials are ignored."""
-    all_trials = session.get("trials") or [] if isinstance(session, dict) else []
+    all_trials = session.get("trials") if isinstance(session, dict) else None
+    if not isinstance(all_trials, list):
+        all_trials = []
     trials = [t for t in all_trials if is_complete(t)]
     by = {"before": [], "with": [], "after": []}
     for t in trials:
@@ -319,8 +328,6 @@ def validate_session(obj):
                 problems.append(where + " has an unreadable answer.")
             if not isinstance(r, dict) or r.get("confidence") not in CONFIDENCE_LEVELS or isinstance(r.get("confidence"), bool):
                 problems.append(where + " has an unreadable confidence.")
-        if t.get("phase") == "with":
-            ai = t.get("ai")
-            if not isinstance(ai, dict) or ai.get("verdict") not in ("scam", "genuine"):
-                problems.append(where + " is missing the checker's verdict.")
+        if t.get("phase") == "with" and not _has_verdict(t.get("ai")):
+            problems.append(where + " is missing the checker's verdict.")
     return problems[:5]

@@ -109,8 +109,8 @@ class AppTests(unittest.TestCase):
         tiles = page.locator(".tile .v").all_inner_texts()
         self.assertEqual(tiles, ["50%", "50%", "75%", "75%", "50%"])
         text = page.locator("main").inner_text()
-        self.assertIn("switched to its answer 6 of 6 times", text)
-        self.assertIn("held firm 0 of 2 times", text)
+        self.assertIn("switched to its answer in 6 of 6 cases", text)
+        self.assertIn("held firm in 0 of 2 cases", text)
         self.assertEqual(page.locator("details.debrief").count(), 28)
         self.assertEqual(page.locator(".timeline li").count(), 16)
         self.assertIn("Its first mistake was checker message", text)
@@ -152,6 +152,10 @@ class AppTests(unittest.TestCase):
             other.locator("#import-file").set_input_files(bad)
             other.wait_for_function("document.getElementById('import-error').textContent.length > 0")
             self.assertIn("not a Second opinion results file", other.locator("#import-error").inner_text())
+            # Regression: choosing the same file again must report the problem again.
+            other.evaluate("document.getElementById('import-error').textContent = ''")
+            other.locator("#import-file").set_input_files(bad)
+            other.wait_for_function("document.getElementById('import-error').textContent.length > 0")
         self.assertEqual(self.problems, [])
 
     def test_experiment_settings_and_feedback(self):

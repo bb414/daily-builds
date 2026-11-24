@@ -30,6 +30,7 @@ module.exports = { loadModel, modelSource, APP };
 //   node tests/load_model.cjs items                   prints the item design
 //   node tests/load_model.cjs csv < sessions.json     prints each session as CSV text
 //   node tests/load_model.cjs validate < objs.json    prints the problems found in each
+//   node tests/load_model.cjs condition < args.json   prints each normalised condition
 if (require.main === module) {
   const M = loadModel();
   const command = process.argv[2];
@@ -46,6 +47,8 @@ if (require.main === module) {
     }));
   } else if (command === 'csv') {
     out = JSON.parse(input).map((s) => M.sessionToCsv(s));
+  } else if (command === 'condition') {
+    out = JSON.parse(input).map((args) => M.normaliseCondition(args.condition, args.seed));
   } else if (command === 'validate') {
     out = JSON.parse(input).map((s) => M.validateSession(s));
   } else {

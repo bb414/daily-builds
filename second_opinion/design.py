@@ -98,7 +98,7 @@ def _ai_right(item):
     return item["ai_verdict"] is not None and item["ai_verdict"] == item["truth"]
 
 
-def normalise_condition(condition=None, seed=1):
+def normalise_condition(condition=None, seed=0):
     """How advice is shown and whether feedback is on. 'random' assigns an advice
     style from the seed, exactly as the app does."""
     condition = condition or {}

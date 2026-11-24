@@ -353,7 +353,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       id: 'm04', role: 'checker', truth: 'scam', difficulty: 'medium', topic: 'Ticket resale',
       channel: 'dm', from: '@gigsforless_uk', address: 'Social media message', subject: '',
       context: 'You posted asking if anyone had spare tickets for a sold-out gig on Saturday.',
-      body: 'Hey, saw your post asking about tickets for Saturday at the Gatehouse. I\'ve got 2 standing at face value, £45 each. Can only take bank transfer as I\'m selling for a friend. Need it sorted today or they go to the next person.',
+      body: 'Hey, saw your post asking about tickets for Saturday at the Lantern Rooms. I\'ve got 2 standing at face value, £45 each. Can only take bank transfer as I\'m selling for a friend. Need it sorted today or they go to the next person.',
       ai: { verdict: 'scam', confidence: 91, reason: 'An unsolicited seller who insists on a bank transfer and adds time pressure, typical of ticket fraud.' },
       cues: [
         'A bank transfer gives you almost no protection if the tickets never arrive.',
@@ -375,14 +375,14 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm06', role: 'checker', truth: 'scam', difficulty: 'easy', topic: 'Free game currency',
-      channel: 'email', from: 'Pixelforge Rewards', address: 'rewards@pixelforge-gift.example',
+      channel: 'email', from: 'Pixelmoss Rewards', address: 'rewards@pixelmoss-gift.example',
       subject: 'You have been selected: 5,000 free gems',
-      context: 'You play games on Pixelforge.',
-      body: 'Congratulations!\n\nYou have been selected for 5,000 free gems. To claim, sign in with your Pixelforge username and password at pixelforge-gift.example/claim within 12 hours.\n\nUnclaimed rewards are given to other players.',
+      context: 'You play games on Pixelmoss.',
+      body: 'Congratulations!\n\nYou have been selected for 5,000 free gems. To claim, sign in with your Pixelmoss username and password at pixelmoss-gift.example/claim within 12 hours.\n\nUnclaimed rewards are given to other players.',
       ai: { verdict: 'scam', confidence: 96, reason: 'Promises free in-game currency in exchange for your login details on a lookalike site.' },
       cues: [
         'Free rewards for doing nothing are bait.',
-        'It asks for your password on pixelforge-gift, not pixelforge.example.',
+        'It asks for your password on pixelmoss-gift, not pixelmoss.example.',
         'A 12-hour deadline.'
       ]
     },
@@ -400,23 +400,23 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm08', role: 'checker', truth: 'scam', difficulty: 'hard', topic: 'New bank details for rent',
-      channel: 'email', from: 'Harbour Lets', address: 'accounts@harbour-lets.example',
+      channel: 'email', from: 'Wrenfield Lets', address: 'accounts@wrenfield-lets.example',
       subject: 'Updated bank details for your rent',
-      context: 'You rent your flat through Harbour Lets. Their emails normally come from @harbourlets.example and your rent is £650.',
-      body: 'Hi Alex,\n\nFollowing our annual audit, our bank details have changed. Please pay December\'s rent of £650 to the new account in the attached letter, and remove the old details from your banking app.\n\nMany thanks,\nAccounts Team, Harbour Lets\n\nAttachment: New_bank_details.pdf',
+      context: 'You rent your flat through Wrenfield Lets. Their emails normally come from @wrenfieldlets.example and your rent is £650.',
+      body: 'Hi Alex,\n\nFollowing our annual audit, our bank details have changed. Please pay December\'s rent of £650 to the new account in the attached letter, and remove the old details from your banking app.\n\nMany thanks,\nAccounts Team, Wrenfield Lets\n\nAttachment: New_bank_details.pdf',
       ai: { verdict: 'genuine', confidence: 76, reason: 'Professional tone, uses your name and the correct rent amount, and has no suspicious links.' },
       cues: [
         'A change of bank details by email is the classic sign of payment redirection fraud.',
-        'The address is harbour-lets.example, with a hyphen, not harbourlets.example.',
+        'The address is wrenfield-lets.example, with a hyphen, not wrenfieldlets.example.',
         'Always confirm new payment details by phoning the company on a number you already have.',
         'The checker trusted the professional tone and correct details, which a scammer can copy from a hacked inbox.'
       ]
     },
     {
       id: 'm09', role: 'checker', truth: 'genuine', difficulty: 'easy', topic: 'Appointment reminder',
-      channel: 'sms', from: 'MillbrookSrg', address: '', subject: '',
-      context: 'Last week you booked a check-up at your GP surgery, Millbrook Surgery.',
-      body: 'Reminder: you have an appointment at Millbrook Surgery on Thu 3 Dec at 10:40 with the practice nurse. To cancel, reply CANCEL. Please do not reply with medical questions.',
+      channel: 'sms', from: 'FennickGrn', address: '', subject: '',
+      context: 'Last week you booked a check-up at your GP surgery, Fennick Green Surgery.',
+      body: 'Reminder: you have an appointment at Fennick Green Surgery on Thu 3 Dec at 10:40 with the practice nurse. To cancel, reply CANCEL. Please do not reply with medical questions.',
       ai: { verdict: 'genuine', confidence: 87, reason: 'A routine reminder with no links, payments or requests for personal details.' },
       cues: [
         'It matches an appointment you actually booked.',
@@ -464,9 +464,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm13', role: 'checker', truth: 'genuine', difficulty: 'easy', topic: 'Library closing early',
-      channel: 'sms', from: 'AshbyColl', address: '', subject: '',
-      context: 'You are a student at Ashby College.',
-      body: 'Ashby College: the library will close at 4pm this Friday for staff training. Normal opening hours resume on Monday.',
+      channel: 'sms', from: 'KestrelVale', address: '', subject: '',
+      context: 'You are a student at Kestrel Vale College.',
+      body: 'Kestrel Vale College: the library will close at 4pm this Friday for staff training. Normal opening hours resume on Monday.',
       ai: { verdict: 'genuine', confidence: 93, reason: 'Purely informational, with nothing to click, pay or reply to.' },
       cues: [
         'It is purely informational.',
@@ -475,14 +475,14 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm14', role: 'checker', truth: 'genuine', difficulty: 'medium', topic: 'Password reset',
-      channel: 'email', from: 'Pixelforge', address: 'no-reply@pixelforge.example',
+      channel: 'email', from: 'Pixelmoss', address: 'no-reply@pixelmoss.example',
       subject: 'Reset your password',
-      context: 'A minute ago you clicked "Forgot password" on Pixelforge.',
-      body: 'Hi Alex,\n\nWe received a request to reset your Pixelforge password. If this was you, use this link within 30 minutes:\n\npixelforge.example/reset\n\nIf you did not ask for this, you can ignore this email and your password will not change.',
+      context: 'A minute ago you clicked "Forgot password" on Pixelmoss.',
+      body: 'Hi Alex,\n\nWe received a request to reset your Pixelmoss password. If this was you, use this link within 30 minutes:\n\npixelmoss.example/reset\n\nIf you did not ask for this, you can ignore this email and your password will not change.',
       ai: { verdict: 'genuine', confidence: 80, reason: 'An expected reset email from the service\'s own address, with no pressure if you did not request it.' },
       cues: [
         'You asked for it a minute ago.',
-        'It comes from pixelforge.example, the real address.',
+        'It comes from pixelmoss.example, the real address.',
         'It tells you that ignoring it is safe.'
       ]
     },
@@ -535,10 +535,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm19', role: 'solo', pair: 'p2', truth: 'scam', difficulty: 'medium', topic: 'Pay to start a job',
-      channel: 'email', from: 'Kettle & Crumb Careers', address: 'jobs@kettlecrumb-hiring.example',
+      channel: 'email', from: 'Kettle & Quince Careers', address: 'jobs@kettlequince-hiring.example',
       subject: 'Congratulations: you start on Monday',
       context: 'Last month you sent your CV to several cafés and shops.',
-      body: 'Dear Applicant,\n\nFollowing your application you have been selected for a weekend role at Kettle & Crumb. To complete your onboarding, please pay £35 for your uniform and background check at kettlecrumb-hiring.example/onboard by Friday.\n\nHR Team',
+      body: 'Dear Applicant,\n\nFollowing your application you have been selected for a weekend role at Kettle & Quince. To complete your onboarding, please pay £35 for your uniform and background check at kettlequince-hiring.example/onboard by Friday.\n\nHR Team',
       cues: [
         'Real employers do not ask you to pay to start a job.',
         'You were offered a job without ever being interviewed.',
@@ -605,10 +605,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm25', role: 'solo', pair: 'p5', truth: 'genuine', difficulty: 'medium', topic: 'Shift rota',
-      channel: 'email', from: 'Hollins Market', address: 'rota@hollinsmarket.example',
+      channel: 'email', from: 'Larchmere Market', address: 'rota@larchmeremarket.example',
       subject: 'Your shifts next week',
-      context: 'You work weekend shifts at Hollins Market.',
-      body: 'Hi Alex,\n\nYour shifts for next week are:\nSaturday 10:00 to 16:00\nSunday 12:00 to 18:00\n\nIf you need to swap a shift, please speak to your team leader.\n\nHollins Market',
+      context: 'You work weekend shifts at Larchmere Market.',
+      body: 'Hi Alex,\n\nYour shifts for next week are:\nSaturday 10:00 to 16:00\nSunday 12:00 to 18:00\n\nIf you need to swap a shift, please speak to your team leader.\n\nLarchmere Market',
       cues: [
         'It fits a job you already have.',
         'There is no link, payment or request for details.',
@@ -617,9 +617,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm26', role: 'solo', pair: 'p5', truth: 'genuine', difficulty: 'medium', topic: 'Tickets confirmed',
-      channel: 'sms', from: 'GATEHOUSE', address: '', subject: '',
-      context: 'Yesterday you bought two tickets on the Gatehouse Tickets website.',
-      body: 'Gatehouse Tickets: your 2 tickets for Sat 5 Dec are confirmed (order GT-77120). They will appear in the Gatehouse app 48 hours before the show.',
+      channel: 'sms', from: 'STUBLINE', address: '', subject: '',
+      context: 'Yesterday you bought two tickets on the Stubline Tickets website.',
+      body: 'Stubline Tickets: your 2 tickets for Sat 5 Dec are confirmed (order GT-77120). They will appear in the Stubline app 48 hours before the show.',
       cues: [
         'It matches a purchase you made through the official site.',
         'It asks for nothing.',
@@ -629,8 +629,8 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     {
       id: 'm27', role: 'solo', pair: 'p6', truth: 'genuine', difficulty: 'hard', topic: 'Did you make this payment?',
       channel: 'sms', from: 'QUILLFIELD', address: '', subject: '',
-      context: 'You bank with Quillfield Bank. You have not bought anything from TechZone.',
-      body: 'Quillfield Bank: did you try to pay £249.99 to TECHZONE ONLINE? Reply YES or NO. We will never ask for your PIN or passwords, or ask you to move money.',
+      context: 'You bank with Quillfield Bank. You have not bought anything from Voltarra.',
+      body: 'Quillfield Bank: did you try to pay £249.99 to VOLTARRA ONLINE? Reply YES or NO. We will never ask for your PIN or passwords, or ask you to move money.',
       cues: [
         'It comes from the bank\'s usual sender name, with no link or phone number.',
         'It asks only for YES or NO, and says what the bank will never ask for.',
@@ -640,10 +640,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     },
     {
       id: 'm28', role: 'solo', pair: 'p6', truth: 'genuine', difficulty: 'hard', topic: 'Check your details',
-      channel: 'email', from: 'Ashby College', address: 'studentoffice@ashby-college.example',
+      channel: 'email', from: 'Kestrel Vale College', address: 'studentoffice@kestrelvale-college.example',
       subject: 'Action needed: check your details by Friday',
-      context: 'You are a student at Ashby College. Its emails come from @ashby-college.example.',
-      body: 'Hi Alex,\n\nPlease log in to the student portal at portal.ashby-college.example and confirm your emergency contact details by Friday. We ask every student to do this once a year.\n\nIf you have any problems, visit the student office.\n\nAshby College',
+      context: 'You are a student at Kestrel Vale College. Its emails come from @kestrelvale-college.example.',
+      body: 'Hi Alex,\n\nPlease log in to the student portal at portal.kestrelvale-college.example and confirm your emergency contact details by Friday. We ask every student to do this once a year.\n\nIf you have any problems, visit the student office.\n\nKestrel Vale College',
       cues: [
         'The sender and the link are both on the college\'s own address: "portal." is just part of its site.',
         'It is a yearly check with an offline alternative: visit the office.',
@@ -754,9 +754,15 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       typeof response.confidence === 'number';
   }
 
+  function hasVerdict(ai) {
+    return !!ai && typeof ai === 'object' && (ai.verdict === 'scam' || ai.verdict === 'genuine') &&
+      typeof ai.confidence === 'number';
+  }
+
   function isComplete(trial) {
+    if (!trial || typeof trial !== 'object' || Array.isArray(trial)) { return false; }
     if (!isAnswered(trial.initial)) { return false; }
-    if (trial.phase === 'with') { return isAnswered(trial.final) && !!trial.ai; }
+    if (trial.phase === 'with') { return isAnswered(trial.final) && hasVerdict(trial.ai); }
     return true;
   }
 
@@ -838,7 +844,8 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
   // reliance" idea: they only look at the moments where the first answer and the
   // checker disagreed, because that is where relying on it, or not, matters.
   function score(session) {
-    var trials = (session && session.trials ? session.trials : []).filter(isComplete);
+    var all = session && Array.isArray(session.trials) ? session.trials : [];
+    var trials = all.filter(isComplete);
     var by = { before: [], with: [], after: [] };
     trials.forEach(function (t) { if (Object.prototype.hasOwnProperty.call(by, t.phase)) { by[t.phase].push(t); } });
 
@@ -961,7 +968,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       confidence: confidence,
       change: change,
       profile: profileFor(rair, rsr, cells.checkerRight.n, cells.checkerWrong.n),
-      complete: n.total === (session && session.trials ? session.trials.length : 0) && n.total > 0
+      complete: n.total === all.length && n.total > 0
     };
   }
 
@@ -1007,13 +1014,13 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
   // Returns a list of problems; an empty list means it is usable.
   function validateSession(obj) {
     var problems = [];
-    if (!obj || typeof obj !== 'object') { return ['The file does not contain a session.']; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) { return ['The file does not contain a session.']; }
     if (obj.format !== FORMAT) { problems.push('This is not a Second opinion results file.'); }
     if (typeof obj.version !== 'number' || obj.version > VERSION) { problems.push('The file was made by a newer, unknown version.'); }
     if (!Array.isArray(obj.trials) || !obj.trials.length) { problems.push('The file has no answers in it.'); return problems; }
     obj.trials.forEach(function (t, i) {
       var where = 'Answer ' + (i + 1);
-      if (!t || typeof t !== 'object') { problems.push(where + ' is unreadable.'); return; }
+      if (!t || typeof t !== 'object' || Array.isArray(t)) { problems.push(where + ' is unreadable.'); return; }
       if (PHASES.indexOf(t.phase) < 0) { problems.push(where + ' has an unknown part.'); }
       if (t.truth !== 'scam' && t.truth !== 'genuine') { problems.push(where + ' has no correct answer recorded.'); }
       [t.initial, t.final].forEach(function (r) {
@@ -1021,7 +1028,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
         if (r.answer !== 'scam' && r.answer !== 'genuine') { problems.push(where + ' has an unreadable answer.'); }
         if (CONFIDENCE_LEVELS.indexOf(r.confidence) < 0) { problems.push(where + ' has an unreadable confidence.'); }
       });
-      if (t.phase === 'with' && (!t.ai || (t.ai.verdict !== 'scam' && t.ai.verdict !== 'genuine'))) {
+      if (t.phase === 'with' && !hasVerdict(t.ai)) {
         problems.push(where + ' is missing the checker\'s verdict.');
       }
     });
@@ -1490,8 +1497,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<div><p class="eyebrow">Your reliance profile</p>' +
       '<h1 class="profile-label" id="results-title" tabindex="-1">' + esc(p.label) + '</h1>' +
       '<p class="lede">' + esc(p.summary) + '</p>' +
-      '<p>When the checker was right and you were not, you switched to its answer <strong>' + c.checkerRight.corrected + ' of ' + c.checkerRight.n + '</strong> times. ' +
-      'When you were right and it was wrong, you held firm <strong>' + c.checkerWrong.heldFirm + ' of ' + c.checkerWrong.n + '</strong> times.</p>' +
+      '<p>' + (c.checkerRight.n ? 'When the checker was right and you were not, you switched to its answer in <strong>' + c.checkerRight.corrected + ' of ' + c.checkerRight.n + '</strong> ' + (c.checkerRight.n === 1 ? 'case' : 'cases') + '. ' :
+        'You were never wrong where the checker was right. ') +
+      (c.checkerWrong.n ? 'When you were right and it was wrong, you held firm in <strong>' + c.checkerWrong.heldFirm + ' of ' + c.checkerWrong.n + '</strong> ' + (c.checkerWrong.n === 1 ? 'case' : 'cases') + '.' :
+        'You were never right where the checker was wrong.') + '</p>' +
       (p.tentative ? '<p class="notice warn small">This rests on only ' + decisive + (decisive === 1 ? ' moment' : ' moments') + ' where your first answer and the checker disagreed and one of you was right, so treat it as a hint rather than a verdict.</p>' : '') +
       '</div><div class="quadrant">' + quadrant(r.rair, r.rsr) +
       '<p class="legend" style="justify-content: center"><span><span class="swatch" style="background: var(--accent); border-radius: 50%"></span>' +
@@ -1522,7 +1531,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
         c.checkerRight.n ? 'You switched to its right answer ' + pct(r.rair) + ' of the time.' : 'You were never wrong where it was right.', true, r.rair) +
       cell('You right, checker wrong', c.checkerWrong.n ? c.checkerWrong.heldFirm + ' of ' + c.checkerWrong.n : 'none',
         c.checkerWrong.n ? 'You kept your right answer ' + pct(r.rsr) + ' of the time.' : 'You were never right where it was wrong.', true, r.rsr) +
-      cell('Both right', String(c.bothRight.n), 'Nothing to decide' + (c.bothRight.n - c.bothRight.finalRight ? ', though you talked yourself out of ' + (c.bothRight.n - c.bothRight.finalRight) + '.' : '.'), false) +
+      cell('Both right', String(c.bothRight.n), (c.bothRight.n - c.bothRight.finalRight ? 'Nothing to decide, yet you changed ' + (c.bothRight.n - c.bothRight.finalRight) + ' of these right answers to wrong ones.' : 'Nothing to decide.'), false) +
       cell('Both wrong', String(c.bothWrong.n), c.bothWrong.n ? 'The checker could not rescue these: it agreed with your mistake.' : 'You and the checker were never wrong together.', false) +
       '</div></section></div>';
 
@@ -1788,7 +1797,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
   app.addEventListener('change', function (e) {
     if (e.target.name === 'advice-style') { state.condition.advice = e.target.value; }
     if (e.target.id === 'feedback-toggle') { state.condition.feedback = e.target.checked; }
-    if (e.target.id === 'import-file' && e.target.files && e.target.files[0]) { importFile(e.target.files[0]); }
+    if (e.target.id === 'import-file' && e.target.files && e.target.files[0]) {
+      importFile(e.target.files[0]);
+      e.target.value = '';
+    }
     if (e.target.name === 'answer' || e.target.name === 'confidence') {
       var err = document.getElementById('form-error');
       if (err) { err.textContent = ''; }

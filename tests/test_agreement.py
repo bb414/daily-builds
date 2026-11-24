@@ -12,7 +12,7 @@ import unittest
 from helpers import NODE, fill, node_bridge, other
 
 from second_opinion.cohort import _session_from_csv_rows
-from second_opinion.design import ITEMS, build_session
+from second_opinion.design import ITEMS, build_session, normalise_condition
 from second_opinion.metrics import score, validate_session
 from second_opinion.synth import simulate_cohort
 
@@ -93,7 +93,45 @@ class AgreementTests(unittest.TestCase):
         bad["trials"][9]["truth"] = "unknown"
         bad["trials"][10]["initial"] = "scam"
         cases.append(bad)
+        odd = copy.deepcopy(good)
+        odd["trials"][0] = []
+        odd["trials"][7]["ai"] = {"verdict": "scam"}
+        odd["trials"][8]["ai"] = {}
+        odd["trials"][9]["initial"] = []
+        cases += [odd, [], [good], "text", 7, None,
+                  {"format": "second-opinion-session", "version": True, "trials": good["trials"]},
+                  {"format": "second-opinion-session", "version": 1, "trials": [None, 3, "x"]}]
         self.assertEqual(node_bridge("validate", cases), [validate_session(c) for c in cases])
+
+    def test_malformed_sessions_score_the_same_and_never_crash(self):
+        good = fill(build_session(5), lambda t, stage: (t["truth"], 70))
+        no_conf = copy.deepcopy(good)
+        no_conf["trials"][7]["ai"] = {"verdict": "scam"}
+        empty_ai = copy.deepcopy(good)
+        empty_ai["trials"][8]["ai"] = {}
+        junk = copy.deepcopy(good)
+        junk["trials"][0] = None
+        junk["trials"][1] = [1, 2]
+        junk["trials"][2]["initial"]["confidence"] = True
+        bad_positions = copy.deepcopy(good)
+        for t in bad_positions["trials"]:
+            t["position"] = "x"
+        cases = [no_conf, empty_ai, junk, bad_positions, {"trials": "abc"}, {"trials": {}}, [], "x", {}]
+        js = node_bridge("score", cases)
+        for i, (j, p) in enumerate(zip(js, [score(c) for c in cases])):
+            assert_same(self, j, p, "case %d" % i)
+        self.assertEqual(js[0]["n"]["with"], 15)
+        self.assertEqual(js[2]["n"]["total"], 25)
+
+    def test_conditions_match_the_app(self):
+        args = [{"condition": c, "seed": seed}
+                for c in [None, {}, {"advice": "random"}, {"advice": "verdict", "feedback": True},
+                          {"advice": "loud", "feedback": 1}, {"advice": "confidence", "assignment": "random"}]
+                for seed in [0, 1, 2, 3, 4294967295]]
+        js = node_bridge("condition", args)
+        self.assertEqual(js, [normalise_condition(a["condition"], a["seed"]) for a in args])
+        self.assertEqual(node_bridge("condition", [{"condition": {"advice": "random"}}]),
+                         [normalise_condition({"advice": "random"})])
 
     def test_csv_from_the_app_loads_into_python_unchanged(self):
         sessions = simulate_cohort(5, seed=3, condition={"advice": "verdict", "feedback": True})
