@@ -220,8 +220,8 @@ class RunResult:
     value_captured: float
     pilot_spend: float
     scaling_spend: float
-    wasted_spend: float
-    missed_opportunities: int
+    wasted_spend: float  # spend on pilots that stalled (stopped or stuck), excluding those still in progress
+    missed_opportunities: int  # stalled pilots that were genuinely worth scaling
     quarters_to_scale: List[int] = field(default_factory=list)
     timeline: List["Snapshot"] = field(default_factory=list)
 

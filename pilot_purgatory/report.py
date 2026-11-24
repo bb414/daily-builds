@@ -11,6 +11,8 @@ from .robustness import RobustnessReport
 from .model import BARRIERS, IN_PROGRESS, KILLED, OUTCOMES, PURGATORY, SCALED, Summary
 
 OUTCOME_COLOURS = {SCALED: "#2e7d4f", KILLED: "#8a8f98", PURGATORY: "#d9822b", IN_PROGRESS: "#7fa7d9"}
+# Text drawn on each outcome colour, chosen for at least 4.5:1 contrast.
+OUTCOME_TEXT = {SCALED: "#ffffff", KILLED: "#1d2430", PURGATORY: "#1d2430", IN_PROGRESS: "#1d2430"}
 SERIES_COLOURS = ("#c2571a", "#2b5fab", "#6b4fa8", "#2e7d4f")
 
 
@@ -75,17 +77,17 @@ def text_report(
         row("Still in progress", [pct(s.outcome_share[IN_PROGRESS]) for s in summaries]),
         row("Value captured (mean)", [money(s.value_captured) for s in summaries]),
         row("Pilot spend (mean)", [money(s.pilot_spend) for s in summaries]),
-        row("Spend on pilots that never scaled", [money(s.wasted_spend) for s in summaries]),
+        row("Spend on pilots that stalled", [money(s.wasted_spend) for s in summaries]),
         row("Net value (mean)", [money(s.net_value.mean) for s in summaries]),
         row("  10th to 90th percentile", spreads),
         row("Payback quarter", paybacks),
-        row("Good pilots that never scaled", [f"{s.missed_opportunities:.1f}" for s in summaries]),
+        row("Pilots worth scaling that stalled", [f"{s.missed_opportunities:.1f}" for s in summaries]),
         row(
             "Median quarter of scaling",
             ["n/a" if s.median_quarters_to_scale != s.median_quarters_to_scale else f"Q{s.median_quarters_to_scale:g}" for s in summaries],
         ),
         "",
-        "Why pilots stall (share of pilots that never scaled)",
+        "Why pilots stall (share of pilots that were stopped or got stuck)",
     ]
     for barrier in BARRIERS:
         lines.append(row(f"  {barrier}", [pct(s.barrier_share[barrier]) for s in summaries]))
@@ -111,7 +113,7 @@ def text_report(
             )
         counts = ", ".join(f"{k} ({v})" for k, v in robustness.top_lever_counts.items())
         lines.append(f"  Best single fix across scenarios: {counts}")
-    lines += ["", "Illustrative model with assumed parameters. Change them in pilot_purgatory/strategies.py."]
+    lines += ["", "Illustrative model with assumed parameters. Change them in the app, or in pilot_purgatory/strategies.py and model.py."]
     return "\n".join(lines)
 
 
@@ -140,7 +142,7 @@ def _svg_outcome_mix(summaries: Sequence[Summary]) -> str:
             )
             if seg > 44:
                 parts.append(
-                    f'<text x="{x + seg / 2:.1f}" y="{y + bar_h / 2 + 5}" class="inbar" text-anchor="middle">{pct(share)}</text>'
+                    f'<text x="{x + seg / 2:.1f}" y="{y + bar_h / 2 + 5}" class="inbar" fill="{OUTCOME_TEXT[outcome]}" text-anchor="middle">{pct(share)}</text>'
                 )
             x += seg
     ly = height - 14
@@ -293,7 +295,7 @@ th,td{padding:6px 8px;border-bottom:1px solid #e3e6eb;text-align:right}
 th:first-child,td:first-child{text-align:left}
 svg{width:100%;height:auto;margin-top:.5rem}
 .lbl{font-size:13px;fill:#1d2430}.val{font-size:12px;fill:#1d2430}
-.inbar{font-size:12px;fill:#fff;font-weight:600}.leg{font-size:12px;fill:#3a4350}
+.inbar{font-size:12px;font-weight:600}.leg{font-size:12px;fill:#3a4350}
 .muted{color:#5a6372;font-size:.85rem}
 th.l,td.l{text-align:left}
 .note{font-size:.85rem;color:#5a6372;margin-top:2.5rem;border-top:1px solid #e3e6eb;padding-top:1rem}
@@ -317,11 +319,11 @@ def html_report(
         tr("Scaled", [pct(s.outcome_share[SCALED]) for s in summaries]),
         tr("Stuck in pilot purgatory", [pct(s.outcome_share[PURGATORY]) for s in summaries]),
         tr("Value captured (mean)", [money(s.value_captured) for s in summaries]),
-        tr("Spend on pilots that never scaled", [money(s.wasted_spend) for s in summaries]),
+        tr("Spend on pilots that stalled", [money(s.wasted_spend) for s in summaries]),
         tr("Net value (mean)", [money(s.net_value.mean) for s in summaries]),
         tr("Net value, 10th to 90th percentile", [f"{money(s.net_value.p10)} to {money(s.net_value.p90)}" for s in summaries]),
         tr("Payback quarter", [payback(s) for s in summaries]),
-        tr("Good pilots that never scaled (per portfolio)", [f"{s.missed_opportunities:.1f}" for s in summaries]),
+        tr("Pilots worth scaling that stalled (per portfolio)", [f"{s.missed_opportunities:.1f}" for s in summaries]),
     ]
 
     lever_section = ""
@@ -359,7 +361,7 @@ portfolio and traces every pilot that did not scale back to the main thing that 
 <p>Mean benefit captured minus everything spent so far, quarter by quarter.</p>
 {_svg_timeline(summaries)}
 <h2>Why pilots stall</h2>
-<p>Share of pilots that never scaled, by the main barrier that held each one back.</p>
+<p>Share of pilots that were stopped or got stuck, by the main barrier that held each one back.</p>
 {_svg_barriers(summaries)}
 {lever_section}
 {_robustness_table(robustness) if robustness else ""}

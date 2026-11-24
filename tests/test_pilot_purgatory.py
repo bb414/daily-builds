@@ -331,6 +331,42 @@ class Reports(unittest.TestCase):
             self.assertEqual(main(["--runs", "0"]), 2)
 
 
+class EdgeCases(unittest.TestCase):
+    """Loop 4 audit: extreme settings must never break the model or its reports."""
+
+    CASES = [
+        ("one quarter", MOMENTUM, 1),
+        ("one pilot", replace(MOMENTUM, pilots=1), 12),
+        ("no capacity", replace(GOVERNANCE, scaling_capacity=0), 12),
+        ("heavy screening", replace(GOVERNANCE, screening=0.9, pilots=40), 12),
+        ("sponsors always leave", replace(MOMENTUM, abandon_rate=1.0), 12),
+        ("almost no hurdle", replace(GOVERNANCE, roi_hurdle=0.01, scaling_capacity=5), 12),
+        ("maximum platform", replace(GOVERNANCE, platform_effect=0.5, scaling_capacity=5), 20),
+    ]
+
+    def test_extreme_settings(self):
+        for name, strategy, quarters in self.CASES:
+            with self.subTest(name):
+                r = simulate_once(strategy, random.Random(1), quarters)
+                self.assertEqual(sum(r.outcomes.values()), r.pilots)
+                s = simulate(strategy, runs=30, quarters=quarters)
+                self.assertTrue(math.isfinite(s.net_value.mean))
+                self.assertEqual(len(s.timeline), quarters)
+                text = text_report([s, s], [], seed=1)
+                self.assertIn("Payback quarter", text)
+
+    def test_no_capacity_means_nothing_goes_live(self):
+        s = simulate(replace(GOVERNANCE, scaling_capacity=0), runs=30)
+        self.assertEqual(s.outcome_share[SCALED], 0)
+        self.assertTrue(math.isnan(s.median_quarters_to_scale))
+        self.assertIn("n/a", text_report([s], [], seed=1))
+
+    def test_sponsors_always_leaving_stops_everything_in_quarter_one(self):
+        r = simulate_once(replace(MOMENTUM, abandon_rate=1.0), random.Random(2))
+        self.assertEqual(r.outcomes[KILLED], MOMENTUM.pilots)
+        self.assertEqual(r.timeline[0].stopped, MOMENTUM.pilots)
+
+
 class NoStrayText(unittest.TestCase):
     def test_source_has_no_em_dashes(self):
         root = Path(__file__).resolve().parents[1]
