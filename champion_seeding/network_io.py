@@ -19,10 +19,13 @@ def _read_rows(path, required):
                 raise ValueError("%s needs the column(s): %s" % (path, ", ".join(missing)))
             rows = []
             for row in reader:
-                rows.append({(k or "").strip().lower(): (v or "").strip() for k, v in row.items()})
+                # Extra fields on a row (for example a trailing comma) arrive under the key None: ignore them.
+                rows.append({k.strip().lower(): (v or "").strip() for k, v in row.items() if isinstance(k, str)})
             return rows
     except OSError as err:
         raise ValueError("Could not read %s: %s" % (path, err.strerror))
+    except (csv.Error, UnicodeDecodeError) as err:
+        raise ValueError("Could not read %s as CSV: %s" % (path, err))
 
 
 def load_network(edges_path, teams_path=None, seed=7):
@@ -55,10 +58,7 @@ def load_network(edges_path, teams_path=None, seed=7):
         adj[index[a]].add(index[b])
         adj[index[b]].add(index[a])
     adj = [sorted(s) for s in adj]
-    rng = model.Rng(model.mix_seed(seed, model.CONSTANTS["networkSalt"]))
-    c = model.CONSTANTS
-    need = [c["thresholdLow"] + c["thresholdSpan"] * rng.uniform() for _ in ids]
-    suit = [rng.uniform() for _ in ids]
+    need, suit = model.person_traits(len(ids), seed)
     return model.finish_network(adj, team, need, suit), ids, names
 
 

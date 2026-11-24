@@ -15,6 +15,7 @@ CONSTANTS = {
     "bandLow": 0.1,
     "bandHigh": 0.9,
     "networkSalt": 0x51ED27,
+    "peopleSalt": 0x3C6EF3,
     "pickSalt": 0x2F6B4A,
 }
 
@@ -231,9 +232,17 @@ def build_network(src=None):
                     break
     for lst in adj:
         lst.sort()
+    need, suit = person_traits(n, p["seed"])
+    return finish_network(adj, team, need, suit, dept)
+
+
+def person_traits(n, seed):
+    """Each person's need for social proof and whether the tool suits their job, drawn by person number
+    from their own stream, so a network exported to CSV and loaded back gives identical results."""
+    rng = Rng(mix_seed(seed, CONSTANTS["peopleSalt"]))
     need = [CONSTANTS["thresholdLow"] + CONSTANTS["thresholdSpan"] * rng.uniform() for _ in range(n)]
     suit = [rng.uniform() for _ in range(n)]
-    return finish_network(adj, team, need, suit, dept)
+    return need, suit
 
 
 def finish_network(adj, team, need, suit, dept=None):
@@ -469,6 +478,7 @@ def run_strategy(net, src, strategy):
     return {
         "strategy": strategy,
         "champions": first,
+        "teamsCovered": len(set(net["team"][v] for v in first)),
         "finalMean": _mean(finals),
         "everMean": _mean(evers),
         "holdsMean": _mean(holds),
@@ -512,6 +522,11 @@ def sweep_point(src, key, value):
     return {"value": q[key], "results": results, "best": rank_strategies(results)[0]["strategy"]}
 
 
+def robust_params(src, i):
+    p = normalise_params(src)
+    return normalise_params(dict(p, seed=robust_seed(p["seed"], i), runs=min(p["runs"], ROBUST_RUNS), custom=[]))
+
+
 def sweep(src, key):
     if key not in SWEEPS:
         raise ValueError("Cannot sweep %s. Choose from: %s" % (key, ", ".join(SWEEP_KEYS)))
@@ -539,8 +554,7 @@ def robust_seed(seed, i):
 
 def robustness_point(src, i):
     """One organisation drawn with a different seed (your own picks are left out: they name people in this one)."""
-    p = normalise_params(src)
-    q = dict(p, seed=robust_seed(p["seed"], i), runs=min(p["runs"], ROBUST_RUNS), custom=[])
+    q = robust_params(src, i)
     cmp = compare_strategies(q)
     return {"seed": q["seed"], "ranking": cmp["ranking"], "finals": [r["finalMean"] for r in cmp["results"]]}
 
@@ -596,6 +610,10 @@ def whole_pct(x):
     return "%d%%" % math.floor(x * 100 + 0.5)
 
 
+def weeks_text(n):
+    return "1 week" if n == 1 else "%d weeks" % n
+
+
 def explain(cmp):
     """Plain-English reasons, built from the numbers (matches the browser app word for word)."""
     p = cmp["params"]
@@ -610,17 +628,22 @@ def explain(cmp):
         out.append("It is close: %s ends at %s and %s at %s, so where the champions sit matters little for how far it spreads."
                    % (label[best["strategy"]].lower(), whole_pct(best["finalMean"]), label[second["strategy"]].lower(),
                       whole_pct(second["finalMean"])))
-        if best["weeksToHalf"] is not None and second["weeksToHalf"] is not None and best["weeksToHalf"] != second["weeksToHalf"]:
+        # Only compare speed when both usually get there, so the medians describe typical rollouts.
+        if best["reachShare"] >= 0.5 and second["reachShare"] >= 0.5 and best["weeksToHalf"] != second["weeksToHalf"]:
             fast, slow = (best, second) if best["weeksToHalf"] < second["weeksToHalf"] else (second, best)
-            out.append("It does change the speed: %s reaches half the organisation in %d weeks, %s in %d."
-                       % (label[fast["strategy"]].lower(), fast["weeksToHalf"], label[slow["strategy"]].lower(), slow["weeksToHalf"]))
+            out.append("It does change the speed: %s typically reaches half the organisation in %s, %s in %s."
+                       % (label[fast["strategy"]].lower(), weeks_text(fast["weeksToHalf"]), label[slow["strategy"]].lower(),
+                          weeks_text(slow["weeksToHalf"])))
     else:
         out.append("%s does best: %s of people are using the tool after %d weeks, against %s for %s."
                    % (label[best["strategy"]], whole_pct(best["finalMean"]), p["weeks"], whole_pct(second["finalMean"]),
                       label[second["strategy"]].lower()))
         if best["strategy"] == "spread":
-            out.append("Every team gets a champion that people work with closely. Only %s of working ties cross team lines, so use rarely jumps between teams on its own: starting in many teams at once matters."
-                       % whole_pct(ties))
+            teams = cmp["network"]["teams"]
+            who = ("Every team gets a champion" if best["teamsCovered"] >= teams
+                   else "%d of the %d teams get a champion" % (best["teamsCovered"], teams))
+            out.append("%s that people work with closely. Only %s of working ties cross team lines, so use rarely jumps between teams on its own: starting in many teams at once matters."
+                       % (who, whole_pct(ties)))
         elif best["strategy"] == "cluster":
             out.append("Concentrated champions push one team well past the bar, and that team then carries its neighbours.")
         elif best["strategy"] == "hubs":

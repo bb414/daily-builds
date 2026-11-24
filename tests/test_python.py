@@ -39,6 +39,10 @@ class NetworkFileTest(unittest.TestCase):
         self.assertEqual(ids[0], "P001")
         self.assertEqual(names[0], "Team 01")
         self.assertEqual(loaded["betweenness"], net["betweenness"])
+        self.assertEqual(loaded["need"], net["need"])
+        self.assertEqual(loaded["suit"], net["suit"])
+        self.assertEqual(model.compare_strategies(dict(p, runs=10), loaded)["results"],
+                         model.compare_strategies(dict(p, runs=10))["results"])
 
     def test_loader_tidies_messy_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -65,6 +69,14 @@ class NetworkFileTest(unittest.TestCase):
                 network_io.load_network(tiny)
             with self.assertRaisesRegex(ValueError, "Could not read"):
                 network_io.load_network(os.path.join(tmp, "missing.csv"))
+            trailing = os.path.join(tmp, "trailing.csv")
+            write(trailing, "source,target\na,b,\nb,c,extra\nc,a\n")
+            net, ids, names = network_io.load_network(trailing)
+            self.assertEqual(net["edges"], 3)
+            huge = os.path.join(tmp, "huge.csv")
+            write(huge, "source,target\n" + "x" * 200000 + ",b\n")
+            with self.assertRaisesRegex(ValueError, "as CSV"):
+                network_io.load_network(huge)
 
     def test_bundled_example_files_load(self):
         net, ids, names = network_io.load_network(os.path.join(EXAMPLES, "edges.csv"), os.path.join(EXAMPLES, "teams.csv"))
@@ -132,16 +144,25 @@ class CliTest(unittest.TestCase):
             write(bad, "{nope")
             with self.assertRaises(SystemExit):
                 run_cli("compare", "--config", bad)
+        with tempfile.TemporaryDirectory() as tmp:
+            deep = os.path.join(tmp, "deep.json")
+            write(deep, "[" * 100000 + "]" * 100000)
+            with self.assertRaises(SystemExit):
+                run_cli("compare", "--config", deep)
         code, out = run_cli("robustness", *self.small)
         self.assertIn("organisations", out)
         self.assertIn("was best in", out)
+
+    def test_table_rounds_like_the_explanations(self):
+        self.assertEqual(cli.pct(0.845), model.whole_pct(0.845))
+        self.assertEqual(cli.pct(0.125), "13%")
 
     def test_bad_arguments_exit_cleanly(self):
         for args in (["compare", "--set", "nonsense=1"], ["compare", "--set", "runs=lots"], ["compare", "--set", "x"],
                      ["compare", "--set", "strategy=magic"], ["compare", "--preset", "nope"],
                      ["load", "--edges", "/nonexistent/e.csv"], ["sweep", "--param", "people"],
                      ["compare", "--picks", "P999"], ["compare", "--picks", "1,2,3,4,5,6,7,8,9"],
-                     ["compare", "--config", "/nonexistent/s.json"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
+                     ["compare", "--config", "/nonexistent/s.json"], ["compare", "--picks", "\u00b2"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
             with self.subTest(args=args), self.assertRaises(SystemExit) as ctx:
                 with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
                     cli.main(list(args))

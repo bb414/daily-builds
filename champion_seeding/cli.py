@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import math
+import re
 import sys
 
 from . import model
@@ -11,7 +12,8 @@ from .network_io import export_network, load_network
 
 
 def pct(x):
-    return "n/a" if x is None else "%.0f%%" % (x * 100)
+    # Same rounding as the explanations and the browser app (halves round up).
+    return "n/a" if x is None else model.whole_pct(x)
 
 
 def parse_sets(pairs):
@@ -39,7 +41,7 @@ def load_config(path):
             return model.read_settings_file(json.load(fh))
     except OSError as err:
         raise SystemExit("Could not read %s: %s" % (path, err.strerror))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, RecursionError):
         raise SystemExit("%s is not valid JSON" % path)
     except ValueError as err:
         raise SystemExit("%s: %s" % (path, err))
@@ -67,7 +69,7 @@ def apply_picks(params, picks, ids):
             continue
         if item in index:
             chosen.append(index[item])
-        elif item.isdigit() and 1 <= int(item) <= len(ids):
+        elif re.fullmatch(r"[0-9]+", item) and 1 <= int(item) <= len(ids):
             chosen.append(int(item) - 1)
         else:
             raise SystemExit("--picks: no person called %r" % item)

@@ -223,7 +223,7 @@ test('your own picks are cleaned up and compared alongside the five strategies',
   const spread = M.pickChampions(net, 8, 'spread', M.makeRng(1));
   const same = M.compareStrategies(Object.assign(small(), { custom: spread }));
   assert.equal(same.results.find((r) => r.strategy === 'custom').finalMean, same.results.find((r) => r.strategy === 'spread').finalMean);
-  assert.match(M.explain(same).join(' '), /level with one per team/);
+  assert.match(M.explain(same).join(' '), /Your picks reach \d+%/);
 });
 
 test('robustness tries ten other organisations of the same shape', () => {
@@ -252,4 +252,40 @@ test('settings survive a round trip through the link and the file', () => {
   assert.throws(() => M.readSettingsFile({ hello: 1 }), /does not contain/);
   assert.throws(() => M.readSettingsFile([1]), /does not contain/);
   assert.throws(() => M.readSettingsFile(null), /does not contain/);
+});
+
+test('chunked sweeps and robustness tests give exactly the one-shot answers', () => {
+  const p = small({ runs: 10, weeks: 12 });
+  const q = M.sweepParams(p, 'peerPull', 0.2);
+  const net = M.buildNetwork(q);
+  const pieces = M.sweepAssemble(q, 'peerPull', M.STRATEGY_KEYS.map((s) => M.sweepEntry(net, q, s)));
+  assert.deepEqual(plain(pieces), plain(M.sweepPoint(p, 'peerPull', 0.2)));
+  const r = M.robustParams(p, 3);
+  const rnet = M.buildNetwork(r);
+  assert.deepEqual(plain(M.robustAssemble(r, M.STRATEGY_KEYS.map((s) => M.runStrategy(rnet, r, s)))), plain(M.robustnessPoint(p, 3)));
+});
+
+test('explanations only claim what is true', () => {
+  const c = M.compareStrategies(M.presetParams('assistant'));
+  const spread = c.results.find((r) => r.strategy === 'spread');
+  assert.equal(spread.teamsCovered, 8);
+  assert.match(M.explain(c).join(' '), /8 of the 12 teams get a champion/);
+  const all = M.compareStrategies(Object.assign(M.presetParams('assistant'), { champions: 12 }));
+  if (all.ranking[0] === 'spread') assert.match(M.explain(all).join(' '), /Every team gets a champion/);
+  // The speed comparison is only made when both strategies usually reach half the organisation.
+  const fake = { params: M.normaliseParams({}), network: { teams: 12, outsideShare: 0.2 }, ranking: ['hubs', 'spread', 'random', 'bridges', 'cluster'],
+    results: ['random', 'hubs', 'bridges', 'cluster', 'spread'].map((s) => ({ strategy: s, finalMean: s === 'hubs' ? 0.5 : 0.49, everMean: 0.5,
+      reachShare: s === 'hubs' ? 0.2 : 0.3, weeksToHalf: s === 'hubs' ? 1 : 40, teamsCovered: 8, champions: [] })) };
+  assert.doesNotMatch(M.explain(fake).join(' '), /change the speed/);
+  fake.results.forEach((r) => { r.reachShare = 0.9; });
+  assert.match(M.explain(fake).join(' '), /in 1 week, one per team in 40 weeks/);
+});
+
+test('people traits come from their own stream, by person number', () => {
+  const p = M.normaliseParams({ people: 60, teams: 5, seed: 9 });
+  const net = M.buildNetwork(p);
+  const t = M.personTraits(60, 9);
+  assert.deepEqual(plain(net.need), plain(t.need));
+  assert.deepEqual(plain(net.suit), plain(t.suit));
+  assert.deepEqual(plain(M.personTraits(40, 9).need), plain(t.need.slice(0, 40)), 'first draws do not depend on organisation size');
 });

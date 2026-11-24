@@ -177,6 +177,52 @@ class UiTest(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_audit_regressions(self):
+        page = self.open(APP + "#departments=2&teams=30&people=300&runs=10")
+        box = page.evaluate("(() => { const r = document.getElementById('net').getBoundingClientRect(); return [r.width, r.height]; })()")
+        self.assertLessEqual(box[1], 561, "the network drawing is capped in height")
+        circles = page.evaluate("""() => Array.from(document.querySelectorAll('#net circle'))
+            .filter(c => !c.hasAttribute('data-i')).map(c => [+c.getAttribute('cx'), +c.getAttribute('cy'), +c.getAttribute('r')])""")
+        overlaps = [(a, b) for i, a in enumerate(circles) for b in circles[i + 1:]
+                    if ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 < a[2] + b[2] - 0.5]
+        self.assertEqual(overlaps, [], "team outlines never overlap")
+        page.close()
+        page = self.open()
+        # Sliders show the value the model actually uses.
+        page.fill("#p-teams", "30")
+        page.dispatch_event("#p-teams", "input")
+        self.assertEqual(page.input_value("#p-teams"), "30")
+        page.fill("#p-people", "40")
+        page.dispatch_event("#p-people", "input")
+        self.settle(page)
+        self.assertEqual(page.input_value("#p-teams"), "13")
+        self.assertEqual(page.inner_text("#o-teams"), "13")
+        self.assertIn("of 13", page.inner_text("#kpis"))
+        # Picks are trimmed when the number of champions falls.
+        page.fill("#picks", "1, 2, 3, 4, 5, 6")
+        page.dispatch_event("#picks", "change")
+        self.settle(page)
+        page.fill("#p-champions", "3")
+        page.dispatch_event("#p-champions", "input")
+        self.settle(page)
+        self.assertEqual(page.input_value("#picks"), "1, 2, 3")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_stays_responsive_at_extreme_settings(self):
+        import time
+        page = self.open(APP + "#people=300&runs=100&weeks=104&teams=30&departments=6")
+        page.click("#sweep-run")
+        page.wait_for_function("document.getElementById('sweep-summary').textContent.includes('1 of')", timeout=60000)
+        start = time.time()
+        page.evaluate("1 + 1")
+        self.assertLess(time.time() - start, 1.0, "the page answers while the what-if runs")
+        page.select_option("#preset", "plugin")
+        self.settle(page)
+        self.assertIn("Settings changed", page.inner_text("#sweep-summary"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_every_control_has_an_accessible_name(self):
         page = self.open()
         unnamed = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button'))

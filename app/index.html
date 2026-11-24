@@ -62,7 +62,7 @@
   .kpi .value.words { font-size: 1.15rem; padding: 0.2em 0; }
   .chart-card { margin-bottom: 16px; }
   .net-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: start; }
-  .net { width: 100%; height: auto; display: block; }
+  .net { width: 100%; height: auto; max-height: 560px; display: block; }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--muted); margin: 6px 0; }
   .legend .key { display: inline-flex; align-items: center; gap: 6px; }
   .legend svg { width: 22px; height: 10px; flex: none; }
@@ -168,7 +168,7 @@
             <label class="check" for="pick-mode"><input type="checkbox" id="pick-mode"> Pick champions by clicking people</label>
             <div class="control">
               <label for="picks">Your picks</label>
-              <input type="text" id="picks" inputmode="numeric" autocomplete="off" aria-describedby="picks-help">
+              <input type="text" id="picks" autocomplete="off" aria-describedby="picks-help">
               <p class="help" id="picks-help">Person numbers separated by commas. Hover over a person to see their number.</p>
             </div>
             <div class="btn-row"><button type="button" class="btn" id="picks-clear">Clear picks</button></div>
@@ -238,6 +238,7 @@ var SeedingModel = (function () {
     bandLow: 0.1,        // the shaded band on the chart runs from the 10th to the 90th percentile
     bandHigh: 0.9,
     networkSalt: 0x51ED27,
+    peopleSalt: 0x3C6EF3,
     pickSalt: 0x2F6B4A
   });
 
@@ -406,10 +407,17 @@ var SeedingModel = (function () {
       }
     }
     for (i = 0; i < N; i++) adj[i].sort(function (a, b) { return a - b; });
-    var need = [], suit = [];
-    for (i = 0; i < N; i++) need.push(C.thresholdLow + C.thresholdSpan * rng.uniform());
-    for (i = 0; i < N; i++) suit.push(rng.uniform());
-    return finishNetwork(adj, team, need, suit, dept);
+    var traits = personTraits(N, p.seed);
+    return finishNetwork(adj, team, traits.need, traits.suit, dept);
+  }
+
+  // Each person's need for social proof and whether the tool suits their job. Drawn from their own
+  // stream, by person number, so a network exported to CSV and loaded back gives identical results.
+  function personTraits(n, seed) {
+    var rng = makeRng(mixSeed(seed, C.peopleSalt)), need = [], suit = [], i;
+    for (i = 0; i < n; i++) need.push(C.thresholdLow + C.thresholdSpan * rng.uniform());
+    for (i = 0; i < n; i++) suit.push(rng.uniform());
+    return { need: need, suit: suit };
   }
 
   // Shared by synthetic and loaded networks: degrees, ties, betweenness and team summaries.
@@ -618,9 +626,12 @@ var SeedingModel = (function () {
       curveHigh.push(percentile(sorted, C.bandHigh));
     }
     reachedWeeks.sort(asc);
+    var covered = {};
+    firstChampions.forEach(function (v) { covered[net.team[v]] = true; });
     return {
       strategy: strategy,
       champions: firstChampions,
+      teamsCovered: Object.keys(covered).length,
       finalMean: mean(finals),
       everMean: mean(evers),
       holdsMean: mean(holds),
@@ -659,18 +670,24 @@ var SeedingModel = (function () {
   var SWEEP_KEYS = ['socialProof', 'champions', 'peerPull', 'tiesOrg', 'lapse'];
 
   // One point of a sweep: the same organisation shape with one setting changed, all five strategies.
-  function sweepPoint(input, key, value) {
-    var q = normaliseParams(input), k;
-    var copy = {};
+  // The pieces of a sweep point are exposed separately so the browser can run them in small chunks.
+  function sweepParams(input, key, value) {
+    var q = normaliseParams(input), copy = {}, k;
     for (k in q) copy[k] = q[k];
     copy[key] = value;
-    q = normaliseParams(copy);
-    var net = buildNetwork(q);
-    var results = STRATEGY_KEYS.map(function (s) {
-      var r = runStrategy(net, q, s);
-      return { strategy: s, finalMean: r.finalMean, everMean: r.everMean, reachShare: r.reachShare };
-    });
-    return { value: q[key], results: results, best: rankStrategies(results)[0].strategy };
+    return normaliseParams(copy);
+  }
+
+  function sweepEntry(net, q, strategy) {
+    var r = runStrategy(net, q, strategy);
+    return { strategy: strategy, finalMean: r.finalMean, everMean: r.everMean, reachShare: r.reachShare };
+  }
+
+  function sweepAssemble(q, key, results) { return { value: q[key], results: results, best: rankStrategies(results)[0].strategy }; }
+
+  function sweepPoint(input, key, value) {
+    var q = sweepParams(input, key, value), net = buildNetwork(q);
+    return sweepAssemble(q, key, STRATEGY_KEYS.map(function (s) { return sweepEntry(net, q, s); }));
   }
 
   function sweep(input, key) {
@@ -696,14 +713,22 @@ var SeedingModel = (function () {
   function robustSeed(seed, i) { return ((seed - 1 + 7919 * (i + 1)) % 9999) + 1; }
 
   // One organisation drawn with a different seed (your own picks are left out: they name people in this one).
-  function robustnessPoint(input, i) {
+  function robustParams(input, i) {
     var p = normaliseParams(input), q = {}, k;
     for (k in p) q[k] = p[k];
     q.seed = robustSeed(p.seed, i);
     q.runs = Math.min(p.runs, ROBUST_RUNS);
     q.custom = [];
-    var cmp = compareStrategies(q);
-    return { seed: q.seed, ranking: cmp.ranking, finals: cmp.results.map(function (r) { return r.finalMean; }) };
+    return normaliseParams(q);
+  }
+
+  function robustAssemble(q, results) {
+    return { seed: q.seed, ranking: rankStrategies(results).map(function (r) { return r.strategy; }), finals: results.map(function (r) { return r.finalMean; }) };
+  }
+
+  function robustnessPoint(input, i) {
+    var q = robustParams(input, i), net = buildNetwork(q);
+    return robustAssemble(q, STRATEGY_KEYS.map(function (s) { return runStrategy(net, q, s); }));
   }
 
   function summariseRobustness(points) {
@@ -757,6 +782,7 @@ var SeedingModel = (function () {
   }
 
   function wholePct(x) { return Math.floor(x * 100 + 0.5) + '%'; }
+  function weeksText(n) { return n === 1 ? '1 week' : n + ' weeks'; }
 
   // Plain-English reasons, built from the numbers.
   function explain(cmp) {
@@ -769,16 +795,18 @@ var SeedingModel = (function () {
     if (best.finalMean - second.finalMean < 0.03) {
       out.push('It is close: ' + STRATEGIES[best.strategy].label.toLowerCase() + ' ends at ' + wholePct(best.finalMean) + ' and ' +
         STRATEGIES[second.strategy].label.toLowerCase() + ' at ' + wholePct(second.finalMean) + ', so where the champions sit matters little for how far it spreads.');
-      if (best.weeksToHalf !== null && second.weeksToHalf !== null && best.weeksToHalf !== second.weeksToHalf) {
+      // Only compare speed when both usually get there, so the medians describe typical rollouts.
+      if (best.reachShare >= 0.5 && second.reachShare >= 0.5 && best.weeksToHalf !== second.weeksToHalf) {
         var fast = best.weeksToHalf < second.weeksToHalf ? best : second, slow = fast === best ? second : best;
-        out.push('It does change the speed: ' + STRATEGIES[fast.strategy].label.toLowerCase() + ' reaches half the organisation in ' + fast.weeksToHalf +
-          ' weeks, ' + STRATEGIES[slow.strategy].label.toLowerCase() + ' in ' + slow.weeksToHalf + '.');
+        out.push('It does change the speed: ' + STRATEGIES[fast.strategy].label.toLowerCase() + ' typically reaches half the organisation in ' + weeksText(fast.weeksToHalf) +
+          ', ' + STRATEGIES[slow.strategy].label.toLowerCase() + ' in ' + weeksText(slow.weeksToHalf) + '.');
       }
     } else {
       out.push(STRATEGIES[best.strategy].label + ' does best: ' + wholePct(best.finalMean) + ' of people are using the tool after ' + p.weeks +
         ' weeks, against ' + wholePct(second.finalMean) + ' for ' + STRATEGIES[second.strategy].label.toLowerCase() + '.');
       if (best.strategy === 'spread') {
-        out.push('Every team gets a champion that people work with closely. Only ' + wholePct(ties) + ' of working ties cross team lines, so use rarely jumps between teams on its own: starting in many teams at once matters.');
+        out.push((best.teamsCovered >= cmp.network.teams ? 'Every team gets a champion' : best.teamsCovered + ' of the ' + cmp.network.teams + ' teams get a champion') +
+          ' that people work with closely. Only ' + wholePct(ties) + ' of working ties cross team lines, so use rarely jumps between teams on its own: starting in many teams at once matters.');
       } else if (best.strategy === 'cluster') {
         out.push('Concentrated champions push one team well past the bar, and that team then carries its neighbours.');
       } else if (best.strategy === 'hubs') {
@@ -819,7 +847,8 @@ var SeedingModel = (function () {
     simulateRollout: simulateRollout, runStrategy: runStrategy, rankStrategies: rankStrategies,
     compareStrategies: compareStrategies, summariseNetwork: summariseNetwork, explain: explain,
     SWEEPS: SWEEPS, SWEEP_KEYS: SWEEP_KEYS, sweepPoint: sweepPoint, sweep: sweep, winnerSpans: winnerSpans,
-    readPicks: readPicks, championsFor: championsFor, strategiesFor: strategiesFor,
+    readPicks: readPicks, championsFor: championsFor, strategiesFor: strategiesFor, personTraits: personTraits,
+    sweepParams: sweepParams, sweepEntry: sweepEntry, sweepAssemble: sweepAssemble, robustParams: robustParams, robustAssemble: robustAssemble,
     ROBUST_COUNT: ROBUST_COUNT, ROBUST_RUNS: ROBUST_RUNS, robustSeed: robustSeed, robustnessPoint: robustnessPoint,
     summariseRobustness: summariseRobustness, robustness: robustness,
     encodeParams: encodeParams, decodeParams: decodeParams, settingsFile: settingsFile, readSettingsFile: readSettingsFile
@@ -891,8 +920,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
       input.addEventListener('input', function () {
         state.params[spec.key] = Number(input.value);
-        refreshOutputs();
+        // Apply the same limits as the model (teams of three or more, picks within the organisation),
+        // so the controls always show what is actually being run.
+        state.params = M.normaliseParams(state.params);
         markCustom();
+        syncControls();
         schedule();
       });
       wrap.appendChild(label);
@@ -1064,7 +1096,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     var title;
     if (best === r.strategy) title = isCustom ? 'Your picks are the best choice here' : mine + ' is the best strategy here';
     else if (bestR.finalMean - r.finalMean < 0.005) title = mine + (isCustom ? ' match' : ' matches') + ' the best strategy here';
-    else title = M.STRATEGIES[best].label + ' beats ' + mine.toLowerCase() + ' here';
+    else title = M.STRATEGIES[best].label + (best === 'custom' ? ' beat ' : ' beats ') + mine.toLowerCase() + ' here';
     box.appendChild(el('h2', null, title));
     var ul = el('ul', { 'class': 'why' });
     M.explain(cmp).forEach(function (t) { ul.appendChild(el('li', null, t)); });
@@ -1089,23 +1121,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   }
 
   // Departments round a large circle, teams round each department, people round each team.
+  // Departments round a large circle, teams round each department, people round each team.
+  // Radii are worked out so that no two team outlines overlap, however many teams there are.
   function layout(net, p) {
-    var pos = [], cx = 300, cy = 300, D = p.departments, T = net.teams, t, i;
+    var pos = [], D = p.departments, T = net.teams, t, i, d;
     var teamsByDept = [];
-    for (var d = 0; d < D; d++) teamsByDept.push([]);
+    for (d = 0; d < D; d++) teamsByDept.push([]);
     for (t = 0; t < T; t++) teamsByDept[t % D].push(t);
+    var biggest = 0;
+    for (t = 0; t < T; t++) biggest = Math.max(biggest, net.teamSize[t]);
+    var rt = 5 + 4.4 * Math.sqrt(biggest) + 8;          // radius of the largest team outline
+    var ringR = teamsByDept.map(function (list) {        // how far each department's teams sit from its centre
+      return list.length > 1 ? Math.max(rt + 4, (rt + 4) / Math.sin(Math.PI / list.length)) : 0;
+    });
+    var outer = Math.max.apply(null, ringR) + rt;        // radius of the largest department
+    var deptR = D > 1 ? Math.max(outer + 12, (outer + 12) / Math.sin(Math.PI / D)) : 0;
+    var start = D === 2 ? Math.PI : -Math.PI / 2;        // two departments sit side by side
     var centres = [];
-    var most = 0;
-    teamsByDept.forEach(function (list) { most = Math.max(most, list.length); });
-    var deptR = D > 1 ? 150 + 25 * most : 0;
     for (d = 0; d < D; d++) {
-      var da = 2 * Math.PI * d / D - Math.PI / 2;
-      var dx = cx + deptR * Math.cos(da), dy = cy + deptR * Math.sin(da);
+      var da = start + 2 * Math.PI * d / D;
+      var dx = deptR * Math.cos(da), dy = deptR * Math.sin(da);
       var list = teamsByDept[d];
-      var teamR = list.length > 1 ? (D > 1 ? Math.min(85, 30 + 12 * list.length) : 200) : 0;
       list.forEach(function (tt, j) {
-        var ta = 2 * Math.PI * j / list.length - Math.PI / 2 + d;
-        centres[tt] = [dx + teamR * Math.cos(ta), dy + teamR * Math.sin(ta)];
+        var ta = 2 * Math.PI * j / list.length - Math.PI / 2 + (D > 1 ? da + Math.PI / 2 : 0);
+        centres[tt] = [dx + ringR[d] * Math.cos(ta), dy + ringR[d] * Math.sin(ta)];
       });
     }
     var seen = [];
@@ -1261,14 +1300,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     if (sweepJob) return;
     var key = document.getElementById('sweep-key').value;
     var values = M.SWEEPS[key], points = [];
-    var job = sweepJob = { code: sweepCode(state.params), key: key };
+    // The settings are copied when the job starts, so later changes cannot leak into it part-way through.
+    var base = M.normaliseParams(state.params);
+    var job = sweepJob = { code: sweepCode(base), key: key };
     var btn = document.getElementById('sweep-run'), summary = document.getElementById('sweep-summary');
     btn.setAttribute('aria-disabled', 'true');
     btn.textContent = 'Running...';
+    var q = null, net = null, results = [];
+    // One network or one strategy per tick, so even the largest settings never block the page for long.
     function step() {
       if (sweepJob !== job) return;
-      points.push(M.sweepPoint(state.params, key, values[points.length]));
-      summary.textContent = 'Running: ' + points.length + ' of ' + values.length + ' values done.';
+      if (!q) { q = M.sweepParams(base, key, values[points.length]); net = M.buildNetwork(q); results = []; }
+      else results.push(M.sweepEntry(net, q, M.STRATEGY_KEYS[results.length]));
+      if (results.length === M.STRATEGY_KEYS.length) {
+        points.push(M.sweepAssemble(q, key, results));
+        q = null;
+        summary.textContent = 'Running: ' + points.length + ' of ' + values.length + ' values done.';
+      }
       if (points.length < values.length) { setTimeout(step, 0); return; }
       sweepJob = null;
       btn.setAttribute('aria-disabled', 'false');
@@ -1338,15 +1386,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
 
   function runRobustness() {
     if (robustJob) return;
-    var job = robustJob = { code: sweepCode(state.params), points: [] };
+    var base = M.normaliseParams(state.params);
+    var job = robustJob = { code: sweepCode(base), points: [] };
     var btn = document.getElementById('robust-run'), summary = document.getElementById('robust-summary');
     btn.setAttribute('aria-disabled', 'true');
     btn.textContent = 'Running...';
     document.getElementById('robust-table').innerHTML = '';
+    var q = null, net = null, results = [];
     function step() {
       if (robustJob !== job) return;
-      job.points.push(M.robustnessPoint(state.params, job.points.length));
-      summary.textContent = 'Running: ' + job.points.length + ' of ' + M.ROBUST_COUNT + ' organisations done.';
+      if (!q) { q = M.robustParams(base, job.points.length); net = M.buildNetwork(q); results = []; }
+      else results.push(M.runStrategy(net, q, M.STRATEGY_KEYS[results.length]));
+      if (results.length === M.STRATEGY_KEYS.length) {
+        job.points.push(M.robustAssemble(q, results));
+        q = null;
+        summary.textContent = 'Running: ' + job.points.length + ' of ' + M.ROBUST_COUNT + ' organisations done.';
+      }
       if (job.points.length < M.ROBUST_COUNT) { setTimeout(step, 0); return; }
       robustJob = null;
       btn.setAttribute('aria-disabled', 'false');
