@@ -29,6 +29,8 @@ class CliTests(unittest.TestCase):
             self.assertIn("The AI model cuts forecast error", out)
             self.assertIn("By product", out)
             self.assertIn("Pushed down", out)
+            self.assertIn("Chosen in advance on the 28 weeks", out)
+            self.assertIn("Keeping only downward overrides", out)
             with open(paths[0], encoding="utf-8") as f:
                 page = f.read()
             self.assertIn("<svg", page)

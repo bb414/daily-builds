@@ -4,8 +4,9 @@ Format: one row per product, store and week.
 
     week,store,product,units[,promo][,event_<name>...]
 
-- week: whole numbers 1, 2, 3 ... with no gaps; at least 112 weeks (two years of
-  history plus the 52 weeks being tested, plus a few weeks of warm-up).
+- week: whole numbers 1, 2, 3 ... with no gaps; at least 120 weeks (a year to
+  learn the seasonal pattern, some weeks to choose a method per product, and the
+  52 weeks being tested).
 - promo: 1 in a week the product is on promotion (optional).
 - event_<name>: 1 in weeks affected by a festival or event (optional, as many as
   you like). Each becomes a feature of the AI model.
@@ -17,7 +18,7 @@ import csv
 
 from .model import YEAR
 
-MIN_WEEKS = 2 * YEAR + 8
+MIN_WEEKS = 120
 
 
 class DataError(ValueError):
@@ -84,7 +85,7 @@ def read_csv(path):
                 flags[c][week] = 1
     weeks = max(weeks_seen)
     if weeks < MIN_WEEKS:
-        raise DataError("The file has %d weeks; at least %d are needed (two years of history and a test year)."
+        raise DataError("The file has %d weeks; at least %d are needed (more than two years of history and a test year)."
                         % (weeks, MIN_WEEKS))
     if len(weeks_seen) != weeks:
         raise DataError("Weeks must run from 1 to %d with no gaps." % weeks)

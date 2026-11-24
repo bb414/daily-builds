@@ -35,11 +35,11 @@ class CsvTests(unittest.TestCase):
 
     def test_minimal_file_without_promotions_or_events(self):
         lines = ["week,store,product,units"]
-        for t in range(1, 113):
+        for t in range(1, 121):
             for store in ("north", "south"):
                 lines.append("%d,%s,fudge,%d" % (t, store, 10 + (t % 7)))
         data = datafile.read_csv(self.write("min.csv", "\n".join(lines) + "\n"))
-        self.assertEqual((data["weeks"], data["testStart"]), (112, 60))
+        self.assertEqual((data["weeks"], data["testStart"]), (120, 68))
         self.assertEqual(data["events"], [])
         r = model.evaluate(data, model.forecast_all(data, {}))
         self.assertEqual(r["methods"][0]["n"], 2 * 52)
@@ -48,7 +48,7 @@ class CsvTests(unittest.TestCase):
         cases = {
             "no_columns.csv": ("a,b\n1,2\n", "needs these columns"),
             "empty.csv": ("week,store,product,units\n", "no rows"),
-            "short.csv": ("week,store,product,units\n1,a,b,3\n", "at least 112"),
+            "short.csv": ("week,store,product,units\n1,a,b,3\n", "at least 120"),
             "bad_units.csv": ("week,store,product,units\n1,a,b,lots\n", "should be a number"),
             "negative.csv": ("week,store,product,units\n1,a,b,-2\n", "whole number"),
             "week_zero.csv": ("week,store,product,units\n0,a,b,2\n", "start at 1"),

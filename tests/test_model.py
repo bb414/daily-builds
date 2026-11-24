@@ -15,7 +15,8 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(fc["naive"][0][0][120], 118)
         self.assertEqual(fc["average"][0][0][120], (111 + 118) / 2)
         self.assertEqual(fc["seasonal"][0][0][120], 68)
-        self.assertIsNone(fc["naive"][0][0][100])
+        self.assertIsNone(fc["naive"][0][0][79])
+        self.assertEqual(fc["naive"][0][0][80], 78)
         self.assertEqual(fc["planner"], fc["ai"])
 
     def test_no_peeking_at_the_future(self):

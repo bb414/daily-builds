@@ -15,6 +15,7 @@ GAMMA = 0.15      # smoothing: weight on the newest seasonal index
 MA_WEEKS = 8      # moving average length
 LAMBDA = 2        # ridge penalty for the AI model
 REFIT_EVERY = 4   # weeks between refits of the AI model
+MAX_VALIDATION = 28  # weeks before the test year used to choose a method per product
 
 STORES = [
     {"id": "orchard", "name": "Orchard", "size": 1.6},
@@ -187,11 +188,22 @@ def _empty_grid(data):
     return [[[None] * data["weeks"] for _ in rows] for rows in data["sales"]]
 
 
+def validation_weeks(data):
+    """Weeks before the test year that are forecast too, so each product's method
+    can be chosen before the weeks it is judged on. A multiple of four, so the
+    AI's refits line up with the test year."""
+    return max(0, min(MAX_VALIDATION, 4 * math.floor((data["testStart"] - 59) / 4)))
+
+
+def forecast_start(data):
+    return data["testStart"] - validation_weeks(data)
+
+
 def naive(data, h):
     out = _empty_grid(data)
     for p, rows in enumerate(data["sales"]):
         for s, y in enumerate(rows):
-            for t in range(data["testStart"], data["weeks"]):
+            for t in range(forecast_start(data), data["weeks"]):
                 out[p][s][t] = y[t - h]
     return out
 
@@ -200,7 +212,7 @@ def moving_average(data, h):
     out = _empty_grid(data)
     for p, rows in enumerate(data["sales"]):
         for s, y in enumerate(rows):
-            for t in range(data["testStart"], data["weeks"]):
+            for t in range(forecast_start(data), data["weeks"]):
                 total = 0
                 for k in range(t - h - MA_WEEKS + 1, t - h + 1):
                     total += y[k]
@@ -212,12 +224,12 @@ def seasonal_naive(data):
     out = _empty_grid(data)
     for p, rows in enumerate(data["sales"]):
         for s, y in enumerate(rows):
-            for t in range(data["testStart"], data["weeks"]):
+            for t in range(forecast_start(data), data["weeks"]):
                 out[p][s][t] = y[t - YEAR]
     return out
 
 
-def smoothing_series(y, h, test_start):
+def smoothing_series(y, h, start):
     """Multiplicative seasonal exponential smoothing (Holt-Winters without a trend)."""
     fc = [None] * len(y)
     level = 0
@@ -239,13 +251,13 @@ def smoothing_series(y, h, test_start):
         season[o % YEAR] = clamp(GAMMA * (y[o] / new_level) + (1 - GAMMA) * si, 0.1, 10)
         level = new_level
         target = o + h
-        if test_start <= target < len(y):
+        if start <= target < len(y):
             fc[target] = level * season[target % YEAR]
     return fc
 
 
 def smoothing(data, h):
-    return [[smoothing_series(y, h, data["testStart"]) for y in rows] for rows in data["sales"]]
+    return [[smoothing_series(y, h, forecast_start(data)) for y in rows] for rows in data["sales"]]
 
 
 def feature_names(data):
@@ -324,7 +336,7 @@ def ai_model(data, h):
         xty = [0] * n
         nxt = first
         beta = None
-        for start in range(data["testStart"], data["weeks"], REFIT_EVERY):
+        for start in range(forecast_start(data), data["weeks"], REFIT_EVERY):
             while nxt <= start - h:
                 for s in range(n_stores):
                     level, x = features(data, p, s, nxt, h)
@@ -353,8 +365,13 @@ def planners(data, ai, s):
     out = _empty_grid(data)
     info = _empty_grid(data)
     rng = make_rng((s["seed"] ^ 0x9E3779B9) & 0xFFFFFFFF)
+    start = forecast_start(data)
     for p, rows in enumerate(data["sales"]):
         for st, y in enumerate(rows):
+            # Before the test year the AI's forecasts stand as they are.
+            for t0 in range(start, data["testStart"]):
+                out[p][st][t0] = ai[p][st][t0]
+                info[p][st][t0] = False
             for t in range(data["testStart"], data["weeks"]):
                 u = rng()
                 z = normal(rng)
@@ -432,11 +449,35 @@ def evaluate(data, fc):
     overall = {m: _new_tally() for m in METHOD_IDS}
     by_type = {k: {m: _new_tally() for m in METHOD_IDS} for k in ("festival", "promo", "ordinary")}
     groups = {k: {"n": 0, "before": 0, "after": 0, "actual": 0} for k in ("up", "down", "small", "large")}
+    mix, down_only = _new_tally(), _new_tally()
+    start = forecast_start(data)
+    val_ids = SIMPLER + ["ai"]
+
+    def pick(w):
+        best = SIMPLER[0]
+        for m in SIMPLER:
+            if w[m]["wape"] is not None and (w[best]["wape"] is None or w[m]["wape"] < w[best]["wape"]):
+                best = m
+        return best
+
     by_sku = []
     for p, rows in enumerate(data["sales"]):
+        # Choose this product's method on the weeks before the test year.
+        val = {m: _new_tally() for m in val_ids}
+        for st, y in enumerate(rows):
+            for t in range(start, data["testStart"]):
+                for m in val_ids:
+                    _add(val[m], y[t], fc["forecasts"][m][p][st][t], s["buffer"])
+        vw = {m: _summary(val[m]) for m in val_ids}
+        v_best = pick(vw)
+        choice = ("ai" if vw["ai"]["wape"] is not None and vw[v_best]["wape"] is not None
+                  and vw[v_best]["wape"] - vw["ai"]["wape"] >= s["threshold"] else v_best)
         sku = {m: _new_tally() for m in METHOD_IDS}
         for st, y in enumerate(rows):
             for t in range(data["testStart"], data["weeks"]):
+                _add(mix, y[t], fc["forecasts"][choice][p][st][t], s["buffer"])
+                planned, ai_f = fc["forecasts"]["planner"][p][st][t], fc["forecasts"]["ai"][p][st][t]
+                _add(down_only, y[t], ai_f if planned > ai_f else planned, s["buffer"])
                 kind = week_type(data, p, t)
                 for m in METHOD_IDS:
                     f = fc["forecasts"][m][p][st][t]
@@ -455,10 +496,7 @@ def evaluate(data, fc):
                             groups[k]["after"] += abs(y[t] - after)
                             groups[k]["actual"] += y[t]
         w = {m: _summary(sku[m]) for m in METHOD_IDS}
-        best = SIMPLER[0]
-        for m in SIMPLER:
-            if w[m]["wape"] is not None and (w[best]["wape"] is None or w[m]["wape"] < w[best]["wape"]):
-                best = m
+        best = pick(w)
         gain = w[best]["wape"] - w["ai"]["wape"] if w["ai"]["wape"] is not None and w[best]["wape"] is not None else None
         planner_gain = (w["ai"]["wape"] - w["planner"]["wape"]
                         if w["ai"]["wape"] is not None and w["planner"]["wape"] is not None else None)
@@ -470,6 +508,8 @@ def evaluate(data, fc):
             "aiGain": gain,
             "plannerGain": planner_gain,
             "verdict": "ai" if gain is not None and gain >= s["threshold"] else "simpler",
+            "validation": vw,
+            "chosen": choice,
         })
     naive_wape = _summary(overall["naive"])["wape"]
     methods = []
@@ -496,6 +536,10 @@ def evaluate(data, fc):
         "bySku": by_sku,
         "byWeekType": types,
         "overrides": overrides,
+        "downOnly": _summary(down_only),
+        "mix": _summary(mix),
+        "validationWeeks": data["testStart"] - start,
+        "chosenAi": sum(1 for x in by_sku if x["chosen"] == "ai"),
         "deployOn": sum(1 for x in by_sku if x["verdict"] == "ai"),
     }
 

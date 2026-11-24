@@ -63,7 +63,8 @@ test('naive, moving average and seasonal naive do what they say', () => {
   assert.equal(fc.naive[0][0][120], 118);
   assert.equal(fc.average[0][0][120], (111 + 118) / 2);
   assert.equal(fc.seasonal[0][0][120], 68);
-  assert.equal(fc.naive[0][0][100], null, 'no forecasts before the test year');
+  assert.equal(fc.naive[0][0][79], null, 'no forecasts before the 28 weeks used to choose methods');
+  assert.equal(fc.naive[0][0][80], 78);
 });
 
 test('seasonal smoothing settles on a steady series', () => {
@@ -158,4 +159,36 @@ test('a longer horizon makes every method worse but keeps the order', () => {
   });
   assert.equal(four.find((m) => m.id === 'seasonal').wape, one.find((m) => m.id === 'seasonal').wape);
   assert.ok(four[4].wape < four[3].wape);
+});
+
+test('each product\'s method is chosen only from the weeks before the test year', () => {
+  const d = M.simulate({});
+  const fc = M.forecastAll(d, {});
+  const r = M.evaluate(d, fc);
+  assert.equal(r.validationWeeks, 28);
+  assert.ok(fc.forecasts.ai[0][0][76] !== null && fc.forecasts.ai[0][0][75] === null);
+  // Changing the test year's sales cannot change the choices.
+  const changed = JSON.parse(JSON.stringify(d));
+  changed.sales.forEach((rows) => rows.forEach((y) => { for (let t = 104; t < 156; t++) { y[t] = 0; } }));
+  const r2 = M.evaluate(changed, M.forecastAll(changed, {}));
+  assert.deepEqual(r2.bySku.map((x) => x.chosen), r.bySku.map((x) => x.chosen));
+  // The mix scores exactly what the chosen methods score on the test year.
+  let abs = 0, act = 0;
+  d.sales.forEach((rows, p) => rows.forEach((y, s) => {
+    for (let t = 104; t < 156; t++) { abs += Math.abs(y[t] - fc.forecasts[r.bySku[p].chosen][p][s][t]); act += y[t]; }
+  }));
+  assert.ok(Math.abs(r.mix.wape - abs / act) < 1e-12);
+  assert.equal(r.chosenAi, r.bySku.filter((x) => x.chosen === 'ai').length);
+  // The window before the test year has Deepavali and Christmas but no Chinese New
+  // Year, so a choice made there undersells the AI on festival products.
+  assert.ok(r.chosenAi < r.deployOn);
+  assert.ok(r.mix.wape > r.methods[4].wape);
+});
+
+test('keeping only downward overrides', () => {
+  const r = M.run({}).results;
+  assert.ok(r.downOnly.wape < r.methods[5].wape, 'dropping upward overrides helps');
+  assert.ok(r.downOnly.wape < r.methods[4].wape, 'downward overrides alone beat the AI');
+  const none = M.run({ overrideRate: 0 }).results;
+  assert.equal(none.downOnly.wape, none.methods[4].wape);
 });

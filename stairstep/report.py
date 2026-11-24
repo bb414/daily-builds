@@ -68,7 +68,7 @@ def text_report(results, source="synthetic chain"):
             signed(m["fvaNaive"] * 100) if m["fvaNaive"] is not None else "n/a",
             "{:,}".format(m["waste"]), "{:,}".format(m["lost"]), pct1(m["fillRate"])))
     lines += ["", "By product (error; best simple method marked *)"]
-    lines.append("  %-20s" % "Product" + "".join("%9s" % (NAMES[i][:8]) for i in METHOD_IDS) + "  Verdict")
+    lines.append("  %-20s" % "Product" + "".join("%9s" % (NAMES[i][:8]) for i in METHOD_IDS) + "  Verdict with hindsight; chosen in advance")
     for sku in sorted(results["bySku"], key=lambda x: -(x["aiGain"] if x["aiGain"] is not None else -1)):
         cells = ""
         for i in METHOD_IDS:
@@ -78,7 +78,12 @@ def text_report(results, source="synthetic chain"):
             verdict = "use the AI (%.1f points better)" % (sku["aiGain"] * 100)
         else:
             verdict = "keep %s" % NAMES[sku["bestSimpler"]].lower()
-        lines.append("  %-20s%s  %s" % (sku["name"][:20], cells, verdict))
+        chosen = "AI model" if sku["chosen"] == "ai" else NAMES[sku["chosen"]]
+        lines.append("  %-20s%s  %s; %s" % (sku["name"][:20], cells, verdict, chosen.lower()))
+    lines += ["", "Chosen in advance on the %d weeks before the test year: the AI for %d of %d products." % (
+        results["validationWeeks"], results["chosenAi"], len(results["bySku"])),
+        "  That mix scores %s, against %s for the AI everywhere and %s for the best simple method everywhere." % (
+            pct1(results["mix"]["wape"]), pct1(results["methods"][4]["wape"]), pct1(best_simple(results["methods"])["wape"]))]
     lines += ["", "By kind of week (error)"]
     for kind, label in (("festival", "Festival weeks"), ("promo", "Promotion weeks"), ("ordinary", "Ordinary weeks")):
         row = results["byWeekType"][kind]
@@ -93,6 +98,8 @@ def text_report(results, source="synthetic chain"):
                 labels[k], g["n"], signed(-g["improved"] * 100), pct1(g["wapeBefore"]), pct1(g["wapeAfter"])))
         else:
             lines.append("  %-20s none" % labels[k])
+    lines.append("  Keeping only downward overrides: %s (AI alone %s, every override %s)" % (
+        pct1(results["downOnly"]["wape"]), pct1(results["methods"][4]["wape"]), pct1(results["methods"][5]["wape"])))
     return "\n".join(lines) + "\n"
 
 
@@ -152,8 +159,9 @@ def html_report(results, source="synthetic chain"):
             cells += "<td class='%s'>%s</td>" % (cls, pct1(sku["methods"][i]["wape"]))
         verdict = ("Use the AI (%.1f points better)" % (sku["aiGain"] * 100) if sku["verdict"] == "ai"
                    else "Keep %s" % NAMES[sku["bestSimpler"]].lower())
-        sku_rows.append("<tr><th scope='row'>%s</th>%s<td class='verdict'>%s</td></tr>" % (
-            html.escape(sku["name"]), cells, html.escape(verdict)))
+        chosen = "AI model" if sku["chosen"] == "ai" else NAMES[sku["chosen"]]
+        sku_rows.append("<tr><th scope='row'>%s</th>%s<td class='verdict'>%s</td><td class='verdict'>%s</td></tr>" % (
+            html.escape(sku["name"]), cells, html.escape(verdict), html.escape(chosen)))
     labels = {"up": "Pushed up", "down": "Pushed down", "small": "Small (under 20%)", "large": "Large (20% or more)"}
     ov_rows = "".join(
         "<tr><th scope='row'>%s</th><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
@@ -186,8 +194,10 @@ svg .v { font-weight:700; } svg .n { fill:var(--muted); font-size:12px; } svg .g
 <div class="card"><h2>The stairstep</h2><p class="muted">Each bar is a step's error (WAPE). The number above it is the change from the step to its left: negative is better.</p>%(svg)s
 <div class="scroll"><table><thead><tr><th>Step</th><th>Error</th><th>Bias</th><th>vs naive (pts)</th><th>Unsold units</th><th>Lost sales</th><th>Sales met</th></tr></thead><tbody>%(rows)s</tbody></table></div></div>
 <div class="card"><h2>By product</h2><p class="muted">Outlined: the best simple method. Green: the AI beats it by at least %(threshold).1f points.</p>
-<div class="scroll"><table><thead><tr><th>Product</th>%(heads)s<th>Verdict</th></tr></thead><tbody>%(sku_rows)s</tbody></table></div></div>
-<div class="card"><h2>Planner overrides</h2><div class="scroll"><table><thead><tr><th>Overrides</th><th>Count</th><th>Error before</th><th>Error after</th><th>Change (pts)</th></tr></thead><tbody>%(ov_rows)s</tbody></table></div></div>
+<div class="scroll"><table><thead><tr><th>Product</th>%(heads)s<th>Verdict with hindsight</th><th>Chosen in advance</th></tr></thead><tbody>%(sku_rows)s</tbody></table></div>
+<p>Chosen in advance on the %(val)d weeks before the test year, the AI would be used for %(chosen)d products. That mix scores %(mix)s, against %(ai)s for the AI everywhere.</p></div>
+<div class="card"><h2>Planner overrides</h2><div class="scroll"><table><thead><tr><th>Overrides</th><th>Count</th><th>Error before</th><th>Error after</th><th>Change (pts)</th></tr></thead><tbody>%(ov_rows)s</tbody></table></div>
+<p>Keeping only downward overrides: %(down)s error, against %(ai)s for the AI alone and %(planner)s with every override.</p></div>
 <p class="muted">Settings: %(settings)s.</p>
 </main></body></html>
 """ % {
@@ -195,4 +205,6 @@ svg .v { font-weight:700; } svg .n { fill:var(--muted); font-size:12px; } svg .g
         "nsku": len(results["bySku"]), "svg": _stairs_svg(methods), "rows": rows,
         "threshold": s["threshold"] * 100, "heads": "".join("<th>%s</th>" % html.escape(NAMES[i]) for i in METHOD_IDS),
         "sku_rows": "".join(sku_rows), "ov_rows": ov_rows, "settings": html.escape(settings_text),
+        "val": results["validationWeeks"], "chosen": results["chosenAi"], "mix": pct1(results["mix"]["wape"]),
+        "ai": pct1(methods[4]["wape"]), "down": pct1(results["downOnly"]["wape"]), "planner": pct1(methods[5]["wape"]),
     }

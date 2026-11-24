@@ -143,6 +143,7 @@ td.lose { color: var(--bad); }
 .types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .types h3 { margin-bottom: 4px; }
 .types .hrow { grid-template-columns: 110px minmax(0, 1fr) 48px; }
+.hrow.wide { grid-template-columns: 260px minmax(0, 1fr) 56px; }
 
 .ov-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .ov { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -176,6 +177,8 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   .step-value { font-size: 0.82rem; }
   .step-delta { font-size: 0.7rem; }
   .hrow { grid-template-columns: 96px minmax(0, 1fr) 48px; font-size: 0.8rem; }
+  .hrow.wide { grid-template-columns: minmax(0, 1fr) 56px; }
+  .hrow.wide .htrack { grid-column: 1 / -1; grid-row: 2; }
   .ov-grid { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
@@ -213,6 +216,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   var MA_WEEKS = 8;     // moving average length
   var LAMBDA = 2;       // ridge penalty for the AI model
   var REFIT_EVERY = 4;  // weeks between refits of the AI model
+  var MAX_VALIDATION = 28; // weeks before the test year used to choose a method per product
 
   var STORES = [
     { id: 'orchard', name: 'Orchard', size: 1.6 },
@@ -390,11 +394,20 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     });
   }
 
+  // Forecasts start this many weeks before the test year, so each product's
+  // method can be chosen on weeks that come before the ones it is judged on.
+  // Always a multiple of four, so the AI's refits line up with the test year.
+  function validationWeeks(data) {
+    return Math.max(0, Math.min(MAX_VALIDATION, 4 * Math.floor((data.testStart - 59) / 4)));
+  }
+  function forecastStart(data) { return data.testStart - validationWeeks(data); }
+
   function naive(data, h) {
     var out = emptyGrid(data);
+    var from = forecastStart(data);
     data.sales.forEach(function (rows, p) {
       rows.forEach(function (y, s) {
-        for (var t = data.testStart; t < data.weeks; t++) { out[p][s][t] = y[t - h]; }
+        for (var t = from; t < data.weeks; t++) { out[p][s][t] = y[t - h]; }
       });
     });
     return out;
@@ -402,9 +415,10 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   function movingAverage(data, h) {
     var out = emptyGrid(data);
+    var from = forecastStart(data);
     data.sales.forEach(function (rows, p) {
       rows.forEach(function (y, s) {
-        for (var t = data.testStart; t < data.weeks; t++) {
+        for (var t = from; t < data.weeks; t++) {
           var sum = 0;
           for (var k = t - h - MA_WEEKS + 1; k <= t - h; k++) { sum += y[k]; }
           out[p][s][t] = sum / MA_WEEKS;
@@ -416,9 +430,10 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   function seasonalNaive(data) {
     var out = emptyGrid(data);
+    var from = forecastStart(data);
     data.sales.forEach(function (rows, p) {
       rows.forEach(function (y, s) {
-        for (var t = data.testStart; t < data.weeks; t++) { out[p][s][t] = y[t - YEAR]; }
+        for (var t = from; t < data.weeks; t++) { out[p][s][t] = y[t - YEAR]; }
       });
     });
     return out;
@@ -427,7 +442,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   // Multiplicative seasonal exponential smoothing (Holt-Winters without a
   // trend), started from the first year and updated every week. A forecast h
   // weeks ahead uses only what was known h weeks before.
-  function smoothingSeries(y, h, testStart) {
+  function smoothingSeries(y, h, from) {
     var fc = [];
     for (var i = 0; i < y.length; i++) { fc.push(null); }
     var level = 0;
@@ -448,14 +463,14 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       season[o % YEAR] = clamp(GAMMA * (y[o] / newLevel) + (1 - GAMMA) * si, 0.1, 10);
       level = newLevel;
       var target = o + h;
-      if (target >= testStart && target < y.length) { fc[target] = level * season[target % YEAR]; }
+      if (target >= from && target < y.length) { fc[target] = level * season[target % YEAR]; }
     }
     return fc;
   }
 
   function smoothing(data, h) {
     return data.sales.map(function (rows) {
-      return rows.map(function (y) { return smoothingSeries(y, h, data.testStart); });
+      return rows.map(function (y) { return smoothingSeries(y, h, forecastStart(data)); });
     });
   }
 
@@ -546,7 +561,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       }
       var next = first;
       var beta = null;
-      for (var start = data.testStart; start < data.weeks; start += REFIT_EVERY) {
+      for (var start = forecastStart(data); start < data.weeks; start += REFIT_EVERY) {
         for (; next <= start - h; next++) {
           for (var s = 0; s < nStores; s++) {
             var fx = features(data, p, s, next, h);
@@ -581,8 +596,11 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     var out = emptyGrid(data);
     var info = emptyGrid(data);
     var rng = makeRng((s.seed ^ 0x9E3779B9) >>> 0);
+    var from = forecastStart(data);
     data.sales.forEach(function (rows, p) {
       rows.forEach(function (y, st) {
+        // Before the test year the AI's forecasts stand as they are.
+        for (var t0 = from; t0 < data.testStart; t0++) { out[p][st][t0] = ai[p][st][t0]; info[p][st][t0] = false; }
         for (var t = data.testStart; t < data.weeks; t++) {
           var u = rng();
           var z = normal(rng);
@@ -662,13 +680,39 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       overall[id] = newTally();
       Object.keys(byType).forEach(function (k) { byType[k][id] = newTally(); });
     });
+    var mix = newTally(), downOnly = newTally();
+    var from = forecastStart(data);
     var groups = { up: null, down: null, small: null, large: null };
     Object.keys(groups).forEach(function (k) { groups[k] = { n: 0, before: 0, after: 0, actual: 0 }; });
+    var valIds = ['naive', 'average', 'seasonal', 'smoothing', 'ai'];
+    var simpler = ['naive', 'average', 'seasonal', 'smoothing'];
+    function pick(w) {
+      var best = simpler[0];
+      simpler.forEach(function (id) {
+        if (w[id].wape !== null && (w[best].wape === null || w[id].wape < w[best].wape)) { best = id; }
+      });
+      return best;
+    }
     data.sales.forEach(function (rows, p) {
+      // Choose this product's method on the weeks before the test year.
+      var val = {};
+      valIds.forEach(function (id) { val[id] = newTally(); });
+      rows.forEach(function (y, st) {
+        for (var t = from; t < data.testStart; t++) {
+          valIds.forEach(function (id) { addTally(val[id], y[t], fc.forecasts[id][p][st][t], s.buffer); });
+        }
+      });
+      var vw = {};
+      valIds.forEach(function (id) { vw[id] = summary(val[id]); });
+      var vBest = pick(vw);
+      var choice = vw.ai.wape !== null && vw[vBest].wape !== null && vw[vBest].wape - vw.ai.wape >= s.threshold ? 'ai' : vBest;
       var sku = {};
       ids.forEach(function (id) { sku[id] = newTally(); });
       rows.forEach(function (y, st) {
         for (var t = data.testStart; t < data.weeks; t++) {
+          addTally(mix, y[t], fc.forecasts[choice][p][st][t], s.buffer);
+          var planned = fc.forecasts.planner[p][st][t], aiF = fc.forecasts.ai[p][st][t];
+          addTally(downOnly, y[t], planned > aiF ? aiF : planned, s.buffer);
           var type = weekType(data, p, t);
           ids.forEach(function (id) {
             var f = fc.forecasts[id][p][st][t];
@@ -694,11 +738,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       });
       var w = {};
       ids.forEach(function (id) { w[id] = summary(sku[id]); });
-      var simpler = ['naive', 'average', 'seasonal', 'smoothing'];
-      var best = simpler[0];
-      simpler.forEach(function (id) {
-        if (w[id].wape !== null && (w[best].wape === null || w[id].wape < w[best].wape)) { best = id; }
-      });
+      var best = pick(w);
       var gain = w.ai.wape !== null && w[best].wape !== null ? w[best].wape - w.ai.wape : null;
       var plannerGain = w.ai.wape !== null && w.planner.wape !== null ? w.ai.wape - w.planner.wape : null;
       bySku.push({
@@ -708,7 +748,9 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
         bestSimpler: best,
         aiGain: gain,
         plannerGain: plannerGain,
-        verdict: gain !== null && gain >= s.threshold ? 'ai' : 'simpler'
+        verdict: gain !== null && gain >= s.threshold ? 'ai' : 'simpler',
+        validation: vw,
+        chosen: choice
       });
     });
     var methods = METHODS.map(function (m, i) {
@@ -742,6 +784,10 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       bySku: bySku,
       byWeekType: types,
       overrides: overrides,
+      downOnly: summary(downOnly),
+      mix: summary(mix),
+      validationWeeks: data.testStart - from,
+      chosenAi: bySku.filter(function (x) { return x.chosen === 'ai'; }).length,
       deployOn: bySku.filter(function (x) { return x.verdict === 'ai'; }).length
     };
   }
@@ -764,6 +810,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     seasonFactor: seasonFactor,
     simulate: simulate,
     smoothingSeries: smoothingSeries,
+    validationWeeks: validationWeeks,
     features: features,
     featureNames: featureNames,
     solveRidge: solveRidge,
@@ -991,14 +1038,65 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
         ? '<span class="verdict ai">Use the AI</span> <span class="small muted">' + pts(s.aiGain) + ' better</span>'
         : '<span class="verdict simpler">Keep ' + esc(NAMES[s.bestSimpler].toLowerCase()) + '</span> <span class="small muted">' +
           (s.aiGain > 0 ? 'AI only ' + pts(s.aiGain) + ' better' : 'AI no better') + '</span>';
-      return '<tr><th scope="row">' + esc(s.name) + '</th>' + cells + '<td style="text-align:left">' + verdict + '</td></tr>';
+      var advance = s.chosen === 'ai' ? 'AI model' : NAMES[s.chosen];
+      var differs = (s.chosen === 'ai') !== (s.verdict === 'ai');
+      return '<tr><th scope="row">' + esc(s.name) + '</th>' + cells + '<td style="text-align:left">' + verdict + '</td>' +
+        '<td style="text-align:left"' + (differs ? ' class="lose"' : '') + '>' + esc(advance) + (differs ? ' <span class="small">(differs)</span>' : '') + '</td></tr>';
     }).join('');
     return '<section class="card" aria-labelledby="sku-title"><h2 id="sku-title">Where the AI earns its place</h2>' +
       '<p class="small muted">Error by product. The outlined cell is the best simple method; green means the AI beats it by at least ' +
       (r.settings.threshold * 100).toFixed(1) + ' points; red means planners made the AI worse.</p>' +
       '<div class="scroll"><table class="data"><caption class="visually-hidden">Forecast error for each product and method</caption><thead><tr><th scope="col">Product</th>' +
-      M.METHODS.map(function (m) { return '<th scope="col">' + esc(m.name) + '</th>'; }).join('') + '<th scope="col" style="text-align:left">Verdict</th></tr></thead>' +
+      M.METHODS.map(function (m) { return '<th scope="col">' + esc(m.name) + '</th>'; }).join('') + '<th scope="col" style="text-align:left">Verdict with hindsight</th>' +
+      '<th scope="col" style="text-align:left">Chosen in advance</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></section>';
+  }
+
+  function festivalsIn(data, from, to) {
+    var names = [];
+    M.EVENTS.forEach(function (e) {
+      var hit = data.events.some(function (f) {
+        if (f.event !== e.id) { return false; }
+        for (var t = from; t < to; t++) { if (f.flags[t]) { return true; } }
+        return false;
+      });
+      if (hit) { names.push(e.name); }
+    });
+    return names;
+  }
+
+  function listText(items) {
+    if (!items.length) { return 'none'; }
+    if (items.length === 1) { return items[0]; }
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+
+  function advance(run) {
+    var r = run.results, d = run.data;
+    var from = d.testStart - r.validationWeeks;
+    var inside = festivalsIn(d, from, d.testStart);
+    var outside = M.EVENTS.map(function (e) { return e.name; }).filter(function (n) { return inside.indexOf(n) < 0; });
+    var simple = bestSimple(r.methods), ai = r.methods[4];
+    var rows = [
+      { label: 'AI everywhere', v: ai.wape, id: 'ai' },
+      { label: 'Chosen in advance, product by product', v: r.mix.wape, id: 'average' },
+      { label: 'Best simple method everywhere (' + simple.name.toLowerCase() + ')', v: simple.wape, id: simple.id }
+    ];
+    var max = 0;
+    rows.forEach(function (x) { if (x.v > max) { max = x.v; } });
+    var verdict = r.mix.wape > ai.wape + 0.0005
+      ? 'Deciding in advance does worse than simply using the AI everywhere.'
+      : (r.mix.wape < ai.wape - 0.0005 ? 'Deciding in advance beats using the AI everywhere.' : 'Deciding in advance does about as well as the AI everywhere.');
+    return '<section class="card" aria-labelledby="adv-title"><h2 id="adv-title">Deciding in advance, not with hindsight</h2>' +
+      '<p>The verdicts above use this year\'s results, which nobody has when the decision is made. Choosing product by product on the ' +
+      r.validationWeeks + ' weeks before the test year, the AI would have been picked for <strong>' + r.chosenAi + ' of ' + r.bySku.length +
+      '</strong> products. ' + esc(verdict) + '</p>' +
+      '<div class="hbars">' + rows.map(function (x) {
+        return '<div class="hrow wide"><span>' + esc(x.label) + '</span><span class="htrack" aria-hidden="true"><span class="hfill" style="width:' +
+          (max ? (x.v / max) * 100 : 0).toFixed(2) + '%; background:' + colour(x.id) + '"></span></span><span class="hval">' + pct1(x.v) + '</span></div>';
+      }).join('') + '</div>' +
+      '<p class="small muted" style="margin-top: 10px">Those ' + r.validationWeeks + ' weeks include ' + esc(listText(inside)) + ', but not ' + esc(listText(outside)) +
+      '. A trial that runs through the wrong season measures the wrong value: products whose sales hinge on a festival it missed look as if they do not need the AI.</p></section>';
   }
 
   function hbars(values, max) {
@@ -1035,7 +1133,9 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     return '<section class="card" aria-labelledby="ov-title"><h2 id="ov-title">Which overrides help?</h2>' +
       '<p class="small muted">' + (total ? 'Planners changed ' + total.toLocaleString('en-GB') + ' AI forecasts (' + pct1(total / r.methods[0].n) + '). ' : 'Planners changed no forecasts. ') +
       'Each card shows how much those overrides changed the error on the forecasts they touched: negative is better.</p>' +
-      '<div class="ov-grid">' + cards + '</div></section>';
+      '<div class="ov-grid">' + cards + '</div>' +
+      '<p style="margin-top: 12px"><strong>A simple rule:</strong> keep only the overrides that push forecasts down. Error would be ' + pct1(r.downOnly.wape) +
+      ', against ' + pct1(r.methods[4].wape) + ' for the AI alone and ' + pct1(r.methods[5].wape) + ' with every override.</p></section>';
   }
 
   function seriesFor(run, p, s) {
@@ -1139,7 +1239,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   function renderResults() {
     var r = state.run.results;
-    results.innerHTML = headline(r) + stairstep(r) + skuTable(r) + weekTypes(r) + overrides(r) + explorer(state.run) + downloads();
+    results.innerHTML = headline(r) + stairstep(r) + skuTable(r) + advance(state.run) + weekTypes(r) + overrides(r) + explorer(state.run) + downloads();
     drawExplorer();
   }
 

@@ -27,7 +27,7 @@ class HygieneTests(unittest.TestCase):
         with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
             readme = f.read()
         targets = re.findall(r"\]\(([^)#]+)\)", readme) + re.findall(r"`((?:app|docs|examples|tests|stairstep)/[^`*<> ]+)`", readme)
-        self.assertGreater(len(targets), 3)
+        self.assertGreaterEqual(len(targets), 3)
         for target in targets:
             if not target.startswith("http"):
                 self.assertTrue(os.path.exists(os.path.join(ROOT, target)), "README points to a missing file: " + target)

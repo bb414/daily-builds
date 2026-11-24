@@ -63,6 +63,10 @@ class AppTests(unittest.TestCase):
         self.assertEqual(values, [report.pct1(m["wape"]) for m in r["methods"]])
         self.assertIn("Worth using on %d of 12 products" % r["deployOn"], page.locator("main").inner_text())
         self.assertEqual(page.locator("#sku-title ~ .scroll tbody tr").count(), 12)
+        text = page.locator("main").inner_text()
+        self.assertIn("the AI would have been picked for %d of 12" % r["chosenAi"], text)
+        self.assertIn("include Deepavali and Christmas, but not Chinese New Year, Valentine's Day and Hari Raya Puasa", text)
+        self.assertIn("Error would be %s" % report.pct1(r["downOnly"]["wape"]), text)
         self.assertEqual(self.unlabelled(page), [])
         with tempfile.TemporaryDirectory() as d:
             with page.expect_download() as info:
