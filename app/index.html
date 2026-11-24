@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown ladder: when to cut the price of fresh stock</title>
+<meta name="description" content="Plans the best day-by-day discounts for short-shelf-life products, solved exactly by dynamic programming, and compares them with simple markdown rules.">
+<style>
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface-2: #f1eee6;
+  --ink: #1f1d1a;
+  --ink-2: #4b4740;
+  --ink-3: #6f695f;
+  --line: #ded8cc;
+  --accent: #8a3b12;
+  --accent-ink: #ffffff;
+  --accent-soft: #f6e6dc;
+  --good: #1f7a4a;
+  --bad: #b3261e;
+  --focus: #e0a100;
+  --d0: #e9e4d8;
+  --d1: #f3d3a7;
+  --d2: #e9a96a;
+  --d3: #d4733a;
+  --d4: #9c3b1a;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(30, 20, 10, .06), 0 4px 16px rgba(30, 20, 10, .06);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171512;
+    --surface: #201d19;
+    --surface-2: #2a2620;
+    --ink: #efebe4;
+    --ink-2: #cdc6ba;
+    --ink-3: #a39b8e;
+    --line: #3a352d;
+    --accent: #f0a274;
+    --accent-ink: #1d120b;
+    --accent-soft: #3a2619;
+    --good: #6fd49a;
+    --bad: #ff8a80;
+    --d0: #34302a;
+    --d1: #6b4f2c;
+    --d2: #9a6033;
+    --d3: #c4703b;
+    --d4: #f09a62;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-inner { max-width: 1180px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+.top-inner h1 { font-size: 1.2rem; margin: 0; letter-spacing: -.01em; }
+.top-inner p { margin: 0; color: var(--ink-3); font-size: .88rem; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 20px 20px 60px; display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 20px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.stack > * + * { margin-top: 18px; }
+h2 { font-size: 1.15rem; margin: 0 0 6px; }
+h3 { font-size: 1rem; margin: 0 0 8px; }
+.muted { color: var(--ink-3); }
+.small { font-size: .88rem; }
+
+/* Inputs */
+.inputs { position: sticky; top: 16px; }
+.field { margin-top: 14px; }
+.field label, .field .label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: .92rem; }
+.field output { font-variant-numeric: tabular-nums; color: var(--accent); }
+.field input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+.field select, .field input[type="number"] { width: 100%; margin-top: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.field .hint { font-size: .8rem; color: var(--ink-3); margin: 2px 0 0; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Results */
+.headline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--surface-2); border-radius: 12px; padding: 14px; }
+.tile .k { font-size: .82rem; color: var(--ink-3); }
+.tile .v { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: .82rem; color: var(--ink-3); }
+.lead { margin: 14px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
+tr.best td { font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+.bars { display: grid; gap: 6px; margin-top: 8px; }
+.bar-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 86px; gap: 10px; align-items: center; font-size: .92rem; }
+.bar-track { height: 18px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+.bar-track i { display: block; height: 100%; background: var(--d2); border-radius: 6px; }
+.bar-row.pick .bar-track i { background: var(--accent); }
+.bar-row .val { text-align: right; font-variant-numeric: tabular-nums; }
+.bar-row.pick { font-weight: 700; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--ink-2); font-size: 11px; font-family: var(--font); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: .85rem; list-style: none; padding: 0; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; padding: 14px 14px 48px; }
+  .inputs { position: static; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .headline { grid-template-columns: 1fr; }
+  .card { padding: 16px; }
+  .bar-row { grid-template-columns: 74px minmax(0, 1fr) 76px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
+      <rect x="3" y="5" width="6" height="24" rx="2" fill="var(--d1)"/>
+      <rect x="11" y="11" width="6" height="18" rx="2" fill="var(--d2)"/>
+      <rect x="19" y="17" width="6" height="12" rx="2" fill="var(--d3)"/>
+      <rect x="27" y="23" width="5" height="6" rx="2" fill="var(--d4)"/>
+    </svg>
+    <div>
+      <h1>Markdown ladder</h1>
+      <p>When should a shop cut the price of stock that is about to expire?</p>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="card inputs" aria-labelledby="inputs-title">
+    <h2 id="inputs-title">The product</h2>
+    <div class="field">
+      <label for="preset">Start from an example</label>
+      <select id="preset"></select>
+    </div>
+    <div id="fields"></div>
+  </section>
+
+  <div class="stack" id="results" aria-live="polite">
+    <section class="card" aria-labelledby="summary-title">
+      <h2 id="summary-title">The best plan</h2>
+      <div class="headline" id="headline"></div>
+      <p class="lead" id="lead"></p>
+    </section>
+    <div class="grid-2">
+      <section class="card" aria-labelledby="today-title">
+        <h2 id="today-title">Today's decision</h2>
+        <p class="small muted" id="today-sub"></p>
+        <div class="bars" id="today-bars"></div>
+      </section>
+      <section class="card" aria-labelledby="compare-title">
+        <h2 id="compare-title">Against simple rules</h2>
+        <div class="table-wrap" id="compare"></div>
+      </section>
+    </div>
+    <section class="card chart" aria-labelledby="map-title">
+      <h2 id="map-title">The markdown ladder</h2>
+      <p class="small muted">The best discount for every day and every amount of stock left, before any markdown has been taken. Read across a row to see the price fall as the sell-by date nears; read up a column to see that more stock means deeper cuts.</p>
+      <div id="map"></div>
+      <ul class="legend" id="map-legend"></ul>
+    </section>
+  </div>
+</main>
+
+<script>
+/* MODEL START */
+var MarkdownLadder = (function () {
+  'use strict';
+
+  // Discounts on the ladder, in % off the full price.
+  var LADDER = [0, 10, 20, 30, 50];
+  var DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  // Demand by weekday, Monday first. Each pattern averages 1.
+  var WEEK_PATTERNS = {
+    flat: [1, 1, 1, 1, 1, 1, 1],
+    highStreet: [0.8, 0.8, 0.85, 0.95, 1.15, 1.45, 1.0],
+    office: [1.2, 1.2, 1.2, 1.15, 1.05, 0.6, 0.6]
+  };
+  // Allowed range, step and default for every setting.
+  var FIELDS = {
+    stock: { min: 1, max: 300, step: 1, value: 60 },
+    days: { min: 1, max: 21, step: 1, value: 7 },
+    price: { min: 0.5, max: 100, step: 0.1, value: 12 },
+    unitCost: { min: 0, max: 100, step: 0.1, value: 4.8 },
+    wasteCost: { min: -50, max: 50, step: 0.05, value: 0.3 },
+    demand: { min: 0.1, max: 100, step: 0.1, value: 6 },
+    elasticity: { min: 0, max: 6, step: 0.1, value: 1.8 },
+    startDay: { min: 0, max: 6, step: 1, value: 0 }
+  };
+  var PRESETS = {
+    truffles: { name: 'Chocolate truffle box', stock: 60, days: 7, price: 12, unitCost: 4.8, wasteCost: 0.3, demand: 6, elasticity: 1.8, startDay: 0, pattern: 'highStreet' },
+    mochi: { name: 'Fresh mochi, pack of six', stock: 40, days: 3, price: 6.5, unitCost: 2.4, wasteCost: 0.2, demand: 10, elasticity: 2.5, startDay: 3, pattern: 'highStreet' },
+    eclairs: { name: 'Coffee eclairs at an office kiosk', stock: 30, days: 2, price: 3.2, unitCost: 1.1, wasteCost: 0.1, demand: 11, elasticity: 3, startDay: 3, pattern: 'office' },
+    tins: { name: 'Festive biscuit tins', stock: 120, days: 14, price: 15, unitCost: 6, wasteCost: 2, demand: 6, elasticity: 2.2, startDay: 0, pattern: 'highStreet' }
+  };
+  var MAX_STOCK = FIELDS.stock.max;
+
+  // log(k!) for k = 0..MAX_STOCK, for Poisson probabilities that do not underflow.
+  var LOG_FACT = [0];
+  for (var k = 1; k <= MAX_STOCK; k++) LOG_FACT.push(LOG_FACT[k - 1] + Math.log(k));
+
+  function clampField(name, x) {
+    var f = FIELDS[name];
+    x = Number(x);
+    if (!isFinite(x)) x = f.value;
+    x = Math.min(f.max, Math.max(f.min, x));
+    return f.step === 1 ? Math.round(x) : x;
+  }
+
+  function normalise(cfg) {
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) cfg = {};
+    var out = {};
+    Object.keys(FIELDS).forEach(function (name) { out[name] = clampField(name, cfg[name]); });
+    out.pattern = Object.keys(WEEK_PATTERNS).indexOf(cfg.pattern) >= 0 ? cfg.pattern : 'flat';
+    out.monotone = cfg.monotone !== false;
+    return out;
+  }
+
+  // Expected demand on day t (0 = first day) at ladder step j.
+  function demandRate(cfg, t, j) {
+    var weekday = (cfg.startDay + t) % 7;
+    return cfg.demand * WEEK_PATTERNS[cfg.pattern][weekday] * Math.pow(1 - LADDER[j] / 100, -cfg.elasticity);
+  }
+
+  // Poisson probabilities for the counts that matter. Counts outside [lo, hi]
+  // have probability below about 1e-20 and are left out; hi never exceeds sMax.
+  function poissonWindow(lam, sMax) {
+    if (!(lam > 0)) return { lo: 0, hi: 0, p: [1] };
+    var spread = 12 * Math.sqrt(lam) + 20;
+    var lo = Math.max(0, Math.floor(lam - spread));
+    var hi = Math.min(sMax, Math.ceil(lam + spread));
+    var p = [];
+    var logLam = Math.log(lam);
+    for (var c = lo; c <= hi; c++) p.push(Math.exp(-lam + c * logLam - LOG_FACT[c]));
+    return { lo: lo, hi: hi, p: p };
+  }
+
+  // Expected revenue today plus the value of what is left, for every stock level s,
+  // if today's price is `price` and tomorrow is worth next[s'].
+  function expectedValues(win, price, next, sMax) {
+    var out = new Array(sMax + 1);
+    for (var s = 0; s <= sMax; s++) {
+      var total = 0, mass = 0;
+      var top = Math.min(win.hi, s - 1);
+      for (var c = win.lo; c <= top; c++) {
+        var q = win.p[c - win.lo];
+        total += q * (price * c + next[s - c]);
+        mass += q;
+      }
+      var tail = Math.max(0, 1 - mass);   // demand at least s: everything sells
+      out[s] = total + tail * (price * s + next[0]);
+    }
+    return out;
+  }
+
+  // Backward induction over days, stock left and the current ladder step.
+  // V[t][i][s]: best expected (revenue - waste cost) from day t with s units, already at step i.
+  function solve(cfgIn) {
+    var cfg = normalise(cfgIn);
+    var T = cfg.days, S = cfg.stock, J = LADDER.length;
+    var terminal = [];
+    for (var s = 0; s <= S; s++) terminal.push(-cfg.wasteCost * s);
+    var V = new Array(T + 1), policy = new Array(T), Q = new Array(T);
+    V[T] = LADDER.map(function () { return terminal; });
+    for (var t = T - 1; t >= 0; t--) {
+      Q[t] = [];
+      for (var j = 0; j < J; j++) {
+        var win = poissonWindow(demandRate(cfg, t, j), S);
+        Q[t].push(expectedValues(win, cfg.price * (1 - LADDER[j] / 100), V[t + 1][j], S));
+      }
+      V[t] = []; policy[t] = [];
+      for (var i = 0; i < J; i++) {
+        var v = new Array(S + 1), pol = new Array(S + 1);
+        for (var s2 = 0; s2 <= S; s2++) {
+          var bestJ = -1, best = -Infinity;
+          for (var j2 = cfg.monotone ? i : 0; j2 < J; j2++) {
+            if (Q[t][j2][s2] > best + 1e-9) { best = Q[t][j2][s2]; bestJ = j2; }
+          }
+          v[s2] = best; pol[s2] = bestJ;
+        }
+        V[t].push(v); policy[t].push(pol);
+      }
+    }
+    return { cfg: cfg, value: V[0][0][S], V: V, Q: Q, policy: policy };
+  }
+
+  // Policies to compare. Each returns the ladder step to use on day t with s units left at step i.
+  function ruleStep(pct) {
+    var j = LADDER.indexOf(Number(pct));
+    return j < 0 ? 0 : j;
+  }
+  var POLICIES = {
+    optimal: function (sol) { return function (t, s, i) { return sol.policy[t][i][s]; }; },
+    never: function () { return function (t, s, i) { return i; }; },
+    lastDay: function (sol) { var T = sol.cfg.days; return function (t, s, i) { return t === T - 1 ? LADDER.length - 1 : i; }; },
+    rule: function (sol, pct, daysLeft) {
+      var T = sol.cfg.days, j = ruleStep(pct);
+      return function (t, s, i) { return T - t <= daysLeft ? Math.max(i, j) : i; };
+    }
+  };
+
+  // Exact expected outcome of following a policy, by pushing the probability of every
+  // (stock, step) state forward one day at a time. No simulation involved.
+  function evaluate(cfgIn, policyFn) {
+    var cfg = normalise(cfgIn);
+    var T = cfg.days, S = cfg.stock, J = LADDER.length;
+    var dist = [];
+    for (var i = 0; i < J; i++) { var row = new Array(S + 1).fill(0); dist.push(row); }
+    dist[0][S] = 1;
+    var revenue = 0, sold = 0, discountSum = 0;
+    var days = [];
+    for (var t = 0; t < T; t++) {
+      var next = [];
+      for (var i2 = 0; i2 < J; i2++) next.push(new Array(S + 1).fill(0));
+      var day = { stockStart: 0, revenue: 0, sold: 0, stepProb: new Array(J).fill(0), stockDist: new Array(S + 1).fill(0) };
+      for (var i3 = 0; i3 < J; i3++) {
+        for (var s = 0; s <= S; s++) {
+          var w = dist[i3][s];
+          if (!(w > 0)) continue;
+          day.stockStart += w * s;
+          day.stockDist[s] += w;
+          var j = policyFn(t, s, i3);
+          if (cfg.monotone && j < i3) j = i3;
+          day.stepProb[j] += w;
+          var price = cfg.price * (1 - LADDER[j] / 100);
+          var win = poissonWindow(demandRate(cfg, t, j), S);
+          var mass = 0, top = Math.min(win.hi, s - 1);
+          for (var c = win.lo; c <= top; c++) {
+            var q = w * win.p[c - win.lo];
+            next[j][s - c] += q;
+            day.revenue += q * price * c;
+            day.sold += q * c;
+            mass += win.p[c - win.lo];
+          }
+          var tail = w * Math.max(0, 1 - mass);
+          next[j][0] += tail;
+          day.revenue += tail * price * s;
+          day.sold += tail * s;
+          discountSum += w * LADDER[j];
+        }
+      }
+      revenue += day.revenue;
+      sold += day.sold;
+      days.push(day);
+      dist = next;
+    }
+    var left = new Array(S + 1).fill(0);
+    for (var i4 = 0; i4 < J; i4++) for (var s3 = 0; s3 <= S; s3++) left[s3] += dist[i4][s3];
+    var waste = 0;
+    for (var s4 = 0; s4 <= S; s4++) waste += s4 * left[s4];
+    return {
+      revenue: revenue,
+      sold: sold,
+      waste: waste,
+      profit: revenue - cfg.wasteCost * waste,
+      profitAfterStock: revenue - cfg.wasteCost * waste - cfg.unitCost * S,
+      sellOut: left[0],
+      avgDiscount: discountSum / T,
+      leftover: left,
+      days: days
+    };
+  }
+
+  function comparePolicies(cfgIn, rule) {
+    var sol = solve(cfgIn);
+    rule = rule || { pct: 30, daysLeft: 2 };
+    var rows = [
+      { key: 'optimal', name: 'Best plan (this model)', fn: POLICIES.optimal(sol) },
+      { key: 'never', name: 'Never discount', fn: POLICIES.never(sol) },
+      { key: 'lastDay', name: 'Half price on the last day', fn: POLICIES.lastDay(sol) },
+      { key: 'rule', name: rule.pct + '% off with ' + rule.daysLeft + (rule.daysLeft === 1 ? ' day' : ' days') + ' left', fn: POLICIES.rule(sol, rule.pct, rule.daysLeft) }
+    ];
+    rows.forEach(function (r) { r.result = evaluate(sol.cfg, r.fn); });
+    return { solution: sol, rows: rows };
+  }
+
+  var api = {
+    LADDER: LADDER, DAY_NAMES: DAY_NAMES, WEEK_PATTERNS: WEEK_PATTERNS, FIELDS: FIELDS, PRESETS: PRESETS,
+    normalise: normalise, demandRate: demandRate, poissonWindow: poissonWindow, expectedValues: expectedValues,
+    solve: solve, evaluate: evaluate, POLICIES: POLICIES, comparePolicies: comparePolicies
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
+})();
+/* MODEL END */
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var M = MarkdownLadder;
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = 'http://www.w3.org/2000/svg';
+  var LABELS = {
+    stock: ['Units in stock', 'How many you have to sell.'],
+    days: ['Days until the sell-by date', 'Selling days left, including today.'],
+    price: ['Full price (£)', 'The normal shelf price.'],
+    unitCost: ['Cost per unit (£)', 'Already paid, so it does not change the best plan.'],
+    wasteCost: ['Cost of throwing one away (£)', 'Disposal cost. Use a negative number if leftovers can be sold on.'],
+    demand: ['Daily demand at full price', 'Average units a day, before weekday effects.'],
+    elasticity: ['Price sensitivity', 'How much discounts lift demand: at 2, 20% off sells about 56% more.'],
+    startDay: ['Today is', '']
+  };
+  var STEP_COLOURS = ['var(--d0)', 'var(--d1)', 'var(--d2)', 'var(--d3)', 'var(--d4)'];
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'className') e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function money(x) { return (x < 0 ? '-£' : '£') + Math.abs(x).toFixed(2); }
+  function num(x, d) { return x.toFixed(d === undefined ? 1 : d); }
+  function pct(x) { return Math.round(x * 100) + '%'; }
+
+  // ---------- Inputs ----------
+  function buildInputs() {
+    Object.keys(M.PRESETS).forEach(function (k) { $('preset').appendChild(el('option', { value: k, text: M.PRESETS[k].name })); });
+    var box = $('fields');
+    Object.keys(M.FIELDS).forEach(function (name) {
+      var f = M.FIELDS[name];
+      if (name === 'startDay') {
+        var sel = el('select', { id: 'f-startDay' });
+        M.DAY_NAMES.forEach(function (d, i) { sel.appendChild(el('option', { value: String(i), text: d })); });
+        box.appendChild(el('div', { className: 'field' }, [el('label', { for: 'f-startDay', text: LABELS.startDay[0] }), sel]));
+        return;
+      }
+      var input = el('input', { type: 'number', id: 'f-' + name, min: String(f.min), max: String(f.max), step: String(f.step), inputmode: f.step === 1 ? 'numeric' : 'decimal', 'aria-describedby': 'h-' + name });
+      box.appendChild(el('div', { className: 'field' }, [el('label', { for: 'f-' + name, text: LABELS[name][0] }), input, el('p', { className: 'hint', id: 'h-' + name, text: LABELS[name][1] })]));
+    });
+    var pat = el('select', { id: 'f-pattern' });
+    [['flat', 'Same every day'], ['highStreet', 'High street: busy weekends'], ['office', 'Office area: quiet weekends']].forEach(function (o) { pat.appendChild(el('option', { value: o[0], text: o[1] })); });
+    box.appendChild(el('div', { className: 'field' }, [el('label', { for: 'f-pattern', text: 'Weekly pattern' }), pat]));
+    $('preset').addEventListener('change', function () { loadPreset(this.value); });
+    box.addEventListener('change', render);
+    box.addEventListener('input', function (e) { if (e.target.tagName === 'SELECT') render(); });
+    loadPreset('truffles');
+  }
+
+  function loadPreset(key) {
+    var p = M.PRESETS[key];
+    Object.keys(M.FIELDS).forEach(function (name) { $('f-' + name).value = p[name]; });
+    $('f-pattern').value = p.pattern;
+    render();
+  }
+
+  function readConfig() {
+    var cfg = {};
+    Object.keys(M.FIELDS).forEach(function (name) { cfg[name] = $('f-' + name).value; });
+    cfg.pattern = $('f-pattern').value;
+    return M.normalise(cfg);
+  }
+
+  // ---------- Results ----------
+  function tile(k, v, s) {
+    return el('div', { className: 'tile' }, [el('div', { className: 'k', text: k }), el('div', { className: 'v', text: v }), el('div', { className: 's', text: s })]);
+  }
+
+  function render() {
+    var cfg = readConfig();
+    var cmp = M.comparePolicies(cfg);
+    var sol = cmp.solution, best = cmp.rows[0].result;
+    var baselines = cmp.rows.slice(1);
+    var bestBase = baselines.reduce(function (a, b) { return b.result.profit > a.result.profit ? b : a; });
+    var head = $('headline');
+    head.innerHTML = '';
+    head.appendChild(tile('Expected takings', money(best.revenue), 'less ' + money(cfg.wasteCost * best.waste) + ' disposal'));
+    head.appendChild(tile('Expected leftovers', num(best.waste) + ' units', pct(best.sellOut) + ' chance of selling out'));
+    head.appendChild(tile('Better than the best simple rule', money(best.profit - bestBase.result.profit), 'against "' + bestBase.name + '"'));
+    $('lead').textContent = 'Plan: ' + firstMove(sol) + ' Expected profit after the cost of the stock: ' + money(best.profitAfterStock) + '.';
+    renderToday(sol);
+    renderCompare(cmp);
+    renderMap(sol);
+  }
+
+  function firstMove(sol) {
+    var j = sol.policy[0][0][sol.cfg.stock];
+    return j === 0 ? 'keep the full price today, and come back tomorrow with the stock count.' : 'take ' + M.LADDER[j] + '% off today.';
+  }
+
+  function renderToday(sol) {
+    var S = sol.cfg.stock;
+    var values = M.LADDER.map(function (d, j) { return sol.Q[0][j][S]; });
+    var pick = sol.policy[0][0][S];
+    var max = Math.max.apply(null, values), min = Math.min.apply(null, values.concat([0]));
+    $('today-sub').textContent = 'Expected takings from now to the sell-by date, less disposal, for each price you could charge today with ' + S + ' units. Every option assumes you play the remaining days as well as possible.';
+    var box = $('today-bars');
+    box.innerHTML = '';
+    values.forEach(function (v, j) {
+      var price = sol.cfg.price * (1 - M.LADDER[j] / 100);
+      var w = max > min ? (v - min) / (max - min) : 1;
+      var track = el('div', { className: 'bar-track', 'aria-hidden': 'true' }, [el('i')]);
+      track.firstChild.style.width = Math.max(2, w * 100) + '%';
+      box.appendChild(el('div', { className: 'bar-row' + (j === pick ? ' pick' : '') }, [
+        el('span', { text: (M.LADDER[j] ? M.LADDER[j] + '% off' : 'Full price') }),
+        track,
+        el('span', { className: 'val', text: money(v), 'aria-label': (M.LADDER[j] ? M.LADDER[j] + '% off, ' : 'Full price, ') + money(price) + ' each: expected ' + money(v) + (j === pick ? ', best' : '') })
+      ]));
+    });
+  }
+
+  function renderCompare(cmp) {
+    var tb = el('table');
+    tb.appendChild(el('thead', {}, [el('tr', {}, ['Plan', 'Profit', 'Sold', 'Left over', 'Sell out'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+    var body = el('tbody');
+    cmp.rows.forEach(function (r, k) {
+      var x = r.result;
+      body.appendChild(el('tr', { className: k === 0 ? 'best' : '' }, [
+        el('td', { text: r.name }), el('td', { text: money(x.profit) }), el('td', { text: num(x.sold) }), el('td', { text: num(x.waste) }), el('td', { text: pct(x.sellOut) })
+      ]));
+    });
+    tb.appendChild(body);
+    var box = $('compare');
+    box.innerHTML = '';
+    box.appendChild(tb);
+    box.appendChild(el('p', { className: 'small muted', text: 'Profit here is expected takings less disposal; the cost of the stock is the same for every plan. All figures are exact expectations under the demand model, not simulations.' }));
+  }
+
+  function renderMap(sol) {
+    var T = sol.cfg.days, S = sol.cfg.stock;
+    var rows = Math.min(S, 30), bin = S / rows;
+    var cellW = Math.max(18, Math.min(48, 560 / T)), cellH = 12, left = 46, top = 8;
+    var width = left + T * cellW + 8, height = top + rows * cellH + 44;
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Best discount by day and units left. ' + describeMap(sol));
+    var add = function (tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    };
+    for (var t = 0; t < T; t++) {
+      for (var r = 0; r < rows; r++) {
+        var s = Math.max(1, Math.round((r + 0.5) * bin));
+        var j = sol.policy[t][0][s];
+        add('rect', { x: left + t * cellW, y: top + (rows - 1 - r) * cellH, width: cellW - 1, height: cellH - 1, fill: STEP_COLOURS[j] });
+      }
+      var day = M.DAY_NAMES[(sol.cfg.startDay + t) % 7];
+      if (T <= 14 || t % 2 === 0) add('text', { x: left + t * cellW + cellW / 2, y: top + rows * cellH + 14, 'text-anchor': 'middle' }, day);
+    }
+    [0, 0.5, 1].forEach(function (f) {
+      var y = top + rows * cellH - f * rows * cellH;
+      add('text', { x: left - 6, y: y + 4, 'text-anchor': 'end' }, String(Math.round(f * S)));
+    });
+    add('text', { x: left + T * cellW / 2, y: height - 6, 'text-anchor': 'middle' }, 'Day (the sell-by date is after the last column)');
+    add('text', { x: 10, y: top + rows * cellH / 2, 'text-anchor': 'middle', transform: 'rotate(-90 10 ' + (top + rows * cellH / 2) + ')' }, 'Units left');
+    var box = $('map');
+    box.innerHTML = '';
+    box.appendChild(svg);
+    var legend = $('map-legend');
+    if (!legend.children.length) {
+      M.LADDER.forEach(function (d, j) {
+        legend.appendChild(el('li', {}, [el('span', { className: 'sw', style: 'background:' + STEP_COLOURS[j] }), d ? d + '% off' : 'Full price']));
+      });
+    }
+  }
+
+  function describeMap(sol) {
+    var S = sol.cfg.stock, T = sol.cfg.days;
+    var parts = [];
+    for (var t = 0; t < T; t++) {
+      var j = sol.policy[t][0][S];
+      parts.push(M.DAY_NAMES[(sol.cfg.startDay + t) % 7] + ': ' + (M.LADDER[j] ? M.LADDER[j] + '% off' : 'full price'));
+    }
+    return 'With all ' + S + ' units still in stock: ' + parts.join(', ') + '.';
+  }
+
+  buildInputs();
+})();
+</script>
+</body>
+</html>
