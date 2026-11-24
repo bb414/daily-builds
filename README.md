@@ -24,6 +24,8 @@ It grew out of a research question about young people and an AI scam checker: do
 
 ## Open the app
 
+If you do not have the files yet: on GitHub, switch to this branch, choose **Code**, then **Download ZIP**, and unzip it.
+
 Double-click `app/index.html`, or from a terminal:
 
 ```bash
@@ -44,7 +46,9 @@ What you can do in it:
 - **See where disagreements go**: how often the AI could have misled people and did, and how often it could have rescued them and did.
 - **Save and share**: copy a link that holds every setting, or download the settings as a file that the Python version can read.
 
-It works on a phone as well as a desktop, every control can be used with a keyboard, and it supports dark mode.
+It works on a phone as well as a desktop, every control can be used with a keyboard, and it supports dark mode. On a phone the settings fold away into sections so the verdict is never far down the page.
+
+<img src="docs/phone.png" alt="Reliance Lab on a phone" width="260">
 
 ![The stress test, the workflow comparison and the robustness check](docs/stress-test.png)
 
@@ -109,8 +113,8 @@ The accuracy gain during training is obvious (about +17 points, p < 0.001), but 
 | `app/index.html` (model block) | JavaScript | 550 | The simulation, verdicts, explanations, robustness check, settings links and files |
 | `app/index.html` (interface) | JavaScript | 600 | Controls, charts, tables, chunked running so large simulations never freeze the page |
 | `reliance_lab/model.py` | Python | 640 | A line-for-line port of the model block |
-| `reliance_lab/experiment.py`, `stats.py`, `cli.py` | Python | 590 | Virtual experiment, power analysis, Welch's t-test, command-line tool and exports |
-| `tests/` | JavaScript and Python | 930 | Model tests in Node.js, Python tests, a parity test and browser tests |
+| `reliance_lab/experiment.py`, `stats.py`, `cli.py` | Python | 600 | Virtual experiment, power analysis, Welch's t-test, command-line tool and exports |
+| `tests/` | JavaScript and Python | 960 | Model tests in Node.js, Python tests, a parity test and browser tests |
 
 The browser app is the version anyone can open and use. Python adds the heavier, batch-style work: many participants, repeated studies for the power analysis, CSV and Markdown exports.
 
