@@ -1,0 +1,105 @@
+[
+  {
+    "format": "range-finder-model",
+    "version": 1,
+    "key": "meal-kits",
+    "title": "Meal kits for students in Wealdham",
+    "about": "Market sizing: how much would students in a university city spend on meal kits in a year?",
+    "outputName": "Annual market",
+    "unit": "£",
+    "unitPosition": "prefix",
+    "threshold": 250000,
+    "thresholdLabel": "Worth a pilot if the market is at least",
+    "terms": [
+      {
+        "name": "Spending on meal kits",
+        "sign": 1,
+        "drivers": [
+          {"name": "Students living in the city", "dist": "lognormal", "low": 22000, "high": 30000, "unit": "people"},
+          {"name": "Share in self-catered housing", "dist": "share", "low": 55, "high": 80, "unit": "%"},
+          {"name": "Share who would try a meal kit", "dist": "share", "low": 5, "high": 25, "unit": "%"},
+          {"name": "Share of triers who keep ordering", "dist": "share", "low": 15, "high": 45, "unit": "%"},
+          {"name": "Orders per regular customer per year", "dist": "lognormal", "low": 12, "high": 40, "unit": "orders"},
+          {"name": "Average order value", "dist": "lognormal", "low": 18, "high": 32, "unit": "£"}
+        ]
+      }
+    ]
+  },
+  {
+    "format": "range-finder-model",
+    "version": 1,
+    "key": "ai-assistant",
+    "title": "An AI assistant for a support team",
+    "about": "Business case: what is an AI assistant that answers customer questions worth each year, after its costs?",
+    "outputName": "Net value per year",
+    "unit": "£",
+    "unitPosition": "prefix",
+    "threshold": 0,
+    "thresholdLabel": "Go ahead if the net value is at least",
+    "terms": [
+      {
+        "name": "Staff time saved on contacts it resolves",
+        "sign": 1,
+        "drivers": [
+          {"name": "Customer contacts per year", "dist": "lognormal", "low": 150000, "high": 260000, "unit": "contacts"},
+          {"name": "Share it resolves without a person", "dist": "share", "low": 10, "high": 40, "unit": "%"},
+          {"name": "Cost of a person handling a contact", "dist": "lognormal", "low": 3, "high": 7, "unit": "£"}
+        ]
+      },
+      {
+        "name": "Licence and running costs",
+        "sign": -1,
+        "drivers": [
+          {"name": "Licence and running cost per year", "dist": "lognormal", "low": 120000, "high": 300000, "unit": "£"}
+        ]
+      },
+      {
+        "name": "Putting wrong answers right",
+        "sign": -1,
+        "drivers": [
+          {"name": "Complaints caused per year", "dist": "lognormal", "low": 200, "high": 2000, "unit": "complaints"},
+          {"name": "Cost to resolve each complaint", "dist": "lognormal", "low": 40, "high": 150, "unit": "£"}
+        ]
+      }
+    ]
+  },
+  {
+    "format": "range-finder-model",
+    "version": 1,
+    "key": "bike-share",
+    "title": "A campus e-bike share",
+    "about": "Business case: would a 150-bike electric bike share on a university campus make a profit?",
+    "outputName": "Annual profit",
+    "unit": "£",
+    "unitPosition": "prefix",
+    "threshold": 0,
+    "thresholdLabel": "Go ahead if the profit is at least",
+    "terms": [
+      {
+        "name": "Ride income",
+        "sign": 1,
+        "drivers": [
+          {"name": "Bikes in the fleet", "dist": "fixed", "low": 150, "high": 150, "unit": "bikes"},
+          {"name": "Rides per bike per day", "dist": "lognormal", "low": 1.5, "high": 5, "unit": "rides"},
+          {"name": "Days in service per year", "dist": "normal", "low": 200, "high": 280, "unit": "days"},
+          {"name": "Income per ride", "dist": "lognormal", "low": 1.2, "high": 2.5, "unit": "£"}
+        ]
+      },
+      {
+        "name": "Running the fleet",
+        "sign": -1,
+        "drivers": [
+          {"name": "Staff, charging and maintenance per year", "dist": "lognormal", "low": 90000, "high": 180000, "unit": "£"}
+        ]
+      },
+      {
+        "name": "Theft and damage",
+        "sign": -1,
+        "drivers": [
+          {"name": "Bikes lost or written off per year", "dist": "lognormal", "low": 5, "high": 30, "unit": "bikes"},
+          {"name": "Cost to replace a bike", "dist": "lognormal", "low": 900, "high": 1500, "unit": "£"}
+        ]
+      }
+    ]
+  }
+]

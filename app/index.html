@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Range finder</title>
+<meta name="description" content="Size a market or a business case in honest ranges, and find the assumption worth checking first.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #ffffff;
+  --surface-2: #f2f1ed;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6b6964;
+  --line: #e1e0d9;
+  --line-2: #c3c2b7;
+  --accent: #2a78d6;
+  --accent-ink: #1c5cab;
+  --accent-soft: #e8f1fc;
+  --accent-faint: #b7d3f6;
+  --mark: #eb6834;
+  --mark-ink: #a8431b;
+  --mark-soft: #fdf0e9;
+  --good-ink: #006300;
+  --good-soft: #e7f5e7;
+  --bad: #d03b3b;
+  --bad-ink: #a82828;
+  --bad-soft: #fbeaea;
+  --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
+    --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
+    --accent-soft: #15263b; --accent-faint: #1c5cab; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+    --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
+  --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
+  --accent-soft: #15263b; --accent-faint: #1c5cab; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+  --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.logo { width: 30px; height: 30px; flex: none; }
+.brand { font-weight: 700; font-size: 18px; }
+.tagline { color: var(--ink-2); font-size: 14px; margin: 0; }
+main.wrap { padding-top: 20px; padding-bottom: 48px; }
+footer { color: var(--muted); font-size: 13px; padding: 20px 0 36px; border-top: 1px solid var(--line); }
+h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; margin: 0 0 8px; }
+h1 { font-size: 24px; }
+h2 { font-size: 19px; }
+h3 { font-size: 16px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+.btn { appearance: none; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; font-size: 15px; padding: 8px 14px; border-radius: 10px; cursor: pointer; min-height: 40px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.small-btn { font-size: 14px; padding: 6px 10px; min-height: 36px; }
+.icon-btn { appearance: none; border: 1px solid transparent; background: transparent; color: var(--muted); border-radius: 8px; width: 36px; height: 36px; display: inline-grid; place-items: center; cursor: pointer; flex: none; }
+.icon-btn:hover { background: var(--surface-2); color: var(--bad-ink); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+input[type="text"], input[type="number"], select {
+  font: inherit; font-size: 15px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; min-height: 38px; width: 100%; min-width: 0;
+}
+input[aria-invalid="true"] { border-color: var(--bad); background: var(--bad-soft); }
+label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--ink-2); min-width: 0; }
+
+/* Layout */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; margin-bottom: 16px; }
+.toolbar .field { width: min(360px, 100%); }
+.layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 18px; align-items: start; grid-template-areas: "editor results"; }
+.editor { grid-area: editor; }
+.results { grid-area: results; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.editor, .results, .card { min-width: 0; }
+
+/* Editor */
+.grid-3 { display: grid; grid-template-columns: 1fr 90px 120px; gap: 8px; }
+.term { border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; overflow: hidden; }
+.term-head { display: grid; grid-template-columns: 130px 1fr auto; gap: 8px; align-items: center; padding: 10px; background: var(--surface-2); }
+.term-head select { font-weight: 600; }
+.term.minus .term-head { background: var(--bad-soft); }
+.drivers { padding: 4px 10px 10px; }
+.driver { border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; gap: 6px; }
+.driver:last-child { border-bottom: 0; }
+.driver-top { display: flex; gap: 6px; align-items: center; }
+.driver-top .times { color: var(--muted); font-weight: 700; width: 14px; text-align: center; flex: none; }
+.driver-bottom { display: grid; grid-template-columns: 1fr 1fr 1.6fr 0.8fr; gap: 6px; padding-left: 20px; }
+.driver-bottom label.field { font-weight: 500; font-size: 12px; }
+.term-foot { padding: 0 10px 10px; }
+.problems { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+.problems ul { margin: 4px 0 0; padding-left: 18px; }
+.equation { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+
+/* Results */
+.hero { display: grid; gap: 4px; }
+.hero .label { font-size: 14px; color: var(--muted); font-weight: 600; }
+.hero .range { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.hero .range .to { font-weight: 500; color: var(--muted); font-size: 20px; }
+.hero .sub { font-size: 15px; color: var(--ink-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip { background: var(--surface-2); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+.chip.go { background: var(--good-soft); color: var(--good-ink); font-weight: 600; }
+.chip.nogo { background: var(--bad-soft); color: var(--bad-ink); font-weight: 600; }
+.callout { background: var(--mark-soft); border-left: 4px solid var(--mark); border-radius: 0 10px 10px 0; padding: 10px 12px; font-size: 15px; margin-top: 12px; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+svg.chart .lbl { fill: var(--ink); font-size: 12.5px; }
+svg.chart .val { fill: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg.chart .grid { stroke: var(--line); stroke-width: 1; }
+svg.chart .axis { stroke: var(--line-2); stroke-width: 1; }
+svg.chart .bar { fill: var(--accent); }
+svg.chart .bar.faint { fill: var(--accent-faint); }
+svg.chart .thr { stroke: var(--mark); stroke-width: 2; }
+svg.chart .thr-text { fill: var(--mark-ink); font-weight: 600; }
+svg.chart .base { stroke: var(--ink-2); stroke-width: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin: 4px 0 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th, table.data td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.data th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.share-bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+.note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.empty { color: var(--muted); padding: 20px; text-align: center; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "results" "editor"; }
+}
+@media (max-width: 560px) {
+  .tagline { display: none; }
+  .grid-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .grid-3 > :first-child { grid-column: 1 / -1; }
+  .term-head { grid-template-columns: 1fr auto; }
+  .term-head > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .driver-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding-left: 0; }
+  .hero .range { font-size: 26px; }
+  .card { padding: 14px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2a78d6"/><path d="M7 22h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M10 22V14M16 22V8M22 22V12" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M8 11h4M14 6h4M20 9h4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    <div>
+      <div class="brand">Range finder</div>
+      <p class="tagline">Size a market or a business case in honest ranges, and find the assumption worth checking first.</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="toolbar">
+    <label class="field">Start from an example
+      <select id="template"></select>
+    </label>
+    <p class="small muted" id="template-about" style="margin:0 0 8px;flex:1;min-width:220px"></p>
+  </div>
+
+  <div class="layout">
+    <section class="editor card" aria-labelledby="editor-title">
+      <h2 id="editor-title">Your estimate</h2>
+      <p class="small muted">For each driver, give a range you are 90% sure contains the true value. Drivers in a term are multiplied together, and the terms are added up or taken away.</p>
+      <div class="grid-3">
+        <label class="field">Name of the estimate <input type="text" id="f-title" data-key="title"></label>
+        <label class="field">What it measures <input type="text" id="f-output" data-key="outputName"></label>
+        <label class="field">Unit, e.g. £ <input type="text" id="f-unit" data-key="unit" maxlength="12"></label>
+      </div>
+      <div id="terms"></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn small-btn" type="button" id="add-term">Add a term</button>
+      </div>
+      <h3 style="margin-top:18px">The decision</h3>
+      <div class="grid-3" style="grid-template-columns: 1fr 140px">
+        <label class="field">Rule <input type="text" id="f-thr-label" data-key="thresholdLabel"></label>
+        <label class="field">Threshold <input type="number" step="any" id="f-threshold" data-key="threshold"></label>
+      </div>
+      <p class="note">Leave the threshold empty if there is no decision to make.</p>
+    </section>
+
+    <section class="results" aria-labelledby="results-title" aria-live="polite">
+      <h2 class="sr-only" id="results-title">Results</h2>
+      <div id="problems" class="problems" role="alert" hidden></div>
+      <div class="card" id="summary"></div>
+      <div class="card" id="dist-card"></div>
+      <div class="card" id="tornado-card"></div>
+      <div class="card" id="drivers-card"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Every calculation happens in this page: nothing is sent anywhere. The examples are invented and their numbers are illustrative, not research. Results use 10,000 Latin hypercube samples with a fixed seed, so the same inputs always give the same answer.</div>
+</footer>
+
+<script>
+/* MODEL START */
+const TEMPLATES = /* TEMPLATES START */[
+ {
+  "format": "range-finder-model",
+  "version": 1,
+  "key": "meal-kits",
+  "title": "Meal kits for students in Wealdham",
+  "about": "Market sizing: how much would students in a university city spend on meal kits in a year?",
+  "outputName": "Annual market",
+  "unit": "£",
+  "unitPosition": "prefix",
+  "threshold": 250000,
+  "thresholdLabel": "Worth a pilot if the market is at least",
+  "terms": [
+   {
+    "name": "Spending on meal kits",
+    "sign": 1,
+    "drivers": [
+     {
+      "name": "Students living in the city",
+      "dist": "lognormal",
+      "low": 22000,
+      "high": 30000,
+      "unit": "people"
+     },
+     {
+      "name": "Share in self-catered housing",
+      "dist": "share",
+      "low": 55,
+      "high": 80,
+      "unit": "%"
+     },
+     {
+      "name": "Share who would try a meal kit",
+      "dist": "share",
+      "low": 5,
+      "high": 25,
+      "unit": "%"
+     },
+     {
+      "name": "Share of triers who keep ordering",
+      "dist": "share",
+      "low": 15,
+      "high": 45,
+      "unit": "%"
+     },
+     {
+      "name": "Orders per regular customer per year",
+      "dist": "lognormal",
+      "low": 12,
+      "high": 40,
+      "unit": "orders"
+     },
+     {
+      "name": "Average order value",
+      "dist": "lognormal",
+      "low": 18,
+      "high": 32,
+      "unit": "£"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "format": "range-finder-model",
+  "version": 1,
+  "key": "ai-assistant",
+  "title": "An AI assistant for a support team",
+  "about": "Business case: what is an AI assistant that answers customer questions worth each year, after its costs?",
+  "outputName": "Net value per year",
+  "unit": "£",
+  "unitPosition": "prefix",
+  "threshold": 0,
+  "thresholdLabel": "Go ahead if the net value is at least",
+  "terms": [
+   {
+    "name": "Staff time saved on contacts it resolves",
+    "sign": 1,
+    "drivers": [
+     {
+      "name": "Customer contacts per year",
+      "dist": "lognormal",
+      "low": 150000,
+      "high": 260000,
+      "unit": "contacts"
+     },
+     {
+      "name": "Share it resolves without a person",
+      "dist": "share",
+      "low": 10,
+      "high": 40,
+      "unit": "%"
+     },
+     {
+      "name": "Cost of a person handling a contact",
+      "dist": "lognormal",
+      "low": 3,
+      "high": 7,
+      "unit": "£"
+     }
+    ]
+   },
+   {
+    "name": "Licence and running costs",
+    "sign": -1,
+    "drivers": [
+     {
+      "name": "Licence and running cost per year",
+      "dist": "lognormal",
+      "low": 120000,
+      "high": 300000,
+      "unit": "£"
+     }
+    ]
+   },
+   {
+    "name": "Putting wrong answers right",
+    "sign": -1,
+    "drivers": [
+     {
+      "name": "Complaints caused per year",
+      "dist": "lognormal",
+      "low": 200,
+      "high": 2000,
+      "unit": "complaints"
+     },
+     {
+      "name": "Cost to resolve each complaint",
+      "dist": "lognormal",
+      "low": 40,
+      "high": 150,
+      "unit": "£"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "format": "range-finder-model",
+  "version": 1,
+  "key": "bike-share",
+  "title": "A campus e-bike share",
+  "about": "Business case: would a 150-bike electric bike share on a university campus make a profit?",
+  "outputName": "Annual profit",
+  "unit": "£",
+  "unitPosition": "prefix",
+  "threshold": 0,
+  "thresholdLabel": "Go ahead if the profit is at least",
+  "terms": [
+   {
+    "name": "Ride income",
+    "sign": 1,
+    "drivers": [
+     {
+      "name": "Bikes in the fleet",
+      "dist": "fixed",
+      "low": 150,
+      "high": 150,
+      "unit": "bikes"
+     },
+     {
+      "name": "Rides per bike per day",
+      "dist": "lognormal",
+      "low": 1.5,
+      "high": 5,
+      "unit": "rides"
+     },
+     {
+      "name": "Days in service per year",
+      "dist": "normal",
+      "low": 200,
+      "high": 280,
+      "unit": "days"
+     },
+     {
+      "name": "Income per ride",
+      "dist": "lognormal",
+      "low": 1.2,
+      "high": 2.5,
+      "unit": "£"
+     }
+    ]
+   },
+   {
+    "name": "Running the fleet",
+    "sign": -1,
+    "drivers": [
+     {
+      "name": "Staff, charging and maintenance per year",
+      "dist": "lognormal",
+      "low": 90000,
+      "high": 180000,
+      "unit": "£"
+     }
+    ]
+   },
+   {
+    "name": "Theft and damage",
+    "sign": -1,
+    "drivers": [
+     {
+      "name": "Bikes lost or written off per year",
+      "dist": "lognormal",
+      "low": 5,
+      "high": 30,
+      "unit": "bikes"
+     },
+     {
+      "name": "Cost to replace a bike",
+      "dist": "lognormal",
+      "low": 900,
+      "high": 1500,
+      "unit": "£"
+     }
+    ]
+   }
+  ]
+ }
+]/* TEMPLATES END */;
+const FORMAT = 'range-finder-model';
+const VERSION = 1;
+const DISTS = ['lognormal', 'normal', 'share', 'uniform', 'fixed'];
+const DIST_LABELS = {
+  lognormal: 'Positive, skewed (lognormal)',
+  normal: 'Symmetric (normal)',
+  share: 'Percentage (0 to 100)',
+  uniform: 'Anywhere in the range (uniform)',
+  fixed: 'Known exactly'
+};
+const Z95 = 1.6448536269514722;
+const Z90 = 1.2815515655446004;
+const MAX_TERMS = 8;
+const MAX_DRIVERS_PER_TERM = 12;
+const MAX_DRIVERS = 30;
+const MIN_SAMPLES = 1000;
+const MAX_SAMPLES = 200000;
+const DEFAULT_SAMPLES = 10000;
+const DEFAULT_SEED = 1;
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle(items, rnd) {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = items[i]; items[i] = items[j]; items[j] = tmp;
+  }
+  return items;
+}
+
+// Acklam's rational approximation to the inverse normal CDF (relative error < 1.2e-9).
+const ACK_A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+  1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+const ACK_B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+  6.680131188771972e+01, -1.328068155288572e+01];
+const ACK_C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+  -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+const ACK_D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+
+function invNorm(p) {
+  if (!(p > 0 && p < 1)) throw new Error('p must be between 0 and 1');
+  const A = ACK_A, B = ACK_B, C = ACK_C, D = ACK_D;
+  if (p < 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  if (p > 1 - 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  const q = p - 0.5, r = q * q;
+  return (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q /
+    (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
+}
+
+function isNum(x) { return typeof x === 'number' && Number.isFinite(x); }
+function isInt(x) { return isNum(x) && Number.isInteger(x); }
+function isObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
+
+// The Python package applies exactly the same rules, with the same messages.
+function validateModel(model) {
+  if (!isObj(model)) return ['This is not a Range finder model.'];
+  const problems = [];
+  if (model.format !== FORMAT) {
+    problems.push('This is not a Range finder model (the format field is missing or wrong).');
+    return problems;
+  }
+  ['title', 'outputName', 'unit'].forEach(key => {
+    if (typeof model[key] !== 'string') problems.push("The model's " + key + ' must be text.');
+  });
+  if (typeof model.unit === 'string' && model.unit.length > 12) problems.push('The unit must be 12 characters or fewer.');
+  if (model.unitPosition !== 'prefix' && model.unitPosition !== 'suffix') problems.push('The unit position must be prefix or suffix.');
+  const t = model.threshold;
+  if (t !== undefined && t !== null && !isNum(t)) problems.push('The decision threshold must be a number or left empty.');
+  const n = model.samples;
+  if (n !== undefined && n !== null && (!isInt(n) || n < MIN_SAMPLES || n > MAX_SAMPLES)) {
+    problems.push('Samples must be a whole number from ' + MIN_SAMPLES + ' to ' + MAX_SAMPLES + '.');
+  }
+  const s = model.seed;
+  if (s !== undefined && s !== null && (!isInt(s) || s < 0 || s > 4294967295)) problems.push('The seed must be a whole number from 0 to 4294967295.');
+  const terms = model.terms;
+  if (!Array.isArray(terms) || !terms.length) {
+    problems.push('The estimate needs at least one term.');
+    return problems;
+  }
+  if (terms.length > MAX_TERMS) problems.push('The estimate can have at most ' + MAX_TERMS + ' terms.');
+  let total = 0;
+  terms.forEach((term, ti) => {
+    const where = 'Term ' + (ti + 1);
+    if (!isObj(term)) { problems.push(where + ' is not valid.'); return; }
+    if (typeof term.name !== 'string') problems.push(where + ' needs a name.');
+    if (term.sign !== 1 && term.sign !== -1) problems.push(where + ' must be added (+1) or taken away (-1).');
+    const drivers = term.drivers;
+    if (!Array.isArray(drivers) || !drivers.length) { problems.push(where + ' needs at least one driver.'); return; }
+    if (drivers.length > MAX_DRIVERS_PER_TERM) problems.push(where + ' can have at most ' + MAX_DRIVERS_PER_TERM + ' drivers.');
+    drivers.forEach((d, di) => {
+      total += 1;
+      let label = where + ', driver ' + (di + 1);
+      if (!isObj(d)) { problems.push(label + ' is not valid.'); return; }
+      if (typeof d.name === 'string' && d.name.trim()) label += ' (' + d.name.trim() + ')';
+      else problems.push(label + ' needs a name.');
+      const dist = d.dist;
+      if (DISTS.indexOf(dist) < 0) { problems.push(label + ' has an unknown kind of range.'); return; }
+      const lo = d.low, hi = d.high;
+      if (!isNum(lo) || (dist !== 'fixed' && !isNum(hi))) { problems.push(label + ' needs numbers for its range.'); return; }
+      if (dist === 'fixed') return;
+      if (!(lo < hi)) problems.push(label + ': the low value must be below the high value.');
+      else if (dist === 'lognormal' && lo <= 0) problems.push(label + ': a skewed (lognormal) range must be above zero.');
+      else if (dist === 'share' && !(lo > 0 && hi < 100)) problems.push(label + ': a percentage range must be between 0 and 100, not including them.');
+    });
+  });
+  if (total > MAX_DRIVERS) problems.push('The estimate can have at most ' + MAX_DRIVERS + ' drivers.');
+  return problems;
+}
+
+function logit(p) { return Math.log(p / (1 - p)); }
+
+function distParams(d) {
+  const lo = d.low, hi = d.high;
+  if (d.dist === 'lognormal') { const a = Math.log(lo), b = Math.log(hi); return {mu: (a + b) / 2, sigma: (b - a) / (2 * Z95)}; }
+  if (d.dist === 'normal') return {mu: (lo + hi) / 2, sigma: (hi - lo) / (2 * Z95)};
+  if (d.dist === 'share') { const a = logit(lo / 100), b = logit(hi / 100); return {mu: (a + b) / 2, sigma: (b - a) / (2 * Z95)}; }
+  return {};
+}
+
+function transform(d, p, z, u) {
+  if (d.dist === 'lognormal') return Math.exp(p.mu + p.sigma * z);
+  if (d.dist === 'normal') return p.mu + p.sigma * z;
+  if (d.dist === 'share') return 1 / (1 + Math.exp(-(p.mu + p.sigma * z)));
+  if (d.dist === 'uniform') return d.low + (d.high - d.low) * u;
+  return d.low;
+}
+
+function quantile(d, which) {
+  return transform(d, distParams(d), which * Z90, [0.1, 0.5, 0.9][which + 1]);
+}
+
+function midpoint(d) {
+  if (d.dist === 'fixed') return d.low;
+  const m = (d.low + d.high) / 2;
+  return d.dist === 'share' ? m / 100 : m;
+}
+
+function driversOf(model) {
+  const out = [];
+  model.terms.forEach((term, ti) => term.drivers.forEach((d, di) => out.push([ti, di, d])));
+  return out;
+}
+
+function evaluate(model, values) {
+  let total = 0, k = 0;
+  model.terms.forEach(term => {
+    let prod = term.sign;
+    term.drivers.forEach(() => { prod *= values[k]; k += 1; });
+    total += prod;
+  });
+  return total;
+}
+
+function simulate(model, samples, seed) {
+  const n = Math.trunc(samples !== undefined && samples !== null ? samples : (model.samples || DEFAULT_SAMPLES));
+  const s = Math.trunc(seed !== undefined && seed !== null ? seed : (model.seed !== undefined && model.seed !== null ? model.seed : DEFAULT_SEED));
+  const rnd = mulberry32(s);
+  const columns = driversOf(model).map(([, , d]) => {
+    const col = new Array(n);
+    if (d.dist === 'fixed') { col.fill(d.low); return col; }
+    const p = distParams(d);
+    const perm = shuffle(Array.from({length: n}, (_, i) => i), rnd);
+    for (let k = 0; k < n; k++) {
+      let u = (perm[k] + rnd()) / n;
+      u = Math.min(Math.max(u, 1e-12), 1 - 1e-12);
+      const z = d.dist === 'uniform' ? 0 : invNorm(u);
+      col[k] = transform(d, p, z, u);
+    }
+    return col;
+  });
+  const values = new Array(n);
+  for (let k = 0; k < n; k++) {
+    let total = 0, c = 0;
+    for (const term of model.terms) {
+      let prod = term.sign;
+      for (let j = 0; j < term.drivers.length; j++) { prod *= columns[c][k]; c += 1; }
+      total += prod;
+    }
+    values[k] = total;
+  }
+  return [values, columns];
+}
+
+function percentile(sorted, q) {
+  const n = sorted.length;
+  const h = (n - 1) * q;
+  const lo = Math.floor(h);
+  if (lo + 1 >= n) return sorted[n - 1];
+  return sorted[lo] + (h - lo) * (sorted[lo + 1] - sorted[lo]);
+}
+
+function mean(xs) {
+  let total = 0;
+  for (let i = 0; i < xs.length; i++) total += xs[i];
+  return total / xs.length;
+}
+
+function variance(xs, m) {
+  if (xs.length < 2) return 0;
+  if (m === undefined) m = mean(xs);
+  let total = 0;
+  for (let i = 0; i < xs.length; i++) total += (xs[i] - m) * (xs[i] - m);
+  return total / (xs.length - 1);
+}
+
+function analyse(model, samples, seed, keepValues) {
+  const problems = validateModel(model);
+  if (problems.length) throw new Error(problems[0]);
+  const [values, columns] = simulate(model, samples, seed);
+  const srt = values.slice().sort((a, b) => a - b);
+  const m = mean(values);
+  const v = variance(values, m);
+  const drv = driversOf(model);
+  const medians = drv.map(([, , d]) => quantile(d, 0));
+  const base = evaluate(model, medians);
+  const means = columns.map(col => mean(col));
+  const rows = drv.map(([ti, di, d], i) => {
+    const loVals = medians.slice(), hiVals = medians.slice();
+    loVals[i] = quantile(d, -1);
+    hiVals[i] = quantile(d, 1);
+    const lowOut = evaluate(model, loVals), highOut = evaluate(model, hiVals);
+    let slope = model.terms[ti].sign;
+    drv.forEach(([tj], j) => { if (tj === ti && j !== i) slope *= means[j]; });
+    const varI = variance(columns[i], means[i]);
+    return {
+      term: ti, index: di, name: d.name, dist: d.dist, mean: means[i],
+      p10: loVals[i], p50: medians[i], p90: hiVals[i],
+      lowOut: lowOut, highOut: highOut, swing: Math.abs(highOut - lowOut),
+      slope: slope, varShare: v > 0 ? slope * slope * varI / v : 0
+    };
+  });
+  const order = rows.map((r, i) => i).sort((a, b) => (rows[b].swing - rows[a].swing) || (a - b));
+  let shareTotal = 0;
+  rows.forEach(r => { shareTotal += r.varShare; });
+  const threshold = model.threshold === undefined ? null : model.threshold;
+  let above = null;
+  if (threshold !== null) {
+    let count = 0;
+    for (let k = 0; k < values.length; k++) if (values[k] >= threshold) count += 1;
+    above = count / values.length;
+  }
+  const out = {
+    n: values.length, mean: m, sd: Math.sqrt(v), min: srt[0], max: srt[srt.length - 1],
+    p5: percentile(srt, 0.05), p10: percentile(srt, 0.10), p25: percentile(srt, 0.25),
+    p50: percentile(srt, 0.50), p75: percentile(srt, 0.75), p90: percentile(srt, 0.90), p95: percentile(srt, 0.95),
+    atMedians: base, atMidpoints: evaluate(model, drv.map(([, , d]) => midpoint(d))),
+    threshold: threshold, probAbove: above, drivers: rows, tornado: order,
+    interaction: Math.max(0, 1 - shareTotal)
+  };
+  if (keepValues) out.values = values;
+  return out;
+}
+
+function decimals(v) {
+  if (v >= 100) return 0;
+  if (v >= 10) return 1;
+  if (v >= 1) return 2;
+  if (v >= 0.1) return 3;
+  if (v >= 0.01) return 4;
+  if (v >= 0.001) return 5;
+  return 6;
+}
+
+function fixedRound(v, dec) {
+  const f = Math.pow(10, dec);
+  return Math.floor(v * f + 0.5) / f;
+}
+
+function formatNumber(x) {
+  if (!isNum(x)) return 'n/a';
+  const a = Math.abs(x);
+  const scales = [[1e9, 'bn'], [1e6, 'm'], [1e3, 'k'], [1, '']];
+  let idx = scales.length - 1;
+  for (let i = 0; i < scales.length; i++) { if (a >= scales[i][0]) { idx = i; break; } }
+  let v = a / scales[idx][0];
+  let dec = decimals(v);
+  let r = fixedRound(v, dec);
+  if (r >= 1000 && idx > 0) {
+    idx -= 1;
+    v = a / scales[idx][0];
+    dec = decimals(v);
+    r = fixedRound(v, dec);
+  }
+  let s = r.toFixed(dec);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  if (s === '0') return '0';
+  return (x < 0 ? '-' : '') + s + scales[idx][1];
+}
+
+function formatValue(x, unit, position) {
+  const s = formatNumber(x);
+  if (s === 'n/a' || !unit) return s;
+  const neg = s.charAt(0) === '-';
+  const body = neg ? s.slice(1) : s;
+  if ((position || 'prefix') === 'prefix') return (neg ? '-' : '') + unit + body;
+  return s + ' ' + unit;
+}
+
+function formatDriver(x, d) {
+  if (d.dist === 'share') return formatNumber(x * 100) + '%';
+  const unit = d.unit || '';
+  if (unit === '£') return formatValue(x, '£', 'prefix');
+  return formatNumber(x) + (unit ? ' ' + unit : '');
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    TEMPLATES, FORMAT, VERSION, DISTS, DIST_LABELS, Z95, Z90, MAX_TERMS, MAX_DRIVERS_PER_TERM, MAX_DRIVERS,
+    MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, mulberry32, shuffle, invNorm, validateModel,
+    distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse,
+    formatNumber, formatValue, formatDriver
+  };
+}
+/* MODEL END */
+
+/* ------------------------------------------------------------------ */
+/* Interface                                                          */
+/* ------------------------------------------------------------------ */
+(function () {
+  if (typeof document === 'undefined') return;
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const state = {model: null, timer: null, result: null};
+  const TRASH = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  }
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function fv(x) { return formatValue(x, state.model.unit, state.model.unitPosition); }
+
+  /* ---------- Editor ---------- */
+  function numAttr(x) { return isNum(x) ? String(x) : ''; }
+
+  function driverHTML(d, ti, di) {
+    const base = 't' + ti + 'd' + di;
+    const pct = d.dist === 'share' ? ' (%)' : '';
+    return '<div class="driver" data-t="' + ti + '" data-d="' + di + '">' +
+      '<div class="driver-top"><span class="times" aria-hidden="true">' + (di === 0 ? '' : '&times;') + '</span>' +
+      '<label class="sr-only" for="' + base + 'n">Driver ' + (di + 1) + ' of term ' + (ti + 1) + ': name</label>' +
+      '<input type="text" id="' + base + 'n" data-f="name" value="' + esc(d.name || '') + '" placeholder="What is it?">' +
+      '<button class="icon-btn" type="button" data-act="del-driver" aria-label="Remove ' + esc(d.name || 'this driver') + '">' + TRASH + '</button></div>' +
+      '<div class="driver-bottom">' +
+      '<label class="field">' + (d.dist === 'fixed' ? 'Value' : 'Low') + pct + '<input type="number" step="any" data-f="low" value="' + numAttr(d.low) + '"></label>' +
+      '<label class="field">High' + pct + '<input type="number" step="any" data-f="high" value="' + numAttr(d.high) + '"' + (d.dist === 'fixed' ? ' disabled' : '') + '></label>' +
+      '<label class="field">Kind of range<select data-f="dist">' + DISTS.map(k => '<option value="' + k + '"' + (k === d.dist ? ' selected' : '') + '>' + esc(DIST_LABELS[k]) + '</option>').join('') + '</select></label>' +
+      '<label class="field">Unit<input type="text" data-f="unit" maxlength="12" value="' + esc(d.unit || '') + '"></label>' +
+      '</div></div>';
+  }
+
+  function renderEditor() {
+    const m = state.model;
+    $('#f-title').value = m.title;
+    $('#f-output').value = m.outputName;
+    $('#f-unit').value = m.unit;
+    $('#f-thr-label').value = m.thresholdLabel || '';
+    $('#f-threshold').value = numAttr(m.threshold);
+    $('#terms').innerHTML = m.terms.map((term, ti) =>
+      '<div class="term' + (term.sign < 0 ? ' minus' : '') + '" data-t="' + ti + '">' +
+      '<div class="term-head">' +
+      '<label class="sr-only" for="t' + ti + 'sign">Term ' + (ti + 1) + ': add or take away</label>' +
+      '<select id="t' + ti + 'sign" data-tf="sign"><option value="1"' + (term.sign > 0 ? ' selected' : '') + '>+ Add</option><option value="-1"' + (term.sign < 0 ? ' selected' : '') + '>&minus; Take away</option></select>' +
+      '<label class="sr-only" for="t' + ti + 'name">Term ' + (ti + 1) + ': name</label>' +
+      '<input type="text" id="t' + ti + 'name" data-tf="name" value="' + esc(term.name) + '">' +
+      '<button class="icon-btn" type="button" data-act="del-term" aria-label="Remove the term ' + esc(term.name || (ti + 1)) + '">' + TRASH + '</button></div>' +
+      '<div class="drivers">' + term.drivers.map((d, di) => driverHTML(d, ti, di)).join('') + '</div>' +
+      '<div class="term-foot"><button class="btn small-btn" type="button" data-act="add-driver">Add a driver</button></div></div>'
+    ).join('');
+  }
+
+  function parseNum(v) {
+    if (v === '' || v === null) return null;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : null;
+  }
+
+  function onEditorInput(e) {
+    const el = e.target;
+    const m = state.model;
+    if (el.dataset.key) {
+      const k = el.dataset.key;
+      m[k] = k === 'threshold' ? parseNum(el.value) : el.value;
+      if (k === 'unit') m.unitPosition = /^[£$€¥]$/.test(el.value.trim()) || el.value.trim() === '' ? 'prefix' : 'suffix';
+      schedule();
+      return;
+    }
+    const termEl = el.closest('.term');
+    if (!termEl) return;
+    const ti = Number(termEl.dataset.t);
+    if (el.dataset.tf === 'sign') {
+      m.terms[ti].sign = Number(el.value);
+      termEl.classList.toggle('minus', m.terms[ti].sign < 0);
+    } else if (el.dataset.tf === 'name') {
+      m.terms[ti].name = el.value;
+    } else if (el.dataset.f) {
+      const di = Number(el.closest('.driver').dataset.d);
+      const d = m.terms[ti].drivers[di];
+      const f = el.dataset.f;
+      if (f === 'low' || f === 'high') d[f] = parseNum(el.value);
+      else d[f] = el.value;
+      if (f === 'dist') {
+        if (d.dist === 'fixed') d.high = d.low;
+        renderEditor();
+        focusField(ti, di, 'dist');
+      }
+    }
+    schedule();
+  }
+
+  function focusField(ti, di, f) {
+    const el = document.querySelector('.driver[data-t="' + ti + '"][data-d="' + di + '"] [data-f="' + f + '"]');
+    if (el) el.focus();
+  }
+
+  function onEditorClick(e) {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const m = state.model;
+    const termEl = b.closest('.term');
+    const ti = termEl ? Number(termEl.dataset.t) : -1;
+    const act = b.dataset.act;
+    if (act === 'add-driver') {
+      m.terms[ti].drivers.push({name: '', dist: 'lognormal', low: 1, high: 10, unit: ''});
+      renderEditor();
+      focusField(ti, m.terms[ti].drivers.length - 1, 'name');
+    } else if (act === 'del-driver') {
+      const di = Number(b.closest('.driver').dataset.d);
+      m.terms[ti].drivers.splice(di, 1);
+      renderEditor();
+      const next = document.querySelector('.term[data-t="' + ti + '"] [data-act="add-driver"]');
+      if (next) next.focus();
+    } else if (act === 'del-term') {
+      m.terms.splice(ti, 1);
+      renderEditor();
+      $('#add-term').focus();
+    }
+    schedule();
+  }
+
+  function addTerm() {
+    state.model.terms.push({name: 'New term', sign: 1, drivers: [{name: '', dist: 'lognormal', low: 1, high: 10, unit: ''}]});
+    renderEditor();
+    const ti = state.model.terms.length - 1;
+    const el = document.getElementById('t' + ti + 'name');
+    if (el) el.focus();
+    schedule();
+  }
+
+  /* ---------- Running ---------- */
+  function schedule() {
+    clearTimeout(state.timer);
+    state.timer = setTimeout(run, 180);
+  }
+
+  function markInvalid() {
+    document.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+    state.model.terms.forEach((term, ti) => term.drivers.forEach((d, di) => {
+      const row = document.querySelector('.driver[data-t="' + ti + '"][data-d="' + di + '"]');
+      if (!row) return;
+      const bad = [];
+      if (!(typeof d.name === 'string' && d.name.trim())) bad.push('name');
+      if (!isNum(d.low)) bad.push('low');
+      if (d.dist !== 'fixed') {
+        if (!isNum(d.high)) bad.push('high');
+        else if (isNum(d.low) && (!(d.low < d.high) || (d.dist === 'lognormal' && d.low <= 0) || (d.dist === 'share' && !(d.low > 0 && d.high < 100)))) bad.push('low', 'high');
+      }
+      bad.forEach(f => { const el = row.querySelector('[data-f="' + f + '"]'); if (el) el.setAttribute('aria-invalid', 'true'); });
+    }));
+  }
+
+  function run() {
+    const m = state.model;
+    markInvalid();
+    const problems = validateModel(m);
+    const box = $('#problems');
+    if (problems.length) {
+      box.innerHTML = '<strong>Fix ' + (problems.length === 1 ? 'this' : 'these') + ' to see results:</strong><ul>' + problems.slice(0, 6).map(p => '<li>' + esc(p) + '</li>').join('') + '</ul>';
+      box.hidden = false;
+      ['#summary', '#dist-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = '0.35'; });
+      return;
+    }
+    box.hidden = true;
+    ['#summary', '#dist-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = ''; });
+    const r = analyse(m, null, null, true);
+    state.result = r;
+    renderSummary(r);
+    renderDistribution(r);
+    renderTornado(r);
+    renderDrivers(r);
+  }
+
+  /* ---------- Results ---------- */
+  function renderSummary(r) {
+    const m = state.model;
+    let h = '<div class="hero"><div class="label">' + esc(m.outputName || 'Estimate') + ': most likely between</div>' +
+      '<div class="range">' + esc(fv(r.p10)) + ' <span class="to">and</span> ' + esc(fv(r.p90)) + '</div>' +
+      '<div class="sub">Middle estimate (median) <strong>' + esc(fv(r.p50)) + '</strong>. Average ' + esc(fv(r.mean)) + '. There is a 10% chance it is below the low end and a 10% chance it is above the high end.</div></div>';
+    if (r.threshold !== null) {
+      const go = r.probAbove >= 0.5;
+      h += '<div class="chips"><span class="chip ' + (go ? 'go' : 'nogo') + '">' + Math.round(r.probAbove * 100) + '% chance of clearing ' + esc(fv(r.threshold)) + '</span>' +
+        '<span class="chip">' + esc(m.thresholdLabel || 'Threshold') + ' ' + esc(fv(r.threshold)) + '</span></div>';
+    }
+    const mid = r.atMidpoints, med = r.p50;
+    if (isNum(mid) && Math.abs(med) > 0) {
+      const gap = (mid - med) / Math.abs(med);
+      if (Math.abs(gap) >= 0.1) {
+        h += '<div class="callout">Plugging in the middle of every range gives <strong>' + esc(fv(mid)) + '</strong>, which is ' +
+          Math.round(Math.abs(gap) * 100) + '% ' + (gap > 0 ? 'above' : 'below') + ' the median. Single-number estimates built from midpoints ' +
+          (gap > 0 ? 'overstate' : 'understate') + ' what is likely here, because ranges for skewed quantities are not symmetric.</div>';
+      } else {
+        h += '<p class="note">Plugging in the middle of every range gives ' + esc(fv(mid)) + ', close to the median.</p>';
+      }
+    }
+    $('#summary').innerHTML = h;
+  }
+
+  function niceTicks(lo, hi, count) {
+    const span = hi - lo;
+    if (!(span > 0)) return [lo];
+    const raw = span / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => span / s <= count) || 10 * mag;
+    const start = Math.ceil(lo / step) * step;
+    const ticks = [];
+    for (let t = start; t <= hi + step * 1e-9; t += step) ticks.push(Math.abs(t) < step * 1e-9 ? 0 : t);
+    return ticks;
+  }
+
+  function renderDistribution(r) {
+    const vals = r.values;
+    const srt = vals.slice().sort((a, b) => a - b);
+    let lo = percentile(srt, 0.005), hi = percentile(srt, 0.995);
+    if (r.threshold !== null) { lo = Math.min(lo, r.threshold); hi = Math.max(hi, r.threshold); }
+    if (!(hi > lo)) { hi = lo + 1; lo = lo - 1; }
+    const bins = 40, counts = new Array(bins).fill(0);
+    const width = (hi - lo) / bins;
+    let shown = 0;
+    vals.forEach(v => {
+      if (v < lo || v > hi) return;
+      const b = Math.min(bins - 1, Math.floor((v - lo) / width));
+      counts[b] += 1;
+      shown += 1;
+    });
+    const W = 640, H = 230, L = 10, R = 10, T = 28, B = 34;
+    const pw = W - L - R, ph = H - T - B;
+    const maxC = Math.max(...counts) || 1;
+    const x = v => L + pw * (v - lo) / (hi - lo);
+    let svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="dist-title dist-desc">';
+    niceTicks(lo, hi, 6).forEach(t => {
+      svg += '<line class="grid" x1="' + x(t).toFixed(1) + '" x2="' + x(t).toFixed(1) + '" y1="' + T + '" y2="' + (T + ph) + '"/>' +
+        '<text x="' + x(t).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle">' + esc(fv(t)) + '</text>';
+    });
+    counts.forEach((c, i) => {
+      if (!c) return;
+      const x0 = L + pw * i / bins, bw = pw / bins - 2;
+      const bh = ph * c / maxC;
+      const mid = lo + width * (i + 0.5);
+      const inside = mid >= r.p10 && mid <= r.p90;
+      svg += '<rect class="bar' + (inside ? '' : ' faint') + '" x="' + (x0 + 1).toFixed(1) + '" y="' + (T + ph - bh).toFixed(1) + '" width="' + Math.max(1, bw).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2">' +
+        '<title>' + esc(fv(lo + width * i)) + ' to ' + esc(fv(lo + width * (i + 1))) + ': ' + (100 * c / vals.length).toFixed(1) + '% of outcomes</title></rect>';
+    });
+    svg += '<line class="axis" x1="' + L + '" x2="' + (L + pw) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+    if (r.threshold !== null) {
+      const tx = x(r.threshold);
+      svg += '<line class="thr" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (T - 6) + '" y2="' + (T + ph) + '"/>' +
+        '<text class="thr-text" x="' + (tx + (tx > W * 0.7 ? -6 : 6)).toFixed(1) + '" y="' + (T - 10) + '" text-anchor="' + (tx > W * 0.7 ? 'end' : 'start') + '">Threshold ' + esc(fv(r.threshold)) + '</text>';
+    }
+    const mx = x(r.p50);
+    svg += '<line class="base" x1="' + mx.toFixed(1) + '" x2="' + mx.toFixed(1) + '" y1="' + T + '" y2="' + (T + ph) + '"/>';
+    svg += '</svg>';
+    $('#dist-card').innerHTML = '<h2 id="dist-title">How likely each outcome is</h2>' +
+      '<p class="sr-only" id="dist-desc">Histogram of ' + r.n + ' simulated outcomes. The middle 80% runs from ' + esc(fv(r.p10)) + ' to ' + esc(fv(r.p90)) + ', with a median of ' + esc(fv(r.p50)) + '.</p>' +
+      '<div class="legend"><span><i style="background:var(--accent)"></i>Middle 80% of outcomes</span><span><i style="background:var(--accent-faint)"></i>Outer 20%</span><span><i style="background:var(--ink-2);width:2px"></i>Median</span>' +
+      (r.threshold !== null ? '<span><i style="background:var(--mark);width:3px"></i>Threshold</span>' : '') + '</div>' + svg +
+      '<p class="note">' + r.n.toLocaleString('en-GB') + ' simulated outcomes' + (shown < vals.length ? '; the most extreme ' + (100 * (vals.length - shown) / vals.length).toFixed(1) + '% are off the chart' : '') + '.</p>';
+  }
+
+  function renderTornado(r) {
+    const rows = r.tornado.map(i => r.drivers[i]).filter(d => d.swing > 0);
+    if (!rows.length) {
+      $('#tornado-card').innerHTML = '<h2>Which ranges matter most</h2><p class="empty">Every driver is fixed, so nothing moves the estimate.</p>';
+      return;
+    }
+    let lo = Math.min(r.atMedians, ...rows.map(d => Math.min(d.lowOut, d.highOut)));
+    let hi = Math.max(r.atMedians, ...rows.map(d => Math.max(d.lowOut, d.highOut)));
+    if (r.threshold !== null) { lo = Math.min(lo, r.threshold); hi = Math.max(hi, r.threshold); }
+    const pad = (hi - lo) * 0.18 || 1;
+    lo -= pad; hi += pad;
+    const W = 640, rowH = 34, T = 22, B = 30, labelW = 210;
+    const H = T + rows.length * rowH + B;
+    const pw = W - labelW - 16;
+    const x = v => labelW + pw * (v - lo) / (hi - lo);
+    let svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="tor-title">';
+    niceTicks(lo, hi, 5).forEach(t => {
+      svg += '<line class="grid" x1="' + x(t).toFixed(1) + '" x2="' + x(t).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/>' +
+        '<text x="' + x(t).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(fv(t)) + '</text>';
+    });
+    rows.forEach((d, k) => {
+      const y = T + k * rowH;
+      const a = Math.min(d.lowOut, d.highOut), b = Math.max(d.lowOut, d.highOut);
+      const name = d.name.length > 30 ? d.name.slice(0, 29) + '…' : d.name;
+      svg += '<text class="lbl" x="' + (labelW - 10) + '" y="' + (y + 21) + '" text-anchor="end">' + esc(name) + '<title>' + esc(d.name) + '</title></text>';
+      svg += '<rect class="bar" x="' + x(a).toFixed(1) + '" y="' + (y + 8) + '" width="' + Math.max(2, x(b) - x(a)).toFixed(1) + '" height="18" rx="4">' +
+        '<title>' + esc(d.name) + ': ' + esc(fv(d.lowOut)) + ' at its 10th percentile, ' + esc(fv(d.highOut)) + ' at its 90th</title></rect>';
+      svg += '<text class="val" x="' + (x(a) - 5).toFixed(1) + '" y="' + (y + 21) + '" text-anchor="end">' + esc(fv(a)) + '</text>';
+      svg += '<text class="val" x="' + (x(b) + 5).toFixed(1) + '" y="' + (y + 21) + '" text-anchor="start">' + esc(fv(b)) + '</text>';
+    });
+    const bx = x(r.atMedians);
+    svg += '<line class="base" x1="' + bx.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y1="' + (T - 4) + '" y2="' + (H - B) + '"/>';
+    svg += '<text x="' + bx.toFixed(1) + '" y="' + (T - 8) + '" text-anchor="middle">All at their medians: ' + esc(fv(r.atMedians)) + '</text>';
+    if (r.threshold !== null) {
+      const tx = x(r.threshold);
+      svg += '<line class="thr" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/>';
+    }
+    svg += '</svg>';
+    $('#tornado-card').innerHTML = '<h2 id="tor-title">Which ranges matter most</h2>' +
+      '<p class="small muted">Each bar shows the estimate when one driver moves from its 10th to its 90th percentile and everything else stays at its median.</p>' + svg;
+  }
+
+  function renderDrivers(r) {
+    const m = state.model;
+    const drv = [];
+    m.terms.forEach(term => term.drivers.forEach(d => drv.push(d)));
+    let h = '<h2>What drives the uncertainty</h2><p class="small muted">Share of the spread in the estimate that comes from each driver on its own. What is left over comes from drivers moving together.</p>' +
+      '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Driver</th><th scope="col">Likely range (10th to 90th)</th><th scope="col">Share of the spread</th></tr></thead><tbody>';
+    r.tornado.forEach(i => {
+      const d = r.drivers[i], src = drv[i];
+      const share = Math.max(0, d.varShare);
+      h += '<tr><td>' + esc(d.name) + '</td><td class="num">' + (src.dist === 'fixed' ? esc(formatDriver(d.p50, src)) + ' (fixed)' : esc(formatDriver(d.p10, src)) + ' to ' + esc(formatDriver(d.p90, src))) + '</td>' +
+        '<td class="num"><span class="share-bar" style="width:' + (share * 80).toFixed(1) + 'px"></span>' + Math.round(share * 100) + '%</td></tr>';
+    });
+    h += '<tr><td>Drivers moving together</td><td class="num muted">n/a</td><td class="num"><span class="share-bar" style="width:' + (r.interaction * 80).toFixed(1) + 'px;background:var(--line-2)"></span>' + Math.round(r.interaction * 100) + '%</td></tr>';
+    h += '</tbody></table></div>';
+    $('#drivers-card').innerHTML = h;
+  }
+
+  /* ---------- Templates ---------- */
+  function loadTemplate(key) {
+    const t = TEMPLATES.find(x => x.key === key) || TEMPLATES[0];
+    state.model = clone(t);
+    $('#template-about').textContent = t.about;
+    renderEditor();
+    run();
+  }
+
+  function init() {
+    $('#template').innerHTML = TEMPLATES.map(t => '<option value="' + esc(t.key) + '">' + esc(t.title) + '</option>').join('');
+    $('#template').addEventListener('change', e => loadTemplate(e.target.value));
+    const editor = $('.editor');
+    editor.addEventListener('input', e => { if (e.target.tagName !== 'SELECT') onEditorInput(e); });
+    editor.addEventListener('change', e => { if (e.target.tagName === 'SELECT') onEditorInput(e); });
+    editor.addEventListener('click', onEditorClick);
+    $('#add-term').addEventListener('click', addTerm);
+    loadTemplate(TEMPLATES[0].key);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
