@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliance Lab: helper or crutch?</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1b1f24;
+    --muted: #5b6573;
+    --line: #dde1e7;
+    --accent: #0f6e66;
+    --accent-soft: #e3f2f0;
+    --team: #2459c9;
+    --skill: #b4480f;
+    --control: #8a94a3;
+    --trust: #7a3fc4;
+    --helper: #1d7a3a;
+    --crutch: #a96500;
+    --nolift: #5b6573;
+    --liability: #b3261e;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b;
+      --card: #1d2127;
+      --ink: #e8ebef;
+      --muted: #a3adba;
+      --line: #333a43;
+      --accent: #4fc2b6;
+      --accent-soft: #1e3532;
+      --team: #79a3ff;
+      --skill: #f08b4f;
+      --control: #8f99a8;
+      --trust: #bb92f2;
+      --helper: #5cc77d;
+      --crutch: #e9a93a;
+      --nolift: #a3adba;
+      --liability: #f2766d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  header { padding: 20px 24px 8px; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; padding: 12px 24px 32px; align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .controls h2, .results h2 { font-size: 1rem; margin: 0 0 8px; }
+  .control { margin: 12px 0; }
+  .control label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; font-weight: 600; }
+  .control output { font-variant-numeric: tabular-nums; color: var(--accent); }
+  .control input[type=range] { width: 100%; accent-color: var(--accent); }
+  .help { font-size: 0.8rem; color: var(--muted); margin: 2px 0 0; }
+  select { width: 100%; padding: 6px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  fieldset { border: 0; padding: 0; margin: 12px 0; }
+  legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+  .wf { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .wf label { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; cursor: pointer; display: block; }
+  .wf input { margin-right: 4px; }
+  .wf label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .wf strong { font-size: 0.88rem; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; }
+  .verdict { border-left: 6px solid var(--nolift); }
+  .verdict h2 { font-size: 1.3rem; margin: 0 0 4px; }
+  .verdict p { margin: 4px 0; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+  .kpi .label { font-size: 0.82rem; color: var(--muted); }
+  .kpi .value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .sub { font-size: 0.8rem; color: var(--muted); }
+  .chart-card { margin-bottom: 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+  .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 5px; vertical-align: middle; background: currentColor; }
+  .chart { width: 100%; height: 260px; display: block; }
+  .matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 0.85rem; }
+  .matrix .cell { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .matrix .head { font-weight: 600; color: var(--muted); padding: 8px 4px; }
+  .matrix .big { font-size: 1.2rem; font-weight: 700; }
+  footer { padding: 0 24px 32px; color: var(--muted); font-size: 0.85rem; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; padding: 8px 12px 24px; }
+    header { padding: 16px 12px 4px; }
+    .kpis { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reliance Lab</h1>
+  <p>Helper or crutch? Simulate people making decisions with AI advice, and see what it does to their accuracy, their trust and their own judgement once the AI is gone.</p>
+</header>
+
+<main class="layout">
+  <section class="card controls" aria-labelledby="controls-title">
+    <h2 id="controls-title">Set up the situation</h2>
+    <div class="control">
+      <label for="preset">Scenario</label>
+      <select id="preset"></select>
+      <p class="help" id="preset-help"></p>
+    </div>
+    <fieldset>
+      <legend>How the AI is used</legend>
+      <div class="wf" id="workflow"></div>
+    </fieldset>
+    <div id="group-people"></div>
+    <div id="group-ai"></div>
+    <div class="control">
+      <label for="showConfidence"><span><input type="checkbox" id="showConfidence"> Show the AI's confidence</span></label>
+    </div>
+    <div id="group-setting"></div>
+    <details>
+      <summary>Advanced assumptions</summary>
+      <div id="group-advanced"></div>
+    </details>
+  </section>
+
+  <section class="results" aria-live="polite">
+    <div class="card verdict" id="verdict"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card chart-card">
+      <h2>Over the run</h2>
+      <div class="legend" id="legend-time"></div>
+      <svg class="chart" id="chart-time" role="img"></svg>
+    </div>
+    <div class="card chart-card">
+      <h2>When people and the AI disagree</h2>
+      <div class="matrix" id="matrix"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>All data is synthetic and generated in your browser. Nothing is sent anywhere. The model is a thinking tool built on stated assumptions, not a forecast.</p>
+</footer>
+
+<script>
+/* MODEL START */
+var RelianceModel = (function () {
+  'use strict';
+
+  // Fixed behavioural constants. They are documented in the README.
+  var C = Object.freeze({
+    decisiveness: 2.5,   // how sharply people switch when the AI looks more credible than they feel
+    metaNoise: 0.8,      // noise in how confident people feel (log-odds)
+    confNoise: 0.3,      // noise in the AI's displayed confidence (log-odds)
+    confWeight: 0.6,     // weight people give the AI's displayed confidence versus their general trust
+    anchor: 0.4,         // extra pull towards the AI when its answer is seen before thinking
+    teachBonus: 1.0,     // extra learning when a visible disagreement is followed by feedback
+    skillCeiling: 4.0,   // skill (log-odds) that practice approaches
+    skillFloor: 0.0,     // skill (log-odds) that disuse decays towards: a coin flip
+    minEngage: 0.05,     // even the most trusting person thinks for themselves sometimes
+    quadPoints: 41,
+    maxCheckpoints: 50
+  });
+
+  var PARAMS = [
+    { key: 'humanAccuracy', group: 'people', label: 'People\'s starting accuracy', help: 'Share of cases the average person gets right on their own at the start.', min: 0.5, max: 0.95, step: 0.01, def: 0.7, fmt: 'pct' },
+    { key: 'initialTrust', group: 'people', label: 'Starting trust in the AI', help: 'How likely people are, at first, to believe the AI when it disagrees with them.', min: 0.05, max: 0.95, step: 0.05, def: 0.6, fmt: 'pct' },
+    { key: 'aiAccuracy', group: 'ai', label: 'AI accuracy', help: 'Share of cases the AI gets right.', min: 0.5, max: 0.99, step: 0.01, def: 0.85, fmt: 'pct' },
+    { key: 'errorOverlap', group: 'ai', label: 'Shared blind spots', help: 'How far the AI struggles on the same cases people find hard (0 = unrelated, 1 = identical).', min: 0, max: 1, step: 0.05, def: 0.5, fmt: 'dec' },
+    { key: 'aiOverconfidence', group: 'ai', label: 'AI overconfidence', help: '0 means the AI\'s stated confidence is honest; 1 means it sounds sure even when it is guessing.', min: 0, max: 1, step: 0.05, def: 0.2, fmt: 'dec' },
+    { key: 'feedbackRate', group: 'setting', label: 'Feedback after each case', help: 'Share of cases where people later find out the right answer.', min: 0, max: 1, step: 0.05, def: 0.5, fmt: 'pct' },
+    { key: 'rounds', group: 'setting', label: 'Cases per person', help: 'How many decisions each person makes with the AI available.', min: 20, max: 500, step: 10, def: 200, fmt: 'int', int: true },
+    { key: 'learningRate', group: 'advanced', label: 'Learning from practice', help: 'How fast skill grows when people think for themselves and get feedback.', min: 0, max: 0.01, step: 0.0005, def: 0.002, fmt: 'rate' },
+    { key: 'decayRate', group: 'advanced', label: 'Skill decay from disuse', help: 'How fast skill fades on cases where people accept the AI without thinking.', min: 0, max: 0.01, step: 0.0005, def: 0.0015, fmt: 'rate' },
+    { key: 'complacency', group: 'advanced', label: 'Rubber-stamping (AI first)', help: 'How strongly trust turns into accepting the AI\'s answer without thinking.', min: 0, max: 1, step: 0.05, def: 0.8, fmt: 'dec' },
+    { key: 'requestThreshold', group: 'advanced', label: 'Ask threshold (on request)', help: 'People ask the AI when their own confidence is below this.', min: 0.5, max: 0.99, step: 0.01, def: 0.75, fmt: 'pct' },
+    { key: 'trustRate', group: 'advanced', label: 'Trust update speed', help: 'How much one observed AI success moves trust.', min: 0.005, max: 0.1, step: 0.005, def: 0.03, fmt: 'rate' },
+    { key: 'aversion', group: 'advanced', label: 'Error sensitivity', help: 'How many times more an observed AI mistake moves trust than a success.', min: 1, max: 6, step: 0.5, def: 3, fmt: 'times' },
+    { key: 'skillSpread', group: 'advanced', label: 'Differences between people', help: 'Spread of individual skill (log-odds).', min: 0, max: 1.5, step: 0.05, def: 0.5, fmt: 'dec' },
+    { key: 'difficultySpread', group: 'advanced', label: 'Spread of case difficulty', help: 'How much cases vary from easy to hard (log-odds).', min: 0.2, max: 2, step: 0.05, def: 1, fmt: 'dec' },
+    { key: 'people', group: 'advanced', label: 'People simulated', help: 'More people gives smoother results but takes longer.', min: 50, max: 1000, step: 50, def: 300, fmt: 'int', int: true },
+    { key: 'seed', group: 'advanced', label: 'Random seed', help: 'Change it to draw a different set of people and cases.', min: 1, max: 9999, step: 1, def: 42, fmt: 'int', int: true }
+  ];
+
+  var WORKFLOWS = {
+    none: { label: 'No AI', help: 'People decide on their own. This is the comparison group.' },
+    ai_first: { label: 'AI first', help: 'The AI\'s answer is shown straight away. Quick, but easy to rubber-stamp.' },
+    human_first: { label: 'Human first', help: 'People commit to an answer, then see the AI\'s and may change their mind.' },
+    on_request: { label: 'On request', help: 'People decide alone and ask the AI only when they feel unsure.' }
+  };
+  var WORKFLOW_KEYS = ['none', 'ai_first', 'human_first', 'on_request'];
+
+  var PRESETS = {
+    scam_teens: {
+      label: 'Scam checks: 16 to 18-year-olds',
+      help: 'Young people judging whether messages are scams, with an AI checker on hand. Most never find out whether they were right.',
+      params: { humanAccuracy: 0.68, initialTrust: 0.65, aiAccuracy: 0.88, errorOverlap: 0.3, aiOverconfidence: 0.3, feedbackRate: 0.25, rounds: 120, workflow: 'ai_first', showConfidence: true }
+    },
+    invoice_fraud: {
+      label: 'Invoice fraud screening: finance team',
+      help: 'Experienced staff checking supplier invoices, with an AI that shares many of their blind spots.',
+      params: { humanAccuracy: 0.8, initialTrust: 0.5, aiAccuracy: 0.9, errorOverlap: 0.6, aiOverconfidence: 0.2, feedbackRate: 0.6, rounds: 250, workflow: 'human_first', showConfidence: true }
+    },
+    lead_triage: {
+      label: 'Sales lead triage: new sales reps',
+      help: 'New reps deciding which leads to chase, with a scoring model that sounds more certain than it is.',
+      params: { humanAccuracy: 0.62, initialTrust: 0.7, aiAccuracy: 0.75, errorOverlap: 0.5, aiOverconfidence: 0.6, feedbackRate: 0.8, rounds: 200, workflow: 'on_request', showConfidence: true }
+    }
+  };
+
+  var DEFAULTS = (function () {
+    var d = { workflow: 'ai_first', showConfidence: true };
+    PARAMS.forEach(function (s) { d[s.key] = s.def; });
+    return d;
+  })();
+
+  function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+
+  function sigmoid(x) {
+    if (x >= 0) return 1 / (1 + Math.exp(-x));
+    var e = Math.exp(x);
+    return e / (1 + e);
+  }
+
+  function logit(p) {
+    var q = clamp(p, 1e-9, 1 - 1e-9);
+    return Math.log(q / (1 - q));
+  }
+
+  // Mulberry32: a small, fast 32-bit generator that is easy to reproduce exactly in Python.
+  function makeRng(seed) {
+    var a = seed >>> 0;
+    var rng = {
+      uniform: function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        var t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      },
+      normal: function () {
+        var u1 = rng.uniform();
+        if (u1 < 1e-12) u1 = 1e-12;
+        var u2 = rng.uniform();
+        return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      }
+    };
+    return rng;
+  }
+
+  // Derives an independent seed for each simulated person.
+  function mixSeed(seed, i) {
+    var h = (seed ^ Math.imul(i + 1, 0x9E3779B1)) >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+
+  var QUAD = (function () {
+    var k = C.quadPoints, z = [], w = [], tot = 0, i;
+    for (i = 0; i < k; i++) {
+      var x = -5 + 10 * i / (k - 1);
+      var wt = Math.exp(-0.5 * x * x);
+      z.push(x); w.push(wt); tot += wt;
+    }
+    for (i = 0; i < k; i++) w[i] = w[i] / tot;
+    return { z: z, w: w };
+  })();
+
+  // Expected accuracy for skill mu (log-odds) over cases whose difficulty is normal with sd.
+  function expectedAccuracy(mu, sd) {
+    var t = 0;
+    for (var i = 0; i < QUAD.z.length; i++) t += QUAD.w[i] * sigmoid(mu + sd * QUAD.z[i]);
+    return t;
+  }
+
+  // Finds the skill intercept that gives the target average accuracy.
+  function calibrateIntercept(target, sd) {
+    var lo = -12, hi = 12;
+    for (var it = 0; it < 80; it++) {
+      var mid = (lo + hi) / 2;
+      if (expectedAccuracy(mid, sd) < target) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function parseBool(v, def) {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'number') return v !== 0;
+    if (typeof v === 'string') return ['false', '0', 'no', 'off', ''].indexOf(v.trim().toLowerCase()) < 0;
+    return def;
+  }
+
+  function normaliseParams(input) {
+    var src = input || {};
+    var out = {};
+    PARAMS.forEach(function (spec) {
+      var raw = src[spec.key];
+      var v = (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') ? NaN : Number(raw);
+      if (!isFinite(v)) v = spec.def;
+      v = clamp(v, spec.min, spec.max);
+      if (spec.int) v = Math.round(v);
+      out[spec.key] = v;
+    });
+    out.workflow = WORKFLOW_KEYS.indexOf(src.workflow) >= 0 ? src.workflow : DEFAULTS.workflow;
+    out.showConfidence = parseBool(src.showConfidence, DEFAULTS.showConfidence);
+    return out;
+  }
+
+  function presetParams(key) {
+    var preset = PRESETS[key];
+    var out = {}, k;
+    for (k in DEFAULTS) out[k] = DEFAULTS[k];
+    if (preset) for (k in preset.params) out[k] = preset.params[k];
+    return normaliseParams(out);
+  }
+
+  function switchProbability(trust, aiConf, selfConf, anchor, showConfidence) {
+    var perceived = showConfidence ? (1 - C.confWeight) * trust + C.confWeight * aiConf : trust;
+    return sigmoid(C.decisiveness * (logit(perceived) + anchor - logit(selfConf)));
+  }
+
+  function checkpointsFor(rounds) {
+    var every = Math.max(1, Math.ceil(rounds / C.maxCheckpoints));
+    var cp = [];
+    for (var r = 0; r < rounds; r += every) cp.push(r);
+    cp.push(rounds);
+    return cp;
+  }
+
+  function simulate(input) {
+    var p = normaliseParams(input);
+    var wf = p.workflow;
+    var sdD = p.difficultySpread;
+    var humanMu = calibrateIntercept(p.humanAccuracy, Math.sqrt(p.skillSpread * p.skillSpread + sdD * sdD));
+    var aiMu = calibrateIntercept(p.aiAccuracy, sdD);
+    var rho = p.errorOverlap;
+    var rhoC = Math.sqrt(Math.max(0, 1 - rho * rho));
+    var confScale = 1 + 2 * p.aiOverconfidence;
+    var R = p.rounds, N = p.people;
+    var cp = checkpointsFor(R);
+    var teamByRound = new Array(R), trustByRound = new Array(R), skillAt = new Array(cp.length);
+    var i, r;
+    for (r = 0; r < R; r++) { teamByRound[r] = 0; trustByRound[r] = 0; }
+    for (r = 0; r < cp.length; r++) skillAt[r] = 0;
+    var k = {
+      team: 0, human: 0, ai: 0, bothRight: 0, bothWrong: 0,
+      rescueChances: 0, rescued: 0, misleadChances: 0, misled: 0,
+      consulted: 0, deferred: 0, engaged: 0, switched: 0
+    };
+    var endTrust = 0;
+
+    for (i = 0; i < N; i++) {
+      var rng = makeRng(mixSeed(p.seed, i));
+      var s = humanMu + p.skillSpread * rng.normal();
+      var trust = p.initialTrust;
+      var cpi = 0;
+      for (r = 0; r < R; r++) {
+        if (cp[cpi] === r) { skillAt[cpi] += expectedAccuracy(s, sdD); cpi++; }
+        trustByRound[r] += trust;
+        var d = sdD * rng.normal();
+        var dAi = rho * d + rhoC * sdD * rng.normal();
+        var pH = sigmoid(s - d);
+        var pA = sigmoid(aiMu - dAi);
+        var humanRight = rng.uniform() < pH;
+        var aiRight = rng.uniform() < pA;
+        var selfConf = clamp(sigmoid(logit(pH) + C.metaNoise * rng.normal()), 0.5, 0.99);
+        var aiConf = clamp(sigmoid(confScale * logit(pA) + C.confNoise * rng.normal()), 0.5, 0.99);
+        var uEngage = rng.uniform();
+        var uSwitch = rng.uniform();
+        var feedback = rng.uniform() < p.feedbackRate;
+        var disagree = humanRight !== aiRight;
+        var engaged = true, seen = false, deferred = false, switched = false;
+
+        if (wf === 'ai_first') {
+          seen = true;
+          engaged = uEngage < Math.max(C.minEngage, 1 - p.complacency * trust);
+          if (!engaged) deferred = true;
+          else if (disagree) switched = uSwitch < switchProbability(trust, aiConf, selfConf, C.anchor, p.showConfidence);
+        } else if (wf === 'human_first') {
+          seen = true;
+          if (disagree) switched = uSwitch < switchProbability(trust, aiConf, selfConf, 0, p.showConfidence);
+        } else if (wf === 'on_request') {
+          seen = selfConf < p.requestThreshold;
+          if (seen && disagree) switched = uSwitch < switchProbability(trust, aiConf, selfConf, 0, p.showConfidence);
+        }
+        var finalRight = (deferred || switched) ? aiRight : humanRight;
+
+        if (finalRight) { k.team++; teamByRound[r]++; }
+        if (humanRight) k.human++;
+        if (aiRight) k.ai++;
+        if (humanRight && aiRight) k.bothRight++;
+        if (!humanRight && !aiRight) k.bothWrong++;
+        if (disagree) {
+          if (aiRight) { k.rescueChances++; if (finalRight && wf !== 'none') k.rescued++; }
+          else { k.misleadChances++; if (!finalRight && wf !== 'none') k.misled++; }
+        }
+        if (seen) k.consulted++;
+        if (deferred) k.deferred++;
+        if (engaged) k.engaged++;
+        if (switched) k.switched++;
+
+        if (seen && feedback) {
+          trust = aiRight ? trust + p.trustRate * (1 - trust) : trust - p.trustRate * p.aversion * trust;
+          trust = clamp(trust, 0.01, 0.99);
+        }
+        if (engaged) {
+          if (feedback) {
+            var bonus = (seen && disagree) ? 1 + C.teachBonus : 1;
+            s += p.learningRate * bonus * Math.max(0, C.skillCeiling - s);
+          }
+        } else {
+          s -= p.decayRate * Math.max(0, s - C.skillFloor);
+        }
+      }
+      while (cpi < cp.length) { skillAt[cpi] += expectedAccuracy(s, sdD); cpi++; }
+      endTrust += trust;
+    }
+
+    var n = N * R;
+    var ratio = function (a, b) { return b > 0 ? a / b : null; };
+    var skill = skillAt.map(function (v) { return v / N; });
+    var team = teamByRound.map(function (v) { return v / N; });
+    var trustSeries = trustByRound.map(function (v) { return v / N; });
+    var teamAccuracy = k.team / n, humanAlone = k.human / n, aiAcc = k.ai / n;
+    return {
+      params: p,
+      teamAccuracy: teamAccuracy,
+      humanAloneAccuracy: humanAlone,
+      aiRealisedAccuracy: aiAcc,
+      complementarity: teamAccuracy - Math.max(humanAlone, aiAcc),
+      skillBefore: skill[0],
+      skillAfter: skill[skill.length - 1],
+      skillChange: skill[skill.length - 1] - skill[0],
+      rescueRate: wf === 'none' ? null : ratio(k.rescued, k.rescueChances),
+      misledRate: wf === 'none' ? null : ratio(k.misled, k.misleadChances),
+      consultRate: k.consulted / n,
+      deferralRate: k.deferred / n,
+      engagementRate: k.engaged / n,
+      trustStart: p.initialTrust,
+      trustEnd: endTrust / N,
+      counts: k,
+      cases: n,
+      series: { team: team, trust: trustSeries, skillRounds: cp, skill: skill }
+    };
+  }
+
+  var VERDICTS = {
+    baseline: { label: 'Baseline: no AI', text: 'This is the comparison group. Pick a workflow that uses the AI to see whether it helps or harms.' },
+    helper: { label: 'Helper', text: 'People are more accurate with the AI, and their own judgement holds up as well as it would have without it.' },
+    crutch: { label: 'Crutch', text: 'People are more accurate with the AI, but they end up worse on their own than if they had practised without it.' },
+    no_lift: { label: 'No lift', text: 'The AI does not make people meaningfully more accurate, though their own judgement is not harmed.' },
+    liability: { label: 'Liability', text: 'The AI neither makes people more accurate nor protects their own judgement.' }
+  };
+  var TOLERANCE = 0.01;
+
+  function classify(result, control) {
+    if (result.params.workflow === 'none') return { key: 'baseline', lift: 0, skillGap: 0 };
+    var lift = result.teamAccuracy - control.teamAccuracy;
+    var gap = result.skillAfter - control.skillAfter;
+    var key;
+    if (lift >= TOLERANCE) key = gap >= -TOLERANCE ? 'helper' : 'crutch';
+    else key = gap >= -TOLERANCE ? 'no_lift' : 'liability';
+    return { key: key, lift: lift, skillGap: gap };
+  }
+
+  function analyse(input) {
+    var p = normaliseParams(input);
+    var result = simulate(p);
+    var controlParams = {}, key;
+    for (key in p) controlParams[key] = p[key];
+    controlParams.workflow = 'none';
+    var control = p.workflow === 'none' ? result : simulate(controlParams);
+    var v = classify(result, control);
+    return {
+      result: result,
+      control: control,
+      verdict: { key: v.key, label: VERDICTS[v.key].label, text: VERDICTS[v.key].text, lift: v.lift, skillGap: v.skillGap }
+    };
+  }
+
+  function movingAverage(values, window) {
+    var out = [], sum = 0;
+    for (var i = 0; i < values.length; i++) {
+      sum += values[i];
+      if (i >= window) sum -= values[i - window];
+      out.push(sum / Math.min(i + 1, window));
+    }
+    return out;
+  }
+
+  return {
+    CONSTANTS: C, PARAMS: PARAMS, WORKFLOWS: WORKFLOWS, WORKFLOW_KEYS: WORKFLOW_KEYS, PRESETS: PRESETS,
+    DEFAULTS: DEFAULTS, VERDICTS: VERDICTS, TOLERANCE: TOLERANCE,
+    makeRng: makeRng, mixSeed: mixSeed, sigmoid: sigmoid, logit: logit,
+    expectedAccuracy: expectedAccuracy, calibrateIntercept: calibrateIntercept,
+    normaliseParams: normaliseParams, presetParams: presetParams, switchProbability: switchProbability,
+    checkpointsFor: checkpointsFor, simulate: simulate, classify: classify, analyse: analyse,
+    movingAverage: movingAverage
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = RelianceModel;
+/* MODEL END */
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var M = RelianceModel;
+  var state = { preset: 'scam_teens', params: M.presetParams('scam_teens') };
+  var timer = null;
+
+  function pct(x, dp) { return x === null || x === undefined ? 'n/a' : (x * 100).toFixed(dp === undefined ? 0 : dp) + '%'; }
+  function pp(x) { var v = x * 100; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' pts'; }
+  function fmtValue(spec, v) {
+    if (spec.fmt === 'pct') return Math.round(v * 100) + '%';
+    if (spec.fmt === 'int') return String(Math.round(v));
+    if (spec.fmt === 'rate') return v.toFixed(4);
+    if (spec.fmt === 'times') return v.toFixed(1) + '×';
+    return v.toFixed(2);
+  }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function buildControls() {
+    var presetSel = document.getElementById('preset');
+    Object.keys(M.PRESETS).forEach(function (k) { presetSel.appendChild(el('option', { value: k }, M.PRESETS[k].label)); });
+    presetSel.appendChild(el('option', { value: 'custom' }, 'Custom'));
+    presetSel.addEventListener('change', function () {
+      if (presetSel.value === 'custom') return;
+      state.preset = presetSel.value;
+      state.params = M.presetParams(state.preset);
+      syncControls();
+      schedule();
+    });
+
+    var wfBox = document.getElementById('workflow');
+    M.WORKFLOW_KEYS.forEach(function (key) {
+      var lab = el('label');
+      var input = el('input', { type: 'radio', name: 'workflow', value: key });
+      input.addEventListener('change', function () { state.params.workflow = key; markCustom(); schedule(); });
+      lab.appendChild(input);
+      lab.appendChild(el('strong', null, M.WORKFLOWS[key].label));
+      lab.appendChild(el('div', null, M.WORKFLOWS[key].help));
+      wfBox.appendChild(lab);
+    });
+
+    M.PARAMS.forEach(function (spec) {
+      var box = document.getElementById('group-' + spec.group);
+      var wrap = el('div', { 'class': 'control' });
+      var label = el('label', { 'for': 'p-' + spec.key });
+      label.appendChild(el('span', null, spec.label));
+      label.appendChild(el('output', { id: 'o-' + spec.key, 'for': 'p-' + spec.key }));
+      var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
+      input.addEventListener('input', function () {
+        state.params[spec.key] = Number(input.value);
+        document.getElementById('o-' + spec.key).textContent = fmtValue(spec, Number(input.value));
+        markCustom();
+        schedule();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(el('p', { 'class': 'help', id: 'h-' + spec.key }, spec.help));
+      box.appendChild(wrap);
+    });
+
+    document.getElementById('showConfidence').addEventListener('change', function (e) {
+      state.params.showConfidence = e.target.checked; markCustom(); schedule();
+    });
+  }
+
+  function markCustom() {
+    state.preset = 'custom';
+    document.getElementById('preset').value = 'custom';
+    document.getElementById('preset-help').textContent = 'Your own settings.';
+  }
+
+  function syncControls() {
+    document.getElementById('preset').value = state.preset;
+    document.getElementById('preset-help').textContent = state.preset === 'custom' ? 'Your own settings.' : M.PRESETS[state.preset].help;
+    M.PARAMS.forEach(function (spec) {
+      document.getElementById('p-' + spec.key).value = state.params[spec.key];
+      document.getElementById('o-' + spec.key).textContent = fmtValue(spec, state.params[spec.key]);
+    });
+    document.querySelectorAll('input[name=workflow]').forEach(function (r) { r.checked = r.value === state.params.workflow; });
+    document.getElementById('showConfidence').checked = state.params.showConfidence;
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(run, 120);
+  }
+
+  function run() {
+    var a = M.analyse(state.params);
+    renderVerdict(a);
+    renderKpis(a);
+    renderTimeChart(a);
+    renderMatrix(a);
+  }
+
+  var VERDICT_COLOURS = { baseline: '--nolift', helper: '--helper', crutch: '--crutch', no_lift: '--nolift', liability: '--liability' };
+
+  function renderVerdict(a) {
+    var box = document.getElementById('verdict');
+    box.style.borderLeftColor = 'var(' + VERDICT_COLOURS[a.verdict.key] + ')';
+    box.innerHTML = '';
+    var h = el('h2', null, a.verdict.label);
+    h.style.color = 'var(' + VERDICT_COLOURS[a.verdict.key] + ')';
+    box.appendChild(h);
+    box.appendChild(el('p', null, a.verdict.text));
+    if (a.verdict.key !== 'baseline') {
+      box.appendChild(el('p', { 'class': 'help' },
+        'Accuracy with the AI: ' + pp(a.verdict.lift) + ' versus working alone. Own judgement afterwards: ' +
+        pp(a.verdict.skillGap) + ' versus practising without the AI.'));
+    }
+  }
+
+  function kpi(label, value, sub) {
+    var d = el('div', { 'class': 'card kpi' });
+    d.appendChild(el('div', { 'class': 'label' }, label));
+    d.appendChild(el('div', { 'class': 'value' }, value));
+    d.appendChild(el('div', { 'class': 'sub' }, sub));
+    return d;
+  }
+
+  function renderKpis(a) {
+    var r = a.result, c = a.control, box = document.getElementById('kpis');
+    box.innerHTML = '';
+    box.appendChild(kpi('Accuracy with the AI', pct(r.teamAccuracy), 'Working alone: ' + pct(c.teamAccuracy)));
+    box.appendChild(kpi('Own judgement afterwards', pct(r.skillAfter), 'Started at ' + pct(r.skillBefore) + '; without AI: ' + pct(c.skillAfter)));
+    box.appendChild(kpi('Misled by the AI', pct(r.misledRate), 'Of cases where the AI was wrong and they were right'));
+    box.appendChild(kpi('Rescued by the AI', pct(r.rescueRate), 'Of cases where the AI was right and they were wrong'));
+    box.appendChild(kpi('Trust in the AI', pct(r.trustEnd), 'Started at ' + pct(r.trustStart)));
+    box.appendChild(kpi('Pair versus the AI alone', pp(r.teamAccuracy - r.aiRealisedAccuracy), 'AI alone: ' + pct(r.aiRealisedAccuracy)));
+  }
+
+  function renderTimeChart(a) {
+    var r = a.result, c = a.control;
+    var series = [
+      { name: 'Accuracy with the AI (10-case average)', colour: 'var(--team)', points: M.movingAverage(r.series.team, 10).map(function (v, i) { return [i + 1, v]; }) },
+      { name: 'Own judgement', colour: 'var(--skill)', points: r.series.skillRounds.map(function (x, i) { return [x, r.series.skill[i]]; }) },
+      { name: 'Own judgement without AI', colour: 'var(--control)', dash: '6 4', points: c.series.skillRounds.map(function (x, i) { return [x, c.series.skill[i]]; }) },
+      { name: 'Trust in the AI', colour: 'var(--trust)', dash: '2 3', points: r.series.trust.map(function (v, i) { return [i + 1, v]; }) }
+    ];
+    if (r.params.workflow === 'none') series = [series[0], series[2]];
+    var legend = document.getElementById('legend-time');
+    legend.innerHTML = '';
+    series.forEach(function (s) { var sp = el('span', null, s.name); sp.style.color = s.colour; legend.appendChild(sp); });
+    lineChart(document.getElementById('chart-time'), series, r.params.rounds);
+  }
+
+  function lineChart(svg, series, xMax) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var W = svg.clientWidth || 640, H = svg.clientHeight || 260;
+    var m = { l: 42, r: 10, t: 10, b: 30 };
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var lo = 1, hi = 0;
+    series.forEach(function (s) { s.points.forEach(function (p) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }); });
+    lo = Math.max(0, Math.floor(lo * 10) / 10); hi = Math.min(1, Math.ceil(hi * 10) / 10);
+    if (hi - lo < 0.2) { hi = Math.min(1, lo + 0.2); lo = hi - 0.2; }
+    var x = function (v) { return m.l + (W - m.l - m.r) * v / xMax; };
+    var y = function (v) { return m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo)); };
+    function add(tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    }
+    for (var t = lo; t <= hi + 1e-9; t += 0.1) {
+      add('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: 'var(--line)' });
+      add('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }, Math.round(t * 100) + '%');
+    }
+    var step = xMax <= 100 ? 20 : (xMax <= 250 ? 50 : 100);
+    for (var xv = 0; xv <= xMax; xv += step) {
+      add('text', { x: x(xv), y: H - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }, String(xv));
+    }
+    add('text', { x: W - m.r, y: H - 2, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }, 'Cases');
+    series.forEach(function (s) {
+      var d = s.points.map(function (p) { return x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1); }).join(' ');
+      var attrs = { points: d, fill: 'none', stroke: s.colour, 'stroke-width': 2 };
+      if (s.dash) attrs['stroke-dasharray'] = s.dash;
+      add('polyline', attrs);
+    });
+    svg.setAttribute('aria-label', 'Line chart over ' + xMax + ' cases: ' + series.map(function (s) {
+      return s.name + ' ends at ' + Math.round(s.points[s.points.length - 1][1] * 100) + '%';
+    }).join('; '));
+  }
+
+  function renderMatrix(a) {
+    var r = a.result, k = r.counts, n = r.cases, box = document.getElementById('matrix');
+    box.innerHTML = '';
+    box.appendChild(el('div', { 'class': 'head' }, ''));
+    box.appendChild(el('div', { 'class': 'head' }, 'AI right'));
+    box.appendChild(el('div', { 'class': 'head' }, 'AI wrong'));
+    function cell(big, text) {
+      var d = el('div', { 'class': 'cell' });
+      d.appendChild(el('div', { 'class': 'big' }, big));
+      d.appendChild(el('div', null, text));
+      return d;
+    }
+    var none = r.params.workflow === 'none';
+    box.appendChild(el('div', { 'class': 'head' }, 'Person right'));
+    box.appendChild(cell(pct(k.bothRight / n), 'of cases: both right'));
+    box.appendChild(cell(pct(k.misleadChances / n), none ? 'of cases: the AI would have been wrong' : 'of cases: the AI could mislead. Misled ' + pct(r.misledRate) + ' of the time.'));
+    box.appendChild(el('div', { 'class': 'head' }, 'Person wrong'));
+    box.appendChild(cell(pct(k.rescueChances / n), none ? 'of cases: the AI would have been right' : 'of cases: the AI could rescue. Rescued ' + pct(r.rescueRate) + ' of the time.'));
+    box.appendChild(cell(pct(k.bothWrong / n), 'of cases: both wrong, so nobody catches it'));
+  }
+
+  buildControls();
+  syncControls();
+  run();
+  window.addEventListener('resize', schedule);
+})();
+</script>
+</body>
+</html>

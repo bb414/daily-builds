@@ -1,0 +1,97 @@
+"""Drives the browser app in headless Chromium. Skipped if Playwright for Python is not installed."""
+
+import unittest
+from pathlib import Path
+
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # pragma: no cover - depends on the machine
+    sync_playwright = None
+
+APP = (Path(__file__).resolve().parent.parent / "app" / "index.html").as_uri()
+VERDICT_LABELS = {"Baseline: no AI", "Helper", "Crutch", "No lift", "Liability"}
+
+
+@unittest.skipIf(sync_playwright is None, "Playwright for Python is not installed")
+class UiTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.pw = sync_playwright().start()
+        cls.browser = cls.pw.chromium.launch()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.browser.close()
+        cls.pw.stop()
+
+    def open(self, width=1280, height=900):
+        page = self.browser.new_page(viewport={"width": width, "height": height})
+        self.errors, self.requests = [], []
+        page.on("console", lambda m: self.errors.append(m.text) if m.type == "error" else None)
+        page.on("pageerror", lambda e: self.errors.append(str(e)))
+        page.on("request", lambda r: self.requests.append(r.url))
+        page.goto(APP)
+        page.wait_for_selector("#verdict h2")
+        return page
+
+    def settle(self, page):
+        page.wait_for_timeout(400)
+
+    def test_loads_without_errors_or_network(self):
+        page = self.open()
+        self.assertIn(page.inner_text("#verdict h2"), VERDICT_LABELS)
+        self.assertEqual(len(page.query_selector_all("#kpis .kpi")), 6)
+        self.assertGreater(len(page.query_selector_all("#chart-time polyline")), 1)
+        self.assertEqual(self.errors, [])
+        external = [u for u in self.requests if not u.startswith(("file:", "data:", "about:"))]
+        self.assertEqual(external, [])
+        page.close()
+
+    def test_switching_workflow_updates_results(self):
+        page = self.open()
+        page.check("input[name=workflow][value=ai_first]")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#verdict h2"), "Crutch")
+        page.check("input[name=workflow][value=human_first]")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#verdict h2"), "Helper")
+        self.assertEqual(page.input_value("#preset"), "custom")
+        page.check("input[name=workflow][value=none]")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#verdict h2"), "Baseline: no AI")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_preset_and_slider_update_outputs(self):
+        page = self.open()
+        page.select_option("#preset", "invoice_fraud")
+        self.settle(page)
+        self.assertEqual(page.input_value("#p-humanAccuracy"), "0.8")
+        self.assertEqual(page.inner_text("#o-humanAccuracy"), "80%")
+        self.assertTrue(page.is_checked("input[name=workflow][value=human_first]"))
+        page.fill("#p-aiAccuracy", "0.6")
+        page.dispatch_event("#p-aiAccuracy", "input")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#o-aiAccuracy"), "60%")
+        self.assertEqual(page.input_value("#preset"), "custom")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_every_control_has_an_accessible_name(self):
+        page = self.open()
+        unnamed = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button'))
+            .filter(e => !(e.labels && e.labels.length) && !e.getAttribute('aria-label') && !e.closest('label'))
+            .map(e => e.id || e.name || e.outerHTML.slice(0, 60))""")
+        self.assertEqual(unnamed, [])
+        page.close()
+
+    def test_fits_a_phone_screen(self):
+        page = self.open(width=390, height=844)
+        width = page.evaluate("document.documentElement.scrollWidth")
+        self.assertLessEqual(width, 390)
+        self.assertEqual(self.errors, [])
+        page.close()
+
+
+if __name__ == "__main__":
+    unittest.main()
