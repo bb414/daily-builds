@@ -20,6 +20,9 @@ CONSTANTS = {
     "minEngage": 0.05,
     "quadPoints": 41,
     "maxCheckpoints": 50,
+    "timeThink": 1.0,
+    "timeCheck": 0.3,
+    "timeGlance": 0.3,
 }
 
 # key, group, min, max, default, integer?
@@ -31,6 +34,8 @@ PARAMS = [
     ("aiOverconfidence", "ai", 0.0, 1.0, 0.2, False),
     ("feedbackRate", "setting", 0.0, 1.0, 0.5, False),
     ("rounds", "setting", 20, 500, 200, True),
+    ("driftAt", "stress", 0, 500, 0, True),
+    ("driftAccuracy", "stress", 0.5, 0.99, 0.65, False),
     ("learningRate", "advanced", 0.0, 0.01, 0.002, False),
     ("decayRate", "advanced", 0.0, 0.01, 0.0015, False),
     ("complacency", "advanced", 0.0, 1.0, 0.8, False),
@@ -227,7 +232,8 @@ def checkpoints_for(rounds):
 
 def new_counts():
     return dict(team=0, human=0, ai=0, bothRight=0, bothWrong=0, rescueChances=0, rescued=0,
-                misleadChances=0, misled=0, consulted=0, deferred=0, engaged=0, switched=0)
+                misleadChances=0, misled=0, consulted=0, deferred=0, engaged=0, switched=0,
+                misleadChancesAfter=0, misledAfter=0, minutes=0)
 
 
 def derived(p):
@@ -238,6 +244,8 @@ def derived(p):
         "sd_d": sd_d,
         "human_mu": calibrate_intercept(p["humanAccuracy"], math.sqrt(p["skillSpread"] * p["skillSpread"] + sd_d * sd_d)),
         "ai_mu": calibrate_intercept(p["aiAccuracy"], sd_d),
+        "ai_mu_after": calibrate_intercept(p["driftAccuracy"], sd_d),
+        "shock_at": p["driftAt"] if 0 < p["driftAt"] < p["rounds"] else 0,
         "rho": rho,
         "rho_c": math.sqrt(max(0.0, 1 - rho * rho)),
         "conf_scale": 1 + 2 * p["aiOverconfidence"],
@@ -253,6 +261,7 @@ def run_person(p, ctx, person_seed, k, track=None):
     c = CONSTANTS
     wf = p["workflow"]
     sd_d, ai_mu, rho, rho_c, conf_scale = ctx["sd_d"], ctx["ai_mu"], ctx["rho"], ctx["rho_c"], ctx["conf_scale"]
+    ai_mu_after, shock_at = ctx["ai_mu_after"], ctx["shock_at"]
     show = p["showConfidence"]
     rng = Rng(person_seed)
     s = ctx["human_mu"] + p["skillSpread"] * rng.normal()
@@ -268,12 +277,14 @@ def run_person(p, ctx, person_seed, k, track=None):
             track["trust"][r] += trust
         d = sd_d * rng.normal()
         d_ai = rho * d + rho_c * sd_d * rng.normal()
+        shocked = shock_at > 0 and r >= shock_at
         p_h = sigmoid(s - d)
-        p_a = sigmoid(ai_mu - d_ai)
+        p_belief = sigmoid(ai_mu - d_ai)  # how likely the AI "thinks" it is to be right
+        p_a = sigmoid(ai_mu_after - d_ai) if shocked else p_belief
         human_right = rng.uniform() < p_h
         ai_right = rng.uniform() < p_a
         self_conf = clamp(sigmoid(logit(p_h) + c["metaNoise"] * rng.normal()), 0.5, 0.99)
-        ai_conf = clamp(sigmoid(conf_scale * logit(p_a) + c["confNoise"] * rng.normal()), 0.5, 0.99)
+        ai_conf = clamp(sigmoid(conf_scale * logit(p_belief) + c["confNoise"] * rng.normal()), 0.5, 0.99)
         u_engage = rng.uniform()
         u_switch = rng.uniform()
         feedback = rng.uniform() < p["feedbackRate"]
@@ -305,6 +316,13 @@ def run_person(p, ctx, person_seed, k, track=None):
             k["human"] += 1
         if ai_right:
             k["ai"] += 1
+            if track is not None:
+                track["ai"][r] += 1
+        if shocked and disagree and not ai_right:
+            k["misleadChancesAfter"] += 1
+            if not final_right and wf != "none":
+                k["misledAfter"] += 1
+        k["minutes"] += c["timeGlance"] if deferred else c["timeThink"] + (c["timeCheck"] if seen else 0)
         if human_right and ai_right:
             k["bothRight"] += 1
         if not human_right and not ai_right:
@@ -353,7 +371,7 @@ def simulate(src=None):
     ctx = derived(p)
     rounds, people = p["rounds"], p["people"]
     cp = checkpoints_for(rounds)
-    track = {"cp": cp, "team": [0.0] * rounds, "trust": [0.0] * rounds, "skill": [0.0] * len(cp)}
+    track = {"cp": cp, "team": [0.0] * rounds, "ai": [0.0] * rounds, "trust": [0.0] * rounds, "skill": [0.0] * len(cp)}
     k = new_counts()
     end_trust = 0.0
     for i in range(people):
@@ -366,7 +384,26 @@ def simulate(src=None):
         return a / b if b > 0 else None
 
     skill = [v / people for v in track["skill"]]
+    trust_series = [v / people for v in track["trust"]]
     team_acc, human_alone, ai_acc = k["team"] / n, k["human"] / n, k["ai"] / n
+
+    def mean_of(arr, start, stop):
+        t = 0.0
+        for j in range(start, stop):
+            t += arr[j]
+        return t / ((stop - start) * people)
+
+    at = ctx["shock_at"]
+    shock = {
+        "at": at,
+        "teamBefore": mean_of(track["team"], 0, at),
+        "teamAfter": mean_of(track["team"], at, rounds),
+        "aiBefore": mean_of(track["ai"], 0, at),
+        "aiAfter": mean_of(track["ai"], at, rounds),
+        "misledAfter": None if wf == "none" else ratio(k["misledAfter"], k["misleadChancesAfter"]),
+        "trustAtShock": trust_series[at],
+        "trustEnd": end_trust / people,
+    } if at else None
     return {
         "params": p,
         "teamAccuracy": team_acc,
@@ -383,11 +420,13 @@ def simulate(src=None):
         "engagementRate": k["engaged"] / n,
         "trustStart": p["initialTrust"],
         "trustEnd": end_trust / people,
+        "minutesPerCase": k["minutes"] / n,
+        "shock": shock,
         "counts": k,
         "cases": n,
         "series": {
             "team": [v / people for v in track["team"]],
-            "trust": [v / people for v in track["trust"]],
+            "trust": trust_series,
             "skillRounds": cp,
             "skill": skill,
         },
@@ -406,18 +445,33 @@ def classify(result, control):
     return key, lift, gap
 
 
+def verdict_for(result, control):
+    key, lift, gap = classify(result, control)
+    out = {"key": key, "label": VERDICTS[key]["label"], "text": VERDICTS[key]["text"], "lift": lift, "skillGap": gap,
+           "timeSaved": 1 - result["minutesPerCase"] / control["minutesPerCase"], "shock": None}
+    if result["shock"]:
+        out["shock"] = {"teamAfter": result["shock"]["teamAfter"], "aloneAfter": control["shock"]["teamAfter"],
+                        "gap": result["shock"]["teamAfter"] - control["shock"]["teamAfter"]}
+    return out
+
+
 def analyse(src=None):
-    """Runs the chosen workflow and the no-AI comparison group, and classifies the outcome."""
+    """Runs the chosen workflow and the no-AI comparison group (same people, same cases)."""
     p = normalise_params(src)
     result = simulate(p)
     control = result if p["workflow"] == "none" else simulate(dict(p, workflow="none"))
-    key, lift, gap = classify(result, control)
-    return {
-        "result": result,
-        "control": control,
-        "verdict": {"key": key, "label": VERDICTS[key]["label"], "text": VERDICTS[key]["text"],
-                    "lift": lift, "skillGap": gap},
-    }
+    return {"result": result, "control": control, "verdict": verdict_for(result, control)}
+
+
+def compare_workflows(src=None):
+    """Runs all four workflows on the same people and cases."""
+    p = normalise_params(src)
+    control = simulate(dict(p, workflow="none"))
+    rows = []
+    for wf in WORKFLOW_KEYS:
+        result = control if wf == "none" else simulate(dict(p, workflow=wf))
+        rows.append({"workflow": wf, "result": result, "control": control, "verdict": verdict_for(result, control)})
+    return rows
 
 
 def moving_average(values, window):

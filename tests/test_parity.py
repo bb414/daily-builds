@@ -22,6 +22,8 @@ CASES = [
     {"aiAccuracy": 0.99, "humanAccuracy": 0.5, "people": 50, "rounds": 40, "skillSpread": 1.5, "difficultySpread": 2,
      "learningRate": 0.01, "decayRate": 0.01, "trustRate": 0.1, "aversion": 6, "seed": 9999},
     {"aiAccuracy": "0.7", "rounds": "45", "workflow": "bogus", "showConfidence": "no", "people": 50},
+    dict(model.preset_params("scam_teens"), people=60, driftAt=50, driftAccuracy=0.55),
+    dict(model.preset_params("lead_triage"), people=40, rounds=90, driftAt=10, driftAccuracy=0.99, workflow="ai_first"),
 ]
 
 
@@ -76,6 +78,14 @@ class ParityTest(unittest.TestCase):
             expected.append(rng.uniform())
             expected.append(rng.normal())
         assert_close(self, json.loads(out), expected, "rng")
+
+    def test_workflow_comparison_matches(self):
+        config = dict(model.preset_params("invoice_fraud"), people=40, rounds=80, driftAt=40)
+        js = run_js([{"__compare": config}])[0]
+        py = model.compare_workflows(config)
+        self.assertEqual(len(js), len(py))
+        for js_row, py_row in zip(js, py):
+            assert_close(self, js_row, py_row, "compare." + py_row["workflow"])
 
     def test_full_results_match(self):
         js = run_js(CASES)

@@ -177,6 +177,19 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Participants per arm", out)
 
+    def test_compare_and_stress_test_output(self):
+        code, out = run_cli("compare", "--set", "people=50", "--set", "rounds=40", "--set", "driftAt=20")
+        self.assertEqual(code, 0)
+        for label in model.WORKFLOW_LABELS.values():
+            self.assertIn(label, out)
+        self.assertIn("After the AI gets worse at case 20", out)
+        code, out = run_cli("compare", "--set", "people=50", "--set", "rounds=40", "--json")
+        rows = json.loads(out)
+        self.assertEqual([r["workflow"] for r in rows], model.WORKFLOW_KEYS)
+        code, out = run_cli("run", "--set", "people=50", "--set", "rounds=40", "--set", "driftAt=20")
+        self.assertIn("Stress test: from case 20", out)
+        self.assertIn("Time per case", out)
+
     def test_bad_arguments_exit_cleanly(self):
         for args in (["run", "--set", "nonsense=1"], ["run", "--set", "novalue"], ["run", "--preset", "nope"],
                      ["power", "--sizes", "a,b"], ["experiment", "--arms", "none,magic", "--n", "4"]):

@@ -150,3 +150,47 @@ test('extreme settings finish quickly and give finite numbers', () => {
   const b = M.analyse(q);
   assert.ok(isFinite(b.result.teamAccuracy));
 });
+
+test('a silent AI shock leaves everything before it unchanged', () => {
+  const base = small({ rounds: 80 });
+  const calm = M.simulate(base);
+  const shocked = M.simulate(Object.assign({}, base, { driftAt: 40, driftAccuracy: 0.6 }));
+  assert.deepEqual(Array.from(shocked.series.team.slice(0, 40)), Array.from(calm.series.team.slice(0, 40)));
+  assert.deepEqual(Array.from(shocked.series.trust.slice(0, 41)), Array.from(calm.series.trust.slice(0, 41)));
+  assert.equal(calm.shock, null);
+  assert.equal(shocked.shock.at, 40);
+  assert.ok(shocked.shock.aiAfter < shocked.shock.aiBefore - 0.15);
+  assert.ok(shocked.teamAccuracy < calm.teamAccuracy);
+});
+
+test('the AI accuracy after the shock matches the setting', () => {
+  const r = M.simulate(small({ people: 400, rounds: 100, driftAt: 20, driftAccuracy: 0.62 }));
+  assert.ok(Math.abs(r.shock.aiAfter - 0.62) < 0.015, 'aiAfter ' + r.shock.aiAfter);
+});
+
+test('a shock at or after the last case is ignored', () => {
+  assert.equal(M.simulate(small({ rounds: 60, driftAt: 60 })).shock, null);
+  assert.equal(M.simulate(small({ rounds: 60, driftAt: 0 })).shock, null);
+});
+
+test('time per case follows the workflow', () => {
+  const t = (wf) => M.simulate(small({ workflow: wf })).minutesPerCase;
+  assert.ok(Math.abs(t('none') - M.CONSTANTS.timeThink) < 1e-9);
+  assert.ok(Math.abs(t('human_first') - M.CONSTANTS.timeThink - M.CONSTANTS.timeCheck) < 1e-9);
+  assert.ok(t('ai_first') < t('none'));
+  assert.ok(t('on_request') > t('none') && t('on_request') < t('human_first'));
+});
+
+test('compareWorkflows shares one comparison group and matches analyse', () => {
+  const p = small({ driftAt: 30 });
+  const rows = M.compareWorkflows(p);
+  assert.deepEqual(rows.map((r) => r.workflow), M.WORKFLOW_KEYS);
+  for (const row of rows) {
+    assert.equal(row.control, rows[0].result);
+    const single = M.analyse(Object.assign({}, p, { workflow: row.workflow }));
+    assert.equal(single.verdict.key, row.verdict.key);
+    assert.equal(single.result.teamAccuracy, row.result.teamAccuracy);
+    assert.equal(single.verdict.shock.gap, row.verdict.shock.gap);
+  }
+  assert.equal(rows[0].verdict.timeSaved, 0);
+});

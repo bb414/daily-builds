@@ -8,6 +8,6 @@ let input = '';
 process.stdin.on('data', (chunk) => { input += chunk; });
 process.stdin.on('end', () => {
   const configs = JSON.parse(input);
-  const out = configs.map((c) => (c.__preset ? { presetParams: M.presetParams(c.__preset) } : M.analyse(c)));
+  const out = configs.map((c) => (c.__compare ? M.compareWorkflows(c.__compare) : M.analyse(c)));
   process.stdout.write(JSON.stringify(out));
 });

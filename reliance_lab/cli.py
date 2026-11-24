@@ -17,6 +17,13 @@ def pts(x):
     return "%+.1f pts" % (x * 100)
 
 
+def speed(saved):
+    v = int(round(abs(saved) * 100))
+    if v == 0:
+        return "the same as working alone"
+    return "%d%% %s than working alone" % (v, "faster" if saved > 0 else "slower")
+
+
 def parse_sets(pairs):
     out = {}
     for pair in pairs or []:
@@ -57,9 +64,38 @@ def format_run(a):
         "  Accepted without thinking   %s of cases" % pct(r["deferralRate"], 1),
         "  Trust in the AI             %s -> %s" % (pct(r["trustStart"]), pct(r["trustEnd"])),
     ]
+    lines.append("  Time per case               %.2f min (%s)" % (r["minutesPerCase"], speed(v["timeSaved"])))
     if v["key"] != "baseline":
         lines += ["", "  Lift versus working alone: %s. Own judgement versus practising alone: %s." % (
             pts(v["lift"]), pts(v["skillGap"]))]
+    sh = r["shock"]
+    if sh:
+        lines += ["", "Stress test: from case %d the AI is right %s of the time (before: %s)." % (
+            sh["at"], pct(sh["aiAfter"]), pct(sh["aiBefore"]))]
+        if v["shock"] and p["workflow"] != "none":
+            lines.append("  After the change, with the AI: %s; working alone: %s (%s)." % (
+                pct(v["shock"]["teamAfter"], 1), pct(v["shock"]["aloneAfter"], 1), pts(v["shock"]["gap"])))
+            lines.append("  Followed its wrong answers %s of the time; trust %s -> %s." % (
+                pct(sh["misledAfter"]), pct(sh["trustAtShock"]), pct(sh["trustEnd"])))
+    return "\n".join(lines)
+
+
+def format_compare(rows):
+    p = rows[0]["result"]["params"]
+    lines = [
+        "All four workflows, same people and cases (%d people, %d cases each)" % (p["people"], p["rounds"]),
+        "",
+        "  %-12s %10s %10s %8s %10s  %s" % ("Workflow", "With AI", "Own after", "Misled", "Min/case", "Verdict"),
+    ]
+    for row in rows:
+        r = row["result"]
+        lines.append("  %-12s %10s %10s %8s %10.2f  %s" % (
+            model.WORKFLOW_LABELS[row["workflow"]], pct(r["teamAccuracy"], 1), pct(r["skillAfter"], 1),
+            pct(r["misledRate"]), r["minutesPerCase"], row["verdict"]["label"]))
+    if rows[0]["result"]["shock"]:
+        lines += ["", "  After the AI gets worse at case %d:" % rows[0]["result"]["shock"]["at"]]
+        for row in rows:
+            lines.append("  %-12s %10s" % (model.WORKFLOW_LABELS[row["workflow"]], pct(row["result"]["shock"]["teamAfter"], 1)))
     return "\n".join(lines)
 
 
@@ -163,6 +199,10 @@ def make_parser():
     sp.add_argument("--workflow", choices=model.WORKFLOW_KEYS)
     sp.add_argument("--json", action="store_true", help="Print the full result as JSON")
 
+    sp = sub.add_parser("compare", help="Compare all four workflows on the same people and cases")
+    common(sp)
+    sp.add_argument("--json", action="store_true", help="Print the summary as JSON")
+
     sp = sub.add_parser("experiment", help="Run a virtual randomised experiment with noisy tests")
     common(sp)
     sp.add_argument("--arms", default="none,ai_first,human_first", help="Comma-separated workflows")
@@ -189,6 +229,14 @@ def main(argv=None):
         if args.command == "run":
             a = model.analyse(params)
             print(json.dumps(a, indent=2) if args.json else format_run(a))
+        elif args.command == "compare":
+            rows = model.compare_workflows(params)
+            if args.json:
+                print(json.dumps([{"workflow": r["workflow"], "verdict": r["verdict"],
+                                   **{k: v for k, v in r["result"].items() if k not in ("series", "params")}}
+                                  for r in rows], indent=2))
+            else:
+                print(format_compare(rows))
         elif args.command == "experiment":
             arms = [x.strip() for x in args.arms.split(",") if x.strip()]
             e = run_experiment(params, arms=arms, n=args.n, items=args.items)
