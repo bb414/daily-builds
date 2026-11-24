@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 from typing import List, Optional, Sequence
 
 from .analysis import LeverEffect
@@ -215,12 +216,14 @@ def _svg_levers(effects: List[LeverEffect]) -> str:
 
 
 def _svg_timeline(summaries: Sequence[Summary]) -> str:
-    width, height, left, right, top, bottom = 720, 300, 60, 20, 16, 40
+    width, height, left, right, top, bottom = 720, 300, 66, 150, 16, 40
     plot_w, plot_h = width - left - right, height - top - bottom
     values = [snap.net_value for s in summaries for snap in s.timeline] + [0.0]
     lo, hi = min(values), max(values)
     if hi - lo < 1e-9:
         hi = lo + 1.0
+    step = _nice_step(hi - lo)
+    lo, hi = math.floor(lo / step) * step, math.ceil(hi / step) * step
     quarters = max(len(s.timeline) for s in summaries)
 
     def x(q: int) -> float:
@@ -230,10 +233,12 @@ def _svg_timeline(summaries: Sequence[Summary]) -> str:
         return top + (hi - v) / (hi - lo) * plot_h
 
     parts = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Cumulative net value by quarter">']
-    for i in range(5):
-        v = lo + (hi - lo) * i / 4
+    v = lo
+    while v <= hi + 1e-6:
         parts.append(f'<line x1="{left}" x2="{width - right}" y1="{y(v):.1f}" y2="{y(v):.1f}" stroke="#e3e6eb"/>')
-        parts.append(f'<text x="{left - 8}" y="{y(v) + 4:.1f}" class="val" text-anchor="end">{money(v)}</text>')
+        label = money(v) if step < 1000 else f"{'-' if v < 0 else ''}£{abs(v) / 1000:.0f}m"
+        parts.append(f'<text x="{left - 8}" y="{y(v) + 4:.1f}" class="val" text-anchor="end">{label}</text>')
+        v += step
     parts.append(f'<line x1="{left}" x2="{width - right}" y1="{y(0):.1f}" y2="{y(0):.1f}" stroke="#555"/>')
     for q in range(1, quarters + 1):
         if quarters <= 12 or q % 2 == 0:
@@ -244,18 +249,25 @@ def _svg_timeline(summaries: Sequence[Summary]) -> str:
         parts.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="3"/>')
         last = s.timeline[-1]
         parts.append(
-            f'<text x="{x(last.quarter) - 4:.1f}" y="{y(last.net_value) - 8:.1f}" class="val" text-anchor="end">'
+            f'<text x="{x(last.quarter) + 10:.1f}" y="{y(last.net_value) + 4:.1f}" class="lbl" fill="{colour}">'
             f"{html.escape(_short(s.strategy.name))}: {money(last.net_value)}</text>"
         )
     parts.append("</svg>")
     return "".join(parts)
 
 
+def _nice_step(span: float) -> float:
+    raw = span / 4
+    mag = 10 ** math.floor(math.log10(raw))
+    n = raw / mag
+    return (1 if n <= 1 else 2 if n <= 2 else 2.5 if n <= 2.5 else 5 if n <= 5 else 10) * mag
+
+
 def _robustness_table(robustness: RobustnessReport) -> str:
     rows = "".join(
         f"<tr><td>{html.escape(r.scenario.name)}<br><span class=\"muted\">{html.escape(r.scenario.description)}</span></td>"
         f"<td>{money(r.pilots_first_net)}</td><td>{money(r.strategy_first_net)}</td>"
-        f"<td>{html.escape(r.top_lever)}</td></tr>"
+        f"<td class=\"l\">{html.escape(r.top_lever)}</td></tr>"
         for r in robustness.results
     )
     n = len(robustness.results)
@@ -264,7 +276,7 @@ def _robustness_table(robustness: RobustnessReport) -> str:
         "<h2>Do the conclusions survive different assumptions?</h2>"
         f"<p>Strategy first beats pilots first in <strong>{robustness.strategy_first_wins} of {n}</strong> scenarios. "
         f"The best single fix is less settled: {counts}.</p>"
-        "<table><thead><tr><th>Scenario</th><th>Pilots first</th><th>Strategy first</th><th>Best single fix</th></tr></thead>"
+        "<table><thead><tr><th>Scenario</th><th>Pilots first</th><th>Strategy first</th><th class=\"l\">Best single fix</th></tr></thead>"
         f"<tbody>{rows}</tbody></table>"
     )
 
@@ -283,6 +295,7 @@ svg{width:100%;height:auto;margin-top:.5rem}
 .lbl{font-size:13px;fill:#1d2430}.val{font-size:12px;fill:#1d2430}
 .inbar{font-size:12px;fill:#fff;font-weight:600}.leg{font-size:12px;fill:#3a4350}
 .muted{color:#5a6372;font-size:.85rem}
+th.l,td.l{text-align:left}
 .note{font-size:.85rem;color:#5a6372;margin-top:2.5rem;border-top:1px solid #e3e6eb;padding-top:1rem}
 """
 

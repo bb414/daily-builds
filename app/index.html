@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot purgatory: why AI pilots stall before they scale</title>
+<style>
+:root{
+  --ink:#1b2433; --ink-2:#4a5568; --ink-3:#6b7585;
+  --paper:#ffffff; --side:#f2f4f7; --rule:#d9dee6; --rule-2:#e9ecf1;
+  --org-a:#9c2f6b; --org-b:#1f5aa8;
+  --scaled:#1e7a5a; --stopped:#8b95a5; --stuck:#d9961a; --progress:#8eb6e3;
+  --good:#1e7a5a; --bad:#b23b3b;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:var(--sans);font-size:15px;line-height:1.5;color:var(--ink);background:var(--paper);
+  font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;margin:0}
+h1{font-size:2.1rem;letter-spacing:-.01em}
+h2{font-size:1.4rem;margin-bottom:.35rem}
+h3{font-size:1.1rem}
+p{margin:.4rem 0 .8rem;max-width:68ch}
+a{color:var(--org-b)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #2f6fd6;outline-offset:2px;border-radius:3px}
+.skip{position:absolute;left:-9999px}.skip:focus{left:12px;top:12px;background:#fff;padding:8px 12px;z-index:10}
+
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-areas:"side main";min-height:100vh}
+aside{grid-area:side;background:var(--side);border-right:1px solid var(--rule);padding:22px 22px 40px;min-width:0}
+.side-inner{position:sticky;top:18px;max-height:calc(100vh - 36px);overflow-y:auto;padding-right:4px;margin-right:-4px}
+main{grid-area:main;padding:30px 40px 60px;max-width:1120px;min-width:0}
+
+.masthead{padding-bottom:18px;border-bottom:1px solid var(--rule);margin-bottom:22px}
+.masthead p{font-size:1.05rem;color:var(--ink-2);margin:.5rem 0 0}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-bottom:16px}
+.tab{appearance:none;border:0;background:none;padding:8px 12px 9px;cursor:pointer;border-bottom:3px solid transparent;
+  color:var(--ink-2);font-weight:600;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:currentColor}
+.tab[data-tab="a"][aria-selected="true"]{color:var(--org-a)}
+.tab[data-tab="b"][aria-selected="true"]{color:var(--org-b)}
+.panel[hidden]{display:none}
+.preset{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.preset label{font-weight:600}
+.preset select{flex:1;padding:6px 8px;border:1px solid var(--rule);border-radius:4px;background:#fff}
+
+.field{padding:10px 0;border-top:1px solid var(--rule-2)}
+.field:first-of-type{border-top:0}
+.field .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.field label{font-size:.92rem}
+.field output{font-weight:600;white-space:nowrap}
+.field .hint{font-size:.8rem;color:var(--ink-3);margin-top:2px}
+input[type=range]{width:100%;margin:6px 0 0;accent-color:var(--ink)}
+.panel[data-panel="a"] input[type=range]{accent-color:var(--org-a)}
+.panel[data-panel="b"] input[type=range]{accent-color:var(--org-b)}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.switch input{appearance:none;width:38px;height:22px;border-radius:11px;background:#c3cad5;position:relative;
+  cursor:pointer;flex:none;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:transform .15s}
+.switch input:checked{background:var(--ink)}
+.panel[data-panel="a"] .switch input:checked{background:var(--org-a)}
+.panel[data-panel="b"] .switch input:checked{background:var(--org-b)}
+.switch input:checked::after{transform:translateX(16px)}
+.seed{display:flex;gap:8px}
+.seed input{width:100%;padding:6px 8px;border:1px solid var(--rule);border-radius:4px;background:#fff}
+.btn{appearance:none;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:7px 12px;border-radius:4px;
+  cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#000}
+.btn[disabled]{opacity:.55;cursor:progress}
+.side-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--rule)}
+.toast{font-size:.85rem;color:var(--ink-2);min-height:1.3em;margin-top:8px}
+
+/* hero lanes */
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:34px}
+.lane-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
+.lane-head h2{font-size:1.25rem;margin:0}
+.org-a h2{color:var(--org-a)} .org-b h2{color:var(--org-b)}
+.lane-sub{font-size:.85rem;color:var(--ink-3)}
+.lane-svg{width:100%;height:auto;display:block}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;border-top:1px solid var(--rule);padding-top:10px}
+.kpi .num{font-family:var(--serif);font-size:1.75rem;line-height:1.1;font-weight:600;white-space:nowrap}
+.kpi .lbl{font-size:.8rem;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.84rem;color:var(--ink-2);margin:14px 0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{flex:none}
+.lede{font-size:1.08rem;margin:16px 0 0;padding:12px 0 0;border-top:1px solid var(--rule);max-width:none}
+.sample-row{display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.85rem;color:var(--ink-3)}
+.sample-row span{flex:1 1 320px}
+.to-settings{display:none;font-weight:600}
+.lane-svg text{font-family:var(--sans)}
+
+section.block{padding:30px 0 6px;border-top:1px solid var(--rule);margin-top:30px}
+.chart{width:100%;height:auto;display:block;margin-top:8px}
+.chart text{font-family:var(--sans);font-size:12.5px;fill:var(--ink)}
+.chart .muted{fill:var(--ink-3)}
+.chart .inbar{fill:#fff;font-weight:600}
+.key{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.84rem;color:var(--ink-2);margin-top:6px}
+.key i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:34px}
+
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:10px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--rule-2);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--ink-2);border-bottom-color:var(--rule)}
+td.num,th.num{text-align:right;white-space:nowrap}
+td .desc{display:block;font-size:.82rem;color:var(--ink-3)}
+.win{color:var(--good);font-weight:600}.loss{color:var(--bad);font-weight:600}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#table-robust{min-width:560px}
+.status{font-size:.9rem;color:var(--ink-2);margin-top:8px}
+.method p,.method li{max-width:72ch}
+.method ul{padding-left:20px;margin:.4rem 0 .8rem}
+.method li{margin:.25rem 0}
+.foot{font-size:.85rem;color:var(--ink-3);margin-top:34px;padding-top:14px;border-top:1px solid var(--rule)}
+[aria-busy="true"] .lane-svg,[aria-busy="true"] .chart{opacity:.55;transition:opacity .2s}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "side"}
+  aside{border-right:0;border-top:1px solid var(--rule)}
+  .side-inner{position:static;max-height:none;overflow:visible}
+  main{padding:22px 18px 30px}
+  .to-settings{display:inline-block}
+  .lanes,.two-col{grid-template-columns:1fr;gap:26px}
+}
+@media (max-width:480px){
+  h1{font-size:1.7rem}
+  th,td{padding:7px 6px}
+  td.num{white-space:normal}
+  .kpi .num{font-size:1.45rem}
+  aside{padding:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#results">Skip to results</a>
+<div class="layout">
+<main id="results" aria-busy="false">
+  <header class="masthead">
+    <h1>Pilot purgatory</h1>
+    <p>Why do so many AI pilots never make it into production? Set up two organisations, change how they run their pilots, and watch what happens to every pilot over three years.</p>
+  </header>
+
+  <div class="lanes">
+    <div class="org-a">
+      <div class="lane-head"><h2 id="name-a">Organisation A</h2><span class="lane-sub" id="preset-name-a"></span></div>
+      <svg class="lane-svg" id="lanes-a" role="img" aria-labelledby="lanes-a-title"><title id="lanes-a-title">Sample portfolio for organisation A</title></svg>
+      <div class="kpis" id="kpis-a"></div>
+    </div>
+    <div class="org-b">
+      <div class="lane-head"><h2 id="name-b">Organisation B</h2><span class="lane-sub" id="preset-name-b"></span></div>
+      <svg class="lane-svg" id="lanes-b" role="img" aria-labelledby="lanes-b-title"><title id="lanes-b-title">Sample portfolio for organisation B</title></svg>
+      <div class="kpis" id="kpis-b"></div>
+    </div>
+  </div>
+  <div class="legend" aria-hidden="true">
+    <span><svg width="26" height="10"><rect width="26" height="10" fill="url(#hatch-legend)"/><defs><pattern id="hatch-legend" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#eef0f4"/><line x1="0" y1="0" x2="0" y2="5" stroke="#9aa3b2" stroke-width="2"/></pattern></defs></svg>Building, no evidence yet</span>
+    <span><svg width="26" height="10"><rect width="26" height="10" fill="#9aa3b2"/></svg>Running with evidence</span>
+    <span><svg width="14" height="14"><circle cx="7" cy="7" r="5.5" fill="#1e7a5a"/></svg>Went live</span>
+    <span><svg width="14" height="14"><path d="M3 3L11 11M11 3L3 11" stroke="#8b95a5" stroke-width="2.4"/></svg>Stopped</span>
+    <span><svg width="26" height="10"><defs><linearGradient id="fade-legend"><stop offset="0" stop-color="#d9961a"/><stop offset="1" stop-color="#d9961a" stop-opacity=".15"/></linearGradient></defs><rect width="26" height="10" fill="url(#fade-legend)"/></svg>Still stuck at the end</span>
+  </div>
+  <div class="sample-row">
+    <span id="sample-label">Each line is one pilot in a single sample portfolio. The numbers below each chart average all simulated portfolios.</span>
+    <button class="btn" id="resample" type="button">Show another sample</button>
+    <a class="to-settings" href="#settings">Change the settings</a>
+  </div>
+  <p class="lede" id="lede" aria-live="polite"></p>
+
+  <section class="block" aria-labelledby="h-outcomes">
+    <h2 id="h-outcomes">Where the pilots end up</h2>
+    <p>Share of all pilots launched, averaged over every simulated portfolio.</p>
+    <svg class="chart" id="chart-outcomes" role="img" aria-label="Outcome mix for each organisation"></svg>
+    <div class="key" id="key-outcomes"></div>
+    <div class="table-wrap"><table id="table-summary"></table></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-time">
+    <h2 id="h-time">Net value over time</h2>
+    <p>Benefit captured from pilots in production, minus everything spent on pilots and on taking them live, quarter by quarter.</p>
+    <svg class="chart" id="chart-time" role="img" aria-label="Cumulative net value by quarter"></svg>
+    <div class="key" id="key-time"></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-stall">
+    <h2 id="h-stall">Why pilots stall</h2>
+    <p>Every pilot that was stopped or got stuck is traced back to the main thing that held it back.</p>
+    <svg class="chart" id="chart-barriers" role="img" aria-label="Main barrier for stalled pilots"></svg>
+    <div class="key" id="key-barriers"></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-fix">
+    <h2 id="h-fix">Which single change helps organisation A most?</h2>
+    <p id="fix-intro">Each bar switches on one practice for organisation A and leaves everything else as it is.</p>
+    <svg class="chart" id="chart-levers" role="img" aria-label="Change in net value from each single change"></svg>
+  </section>
+
+  <section class="block" aria-labelledby="h-robust">
+    <h2 id="h-robust">Does the answer survive a different world?</h2>
+    <p>Re-run the comparison under eleven variations of the shared assumptions, from fewer good ideas to impatient sponsors, and check which conclusions still hold.</p>
+    <button class="btn primary" id="run-robust" type="button">Test against 11 scenarios</button>
+    <div class="status" id="robust-status" aria-live="polite"></div>
+    <div class="table-wrap"><table id="table-robust" hidden></table></div>
+  </section>
+
+  <section class="block method" aria-labelledby="h-method">
+    <h2 id="h-method">How the model works</h2>
+    <p>Each pilot has hidden true traits: the annual value it would deliver once live, how measurable that value is, how complex it is to integrate, how long it takes to show results, and what it costs to run each quarter. Roughly one idea in five is genuinely worth scaling under the default assumptions.</p>
+    <ul>
+      <li>Every quarter, running pilots cost money. Once a pilot has had time to show results, it produces evidence, which understates its real value when benefits are hard to measure.</li>
+      <li>A pilot goes live only if a strategy and scaling owner exist, its evidence clears the bar, and the organisation has capacity that quarter. The strongest cases go first.</li>
+      <li>Without stop criteria, weak pilots drift until a sponsor gives up. With them, pilots that miss their evidence gate are stopped two quarters later.</li>
+      <li>Reused budget funds new pilots, except in the final year. A shared platform makes each go-live cheaper, down to half the original cost.</li>
+      <li>A stalled pilot is blamed on long timescales if it never produced evidence; hard-to-measure benefits if it was worth scaling but could not prove it; no route to scale if it could prove it but had no owner, capacity or sponsor; technical complexity if only its complexity made it uneconomic; and unclear ROI otherwise.</li>
+    </ul>
+    <p>Every number is an illustrative assumption, not data from real organisations. Use the model to reason about mechanisms and trade-offs, not to forecast. The Python version in this repository produces the same results in distribution and has its own test suite.</p>
+  </section>
+  <p class="foot">Runs entirely in your browser. Nothing is sent anywhere.</p>
+</main>
+
+<aside aria-label="Settings" id="settings">
+  <div class="side-inner">
+    <div class="tabs" role="tablist" aria-label="Settings for">
+      <button class="tab" role="tab" id="tab-a" data-tab="a" aria-selected="true" aria-controls="panel-a" aria-label="Organisation A settings">Org A</button>
+      <button class="tab" role="tab" id="tab-b" data-tab="b" aria-selected="false" aria-controls="panel-b" aria-label="Organisation B settings" tabindex="-1">Org B</button>
+      <button class="tab" role="tab" id="tab-w" data-tab="w" aria-selected="false" aria-controls="panel-w" tabindex="-1">Shared world</button>
+    </div>
+    <div class="panel" role="tabpanel" id="panel-a" data-panel="a" aria-labelledby="tab-a"></div>
+    <div class="panel" role="tabpanel" id="panel-b" data-panel="b" aria-labelledby="tab-b" hidden></div>
+    <div class="panel" role="tabpanel" id="panel-w" data-panel="w" aria-labelledby="tab-w" hidden></div>
+    <div class="side-actions">
+      <button class="btn" id="copy-link" type="button">Copy link to this setup</button>
+      <button class="btn" id="reset" type="button">Reset everything</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</aside>
+</div>
+
+<script>
+/* MODEL START */
+var PP = (function () {
+  "use strict";
+  var UNCLEAR_ROI = "Unclear ROI", HARD_TO_MEASURE = "Hard-to-measure benefits", TECH_COMPLEXITY = "Technical complexity",
+      LONG_TIMESCALES = "Long timescales", NO_ROUTE = "No route to scale";
+  var BARRIERS = [UNCLEAR_ROI, HARD_TO_MEASURE, TECH_COMPLEXITY, LONG_TIMESCALES, NO_ROUTE];
+  var SCALED = "Scaled", KILLED = "Stopped", PURGATORY = "Pilot purgatory", IN_PROGRESS = "Still in progress";
+  var OUTCOMES = [SCALED, KILLED, PURGATORY, IN_PROGRESS];
+  var KILL_GRACE_QUARTERS = 2, REFERENCE_COMPLEXITY = 0.5;
+
+  var DEFAULT_WORLD = {
+    valueMedian: 350, valueSpread: 0.9, scalingCostBase: 150, scalingCostPerComplexity: 650,
+    metricsBoost: 0.3, measurementNoise: 1.0, purgatoryAge: 4, launchCutoff: 4, platformFloor: 0.5
+  };
+  var MOMENTUM = {
+    name: "Pilots first", pilots: 20, screening: 0, metricsUpfront: false, strategyQuarter: 5, scalingCapacity: 1,
+    killRule: false, recycleBudget: false, platformEffect: 0, roiHurdle: 1.5, abandonRate: 0.04
+  };
+  var GOVERNANCE = {
+    name: "Strategy first", pilots: 12, screening: 0.5, metricsUpfront: true, strategyQuarter: 1, scalingCapacity: 2,
+    killRule: true, recycleBudget: true, platformEffect: 0.1, roiHurdle: 1.5, abandonRate: 0.04
+  };
+
+  function extend(base, changes) { var out = {}, k; for (k in base) out[k] = base[k]; for (k in changes) out[k] = changes[k]; return out; }
+
+  var LEVERS = [
+    ["Screen ideas at intake", function (s) { return extend(s, { screening: GOVERNANCE.screening }); }],
+    ["Agree success metrics up front", function (s) { return extend(s, { metricsUpfront: true }); }],
+    ["Write the strategy before the pilots", function (s) { return extend(s, { strategyQuarter: 1 }); }],
+    ["Double scaling capacity", function (s) { return extend(s, { scalingCapacity: Math.max(1, s.scalingCapacity * 2) }); }],
+    ["Add explicit stop criteria", function (s) { return extend(s, { killRule: true }); }],
+    ["Recycle freed budget into new pilots", function (s) { return extend(s, { recycleBudget: true }); }],
+    ["Build a shared AI platform", function (s) { return extend(s, { platformEffect: GOVERNANCE.platformEffect }); }]
+  ];
+
+  // Small, fast, seedable generator (mulberry32) plus the few distributions the model needs.
+  function makeRng(seed) {
+    var a = (seed >>> 0) || 1;
+    var spare = null;
+    function random() {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    function normal() {
+      if (spare !== null) { var s = spare; spare = null; return s; }
+      var u = 0, v = 0;
+      while (u === 0) u = random();
+      v = random();
+      var r = Math.sqrt(-2 * Math.log(u));
+      spare = r * Math.sin(2 * Math.PI * v);
+      return r * Math.cos(2 * Math.PI * v);
+    }
+    function gamma2() { var u1 = 0, u2 = 0; while (u1 === 0) u1 = random(); while (u2 === 0) u2 = random(); return -Math.log(u1 * u2); }
+    return {
+      random: random,
+      lognorm: function (mu, sigma) { return Math.exp(mu + sigma * normal()); },
+      beta22: function () { var x = gamma2(), y = gamma2(); return x / (x + y); },
+      randint: function (lo, hi) { return lo + Math.floor(random() * (hi - lo + 1)); },
+      uniform: function (lo, hi) { return lo + (hi - lo) * random(); }
+    };
+  }
+
+  function scalingCost(w, complexity) { return w.scalingCostBase + w.scalingCostPerComplexity * complexity; }
+
+  function drawPilot(r, w) {
+    var complexity = r.beta22();
+    return {
+      value: r.lognorm(Math.log(w.valueMedian), w.valueSpread),
+      measurability: r.beta22(),
+      complexity: complexity,
+      timeToValue: 1 + Math.round(complexity * 4) + r.randint(0, 2),
+      runCost: r.uniform(30, 90),
+      scalingCost: scalingCost(w, complexity),
+      launchedIn: 1, age: 0, spend: 0, status: "active", scaledIn: 0, endAge: 0, endQuarter: 0, firstEvidence: 0
+    };
+  }
+
+  function trueRoi(p) { return p.value / p.scalingCost; }
+  function effectiveMeasurability(p, s, w) { return Math.min(1, p.measurability + (s.metricsUpfront ? w.metricsBoost : 0)); }
+  function shareEvidenced(p, s, w) { return 0.25 + 0.75 * effectiveMeasurability(p, s, w); }
+  function expectedEvidencedRoi(p, s, w, mult) { return p.value * shareEvidenced(p, s, w) / (p.scalingCost * (mult || 1)); }
+  function evidencedRoi(p, s, r, w, mult) {
+    var m = effectiveMeasurability(p, s, w);
+    return expectedEvidencedRoi(p, s, w, mult) * r.lognorm(0, (0.05 + 0.4 * (1 - m)) * w.measurementNoise);
+  }
+
+  function launch(s, r, n, w) {
+    var i, out = [];
+    if (n <= 0) return out;
+    if (s.screening <= 0) { for (i = 0; i < n; i++) out.push(drawPilot(r, w)); return out; }
+    var nc = Math.ceil(n / (1 - s.screening)), scored = [];
+    for (i = 0; i < nc; i++) { var c = drawPilot(r, w); scored.push([trueRoi(c) * r.lognorm(0, 0.5), i, c]); }
+    scored.sort(function (x, y) { return y[0] - x[0] || x[1] - y[1]; });
+    for (i = 0; i < n; i++) out.push(scored[i][2]);
+    return out;
+  }
+
+  function blockingBarrier(p, s, w) {
+    if (p.endAge < p.timeToValue) return LONG_TIMESCALES;
+    if (trueRoi(p) >= s.roiHurdle) return expectedEvidencedRoi(p, s, w, 1) < s.roiHurdle ? HARD_TO_MEASURE : NO_ROUTE;
+    if (p.complexity > REFERENCE_COMPLEXITY && p.value / scalingCost(w, REFERENCE_COMPLEXITY) >= s.roiHurdle) return TECH_COMPLEXITY;
+    return UNCLEAR_ROI;
+  }
+
+  function stop(p, q) { p.status = "killed"; p.endAge = p.age; p.endQuarter = q; }
+
+  function simulateOnce(s, r, quarters, w) {
+    w = w || DEFAULT_WORLD;
+    var portfolio = launch(s, r, s.pilots, w);
+    var valueCaptured = 0, scalingSpend = 0, runRate = 0, mult = 1, scaledSoFar = 0, stoppedSoFar = 0, freed = 0, pilotSpend = 0;
+    var timeline = [], q, i, p;
+    for (q = 1; q <= quarters; q++) {
+      valueCaptured += runRate;
+      if (s.recycleBudget && freed && q <= quarters - w.launchCutoff) {
+        var fresh = launch(s, r, freed, w);
+        for (i = 0; i < fresh.length; i++) { fresh[i].launchedIn = q; portfolio.push(fresh[i]); }
+      }
+      freed = 0;
+      var eligible = [];
+      for (i = 0; i < portfolio.length; i++) {
+        p = portfolio[i];
+        if (p.status !== "active") continue;
+        p.age += 1; p.spend += p.runCost; pilotSpend += p.runCost;
+        if (p.age >= p.timeToValue) {
+          if (!p.firstEvidence) p.firstEvidence = q;
+          var roi = evidencedRoi(p, s, r, w, mult);
+          if (q >= s.strategyQuarter && roi >= s.roiHurdle) { eligible.push([roi, p]); continue; }
+          if (s.killRule && p.age >= p.timeToValue + KILL_GRACE_QUARTERS) { stop(p, q); freed++; stoppedSoFar++; continue; }
+        }
+        if (!s.killRule && r.random() < s.abandonRate) { stop(p, q); freed++; stoppedSoFar++; }
+      }
+      eligible.sort(function (x, y) { return y[0] - x[0]; });
+      for (i = 0; i < Math.min(s.scalingCapacity, eligible.length); i++) {
+        p = eligible[i][1];
+        p.status = "scaled"; p.scaledIn = q; p.endAge = p.age; p.endQuarter = q;
+        scalingSpend += p.scalingCost * mult;
+        runRate += p.value / 4;
+        scaledSoFar++; freed++;
+        mult = Math.max(w.platformFloor, Math.pow(1 - s.platformEffect, scaledSoFar));
+      }
+      var active = 0;
+      for (i = 0; i < portfolio.length; i++) if (portfolio[i].status === "active") active++;
+      timeline.push({ quarter: q, piloting: active, scaled: scaledSoFar, stopped: stoppedSoFar, netValue: valueCaptured - pilotSpend - scalingSpend });
+    }
+    var outcomes = {}, barriers = {}, wasted = 0, missed = 0, toScale = [];
+    OUTCOMES.forEach(function (o) { outcomes[o] = 0; });
+    BARRIERS.forEach(function (b) { barriers[b] = 0; });
+    for (i = 0; i < portfolio.length; i++) {
+      p = portfolio[i];
+      if (p.status === "scaled") { outcomes[SCALED]++; toScale.push(p.scaledIn); p.outcome = SCALED; continue; }
+      if (p.status === "active") {
+        p.endAge = p.age; p.endQuarter = quarters;
+        if (p.age < w.purgatoryAge) { outcomes[IN_PROGRESS]++; p.outcome = IN_PROGRESS; continue; }
+        outcomes[PURGATORY]++; p.outcome = PURGATORY;
+      } else { outcomes[KILLED]++; p.outcome = KILLED; }
+      p.barrier = blockingBarrier(p, s, w);
+      barriers[p.barrier]++;
+      wasted += p.spend;
+      if (trueRoi(p) >= s.roiHurdle) missed++;
+    }
+    return {
+      pilots: portfolio.length, outcomes: outcomes, barriers: barriers, valueCaptured: valueCaptured,
+      pilotSpend: pilotSpend, scalingSpend: scalingSpend, wastedSpend: wasted, missedOpportunities: missed,
+      quartersToScale: toScale, timeline: timeline, portfolio: portfolio,
+      netValue: valueCaptured - pilotSpend - scalingSpend
+    };
+  }
+
+  function mean(xs) { var t = 0; for (var i = 0; i < xs.length; i++) t += xs[i]; return xs.length ? t / xs.length : 0; }
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+  function median(xs) { return quantile(xs.slice().sort(function (a, b) { return a - b; }), 0.5); }
+
+  function runSeed(seed, i) { return ((seed * 1000003 + i) >>> 0); }
+
+  function simulate(s, runs, quarters, seed, w) {
+    w = w || DEFAULT_WORLD;
+    var results = [], i;
+    for (i = 0; i < runs; i++) results.push(simulateOnce(s, makeRng(runSeed(seed, i)), quarters, w));
+    var total = 0, stalled = 0, outcomeShare = {}, barrierShare = {}, nets = [], toScale = [];
+    results.forEach(function (r) {
+      total += r.pilots; stalled += r.outcomes[KILLED] + r.outcomes[PURGATORY]; nets.push(r.netValue);
+      for (var k = 0; k < r.quartersToScale.length; k++) toScale.push(r.quartersToScale[k]);
+    });
+    OUTCOMES.forEach(function (o) { outcomeShare[o] = results.reduce(function (t, r) { return t + r.outcomes[o]; }, 0) / total; });
+    BARRIERS.forEach(function (b) { barrierShare[b] = stalled ? results.reduce(function (t, r) { return t + r.barriers[b]; }, 0) / stalled : 0; });
+    var sortedNets = nets.slice().sort(function (a, b) { return a - b; });
+    var timeline = [];
+    for (var q = 0; q < quarters; q++) {
+      timeline.push({
+        quarter: q + 1,
+        piloting: mean(results.map(function (r) { return r.timeline[q].piloting; })),
+        scaled: mean(results.map(function (r) { return r.timeline[q].scaled; })),
+        stopped: mean(results.map(function (r) { return r.timeline[q].stopped; })),
+        netValue: mean(results.map(function (r) { return r.timeline[q].netValue; }))
+      });
+    }
+    var payback = null;
+    for (var t = 0; t < timeline.length && payback === null; t++) {
+      var ok = true;
+      for (var u = t; u < timeline.length; u++) if (timeline[u].netValue < 0) { ok = false; break; }
+      if (ok) payback = timeline[t].quarter;
+    }
+    return {
+      strategy: s, runs: runs, quarters: quarters, pilotsLaunched: total / runs,
+      outcomeShare: outcomeShare, barrierShare: barrierShare,
+      netValue: { mean: mean(nets), p10: quantile(sortedNets, 0.1), p90: quantile(sortedNets, 0.9) },
+      valueCaptured: mean(results.map(function (r) { return r.valueCaptured; })),
+      pilotSpend: mean(results.map(function (r) { return r.pilotSpend; })),
+      wastedSpend: mean(results.map(function (r) { return r.wastedSpend; })),
+      missedOpportunities: mean(results.map(function (r) { return r.missedOpportunities; })),
+      medianQuarterToScale: toScale.length ? median(toScale) : NaN,
+      timeline: timeline, paybackQuarter: payback
+    };
+  }
+
+  function leverEffects(base, runs, quarters, seed, w) {
+    var baseline = simulate(base, runs, quarters, seed, w);
+    var effects = LEVERS.map(function (lv) {
+      var changed = simulate(lv[1](base), runs, quarters, seed, w);
+      return {
+        lever: lv[0],
+        netValueChange: changed.netValue.mean - baseline.netValue.mean,
+        scaledChange: 100 * (changed.outcomeShare[SCALED] - baseline.outcomeShare[SCALED]),
+        purgatoryChange: 100 * (changed.outcomeShare[PURGATORY] - baseline.outcomeShare[PURGATORY])
+      };
+    });
+    effects.sort(function (x, y) { return y.netValueChange - x.netValueChange; });
+    return { baseline: baseline, effects: effects };
+  }
+
+  // Robustness scenarios, expressed relative to the current world and organisations.
+  var SCENARIOS = [
+    { name: "Baseline", description: "Your current settings" },
+    { name: "Fewer good ideas", description: "Typical pilot is worth about 30% less", world: function (w) { return extend(w, { valueMedian: w.valueMedian * 250 / 350 }); } },
+    { name: "More good ideas", description: "Typical pilot is worth about 40% more", world: function (w) { return extend(w, { valueMedian: w.valueMedian * 500 / 350 }); } },
+    { name: "Higher bar to scale", description: "Evidence must clear a bar a third higher", org: function (s) { return extend(s, { roiHurdle: s.roiHurdle * 4 / 3 }); } },
+    { name: "Lower bar to scale", description: "Evidence must clear a bar a fifth lower", org: function (s) { return extend(s, { roiHurdle: s.roiHurdle * 0.8 }); } },
+    { name: "Noisier evidence", description: "Measurement noise 60% higher", world: function (w) { return extend(w, { measurementNoise: w.measurementNoise * 1.6 }); } },
+    { name: "Cleaner evidence", description: "Measurement noise halved", world: function (w) { return extend(w, { measurementNoise: w.measurementNoise * 0.5 }); } },
+    { name: "Costlier scaling", description: "Taking pilots live costs 50% more", world: function (w) { return extend(w, { scalingCostBase: w.scalingCostBase * 1.5, scalingCostPerComplexity: w.scalingCostPerComplexity * 1.5 }); } },
+    { name: "Impatient sponsors", description: "Drifting pilots lose their sponsor 2.5 times as often", org: function (s) { return extend(s, { abandonRate: Math.min(1, s.abandonRate * 2.5) }); } },
+    { name: "Shorter horizon", description: "Judge results a year earlier", quarters: function (q) { return Math.max(1, q - 4); } },
+    { name: "Longer horizon", description: "Judge results a year later", quarters: function (q) { return q + 4; } }
+  ];
+
+  function runScenario(sc, a, b, runs, quarters, seed, w) {
+    var world = sc.world ? sc.world(w) : w;
+    var orgA = sc.org ? sc.org(a) : a, orgB = sc.org ? sc.org(b) : b;
+    var qs = sc.quarters ? sc.quarters(quarters) : quarters;
+    var le = leverEffects(orgA, runs, qs, seed, world);
+    var sb = simulate(orgB, runs, qs, seed, world);
+    return { scenario: sc, aNet: le.baseline.netValue.mean, bNet: sb.netValue.mean, topLever: le.effects[0].lever, topGain: le.effects[0].netValueChange };
+  }
+
+  return {
+    BARRIERS: BARRIERS, OUTCOMES: OUTCOMES, SCALED: SCALED, KILLED: KILLED, PURGATORY: PURGATORY, IN_PROGRESS: IN_PROGRESS,
+    DEFAULT_WORLD: DEFAULT_WORLD, MOMENTUM: MOMENTUM, GOVERNANCE: GOVERNANCE, LEVERS: LEVERS, SCENARIOS: SCENARIOS,
+    extend: extend, makeRng: makeRng, runSeed: runSeed, simulateOnce: simulateOnce, simulate: simulate,
+    leverEffects: leverEffects, runScenario: runScenario, blockingBarrier: blockingBarrier
+  };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = PP;
+/* MODEL END */
+</script>
+
+<script>
+(function () {
+  "use strict";
+  // Hex values (not CSS variables) because SVG presentation attributes do not resolve var() in every browser.
+  var C = { scaled: "#1e7a5a", stopped: "#8b95a5", stuck: "#d9961a", progress: "#8eb6e3", good: "#1e7a5a", bad: "#b23b3b",
+    a: "#9c2f6b", b: "#1f5aa8", ink: "#1b2433" };
+  var OUT_COLOURS = {}; OUT_COLOURS[PP.SCALED] = C.scaled; OUT_COLOURS[PP.KILLED] = C.stopped;
+  OUT_COLOURS[PP.PURGATORY] = C.stuck; OUT_COLOURS[PP.IN_PROGRESS] = C.progress;
+  var ORG_COLOUR = { a: C.a, b: C.b };
+  var LEVER_RUN_CAP = 400;
+
+  // ---------------------------------------------------------------- settings definitions
+  var ORG_FIELDS = [
+    { key: "pilots", label: "Pilots launched at the start", type: "range", min: 4, max: 40, step: 1, fmt: function (v) { return String(v); } },
+    { key: "screening", label: "Ideas screened out before piloting", type: "range", min: 0, max: 0.8, step: 0.1, fmt: pctFmt,
+      hint: "Ranks candidate ideas on a rough value estimate and keeps the best." },
+    { key: "metricsUpfront", label: "Success metrics agreed up front", type: "switch",
+      hint: "Makes each pilot's benefits easier to evidence." },
+    { key: "strategyQuarter", label: "Strategy and scaling owner in place from", type: "range", min: 1, max: 12, step: 1, fmt: function (v) { return "Q" + v; },
+      hint: "Before this quarter nothing can go live, however good the evidence." },
+    { key: "scalingCapacity", label: "Pilots that can go live per quarter", type: "range", min: 0, max: 5, step: 1, fmt: function (v) { return String(v); } },
+    { key: "killRule", label: "Explicit stop criteria", type: "switch",
+      hint: "Stops pilots two quarters after they miss their evidence gate." },
+    { key: "recycleBudget", label: "Reuse freed budget for new pilots", type: "switch",
+      hint: "Each stopped or live pilot frees money for a fresh idea." },
+    { key: "platformEffect", label: "Shared platform: each go-live cuts later costs by", type: "range", min: 0, max: 0.3, step: 0.05, fmt: pctFmt },
+    { key: "roiHurdle", label: "Evidence needed to go live", type: "range", min: 1, max: 3, step: 0.1, fmt: function (v) { return v.toFixed(1) + "x"; },
+      hint: "Proven annual benefit as a multiple of the one-off cost to go live." },
+    { key: "abandonRate", label: "Chance a drifting pilot loses its sponsor", type: "range", min: 0, max: 0.15, step: 0.01, fmt: function (v) { return pctFmt(v) + " a quarter"; },
+      hint: "Only applies without stop criteria." }
+  ];
+  var WORLD_FIELDS = [
+    { key: "valueMedian", label: "Typical annual value of a pilot once live", type: "range", min: 150, max: 800, step: 25, fmt: function (v) { return "£" + v + "k"; } },
+    { key: "valueSpread", label: "How uneven pilot values are", type: "range", min: 0.3, max: 1.5, step: 0.1, fmt: function (v) { return v.toFixed(1); },
+      hint: "Higher means rarer, bigger wins among many duds." },
+    { key: "scalingCostBase", label: "Cost to take the simplest pilot live", type: "range", min: 50, max: 400, step: 25, fmt: function (v) { return "£" + v + "k"; } },
+    { key: "scalingCostPerComplexity", label: "Extra cost for the most complex pilot", type: "range", min: 200, max: 1200, step: 50, fmt: function (v) { return "£" + v + "k"; } },
+    { key: "measurementNoise", label: "How noisy the evidence is", type: "range", min: 0.25, max: 2, step: 0.25, fmt: function (v) { return v.toFixed(2) + "x"; } }
+  ];
+  var RUN_FIELDS = [
+    { key: "quarters", label: "Time horizon", type: "range", min: 4, max: 20, step: 1, fmt: function (v) { return v + " quarters (" + (v / 4).toFixed(v % 4 ? 2 : 0) + " years)"; } },
+    { key: "runs", label: "Portfolios simulated per organisation", type: "range", min: 100, max: 2000, step: 100, fmt: function (v) { return String(v); },
+      hint: "More portfolios give steadier averages but take longer." }
+  ];
+  var DEFAULTS = { quarters: 12, runs: 500, seed: 42 };
+
+  function pctFmt(v) { return Math.round(v * 100) + "%"; }
+  // A true minus sign (U+2212) never line-breaks away from its number, unlike a hyphen.
+  function money(k) { var s = k < -0.05 ? "\u2212" : ""; return s + "£" + (Math.abs(k) / 1000).toFixed(1) + "m"; }
+  function axisMoney(k, step) { var s = k < -0.05 ? "\u2212" : ""; return s + "£" + (Math.abs(k) / 1000).toFixed(step >= 1000 ? 0 : 1) + "m"; }
+  function signedMoney(k) { return (k >= -0.05 ? "+" : "") + money(k); }
+  function pct(x) { return Math.round(100 * x) + "%"; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  // ---------------------------------------------------------------- state
+  var state = freshState();
+  var sample = 0;
+
+  function freshState() {
+    return {
+      a: { preset: "momentum", org: PP.extend(PP.MOMENTUM, {}) },
+      b: { preset: "governance", org: PP.extend(PP.GOVERNANCE, {}) },
+      world: PP.extend(PP.DEFAULT_WORLD, {}),
+      quarters: DEFAULTS.quarters, runs: DEFAULTS.runs, seed: DEFAULTS.seed
+    };
+  }
+
+  function presetOrg(name) { return PP.extend(name === "governance" ? PP.GOVERNANCE : PP.MOMENTUM, {}); }
+  function presetLabel(side) {
+    var p = state[side].preset;
+    return p === "momentum" ? "Pilots first" : p === "governance" ? "Strategy first" : "Custom";
+  }
+
+  // Validate anything that came from a shared link so a bad value can never break the model.
+  function sanitise() {
+    ["a", "b"].forEach(function (side) {
+      var o = state[side].org;
+      ORG_FIELDS.forEach(function (f) {
+        if (f.type === "switch") o[f.key] = !!o[f.key];
+        else { var v = Number(o[f.key]); o[f.key] = isFinite(v) ? clamp(v, f.min, f.max) : PP.MOMENTUM[f.key]; }
+      });
+      o.pilots = Math.round(o.pilots); o.strategyQuarter = Math.round(o.strategyQuarter); o.scalingCapacity = Math.round(o.scalingCapacity);
+      if (["momentum", "governance", "custom"].indexOf(state[side].preset) < 0) state[side].preset = "custom";
+    });
+    WORLD_FIELDS.forEach(function (f) { var v = Number(state.world[f.key]); state.world[f.key] = isFinite(v) ? clamp(v, f.min, f.max) : PP.DEFAULT_WORLD[f.key]; });
+    ["purgatoryAge", "launchCutoff", "platformFloor", "metricsBoost"].forEach(function (k) { state.world[k] = PP.DEFAULT_WORLD[k]; });
+    RUN_FIELDS.forEach(function (f) { var v = Math.round(Number(state[f.key])); state[f.key] = isFinite(v) ? clamp(v, f.min, f.max) : DEFAULTS[f.key]; });
+    var sd = Math.round(Number(state.seed)); state.seed = isFinite(sd) ? clamp(sd, 1, 999999) : DEFAULTS.seed;
+  }
+
+  // ---------------------------------------------------------------- controls
+  function fieldHtml(prefix, f, value) {
+    var id = prefix + "-" + f.key, hint = f.hint ? '<div class="hint" id="' + id + '-hint">' + esc(f.hint) + "</div>" : "";
+    var described = f.hint ? ' aria-describedby="' + id + '-hint"' : "";
+    if (f.type === "switch") {
+      return '<div class="field"><label class="switch" for="' + id + '"><span>' + esc(f.label) + '</span><input type="checkbox" role="switch" id="' + id +
+        '" data-key="' + f.key + '"' + (value ? " checked" : "") + described + "></label>" + hint + "</div>";
+    }
+    return '<div class="field"><div class="row"><label for="' + id + '">' + esc(f.label) + '</label><output for="' + id + '" id="' + id + '-out">' +
+      esc(f.fmt(value)) + '</output></div><input type="range" id="' + id + '" data-key="' + f.key + '" min="' + f.min + '" max="' + f.max +
+      '" step="' + f.step + '" value="' + value + '"' + described + ">" + hint + "</div>";
+  }
+
+  function renderPanels() {
+    ["a", "b"].forEach(function (side) {
+      var org = state[side].org, opts = [["momentum", "Pilots first"], ["governance", "Strategy first"], ["custom", "Custom"]];
+      var html = '<div class="preset"><label for="preset-' + side + '">Starting point</label><select id="preset-' + side + '">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (state[side].preset === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") +
+        "</select></div>";
+      html += ORG_FIELDS.map(function (f) { return fieldHtml(side, f, org[f.key]); }).join("");
+      var panel = document.getElementById("panel-" + side);
+      panel.innerHTML = html;
+      panel.querySelector("select").addEventListener("change", function (e) {
+        var v = e.target.value;
+        state[side].preset = v;
+        if (v !== "custom") state[side].org = presetOrg(v);
+        renderPanels(); schedule();
+      });
+      bindInputs(panel, function (key, value) { org[key] = value; state[side].preset = "custom"; panel.querySelector("select").value = "custom"; },
+        ORG_FIELDS, side);
+    });
+    var w = document.getElementById("panel-w");
+    w.innerHTML = '<p class="hint" style="margin-top:0">These describe the environment both organisations face.</p>' +
+      WORLD_FIELDS.map(function (f) { return fieldHtml("w", f, state.world[f.key]); }).join("") +
+      RUN_FIELDS.map(function (f) { return fieldHtml("r", f, state[f.key]); }).join("") +
+      '<div class="field"><div class="row"><label for="seed-input">Random seed</label></div><div class="seed"><input id="seed-input" type="number" min="1" max="999999" value="' +
+      state.seed + '" aria-describedby="seed-hint"><button class="btn" type="button" id="seed-shuffle">Shuffle</button></div><div class="hint" id="seed-hint">The same seed always gives the same results.</div></div>';
+    bindInputs(w, function (key, value) { if (key in state.world) state.world[key] = value; else state[key] = value; }, WORLD_FIELDS.concat(RUN_FIELDS), "w");
+    var seedInput = document.getElementById("seed-input");
+    seedInput.addEventListener("change", function () { state.seed = Number(seedInput.value); sanitise(); seedInput.value = state.seed; schedule(); });
+    document.getElementById("seed-shuffle").addEventListener("click", function () {
+      state.seed = 1 + Math.floor(Math.random() * 999998); seedInput.value = state.seed; schedule();
+    });
+  }
+
+  function bindInputs(root, set, fields, side) {
+    var byKey = {}; fields.forEach(function (f) { byKey[f.key] = f; });
+    Array.prototype.forEach.call(root.querySelectorAll("input[data-key]"), function (el) {
+      var f = byKey[el.dataset.key];
+      el.addEventListener("input", function () {
+        var v = f.type === "switch" ? el.checked : Number(el.value);
+        set(f.key, v);
+        var out = document.getElementById(el.id + "-out");
+        if (out) out.textContent = f.fmt(v);
+        if (side === "a" || side === "b") document.getElementById("preset-name-" + side).textContent = presetLabel(side);
+        schedule();
+      });
+    });
+  }
+
+  function setupTabs() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      });
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { select(t); });
+      t.addEventListener("keydown", function (e) {
+        var j = e.key === "ArrowRight" ? (i + 1) % tabs.length : e.key === "ArrowLeft" ? (i - 1 + tabs.length) % tabs.length :
+          e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+        if (j >= 0) { e.preventDefault(); select(tabs[j]); tabs[j].focus(); }
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- charts
+  function svgSize(el, w, h) { el.setAttribute("viewBox", "0 0 " + w + " " + h); }
+  // Draw charts at the width they are shown at, so text stays readable on a phone.
+  function chartWidth(el) { return Math.round(clamp(el.parentNode.clientWidth || 760, 300, 760)); }
+
+  function drawLanes(el, run, quarters, side, laneCount) {
+    var pilots = run.portfolio.slice().sort(function (x, y) {
+      var order = [PP.SCALED, PP.KILLED, PP.PURGATORY, PP.IN_PROGRESS];
+      return x.launchedIn - y.launchedIn || order.indexOf(x.outcome) - order.indexOf(y.outcome) || x.endQuarter - y.endQuarter;
+    });
+    var n = pilots.length, rows = Math.max(n, laneCount || 0), W = 520, left = 6, right = 14, top = 6, axis = 22;
+    var laneH = clamp(Math.floor(300 / Math.max(rows, 1)), 5, 13), H = top + rows * laneH + axis;
+    var plotW = W - left - right, qw = plotW / quarters;
+    svgSize(el, W, H);
+    var id = el.id, parts = [];
+    parts.push('<title id="' + id + '-title">' + esc("Sample portfolio for organisation " + side.toUpperCase() + ": " + n + " pilots, " +
+      run.outcomes[PP.SCALED] + " went live, " + run.outcomes[PP.KILLED] + " stopped, " + run.outcomes[PP.PURGATORY] + " still stuck") + "</title>");
+    parts.push('<defs><pattern id="' + id + '-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+      '<rect width="5" height="5" fill="#eef0f4"/><line x1="0" y1="0" x2="0" y2="5" stroke="#9aa3b2" stroke-width="2"/></pattern>' +
+      '<linearGradient id="' + id + '-fade"><stop offset="0" stop-color="' + C.stuck + '"/><stop offset="1" stop-color="' + C.stuck + '" stop-opacity=".12"/></linearGradient></defs>');
+    for (var q = 0; q <= quarters; q++) {
+      var gx = left + q * qw;
+      parts.push('<line x1="' + gx.toFixed(1) + '" x2="' + gx.toFixed(1) + '" y1="' + top + '" y2="' + (top + rows * laneH) + '" stroke="' + (q % 4 === 0 ? "#cfd5de" : "#eef0f4") + '"/>');
+    }
+    pilots.forEach(function (p, i) {
+      var y = top + i * laneH, bh = Math.max(2, laneH - (laneH > 7 ? 3 : 1)), cy = y + bh / 2;
+      var x0 = left + (p.launchedIn - 1) * qw, xEnd = left + p.endQuarter * qw;
+      var xEv = p.firstEvidence ? left + (p.firstEvidence - 1) * qw : xEnd;
+      xEv = Math.min(xEv, xEnd);
+      if (xEv > x0) parts.push('<rect x="' + x0.toFixed(1) + '" y="' + y + '" width="' + (xEv - x0).toFixed(1) + '" height="' + bh + '" fill="url(#' + id + '-hatch)"/>');
+      if (p.outcome === PP.PURGATORY) {
+        parts.push('<rect x="' + xEv.toFixed(1) + '" y="' + y + '" width="' + Math.max(0, xEnd - xEv).toFixed(1) + '" height="' + bh + '" fill="url(#' + id + '-fade)"/>');
+      } else if (xEnd > xEv) {
+        parts.push('<rect x="' + xEv.toFixed(1) + '" y="' + y + '" width="' + (xEnd - xEv).toFixed(1) + '" height="' + bh + '" fill="#9aa3b2"/>');
+      }
+      if (p.outcome === PP.SCALED) {
+        var lx = left + quarters * qw;
+        if (lx > xEnd) parts.push('<line x1="' + xEnd.toFixed(1) + '" x2="' + lx.toFixed(1) + '" y1="' + cy + '" y2="' + cy + '" stroke="' + C.scaled + '" stroke-width="' + Math.max(1, bh / 3) + '" opacity=".45"/>');
+        parts.push('<circle cx="' + xEnd.toFixed(1) + '" cy="' + cy + '" r="' + Math.max(2.5, bh / 2 + 0.5) + '" fill="' + C.scaled + '"/>');
+      } else if (p.outcome === PP.KILLED) {
+        var r = Math.max(2, bh / 2);
+        parts.push('<path d="M' + (xEnd - r) + " " + (cy - r) + "L" + (xEnd + r) + " " + (cy + r) + "M" + (xEnd + r) + " " + (cy - r) + "L" + (xEnd - r) + " " + (cy + r) +
+          '" stroke="' + C.stopped + '" stroke-width="' + (laneH > 7 ? 2.2 : 1.5) + '"/>');
+      } else if (p.outcome === PP.IN_PROGRESS) {
+        parts.push('<rect x="' + xEv.toFixed(1) + '" y="' + y + '" width="' + Math.max(0, xEnd - xEv).toFixed(1) + '" height="' + bh + '" fill="' + C.progress + '"/>');
+      }
+    });
+    var ay = top + rows * laneH + 15;
+    for (q = 1; q <= quarters; q++) {
+      if (quarters > 12 && q % 2) continue;
+      parts.push('<text x="' + (left + (q - 0.5) * qw).toFixed(1) + '" y="' + ay + '" text-anchor="middle" font-size="11" fill="#6b7585">Q' + q + "</text>");
+    }
+    el.innerHTML = parts.join("");
+  }
+
+  function drawOutcomes(el, sums) {
+    var W = chartWidth(el), labelW = W < 520 ? 112 : 150, barH = 34, gap = 16, H = sums.length * (barH + gap);
+    svgSize(el, W, H);
+    var plotW = W - labelW - 4, parts = [];
+    sums.forEach(function (s, i) {
+      var y = i * (barH + gap), x = labelW;
+      parts.push('<text x="0" y="' + (y + barH / 2 + 5) + '" font-weight="600" fill="' + ORG_COLOUR[s.side] + '">' + esc(s.label) + "</text>");
+      PP.OUTCOMES.forEach(function (o) {
+        var share = s.sum.outcomeShare[o], w = plotW * share;
+        if (w <= 0) return;
+        parts.push('<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + w.toFixed(1) + '" height="' + barH + '" fill="' + OUT_COLOURS[o] + '"><title>' + esc(o + ": " + pct(share)) + "</title></rect>");
+        if (w > 40) parts.push('<text class="inbar" x="' + (x + w / 2).toFixed(1) + '" y="' + (y + barH / 2 + 5) + '" text-anchor="middle"' + (o === PP.IN_PROGRESS ? ' style="fill:' + C.ink + '"' : "") + ">" + pct(share) + "</text>");
+        x += w;
+      });
+    });
+    el.innerHTML = parts.join("");
+    document.getElementById("key-outcomes").innerHTML = PP.OUTCOMES.map(function (o) { return '<span><i style="background:' + OUT_COLOURS[o] + '"></i>' + esc(o) + "</span>"; }).join("");
+  }
+
+  function niceStep(range) {
+    var raw = range / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  }
+
+  function drawTimeline(el, sums, quarters) {
+    var W = chartWidth(el), wide = W >= 600, H = wide ? 300 : 240, left = 66, right = wide ? 150 : 14, top = 14, bottom = 34;
+    svgSize(el, W, H);
+    var vals = [0]; sums.forEach(function (s) { s.sum.timeline.forEach(function (t) { vals.push(t.netValue); }); });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (hi - lo < 1) hi = lo + 1;
+    var step = niceStep(hi - lo); lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    var pw = W - left - right, ph = H - top - bottom;
+    function X(q) { return left + (q - 1) / Math.max(1, quarters - 1) * pw; }
+    function Y(v) { return top + (hi - v) / (hi - lo) * ph; }
+    var parts = [];
+    for (var v = lo; v <= hi + 1e-6; v += step) {
+      parts.push('<line x1="' + left + '" x2="' + (W - right) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="' + (Math.abs(v) < 1e-6 ? "#4a5568" : "#e9ecf1") + '"/>');
+      parts.push('<text class="muted" x="' + (left - 8) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end">' + axisMoney(v, step) + "</text>");
+    }
+    var every = Math.max(1, Math.ceil(34 / (pw / Math.max(1, quarters - 1))));
+    for (var q = 1; q <= quarters; q++) {
+      if ((q - 1) % every) continue;
+      parts.push('<text class="muted" x="' + X(q).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle">Q' + q + "</text>");
+    }
+    var ends = [];
+    sums.forEach(function (s) {
+      var pts = s.sum.timeline.map(function (t) { return X(t.quarter).toFixed(1) + "," + Y(t.netValue).toFixed(1); }).join(" ");
+      parts.push('<polyline points="' + pts + '" fill="none" stroke="' + ORG_COLOUR[s.side] + '" stroke-width="3" stroke-linejoin="round"/>');
+      var last = s.sum.timeline[s.sum.timeline.length - 1];
+      ends.push({ s: s, y: Y(last.netValue), v: last.netValue });
+      if (s.sum.paybackQuarter) {
+        var pq = s.sum.paybackQuarter;
+        parts.push('<circle cx="' + X(pq).toFixed(1) + '" cy="' + Y(s.sum.timeline[pq - 1].netValue).toFixed(1) + '" r="4.5" fill="#fff" stroke="' + ORG_COLOUR[s.side] + '" stroke-width="2.5"><title>' + esc(s.label + " pays back in Q" + pq) + "</title></circle>");
+      }
+    });
+    ends.sort(function (a, b) { return a.y - b.y; });
+    if (ends.length === 2 && ends[1].y - ends[0].y < 34) { var mid = (ends[0].y + ends[1].y) / 2; ends[0].y = mid - 17; ends[1].y = mid + 17; }
+    if (wide) ends.forEach(function (e) {
+      parts.push('<text x="' + (W - right + 10) + '" y="' + (e.y - 2).toFixed(1) + '" font-weight="600" fill="' + ORG_COLOUR[e.s.side] + '">' + esc(e.s.label) + "</text>");
+      parts.push('<text x="' + (W - right + 10) + '" y="' + (e.y + 14).toFixed(1) + '">' + money(e.v) + "</text>");
+    });
+    el.innerHTML = parts.join("");
+    document.getElementById("key-time").innerHTML = sums.map(function (s) {
+      var last = s.sum.timeline[s.sum.timeline.length - 1];
+      return '<span><i style="background:' + ORG_COLOUR[s.side] + '"></i>' + esc(s.label) + ": " + money(last.netValue) +
+        (s.sum.paybackQuarter ? ", pays back in Q" + s.sum.paybackQuarter + " (circle)" : ", never pays back") + "</span>";
+    }).join("");
+  }
+
+  function drawBarriers(el, sums) {
+    var W = chartWidth(el), stacked = W < 560, labelW = stacked ? 0 : 200, labelH = stacked ? 18 : 0, barH = 13, inner = 3, groupGap = 16, n = sums.length;
+    var groupH = n * barH + (n - 1) * inner, H = PP.BARRIERS.length * (groupH + groupGap + labelH);
+    svgSize(el, W, H);
+    var top = 0.0001; sums.forEach(function (s) { PP.BARRIERS.forEach(function (b) { top = Math.max(top, s.sum.barrierShare[b]); }); });
+    var pw = W - labelW - 50, parts = [];
+    PP.BARRIERS.forEach(function (b, gi) {
+      var gy = gi * (groupH + groupGap + labelH);
+      parts.push('<text x="0" y="' + (stacked ? gy + 13 : gy + groupH / 2 + 5) + '">' + esc(b) + "</text>");
+      sums.forEach(function (s, si) {
+        var share = s.sum.barrierShare[b], y = gy + labelH + si * (barH + inner), w = pw * share / top;
+        parts.push('<rect x="' + labelW + '" y="' + y + '" width="' + w.toFixed(1) + '" height="' + barH + '" rx="2" fill="' + ORG_COLOUR[s.side] + '"><title>' + esc(s.label + ": " + pct(share)) + "</title></rect>");
+        parts.push('<text x="' + (labelW + w + 6).toFixed(1) + '" y="' + (y + barH - 2) + '" font-size="12">' + pct(share) + "</text>");
+      });
+    });
+    el.innerHTML = parts.join("");
+    document.getElementById("key-barriers").innerHTML = sums.map(function (s) { return '<span><i style="background:' + ORG_COLOUR[s.side] + '"></i>' + esc(s.label) + "</span>"; }).join("");
+  }
+
+  function drawLevers(el, effects) {
+    var W = chartWidth(el), stacked = W < 600, labelW = stacked ? 0 : 270, labelH = stacked ? 19 : 0, barH = 22, gap = stacked ? 14 : 10;
+    var H = effects.length * (barH + gap + labelH);
+    svgSize(el, W, H);
+    var big = 0.0001; effects.forEach(function (e) { big = Math.max(big, Math.abs(e.netValueChange)); });
+    var neg = effects.some(function (e) { return e.netValueChange < 0; });
+    var pw = W - labelW - 70, zero = labelW + (neg ? pw * 0.4 : 0), scale = (neg ? pw * 0.6 : pw) / big;
+    if (neg) { var negMax = 0; effects.forEach(function (e) { negMax = Math.max(negMax, -e.netValueChange); }); scale = Math.min(scale, pw * 0.4 / Math.max(negMax, 0.0001)); }
+    var parts = [];
+    effects.forEach(function (e, i) {
+      var row = i * (barH + gap + labelH), y = row + labelH, w = e.netValueChange * scale, x = w >= 0 ? zero : zero + w, colour = w >= 0 ? C.good : C.bad;
+      parts.push('<text x="0" y="' + (stacked ? row + 13 : y + barH / 2 + 5) + '">' + esc(e.lever) + "</text>");
+      parts.push('<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + Math.abs(w).toFixed(1) + '" height="' + barH + '" rx="2" fill="' + colour + '"><title>' +
+        esc(e.lever + ": " + signedMoney(e.netValueChange) + " net value") + "</title></rect>");
+      // Positive values sit after the bar; negative values sit just right of the zero line, clear of the label.
+      var tx = w >= 0 ? zero + w + 6 : zero + 6;
+      parts.push('<text x="' + tx.toFixed(1) + '" y="' + (y + barH / 2 + 5) + '"' + (w < 0 ? ' fill="' + C.bad + '" font-weight="600"' : "") + ">" + signedMoney(e.netValueChange) + "</text>");
+      parts.push('<line x1="' + zero + '" x2="' + zero + '" y1="' + (y - 3) + '" y2="' + (y + barH + 3) + '" stroke="#4a5568"/>');
+    });
+    el.innerHTML = parts.join("");
+  }
+
+  function kpis(el, sum) {
+    var pay = sum.paybackQuarter ? "Q" + sum.paybackQuarter : "Never";
+    el.innerHTML =
+      '<div class="kpi"><div class="num">' + pct(sum.outcomeShare[PP.SCALED]) + '</div><div class="lbl">of pilots went live</div></div>' +
+      '<div class="kpi"><div class="num">' + pct(sum.outcomeShare[PP.PURGATORY]) + '</div><div class="lbl">stuck in pilot purgatory</div></div>' +
+      '<div class="kpi"><div class="num">' + money(sum.netValue.mean) + '</div><div class="lbl">net value, pays back: ' + pay + "</div></div>";
+  }
+
+  function summaryTable(sums) {
+    var rows = [
+      ["Pilots launched (mean)", function (s) { return s.pilotsLaunched.toFixed(1); }],
+      ["Value captured", function (s) { return money(s.valueCaptured); }],
+      ["Spent running pilots", function (s) { return money(s.pilotSpend); }],
+      ["Spent on pilots that never went live", function (s) { return money(s.wastedSpend); }],
+      ["Net value, 10th to 90th percentile", function (s) { return money(s.netValue.p10) + " to " + money(s.netValue.p90); }],
+      ["Good pilots that never went live", function (s) { return s.missedOpportunities.toFixed(1) + " per portfolio"; }],
+      ["Typical quarter a pilot goes live", function (s) { return isNaN(s.medianQuarterToScale) ? "None go live" : "Q" + Math.round(s.medianQuarterToScale); }]
+    ];
+    document.getElementById("table-summary").innerHTML =
+      "<thead><tr><th scope=\"col\">Average across portfolios</th>" + sums.map(function (s) { return '<th scope="col" class="num" style="color:' + ORG_COLOUR[s.side] + '">' + esc(s.label) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      rows.map(function (r) { return "<tr><td>" + r[0] + "</td>" + sums.map(function (s) { return '<td class="num">' + esc(r[1](s.sum)) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody>";
+  }
+
+  function upDown(k) { return money(Math.abs(k)) + (k >= 0 ? " up" : " down"); }
+
+  function lede(sa, sb) {
+    var bWins = sb.netValue.mean >= sa.netValue.mean;
+    var w = bWins ? "b" : "a", l = bWins ? "a" : "b", ws = bWins ? sb : sa, ls = bWins ? sa : sb;
+    var gap = Math.abs(sb.netValue.mean - sa.netValue.mean);
+    var years = state.quarters / 4, yrs = (years % 1 ? years.toFixed(2) : String(years)) + (years === 1 ? " year" : " years");
+    var text = labelFor(w) + " finishes " + upDown(ws.netValue.mean) + " after " + yrs + ", " + money(gap) + " ahead of " + labelFor(l) + ". ";
+    text += "It takes " + pct(ws.outcomeShare[PP.SCALED]) + " of its pilots live" + (ws.paybackQuarter ? " and pays back in Q" + ws.paybackQuarter : " but never pays back") + ". ";
+    text += "Organisation " + l.toUpperCase() + " takes " + pct(ls.outcomeShare[PP.SCALED]) + " live and leaves " + pct(ls.outcomeShare[PP.PURGATORY]) + " stuck in pilot purgatory.";
+    document.getElementById("lede").textContent = text;
+  }
+
+  function labelFor(side) { var p = presetLabel(side); return "Organisation " + side.toUpperCase() + (p === "Custom" ? "" : " (" + p.toLowerCase() + ")"); }
+
+  // ---------------------------------------------------------------- compute
+  var timer = null, last = null;
+  function redrawCharts() {
+    if (!last) return;
+    drawOutcomes(document.getElementById("chart-outcomes"), last.sums);
+    drawTimeline(document.getElementById("chart-time"), last.sums, last.quarters);
+    drawBarriers(document.getElementById("chart-barriers"), last.sums);
+    drawLevers(document.getElementById("chart-levers"), last.effects);
+  }
+  function schedule() {
+    clearTimeout(timer);
+    document.getElementById("results").setAttribute("aria-busy", "true");
+    timer = setTimeout(compute, 140);
+    resetRobustness();
+  }
+
+  function compute() {
+    sanitise();
+    var w = state.world, q = state.quarters, runs = state.runs, seed = state.seed;
+    var sa = PP.simulate(state.a.org, runs, q, seed, w), sb = PP.simulate(state.b.org, runs, q, seed, w);
+    var sums = [{ side: "a", label: "Organisation A", sum: sa }, { side: "b", label: "Organisation B", sum: sb }];
+    var samples = {};
+    ["a", "b"].forEach(function (side) { samples[side] = PP.simulateOnce(state[side].org, PP.makeRng(PP.runSeed(seed, sample)), q, w); });
+    var laneCount = Math.max(samples.a.pilots, samples.b.pilots);
+    ["a", "b"].forEach(function (side) {
+      drawLanes(document.getElementById("lanes-" + side), samples[side], q, side, laneCount);
+      document.getElementById("preset-name-" + side).textContent = presetLabel(side);
+    });
+    kpis(document.getElementById("kpis-a"), sa);
+    kpis(document.getElementById("kpis-b"), sb);
+    lede(sa, sb);
+    drawOutcomes(document.getElementById("chart-outcomes"), sums);
+    summaryTable(sums);
+    drawTimeline(document.getElementById("chart-time"), sums, q);
+    drawBarriers(document.getElementById("chart-barriers"), sums);
+    var le = PP.leverEffects(state.a.org, Math.min(runs, LEVER_RUN_CAP), q, seed, w);
+    drawLevers(document.getElementById("chart-levers"), le.effects);
+    last = { sums: sums, effects: le.effects, quarters: q };
+    var best = le.effects[0];
+    document.getElementById("fix-intro").textContent = best.netValueChange > 0
+      ? "Each bar switches on one practice for organisation A and leaves everything else as it is. The biggest single gain comes from: " + best.lever.toLowerCase() + " (" + signedMoney(best.netValueChange) + ")." +
+        (best.scaledChange < -0.5 ? " It actually takes fewer pilots live; the gain comes from no longer paying for pilots that were never going to make it." : "")
+      : "Each bar switches on one practice for organisation A and leaves everything else as it is. None of them adds value on its own here, usually because A already uses them.";
+    document.getElementById("results").setAttribute("aria-busy", "false");
+    writeHash();
+  }
+
+  // ---------------------------------------------------------------- robustness
+  var robustToken = 0;
+  function resetRobustness() {
+    robustToken++;
+    var btn = document.getElementById("run-robust");
+    btn.disabled = false; btn.textContent = "Test against 11 scenarios";
+    document.getElementById("robust-status").textContent = "";
+    document.getElementById("table-robust").hidden = true;
+  }
+
+  function runRobustness() {
+    var token = ++robustToken, btn = document.getElementById("run-robust"), status = document.getElementById("robust-status");
+    var table = document.getElementById("table-robust"), results = [], i = 0;
+    var runs = Math.min(state.runs, 200), a = state.a.org, b = state.b.org;
+    btn.disabled = true; btn.textContent = "Testing";
+    table.hidden = true;
+    function step() {
+      if (token !== robustToken) return;
+      if (i >= PP.SCENARIOS.length) return finish();
+      status.textContent = "Running scenario " + (i + 1) + " of " + PP.SCENARIOS.length + ": " + PP.SCENARIOS[i].name.toLowerCase();
+      setTimeout(function () {
+        if (token !== robustToken) return;
+        results.push(PP.runScenario(PP.SCENARIOS[i], a, b, runs, state.quarters, state.seed, state.world));
+        i++; step();
+      }, 0);
+    }
+    function finish() {
+      var wins = results.filter(function (r) { return r.bNet > r.aNet; }).length, counts = {};
+      results.forEach(function (r) { counts[r.topLever] = (counts[r.topLever] || 0) + 1; });
+      var ranked = Object.keys(counts).sort(function (x, y) { return counts[y] - counts[x]; });
+      status.innerHTML = "Organisation B beats organisation A in <strong>" + wins + " of " + results.length + "</strong> scenarios. " +
+        (state.runs > runs ? "(Each scenario uses " + runs + " portfolios to stay quick, so the baseline row can differ slightly from the figures above.) " : "") +
+        (counts[ranked[0]] === results.length ? "The best single change for A is the same every time: " + esc(ranked[0].toLowerCase()) + "."
+          : "The best single change for A depends on the world: " + ranked.map(function (k) { return esc(k.toLowerCase()) + " in " + counts[k]; }).join(", ") + ".");
+      table.innerHTML = '<thead><tr><th scope="col">Scenario</th><th scope="col" class="num" style="color:var(--org-a)">Organisation A</th><th scope="col" class="num" style="color:var(--org-b)">Organisation B</th><th scope="col">Best single change for A</th></tr></thead><tbody>' +
+        results.map(function (r) {
+          return "<tr><td>" + esc(r.scenario.name) + '<span class="desc">' + esc(r.scenario.description) + '</span></td><td class="num">' + money(r.aNet) +
+            '</td><td class="num ' + (r.bNet > r.aNet ? "win" : "loss") + '">' + money(r.bNet) + "</td><td>" + esc(r.topLever) + "</td></tr>";
+        }).join("") + "</tbody>";
+      table.hidden = false;
+      btn.disabled = false; btn.textContent = "Run the test again";
+    }
+    step();
+  }
+
+  // ---------------------------------------------------------------- share links
+  function writeHash() {
+    try {
+      var payload = { a: state.a, b: state.b, w: state.world, q: state.quarters, r: state.runs, s: state.seed };
+      history.replaceState(null, "", "#" + encodeURIComponent(JSON.stringify(payload)));
+    } catch (e) { /* some file:// contexts block history updates; the app still works */ }
+  }
+  function readHash() {
+    if (!location.hash || location.hash.length < 3) return;
+    try {
+      var p = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if (p.a && p.a.org) state.a = { preset: p.a.preset, org: PP.extend(PP.MOMENTUM, p.a.org) };
+      if (p.b && p.b.org) state.b = { preset: p.b.preset, org: PP.extend(PP.GOVERNANCE, p.b.org) };
+      if (p.w) state.world = PP.extend(PP.DEFAULT_WORLD, p.w);
+      if (p.q) state.quarters = p.q; if (p.r) state.runs = p.r; if (p.s) state.seed = p.s;
+      state.a.org.name = presetLabel("a"); state.b.org.name = presetLabel("b");
+    } catch (e) { toast("That link could not be read, so the default setup is shown."); state = freshState(); }
+    sanitise();
+  }
+  function toast(msg) { var t = document.getElementById("toast"); t.textContent = msg; clearTimeout(toast.t); toast.t = setTimeout(function () { t.textContent = ""; }, 5000); }
+
+  function copyLink() {
+    writeHash();
+    var url = location.href;
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = url; ta.setAttribute("readonly", ""); ta.style.position = "absolute"; ta.style.left = "-9999px";
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      toast(ok ? "Link copied. Anyone who opens this file with it sees the same setup." : "Copy the address from your browser bar to share this setup.");
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(function () { toast("Link copied. Anyone who opens this file with it sees the same setup."); }, fallback);
+    else fallback();
+  }
+
+  // ---------------------------------------------------------------- start
+  readHash();
+  setupTabs();
+  renderPanels();
+  var resizeTimer = null, lastWidth = window.innerWidth;
+  window.addEventListener("resize", function () {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth; clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawCharts, 150);
+  });
+  document.getElementById("resample").addEventListener("click", function () { sample = (sample + 1) % 1000; compute(); });
+  document.getElementById("run-robust").addEventListener("click", runRobustness);
+  document.getElementById("copy-link").addEventListener("click", copyLink);
+  document.getElementById("reset").addEventListener("click", function () { state = freshState(); sample = 0; renderPanels(); compute(); toast("Back to the default setup."); });
+  compute();
+})();
+</script>
+</body>
+</html>
