@@ -194,3 +194,68 @@ test('compareWorkflows shares one comparison group and matches analyse', () => {
   }
   assert.equal(rows[0].verdict.timeSaved, 0);
 });
+
+test('robustness check moves each assumption and keeps the base verdict', () => {
+  const p = small({ people: 40, rounds: 40 });
+  const sens = M.sensitivity(p);
+  const a = M.analyse(p);
+  assert.equal(sens.base.verdict, a.verdict.key);
+  assert.equal(sens.base.skillGap, a.verdict.skillGap);
+  assert.equal(sens.rows.length, M.SENSITIVITY.length);
+  for (const row of sens.rows) {
+    const spec = M.PARAMS.find((s) => s.key === row.key);
+    assert.ok(row.low.value <= row.base && row.high.value >= row.base, row.key);
+    assert.ok(row.low.value >= spec.min && row.high.value <= spec.max, row.key);
+  }
+  const trust = sens.rows.find((r) => r.key === 'initialTrust');
+  assert.ok(Math.abs(trust.low.value - 0.45) < 1e-12 && Math.abs(trust.high.value - 0.85) < 1e-12);
+  // The shortcut of reusing the comparison group must give the same answer as re-running it.
+  const direct = M.analyse(Object.assign({}, p, { initialTrust: trust.high.value }));
+  assert.equal(direct.verdict.skillGap, trust.high.skillGap);
+});
+
+test('settings marked as control-free really do not affect people working alone', () => {
+  const p = small({ workflow: 'none', people: 40, rounds: 50 });
+  const base = M.simulate(p);
+  for (const key of M.CONTROL_FREE) {
+    const spec = M.PARAMS.find((s) => s.key === key);
+    for (const v of [spec.min, spec.max]) {
+      const r = M.simulate(Object.assign({}, p, { [key]: v }));
+      assert.equal(r.teamAccuracy, base.teamAccuracy, key);
+      assert.equal(r.skillAfter, base.skillAfter, key);
+    }
+  }
+});
+
+test('explanations describe the result in words', () => {
+  const crutch = M.analyse(M.presetParams('scam_teens'));
+  const text = M.explain(crutch).join(' ');
+  assert.match(text, /without thinking on \d+% of cases/);
+  assert.match(text, /right more often than people working alone/);
+  const none = M.explain(M.analyse(Object.assign(M.presetParams('scam_teens'), { workflow: 'none' })));
+  assert.equal(none.length, 1);
+  assert.match(none[0], /Working alone/);
+  const shock = M.explain(M.analyse(Object.assign(M.presetParams('scam_teens'), { driftAt: 40, driftAccuracy: 0.55 })));
+  assert.ok(shock.some((t) => /After the AI got worse/.test(t)));
+  for (const t of text.split(' ')) assert.ok(!t.includes('—'));
+});
+
+test('settings survive a round trip through the link and the file', () => {
+  const p = Object.assign(M.presetParams('lead_triage'), { driftAt: 70, showConfidence: false, seed: 1234 });
+  assert.deepEqual(Object.assign({}, M.decodeParams('#' + M.encodeParams(p))), Object.assign({}, M.normaliseParams(p)));
+  const file = JSON.parse(JSON.stringify(M.settingsFile(p)));
+  assert.equal(file.app, 'reliance-lab');
+  assert.deepEqual(Object.assign({}, M.readSettingsFile(file)), Object.assign({}, M.normaliseParams(p)));
+  assert.equal(M.readSettingsFile({ aiAccuracy: 0.7 }).aiAccuracy, 0.7);
+});
+
+test('bad links and files are handled safely', () => {
+  const p = M.decodeParams('#aiAccuracy=%E0%A4%A&rounds=70&=5&junk&people=abc');
+  assert.equal(p.aiAccuracy, M.DEFAULTS.aiAccuracy);
+  assert.equal(p.rounds, 70);
+  assert.equal(p.people, M.DEFAULTS.people);
+  assert.deepEqual(Object.assign({}, M.decodeParams('')), Object.assign({}, M.DEFAULTS));
+  assert.throws(() => M.readSettingsFile(null), /does not contain/);
+  assert.throws(() => M.readSettingsFile({ hello: 1 }), /does not contain/);
+  assert.throws(() => M.readSettingsFile('text'), /does not contain/);
+});

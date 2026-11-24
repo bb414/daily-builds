@@ -190,6 +190,36 @@ class CliTest(unittest.TestCase):
         self.assertIn("Stress test: from case 20", out)
         self.assertIn("Time per case", out)
 
+    def test_robustness_output(self):
+        code, out = run_cli("robustness", "--set", "people=30", "--set", "rounds=30")
+        self.assertEqual(code, 0)
+        self.assertIn("The verdict held in", out)
+        self.assertIn("Rubber-stamping (AI first)", out)
+        code, out = run_cli("robustness", "--workflow", "none", "--set", "people=30", "--set", "rounds=30")
+        self.assertIn("no verdict to test", out)
+
+    def test_config_file_from_the_browser(self):
+        settings = {"app": "reliance-lab", "version": 1,
+                    "params": dict(model.preset_params("invoice_fraud"), people=60, rounds=30)}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "s.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(settings, fh)
+            code, out = run_cli("run", "--config", path, "--json")
+            data = json.loads(out)
+            self.assertEqual(data["result"]["params"]["workflow"], "human_first")
+            self.assertEqual(data["result"]["params"]["people"], 60)
+            bad = os.path.join(tmp, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            for path_arg in (bad, os.path.join(tmp, "missing.json")):
+                with self.assertRaises(SystemExit):
+                    run_cli("run", "--config", path_arg)
+        with self.assertRaises(ValueError):
+            model.read_settings_file({"hello": 1})
+        with self.assertRaises(ValueError):
+            model.read_settings_file([1, 2])
+
     def test_bad_arguments_exit_cleanly(self):
         for args in (["run", "--set", "nonsense=1"], ["run", "--set", "novalue"], ["run", "--preset", "nope"],
                      ["power", "--sizes", "a,b"], ["experiment", "--arms", "none,magic", "--n", "4"]):

@@ -95,6 +95,22 @@
   table.compare tr.current { background: var(--accent-soft); }
   table.compare button { font: inherit; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
   .table-wrap { overflow-x: auto; }
+  .btn { font: inherit; font-size: 0.88rem; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
+  .btn.primary { background: var(--accent); color: var(--card); }
+  .btn:hover { filter: brightness(1.08); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 4px 0 0; }
+  .why { margin: 10px 0 0; padding-left: 20px; font-size: 0.9rem; }
+  .why li { margin: 3px 0; }
+  .tornado-row { margin: 10px 0; }
+  .tornado-label { font-size: 0.85rem; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .tornado-track { position: relative; height: 18px; background: var(--bg); border-radius: 4px; margin-top: 3px; }
+  .tornado-bar { position: absolute; top: 3px; height: 12px; border-radius: 3px; }
+  .tornado-bar.low { background: var(--control); }
+  .tornado-bar.high { background: var(--accent); }
+  .tornado-zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); opacity: 0.5; }
+  .tornado-base { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--skill); }
+  .flip { color: var(--liability); font-weight: 600; }
   footer { padding: 0 24px 32px; color: var(--muted); font-size: 0.85rem; }
   @media (max-width: 860px) {
     .layout { grid-template-columns: 1fr; padding: 8px 12px 24px; }
@@ -133,6 +149,14 @@
       <summary>Advanced assumptions</summary>
       <div id="group-advanced"></div>
     </details>
+    <h3 class="group-title">Save and share</h3>
+    <div class="btn-row">
+      <button type="button" class="btn" id="copy-link">Copy link</button>
+      <button type="button" class="btn" id="download">Download settings</button>
+      <label class="btn" for="upload" id="upload-label">Load settings</label>
+      <input type="file" id="upload" accept=".json,application/json" hidden>
+    </div>
+    <p class="status" id="save-status" role="status"></p>
   </section>
 
   <section class="results" aria-live="polite">
@@ -148,6 +172,20 @@
       <h2>Compare the four ways of using the AI</h2>
       <p class="help">Same people, same cases, same AI. Only the workflow changes.</p>
       <div class="table-wrap"><table class="compare" id="compare"></table></div>
+    </div>
+    <div class="card chart-card">
+      <h2>How robust is this verdict?</h2>
+      <p class="help">Moves each key assumption down and up, one at a time, and re-runs the comparison with the same people and cases.</p>
+      <div class="btn-row">
+        <button type="button" class="btn primary" id="robust-run">Run the robustness check</button>
+        <label for="robust-measure" class="help">Show</label>
+        <select id="robust-measure" style="width:auto">
+          <option value="skillGap">Own judgement versus practising alone</option>
+          <option value="lift">Accuracy with the AI versus working alone</option>
+        </select>
+      </div>
+      <p id="robust-summary" role="status"></p>
+      <div id="robust-chart"></div>
     </div>
     <div class="card chart-card">
       <h2>When people and the AI disagree</h2>
@@ -543,6 +581,124 @@ var RelianceModel = (function () {
     });
   }
 
+  // Assumptions the robustness check moves down and up, one at a time.
+  var SENSITIVITY = [
+    { key: 'humanAccuracy', mode: 'abs', amount: 0.08 },
+    { key: 'aiAccuracy', mode: 'abs', amount: 0.06 },
+    { key: 'errorOverlap', mode: 'abs', amount: 0.3 },
+    { key: 'aiOverconfidence', mode: 'abs', amount: 0.3 },
+    { key: 'initialTrust', mode: 'abs', amount: 0.2 },
+    { key: 'feedbackRate', mode: 'abs', amount: 0.2 },
+    { key: 'learningRate', mode: 'rel', amount: 0.5 },
+    { key: 'decayRate', mode: 'rel', amount: 0.5 },
+    { key: 'complacency', mode: 'abs', amount: 0.2 },
+    { key: 'aversion', mode: 'abs', amount: 1.5 }
+  ];
+  // Settings that cannot change what happens to people working without the AI.
+  var CONTROL_FREE = ['aiAccuracy', 'errorOverlap', 'aiOverconfidence', 'initialTrust', 'complacency', 'aversion', 'decayRate'];
+
+  function roundTo6(x) { return Math.floor(x * 1e6 + 0.5) / 1e6; }
+  function specFor(key) { for (var i = 0; i < PARAMS.length; i++) if (PARAMS[i].key === key) return PARAMS[i]; return null; }
+
+  function sensitivity(input) {
+    var p = normaliseParams(input);
+    var baseControl = simulate(withWorkflow(p, 'none'));
+    var base = p.workflow === 'none' ? baseControl : simulate(p);
+    var b = classify(base, baseControl);
+    var rows = SENSITIVITY.map(function (item) {
+      var spec = specFor(item.key), v = p[item.key];
+      var lowV = roundTo6(clamp(item.mode === 'abs' ? v - item.amount : v * (1 - item.amount), spec.min, spec.max));
+      var highV = roundTo6(clamp(item.mode === 'abs' ? v + item.amount : v * (1 + item.amount), spec.min, spec.max));
+      function runAt(value) {
+        var q = withWorkflow(p, p.workflow);
+        q[item.key] = value;
+        q = normaliseParams(q);
+        var control = CONTROL_FREE.indexOf(item.key) >= 0 ? baseControl : simulate(withWorkflow(q, 'none'));
+        var result = p.workflow === 'none' ? control : simulate(q);
+        var c = classify(result, control);
+        return { value: q[item.key], lift: c.lift, skillGap: c.skillGap, verdict: c.key };
+      }
+      return { key: item.key, base: v, low: runAt(lowV), high: runAt(highV) };
+    });
+    return { workflow: p.workflow, base: { lift: b.lift, skillGap: b.skillGap, verdict: b.key }, rows: rows };
+  }
+
+  function wholePct(x) { return Math.floor(x * 100 + 0.5) + '%'; }
+
+  // Plain-English reasons for the result, built from the numbers.
+  function explain(a) {
+    var r = a.result, c = a.control, p = r.params, out = [];
+    if (p.workflow === 'none') {
+      out.push('Working alone, people reach ' + wholePct(r.teamAccuracy) + ' accuracy. ' +
+        (p.feedbackRate > 0 && p.learningRate > 0 ? 'Feedback on ' + wholePct(p.feedbackRate) + ' of cases lets them improve with practice.' : 'Without feedback, practice alone does not improve their judgement.'));
+      return out;
+    }
+    if (r.aiRealisedAccuracy > c.teamAccuracy + 0.02) {
+      out.push('The AI is right more often than people working alone (' + wholePct(r.aiRealisedAccuracy) + ' against ' + wholePct(c.teamAccuracy) + '), so leaning on it raises accuracy.');
+    } else {
+      out.push('The AI is not clearly better than people working alone (' + wholePct(r.aiRealisedAccuracy) + ' against ' + wholePct(c.teamAccuracy) + '), so leaning on it cannot lift accuracy much.');
+    }
+    if (r.deferralRate > 0.2) {
+      out.push('People accepted the AI\'s answer without thinking on ' + wholePct(r.deferralRate) + ' of cases. Those cases give no practice, so their own skill fades.');
+    }
+    if (p.feedbackRate < 0.3) {
+      out.push('People find out the right answer on only ' + wholePct(p.feedbackRate) + ' of cases, so they learn slowly and their trust barely tracks how good the AI really is.');
+    }
+    if (r.misledRate !== null && r.misledRate > 0.6) {
+      out.push('When the AI was wrong and they were right, they still went with the AI ' + wholePct(r.misledRate) + ' of the time' +
+        (p.aiOverconfidence >= 0.5 && p.showConfidence ? ', helped by an AI that sounds more certain than it is.' : '.'));
+    }
+    if (r.rescueRate !== null && r.rescueRate < 0.5) {
+      out.push('When the AI was right and they were wrong, they kept their own answer ' + wholePct(1 - r.rescueRate) + ' of the time, so much of the AI\'s value is lost.');
+    }
+    if (p.errorOverlap >= 0.7) {
+      out.push('The AI struggles on the same cases people do, so it rarely rescues them where it matters most.');
+    }
+    if (r.complementarity > 0.005) {
+      out.push('The pair beats both the AI alone and people alone: each catches some of the other\'s mistakes.');
+    } else if (r.teamAccuracy < r.aiRealisedAccuracy - 0.02) {
+      out.push('The pair does worse than the AI would on its own (' + wholePct(r.teamAccuracy) + ' against ' + wholePct(r.aiRealisedAccuracy) + '): people overrule it when it is right.');
+    }
+    if ((p.workflow === 'human_first' || p.workflow === 'on_request') && a.verdict.skillGap > 0.005) {
+      out.push('Seeing the AI disagree, then learning who was right, teaches people faster than practising alone.');
+    }
+    if (a.verdict.shock && a.verdict.shock.gap < -0.005) {
+      out.push('After the AI got worse, people using it did worse than people working alone: trust and lost practice made the change hard to spot.');
+    }
+    return out;
+  }
+
+  // Settings travel in the link (#key=value&...) and in a small JSON file.
+  function encodeParams(input) {
+    var p = normaliseParams(input), parts = [];
+    PARAMS.forEach(function (s) { parts.push(s.key + '=' + p[s.key]); });
+    parts.push('workflow=' + p.workflow);
+    parts.push('showConfidence=' + (p.showConfidence ? 1 : 0));
+    return parts.join('&');
+  }
+
+  function decodeParams(text) {
+    var out = {};
+    String(text || '').replace(/^#/, '').split('&').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i <= 0) return;
+      try { out[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1)); } catch (e) { /* skip a malformed pair */ }
+    });
+    return normaliseParams(out);
+  }
+
+  function settingsFile(input) {
+    return { app: 'reliance-lab', version: 1, params: normaliseParams(input) };
+  }
+
+  function readSettingsFile(obj) {
+    if (!obj || typeof obj !== 'object') throw new Error('The file does not contain Reliance Lab settings.');
+    var params = obj.params && typeof obj.params === 'object' ? obj.params : obj;
+    var known = PARAMS.some(function (s) { return params[s.key] !== undefined; }) || params.workflow !== undefined;
+    if (!known) throw new Error('The file does not contain Reliance Lab settings.');
+    return normaliseParams(params);
+  }
+
   function movingAverage(values, window) {
     var out = [], sum = 0;
     for (var i = 0; i < values.length; i++) {
@@ -560,7 +716,9 @@ var RelianceModel = (function () {
     expectedAccuracy: expectedAccuracy, calibrateIntercept: calibrateIntercept,
     normaliseParams: normaliseParams, presetParams: presetParams, switchProbability: switchProbability,
     checkpointsFor: checkpointsFor, simulate: simulate, classify: classify, verdictFor: verdictFor,
-    analyse: analyse, compareWorkflows: compareWorkflows, movingAverage: movingAverage
+    analyse: analyse, compareWorkflows: compareWorkflows, movingAverage: movingAverage,
+    SENSITIVITY: SENSITIVITY, CONTROL_FREE: CONTROL_FREE, sensitivity: sensitivity, explain: explain,
+    encodeParams: encodeParams, decodeParams: decodeParams, settingsFile: settingsFile, readSettingsFile: readSettingsFile
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RelianceModel;
@@ -677,6 +835,146 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     renderShock(a);
     renderMatrix(a);
     renderCompare(rows);
+    var code = M.encodeParams(state.params);
+    try { history.replaceState(null, '', '#' + code); } catch (e) { /* some browsers block this for local files */ }
+    if (robust && robust.code !== code) {
+      robust = null;
+      document.getElementById('robust-chart').innerHTML = '';
+      document.getElementById('robust-summary').textContent = 'Settings changed. Run the check again to test the new verdict.';
+    }
+  }
+
+  var robust = null;
+
+  function runRobustness() {
+    var btn = document.getElementById('robust-run');
+    btn.disabled = true;
+    document.getElementById('robust-summary').textContent = 'Running 20 extra comparisons...';
+    setTimeout(function () {
+      robust = { code: M.encodeParams(state.params), data: M.sensitivity(state.params) };
+      btn.disabled = false;
+      renderRobustness();
+    }, 30);
+  }
+
+  function renderRobustness() {
+    var box = document.getElementById('robust-chart'), summary = document.getElementById('robust-summary');
+    box.innerHTML = '';
+    if (!robust) return;
+    var data = robust.data, measure = document.getElementById('robust-measure').value;
+    if (data.workflow === 'none') { summary.textContent = 'Pick a workflow that uses the AI: there is no verdict to test for the comparison group.'; return; }
+    var baseKey = data.base.verdict, flips = [];
+    data.rows.forEach(function (row) {
+      ['low', 'high'].forEach(function (end) {
+        if (row[end].verdict !== baseKey) flips.push(labelFor(row.key) + ' at ' + fmtValue(specFor(row.key), row[end].value) + ' gives ' + M.VERDICTS[row[end].verdict].label);
+      });
+    });
+    var held = data.rows.length * 2 - flips.length;
+    summary.textContent = 'The verdict "' + M.VERDICTS[baseKey].label + '" held in ' + held + ' of ' + data.rows.length * 2 + ' tests.' +
+      (flips.length ? ' It changed when: ' + flips.join('; ') + '.' : '');
+    var rows = data.rows.slice().sort(function (a, b) {
+      return Math.abs(b.high[measure] - b.low[measure]) - Math.abs(a.high[measure] - a.low[measure]);
+    });
+    var lo = Math.min(0, data.base[measure]), hi = Math.max(0, data.base[measure]);
+    rows.forEach(function (r) { lo = Math.min(lo, r.low[measure], r.high[measure]); hi = Math.max(hi, r.low[measure], r.high[measure]); });
+    var pad = Math.max((hi - lo) * 0.08, 0.002);
+    lo -= pad; hi += pad;
+    var pos = function (v) { return ((v - lo) / (hi - lo) * 100).toFixed(2) + '%'; };
+    var base = data.base[measure];
+    var legend = el('div', { 'class': 'legend' });
+    var l1 = el('span', null, 'Assumption lower'); l1.style.color = 'var(--control)';
+    var l2 = el('span', null, 'Assumption higher'); l2.style.color = 'var(--accent)';
+    var l3 = el('span', null, 'Current result: ' + pp(base)); l3.style.color = 'var(--skill)';
+    legend.appendChild(l1); legend.appendChild(l2); legend.appendChild(l3);
+    box.appendChild(legend);
+    rows.forEach(function (r) {
+      var spec = specFor(r.key);
+      var wrap = el('div', { 'class': 'tornado-row' });
+      var label = el('div', { 'class': 'tornado-label' });
+      label.appendChild(el('span', null, spec.label));
+      var detail = el('span', { 'class': 'help' }, fmtValue(spec, r.low.value) + ': ' + pp(r.low[measure]) + ' | ' + fmtValue(spec, r.high.value) + ': ' + pp(r.high[measure]));
+      label.appendChild(detail);
+      wrap.appendChild(label);
+      var track = el('div', { 'class': 'tornado-track', 'aria-hidden': 'true' });
+      [['low', r.low[measure]], ['high', r.high[measure]]].forEach(function (pair) {
+        var bar = el('div', { 'class': 'tornado-bar ' + pair[0] });
+        bar.style.left = pos(Math.min(base, pair[1]));
+        bar.style.width = (Math.abs(pair[1] - base) / (hi - lo) * 100).toFixed(2) + '%';
+        track.appendChild(bar);
+      });
+      var zero = el('div', { 'class': 'tornado-zero' }); zero.style.left = pos(0); track.appendChild(zero);
+      var bl = el('div', { 'class': 'tornado-base' }); bl.style.left = pos(base); track.appendChild(bl);
+      wrap.appendChild(track);
+      ['low', 'high'].forEach(function (end) {
+        if (r[end].verdict !== baseKey) wrap.appendChild(el('div', { 'class': 'help flip' }, 'At ' + fmtValue(spec, r[end].value) + ' the verdict becomes ' + M.VERDICTS[r[end].verdict].label + '.'));
+      });
+      box.appendChild(wrap);
+    });
+    box.appendChild(el('p', { 'class': 'help' }, 'The black line is zero. Measured in percentage points against the comparison group.'));
+  }
+
+  function specFor(key) { for (var i = 0; i < M.PARAMS.length; i++) if (M.PARAMS[i].key === key) return M.PARAMS[i]; return null; }
+  function labelFor(key) { return specFor(key).label; }
+
+  function setStatus(text) { document.getElementById('save-status').textContent = text; }
+
+  function applyParams(params, preset) {
+    state.params = params;
+    state.preset = preset || matchPreset(params);
+    syncControls();
+    run();
+  }
+
+  function matchPreset(params) {
+    var code = M.encodeParams(params);
+    for (var k in M.PRESETS) if (M.encodeParams(M.presetParams(k)) === code) return k;
+    return 'custom';
+  }
+
+  function buildSaveControls() {
+    document.getElementById('copy-link').addEventListener('click', function () {
+      var link = location.href.split('#')[0] + '#' + M.encodeParams(state.params);
+      var done = function () { setStatus('Link copied. Anyone opening the app with it sees these settings.'); };
+      var fail = function () { setStatus('Could not copy automatically. The address bar now holds the link.'); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fail);
+        else fail();
+      } catch (e) { fail(); }
+    });
+    document.getElementById('download').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify(M.settingsFile(state.params), null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'reliance-lab-settings.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      setStatus('Saved reliance-lab-settings.json. The Python version can read it with --config.');
+    });
+    var upload = document.getElementById('upload');
+    document.getElementById('upload-label').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); upload.click(); }
+    });
+    document.getElementById('upload-label').setAttribute('tabindex', '0');
+    document.getElementById('upload-label').setAttribute('role', 'button');
+    upload.addEventListener('change', function () {
+      var file = upload.files && upload.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          applyParams(M.readSettingsFile(JSON.parse(reader.result)));
+          setStatus('Loaded ' + file.name + '.');
+        } catch (e) {
+          setStatus('Could not load ' + file.name + ': ' + (e instanceof SyntaxError ? 'it is not valid JSON.' : e.message));
+        }
+        upload.value = '';
+      };
+      reader.onerror = function () { setStatus('Could not read ' + file.name + '.'); };
+      reader.readAsText(file);
+    });
+    document.getElementById('robust-run').addEventListener('click', runRobustness);
+    document.getElementById('robust-measure').addEventListener('change', renderRobustness);
   }
 
   var VERDICT_COLOURS = { baseline: '--nolift', helper: '--helper', crutch: '--crutch', no_lift: '--nolift', liability: '--liability' };
@@ -693,6 +991,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       box.appendChild(el('p', { 'class': 'help' },
         'Accuracy with the AI: ' + pp(a.verdict.lift) + ' versus working alone. Own judgement afterwards: ' +
         pp(a.verdict.skillGap) + ' versus practising without the AI. Time per case: ' + speed(a.verdict.timeSaved) + '.'));
+    }
+    var reasons = M.explain(a);
+    if (reasons.length) {
+      var ul = el('ul', { 'class': 'why', 'aria-label': 'Why this result' });
+      reasons.forEach(function (t) { ul.appendChild(el('li', null, t)); });
+      box.appendChild(ul);
     }
   }
 
@@ -845,6 +1149,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   }
 
   buildControls();
+  buildSaveControls();
+  if (location.hash.length > 1) {
+    state.params = M.decodeParams(location.hash);
+    state.preset = matchPreset(state.params);
+  }
   syncControls();
   run();
   window.addEventListener('resize', schedule);

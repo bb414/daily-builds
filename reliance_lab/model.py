@@ -474,6 +474,138 @@ def compare_workflows(src=None):
     return rows
 
 
+# Assumptions the robustness check moves down and up, one at a time: (key, mode, amount).
+SENSITIVITY = [
+    ("humanAccuracy", "abs", 0.08),
+    ("aiAccuracy", "abs", 0.06),
+    ("errorOverlap", "abs", 0.3),
+    ("aiOverconfidence", "abs", 0.3),
+    ("initialTrust", "abs", 0.2),
+    ("feedbackRate", "abs", 0.2),
+    ("learningRate", "rel", 0.5),
+    ("decayRate", "rel", 0.5),
+    ("complacency", "abs", 0.2),
+    ("aversion", "abs", 1.5),
+]
+# Settings that cannot change what happens to people working without the AI.
+CONTROL_FREE = ["aiAccuracy", "errorOverlap", "aiOverconfidence", "initialTrust", "complacency", "aversion", "decayRate"]
+
+PARAM_LABELS = {
+    "humanAccuracy": "People's starting accuracy",
+    "initialTrust": "Starting trust in the AI",
+    "aiAccuracy": "AI accuracy",
+    "errorOverlap": "Shared blind spots",
+    "aiOverconfidence": "AI overconfidence",
+    "feedbackRate": "Feedback after each case",
+    "rounds": "Cases per person",
+    "driftAt": "AI gets worse from case",
+    "driftAccuracy": "AI accuracy after the change",
+    "learningRate": "Learning from practice",
+    "decayRate": "Skill decay from disuse",
+    "complacency": "Rubber-stamping (AI first)",
+    "requestThreshold": "Ask threshold (on request)",
+    "trustRate": "Trust update speed",
+    "aversion": "Error sensitivity",
+    "skillSpread": "Differences between people",
+    "difficultySpread": "Spread of case difficulty",
+    "people": "People simulated",
+    "seed": "Random seed",
+}
+
+
+def _round6(x):
+    return math.floor(x * 1e6 + 0.5) / 1e6
+
+
+def _spec(key):
+    for spec in PARAMS:
+        if spec[0] == key:
+            return spec
+    return None
+
+
+def sensitivity(src=None):
+    """Moves each key assumption down and up and records how the verdict's two measures respond."""
+    p = normalise_params(src)
+    base_control = simulate(dict(p, workflow="none"))
+    base = base_control if p["workflow"] == "none" else simulate(p)
+    b_key, b_lift, b_gap = classify(base, base_control)
+    rows = []
+    for key, mode, amount in SENSITIVITY:
+        _k, _g, lo, hi, _d, _i = _spec(key)
+        v = p[key]
+        low_v = _round6(clamp(v - amount if mode == "abs" else v * (1 - amount), lo, hi))
+        high_v = _round6(clamp(v + amount if mode == "abs" else v * (1 + amount), lo, hi))
+
+        def run_at(value):
+            q = normalise_params(dict(p, **{key: value}))
+            control = base_control if key in CONTROL_FREE else simulate(dict(q, workflow="none"))
+            result = control if p["workflow"] == "none" else simulate(q)
+            c_key, lift, gap = classify(result, control)
+            return {"value": q[key], "lift": lift, "skillGap": gap, "verdict": c_key}
+
+        rows.append({"key": key, "base": v, "low": run_at(low_v), "high": run_at(high_v)})
+    return {"workflow": p["workflow"], "base": {"lift": b_lift, "skillGap": b_gap, "verdict": b_key}, "rows": rows}
+
+
+def whole_pct(x):
+    return "%d%%" % math.floor(x * 100 + 0.5)
+
+
+def explain(a):
+    """Plain-English reasons for the result, built from the numbers (matches the browser app)."""
+    r, c, p = a["result"], a["control"], a["result"]["params"]
+    out = []
+    if p["workflow"] == "none":
+        if p["feedbackRate"] > 0 and p["learningRate"] > 0:
+            tail = "Feedback on %s of cases lets them improve with practice." % whole_pct(p["feedbackRate"])
+        else:
+            tail = "Without feedback, practice alone does not improve their judgement."
+        out.append("Working alone, people reach %s accuracy. %s" % (whole_pct(r["teamAccuracy"]), tail))
+        return out
+    if r["aiRealisedAccuracy"] > c["teamAccuracy"] + 0.02:
+        out.append("The AI is right more often than people working alone (%s against %s), so leaning on it raises accuracy."
+                   % (whole_pct(r["aiRealisedAccuracy"]), whole_pct(c["teamAccuracy"])))
+    else:
+        out.append("The AI is not clearly better than people working alone (%s against %s), so leaning on it cannot lift accuracy much."
+                   % (whole_pct(r["aiRealisedAccuracy"]), whole_pct(c["teamAccuracy"])))
+    if r["deferralRate"] > 0.2:
+        out.append("People accepted the AI's answer without thinking on %s of cases. Those cases give no practice, so their own skill fades."
+                   % whole_pct(r["deferralRate"]))
+    if p["feedbackRate"] < 0.3:
+        out.append("People find out the right answer on only %s of cases, so they learn slowly and their trust barely tracks how good the AI really is."
+                   % whole_pct(p["feedbackRate"]))
+    if r["misledRate"] is not None and r["misledRate"] > 0.6:
+        tail = ", helped by an AI that sounds more certain than it is." if p["aiOverconfidence"] >= 0.5 and p["showConfidence"] else "."
+        out.append("When the AI was wrong and they were right, they still went with the AI %s of the time%s"
+                   % (whole_pct(r["misledRate"]), tail))
+    if r["rescueRate"] is not None and r["rescueRate"] < 0.5:
+        out.append("When the AI was right and they were wrong, they kept their own answer %s of the time, so much of the AI's value is lost."
+                   % whole_pct(1 - r["rescueRate"]))
+    if p["errorOverlap"] >= 0.7:
+        out.append("The AI struggles on the same cases people do, so it rarely rescues them where it matters most.")
+    if r["complementarity"] > 0.005:
+        out.append("The pair beats both the AI alone and people alone: each catches some of the other's mistakes.")
+    elif r["teamAccuracy"] < r["aiRealisedAccuracy"] - 0.02:
+        out.append("The pair does worse than the AI would on its own (%s against %s): people overrule it when it is right."
+                   % (whole_pct(r["teamAccuracy"]), whole_pct(r["aiRealisedAccuracy"])))
+    if p["workflow"] in ("human_first", "on_request") and a["verdict"]["skillGap"] > 0.005:
+        out.append("Seeing the AI disagree, then learning who was right, teaches people faster than practising alone.")
+    if a["verdict"]["shock"] and a["verdict"]["shock"]["gap"] < -0.005:
+        out.append("After the AI got worse, people using it did worse than people working alone: trust and lost practice made the change hard to spot.")
+    return out
+
+
+def read_settings_file(obj):
+    """Accepts the JSON file the browser app downloads (or a flat dict of settings)."""
+    if not isinstance(obj, dict):
+        raise ValueError("The file does not contain Reliance Lab settings.")
+    params = obj["params"] if isinstance(obj.get("params"), dict) else obj
+    if not any(key in params for key, *_rest in PARAMS) and "workflow" not in params:
+        raise ValueError("The file does not contain Reliance Lab settings.")
+    return normalise_params(params)
+
+
 def moving_average(values, window):
     out, total = [], 0.0
     for i, v in enumerate(values):

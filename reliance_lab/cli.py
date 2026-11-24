@@ -37,10 +37,25 @@ def parse_sets(pairs):
     return out
 
 
+def load_config(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return model.read_settings_file(json.load(fh))
+    except OSError as err:
+        raise SystemExit("Could not read %s: %s" % (path, err.strerror))
+    except json.JSONDecodeError:
+        raise SystemExit("%s is not valid JSON" % path)
+    except ValueError as err:
+        raise SystemExit("%s: %s" % (path, err))
+
+
 def build_params(args):
-    if args.preset not in model.PRESETS:
+    if args.config:
+        params = load_config(args.config)
+    elif args.preset not in model.PRESETS:
         raise SystemExit("Unknown preset %r. Choose from: %s" % (args.preset, ", ".join(model.PRESETS)))
-    params = model.preset_params(args.preset)
+    else:
+        params = model.preset_params(args.preset)
     params.update(parse_sets(args.set))
     if getattr(args, "workflow", None):
         params["workflow"] = args.workflow
@@ -68,6 +83,9 @@ def format_run(a):
     if v["key"] != "baseline":
         lines += ["", "  Lift versus working alone: %s. Own judgement versus practising alone: %s." % (
             pts(v["lift"]), pts(v["skillGap"]))]
+    reasons = model.explain(a)
+    if reasons:
+        lines += ["", "Why:"] + ["  - " + text for text in reasons]
     sh = r["shock"]
     if sh:
         lines += ["", "Stress test: from case %d the AI is right %s of the time (before: %s)." % (
@@ -116,6 +134,35 @@ def format_experiment(e):
         t = comp["change"]
         lines.append("  %-12s %s (95%% CI %s to %s), d = %.2f, p = %.3f" % (
             model.WORKFLOW_LABELS[arm], pts(t["diff"]), pts(t["low"]), pts(t["high"]), t["d"], t["p"]))
+    return "\n".join(lines)
+
+
+def format_robustness(sens, measure="skillGap"):
+    names = {"skillGap": "own judgement versus practising alone", "lift": "accuracy with the AI versus working alone"}
+    base = sens["base"]
+    if sens["workflow"] == "none":
+        return "The comparison group has no verdict to test. Pick a workflow that uses the AI."
+    rows = sorted(sens["rows"], key=lambda r: -abs(r["high"][measure] - r["low"][measure]))
+    lines = [
+        "Robustness check: each assumption moved down and up, one at a time",
+        "Measure: %s. Current result %s, verdict %s." % (names[measure], pts(base[measure]),
+                                                        model.VERDICTS[base["verdict"]]["label"]),
+        "",
+        "  %-30s %10s %10s %10s %10s" % ("Assumption", "Lower", "Result", "Higher", "Result"),
+    ]
+    flips = 0
+    for row in rows:
+        lo, hi = row["low"], row["high"]
+        marks = []
+        for end in (lo, hi):
+            if end["verdict"] != base["verdict"]:
+                flips += 1
+                marks.append("%s -> %s" % (end["value"], model.VERDICTS[end["verdict"]]["label"]))
+        lines.append(("  %-30s %10s %10s %10s %10s  %s" % (
+            model.PARAM_LABELS[row["key"]], "%g" % lo["value"], pts(lo[measure]), "%g" % hi["value"], pts(hi[measure]),
+            "; ".join(marks))).rstrip())
+    total = 2 * len(rows)
+    lines += ["", "The verdict held in %d of %d tests." % (total - flips, total)]
     return "\n".join(lines)
 
 
@@ -192,6 +239,7 @@ def make_parser():
 
     def common(sp):
         sp.add_argument("--preset", default="scam_teens", help="Starting scenario: " + ", ".join(model.PRESETS))
+        sp.add_argument("--config", help="Settings file downloaded from the browser app (overrides --preset)")
         sp.add_argument("--set", action="append", metavar="KEY=VALUE", help="Override one setting (repeatable)")
 
     sp = sub.add_parser("run", help="Simulate one workflow against the no-AI comparison group")
@@ -202,6 +250,11 @@ def make_parser():
     sp = sub.add_parser("compare", help="Compare all four workflows on the same people and cases")
     common(sp)
     sp.add_argument("--json", action="store_true", help="Print the summary as JSON")
+
+    sp = sub.add_parser("robustness", help="Which assumptions could change the verdict?")
+    common(sp)
+    sp.add_argument("--workflow", choices=model.WORKFLOW_KEYS)
+    sp.add_argument("--measure", choices=["skillGap", "lift"], default="skillGap")
 
     sp = sub.add_parser("experiment", help="Run a virtual randomised experiment with noisy tests")
     common(sp)
@@ -237,6 +290,8 @@ def main(argv=None):
                                   for r in rows], indent=2))
             else:
                 print(format_compare(rows))
+        elif args.command == "robustness":
+            print(format_robustness(model.sensitivity(params), args.measure))
         elif args.command == "experiment":
             arms = [x.strip() for x in args.arms.split(",") if x.strip()]
             e = run_experiment(params, arms=arms, n=args.n, items=args.items)

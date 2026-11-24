@@ -8,6 +8,11 @@ let input = '';
 process.stdin.on('data', (chunk) => { input += chunk; });
 process.stdin.on('end', () => {
   const configs = JSON.parse(input);
-  const out = configs.map((c) => (c.__compare ? M.compareWorkflows(c.__compare) : M.analyse(c)));
+  const out = configs.map((c) => {
+    if (c.__compare) return M.compareWorkflows(c.__compare);
+    if (c.__sensitivity) return M.sensitivity(c.__sensitivity);
+    if (c.__explain) return M.explain(M.analyse(c.__explain));
+    return M.analyse(c);
+  });
   process.stdout.write(JSON.stringify(out));
 });

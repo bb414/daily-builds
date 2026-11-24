@@ -87,6 +87,15 @@ class ParityTest(unittest.TestCase):
         for js_row, py_row in zip(js, py):
             assert_close(self, js_row, py_row, "compare." + py_row["workflow"])
 
+    def test_robustness_and_explanations_match(self):
+        config = dict(model.preset_params("scam_teens"), people=30, rounds=40)
+        js = run_js([{"__sensitivity": config}])[0]
+        assert_close(self, js, model.sensitivity(config), "sensitivity")
+        configs = [dict(c, people=40) for c in CASES]
+        js_text = run_js([{"__explain": c} for c in configs])
+        for c, text in zip(configs, js_text):
+            self.assertEqual(text, model.explain(model.analyse(c)))
+
     def test_full_results_match(self):
         js = run_js(CASES)
         for config, js_out in zip(CASES, js):
