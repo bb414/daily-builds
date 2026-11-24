@@ -165,6 +165,14 @@ select, input[type="text"] {
   border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px; min-height: 44px;
 }
 
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 10px 0; }
+.field { display: grid; gap: 4px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.field.wide { grid-column: 1 / -1; }
+.field input, .field select { font-weight: 400; width: 100%; }
+.error { color: var(--bad-ink); font-weight: 600; margin-top: 10px; }
+.study-box { border: 1px dashed var(--line-2); border-radius: 12px; padding: 12px 14px; margin-top: 8px; }
+.study-box p { margin-bottom: 8px; }
+
 /* Progress */
 .progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .round-pill { font-weight: 700; font-size: 15px; }
@@ -278,6 +286,7 @@ select, input[type="text"] {
   .steps { grid-template-columns: 1fr; }
   .tiles { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
+  .field-grid { grid-template-columns: 1fr; }
   h1 { font-size: 24px; }
   .tagline { display: none; }
   .hbar { grid-template-columns: 1fr 48px; }
@@ -314,6 +323,7 @@ select, input[type="text"] {
     <div class="btn-row">
       <button class="btn primary big" id="start-btn" type="button">Start the test</button>
     </div>
+    <p class="error" id="start-error" role="alert" hidden></p>
 
     <details class="settings card" id="settings">
       <summary>Test settings</summary>
@@ -330,6 +340,25 @@ select, input[type="text"] {
         <legend>What does the checker show?</legend>
         <label class="check"><input type="checkbox" id="opt-reasons" checked> <span>Its reasons (the warning signs or reassuring signs it spotted)</span></label>
         <label class="check"><input type="checkbox" id="opt-confidence" checked> <span>How sure it is, as a percentage</span></label>
+      </fieldset>
+      <fieldset>
+        <legend>Running a study</legend>
+        <label class="check"><input type="checkbox" id="opt-study"> <span>Study mode: run the test with several participants on this device and compare a group with the checker against a group without it</span></label>
+        <div id="study-fields" hidden>
+          <div class="field-grid">
+            <label class="field"><span>Study name</span><input type="text" id="study-name" value="pilot-study" autocomplete="off" spellcheck="false"></label>
+            <label class="field"><span>Participant ID</span><input type="text" id="participant-id" value="P001" autocomplete="off" spellcheck="false"></label>
+            <label class="field wide"><span>Who gets the checker in round 2?</span>
+              <select id="allocation">
+                <option value="random">Half of participants, picked at random by ID</option>
+                <option value="checker">Everyone</option>
+                <option value="control">Nobody (everyone is in the comparison group)</option>
+              </select></label>
+          </div>
+          <label class="check"><input type="checkbox" id="opt-show-results" checked> <span>Show participants their results at the end</span></label>
+          <p class="small muted">The same study name and participant ID always give the same messages and the same group, so any session can be rerun exactly. Finished sessions are kept in this browser until you clear them.</p>
+          <div id="saved-panel"></div>
+        </div>
       </fieldset>
     </details>
 
@@ -1537,6 +1566,19 @@ function simulateResponses(session, persona, seed) {
   return out;
 }
 
+const BUNDLE_FORMAT = 'crutch-check-bundle';
+
+function makeBundle(sessions) {
+  return {format: BUNDLE_FORMAT, version: 1, sessions: sessions};
+}
+
+function nextParticipantId(id) {
+  const m = /^(.*?)(\d+)$/.exec(id);
+  if (!m) return id ? id + '-2' : 'P001';
+  const n = String(Number(m[2]) + 1);
+  return m[1] + (n.length < m[2].length ? '0'.repeat(m[2].length - n.length) + n : n);
+}
+
 const CSV_COLUMNS = ['participant', 'study', 'arm', 'seed', 'round', 'position', 'messageId',
   'truth', 'difficulty', 'channel', 'checkerVerdict', 'checkerConfidence',
   'initialVerdict', 'initialSure', 'initialMs', 'finalVerdict', 'finalSure',
@@ -1584,7 +1626,8 @@ if (typeof module !== 'undefined' && module.exports) {
     BANK, MESSAGES, CUES, BY_ID, FORMAT, VERSION, ROUND_LABELS, CONTROL_ROUND_LABELS, PROFILES,
     PERSONAS, DEMO_SEEDS, CONF_SURE, CONF_UNSURE, CSV_COLUMNS, defaultDesign, mulberry32, hashString,
     shuffle, round2, assignArm, participantSeed, normaliseDesign, buildSession, checkerReasons,
-    roundStats, assistedStats, classify, scoreSession, simulateResponses, sessionRows, toCSV
+    roundStats, assistedStats, classify, scoreSession, simulateResponses, sessionRows, toCSV,
+    BUNDLE_FORMAT, makeBundle, nextParticipantId
   };
 }
 /* MODEL END */
@@ -1683,12 +1726,116 @@ if (typeof module !== 'undefined' && module.exports) {
     return (x ^ Date.now()) >>> 0;
   }
 
+  function studyMode() { return $('#opt-study').checked; }
+
   function startTest() {
     const design = readDesign();
-    state.session = buildSession(randomSeed(), 'checker', design, '', '');
+    const err = $('#start-error');
+    err.hidden = true;
+    if (studyMode()) {
+      const study = $('#study-name').value.trim();
+      const participant = $('#participant-id').value.trim();
+      if (!study || !participant) {
+        err.textContent = 'Study mode needs a study name and a participant ID. Open the test settings to add them.';
+        err.hidden = false;
+        $('#settings').open = true;
+        focusEl(!study ? $('#study-name') : $('#participant-id'));
+        return;
+      }
+      const saved = loadSaved();
+      if (saved.some(x => x.study === study && x.participant === participant)) {
+        if (!window.confirm('A session for ' + participant + ' in ' + study + ' is already saved on this device. Run it again anyway?')) return;
+      }
+      const alloc = $('#allocation').value;
+      const arm = alloc === 'random' ? assignArm(study, participant) : alloc;
+      state.session = buildSession(participantSeed(study, participant), arm, design, participant, study);
+      state.session.showResults = $('#opt-show-results').checked;
+    } else {
+      state.session = buildSession(randomSeed(), 'checker', design, '', '');
+    }
     state.session.startedAt = new Date().toISOString();
     state.index = 0;
     showBreak(1);
+  }
+
+  /* ---------- Sessions kept on this device (study mode) ---------- */
+  const STORE_KEY = 'crutch-check-sessions-v1';
+  let storageWorks = true;
+
+  function loadSaved() {
+    try {
+      const raw = window.localStorage.getItem(STORE_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      storageWorks = false;
+      return [];
+    }
+  }
+
+  function saveSession(session) {
+    const list = loadSaved();
+    list.push(session);
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      storageWorks = false;
+      return false;
+    }
+  }
+
+  function clearSaved() {
+    try { window.localStorage.removeItem(STORE_KEY); } catch (e) { storageWorks = false; }
+  }
+
+  function savedSummaryHTML(context) {
+    const list = loadSaved();
+    if (!storageWorks) {
+      return '<div class="study-box"><p>This browser won\'t let the page keep sessions, so download each one before moving on.</p></div>';
+    }
+    if (!list.length) {
+      return context === 'settings' ? '<p class="small muted">No sessions saved on this device yet.</p>' : '';
+    }
+    const withChecker = list.filter(x => x.arm === 'checker').length;
+    const studies = Array.from(new Set(list.map(x => x.study || '(no name)')));
+    let h = '<div class="study-box"><p><strong>' + list.length + ' session' + (list.length === 1 ? '' : 's') + ' saved on this device</strong>: ' +
+      withChecker + ' with the checker, ' + (list.length - withChecker) + ' without. Studies: ' + esc(studies.join(', ')) + '.</p>' +
+      '<div class="btn-row"><button class="btn" type="button" data-store="bundle">Download all sessions (JSON)</button>' +
+      '<button class="btn" type="button" data-store="csv">Download all answers (CSV)</button>';
+    if (context === 'settings') h += '<button class="btn" type="button" data-store="clear">Clear saved sessions</button>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function refreshSavedPanel() { $('#saved-panel').innerHTML = savedSummaryHTML('settings'); }
+
+  function onStoreAction(act) {
+    const list = loadSaved();
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (act === 'bundle') download('crutch-check-sessions-' + stamp + '.json', JSON.stringify(makeBundle(list), null, 1), 'application/json');
+    else if (act === 'csv') download('crutch-check-answers-' + stamp + '.csv', toCSV(list), 'text/csv');
+    else if (act === 'clear') {
+      if (window.confirm('Delete all ' + list.length + ' saved sessions from this browser? Download them first if you need them.')) {
+        clearSaved();
+        refreshSavedPanel();
+      }
+    }
+  }
+
+  function nextParticipant() {
+    $('#participant-id').value = nextParticipantId(state.session.participant);
+    updateStartLabel();
+    show('screen-intro');
+    focusEl($('#start-btn'));
+  }
+
+  function updateStartLabel() {
+    const on = studyMode();
+    $('#study-fields').hidden = !on;
+    const id = $('#participant-id').value.trim();
+    $('#start-btn').textContent = on && id ? 'Start for participant ' + id : 'Start the test';
+    if (on) refreshSavedPanel();
   }
 
   function showBreak(round) {
@@ -1799,7 +1946,37 @@ if (typeof module !== 'undefined' && module.exports) {
   function finish() {
     const s = state.session;
     s.finishedAt = new Date().toISOString();
+    if (s.study) {
+      saveSession(s);
+      if (s.showResults === false) { renderThanks(s); return; }
+    }
     renderResults(s, null);
+  }
+
+  function studyPanelHTML(s) {
+    return '<div class="card" style="margin-top:16px"><h2>Study: ' + esc(s.study) + '</h2>' +
+      '<p class="small muted">Participant ' + esc(s.participant) + ' was in the ' + (s.arm === 'checker' ? 'group with the checker' : 'comparison group without the checker') + '.</p>' +
+      savedSummaryHTML('results') +
+      '<div class="btn-row" style="margin-top:12px"><button class="btn primary" type="button" data-act="next">Next participant</button></div></div>';
+  }
+
+  function renderThanks(s) {
+    const root = $('#results');
+    root.innerHTML = '<div class="card break-card"><div class="eyebrow">Finished</div><h1 id="results-title" tabindex="-1">Thank you</h1>' +
+      '<p>That\'s all 28 messages. Please hand the device back to the person running the study.</p></div>' + studyPanelHTML(s);
+    wireResultButtons(root, s);
+    show('screen-results');
+    focusEl($('#results-title'));
+  }
+
+  function wireResultButtons(root, s) {
+    root.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+      const act = b.getAttribute('data-act');
+      if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, null, 2), 'application/json');
+      else if (act === 'csv') download(fileStem(s) + '.csv', toCSV([s]), 'text/csv');
+      else if (act === 'next') nextParticipant();
+      else if (act === 'restart') { show('screen-intro'); focusEl($('#intro-title')); }
+    }));
   }
 
   /* ---------- Results ---------- */
@@ -1903,14 +2080,10 @@ if (typeof module !== 'undefined' && module.exports) {
       '<button class="btn" type="button" data-act="csv">Download answers (CSV)</button>' +
       '<button class="btn primary" type="button" data-act="restart">Back to the start</button></div></div>';
 
+    if (s.study && !demoLabel) html += studyPanelHTML(s);
     const root = $('#results');
     root.innerHTML = html;
-    root.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-      const act = b.getAttribute('data-act');
-      if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, null, 2), 'application/json');
-      else if (act === 'csv') download(fileStem(s) + '.csv', toCSV([s]), 'text/csv');
-      else if (act === 'restart') { show('screen-intro'); focusEl($('#intro-title')); }
-    }));
+    wireResultButtons(root, s);
     show('screen-results');
     focusEl($('#results-title'));
   }
@@ -1967,6 +2140,13 @@ if (typeof module !== 'undefined' && module.exports) {
 
   /* ---------- Wiring ---------- */
   $('#start-btn').addEventListener('click', startTest);
+  $('#opt-study').addEventListener('change', updateStartLabel);
+  $('#participant-id').addEventListener('input', updateStartLabel);
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-store]');
+    if (b) onStoreAction(b.getAttribute('data-store'));
+  });
+  updateStartLabel();
   $('#demo-btn').addEventListener('click', showDemo);
   $('#break-go').addEventListener('click', () => {
     state.lockUntil = performance.now() + 250;

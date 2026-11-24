@@ -97,6 +97,54 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def answer_all(self, page):
+        for _ in range(3):
+            page.wait_for_selector("#screen-break:not([hidden])")
+            page.click("#break-go")
+            while page.is_visible("#screen-trial"):
+                page.wait_for_timeout(260)
+                page.keyboard.press("4")
+                if page.is_visible("#checker-block"):
+                    page.wait_for_timeout(360)
+                    page.keyboard.press("4")
+                if page.is_visible("#screen-break") or page.is_visible("#screen-results"):
+                    break
+
+    def test_study_mode_saves_sessions_and_moves_on(self):
+        page = self.open()
+        page.click("#settings summary")
+        page.check("#opt-study")
+        page.fill("#study-name", "ui-test")
+        page.fill("#participant-id", "P007")
+        page.select_option("#allocation", "control")
+        page.uncheck("#opt-show-results")
+        self.assertEqual(page.inner_text("#start-btn"), "Start for participant P007")
+        page.click("#start-btn")
+        self.answer_all(page)
+        page.wait_for_selector("#screen-results:not([hidden])")
+        self.assertIn("Thank you", page.inner_text("#results"))
+        self.assertIn("1 session saved on this device", page.inner_text("#results"))
+        stored = page.evaluate("JSON.parse(localStorage.getItem('crutch-check-sessions-v1'))")
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(stored[0]["arm"], "control")
+        self.assertEqual(stored[0]["participant"], "P007")
+        self.assertTrue(all(t["checker"] is None for t in stored[0]["trials"]))
+        page.click("[data-act=next]")
+        self.assertEqual(page.input_value("#participant-id"), "P008")
+        self.assertEqual(self.errors, [])
+        page.evaluate("localStorage.clear()")
+        page.close()
+
+    def test_study_mode_needs_an_id(self):
+        page = self.open()
+        page.click("#settings summary")
+        page.check("#opt-study")
+        page.fill("#participant-id", "")
+        page.click("#start-btn")
+        self.assertTrue(page.is_visible("#start-error"))
+        self.assertTrue(page.is_visible("#screen-intro"))
+        page.close()
+
     def test_every_control_has_a_name(self):
         page = self.open()
         unnamed = page.evaluate("""() => [...document.querySelectorAll('button, select, input')]

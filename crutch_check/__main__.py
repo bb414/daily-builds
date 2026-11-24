@@ -4,9 +4,12 @@ import argparse
 import json
 import sys
 
+from .cohort import SCENARIOS, simulate_cohort
+from .htmlreport import study_html
 from .model import PERSONAS, build_session, simulate_responses
 from .report import session_report
-from .sessions import load_sessions, write_csv
+from .sessions import load_sessions, write_bundle, write_csv
+from .study import analyse, study_report
 
 
 def cmd_score(args):
@@ -35,6 +38,29 @@ def cmd_demo(args):
     return 0
 
 
+def cmd_simulate(args):
+    sessions = simulate_cohort(args.n, args.scenario, seed=args.seed, study=args.study,
+                               design={"checkerWrong": args.checker_wrong})
+    write_bundle(sessions, args.out)
+    print("Simulated %d participants (%d per group, scenario '%s') and saved them to %s" % (
+        len(sessions), args.n, args.scenario, args.out))
+    print("Scenario: %s" % SCENARIOS[args.scenario]["about"])
+    return 0
+
+
+def cmd_analyse(args):
+    sessions = load_sessions(args.files)
+    if not sessions:
+        raise ValueError("no sessions found")
+    an = analyse(sessions, n_perm=args.permutations, n_boot=args.bootstrap, seed=args.seed)
+    print(study_report(an))
+    if args.html:
+        with open(args.html, "w", encoding="utf-8") as f:
+            f.write(study_html(an, title=args.title))
+        print("\nWrote the HTML report to %s" % args.html)
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m crutch_check",
                                 description="Score and analyse Crutch check sessions.")
@@ -54,6 +80,24 @@ def main(argv=None):
     d.add_argument("--seed", type=int, default=2026)
     d.add_argument("--out", help="also save the simulated session as JSON")
     d.set_defaults(func=cmd_demo)
+
+    m = sub.add_parser("simulate", help="simulate a whole study (both groups) and save it as a bundle")
+    m.add_argument("--n", type=int, default=60, help="participants per group (default 60)")
+    m.add_argument("--scenario", choices=sorted(SCENARIOS), default="mixed")
+    m.add_argument("--checker-wrong", type=int, default=3, help="messages the checker gets wrong, of 12")
+    m.add_argument("--study", default="simulated-study")
+    m.add_argument("--seed", type=int, default=1)
+    m.add_argument("-o", "--out", default="simulated-study.json")
+    m.set_defaults(func=cmd_simulate)
+
+    a = sub.add_parser("analyse", help="compare the groups in a study and describe reliance")
+    a.add_argument("files", nargs="+", help="session files, bundles or folders exported from the app")
+    a.add_argument("--html", help="also write a self-contained HTML report")
+    a.add_argument("--title", default="Crutch check: study report")
+    a.add_argument("--permutations", type=int, default=5000)
+    a.add_argument("--bootstrap", type=int, default=2000)
+    a.add_argument("--seed", type=int, default=1)
+    a.set_defaults(func=cmd_analyse)
 
     args = p.parse_args(argv)
     try:

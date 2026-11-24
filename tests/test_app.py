@@ -120,6 +120,20 @@ class AppAgreesWithPython(unittest.TestCase):
         self.assertEqual(rows[-1]["participant"], 'P "quoted", here')
 
 
+@unittest.skipUnless(NODE, "Node.js is not installed")
+class AppOnlyHelpers(unittest.TestCase):
+    def test_next_participant_id(self):
+        ids = ["P001", "P009", "P099", "P999", "S12", "anna", "", "x0"]
+        got = js([{"fn": "nextParticipantId", "args": [i]} for i in ids])
+        self.assertEqual(got, ["P002", "P010", "P100", "P1000", "S13", "anna-2", "P001", "x1"])
+
+    def test_bundle_matches_python_format(self):
+        from crutch_check.sessions import bundle
+        s = M.simulate_responses(M.build_session(5), M.PERSONAS["loner"], 6)
+        (got,) = js([{"fn": "makeBundle", "args": [[s]]}])
+        self.assertEqual(got, jsonable(bundle([s])))
+
+
 class AppFileChecks(unittest.TestCase):
     def setUp(self):
         self.html = APP.read_text(encoding="utf-8")
