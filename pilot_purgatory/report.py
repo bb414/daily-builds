@@ -6,9 +6,9 @@ import html
 from typing import List, Sequence
 
 from .analysis import LeverEffect
-from .model import BARRIERS, KILLED, OUTCOMES, PURGATORY, SCALED, Summary
+from .model import BARRIERS, IN_PROGRESS, KILLED, OUTCOMES, PURGATORY, SCALED, Summary
 
-OUTCOME_COLOURS = {SCALED: "#2e7d4f", KILLED: "#8a8f98", PURGATORY: "#d9822b"}
+OUTCOME_COLOURS = {SCALED: "#2e7d4f", KILLED: "#8a8f98", PURGATORY: "#d9822b", IN_PROGRESS: "#7fa7d9"}
 SERIES_COLOURS = ("#c2571a", "#2b5fab", "#6b4fa8", "#2e7d4f")
 
 
@@ -55,10 +55,11 @@ def text_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: 
         f"Pilot purgatory simulator  |  {first.runs} runs, {first.quarters} quarters, seed {seed}",
         "",
         row("", names),
-        row("Pilots launched", [str(s.strategy.pilots) for s in summaries]),
+        row("Pilots launched (mean)", [f"{s.pilots_launched:.1f}" for s in summaries]),
         row("Scaled", [pct(s.outcome_share[SCALED]) for s in summaries]),
         row("Stopped", [pct(s.outcome_share[KILLED]) for s in summaries]),
         row("Stuck in pilot purgatory", [pct(s.outcome_share[PURGATORY]) for s in summaries]),
+        row("Still in progress", [pct(s.outcome_share[IN_PROGRESS]) for s in summaries]),
         row("Value captured (mean)", [money(s.value_captured) for s in summaries]),
         row("Pilot spend (mean)", [money(s.pilot_spend) for s in summaries]),
         row("Spend on pilots that never scaled", [money(s.wasted_spend) for s in summaries]),
@@ -116,10 +117,11 @@ def _svg_outcome_mix(summaries: Sequence[Summary]) -> str:
             x += seg
     ly = height - 14
     lx = label_w
+    step = (width - label_w) / len(OUTCOMES)
     for outcome in OUTCOMES:
-        parts.append(f'<rect x="{lx}" y="{ly - 10}" width="12" height="12" fill="{OUTCOME_COLOURS[outcome]}"/>')
-        parts.append(f'<text x="{lx + 18}" y="{ly}" class="leg">{html.escape(outcome)}</text>')
-        lx += 150
+        parts.append(f'<rect x="{lx:.0f}" y="{ly - 10}" width="12" height="12" fill="{OUTCOME_COLOURS[outcome]}"/>')
+        parts.append(f'<text x="{lx + 18:.0f}" y="{ly}" class="leg">{html.escape(outcome)}</text>')
+        lx += step
     parts.append("</svg>")
     return "".join(parts)
 
@@ -210,7 +212,7 @@ def html_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: 
         return f"<tr><td>{html.escape(label)}</td>" + "".join(f"<td>{html.escape(v)}</td>" for v in values) + "</tr>"
 
     rows = [
-        tr("Pilots launched", [str(s.strategy.pilots) for s in summaries]),
+        tr("Pilots launched (mean)", [f"{s.pilots_launched:.1f}" for s in summaries]),
         tr("Scaled", [pct(s.outcome_share[SCALED]) for s in summaries]),
         tr("Stuck in pilot purgatory", [pct(s.outcome_share[PURGATORY]) for s in summaries]),
         tr("Value captured (mean)", [money(s.value_captured) for s in summaries]),

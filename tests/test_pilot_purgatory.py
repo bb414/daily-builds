@@ -18,7 +18,10 @@ from pilot_purgatory.__main__ import main  # noqa: E402
 from pilot_purgatory.analysis import lever_effects  # noqa: E402
 from pilot_purgatory.model import (  # noqa: E402
     BARRIERS,
+    DEFAULT_ASSUMPTIONS,
     HARD_TO_MEASURE,
+    IN_PROGRESS,
+    KILLED,
     LONG_TIMESCALES,
     NO_ROUTE,
     OUTCOMES,
@@ -26,6 +29,7 @@ from pilot_purgatory.model import (  # noqa: E402
     SCALED,
     TECH_COMPLEXITY,
     UNCLEAR_ROI,
+    Assumptions,
     Pilot,
     blocking_barrier,
     draw_pilot,
@@ -39,6 +43,7 @@ from pilot_purgatory.report import html_report, money, points, text_report  # no
 def make_pilot(**kw):
     base = dict(value=500.0, measurability=0.5, complexity=0.5, time_to_value=2, run_cost=50.0)
     base.update(kw)
+    base.setdefault("scaling_cost", DEFAULT_ASSUMPTIONS.scaling_cost(base["complexity"]))
     return Pilot(**base)
 
 
@@ -110,10 +115,11 @@ class BarrierAttribution(unittest.TestCase):
 
 class SingleRun(unittest.TestCase):
     def test_every_pilot_ends_in_exactly_one_outcome(self):
-        for seed in range(30):
-            r = simulate_once(GOVERNANCE, random.Random(seed))
-            self.assertEqual(sum(r.outcomes.values()), GOVERNANCE.pilots)
-            self.assertEqual(sum(r.barriers.values()), r.pilots - r.outcomes[SCALED])
+        for strategy in (MOMENTUM, GOVERNANCE):
+            for seed in range(30):
+                r = simulate_once(strategy, random.Random(seed))
+                self.assertEqual(sum(r.outcomes.values()), r.pilots)
+                self.assertEqual(sum(r.barriers.values()), r.outcomes[KILLED] + r.outcomes[PURGATORY])
 
     def test_runs_are_reproducible(self):
         a = simulate_once(MOMENTUM, random.Random(99))
@@ -170,6 +176,68 @@ class MonteCarlo(unittest.TestCase):
         self.assertEqual({e.lever for e in effects}, set(LEVERS))
         self.assertEqual(effects, sorted(effects, key=lambda e: e.net_value_change, reverse=True))
         self.assertEqual(baseline.strategy, MOMENTUM)
+
+
+class DepthMechanics(unittest.TestCase):
+    """Loop 1: budget recycling, platform effects and the in-progress outcome."""
+
+    def test_recycling_launches_extra_pilots(self):
+        base = replace(GOVERNANCE, recycle_budget=False)
+        launched_without = sum(simulate_once(base, random.Random(s)).pilots for s in range(40))
+        launched_with = sum(simulate_once(GOVERNANCE, random.Random(s)).pilots for s in range(40))
+        self.assertEqual(launched_without, 40 * GOVERNANCE.pilots)
+        self.assertGreater(launched_with, launched_without)
+
+    def test_no_recycled_launches_inside_the_cutoff(self):
+        # With a horizon no longer than the cutoff, freed budget can never be reused.
+        for seed in range(20):
+            r = simulate_once(GOVERNANCE, random.Random(seed), quarters=DEFAULT_ASSUMPTIONS.launch_cutoff)
+            self.assertEqual(r.pilots, GOVERNANCE.pilots)
+
+    def test_platform_effect_makes_scaling_cheaper(self):
+        plain = replace(GOVERNANCE, platform_effect=0.0, recycle_budget=False)
+        platform = replace(plain, platform_effect=0.3)
+
+        def cost_per_scaled(strategy):
+            spend = scaled = 0
+            for seed in range(150):
+                r = simulate_once(strategy, random.Random(seed))
+                spend += r.scaling_spend
+                scaled += r.outcomes[SCALED]
+            return spend / scaled
+
+        self.assertLess(cost_per_scaled(platform), cost_per_scaled(plain))
+
+    def test_platform_discount_never_goes_below_the_floor(self):
+        heavy = replace(GOVERNANCE, platform_effect=0.5, pilots=40, scaling_capacity=5)
+        a = DEFAULT_ASSUMPTIONS
+        cheapest_possible = a.scaling_cost_base * a.platform_floor
+        for seed in range(20):
+            r = simulate_once(heavy, random.Random(seed))
+            if r.outcomes[SCALED]:
+                self.assertGreaterEqual(r.scaling_spend / r.outcomes[SCALED], cheapest_possible - 1e-9)
+
+    def test_young_pilots_are_in_progress_not_purgatory(self):
+        for seed in range(20):
+            r = simulate_once(MOMENTUM, random.Random(seed), quarters=DEFAULT_ASSUMPTIONS.purgatory_age - 1)
+            self.assertEqual(r.outcomes[PURGATORY], 0)
+        r = simulate_once(MOMENTUM, random.Random(1), quarters=2)
+        self.assertGreater(r.outcomes[IN_PROGRESS], 0)
+
+    def test_assumptions_are_validated(self):
+        with self.assertRaises(ValueError):
+            Assumptions(value_median=0)
+        with self.assertRaises(ValueError):
+            Assumptions(platform_floor=0)
+        with self.assertRaises(ValueError):
+            Strategy(name="bad", platform_effect=0.9)
+
+    def test_better_world_means_more_value(self):
+        rich = Assumptions(value_median=600)
+        self.assertGreater(
+            simulate(MOMENTUM, runs=80, assumptions=rich).net_value.mean,
+            simulate(MOMENTUM, runs=80).net_value.mean,
+        )
 
 
 class Reports(unittest.TestCase):

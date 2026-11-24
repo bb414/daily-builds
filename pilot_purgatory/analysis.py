@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from .model import PURGATORY, SCALED, Strategy, Summary, simulate
+from .model import DEFAULT_ASSUMPTIONS, PURGATORY, SCALED, Assumptions, Strategy, Summary, simulate
 from .strategies import LEVERS
 
 
@@ -18,13 +18,17 @@ class LeverEffect:
 
 
 def lever_effects(
-    base: Strategy, runs: int = 500, quarters: int = 12, seed: int = 42
+    base: Strategy,
+    runs: int = 500,
+    quarters: int = 12,
+    seed: int = 42,
+    assumptions: Assumptions = DEFAULT_ASSUMPTIONS,
 ) -> Tuple[Summary, List[LeverEffect]]:
     """Apply each lever on its own to the base strategy and measure the change."""
-    baseline = simulate(base, runs, quarters, seed)
+    baseline = simulate(base, runs, quarters, seed, assumptions)
     effects = []
     for name, apply in LEVERS.items():
-        changed = simulate(apply(base), runs, quarters, seed)
+        changed = simulate(apply(base), runs, quarters, seed, assumptions)
         effects.append(
             LeverEffect(
                 lever=name,

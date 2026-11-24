@@ -9,7 +9,8 @@ from .model import Strategy
 
 # Pilots first: lots of enthusiasm, little structure. The strategy is written after the
 # pilots are already running, nobody agreed what success looks like, there is one small
-# team to productionise anything, and pilots are rarely stopped on purpose.
+# team to productionise anything, pilots are rarely stopped on purpose, and each pilot is
+# a one-off build that teaches the organisation nothing reusable.
 MOMENTUM = Strategy(
     name="Pilots first (momentum-driven)",
     pilots=20,
@@ -18,11 +19,14 @@ MOMENTUM = Strategy(
     strategy_quarter=5,
     scaling_capacity=1,
     kill_rule=False,
+    recycle_budget=False,
+    platform_effect=0.0,
 )
 
 # Strategy first: fewer, better-chosen pilots with success metrics agreed up front, a
-# strategy and scaling owner from day one, more capacity to productionise, and explicit
-# stop criteria so weak pilots free up budget instead of drifting.
+# strategy and scaling owner from day one, more capacity to productionise, explicit stop
+# criteria, freed budget recycled into fresh ideas, and a shared platform so each pilot
+# that scales makes the next one cheaper.
 GOVERNANCE = Strategy(
     name="Strategy first (governance-driven)",
     pilots=12,
@@ -31,6 +35,8 @@ GOVERNANCE = Strategy(
     strategy_quarter=1,
     scaling_capacity=2,
     kill_rule=True,
+    recycle_budget=True,
+    platform_effect=0.1,
 )
 
 PRESETS: Dict[str, Strategy] = {"momentum": MOMENTUM, "governance": GOVERNANCE}
@@ -42,4 +48,6 @@ LEVERS: Dict[str, Callable[[Strategy], Strategy]] = {
     "Write the strategy before the pilots": lambda s: replace(s, strategy_quarter=1),
     "Double scaling capacity": lambda s: replace(s, scaling_capacity=max(1, s.scaling_capacity * 2)),
     "Add explicit stop criteria": lambda s: replace(s, kill_rule=True),
+    "Recycle freed budget into new pilots": lambda s: replace(s, recycle_budget=True),
+    "Build a shared AI platform": lambda s: replace(s, platform_effect=GOVERNANCE.platform_effect),
 }
