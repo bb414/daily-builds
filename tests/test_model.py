@@ -190,6 +190,54 @@ class ValueOfInformationTests(unittest.TestCase):
         self.assertIsNone(M.analyse(m)["voi"])
 
 
+class AuditRegressionTests(unittest.TestCase):
+    def test_flip_chances_use_the_same_baseline_as_the_call(self):
+        # Regression: the call used the sample mean but the flips and EVPPI used f(means). With a
+        # threshold between the two, the flips were measured against the opposite call.
+        for t in M.TEMPLATES:
+            m = copy.deepcopy(t)
+            r = M.analyse(m)
+            base = M.evaluate(m, [d["mean"] for d in r["drivers"]])
+            m["threshold"] = (r["mean"] + base) / 2
+            r = M.analyse(m)
+            v = r["voi"]
+            _, cols = M.simulate(m)
+            go = r["mean"] >= m["threshold"]
+            self.assertEqual(v["decision"], "go" if go else "hold")
+            for i, d in enumerate(r["drivers"]):
+                conds = [r["mean"] + d["slope"] * (x - d["mean"]) for x in cols[i]]
+                flips = sum(1 for c in conds if (c >= m["threshold"]) != go) / len(conds)
+                self.assertAlmostEqual(v["drivers"][i]["flip"], flips, msg=t["key"])
+
+    def test_all_fixed_model(self):
+        m = one_driver("fixed", 7, 7)
+        m["threshold"] = 5
+        r = M.analyse(m)
+        self.assertEqual(r["interaction"], 0.0)
+        self.assertEqual((r["p10"], r["p90"]), (7.0, 7.0))
+        from rangefinder.report import text_report
+        text = text_report(m, r)
+        self.assertIn("nothing is worth checking first", text)
+        self.assertNotIn("Check first", text)
+
+    def test_numbers_out_of_bounds_are_problems_not_crashes(self):
+        self.assertIn("between -1e15 and 1e15", M.validate_model(one_driver("lognormal", 1e300, 1e308))[0])
+        self.assertIn("needs numbers", M.validate_model(one_driver("lognormal", 10 ** 400, 10 ** 401))[0])
+        m = one_driver("normal", 0, 1)
+        m["threshold"] = 1e16
+        self.assertIn("threshold", M.validate_model(m)[0])
+
+    def test_names_are_trimmed_of_ascii_space_only(self):
+        self.assertEqual(M.strip_name("  a b \t"), "a b")
+        self.assertEqual(M.strip_name("\x1c"), "\x1c")
+        m = one_driver("normal", 0, 1)
+        m["terms"][0]["drivers"][0]["name"] = " \n "
+        self.assertIn("needs a name", M.validate_model(m)[0])
+
+    def test_percent_rounds_halves_up(self):
+        self.assertEqual([M.percent(x) for x in (0.325, 0.125, 0.5, 0.004, 0.995)], [33, 13, 50, 0, 100])
+
+
 class NarrowingTests(unittest.TestCase):
     def test_narrowing_keeps_the_median_and_shrinks_the_range(self):
         t = M.TEMPLATES[0]
@@ -303,7 +351,8 @@ class FormatTests(unittest.TestCase):
     def test_numbers(self):
         cases = {0: "0", 1: "1", 12.345: "12.3", 999.4: "999", 999.5: "1k", 1234: "1.23k", 12345: "12.3k",
                  999499: "999k", 999500: "1m", 1234567: "1.23m", 2.5e9: "2.5bn", -45100: "-45.1k",
-                 0.1234: "0.123", 0.004567: "0.00457", 1e-9: "0", float("nan"): "n/a", 1.125: "1.13"}
+                 0.1234: "0.123", 0.004567: "0.00457", 1e-9: "0", float("nan"): "n/a", 1.125: "1.13",
+                 2.5e12: "2.5tn", 999.6e12: "1000tn", 1e15: "1000tn+", -6e30: "-1000tn+"}
         for x, s in cases.items():
             self.assertEqual(M.format_number(x), s, x)
 
@@ -314,6 +363,7 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(M.format_driver(0.123, {"dist": "share"}), "12.3%")
         self.assertEqual(M.format_driver(4.5, {"dist": "lognormal", "unit": "£"}), "£4.5")
         self.assertEqual(M.format_driver(1500, {"dist": "lognormal", "unit": "bikes"}), "1.5k bikes")
+        self.assertEqual(M.format_driver(19.2, {"dist": "lognormal", "unit": "$"}), "$19.2")
 
 
 class CliTests(unittest.TestCase):
@@ -348,6 +398,31 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Total-effect", out)
             self.assertIn("Chance of clearing", out)
+
+    def test_bad_arguments_and_odd_models_are_clean(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = str(Path(d) / "m.json")
+            self.run_cli("template", "meal-kits", "-o", path)
+            for argv in (("run", path, "--samples", "0"), ("run", path, "--samples", "5"),
+                         ("deep", path, "--seeds", "0"), ("run", path, "--threshold", "1e20")):
+                code, out = self.run_cli(*argv)
+                self.assertEqual(code, 2, argv)
+                self.assertIn("Error:", out)
+            fixed = Path(d) / "fixed.json"
+            fixed.write_text(json.dumps(one_driver("fixed", 3, 3)))
+            code, out = self.run_cli("plan", str(fixed))
+            self.assertEqual(code, 0)
+            self.assertIn("no range to narrow", out)
+            zero = one_driver("fixed", 0, 0)
+            zero["terms"][0]["drivers"].append({"name": "e", "dist": "normal", "low": 0, "high": 20000, "unit": ""})
+            zfile = Path(d) / "zero.json"
+            zfile.write_text(json.dumps(zero))
+            code, out = self.run_cli("plan", str(zfile))
+            self.assertEqual(code, 0)
+            self.assertIn("n/a", out)
+            bom = Path(d) / "bom.json"
+            bom.write_bytes(b"\xef\xbb\xbf" + json.dumps(M.TEMPLATES[2]).encode("utf-8"))
+            self.assertEqual(self.run_cli("run", str(bom), "--samples", "1000")[0], 0)
 
     def test_errors_are_clean(self):
         code, out = self.run_cli("run", "missing.json")

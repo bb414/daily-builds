@@ -219,18 +219,19 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p class="note">Leave the threshold empty if there is no decision to make.</p>
       <details class="how">
         <summary>How Range finder works</summary>
-        <p>Each driver is a range you are 90% sure about, so there is a 5% chance the truth is below your low value and a 5% chance it is above your high value. Pick the kind of range that fits: <strong>skewed</strong> for positive quantities where being out by a factor is as likely as being out by an amount (counts, prices, volumes), <strong>symmetric</strong> when errors either way are equally likely, <strong>percentage</strong> for shares between 0 and 100, <strong>even</strong> when any value between the two ends is equally likely (here low and high are hard limits), and <strong>known exactly</strong> for fixed numbers.</p>
-        <p>Range finder then draws 10,000 combinations using Latin hypercube sampling (every slice of every range is used exactly once), works out the estimate for each, and summarises the results. Because each driver appears once and terms are only multiplied and added, it can also work out exactly how much of the spread each driver causes, and how much knowing each one would be worth before a decision.</p>
+        <p>Each driver is a range you are 90% sure about, so there is a 5% chance the truth is below your low value and a 5% chance it is above your high value. Pick the kind of range that fits: <strong>skewed</strong> for positive quantities where twice the middle value is as likely as half of it (counts, prices, volumes), <strong>symmetric</strong> when errors either way are equally likely, <strong>percentage</strong> for shares between 0 and 100, <strong>even</strong> when any value between the two ends is equally likely (here low and high are hard limits), and <strong>known exactly</strong> for fixed numbers.</p>
+        <p>Range finder then draws 10,000 combinations (unless a model file asks for a different number) using Latin hypercube sampling (every slice of every range is used exactly once), works out the estimate for each, and summarises the results. Because each driver appears once and terms are only multiplied and added, it can also work out exactly how much of the spread each driver causes, and how much knowing each one would be worth before a decision.</p>
       </details>
     </section>
 
-    <section class="results" aria-labelledby="results-title" aria-live="polite">
+    <section class="results" aria-labelledby="results-title">
       <h2 class="sr-only" id="results-title">Results</h2>
+      <p class="sr-only" id="announce" aria-live="polite"></p>
       <div id="problems" class="problems" role="alert" hidden></div>
       <div class="card" id="summary"></div>
       <div class="card" id="dist-card"></div>
       <div class="card" id="voi-card"></div>
-      <div class="card" id="narrow-card" aria-labelledby="narrow-title"></div>
+      <div class="card" id="narrow-card" role="region" aria-labelledby="narrow-title"></div>
       <div class="card" id="tornado-card"></div>
       <div class="card" id="drivers-card"></div>
     </section>
@@ -238,7 +239,7 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 </main>
 
 <footer>
-  <div class="wrap">Every calculation happens in this page: nothing is sent anywhere. The examples are invented and their numbers are illustrative, not research. Results use 10,000 Latin hypercube samples with a fixed seed, so the same inputs always give the same answer.</div>
+  <div class="wrap">Every calculation happens in this page: nothing is sent anywhere. The examples are invented and their numbers are illustrative, not research. Results use Latin hypercube samples (10,000 unless a model file sets another number) with a fixed seed, so the same inputs always give the same answer.</div>
 </footer>
 
 <script>
@@ -528,7 +529,12 @@ function invNorm(p) {
     (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
 }
 
+const MAX_ABS = 1e15;
 function isNum(x) { return typeof x === 'number' && Number.isFinite(x); }
+function inBounds(x) { return isNum(x) && Math.abs(x) <= MAX_ABS; }
+// Trim ASCII white space only, exactly as the Python package does.
+function stripName(text) { return text.replace(/^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$/g, ''); }
+const CURRENCY_PREFIXES = ['£', '$', '€', '¥'];
 function isInt(x) { return isNum(x) && Number.isInteger(x); }
 function isObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
 
@@ -543,10 +549,10 @@ function validateModel(model) {
   ['title', 'outputName', 'unit'].forEach(key => {
     if (typeof model[key] !== 'string') problems.push("The model's " + key + ' must be text.');
   });
-  if (typeof model.unit === 'string' && model.unit.length > 12) problems.push('The unit must be 12 characters or fewer.');
+  if (typeof model.unit === 'string' && Array.from(model.unit).length > 12) problems.push('The unit must be 12 characters or fewer.');
   if (model.unitPosition !== 'prefix' && model.unitPosition !== 'suffix') problems.push('The unit position must be prefix or suffix.');
   const t = model.threshold;
-  if (t !== undefined && t !== null && !isNum(t)) problems.push('The decision threshold must be a number or left empty.');
+  if (t !== undefined && t !== null && !inBounds(t)) problems.push('The decision threshold must be a number between -1e15 and 1e15, or left empty.');
   const n = model.samples;
   if (n !== undefined && n !== null && (!isInt(n) || n < MIN_SAMPLES || n > MAX_SAMPLES)) {
     problems.push('Samples must be a whole number from ' + MIN_SAMPLES + ' to ' + MAX_SAMPLES + '.');
@@ -572,12 +578,13 @@ function validateModel(model) {
       total += 1;
       let label = where + ', driver ' + (di + 1);
       if (!isObj(d)) { problems.push(label + ' is not valid.'); return; }
-      if (typeof d.name === 'string' && d.name.trim()) label += ' (' + d.name.trim() + ')';
+      if (typeof d.name === 'string' && stripName(d.name)) label += ' (' + stripName(d.name) + ')';
       else problems.push(label + ' needs a name.');
       const dist = d.dist;
       if (DISTS.indexOf(dist) < 0) { problems.push(label + ' has an unknown kind of range.'); return; }
       const lo = d.low, hi = d.high;
       if (!isNum(lo) || (dist !== 'fixed' && !isNum(hi))) { problems.push(label + ' needs numbers for its range.'); return; }
+      if (!inBounds(lo) || (dist !== 'fixed' && !inBounds(hi))) { problems.push(label + ': numbers must be between -1e15 and 1e15.'); return; }
       if (dist === 'fixed') return;
       if (!(lo < hi)) problems.push(label + ': the low value must be below the high value.');
       else if (dist === 'lognormal' && lo <= 0) problems.push(label + ': a skewed (lognormal) range must be above zero.');
@@ -753,7 +760,7 @@ function analyse(model, samples, seed, keepValues) {
     p50: percentile(srt, 0.50), p75: percentile(srt, 0.75), p90: percentile(srt, 0.90), p95: percentile(srt, 0.95),
     atMedians: base, atMidpoints: evaluate(model, drv.map(([, , d]) => midpoint(d))),
     threshold: threshold, probAbove: above, drivers: rows, tornado: order,
-    interaction: Math.max(0, 1 - shareTotal), voi: voi
+    interaction: v > 0 ? Math.max(0, 1 - shareTotal) : 0, voi: voi
   };
   if (keepValues) out.values = values;
   return out;
@@ -770,15 +777,13 @@ function valueOfInformation(model, values, columns, means, rows, m, threshold) {
     if ((values[k] >= threshold) !== go) wrong += 1;
   }
   const evpi = total / n;
-  const base = evaluate(model, means);
-  const baseGo = base >= threshold;
   const out = rows.map((r, i) => {
     let acc = 0, flips = 0;
     const col = columns[i];
     for (let k = 0; k < n; k++) {
-      const cond = base + r.slope * (col[k] - means[i]);
-      acc += baseGo ? Math.max(threshold - cond, 0) : Math.max(cond - threshold, 0);
-      if ((cond >= threshold) !== baseGo) flips += 1;
+      const cond = m + r.slope * (col[k] - means[i]);
+      acc += go ? Math.max(threshold - cond, 0) : Math.max(cond - threshold, 0);
+      if ((cond >= threshold) !== go) flips += 1;
     }
     return {evppi: acc / n, flip: flips / n};
   });
@@ -804,7 +809,8 @@ function fixedRound(v, dec) {
 function formatNumber(x) {
   if (!isNum(x)) return 'n/a';
   const a = Math.abs(x);
-  const scales = [[1e9, 'bn'], [1e6, 'm'], [1e3, 'k'], [1, '']];
+  if (a >= 1e15) return (x < 0 ? '-' : '') + '1000tn+';
+  const scales = [[1e12, 'tn'], [1e9, 'bn'], [1e6, 'm'], [1e3, 'k'], [1, '']];
   let idx = scales.length - 1;
   for (let i = 0; i < scales.length; i++) { if (a >= scales[i][0]) { idx = i; break; } }
   let v = a / scales[idx][0];
@@ -834,14 +840,14 @@ function formatValue(x, unit, position) {
 function formatDriver(x, d) {
   if (d.dist === 'share') return formatNumber(x * 100) + '%';
   const unit = d.unit || '';
-  if (unit === '£') return formatValue(x, '£', 'prefix');
+  if (CURRENCY_PREFIXES.indexOf(unit) >= 0) return formatValue(x, unit, 'prefix');
   return formatNumber(x) + (unit ? ' ' + unit : '');
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TEMPLATES, FORMAT, VERSION, DISTS, DIST_LABELS, Z95, Z90, MAX_TERMS, MAX_DRIVERS_PER_TERM, MAX_DRIVERS,
-    MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, mulberry32, shuffle, invNorm, validateModel,
+    MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, MAX_ABS, CURRENCY_PREFIXES, stripName, mulberry32, shuffle, invNorm, validateModel,
     distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse, valueOfInformation,
     narrowDriver,
     formatNumber, formatValue, formatDriver
@@ -867,6 +873,20 @@ if (typeof module !== 'undefined' && module.exports) {
   /* ---------- Editor ---------- */
   function numAttr(x) { return isNum(x) ? String(x) : ''; }
 
+  function fieldLabel(prefix, d) {
+    const name = typeof d.name === 'string' && stripName(d.name) ? stripName(d.name) : 'this driver';
+    return prefix + ' ' + name;
+  }
+
+  function relabelDriver(row, d) {
+    const set = (sel, prefix) => { const el = row.querySelector(sel); if (el) el.setAttribute('aria-label', fieldLabel(prefix, d)); };
+    set('[data-act="del-driver"]', 'Remove');
+    set('[data-f="low"]', d.dist === 'fixed' ? 'Value for' : 'Low value for');
+    set('[data-f="high"]', 'High value for');
+    set('[data-f="dist"]', 'Kind of range for');
+    set('[data-f="unit"]', 'Unit for');
+  }
+
   function driverHTML(d, ti, di) {
     const base = 't' + ti + 'd' + di;
     const pct = d.dist === 'share' ? ' (%)' : '';
@@ -874,12 +894,12 @@ if (typeof module !== 'undefined' && module.exports) {
       '<div class="driver-top"><span class="times" aria-hidden="true">' + (di === 0 ? '' : '&times;') + '</span>' +
       '<label class="sr-only" for="' + base + 'n">Driver ' + (di + 1) + ' of term ' + (ti + 1) + ': name</label>' +
       '<input type="text" id="' + base + 'n" data-f="name" value="' + esc(d.name || '') + '" placeholder="What is it?">' +
-      '<button class="icon-btn" type="button" data-act="del-driver" aria-label="Remove ' + esc(d.name || 'this driver') + '">' + TRASH + '</button></div>' +
+      '<button class="icon-btn" type="button" data-act="del-driver" aria-label="' + esc(fieldLabel('Remove', d)) + '">' + TRASH + '</button></div>' +
       '<div class="driver-bottom">' +
-      '<label class="field">' + (d.dist === 'fixed' ? 'Value' : 'Low') + pct + '<input type="number" step="any" data-f="low" value="' + numAttr(d.low) + '"></label>' +
-      '<label class="field">High' + pct + '<input type="number" step="any" data-f="high" value="' + numAttr(d.high) + '"' + (d.dist === 'fixed' ? ' disabled' : '') + '></label>' +
-      '<label class="field">Kind of range<select data-f="dist">' + DISTS.map(k => '<option value="' + k + '"' + (k === d.dist ? ' selected' : '') + '>' + esc(DIST_LABELS[k]) + '</option>').join('') + '</select></label>' +
-      '<label class="field">Unit<input type="text" data-f="unit" maxlength="12" value="' + esc(d.unit || '') + '"></label>' +
+      '<label class="field">' + (d.dist === 'fixed' ? 'Value' : 'Low') + pct + '<input type="number" step="any" data-f="low" value="' + numAttr(d.low) + '" aria-label="' + esc(fieldLabel(d.dist === 'fixed' ? 'Value for' : 'Low value for', d)) + '"></label>' +
+      '<label class="field">High' + pct + '<input type="number" step="any" data-f="high" value="' + numAttr(d.high) + '"' + (d.dist === 'fixed' ? ' disabled' : '') + ' aria-label="' + esc(fieldLabel('High value for', d)) + '"></label>' +
+      '<label class="field">Kind of range<select data-f="dist" aria-label="' + esc(fieldLabel('Kind of range for', d)) + '">' + DISTS.map(k => '<option value="' + k + '"' + (k === d.dist ? ' selected' : '') + '>' + esc(DIST_LABELS[k]) + '</option>').join('') + '</select></label>' +
+      '<label class="field">Unit<input type="text" data-f="unit" maxlength="12" value="' + esc(d.unit || '') + '" aria-label="' + esc(fieldLabel('Unit for', d)) + '"></label>' +
       '</div></div>';
   }
 
@@ -928,13 +948,24 @@ if (typeof module !== 'undefined' && module.exports) {
     } else if (el.dataset.tf === 'name') {
       m.terms[ti].name = el.value;
     } else if (el.dataset.f) {
-      const di = Number(el.closest('.driver').dataset.d);
+      const row = el.closest('.driver');
+      const di = Number(row.dataset.d);
       const d = m.terms[ti].drivers[di];
       const f = el.dataset.f;
+      const before = d.dist;
       if (f === 'low' || f === 'high') d[f] = parseNum(el.value);
       else d[f] = el.value;
+      if (f === 'name') relabelDriver(row, d);
       if (f === 'dist') {
+        // A percentage range is typed as 5 to 25 but used as 0.05 to 0.25, so convert when the kind changes.
+        const scale = (before === 'share' && d.dist !== 'share') ? 0.01 : (before !== 'share' && d.dist === 'share') ? 100 : 1;
+        if (scale !== 1) {
+          if (isNum(d.low)) d.low = Number((d.low * scale).toPrecision(12));
+          if (isNum(d.high)) d.high = Number((d.high * scale).toPrecision(12));
+        }
         if (d.dist === 'fixed') d.high = d.low;
+        if (d.dist === 'share' && d.unit === '') d.unit = '%';
+        if (before === 'share' && d.dist !== 'share' && d.unit === '%') d.unit = '';
         renderEditor();
         focusField(ti, di, 'dist');
       }
@@ -954,6 +985,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const termEl = b.closest('.term');
     const ti = termEl ? Number(termEl.dataset.t) : -1;
     const act = b.dataset.act;
+    state.narrowPick = null;
     if (act === 'add-driver') {
       m.terms[ti].drivers.push({name: '', dist: 'lognormal', low: 1, high: 10, unit: ''});
       renderEditor();
@@ -973,6 +1005,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   function addTerm() {
+    state.narrowPick = null;
     state.model.terms.push({name: 'New term', sign: 1, drivers: [{name: '', dist: 'lognormal', low: 1, high: 10, unit: ''}]});
     renderEditor();
     const ti = state.model.terms.length - 1;
@@ -984,6 +1017,7 @@ if (typeof module !== 'undefined' && module.exports) {
   /* ---------- Running ---------- */
   function schedule() {
     if ($('#template').value !== 'yours') setTemplateSelect('yours');
+    if (/^#model=/.test(location.hash)) history.replaceState(null, '', location.href.split('#')[0]);
     clearTimeout(state.timer);
     state.timer = setTimeout(run, 180);
   }
@@ -1022,10 +1056,13 @@ if (typeof module !== 'undefined' && module.exports) {
     renderSummary(r);
     renderDistribution(r);
     renderVoi(r);
-    renderNarrow(r);
     renderTornado(r);
     renderDrivers(r);
+    $('#announce').textContent = (m.outputName || 'Estimate') + ': most likely between ' + fv(r.p10) + ' and ' + fv(r.p90) + '.';
     saveLocal();
+    // The narrowing preview runs a second full analysis, so draw it after the main results.
+    clearTimeout(state.narrowTimer);
+    state.narrowTimer = setTimeout(() => { if (state.result === r) renderNarrow(r); }, 0);
   }
 
   /* ---------- Results ---------- */
@@ -1061,7 +1098,10 @@ if (typeof module !== 'undefined' && module.exports) {
     const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => span / s <= count) || 10 * mag;
     const start = Math.ceil(lo / step) * step;
     const ticks = [];
-    for (let t = start; t <= hi + step * 1e-9; t += step) ticks.push(Math.abs(t) < step * 1e-9 ? 0 : t);
+    for (let t = start, i = 0; t <= hi + step * 1e-9 && i < 20; t += step, i++) {
+      ticks.push(Math.abs(t) < step * 1e-9 ? 0 : t);
+      if (t + step === t) break;   // numbers this large cannot be stepped through
+    }
     return ticks;
   }
 
@@ -1077,7 +1117,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const srt = vals.slice().sort((a, b) => a - b);
     let lo = percentile(srt, 0.005), hi = percentile(srt, 0.995);
     if (r.threshold !== null) { lo = Math.min(lo, r.threshold); hi = Math.max(hi, r.threshold); }
-    if (!(hi > lo)) { hi = lo + 1; lo = lo - 1; }
+    if (!(hi > lo)) { const pad = Math.max(1, Math.abs(lo) * 0.01); hi = lo + pad; lo = lo - pad; }
     const bins = 40, counts = new Array(bins).fill(0);
     const width = (hi - lo) / bins;
     let shown = 0;
@@ -1182,7 +1222,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const name = state.model.terms[pick.ti].drivers[pick.di].name;
     const shrink = 1 - (after.p90 - after.p10) / (r.p90 - r.p10);
     box.innerHTML = '<h2 id="narrow-title">Try narrowing a range</h2>' +
-      '<p class="small muted">What if a pilot or some research made one range narrower, centred on today\'s median?</p>' +
+      '<p class="small muted">One scenario: a pilot or some research narrows one range, and the truth turns out to sit at the middle (median) of today\'s range. The "Worth up to" figures above average over everything you might find out instead.</p>' +
       '<div class="controls"><label class="field">Driver<select id="narrow-driver">' +
       opts.map(o => '<option value="' + o.ti + ':' + o.di + '"' + (o.ti === pick.ti && o.di === pick.di ? ' selected' : '') + '>' + esc(o.name) + '</option>').join('') +
       '</select></label><label class="field">How much<select id="narrow-factor">' +
@@ -1246,7 +1286,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const m = state.model;
     const drv = [];
     m.terms.forEach(term => term.drivers.forEach(d => drv.push(d)));
-    let h = '<h2>What drives the uncertainty</h2><p class="small muted">Share of the spread in the estimate that comes from each driver on its own. What is left over comes from drivers moving together.</p>' +
+    let h = '<h2>What drives the uncertainty</h2><p class="small muted">Share of the spread in the estimate that comes from each driver on its own. The rest comes from drivers combining: in a product, how much one driver matters depends on the values of the others.</p>' +
       '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Driver</th><th scope="col">Likely range (10th to 90th)</th><th scope="col">Share of the spread</th></tr></thead><tbody>';
     r.tornado.forEach(i => {
       const d = r.drivers[i], src = drv[i];
@@ -1254,7 +1294,7 @@ if (typeof module !== 'undefined' && module.exports) {
       h += '<tr><td>' + esc(d.name) + '</td><td class="num">' + (src.dist === 'fixed' ? esc(formatDriver(d.p50, src)) + ' (fixed)' : esc(formatDriver(d.p10, src)) + ' to ' + esc(formatDriver(d.p90, src))) + '</td>' +
         '<td class="num"><span class="share-bar" style="width:' + (share * 80).toFixed(1) + 'px"></span>' + Math.round(share * 100) + '%</td></tr>';
     });
-    h += '<tr><td>Drivers moving together</td><td class="num muted">n/a</td><td class="num"><span class="share-bar" style="width:' + (r.interaction * 80).toFixed(1) + 'px;background:var(--line-2)"></span>' + Math.round(r.interaction * 100) + '%</td></tr>';
+    h += '<tr><td>Drivers combining (interactions)</td><td class="num muted">n/a</td><td class="num"><span class="share-bar" style="width:' + (r.interaction * 80).toFixed(1) + 'px;background:var(--line-2)"></span>' + Math.round(r.interaction * 100) + '%</td></tr>';
     h += '</tbody></table></div>';
     $('#drivers-card').innerHTML = h;
   }
@@ -1282,6 +1322,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   function setTemplateSelect(key) {
+    state.yours = key === 'yours';
     const sel = $('#template');
     const yours = sel.querySelector('option[value="yours"]');
     if (key === 'yours' && !yours) sel.insertAdjacentHTML('afterbegin', '<option value="yours">Your estimate</option>');
@@ -1313,10 +1354,33 @@ if (typeof module !== 'undefined' && module.exports) {
     }
   }
 
-  function setStatus(text, isError) {
+  function setStatus(text, isError, action) {
     const el = $('#status');
     el.textContent = text;
     el.classList.toggle('error', !!isError);
+    if (action) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn small-btn';
+      b.style.marginLeft = '8px';
+      b.textContent = action.label;
+      b.addEventListener('click', action.run);
+      el.appendChild(b);
+    }
+  }
+
+  const PREVIOUS_KEY = 'range-finder-previous-v1';
+  function stashPrevious(model) {
+    try { window.localStorage.setItem(PREVIOUS_KEY, JSON.stringify(model)); return true; } catch (e) { return false; }
+  }
+  function restorePrevious() {
+    try {
+      const m = JSON.parse(window.localStorage.getItem(PREVIOUS_KEY) || 'null');
+      if (!m || validateModel(m).length) return;
+      setTemplateSelect('yours');
+      useModel(m, '');
+      setStatus('Restored your previous estimate.');
+    } catch (e) { /* nothing to restore */ }
   }
 
   function toBase64Url(text) {
@@ -1377,7 +1441,10 @@ if (typeof module !== 'undefined' && module.exports) {
     const base = location.href.split('#')[0];
     const link = base + '#model=' + toBase64Url(JSON.stringify(cleanForExport(state.model)));
     history.replaceState(null, '', link);
-    const done = () => setStatus('Link copied. Anyone who opens this file with the link sees the same estimate.');
+    const done = () => {
+      history.replaceState(null, '', base);
+      setStatus('Link copied. Anyone who opens their copy of this app with the link sees the same estimate.');
+    };
     const fallback = () => setStatus('The link is now in the address bar: copy it from there.');
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fallback);
     else fallback();
@@ -1399,7 +1466,13 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function init() {
     $('#template').innerHTML = TEMPLATES.map(t => '<option value="' + esc(t.key) + '">' + esc(t.title) + '</option>').join('');
-    $('#template').addEventListener('change', e => loadTemplate(e.target.value));
+    $('#template').addEventListener('change', e => {
+      if (state.yours && !window.confirm('Replace your estimate with this example? Download your model first if you want to keep it.')) {
+        e.target.value = 'yours';
+        return;
+      }
+      loadTemplate(e.target.value);
+    });
     const editor = $('.editor');
     editor.addEventListener('input', e => { if (e.target.tagName !== 'SELECT') onEditorInput(e); });
     editor.addEventListener('change', e => { if (e.target.tagName === 'SELECT') onEditorInput(e); });
@@ -1417,6 +1490,7 @@ if (typeof module !== 'undefined' && module.exports) {
       } else {
         return;
       }
+      if (validateModel(state.model).length || !state.result) return;
       renderNarrow(state.result);
       const el = document.getElementById(e.target.id);
       if (el) el.focus();
@@ -1429,11 +1503,20 @@ if (typeof module !== 'undefined' && module.exports) {
       state.resizeTimer = setTimeout(() => { renderDistribution(state.result); renderTornado(state.result); }, 150);
     });
     const linked = modelFromLink();
-    const saved = linked ? null : readLocal();
-    if (linked || saved) {
+    const saved = readLocal();
+    if (linked) {
+      // The link is now loaded, so drop it from the address bar: later edits are saved in the browser instead.
+      history.replaceState(null, '', location.href.split('#')[0]);
       setTemplateSelect('yours');
-      useModel(linked || saved, '');
-      if (linked) setStatus('Opened the estimate from the link.');
+      useModel(linked, '');
+      if (saved && JSON.stringify(saved) !== JSON.stringify(linked) && stashPrevious(saved)) {
+        setStatus('Opened the estimate from the link. Your previous estimate is kept.', false, {label: 'Restore it', run: restorePrevious});
+      } else {
+        setStatus('Opened the estimate from the link.');
+      }
+    } else if (saved) {
+      setTemplateSelect('yours');
+      useModel(saved, '');
     } else {
       loadTemplate(TEMPLATES[0].key);
     }

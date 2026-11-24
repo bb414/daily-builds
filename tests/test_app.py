@@ -68,10 +68,12 @@ class AppAgreesWithPython(unittest.TestCase):
     def test_templates_and_constants_are_identical(self):
         got = js([{"get": k} for k in ("TEMPLATES", "DISTS", "DIST_LABELS", "Z95", "Z90", "MAX_TERMS",
                                         "MAX_DRIVERS_PER_TERM", "MAX_DRIVERS", "MIN_SAMPLES", "MAX_SAMPLES",
-                                        "DEFAULT_SAMPLES", "DEFAULT_SEED", "FORMAT", "VERSION")])
+                                        "DEFAULT_SAMPLES", "DEFAULT_SEED", "FORMAT", "VERSION", "MAX_ABS",
+                                        "CURRENCY_PREFIXES")])
         self.assertEqual(got, [M.TEMPLATES, list(M.DISTS), M.DIST_LABELS, M.Z95, M.Z90, M.MAX_TERMS,
                                M.MAX_DRIVERS_PER_TERM, M.MAX_DRIVERS, M.MIN_SAMPLES, M.MAX_SAMPLES,
-                               M.DEFAULT_SAMPLES, M.DEFAULT_SEED, M.FORMAT, M.VERSION])
+                               M.DEFAULT_SAMPLES, M.DEFAULT_SEED, M.FORMAT, M.VERSION, M.MAX_ABS,
+                               list(M.CURRENCY_PREFIXES)])
 
     def test_samples_agree(self):
         models = variants()
@@ -130,27 +132,33 @@ class AppAgreesWithPython(unittest.TestCase):
             changed(lambda m: d0(m).update(dist="fixed", high=None)),
             changed(lambda m: d0(m).update(low=True)),
             changed(lambda m: m["terms"][0]["drivers"].extend([copy.deepcopy(d0(m)) for _ in range(7)])),
+            changed(lambda m: d0(m).update(name="\x1c")), changed(lambda m: d0(m).update(name="\ufeff")),
+            changed(lambda m: d0(m).update(name=" \t ")), changed(lambda m: m.update(unit="\U0001D461" * 7)),
+            changed(lambda m: m.update(unit="\U0001D461" * 13)), changed(lambda m: d0(m).update(low=1e300, high=1e308)),
+            changed(lambda m: m.update(threshold=2e15)), changed(lambda m: d0(m).update(dist="fixed", low=-1e16)),
         ]
         got = js([{"fn": "validateModel", "args": [c]} for c in cases])
         self.assertEqual(got, [M.validate_model(c) for c in cases])
         self.assertEqual(got[0], [])
-        self.assertTrue(sum(1 for g in got if g) >= len(cases) - 3)
+        valid = sum(1 for g in got if not g)
+        self.assertEqual(valid, 6)  # the base model, an empty threshold, a fixed driver, two odd names, a 7-character unit
 
     def test_formatting_is_identical(self):
         xs = [0, 1, -1, 0.5, 1.125, 2.675, 12.345, 99.95, 999.4, 999.5, 1234, 12345, 123456, 999499, 999500,
-              1234567, 2.5e9, 1e15, -45100, 0.1234, 0.004567, 1e-9, -0.0005, 7.005, 1.005, 100.5, 0.0995]
+              1234567, 2.5e9, 1e15, -45100, 0.1234, 0.004567, 1e-9, -0.0005, 7.005, 1.005, 100.5, 0.0995,
+              2.5e12, 999.6e12, 6e30, -1e300, 4.567e-5]
         got = js([{"fn": "formatNumber", "args": [x]} for x in xs]
                  + [{"fn": "formatValue", "args": [x, u, p]} for x in (-59200, 0, 3.5) for u, p in
                     (("£", "prefix"), ("t", "suffix"), ("", "prefix"))]
                  + [{"fn": "formatDriver", "args": [x, d]} for x in (0.1234, 4.5, 1500) for d in
                     ({"dist": "share"}, {"dist": "lognormal", "unit": "£"}, {"dist": "normal", "unit": "bikes"},
-                     {"dist": "normal"})])
+                     {"dist": "normal"}, {"dist": "normal", "unit": "$"})])
         expect = ([M.format_number(x) for x in xs]
                   + [M.format_value(x, u, p) for x in (-59200, 0, 3.5) for u, p in
                      (("£", "prefix"), ("t", "suffix"), ("", "prefix"))]
                   + [M.format_driver(x, d) for x in (0.1234, 4.5, 1500) for d in
                      ({"dist": "share"}, {"dist": "lognormal", "unit": "£"}, {"dist": "normal", "unit": "bikes"},
-                      {"dist": "normal"})])
+                      {"dist": "normal"}, {"dist": "normal", "unit": "$"})])
         self.assertEqual(got, expect)
 
 

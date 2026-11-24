@@ -7,15 +7,16 @@ import os
 import sys
 
 from .deep import sobol, stability
-from .model import TEMPLATES, analyse, drivers_of, format_value, narrow_driver, simulate, validate_model
+from .model import (MAX_SAMPLES, MIN_SAMPLES, TEMPLATES, analyse, drivers_of, format_value, narrow_driver, percent,
+                    simulate, validate_model)
 from .report import text_report
 
 
 def load_model(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:
             model = json.load(f)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
     problems = validate_model(model)
     if problems:
@@ -23,10 +24,19 @@ def load_model(path):
     return model
 
 
+def check_samples(n):
+    if n is not None and not MIN_SAMPLES <= n <= MAX_SAMPLES:
+        raise ValueError("--samples must be from %d to %d" % (MIN_SAMPLES, MAX_SAMPLES))
+
+
 def cmd_run(args):
+    check_samples(args.samples)
     model = load_model(args.model)
     if args.threshold is not None:
         model["threshold"] = args.threshold
+        problems = validate_model(model)
+        if problems:
+            raise ValueError(problems[0])
     res = analyse(model, args.samples, args.seed)
     print(text_report(model, res))
     if args.json:
@@ -46,19 +56,25 @@ def cmd_run(args):
 
 
 def cmd_deep(args):
+    if args.samples < 2 or args.seeds < 1:
+        raise ValueError("--samples must be at least 2 and --seeds at least 1")
     model = load_model(args.model)
     res = analyse(model)
     names = [d["name"] for _, _, d in drivers_of(model)]
+    varying = sum(1 for _, _, d in drivers_of(model) if d["dist"] != "fixed")
     width = max(len(n) for n in names)
     print("%s: heavier checks" % (model["title"] or "Untitled estimate"))
     print("")
     print("Sobol indices from %s pick-and-freeze runs (first-order checks the app's shares;" % "{:,}".format(
-        args.samples * (len(names) + 2)))
+        args.samples * (varying + 2)))
     print("total-effect adds each driver's interactions)")
     print("  %-*s  %9s  %11s  %12s" % (width, "Driver", "App share", "First-order", "Total-effect"))
-    for r, s in zip(res["drivers"], sobol(model, args.samples, args.seed)):
-        print("  %-*s  %8d%%  %10d%%  %11d%%" % (width, r["name"], round(r["varShare"] * 100),
-                                                 round(s["first"] * 100), round(s["total"] * 100)))
+    sobol_rows = sobol(model, args.samples, args.seed)
+    for r, s in zip(res["drivers"], sobol_rows):
+        print("  %-*s  %8d%%  %10d%%  %11d%%" % (width, r["name"], percent(r["varShare"]),
+                                                 percent(s["first"]), percent(s["total"])))
+    print("  %-*s  %8d%%  %10d%%" % (width, "Drivers combining", percent(res["interaction"]),
+                                     percent(max(0.0, 1 - sum(s["first"] for s in sobol_rows)))))
 
     def fv(x):
         return format_value(x, model["unit"], model["unitPosition"])
@@ -81,6 +97,7 @@ def cmd_deep(args):
 def pilot_plan(model, factor):
     """For every driver: what narrowing its range would do to the range and to the decision."""
     base = analyse(model)
+    base_width = base["p90"] - base["p10"]
     rows = []
     for i, (ti, di, d) in enumerate(drivers_of(model)):
         if d["dist"] == "fixed":
@@ -89,11 +106,11 @@ def pilot_plan(model, factor):
         rows.append({
             "name": d["name"],
             "width": r["p90"] - r["p10"],
-            "widthChange": (r["p90"] - r["p10"]) / (base["p90"] - base["p10"]) - 1,
+            "widthChange": ((r["p90"] - r["p10"]) / base_width - 1) if base_width > 0 else None,
             "wrong": r["voi"]["wrongChance"] if r["voi"] else None,
             "evppi": base["voi"]["drivers"][i]["evppi"] if base["voi"] else None,
         })
-    rows.sort(key=lambda x: x["widthChange"])
+    rows.sort(key=lambda x: (x["widthChange"] is None, x["widthChange"] or 0))
     return base, rows
 
 
@@ -104,11 +121,14 @@ def cmd_plan(args):
         return format_value(x, model["unit"], model["unitPosition"])
 
     base, rows = pilot_plan(model, args.factor)
-    what = "pinning down" if args.factor <= 0 else "narrowing to %d%% of its width" % round(args.factor * 100)
+    if not rows:
+        print("Every driver is known exactly, so there is no range to narrow.")
+        return 0
+    what = "pinning down" if args.factor <= 0 else "narrowing to %d%% of its width" % percent(args.factor)
     print("%s: what %s each range would do" % (model["title"] or "Untitled estimate", what))
     print("")
     print("Now: most likely %s to %s" % (fv(base["p10"]), fv(base["p90"])) + (
-        ", %d%% chance the call is wrong" % round(base["voi"]["wrongChance"] * 100) if base["voi"] else ""))
+        ", %d%% chance the call is wrong" % percent(base["voi"]["wrongChance"]) if base["voi"] else ""))
     print("")
     width = max(len(r["name"]) for r in rows)
     head = "  %-*s  %18s" % (width, "Driver", "80% range width")
@@ -116,12 +136,14 @@ def cmd_plan(args):
         head += "  %16s  %12s" % ("Wrong call after", "Worth up to")
     print(head)
     for r in rows:
-        line = "  %-*s  %10s (%+4d%%)" % (width, r["name"], fv(r["width"]), round(r["widthChange"] * 100))
+        change = "  n/a" if r["widthChange"] is None else "%+4d%%" % percent(r["widthChange"])
+        line = "  %-*s  %10s (%s)" % (width, r["name"], fv(r["width"]), change)
         if r["wrong"] is not None:
-            line += "  %15d%%  %12s" % (round(r["wrong"] * 100), fv(r["evppi"]))
+            line += "  %15d%%  %12s" % (percent(r["wrong"]), fv(r["evppi"]))
         print(line)
     print("")
-    print("Each row narrows one range around today's median and reruns everything else unchanged.")
+    print("Each row narrows one range around today's median and reruns everything else unchanged: a scenario in")
+    print("which the truth sits in the middle of today's range. 'Worth up to' averages over everything you might learn.")
     print("Use it to decide what a pilot or a piece of research should measure.")
     return 0
 

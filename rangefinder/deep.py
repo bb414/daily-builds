@@ -32,6 +32,8 @@ def _evaluate_rows(model, cols, k):
 
 def sobol(model, n=20000, seed=11):
     """First-order and total-effect Sobol indices for every driver."""
+    if n < 2:
+        raise ValueError("the Sobol check needs at least 2 samples")
     a = _columns(model, n, seed)
     b = _columns(model, n, seed + 1000003)
     fa = [_evaluate_rows(model, a, k) for k in range(n)]
@@ -53,6 +55,8 @@ def sobol(model, n=20000, seed=11):
 
 def stability(model, seeds=20, n=None):
     """Mean and spread of the headline numbers across seeds."""
+    if seeds < 1:
+        raise ValueError("seeds must be at least 1")
     keys = ("p10", "p50", "p90", "mean", "probAbove")
     runs = {k: [] for k in keys}
     threshold = model.get("threshold")

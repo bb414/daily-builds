@@ -101,8 +101,28 @@ def inv_norm(p):
 # Validation
 # ---------------------------------------------------------------------------
 
+MAX_ABS = 1e15   # the largest size of number a range may use
+
+
 def _is_num(x):
-    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    try:
+        return math.isfinite(float(x))
+    except OverflowError:   # a whole number too big for a float
+        return False
+
+
+def _in_bounds(x):
+    return _is_num(x) and abs(float(x)) <= MAX_ABS
+
+
+_SPACE = " \t\n\r\f\v"
+
+
+def strip_name(text):
+    """Trim ASCII white space only, exactly as the app does."""
+    return text.strip(_SPACE)
 
 
 def _is_int(x):
@@ -120,13 +140,13 @@ def validate_model(model):
     for key in ("title", "outputName", "unit"):
         if not isinstance(model.get(key), str):
             problems.append("The model's %s must be text." % key)
-    if isinstance(model.get("unit"), str) and len(model["unit"]) > 12:
+    if isinstance(model.get("unit"), str) and len(model["unit"]) > 12:   # counted in characters, as in the app
         problems.append("The unit must be 12 characters or fewer.")
     if model.get("unitPosition") not in ("prefix", "suffix"):
         problems.append("The unit position must be prefix or suffix.")
     t = model.get("threshold")
-    if t is not None and not _is_num(t):
-        problems.append("The decision threshold must be a number or left empty.")
+    if t is not None and not _in_bounds(t):
+        problems.append("The decision threshold must be a number between -1e15 and 1e15, or left empty.")
     n = model.get("samples")
     if n is not None and (not _is_int(n) or not MIN_SAMPLES <= n <= MAX_SAMPLES):
         problems.append("Samples must be a whole number from %d to %d." % (MIN_SAMPLES, MAX_SAMPLES))
@@ -161,8 +181,8 @@ def validate_model(model):
             if not isinstance(d, dict):
                 problems.append("%s is not valid." % label)
                 continue
-            if isinstance(d.get("name"), str) and d["name"].strip():
-                label += " (%s)" % d["name"].strip()
+            if isinstance(d.get("name"), str) and strip_name(d["name"]):
+                label += " (%s)" % strip_name(d["name"])
             else:
                 problems.append("%s needs a name." % label)
             dist = d.get("dist")
@@ -172,6 +192,9 @@ def validate_model(model):
             lo, hi = d.get("low"), d.get("high")
             if not _is_num(lo) or (dist != "fixed" and not _is_num(hi)):
                 problems.append("%s needs numbers for its range." % label)
+                continue
+            if not _in_bounds(lo) or (dist != "fixed" and not _in_bounds(hi)):
+                problems.append("%s: numbers must be between -1e15 and 1e15." % label)
                 continue
             if dist == "fixed":
                 continue
@@ -425,7 +448,7 @@ def analyse(model, samples=None, seed=None):
         "probAbove": above,
         "drivers": rows,
         "tornado": order,
-        "interaction": max(0.0, 1 - share_total),
+        "interaction": max(0.0, 1 - share_total) if var > 0 else 0.0,
         "voi": voi,
     }
 
@@ -435,7 +458,7 @@ def value_of_information(model, values, columns, means, rows, m, threshold):
 
     Going ahead pays (estimate - threshold); holding off pays 0. Today's call is
     whichever has the higher expected payoff. Because the estimate is linear in
-    each driver, the expected estimate given driver i is base + slope_i x (x_i - mean_i),
+    each driver, the expected estimate given driver i is mean + slope_i x (x_i - mean_i),
     which makes the expected value of partial perfect information (EVPPI) a
     one-dimensional average over that driver's samples.
 
@@ -452,17 +475,15 @@ def value_of_information(model, values, columns, means, rows, m, threshold):
         if (v >= threshold) != go:
             wrong += 1
     evpi = total / n
-    base = evaluate(model, means)
-    base_go = base >= threshold
     out = []
     for i, r in enumerate(rows):
         acc = 0.0
         flips = 0
         col = columns[i]
         for k in range(n):
-            cond = base + r["slope"] * (col[k] - means[i])
-            acc += max(threshold - cond, 0.0) if base_go else max(cond - threshold, 0.0)
-            if (cond >= threshold) != base_go:
+            cond = m + r["slope"] * (col[k] - means[i])
+            acc += max(threshold - cond, 0.0) if go else max(cond - threshold, 0.0)
+            if (cond >= threshold) != go:
                 flips += 1
         out.append({"evppi": acc / n, "flip": flips / n})
     order = sorted(range(len(out)), key=lambda i: (-out[i]["evppi"], -out[i]["flip"], i))
@@ -496,11 +517,17 @@ def _fixed(v, dec):
 
 
 def format_number(x):
-    """Three significant figures with k, m and bn: 1234567 -> '1.23m'."""
+    """Three significant figures with k, m, bn and tn (1234567 -> '1.23m').
+
+    Values below 0.001 are shown to six decimal places, and anything from a
+    thousand trillion up is shown as '1000tn+'.
+    """
     if not _is_num(x):
         return "n/a"
     a = abs(x)
-    scales = [(1e9, "bn"), (1e6, "m"), (1e3, "k"), (1, "")]
+    if a >= 1e15:
+        return ("-" if x < 0 else "") + "1000tn+"
+    scales = [(1e12, "tn"), (1e9, "bn"), (1e6, "m"), (1e3, "k"), (1, "")]
     idx = len(scales) - 1
     for i, (scale, _) in enumerate(scales):
         if a >= scale:
@@ -522,6 +549,14 @@ def format_number(x):
     return ("-" if x < 0 else "") + s + scales[idx][1]
 
 
+CURRENCY_PREFIXES = ("£", "$", "€", "¥")
+
+
+def percent(x):
+    """Whole percentage, halves rounded up (as JavaScript's Math.round does)."""
+    return int(math.floor(x * 100 + 0.5))
+
+
 def format_value(x, unit="", position="prefix"):
     s = format_number(x)
     if s == "n/a" or not unit:
@@ -538,6 +573,6 @@ def format_driver(x, d):
     if d["dist"] == "share":
         return format_number(x * 100) + "%"
     unit = d.get("unit") or ""
-    if unit == "£":
-        return format_value(x, "£", "prefix")
+    if unit in CURRENCY_PREFIXES:
+        return format_value(x, unit, "prefix")
     return format_number(x) + (" " + unit if unit else "")

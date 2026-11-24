@@ -5,7 +5,7 @@
 Most market sizes and business cases are a chain of single numbers multiplied together: so many customers, times a share who buy, times how often, times a price. Each number is a guess, and multiplying guesses hides how uncertain the answer really is. Range finder asks for a range you are 90% sure about for every assumption instead, works through 10,000 combinations, and tells you three things:
 
 1. **How wide the honest answer is**, and how far a midpoint-only estimate would have misled you.
-2. **Which assumptions drive the uncertainty**, exactly, including how much comes from assumptions moving together.
+2. **Which assumptions drive the uncertainty**, exactly, including how much comes from assumptions combining.
 3. **Which assumption is worth checking before you decide**, and roughly what checking it is worth: a guide to what a pilot or a piece of research should measure.
 
 There are two ways to use it, built on the same engine:
@@ -38,9 +38,9 @@ What you can do in it:
 - **Start from an example**: the student meal-kit market, an AI assistant for a support team, or a campus e-bike share. Or open [`examples/textile-reuse.json`](examples/textile-reuse.json) with "Open a model", which measures carbon in tonnes rather than money.
 - **Build your own estimate.** Each term multiplies its drivers, and terms are added or taken away. Every driver gets a low and a high value and a kind of range: skewed (for counts, prices and volumes), symmetric, a percentage, even (hard limits), or known exactly.
 - **Read the answer**: the most likely range (10th to 90th percentile), the median, the average, the chance of clearing your threshold, and a warning when plugging in midpoints would mislead.
-- **See which ranges matter**: a tornado chart and the exact share of the spread from each driver.
+- **See which ranges matter**: a tornado chart and the exact share of the spread from each driver, plus the share that comes from drivers combining.
 - **Decide what to check first**: the expected value of perfect information for each driver, and how often learning it would change the call.
-- **Try narrowing a range**: halve a range, cut it to a quarter or pin it down, and see what that does to the answer and to the chance of making the wrong call.
+- **Try narrowing a range**: halve a range, cut it to a quarter or pin it down at its median, and see what that scenario does to the answer and to the chance of making the wrong call.
 - **Save and share**: download the model as JSON, open it again later, or copy a link that carries the whole estimate. Your last estimate is also kept in the browser.
 
 It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard. The charts redraw at the screen's real width, so their labels stay readable on a phone.
@@ -87,10 +87,10 @@ These come from the bundled examples, with their invented ranges. They show what
 Three things stand out:
 
 - **Midpoint estimates overstate.** When several skewed quantities are multiplied, the product of their midpoints sits well above the median. For the meal-kit market it is 79% higher: £513k against a median of £286k. A single-number business case built that way is optimistic by construction.
-- **What matters for the range is not always what matters for the decision.** In the AI assistant example, "complaints caused per year" moves the estimate a lot (14% of the spread), but no likely value of it would change the decision much, so pinning it down is worth only about £279. The share of contacts the assistant resolves on its own is worth up to £17.8k, and learning it would change the call 26% of the time.
+- **What matters for the range is not always what matters for the decision.** In the AI assistant example, "complaints caused per year" moves the estimate a lot (14% of the spread), but no likely value of it would change the decision much, so pinning it down is worth only about £301. The share of contacts the assistant resolves on its own is worth up to £17.8k, and learning it would change the call 26% of the time.
 - **The expected value can favour a call that is more likely to be wrong.** For the textile scheme the average saving (44.9 t) clears the 40-tonne bar, so the call is to scale it up, even though the median (38.5 t) does not and there is a 53% chance of falling short. The upside is bigger than the downside. The app says so in words rather than leaving a contradictory pair of numbers.
 
-`python -m rangefinder deep` on the meal-kit model checks the app's exact variance shares against a separate Sobol calculation (they agree within two percentage points), and shows that about a fifth of the spread (22%) comes from drivers moving together: the share who try and the order frequency matter more in combination than on their own.
+For the meal-kit market the app shows that about a fifth of the spread (22%) comes from drivers combining: in a product, how much one driver matters depends on the others, so the share who try and the order frequency matter more together than on their own. `python -m rangefinder deep` checks the app's exact first-order shares against a separate Sobol calculation (they agree within two percentage points) and adds total-effect indices, which include those combinations.
 
 ## How it works
 
@@ -100,7 +100,7 @@ Three things stand out:
 
 | Kind | Distribution | Good for |
 |---|---|---|
-| Skewed | Lognormal, fitted so that 90% of values fall between low and high | Counts, prices, volumes: anything positive where being out by a factor is as likely as being out by an amount |
+| Skewed | Lognormal, fitted so that 90% of values fall between low and high | Counts, prices, volumes: anything positive where twice the middle value is as likely as half of it |
 | Symmetric | Normal, fitted the same way | Quantities that can go either way equally |
 | Percentage | Logit-normal, so values stay between 0 and 100% | Shares and conversion rates |
 | Even | Uniform between low and high (hard limits) | When any value in the range is as likely as any other |
@@ -110,11 +110,11 @@ Three things stand out:
 
 **The tornado.** Each bar is the estimate with one driver at its 10th and then its 90th percentile, and every other driver at its median.
 
-**The share of the spread.** Because every driver appears once and terms only multiply and add, the estimate is a straight line in any single driver once the others are averaged out: E[estimate | driver i] = base + slope_i x (driver i - its mean), where slope_i is the term's sign times the average of the other drivers in that term. So each driver's first-order share of the variance is exactly slope_i² x Var(driver i) / Var(estimate). Whatever is left is the share from drivers moving together.
+**The share of the spread.** Because every driver appears once and terms only multiply and add, the estimate is a straight line in any single driver once the others are averaged out: E[estimate | driver i] = base + slope_i x (driver i - its mean), where slope_i is the term's sign times the product of the other drivers' averages in that term. So each driver's first-order share of the variance is exactly slope_i² x Var(driver i) / Var(estimate). Whatever is left comes from drivers combining (interactions): in a product, the effect of one driver depends on the values of the others.
 
 **The value of information.** With a threshold, going ahead pays (estimate - threshold) and holding off pays nothing. Today's call is whichever has the higher expected payoff. The expected value of perfect information (EVPI) is the average loss from the cases where that call turns out wrong. For a single driver (EVPPI), the same straight-line result gives the expected estimate once that driver is known, so its value is a one-dimensional average over the driver's samples, with no nested simulation. The app also reports how often learning the driver would flip the call.
 
-**Narrowing a range** shrinks one driver's range around its median, on the scale the range is defined on (so a skewed range stays skewed), and reruns everything.
+**Narrowing a range** shrinks one driver's range around its median, on the scale the range is defined on (so a skewed range stays skewed), and reruns everything. It is one scenario, in which the truth turns out to sit in the middle of today's range, so the chance of a wrong call can even go up. The value of information above is the fairer guide to what checking is worth, because it averages over everything you might find out.
 
 **The Python extras.** `deep` estimates first-order Sobol indices with the Saltelli (2010) estimator and total-effect indices with the Jansen (1999) estimator, from (drivers + 2) x 20,000 runs, and reruns the headline numbers under 20 seeds. `plan` narrows each range in turn and tabulates the effect on the answer and on the decision.
 
@@ -124,11 +124,11 @@ Three things stand out:
 |---|---|---|---|
 | Browser app model | JavaScript | Validation, distributions, Latin hypercube sampling, analysis, value of information, narrowing and number formatting, inside `app/index.html` | 390 lines |
 | Examples in the app | JavaScript (data) | A copy of `templates.json`, written in by `tools/embed_templates.py` | 220 lines |
-| Browser app interface | JavaScript | The editor, the results cards and charts, saving, opening, share links | 590 lines |
+| Browser app interface | JavaScript | The editor, the results cards and charts, saving, opening, share links | 670 lines |
 | Browser app styling and layout | CSS and HTML | Layout, typography, light and dark colours, phone layout | 250 lines |
-| Python package | Python (standard library only) | The same engine, plus text, CSV and JSON reports, the narrowing plan, Sobol indices, seed stability and the command line | 870 lines |
+| Python package | Python (standard library only) | The same engine, plus text, CSV and JSON reports, the narrowing plan, Sobol indices, seed stability and the command line | 930 lines |
 | Examples | JSON | The three built-in examples and the textile reuse model | 140 lines |
-| Tests | Python (and a small Node.js runner) | Engine tests, statistical checks against brute force, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 780 lines |
+| Tests | Python (and a small Node.js runner) | Engine tests, statistical checks against brute force, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 950 lines |
 
 The two versions never call each other. What Python adds is the part a browser tab is not built for: Sobol indices from hundreds of thousands of runs, repeated runs under many seeds, a full narrowing plan, and files to feed into other tools.
 
@@ -154,6 +154,8 @@ Edit `rangefinder/templates.json`, then run `python tools/embed_templates.py` to
 - **The 90% ranges are only as good as the person giving them.** Most people's 90% ranges are too narrow. The tool shows the consequences of the ranges, not whether they are honest.
 - **The value of information assumes a simple payoff**: going ahead earns the estimate minus the threshold. Real decisions have staged investments, options to stop, and costs of delay.
 - **Share links can get long** for big models, and a link only works for someone who has the app file too.
+- **Numbers are limited to plus or minus 10^15**, and results from there up show as "1000tn+".
+- **Very large models are slow in the browser.** A model file can ask for up to 200,000 samples and 30 drivers; at that size each change takes a second or two to recalculate.
 
 ## What could come next
 
