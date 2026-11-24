@@ -45,7 +45,7 @@ class BrowserTests(unittest.TestCase):
             page.click("#break-go")
             page.wait_for_selector("#screen-trial:not([hidden])")
             while page.is_visible("#screen-trial"):
-                page.wait_for_timeout(260)
+                page.wait_for_timeout(450)
                 page.keyboard.press(key)
                 if page.is_visible("#checker-block"):
                     page.wait_for_timeout(360)
@@ -72,10 +72,10 @@ class BrowserTests(unittest.TestCase):
         page.click("#start-btn")
         page.click("#break-go")
         for _ in range(8):
-            page.wait_for_timeout(260)
+            page.wait_for_timeout(450)
             page.keyboard.press("3")
         page.click("#break-go")
-        page.wait_for_timeout(260)
+        page.wait_for_timeout(450)
         page.keyboard.press("2")
         page.wait_for_selector("#checker-block:not([hidden])")
         text = page.inner_text("#checker-panel")
@@ -102,7 +102,7 @@ class BrowserTests(unittest.TestCase):
             page.wait_for_selector("#screen-break:not([hidden])")
             page.click("#break-go")
             while page.is_visible("#screen-trial"):
-                page.wait_for_timeout(260)
+                page.wait_for_timeout(450)
                 page.keyboard.press("4")
                 if page.is_visible("#checker-block"):
                     page.wait_for_timeout(360)
@@ -175,7 +175,7 @@ class BrowserTests(unittest.TestCase):
         page.click("#start-btn")
         page.click("#break-go")
         for _ in range(3):
-            page.wait_for_timeout(260)
+            page.wait_for_timeout(450)
             page.keyboard.press("2")
         page.reload()
         page.wait_for_selector("#resume-banner:not([hidden])")
@@ -198,6 +198,88 @@ class BrowserTests(unittest.TestCase):
             self.assertIn(phrase, text)
         self.assertEqual(self.errors, [])
         page.close()
+
+    def test_holding_a_key_answers_only_once(self):
+        page = self.open()
+        page.click("#start-btn")
+        page.click("#break-go")
+        page.wait_for_timeout(300)
+        for _ in range(12):
+            page.keyboard.down("3")
+            page.wait_for_timeout(40)
+        page.keyboard.up("3")
+        page.wait_for_timeout(300)
+        self.assertEqual(page.inner_text("#trial-count"), "Message 2 of 8")
+        page.close()
+
+    def test_resume_at_a_round_boundary_shows_the_instructions(self):
+        page = self.open()
+        page.click("#start-btn")
+        page.click("#break-go")
+        for _ in range(8):
+            page.wait_for_timeout(420)
+            page.keyboard.press("3")
+        page.wait_for_selector("#screen-break:not([hidden])")
+        page.reload()
+        page.click("#resume-btn")
+        page.wait_for_selector("#screen-break:not([hidden])")
+        self.assertIn("round 2 of 3", page.inner_text("#break-card").lower())
+        self.assertIn("second opinion", page.inner_text("#break-card"))
+        page.close()
+
+    def test_failed_saving_offers_a_download_and_listeners_are_not_duplicated(self):
+        page = self.browser.new_page(viewport={"width": 1280, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.add_init_script("""
+          window.__listeners = {};
+          const add = EventTarget.prototype.addEventListener;
+          EventTarget.prototype.addEventListener = function (type, fn, opts) {
+            const key = (this.id || this.nodeName || 'window') + ':' + type;
+            window.__listeners[key] = (window.__listeners[key] || 0) + 1;
+            return add.call(this, type, fn, opts);
+          };
+          Storage.prototype.setItem = function () { throw new Error('quota'); };
+        """)
+        page.goto(APP_URL)
+        page.click("#settings summary")
+        page.check("#opt-study")
+        page.uncheck("#opt-show-results")
+        page.click("#start-btn")
+        self.answer_all(page)
+        page.wait_for_selector("#screen-results:not([hidden])")
+        text = page.inner_text("#results")
+        self.assertIn("could not be saved", text)
+        self.assertTrue(page.is_visible("[data-act=json]"))
+        page.click("[data-act=next]")
+        page.click("#start-btn")
+        self.answer_all(page)
+        page.click("[data-act=next]")
+        counts = page.evaluate("window.__listeners")
+        self.assertEqual(counts.get("discard-btn:click"), 1)
+        self.assertEqual(counts.get("bundle-list:click"), 1)
+        self.assertEqual(errors, [])
+        page.close()
+
+    def test_unfinished_comparison_session_is_described_correctly(self):
+        import json
+        import tempfile
+        from crutch_check import model as M
+        s = M.simulate_responses(M.build_session(5, "control"), M.PERSONAS["loner"], 1)
+        for t in s["trials"][20:]:
+            t["final"] = None
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "partial.json"
+            f.write_text(json.dumps(s))
+            page = self.open()
+            page.set_input_files("#load-file", str(f))
+            page.wait_for_selector("#screen-results:not([hidden])")
+            text = page.inner_text("#results")
+            self.assertIn("Round 2 without the checker", text)
+            self.assertNotIn("How you used the checker", text)
+            self.assertEqual(page.locator("text=Not answered").count(), 8)
+            self.assertEqual(self.errors, [])
+            page.close()
 
     def test_every_control_has_a_name(self):
         page = self.open()

@@ -7,6 +7,7 @@ exactly. tests/test_app.py checks that they agree.
 
 import json
 import math
+import re
 from pathlib import Path
 
 FORMAT = "crutch-check-session"
@@ -91,6 +92,12 @@ def round2(x):
     return math.floor(x * 100 + 0.5) / 100
 
 
+def points(x):
+    """Whole percentage points, halves rounded away from zero (the same in both languages)."""
+    v = math.floor(abs(x) * 100 + 0.5)
+    return -v if x < 0 else v
+
+
 def other(verdict):
     return "genuine" if verdict == "scam" else "scam"
 
@@ -104,25 +111,29 @@ def clamp(x, lo, hi):
 # ---------------------------------------------------------------------------
 
 def assign_arm(study, participant):
-    """Reproducible random allocation to the checker or control arm."""
-    return "checker" if hash_string("arm|" + study + "|" + participant) % 2 == 0 else "control"
+    """Reproducible random allocation to the checker or control arm.
+
+    The hash goes through the generator first: the lowest bit of an FNV-1a hash
+    only reflects how many characters have odd codes, so it is not random.
+    """
+    return "checker" if mulberry32(hash_string("arm|" + study + "|" + participant))() < 0.5 else "control"
 
 
 def participant_seed(study, participant):
     return hash_string(study + "|" + participant)
 
 
+_NUMERIC = re.compile(r"^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$")
+
+
 def _int_or(x, default):
-    """Whole number from a number or numeric string, else the default (as in the app)."""
+    """Whole number from a number or plain numeric string, else the default (as in the app)."""
     if isinstance(x, bool):
         return default
     if isinstance(x, (int, float)):
         v = float(x)
-    elif isinstance(x, str) and x.strip():
-        try:
-            v = float(x)
-        except ValueError:
-            return default
+    elif isinstance(x, str) and _NUMERIC.match(x):
+        v = float(x)
     else:
         return default
     return int(v) if math.isfinite(v) else default
@@ -133,8 +144,9 @@ def normalise_design(design):
     if design:
         d.update({k: design[k] for k in d if k in design})
     d["checkerWrong"] = int(clamp(_int_or(d["checkerWrong"], 3), 0, MAX_CHECKER_WRONG))
-    d["showReasons"] = bool(d["showReasons"])
-    d["showConfidence"] = bool(d["showConfidence"])
+    for key in ("showReasons", "showConfidence"):
+        if not isinstance(d[key], bool):
+            d[key] = default_design()[key]
     return d
 
 
@@ -602,7 +614,10 @@ def simulate_responses(session, persona, seed):
 # ---------------------------------------------------------------------------
 
 def _is_int(x):
-    return isinstance(x, int) and not isinstance(x, bool)
+    # JSON cannot tell 1 from 1.0 in JavaScript, so whole-number floats count too.
+    if isinstance(x, bool):
+        return False
+    return isinstance(x, int) or (isinstance(x, float) and x.is_integer())
 
 
 def _valid_answer(r):
@@ -619,6 +634,12 @@ def validate_session(session):
         raise ValueError("not a Crutch check session file")
     if session.get("arm") not in ARMS:
         raise ValueError("session has an unknown group (arm)")
+    seed = session.get("seed")
+    if not _is_int(seed) or not 0 <= seed <= 4294967295:
+        raise ValueError("session has an invalid seed")
+    for key in ("participant", "study"):
+        if session.get(key) is not None and not isinstance(session[key], str):
+            raise ValueError("session has an invalid %s" % key)
     trials = session.get("trials")
     if not isinstance(trials, list) or not trials:
         raise ValueError("session has no messages")
@@ -633,6 +654,10 @@ def validate_session(session):
             raise ValueError("%s has an invalid round" % where)
         if t.get("truth") != m["truth"]:
             raise ValueError("%s has the wrong answer key" % where)
+        if (t.get("difficulty") != m["difficulty"] or isinstance(t.get("difficulty"), bool)
+                or t.get("channel") != m["channel"]
+                or not _is_int(t.get("position")) or t["position"] < 0):
+            raise ValueError("%s does not match the message bank" % where)
         adv = t.get("checker")
         if adv is not None:
             if (not isinstance(adv, dict) or adv.get("verdict") not in ("scam", "genuine")

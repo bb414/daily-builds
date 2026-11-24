@@ -10,6 +10,7 @@ the test is not crying wolf.
 
 from . import stats
 from .cohort import SCENARIOS, simulate_cohort
+from .model import points
 
 
 def expected_gain_difference(scenario):
@@ -39,7 +40,7 @@ def power_curve(scenario="crutch", sizes=(20, 40, 80, 160), sims=100, alpha=0.05
     if sims < 1:
         raise ValueError("sims must be at least 1")
     rows = []
-    for n in sizes:
+    for n in sorted(sizes):
         if n < 2:
             raise ValueError("each group needs at least 2 participants")
         hits_gain = hits_during = 0
@@ -81,7 +82,7 @@ def power_report(result):
     ]
     for r in result["rows"]:
         lines.append("  %-16d %-26s %-26s %+.1f pts (sd %.1f)" % (
-            r["n"], "%d%%" % round(r["afterPower"] * 100), "%d%%" % round(r["duringPower"] * 100),
+            r["n"], "%d%%" % points(r["afterPower"]), "%d%%" % points(r["duringPower"]),
             r["meanDifference"] * 100, (r["spread"] or 0) * 100))
     enough = [r["n"] for r in result["rows"] if r["afterPower"] >= 0.8]
     lines.append("")
@@ -89,7 +90,7 @@ def power_report(result):
         lines.append("  There is little or no true average effect here, so detection rates near %d%% are "
                      "false alarms at the chosen significance level." % round(result["alpha"] * 100))
     elif enough:
-        lines.append("  About %d per group is enough to detect the after effect 80%% of the time." % enough[0])
+        lines.append("  About %d per group is enough to detect the after effect 80%% of the time." % min(enough))
     else:
         lines.append("  None of these group sizes detects the after effect 80%% of the time. Try larger groups.")
     lines.append("  Each row is %d simulated studies; significance level %.2f, Welch's t-test." % (

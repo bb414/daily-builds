@@ -3,7 +3,7 @@
 import html
 import random
 
-from .model import PROFILES
+from .model import PROFILES, points
 from .study import PROFILE_ORDER
 
 CHECKER = "#eb6834"
@@ -18,7 +18,7 @@ def _e(s):
 
 
 def _pct(x):
-    return "n/a" if x is None else "%d%%" % round(x * 100)
+    return "n/a" if x is None else "%d%%" % points(x)
 
 
 def _pts(x):

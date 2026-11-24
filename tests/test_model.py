@@ -121,8 +121,13 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(M.normalise_design({"checkerWrong": -3})["checkerWrong"], 0)
         self.assertEqual(M.normalise_design({"checkerWrong": "2"})["checkerWrong"], 2)
         self.assertEqual(M.normalise_design({"checkerWrong": 2.9})["checkerWrong"], 2)
-        for bad in ("abc", "", None, True, float("nan")):
-            self.assertEqual(M.normalise_design({"checkerWrong": bad})["checkerWrong"], 3)
+        for bad in ("abc", "", None, True, float("nan"), "0x5", "1_0", "inf", [], {}):
+            self.assertEqual(M.normalise_design({"checkerWrong": bad})["checkerWrong"], 3, bad)
+        self.assertEqual(M.normalise_design({"checkerWrong": " 4 "})["checkerWrong"], 4)
+        self.assertEqual(M.normalise_design({"checkerWrong": "2e0"})["checkerWrong"], 2)
+        for bad in ([], {}, "false", 0, None):
+            self.assertTrue(M.normalise_design({"showReasons": bad})["showReasons"], bad)
+        self.assertFalse(M.normalise_design({"showReasons": False})["showReasons"])
         self.assertEqual(M.normalise_design({"extra": 1}), M.default_design())
 
     def test_checker_reasons_use_cues_or_decoys(self):
@@ -140,6 +145,22 @@ class SessionTests(unittest.TestCase):
         arms = [M.assign_arm("study-a", "P%03d" % i) for i in range(400)]
         self.assertEqual(arms, [M.assign_arm("study-a", "P%03d" % i) for i in range(400)])
         self.assertTrue(160 < arms.count("checker") < 240)
+
+    def test_arm_allocation_is_not_predictable_from_the_id(self):
+        # Regression: the lowest bit of an FNV-1a hash only tracks how many
+        # characters have odd codes, so sequential IDs used to alternate.
+        ids = ["P%03d" % i for i in range(1, 401)]
+        arms = [M.assign_arm("study-a", i) for i in ids]
+        parity = ["checker" if sum(ord(c) for c in "arm|study-a|" + i) % 2 == 0 else "control" for i in ids]
+        agree = sum(a == b for a, b in zip(arms, parity)) / len(ids)
+        self.assertTrue(0.35 < agree < 0.65, agree)
+        switches = sum(a != b for a, b in zip(arms, arms[1:])) / (len(ids) - 1)
+        self.assertTrue(0.35 < switches < 0.65, switches)
+        self.assertEqual(len({M.assign_arm(s, "P001") for s in ("a", "b", "c", "d", "e", "f", "g", "h")}), 2)
+
+    def test_points_rounds_halves_away_from_zero(self):
+        self.assertEqual([M.points(x) for x in (0.625, -0.125, 0.125, 0.375, -0.375, 0, 1)],
+                         [63, -13, 13, 38, -38, 0, 100])
 
 
 class ScoringTests(unittest.TestCase):
@@ -375,6 +396,16 @@ class FileTests(unittest.TestCase):
         bad_answer = json.loads(json.dumps(good))
         bad_answer["trials"][0]["final"] = {"verdict": "maybe", "sure": True}
         bad_cases.append(bad_answer)
+        for key, value in (("seed", None), ("seed", -1), ("seed", "7"), ("participant", 5), ("study", [])):
+            bad_cases.append(dict(good, **{key: value}))
+        no_seed = json.loads(json.dumps(good))
+        del no_seed["seed"]
+        bad_cases.append(no_seed)
+        for key, value in (("difficulty", 9), ("difficulty", True), ("channel", "Fax"), ("position", -1),
+                           ("position", None)):
+            x = json.loads(json.dumps(good))
+            x["trials"][0][key] = value
+            bad_cases.append(x)
         for case in bad_cases:
             with self.assertRaises(ValueError):
                 M.validate_session(case)
@@ -391,6 +422,18 @@ class FileTests(unittest.TestCase):
             (d / "bad.json").write_text("{not json")
             with self.assertRaises(ValueError):
                 load_sessions([d / "bad.json"])
+            for empty in ('{"format": "crutch-check-bundle", "sessions": null}',
+                          '{"format": "crutch-check-bundle", "sessions": []}', "[]"):
+                (d / "empty.json").write_text(empty)
+                with self.assertRaisesRegex(ValueError, "no sessions"):
+                    load_sessions([d / "empty.json"])
+            whole = json.loads(json.dumps(sessions[0]))
+            whole["seed"] = float(whole["seed"])
+            whole["trials"][0]["round"] = float(whole["trials"][0]["round"])
+            (d / "floats.json").write_text(json.dumps(whole))
+            loaded = load_sessions([d / "floats.json"])[0]
+            self.assertIsInstance(loaded["seed"], int)
+            self.assertIsInstance(loaded["trials"][0]["round"], int)
 
     def test_csv(self):
         s = M.simulate_responses(M.build_session(1), M.PERSONAS["calibrated"], 2)

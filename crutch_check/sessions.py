@@ -11,18 +11,32 @@ BUNDLE_FORMAT = "crutch-check-bundle"
 
 def _sessions_in(data, source):
     if isinstance(data, dict) and data.get("format") == BUNDLE_FORMAT:
-        items = data.get("sessions", [])
+        items = data.get("sessions")
+        if not isinstance(items, list):
+            items = []
     elif isinstance(data, list):
         items = data
     else:
         items = [data]
+    if not items:
+        raise ValueError("%s: the file has no sessions in it" % source)
     out = []
     for i, s in enumerate(items):
         try:
-            out.append(validate_session(s))
+            validate_session(s)
         except ValueError as exc:
-            raise ValueError("%s (item %d): %s" % (source, i + 1, exc)) from None
+            raise ValueError("%s (session %d): %s" % (source, i + 1, exc)) from None
+        out.append(_whole_numbers(s))
     return out
+
+
+def _whole_numbers(session):
+    """Turn whole-number floats (1.0) back into ints after validation."""
+    session["seed"] = int(session["seed"])
+    for t in session["trials"]:
+        for key in ("round", "position", "difficulty"):
+            t[key] = int(t[key])
+    return session
 
 
 def load_sessions(paths):

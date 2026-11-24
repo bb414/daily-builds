@@ -1,7 +1,7 @@
 """Analysing a whole study: many sessions, some with the checker and some without."""
 
 from . import stats
-from .model import BY_ID, PROFILES, STRATEGIES, score_session
+from .model import BY_ID, PROFILES, STRATEGIES, points, score_session
 
 PROFILE_ORDER = ["calibrated", "over_reliant", "under_reliant", "mixed", "few_disagreements"]
 
@@ -97,6 +97,8 @@ def item_table(sessions):
 
 def analyse(sessions, n_perm=5000, n_boot=2000, seed=1):
     """Compare the checker and control arms, and describe how the checker arm used it."""
+    if n_perm < 1 or n_boot < 1:
+        raise ValueError("permutations and bootstrap resamples must be at least 1")
     seen = set()
     unique, duplicates = [], 0
     for s in sessions:
@@ -158,7 +160,7 @@ def analyse(sessions, n_perm=5000, n_boot=2000, seed=1):
 # ---------------------------------------------------------------------------
 
 def _p(x):
-    return "n/a" if x is None else "%d%%" % round(x * 100)
+    return "n/a" if x is None else "%d%%" % points(x)
 
 
 def _pts(x, signed=True):

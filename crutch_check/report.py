@@ -1,10 +1,10 @@
 """Plain-text reports."""
 
-from .model import BY_ID, ROUND_LABELS, CONTROL_ROUND_LABELS, score_session
+from .model import BY_ID, ROUND_LABELS, CONTROL_ROUND_LABELS, points, score_session
 
 
 def pct(x):
-    return "n/a" if x is None else "%d%%" % round(x * 100)
+    return "n/a" if x is None else "%d%%" % points(x)
 
 
 def session_report(session):
@@ -18,7 +18,7 @@ def session_report(session):
             st["round"], labels[st["round"]] + ":", st["correct"], st["n"], pct(st["accuracy"])))
     ch = res["change"]["accuracy"]
     if ch is not None:
-        lines.append("  Change from round 1 to round 3: %+d percentage points" % round(ch * 100))
+        lines.append("  Change from round 1 to round 3: %+d percentage points" % points(ch))
     a = res["assisted"]
     if a:
         c = a["cases"]

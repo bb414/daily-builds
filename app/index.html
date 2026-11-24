@@ -136,6 +136,7 @@ p { margin: 0 0 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1[tabindex="-1"]:focus, #checker-panel:focus { outline: none; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -266,10 +267,12 @@ select, input[type="text"] {
 .hbar.adv .fill { background: var(--checker); }
 .hbar.faint .fill { background: var(--accent); opacity: 0.45; }
 .hbar.you .name { font-weight: 700; }
-.meter { position: relative; height: 34px; margin: 6px 0 2px; }
-.meter .line { position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: var(--line-2); }
-.meter .mid { position: absolute; left: 50%; top: 8px; width: 2px; height: 18px; background: var(--line-2); }
-.meter .mark { position: absolute; top: 4px; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%; border: 2px solid var(--surface); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.meter { position: relative; height: 52px; margin: 6px 0 2px; }
+.meter .line { position: absolute; left: 0; right: 0; top: 25px; height: 2px; background: var(--line-2); }
+.meter .mid { position: absolute; left: 50%; top: 14px; width: 2px; height: 24px; background: var(--line-2); }
+.meter .mark { position: absolute; width: 24px; height: 24px; margin-left: -12px; border-radius: 50%; border: 2px solid var(--surface); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.meter .mark.r1 { top: 0; }
+.meter .mark.r3 { top: 27px; }
 .meter .mark.r1 { background: #7fa9de; color: #0b0b0b; }
 .meter .mark.r3 { background: var(--accent); }
 .meter-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
@@ -349,7 +352,7 @@ select, input[type="text"] {
       <span class="btn-row"><button class="btn primary" type="button" id="resume-btn">Resume</button><button class="btn" type="button" id="discard-btn">Discard it</button></span>
     </div>
     <h1 id="intro-title" tabindex="-1">How well do you spot scams, with and without an AI checker?</h1>
-    <p class="lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and a voicemail. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
+    <p class="lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and more. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
     <ol class="steps">
       <li class="step"><span class="num">1</span><h3>On your own</h3><p>8 messages. Judge each one yourself.</p></li>
       <li class="step assisted"><span class="num">2</span><h3>With the checker</h3><p>12 messages. Answer first, see what the checker says, then give your final answer.</p></li>
@@ -592,7 +595,7 @@ const BANK = /* MESSAGES START */{
    "from": "@crypto.mentor.amira",
    "subject": "",
    "context": "You have never interacted with this account before.",
-   "body": "Hey! Saw your profile and you seem really switched on. I've been helping students turn £100 into £1,500 in a week with my crypto trading signals. Only 5 spaces left this month. Want in? Just send £100 in USDT to my wallet to get started.",
+   "body": "Hey! Saw your profile and you seem really switched on. I've been helping students turn £100 into £1,500 in a week with my crypto trading signals. Only 5 spaces left this month. Want in? Just send £100 in crypto to my wallet to get started.",
    "cues": [
     "unexpected",
     "too_good",
@@ -758,7 +761,7 @@ const BANK = /* MESSAGES START */{
    "channel": "SMS",
    "from": "+44 7700 900155",
    "subject": "",
-   "context": "A minute ago you received a text with a 6-digit code that you did not request.",
+   "context": "Your phone contract is with Northmoor Mobile. A minute ago you received a text with a 6-digit code that you did not request.",
    "body": "Hi, this is Northmoor Mobile. As a loyal customer you qualify for a free upgrade to the latest phone. To confirm your upgrade, reply with the 6-digit code we have just sent you.",
    "cues": [
     "credentials",
@@ -878,7 +881,7 @@ const BANK = /* MESSAGES START */{
    "channel": "Voicemail",
    "from": "020 7946 0127",
    "subject": "",
-   "context": "This voicemail was left while you were in a lecture.",
+   "context": "You bank with Copperleaf. This voicemail was left while you were in a lecture.",
    "body": "Hello, this is Daniel from the fraud department at Copperleaf Bank. We've stopped a suspicious payment on your card. To keep your money safe we need to move your balance to a protected account while we investigate. Please call me back on this number to authorise it, and avoid using your banking app until then as it may be compromised.",
    "cues": [
     "impersonation",
@@ -1018,7 +1021,7 @@ const BANK = /* MESSAGES START */{
    "channel": "Email",
    "from": "Copperleaf Bank <alerts@copperleaf.example>",
    "subject": "Your new card is on its way",
-   "context": "You reported your bank card lost last week. Your old card ended 2290.",
+   "context": "You reported your Copperleaf bank card lost last week. Your old card ended 2290.",
    "body": "Hi Sam,\n\nYour replacement debit card ending 4417 is on its way and should arrive within 5 working days. When it arrives, activate it in the Copperleaf app.\n\nWe will never ask for your PIN or full card number by email, text or phone.\n\nCopperleaf Bank",
    "cues": [
     "expected",
@@ -1121,7 +1124,7 @@ const BANK = /* MESSAGES START */{
    "from": "Wealdham Careers <careers@wealdham.example>",
    "subject": "Paid summer research assistant roles: apply by 30 March",
    "context": "You signed up for careers emails from your university.",
-   "body": "Hi Sam,\n\nThe Business School is recruiting paid research assistants for the summer: £13 an hour, up to 15 hours a week.\n\nRead the role descriptions and apply through CareerHub on the student portal. The deadline is 30 March.\n\nWealdham Careers",
+   "body": "Hi Sam,\n\nThe Business School is recruiting paid research assistants for the summer: £13 an hour, up to 15 hours a week.\n\nRead the role descriptions and apply through the Careers section of the student portal. The deadline is 30 March.\n\nWealdham Careers",
    "cues": [
     "known_domain",
     "official_route",
@@ -1141,7 +1144,7 @@ const BANK = /* MESSAGES START */{
    "channel": "SMS",
    "from": "Copperleaf",
    "subject": "",
-   "context": "You've just booked a flight online for £89 and the payment was held for a moment.",
+   "context": "You bank with Copperleaf. You've just booked a flight online for £89 and the payment was held for a moment.",
    "body": "Copperleaf: Did you just try to pay £89.00 to SKYLINE AIRWAYS? Reply YES if this was you or NO if not. We will never ask you to call a number in a text or to move your money.",
    "cues": [
     "expected",
@@ -1319,21 +1322,27 @@ function shuffle(items, rnd) {
 }
 
 function round2(x) { return Math.floor(x * 100 + 0.5) / 100; }
+// Whole percentage points, halves rounded away from zero (the same in both languages).
+function points(x) { const v = Math.floor(Math.abs(x) * 100 + 0.5); return x < 0 ? -v : v; }
 function other(verdict) { return verdict === 'scam' ? 'genuine' : 'scam'; }
 function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
+// The hash is passed through the generator first: the lowest bit of an FNV-1a
+// hash only reflects how many characters have odd codes, so it is not random.
 function assignArm(study, participant) {
-  return hashString('arm|' + study + '|' + participant) % 2 === 0 ? 'checker' : 'control';
+  return mulberry32(hashString('arm|' + study + '|' + participant))() < 0.5 ? 'checker' : 'control';
 }
 
 function participantSeed(study, participant) {
   return hashString(study + '|' + participant);
 }
 
+const NUMERIC = /^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$/;
+
 function intOr(x, dflt) {
   let v = NaN;
   if (typeof x === 'number') v = x;
-  else if (typeof x === 'string' && x.trim() !== '') v = Number(x);
+  else if (typeof x === 'string' && NUMERIC.test(x)) v = Number(x);
   return Number.isFinite(v) ? Math.trunc(v) : dflt;
 }
 
@@ -1343,8 +1352,9 @@ function normaliseDesign(design) {
     Object.keys(d).forEach(k => { if (k in design) d[k] = design[k]; });
   }
   d.checkerWrong = clamp(intOr(d.checkerWrong, 3), 0, MAX_CHECKER_WRONG);
-  d.showReasons = Boolean(d.showReasons);
-  d.showConfidence = Boolean(d.showConfidence);
+  const dflt = defaultDesign();
+  if (typeof d.showReasons !== 'boolean') d.showReasons = dflt.showReasons;
+  if (typeof d.showConfidence !== 'boolean') d.showConfidence = dflt.showConfidence;
   return d;
 }
 
@@ -1719,6 +1729,10 @@ function isPlainObject(x) { return x !== null && typeof x === 'object' && !Array
 function validateSession(session) {
   if (!isPlainObject(session) || session.format !== FORMAT) throw new Error('not a Crutch check session file');
   if (ARMS.indexOf(session.arm) < 0) throw new Error('session has an unknown group (arm)');
+  if (!Number.isInteger(session.seed) || session.seed < 0 || session.seed > 4294967295) throw new Error('session has an invalid seed');
+  ['participant', 'study'].forEach(k => {
+    if (session[k] !== undefined && session[k] !== null && typeof session[k] !== 'string') throw new Error('session has an invalid ' + k);
+  });
   const trials = session.trials;
   if (!Array.isArray(trials) || !trials.length) throw new Error('session has no messages');
   trials.forEach((t, i) => {
@@ -1728,6 +1742,9 @@ function validateSession(session) {
     if (!m) throw new Error(where + ' has an unknown message id');
     if (!Number.isInteger(t.round) || [1, 2, 3].indexOf(t.round) < 0) throw new Error(where + ' has an invalid round');
     if (t.truth !== m.truth) throw new Error(where + ' has the wrong answer key');
+    if (t.difficulty !== m.difficulty || t.channel !== m.channel || !Number.isInteger(t.position) || t.position < 0) {
+      throw new Error(where + ' does not match the message bank');
+    }
     const adv = t.checker;
     if (adv !== null && adv !== undefined) {
       if (!isPlainObject(adv) || (adv.verdict !== 'scam' && adv.verdict !== 'genuine') ||
@@ -1791,7 +1808,7 @@ function sessionRows(session) {
 function toCSV(sessions) {
   const esc = v => {
     const s = String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const lines = [CSV_COLUMNS.join(',')];
   sessions.forEach(s => sessionRows(s).forEach(r => lines.push(CSV_COLUMNS.map(c => esc(r[c])).join(','))));
@@ -1802,7 +1819,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     BANK, MESSAGES, CUES, BY_ID, FORMAT, VERSION, ROUND_LABELS, CONTROL_ROUND_LABELS, PROFILES,
     PERSONAS, DEMO_SEEDS, CONF_SURE, CONF_UNSURE, CSV_COLUMNS, defaultDesign, mulberry32, hashString,
-    shuffle, round2, assignArm, participantSeed, normaliseDesign, buildSession, checkerReasons,
+    shuffle, round2, points, assignArm, participantSeed, normaliseDesign, buildSession, checkerReasons,
     roundStats, assistedStats, classify, scoreSession, simulateResponses, sessionRows, toCSV,
     BUNDLE_FORMAT, makeBundle, nextParticipantId, STRATEGIES, strategies, invNorm, sdt, cueProfile, validateSession
   };
@@ -1830,6 +1847,7 @@ if (typeof module !== 'undefined' && module.exports) {
   };
   const SHIELD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const TICK = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const DASH = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 12h10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   const CROSS = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   const WARN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 10v5M12 17.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
   const OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12.5l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1848,7 +1866,7 @@ if (typeof module !== 'undefined' && module.exports) {
   function linkify(s) {
     return esc(s).replace(/\b((?:[a-z0-9-]+\.)+example(?:\/[^\s]*)?)/gi, '<span class="fake-link">$1</span>');
   }
-  function pct(x) { return x === null || x === undefined ? 'n/a' : Math.round(x * 100) + '%'; }
+  function pct(x) { return x === null || x === undefined ? 'n/a' : points(x) + '%'; }
   function verdictTag(v) {
     return '<span class="verdict-tag ' + v + '">' + (v === 'scam' ? WARN : OK) + (v === 'scam' ? 'Scam' : 'Genuine') + '</span>';
   }
@@ -1953,7 +1971,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function saveSession(session) {
     const list = loadSaved();
-    list.push(session);
+    list.push(Object.assign({}, session, {saved: undefined}));
     try {
       window.localStorage.setItem(STORE_KEY, JSON.stringify(list));
       return true;
@@ -2004,14 +2022,7 @@ if (typeof module !== 'undefined' && module.exports) {
   function nextParticipant() {
     $('#participant-id').value = nextParticipantId(state.session.participant);
     updateStartLabel();
-  $('#load-file').addEventListener('change', onFileChosen);
-  $('#bundle-list').addEventListener('click', e => {
-    const b = e.target.closest('[data-pick]');
-    if (b && state.picker) renderResults(state.picker[Number(b.getAttribute('data-pick'))], null, true);
-  });
-  $('#resume-btn').addEventListener('click', resume);
-  $('#discard-btn').addEventListener('click', () => { clearProgress(); offerResume(); focusEl($('#start-btn')); });
-  offerResume();
+    offerResume();
     show('screen-intro');
     focusEl($('#start-btn'));
   }
@@ -2043,7 +2054,7 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#break-title').textContent = labels[round];
     let body = '';
     if (round === 1) {
-      body = '<p>You are Sam, a second-year student. Each message comes with a line about Sam\'s situation, so read that first.</p>' +
+      body = '<p>' + esc(BANK.persona) + '</p><p>Each message comes with a line about Sam\'s situation, so read that first.</p>' +
         '<p>Decide whether each of these ' + count + ' messages is a scam or genuine, and how sure you are. You won\'t see the answers until the end.</p>';
     } else if (assisted) {
       const d = s.design;
@@ -2131,7 +2142,7 @@ if (typeof module !== 'undefined' && module.exports) {
       return;
     }
     t.final = resp;
-    state.lockUntil = performance.now() + 250;
+    state.lockUntil = performance.now() + 400;
     next();
   }
 
@@ -2150,16 +2161,20 @@ if (typeof module !== 'undefined' && module.exports) {
     clearProgress();
     $('#resume-banner').hidden = true;
     if (s.study) {
-      saveSession(s);
+      s.saved = saveSession(s);
       if (s.showResults === false) { renderThanks(s); return; }
     }
     renderResults(s, null);
   }
 
   function studyPanelHTML(s) {
-    return '<div class="card" style="margin-top:16px"><h2>Study: ' + esc(s.study) + '</h2>' +
-      '<p class="small muted">Participant ' + esc(s.participant) + ' was in the ' + (s.arm === 'checker' ? 'group with the checker' : 'comparison group without the checker') + '.</p>' +
-      savedSummaryHTML('results') +
+    const own = s.saved === false
+      ? '<p class="error">This session could not be saved in the browser. Download it now before moving on.</p>' +
+        '<div class="btn-row"><button class="btn" type="button" data-act="json">Download this session (JSON)</button></div>'
+      : '';
+    return '<div class="card" style="margin-top:16px"><h2>For the person running the study</h2>' +
+      '<p class="small muted">Study ' + esc(s.study) + '. Participant ' + esc(s.participant) + ' was in the ' + (s.arm === 'checker' ? 'group with the checker' : 'comparison group without the checker') + '.</p>' +
+      own + savedSummaryHTML('results') +
       '<div class="btn-row" style="margin-top:12px"><button class="btn primary" type="button" data-act="next">Next participant</button></div></div>';
   }
 
@@ -2175,7 +2190,7 @@ if (typeof module !== 'undefined' && module.exports) {
   function wireResultButtons(root, s) {
     root.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
       const act = b.getAttribute('data-act');
-      if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, null, 2), 'application/json');
+      if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, (k, v) => (k === 'saved' ? undefined : v), 2), 'application/json');
       else if (act === 'csv') download(fileStem(s) + '.csv', toCSV([s]), 'text/csv');
       else if (act === 'next') nextParticipant();
       else if (act === 'restart') { offerResume(); show('screen-intro'); focusEl($('#intro-title')); }
@@ -2209,13 +2224,14 @@ if (typeof module !== 'undefined' && module.exports) {
   function changeSentence(res) {
     const ch = res.change.accuracy;
     if (ch === null) return '';
-    const pts = Math.round(ch * 100);
+    const pts = points(ch);
     if (pts === 0) return 'Your accuracy on your own was the same before and after round 2.';
     return 'Your accuracy on your own went ' + (pts > 0 ? 'up' : 'down') + ' by ' + Math.abs(pts) + ' percentage points from round 1 to round 3.';
   }
 
   function renderResults(s, demoLabel, loaded) {
     const res = scoreSession(s);
+    state.answeredAny = s.trials.some(t => t.final);
     const [r1, r2, r3] = res.rounds;
     const a = res.assisted;
     let html = '';
@@ -2245,7 +2261,7 @@ if (typeof module !== 'undefined' && module.exports) {
     acc += hbar('Round 3: your answers', r3.accuracy, 'faint');
     acc += '</div><p class="axis-note">Share of messages judged correctly. 50% is what guessing would get.</p>';
     if (a) {
-      const gap = Math.round((a.finalAccuracy - Math.max(a.initialAccuracy, a.checkerAccuracy)) * 100);
+      const gap = points(a.finalAccuracy - Math.max(a.initialAccuracy, a.checkerAccuracy));
       acc += '<p class="note-box" style="margin-top:12px">' + (gap > 0
         ? 'Working together, you and the checker beat both your own first answers and the checker on its own, by ' + gap + ' points. That is the point of a second opinion.'
         : gap === 0
@@ -2255,7 +2271,7 @@ if (typeof module !== 'undefined' && module.exports) {
     acc += '</div>';
     cards.push(acc);
 
-    let used = '<div class="card"><h2>' + (a || res.profile !== 'control' ? 'How you used the checker' : 'Round 2 without the checker') + '</h2>';
+    let used = '<div class="card"><h2>' + (s.arm === 'checker' ? 'How you used the checker' : 'Round 2 without the checker') + '</h2>';
     used += '<div class="profile"><div class="muted small">Your pattern</div><div class="name">' + esc(res.profileTitle) + '</div></div>';
     used += '<p style="margin-top:10px">' + esc(PROFILE_TEXT[res.profile]) + '</p>';
     if (a) {
@@ -2279,7 +2295,7 @@ if (typeof module !== 'undefined' && module.exports) {
       '<p>When you said <strong>definitely</strong>, you were right ' + all.sure.correct + ' of ' + all.sure.n + ' times (' + pct(all.sure.accuracy) + '). ' +
       'When you said <strong>probably</strong>, you were right ' + all.unsure.correct + ' of ' + all.unsure.n + ' times (' + pct(all.unsure.accuracy) + ').</p>' +
       '<p class="small muted">Your Brier score (final answers, all rounds) is ' + (all.brier === null ? 'n/a' : all.brier.toFixed(3)) +
-      '. Lower is better: 0 means always right and certain, 0.25 is what you would get by always saying "50:50".</p></div>');
+      '. Lower is better. The best possible here is 0.003 (always right and always "definitely"); saying "50:50" every time would score 0.25.</p></div>');
     cards.push(cuesCard(res.cueProfile));
     if (cards.length % 2) cards[cards.length - 1] = cards[cards.length - 1].replace('<div class="card">', '<div class="card span-2">');
     html += '<div class="grid-2 results-grid" style="margin-top:16px">' + cards.join('') + '</div>';
@@ -2339,14 +2355,15 @@ if (typeof module !== 'undefined' && module.exports) {
       '<span class="line"></span><span class="mid"></span>' +
       '<span class="mark r1" style="left:' + pos(a.c) + '" title="Round 1">1</span><span class="mark r3" style="left:' + pos(b.c) + '" title="Round 3">3</span></div>' +
       '<div class="meter-scale" aria-hidden="true"><span>Suspicious: flags too much</span><span>Trusting: lets scams through</span></div>' +
-      '<p class="small muted" style="margin-top:6px">Circles show rounds 1 and 3; the middle line is perfectly balanced.</p>' +
-      '<p class="small">Sensitivity (d\u2032), how well you tell scams from genuine messages regardless of leaning: <b>' + a.dPrime.toFixed(2) + '</b> in round 1 and <b>' + b.dPrime.toFixed(2) + '</b> in round 3. 0 is guessing; above 2 is very good.</p>' +
+      '<p class="small muted" style="margin-top:6px">Circle 1 (above the line) is round 1, circle 3 (below) is round 3. The middle mark is perfectly balanced.</p>' +
+      '<p class="small">Sensitivity (d\u2032), how well you tell scams from genuine messages regardless of leaning: <b>' + a.dPrime.toFixed(2) + '</b> in round 1 and <b>' + b.dPrime.toFixed(2) + '</b> in round 3. 0 is guessing, below 0 is worse than guessing and above 2 is very good.</p>' +
       '<p class="small muted">Signal detection measures, worked out from your scam and genuine answers separately, so being suspicious and being skilled are not confused.</p></div>';
     return h;
   }
 
   function cuesCard(cp) {
     let h = '<div class="card"><h2>What tripped you up</h2>';
+    if (!state.answeredAny) return h + '<p class="muted">No answers yet.</p></div>';
     if (!cp.missedScams && !cp.falseAlarms) return h + '<p>You didn\'t miss a single scam or wrongly flag a genuine message. Impressive.</p></div>';
     if (cp.missedScams) {
       h += '<p>You let <strong>' + cp.missedScams + '</strong> scam' + (cp.missedScams === 1 ? '' : 's') + ' through. The warning signs they carried most often:</p><ul class="cue-list">';
@@ -2368,7 +2385,9 @@ if (typeof module !== 'undefined' && module.exports) {
   function reviewItem(t) {
     const m = BY_ID[t.messageId];
     const ok = t.final && t.final.verdict === t.truth;
-    let h = '<details><summary><span class="' + (ok ? 'icon-ok' : 'icon-no') + '">' + (ok ? TICK : CROSS) + '<span class="sr-only">' + (ok ? 'You got this right' : 'You got this wrong') + '</span></span>' +
+    const icon = !t.final ? '<span class="muted">' + DASH + '<span class="sr-only">Not answered</span></span>'
+      : '<span class="' + (ok ? 'icon-ok' : 'icon-no') + '">' + (ok ? TICK : CROSS) + '<span class="sr-only">' + (ok ? 'You got this right' : 'You got this wrong') + '</span></span>';
+    let h = '<details><summary>' + icon +
       '<span class="who">' + esc(CHANNEL_NAMES[m.channel]) + ' from ' + esc(m.from) + '</span>' + verdictTag(t.truth) + '</summary><div class="inner">';
     h += '<div class="context"><strong>Sam\'s situation</strong>' + esc(m.context) + '</div>' + messageHTML(m);
     h += '<dl class="kv">';
@@ -2387,7 +2406,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   function fileStem(s) {
-    const who = s.participant ? s.participant.replace(/[^A-Za-z0-9_-]+/g, '-') : 'session';
+    const who = s.participant ? String(s.participant).replace(/[^A-Za-z0-9_-]+/g, '-') : 'session';
     return 'crutch-check-' + who + '-' + s.seed;
   }
 
@@ -2495,6 +2514,7 @@ if (typeof module !== 'undefined' && module.exports) {
     t.initial = null;
     t.final = null;
     $('#resume-banner').hidden = true;
+    if (t.position === 0) { showBreak(t.round); return; }
     show('screen-trial');
     renderTrial();
   }
@@ -2542,7 +2562,7 @@ if (typeof module !== 'undefined' && module.exports) {
     choose(Number(b.getAttribute('data-choice')));
   });
   document.addEventListener('keydown', e => {
-    if ($('#screen-trial').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+    if ($('#screen-trial').hidden || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
     const k = e.key;
     if (k >= '1' && k <= '4') {
       e.preventDefault();

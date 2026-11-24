@@ -64,7 +64,10 @@ class AppAgreesWithPython(unittest.TestCase):
     def test_design_cleaning_is_identical(self):
         designs = [None, {}, {"checkerWrong": 99}, {"checkerWrong": -2}, {"checkerWrong": "2"},
                    {"checkerWrong": 2.9}, {"checkerWrong": "abc"}, {"checkerWrong": ""},
-                   {"checkerWrong": None}, {"checkerWrong": True}, {"showReasons": 0, "extra": 5}]
+                   {"checkerWrong": None}, {"checkerWrong": True}, {"showReasons": 0, "extra": 5},
+                   {"checkerWrong": "0x5"}, {"checkerWrong": "1_0"}, {"checkerWrong": " 4 "},
+                   {"checkerWrong": "2e0"}, {"checkerWrong": "-1.5"}, {"checkerWrong": [3]},
+                   {"showReasons": [], "showConfidence": {}}, {"showReasons": False, "showConfidence": "no"}]
         got = js([{"fn": "normaliseDesign", "args": [d]} for d in designs])
         self.assertEqual(got, [M.normalise_design(d) for d in designs])
 
@@ -101,6 +104,11 @@ class AppAgreesWithPython(unittest.TestCase):
         got = js([{"fn": "scoreSession", "args": [p]} for p in partials])
         self.assertEqual(got, [jsonable(M.score_session(p)) for p in partials])
 
+    def test_rounding_to_points_is_identical(self):
+        xs = [0.625, -0.125, 0.125, 0.375, -0.375, 0.005, -0.005, 0, 1, -1, 2 / 3, -1 / 3]
+        got = js([{"fn": "points", "args": [x]} for x in xs])
+        self.assertEqual(got, [M.points(x) for x in xs])
+
     def test_inverse_normal_is_identical(self):
         ps = [1e-9, 0.001, 0.02, 0.02425, 0.1, 0.3, 0.5, 0.77, 0.9, 0.97576, 0.99, 0.999999]
         got = js([{"fn": "invNorm", "args": [p]} for p in ps])
@@ -136,6 +144,17 @@ class AppAgreesWithPython(unittest.TestCase):
             broken(lambda x: x["trials"][t2]["checker"].__setitem__("correct", not x["trials"][t2]["checker"]["correct"])),
             broken(lambda x: x["trials"][t2].__setitem__("checker", "scam")),
             broken(lambda x: x["trials"][t2].__setitem__("initial", {"verdict": "genuine"})),
+            broken(lambda x: x.__setitem__("seed", -1)),
+            broken(lambda x: x.__setitem__("seed", "12")),
+            broken(lambda x: x.__setitem__("seed", 2 ** 32)),
+            broken(lambda x: x.pop("seed")),
+            broken(lambda x: x.__setitem__("participant", 12)),
+            broken(lambda x: x.__setitem__("study", {"a": 1})),
+            broken(lambda x: x["trials"][t0].__setitem__("difficulty", 7)),
+            broken(lambda x: x["trials"][t0].__setitem__("channel", "Fax")),
+            broken(lambda x: x["trials"][t0].__setitem__("position", -2)),
+            broken(lambda x: x["trials"][t0].pop("position")),
+            broken(lambda x: x.__setitem__("participant", None)),
             broken(lambda x: x["trials"][t0].__setitem__("final", None)),
         ]
 
@@ -150,7 +169,8 @@ class AppAgreesWithPython(unittest.TestCase):
         self.assertEqual(got, [py(c) for c in cases])
         self.assertEqual(got[0], {"ok": True})
         self.assertEqual(got[-1], {"ok": True})
-        self.assertEqual(sum("error" in g for g in got), len(cases) - 2)
+        self.assertEqual(got[-2], {"ok": True})
+        self.assertEqual(sum("error" in g for g in got), len(cases) - 3)
 
     def test_checker_reasons_are_identical(self):
         s = M.build_session(9, "checker", {"checkerWrong": 4})
@@ -161,11 +181,12 @@ class AppAgreesWithPython(unittest.TestCase):
         s = M.simulate_responses(M.build_session(31, "checker"), M.PERSONAS["calibrated"], 4)
         c = M.simulate_responses(M.build_session(32, "control"), M.PERSONAS["loner"], 4)
         c["participant"] = 'P "quoted", here'
+        s["study"] = "line\rbreak"
         (text,) = js([{"fn": "toCSV", "args": [[s, c]]}])
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "x.csv"
             write_csv([s, c], out)
-            self.assertEqual(text, out.read_text(encoding="utf-8"))
+            self.assertEqual(text, out.read_bytes().decode("utf-8"))
         rows = list(csv.DictReader(io.StringIO(text)))
         self.assertEqual(len(rows), 56)
         self.assertEqual(rows[-1]["participant"], 'P "quoted", here')

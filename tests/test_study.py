@@ -165,6 +165,12 @@ class PowerTests(unittest.TestCase):
         self.assertLessEqual(res["rows"][0]["afterPower"], 0.15)
         self.assertIn("false alarms", power_report(res))
 
+    def test_report_names_the_smallest_size_that_is_enough(self):
+        from crutch_check.power import power_curve, power_report
+        res = power_curve("crutch", sizes=(200, 150), sims=10, seed=2)
+        self.assertEqual([r["n"] for r in res["rows"]], [150, 200])
+        self.assertIn("About 150 per group", power_report(res))
+
     def test_bad_arguments(self):
         from crutch_check.power import power_curve
         with self.assertRaises(ValueError):
@@ -199,6 +205,15 @@ class StudyCliTests(unittest.TestCase):
             out = buf.getvalue()
             self.assertIn("16 complete (8 with the checker, 8 without)", out)
             self.assertTrue(Path(report).read_text().startswith("<!doctype html>"))
+
+    def test_zero_resamples_is_a_clean_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            bundle = str(Path(d) / "sim.json")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                cli(["simulate", "--n", "3", "-o", bundle])
+                self.assertEqual(cli(["analyse", bundle, "--bootstrap", "0"]), 2)
+            self.assertIn("Error:", buf.getvalue())
 
     def test_power_command(self):
         buf = io.StringIO()
