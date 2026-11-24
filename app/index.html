@@ -106,6 +106,30 @@ svg.chart .val { fill: var(--ink-2); font-size: 12px; }
 .fact b { font-size: 17px; font-variant-numeric: tabular-nums; }
 .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
 .callout { background: var(--warn-soft); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; padding: 10px 12px; font-size: 15px; margin-top: 10px; }
+.tune-lead { font-size: 15px; }
+table.map { border-collapse: separate; border-spacing: 4px; width: 100%; table-layout: fixed; font-size: 13px; }
+table.map th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; padding: 2px 4px; text-align: center; }
+table.map th[scope="row"] { text-align: right; white-space: nowrap; width: 74px; }
+table.map td { padding: 0; }
+table.map button { appearance: none; width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; font: inherit; font-size: 13px; line-height: 1.25; color: var(--ink); cursor: pointer; text-align: center; background: var(--surface); }
+table.map button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.map button span { display: block; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+table.map button em { font-style: normal; }
+table.map button:hover { border-color: var(--ink-2); }
+table.map button.r0 { background: var(--surface-2); }
+table.map button.r1 { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); }
+table.map button.r2 { background: color-mix(in srgb, var(--bad) 28%, var(--surface)); }
+table.map button.r3 { background: color-mix(in srgb, var(--bad) 42%, var(--surface)); }
+table.map button.r4 { background: color-mix(in srgb, var(--bad) 56%, var(--surface)); }
+table.map button.front { border: 2px solid var(--ink); }
+table.map button.here { box-shadow: inset 0 0 0 3px var(--accent); }
+.map-axis { font-size: 12.5px; color: var(--ink-2); margin: 2px 0 4px; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 8px; align-items: center; }
+.keys i { display: inline-block; width: 16px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1px solid var(--line); }
+.io { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.io .btn { padding: 7px 8px; }
+.io-msg { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; min-height: 1em; overflow-wrap: anywhere; }
+.io-msg.bad { color: var(--bad-ink); }
 details.how p { font-size: 14px; color: var(--ink-2); }
 details.how summary { cursor: pointer; font-weight: 700; }
 
@@ -116,6 +140,12 @@ details.how summary { cursor: pointer; font-weight: 700; }
 }
 @media (max-width: 560px) {
   .tagline { display: none; }
+  table.map { border-spacing: 2px; }
+  table.map th[scope="row"] { width: 52px; white-space: normal; }
+  table.map button { min-height: 50px; padding: 4px 2px; }
+  table.map button b { font-size: 12.5px; }
+  table.map button span { font-size: 11.5px; }
+  table.map button .wide { display: none; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 14px; }
   table.data td.num { white-space: normal; }
@@ -149,12 +179,24 @@ details.how summary { cursor: pointer; font-weight: 700; }
       <div class="card" id="verdict-card"></div>
       <div class="card" id="table-card"></div>
       <div class="card" id="year-card"></div>
+      <div class="card" id="tune-card">
+        <h2>Tuning map</h2>
+        <p class="small muted">The forecasting rules have dials. Each square runs the rule with one combination of settings through the same <span id="tune-years">100</span> simulated years. Pick a square to use those settings.</p>
+        <div class="seg" role="group" aria-label="Rule to tune">
+          <button type="button" data-tune="smart" aria-pressed="true">Smart saver</button>
+          <button type="button" data-tune="planner" aria-pressed="false">Term planner</button>
+        </div>
+        <div id="tune-out"><p class="small muted">Working out the map...</p></div>
+      </div>
       <div class="card">
         <details class="how">
           <summary>How Save or sink works</summary>
           <p>Each simulated year runs from Monday 1 September to 31 August. Student loan payments arrive at the start of each term, wages arrive on Fridays for the hours worked that week, rent leaves on the 1st and bills on the 10th of each month, and everyday spending, nights out and the odd unexpected cost are drawn at random around the amounts you set. Every saving rule runs through exactly the same years, so differences come from the rules alone.</p>
           <p>Each rule moves money from the current account into a savings pot at the end of the day. If the current account then falls below your comfort point, you move money back from the pot (a "raid"). Overdraft interest is charged only beyond the interest-free limit, and savings interest is paid on the pot. Both are simple annual rates, charged or paid monthly.</p>
-          <p>The smart saver looks at the last 28 days of card spending, projects it forward over its forecast window, adds rent and bills it knows are coming, keeps a safety buffer, and saves a share of whatever is left. Its blind spot is anything outside that window.</p>
+          <p>The smart saver looks at the last 28 days of card spending, projects it forward over its forecast window, adds rent and bills it knows are coming, keeps a safety buffer, and saves a share of whatever is left. Its blind spot is anything outside that window: a two-week forecast made the day after a loan payment sees a full account and none of the rent due over the rest of the term.</p>
+          <p>The term planner does the same sums but always looks as far as the next loan payment (or 31 August after the last one), so every rent payment that loan has to cover is in view. It saves less at the start of term and gets raided far less.</p>
+          <p>The tuning map runs one rule many times with different settings over the same years, so you can see which dial changes the risk and which only changes the amount. The Python package does the same over more years and marks the best trade-offs: settings where nothing else leaves the student better off without also going past the limit in more years or being raided more often.</p>
+          <p>Save file downloads the settings as JSON, Open file reads them back, and Copy link puts them in the page address. The Python package reads both, so the same settings can be run over thousands of years from the command line.</p>
         </details>
       </div>
     </section>
@@ -512,7 +554,7 @@ function stressTest(s, years, rules) {
   const problems = validateSettings(s);
   if (problems.length) throw new Error(problems[0]);
   years = years === undefined ? 200 : years;
-  if (!(years >= 1 && years <= 20000)) throw new Error('years must be from 1 to 20000');
+  if (!isNum(years) || !Number.isInteger(years) || years < 1 || years > 20000) throw new Error('years must be a whole number from 1 to 20000');
   rules = rules || RULES;
   const runs = {};
   rules.forEach(r => { runs[r] = []; });
@@ -557,6 +599,80 @@ function stressTest(s, years, rules) {
   return out;
 }
 
+const SWEEP_DEFAULTS = {
+  smart: {horizon: [7, 14, 28, 56, 90], buffer: [0, 100, 200, 400, 800]},
+  planner: {buffer: [0, 100, 200, 400, 800], aggressiveness: [0.25, 0.5, 0.75, 1]}
+};
+
+function beats(o, r) {
+  // True when sweep row o is at least as good as row r on every count and better on one.
+  if (o === r) return false;
+  const d = [o.net - r.net, r.beyondChance - o.beyondChance, r.meanRescues - o.meanRescues];
+  return d.every(x => x >= 0) && d.some(x => x > 0);
+}
+
+function sweep(s, rule, dials, years) {
+  // Every combination of two dials of a forecasting rule, over the same synthetic years.
+  const problems = validateSettings(s);
+  if (problems.length) throw new Error(problems[0]);
+  rule = rule === undefined ? 'smart' : rule;
+  if (!Object.prototype.hasOwnProperty.call(SWEEP_DEFAULTS, rule)) throw new Error('rule must be one of: ' + Object.keys(SWEEP_DEFAULTS).join(', '));
+  years = years === undefined ? 200 : years;
+  if (!isNum(years) || !Number.isInteger(years) || years < 1 || years > 20000) throw new Error('years must be a whole number from 1 to 20000');
+  dials = dials === undefined || dials === null ? SWEEP_DEFAULTS[rule] : dials;
+  if (!dials || typeof dials !== 'object' || Array.isArray(dials) || Object.keys(dials).length !== 2) throw new Error('choose exactly two dials to sweep');
+  Object.keys(dials).forEach(key => {
+    if (!Object.prototype.hasOwnProperty.call(RULE_LIMITS[rule], key)) {
+      throw new Error(rule + ' has no dial called ' + key + '; try: ' + Object.keys(RULE_LIMITS[rule]).join(', '));
+    }
+    const [lo, hi] = RULE_LIMITS[rule][key];
+    const whole = INTEGER_KEYS.includes(key);
+    const values = dials[key];
+    if (!Array.isArray(values) || !values.length || values.some(v => !isNum(v) || v < lo || v > hi || (whole && !Number.isInteger(v)))) {
+      throw new Error(key + ' values must be ' + (whole ? 'whole ' : '') + 'numbers from ' + lo + ' to ' + hi);
+    }
+  });
+  const [ka, kb] = Object.keys(dials);
+  const va = dials[ka], vb = dials[kb];
+  if (va.length * vb.length * years > 2000000) throw new Error('that sweep is too large; use fewer values or fewer years');
+  const combos = [];
+  va.forEach(a => vb.forEach(b => combos.push([a, b])));
+  const trial = combos.map(([a, b]) => {
+    const t = JSON.parse(JSON.stringify(s));
+    t.rules[rule][ka] = a;
+    t.rules[rule][kb] = b;
+    return t;
+  });
+  const runs = combos.map(() => []);
+  let beyondWithout = 0;
+  for (let k = 0; k < years; k++) {
+    const days = generateYear(s, yearSeed(s.seed, k));
+    const base = simulate(s, days, 'none');
+    beyondWithout += base.daysBeyond > 0 ? 1 : 0;
+    trial.forEach((t, i) => {
+      const res = simulate(t, days, rule);
+      res.net = (res.endBalance + res.endPot) - (base.endBalance + base.endPot);
+      runs[i].push(res);
+    });
+  }
+  const num = (a, b) => a - b;
+  const rows = combos.map(([a, b], i) => {
+    const rs = runs[i];
+    const row = {};
+    row[ka] = a;
+    row[kb] = b;
+    row.endPot = percentile(rs.map(x => x.endPot).sort(num), 0.5);
+    row.savedIn = percentile(rs.map(x => x.savedIn).sort(num), 0.5);
+    row.net = percentile(rs.map(x => x.net).sort(num), 0.5);
+    row.beyondChance = rs.filter(x => x.daysBeyond > 0).length / years;
+    row.meanRescues = meanOf(rs.map(x => x.rescues));
+    row.cameBack = cameBack(rs);
+    return row;
+  });
+  rows.forEach(r => { r.frontier = !rows.some(o => beats(o, r)); });
+  return {rule: rule, dials: [ka, kb], years: years, beyondWithoutSaving: beyondWithout / years, rows: rows};
+}
+
 function money(p, signed) {
   if (p === null || p === undefined || !isNum(p)) return 'n/a';
   const v = Math.floor(Math.abs(p) + 0.5);
@@ -570,11 +686,36 @@ function money(p, signed) {
   return sign + '£' + pounds + '.' + (pence < 10 ? '0' : '') + pence;
 }
 
+const LINK_MISSING = 'That link does not contain Save or sink settings.';
+const LINK_DAMAGED = 'That link is damaged: the settings in it could not be read.';
+
+function encodeLink(s) {
+  // Settings as a link fragment: s= then the JSON in URL-safe base64 without padding.
+  const bytes = new TextEncoder().encode(JSON.stringify(s));
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return 's=' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeLink(text) {
+  // Accepts a whole link or just its fragment. Returns the settings object (not yet validated).
+  const m = /(?:^|[#&?])s=([A-Za-z0-9_-]+)/.exec(String(text).trim());
+  if (!m) throw new Error(LINK_MISSING);
+  const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+  try {
+    const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+    return JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+  } catch (e) {
+    throw new Error(LINK_DAMAGED);
+  }
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     FORMAT, VERSION, MONTHS, MONTH_STARTS, DAYS, LOAN_DAYS, BILL_DAY, RULES, RULE_NAMES, RESCUE_MODES, PRESETS,
     LIMITS, RULE_LIMITS, defaultSettings, validateSettings, mulberry32, invNorm, pennies, generateYear,
-    scheduledOut, nextLoanDay, rescuePoint, simulate, yearSeed, percentile, cameBack, stressTest, money
+    scheduledOut, nextLoanDay, rescuePoint, simulate, yearSeed, percentile, cameBack, stressTest, SWEEP_DEFAULTS, sweep, money,
+    encodeLink, decodeLink
   };
 }
 /* MODEL END */
@@ -586,7 +727,7 @@ if (typeof module !== 'undefined' && module.exports) {
   if (typeof document === 'undefined') return;
   const $ = sel => document.querySelector(sel);
   const YEARS = 300;
-  const state = {s: defaultSettings('steady'), view: 'smart', yearIndex: 0, timer: null, summary: null};
+  const state = {s: defaultSettings('steady'), view: 'smart', tune: 'smart', yearIndex: 0, timer: null, mt: null, summary: null, focusCell: null};
 
   function esc(t) {
     return String(t).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -622,7 +763,7 @@ if (typeof module !== 'undefined' && module.exports) {
       {rule: 'roundup', key: 'multiplier', label: 'Round-ups: multiply by', min: 1, max: 5, step: 1, fmt: v => v + '×'},
       {rule: 'weekly', key: 'amount', label: 'Fixed amount every Monday', min: 0, max: 100, step: 5, fmt: GBP},
       {rule: 'payday', key: 'percent', label: 'Share of every payment in', min: 0, max: 50, step: 1, fmt: v => v + '%'},
-      {rule: 'smart', key: 'horizon', label: 'Smart saver: forecast window', min: 3, max: 60, step: 1, fmt: v => v + ' days'},
+      {rule: 'smart', key: 'horizon', label: 'Smart saver: forecast window', min: 3, max: 120, step: 1, fmt: v => v + ' days'},
       {rule: 'smart', key: 'buffer', label: 'Smart saver: safety buffer', min: 0, max: 1000, step: 25, fmt: GBP},
       {rule: 'smart', key: 'aggressiveness', label: 'Smart saver: share of the spare money it saves', min: 0.05, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
       {rule: 'smart', key: 'cap', label: 'Smart saver: most it saves in a day', min: 5, max: 500, step: 5, fmt: GBP},
@@ -640,9 +781,11 @@ if (typeof module !== 'undefined' && module.exports) {
     CONTROLS.forEach(g => {
       h += '<details class="group"' + (g.open ? ' open' : '') + '><summary>' + esc(g.group) + '</summary>';
       g.items.forEach(c => {
-        const id = controlId(c);
-        h += '<div class="row"><label for="' + id + '">' + esc(c.label) + '</label><output for="' + id + '" id="' + id + '-out">' + esc(c.fmt(getVal(c))) + '</output>' +
-          '<input type="range" id="' + id + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + getVal(c) + '"></div>';
+        const id = controlId(c), v = getVal(c);
+        // A value from a file or link may sit off the slider's usual range or steps: widen the slider rather than move the value.
+        const onStep = Math.abs((v - c.min) / c.step - Math.round((v - c.min) / c.step)) < 1e-9;
+        h += '<div class="row"><label for="' + id + '">' + esc(c.label) + '</label><output for="' + id + '" id="' + id + '-out">' + esc(c.fmt(v)) + '</output>' +
+          '<input type="range" id="' + id + '" min="' + Math.min(c.min, v) + '" max="' + Math.max(c.max, v) + '" step="' + (onStep ? c.step : 'any') + '" value="' + v + '"></div>';
       });
       if (g.group === 'Saving rules') {
         h += '<label class="check"><input type="checkbox" id="c-knows"' + (state.s.rules.smart.knowsBills ? ' checked' : '') + '> Smart saver knows when rent and bills are due</label>';
@@ -654,12 +797,18 @@ if (typeof module !== 'undefined' && module.exports) {
       }
       h += '</details>';
     });
-    h += '<div class="presets"><button class="btn" type="button" id="new-years">Try a different set of years</button></div>';
+    h += '<div class="presets"><button class="btn" type="button" id="new-years">Try a different set of years</button></div>' +
+      '<div class="io"><button class="btn" type="button" id="save-file">Save file</button><button class="btn" type="button" id="open-file">Open file</button>' +
+      '<button class="btn" type="button" id="copy-link">Copy link</button></div>' +
+      '<input type="file" id="file-in" accept=".json,application/json" aria-label="Settings file to open" hidden>' +
+      '<p class="io-msg" id="io-msg" role="status"></p>';
     $('#controls').innerHTML = h;
   }
 
   function onControl(e) {
     const el = e.target;
+    if (el.id === 'file-in') return;
+    clearLink();
     if (el.id === 'c-knows') { state.s.rules.smart.knowsBills = el.checked; schedule(); return; }
     if (el.id === 'c-rescue') { state.s.rescue = el.value; schedule(); return; }
     const c = CONTROLS.flatMap(g => g.items).find(x => controlId(x) === el.id);
@@ -682,6 +831,7 @@ if (typeof module !== 'undefined' && module.exports) {
     renderVerdict(summary);
     renderTable(summary);
     renderYear();
+    scheduleMap();
   }
 
   function riskClass(x) { return x <= 0.02 ? 'low' : x <= 0.2 ? 'mid' : 'high'; }
@@ -811,8 +961,177 @@ if (typeof module !== 'undefined' && module.exports) {
     return [1, 2, 2.5, 5, 10].map(f => f * mag).find(st => span / st <= count) || 10 * mag;
   }
 
+  /* ---------- Tuning map ---------- */
+  const TUNE_YEARS = 100;
+  const DIALS = {
+    horizon: {label: 'Looks ahead', fmt: v => v + ' days'},
+    buffer: {label: 'Safety buffer', fmt: GBP},
+    aggressiveness: {label: 'Share of spare money saved', fmt: v => Math.round(v * 100) + '%'},
+    cap: {label: 'Most it saves in a day', fmt: GBP}
+  };
+  const pounds = p => '£' + Math.round(p / 100).toLocaleString('en-GB');
+  const RISK_KEYS = ['No extra risk', 'Up to 10 points more', 'Up to 30 more', 'Up to 60 more', 'More than 60 more'];
+
+  function scheduleMap() {
+    clearTimeout(state.mt);
+    const out = $('#tune-out');
+    if (out) out.style.opacity = '0.55';
+    state.mt = setTimeout(renderMap, 350);
+  }
+
+  function riskStep(extra) { return extra <= 0.02 ? 0 : extra <= 0.1 ? 1 : extra <= 0.3 ? 2 : extra <= 0.6 ? 3 : 4; }
+
+  function spread(rows, n, m, across) {
+    // Average change in the chance of going past the limit along one dial, holding the other fixed.
+    let total = 0;
+    const outer = across ? n : m, inner = across ? m : n;
+    for (let o = 0; o < outer; o++) {
+      const xs = [];
+      for (let k = 0; k < inner; k++) xs.push(rows[across ? o * m + k : k * m + o].beyondChance);
+      total += Math.max(...xs) - Math.min(...xs);
+    }
+    return total / outer;
+  }
+
+  function renderMap() {
+    const rule = state.tune;
+    let out;
+    try { out = sweep(state.s, rule, null, TUNE_YEARS); } catch (e) { $('#tune-out').innerHTML = '<p class="small">' + esc(e.message) + '</p>'; return; }
+    const [ka, kb] = out.dials;
+    const va = SWEEP_DEFAULTS[rule][ka], vb = SWEEP_DEFAULTS[rule][kb];
+    const rows = out.rows, base = out.beyondWithoutSaving, cur = state.s.rules[rule];
+    const da = DIALS[ka], db = DIALS[kb];
+    const ea = spread(rows, va.length, vb.length, false), eb = spread(rows, va.length, vb.length, true);
+    const both = r => da.label.toLowerCase() + ' ' + da.fmt(r[ka]) + ' with ' + db.label.toLowerCase() + ' ' + db.fmt(r[kb]);
+    let lead;
+    if (Math.max(ea, eb) < 0.02) {
+      lead = 'None of these settings changes the risk of going past the overdraft limit here (' + pct(base) + ' of years without saving). They change how much is set aside and how often you raid it.';
+    } else {
+      const [big, small, eBig, eSmall] = ea >= eb ? [da, db, ea, eb] : [db, da, eb, ea];
+      lead = '<strong>' + esc(big.label) + '</strong> is the dial that matters here: it moves the chance of going past the limit by about ' + Math.round(eBig * 100) +
+        ' points on average, against ' + Math.round(eSmall * 100) + ' for ' + esc(small.label.toLowerCase()) + '.';
+    }
+    const safe = rows.filter(r => r.beyondChance <= base + 0.02);
+    const flat = Math.max(...rows.map(r => r.beyondChance)) - Math.min(...rows.map(r => r.beyondChance)) < 0.02;
+    let top = null;
+    if (safe.length && Math.max(...safe.map(r => r.endPot)) < 100) {
+      lead += ' No setting here keeps anything set aside in a typical year without adding to the risk.';
+    } else if (safe.length) {
+      top = safe.reduce((a, b) => (b.endPot > a.endPot ? b : a));
+      lead += ' The most it sets aside without adding to the risk is about <span class="nw">' + esc(pounds(top.endPot)) + '</span> in a typical year (' + esc(both(top)) + ')' +
+        (top.meanRescues >= 12 ? ', but you would raid it about ' + Math.round(top.meanRescues) + ' times a year.' : '.');
+    } else {
+      const least = rows.reduce((a, b) => (b.beyondChance < a.beyondChance ? b : a));
+      lead += ' Every setting here adds to the risk: the safest (' + esc(both(least)) + ') goes past the limit in ' + pct(least.beyondChance) + ' of years, against ' + pct(base) + ' without saving.';
+    }
+    let h = '<p class="tune-lead">' + lead + '</p>' +
+      '<p class="map-axis">Rows: ' + esc(da.label.toLowerCase()) + '. Columns: ' + esc(db.label.toLowerCase()) + '. Each square: set aside on 31 August in a typical year, and ' +
+      (flat ? 'how many times a year you raid it.' : 'the share of years past the overdraft limit.') + '</p>' +
+      '<div class="table-wrap"><table class="map"><caption class="sr-only">Tuning map for the ' + esc(shortName(rule).toLowerCase()) + '</caption><thead><tr><td></td>' +
+      vb.map(v => '<th scope="col">' + esc(db.fmt(v)) + '</th>').join('') + '</tr></thead><tbody>';
+    va.forEach((a, i) => {
+      h += '<tr><th scope="row">' + esc(da.fmt(a)) + '</th>';
+      vb.forEach((b, j) => {
+        const r = rows[i * vb.length + j];
+        const here = cur[ka] === a && cur[kb] === b;
+        const cls = 'r' + riskStep(r.beyondChance - base) + (r === top ? ' front' : '') + (here ? ' here' : '');
+        const n = Math.round(r.meanRescues);
+        const label = da.label + ' ' + da.fmt(a) + ', ' + db.label.toLowerCase() + ' ' + db.fmt(b) + ': ' + pounds(r.endPot) + ' set aside in a typical year, past the overdraft limit in ' +
+          pct(r.beyondChance) + ' of years, ' + (n < 1 ? 'hardly ever raided' : 'raided about ' + n + ' time' + (n === 1 ? '' : 's') + ' a year') + ', ' +
+          (r.net < 0 ? money(-r.net) + ' worse off' : money(r.net) + ' better off') + ' than not saving.' +
+          (r === top ? ' The most set aside without adding to the risk.' : '') + (here ? ' Your current settings.' : '');
+        h += '<td><button type="button" class="' + cls + '" data-a="' + a + '" data-b="' + b + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
+          '<b>' + esc(pounds(r.endPot)) + '</b><span>' + (flat ? Math.round(r.meanRescues) + '<em class="wide"> raids</em>' : pct(r.beyondChance) + '<em class="wide"> past limit</em>') + '</span></button></td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div><p class="keys">Shading shows the extra chance of going past the limit, compared with not saving.</p><div class="keys">' +
+      RISK_KEYS.map((k, i) => '<span><i style="background:' + (i ? 'color-mix(in srgb, var(--bad) ' + (i * 14) + '%, var(--surface))' : 'var(--surface-2)') + '"></i>' + k + '</span>').join('') +
+      '</div><div class="keys">' + (top ? '<span><i style="border:2px solid var(--ink)"></i>Most set aside without adding to the risk</span>' : '') +
+      '<span><i style="box-shadow:inset 0 0 0 3px var(--accent)"></i>Your current settings</span></div>';
+    const box = $('#tune-out');
+    box.innerHTML = h;
+    box.style.opacity = '';
+    state.map = out;
+    if (state.focusCell) {
+      const btn = box.querySelector('button[data-a="' + state.focusCell[0] + '"][data-b="' + state.focusCell[1] + '"]');
+      if (btn) btn.focus();
+      state.focusCell = null;
+    }
+  }
+
+  function useCell(btn) {
+    const rule = state.tune, [ka, kb] = Object.keys(SWEEP_DEFAULTS[rule]);
+    const a = Number(btn.dataset.a), b = Number(btn.dataset.b);
+    clearLink();
+    state.s.rules[rule][ka] = a;
+    state.s.rules[rule][kb] = b;
+    state.view = rule;
+    state.focusCell = [btn.dataset.a, btn.dataset.b];
+    renderControls();
+    run();
+    $('#announce').textContent = shortName(rule) + ' now uses ' + DIALS[ka].label.toLowerCase() + ' ' + DIALS[ka].fmt(a) + ' and ' + DIALS[kb].label.toLowerCase() + ' ' + DIALS[kb].fmt(b) + '.';
+  }
+
+  /* ---------- Saving, opening and sharing settings ---------- */
+  function say(text, bad) {
+    const el = $('#io-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('bad', !!bad);
+  }
+
+  function clearLink() {
+    if (!location.hash) return;
+    try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) { /* some browsers block this for local files */ }
+  }
+
+  function useSettings(s, from) {
+    const problems = validateSettings(s);
+    if (problems.length) { say(from + ' could not be used. ' + problems.slice(0, 3).join(' '), true); return false; }
+    state.s = JSON.parse(JSON.stringify(s));
+    if (PRESETS[state.s.preset]) $('#preset').value = state.s.preset;
+    renderControls();
+    run();
+    return true;
+  }
+
+  function saveFile() {
+    const blob = new Blob([JSON.stringify(state.s, null, 2) + '\n'], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'save-or-sink-settings.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    say('Saved as save-or-sink-settings.json. Open it here later, or run it with the Python package.');
+  }
+
+  function openFile(file) {
+    if (!file) return;
+    if (file.size > 200000) { say(file.name + ' is too big to be Save or sink settings.', true); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      let s;
+      try { s = JSON.parse(String(reader.result).replace(/^\uFEFF/, '')); } catch (e) { say(file.name + ' is not valid JSON.', true); return; }
+      if (useSettings(s, file.name)) say('Opened ' + file.name + '.');
+    };
+    reader.onerror = () => say(file.name + ' could not be read.', true);
+    reader.readAsText(file);
+  }
+
+  function copyLink() {
+    const url = location.href.split('#')[0] + '#' + encodeLink(state.s);
+    try { history.replaceState(null, '', url); } catch (e) { /* the link is still copied below */ }
+    const shown = () => say('Copy this link: ' + url);
+    const done = () => say('Link copied. Opening it brings back these settings, and the Python package accepts it with --link.');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, shown); else shown();
+  }
+
   /* ---------- Wiring ---------- */
   function loadPreset(key) {
+    clearLink();
     const keepRules = state.s.rules, keepBank = {overdraftLimit: state.s.overdraftLimit, overdraftRate: state.s.overdraftRate, savingsRate: state.s.savingsRate, rescue: state.s.rescue};
     state.s = defaultSettings(key);
     if (state.loaded) { state.s.rules = keepRules; Object.assign(state.s, keepBank); }
@@ -827,7 +1146,26 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#controls').addEventListener('input', onControl);
     $('#controls').addEventListener('change', e => { if (e.target.id === 'c-rescue' || e.target.id === 'c-knows') onControl(e); });
     $('#controls').addEventListener('click', e => {
-      if (e.target.id === 'new-years') { state.s.seed = (state.s.seed + 1) % 4294967296; run(); }
+      const id = e.target.id;
+      if (id === 'new-years') { clearLink(); state.s.seed = (state.s.seed + 1) % 4294967296; run(); }
+      if (id === 'save-file') saveFile();
+      if (id === 'open-file') $('#file-in').click();
+      if (id === 'copy-link') copyLink();
+    });
+    $('#controls').addEventListener('change', e => {
+      if (e.target.id === 'file-in') { openFile(e.target.files[0]); e.target.value = ''; }
+    });
+    $('#tune-card').addEventListener('click', e => {
+      const t = e.target.closest('[data-tune]');
+      if (t) {
+        state.tune = t.dataset.tune;
+        document.querySelectorAll('[data-tune]').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
+        $('#tune-out').style.opacity = '0.55';
+        setTimeout(renderMap, 20);
+        return;
+      }
+      const cell = e.target.closest('button[data-a]');
+      if (cell) useCell(cell);
     });
     $('#year-card').addEventListener('click', e => {
       const b = e.target.closest('[data-view]');
@@ -841,6 +1179,27 @@ if (typeof module !== 'undefined' && module.exports) {
       clearTimeout(state.rt);
       state.rt = setTimeout(renderYear, 150);
     });
+    $('#tune-years').textContent = TUNE_YEARS;
+    window.addEventListener('hashchange', () => {
+      if (!/[#&]s=/.test(location.hash)) return;
+      let s = null;
+      try { s = decodeLink(location.hash); } catch (e) { say(e.message, true); return; }
+      if (useSettings(s, 'The link')) say('Opened the settings in the link.');
+    });
+    if (/[#&]s=/.test(location.hash)) {
+      let s = null, problem = '';
+      try { s = decodeLink(location.hash); } catch (e) { problem = e.message; }
+      if (s) {
+        state.loaded = true;
+        renderControls();
+        if (useSettings(s, 'The link')) { say('Opened the settings in the link.'); return; }
+        problem = $('#io-msg').textContent;
+        state.loaded = false;
+      }
+      loadPreset('steady');
+      say(problem, true);
+      return;
+    }
     loadPreset('steady');
   }
   init();

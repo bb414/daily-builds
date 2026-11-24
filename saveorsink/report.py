@@ -42,7 +42,7 @@ def summary_report(s, summary, years):
     return "\n".join(lines)
 
 
-DIAL_LABELS = {"horizon": "Looks ahead", "buffer": "Cushion", "aggressiveness": "Share of spare", "cap": "Daily cap"}
+DIAL_LABELS = {"horizon": "Looks ahead", "buffer": "Safety buffer", "aggressiveness": "Share saved", "cap": "Daily cap"}
 
 
 def dial_text(key, value):

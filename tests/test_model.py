@@ -261,6 +261,22 @@ class SweepTests(unittest.TestCase):
             M.sweep(bad)
 
 
+class LinkTests(unittest.TestCase):
+    def test_round_trip_and_errors(self):
+        s = M.default_settings("shifts")
+        link = M.encode_link(s)
+        self.assertTrue(link.startswith("s="))
+        self.assertNotIn("=", link[2:])
+        self.assertEqual(M.decode_link("file:///home/me/app/index.html#" + link), s)
+        self.assertEqual(M.decode_link(link), s)
+        self.assertEqual(M.decode_link("  ?x=1&" + link + "  "), s)
+        for text, message in (("", M.LINK_MISSING), ("#t=e30", M.LINK_MISSING), ("#s=abcde", M.LINK_DAMAGED),
+                              ("#s=bm90IGpzb24", M.LINK_DAMAGED), ("#s=TmFO", M.LINK_DAMAGED)):
+            with self.assertRaises(ValueError) as ctx:
+                M.decode_link(text)
+            self.assertEqual(str(ctx.exception), message, text)
+
+
 class ValidationTests(unittest.TestCase):
     def test_rules(self):
         self.assertEqual(M.validate_settings(M.default_settings()), [])
@@ -320,12 +336,18 @@ class CliTests(unittest.TestCase):
             rows = (Path(d) / "w.csv").read_text().splitlines()
             self.assertEqual(len(rows), 5)
             self.assertTrue(rows[0].startswith("horizon,buffer,set_aside_median"))
+            code, out = self.run_cli("settings", "tight", "--link")
+            link = out.splitlines()[0]
+            self.assertTrue(link.startswith("#s="))
+            code, out = self.run_cli("run", "--years", "5", "--link", "file:///app/index.html" + link)
+            self.assertEqual(code, 0)
+            self.assertIn("Tight budget", out)
 
     def test_errors(self):
         for argv in (("run", "--years", "0"), ("run", "--settings", "missing.json"), ("year", "--rule", "magic"),
                      ("year", "--year", "0"), ("sweep", "--dial", "horizon"), ("sweep", "--dial", "horizon=a,b"),
                      ("sweep", "--dial", "horizon=7", "--dial", "horizon=14"), ("sweep", "--dial", "cap=1"),
-                     ("sweep", "--years", "0")):
+                     ("sweep", "--years", "0"), ("run", "--link", "#s=abc"), ("run", "--link", "#s=e30")):
             code, out = self.run_cli(*argv)
             self.assertEqual(code, 2, argv)
             self.assertIn("Error:", out)

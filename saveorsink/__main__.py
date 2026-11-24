@@ -6,13 +6,15 @@ import json
 import os
 import sys
 
-from .model import (PRESETS, RULES, SWEEP_DEFAULTS, default_settings, generate_year, simulate, stress_test, sweep,
-                    validate_settings, year_seed)
+from .model import (PRESETS, RULES, SWEEP_DEFAULTS, decode_link, default_settings, encode_link, generate_year,
+                    simulate, stress_test, sweep, validate_settings, year_seed)
 from .report import summary_report, sweep_report, year_report
 
 
 def load_settings(args):
-    if args.settings:
+    if getattr(args, "link", None):
+        s = decode_link(args.link)
+    elif args.settings:
         try:
             with open(args.settings, encoding="utf-8-sig") as f:
                 s = json.load(f)
@@ -98,6 +100,10 @@ def cmd_sweep(args):
 
 
 def cmd_settings(args):
+    if args.link:
+        print("#" + encode_link(default_settings(args.preset)))
+        print("\nAdd that to the end of the app's address (after index.html) to open these settings.")
+        return 0
     text = json.dumps(default_settings(args.preset), indent=2, ensure_ascii=False)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
@@ -114,7 +120,9 @@ def main(argv=None):
 
     def common(sp):
         sp.add_argument("--preset", choices=sorted(PRESETS), default="steady", help="a built-in situation")
-        sp.add_argument("--settings", help="a settings JSON file (from the app or 'settings')")
+        src = sp.add_mutually_exclusive_group()
+        src.add_argument("--settings", help="a settings JSON file (saved from the app or written by 'settings')")
+        src.add_argument("--link", help="a link copied from the app (quote it in the shell)")
         sp.add_argument("--rescue", choices=["overdrawn", "near-limit", "never"], help="override the rescue habit")
         sp.add_argument("--seed", type=int, help="override the random seed")
 
@@ -144,6 +152,7 @@ def main(argv=None):
     t = sub.add_parser("settings", help="write a preset's settings to a file you can edit")
     t.add_argument("preset", choices=sorted(PRESETS))
     t.add_argument("-o", "--out")
+    t.add_argument("--link", action="store_true", help="print a link fragment for the app instead of JSON")
     t.set_defaults(func=cmd_settings)
 
     args = p.parse_args(argv)

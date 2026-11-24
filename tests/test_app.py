@@ -83,6 +83,54 @@ class AppAgreesWithPython(unittest.TestCase):
             expect.append(plain(M.stress_test(s, 25)))
         self.assertEqual(js(calls), expect)
 
+    def test_sweeps_are_identical(self):
+        calls, expect = [], []
+        for s in variants()[::3]:
+            for rule, dials in (("smart", {"horizon": [7, 60], "buffer": [0, 250.5]}),
+                                ("planner", {"aggressiveness": [0.3, 1], "cap": [10, 5000]}), ("planner", None)):
+                calls.append({"fn": "sweep", "args": [s, rule, dials, 6]})
+                expect.append(plain(M.sweep(s, rule, dials, 6)))
+        self.assertEqual(js(calls), expect)
+        self.assertEqual(js([{"get": "SWEEP_DEFAULTS"}])[0], plain(M.SWEEP_DEFAULTS))
+
+    def test_sweep_and_stress_errors_match(self):
+        s = M.default_settings()
+        bad = [["weekly", None, 5], ["smart", {"horizon": [7]}, 5], ["smart", {"horizon": [7], "colour": [1]}, 5],
+               ["smart", {"horizon": [7.5], "buffer": [0]}, 5], ["smart", {"horizon": [7], "buffer": []}, 5],
+               ["smart", {"horizon": 7, "buffer": [0]}, 5], ["smart", [], 5], ["smart", None, 2.5],
+               ["planner", {"buffer": [0], "aggressiveness": [True]}, 5], ["planner", None, 0],
+               ["planner", {"buffer": list(range(100)), "aggressiveness": [0.5] * 10}, 5000]]
+        got = js([{"fn": "sweep", "args": [s] + b, "catchErrors": True} for b in bad]
+                 + [{"fn": "stressTest", "args": [s, y], "catchErrors": True} for y in (0, 2.5, 20001)])
+        expect = []
+        for b in bad:
+            with self.assertRaises(ValueError) as ctx:
+                M.sweep(s, *b)
+            expect.append({"error": str(ctx.exception)})
+        for y in (0, 2.5, 20001):
+            with self.assertRaises(ValueError) as ctx:
+                M.stress_test(s, y)
+            expect.append({"error": str(ctx.exception)})
+        self.assertEqual(got, expect)
+
+    def test_links_work_both_ways(self):
+        settings = variants()
+        settings[0]["note"] = "caf\u00e9 \u00a3"
+        links = js([{"fn": "encodeLink", "args": [s]} for s in settings])
+        self.assertEqual([M.decode_link("file:///x/app/index.html#" + k) for k in links], settings)
+        back = js([{"fn": "decodeLink", "args": ["#" + M.encode_link(s)]} for s in settings])
+        self.assertEqual(back, settings)
+        bad = ["", "nothing here", "#s=", "#s=abc", "#s=e30x", "#s=" + "_" * 9, "#t=e30", "#s=bm90IGpzb24",
+               "#s=TmFO", "#s=" + M.encode_link([1])[2:]]
+        got = js([{"fn": "decodeLink", "args": [b], "catchErrors": True} for b in bad])
+        expect = []
+        for b in bad:
+            try:
+                expect.append({"ok": M.decode_link(b)})
+            except ValueError as exc:
+                expect.append({"error": str(exc)})
+        self.assertEqual(got, expect)
+
     def test_validation_and_helpers(self):
         base = M.default_settings()
 

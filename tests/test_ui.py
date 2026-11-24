@@ -1,5 +1,7 @@
 """Drives the browser app in headless Chromium (skipped if Playwright is not installed)."""
 
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -80,9 +82,90 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_tuning_map(self):
+        page = self.open()
+        page.wait_for_selector("#tune-out table.map")
+        self.assertEqual(page.locator("#tune-out table.map button").count(), 25)
+        self.assertEqual(page.locator("#tune-out button.here").count(), 1)
+        self.assertEqual(page.locator("#tune-out button.front").count(), 1)
+        page.select_option("#preset", "tight")
+        page.select_option("#c-rescue", "never")
+        page.wait_for_timeout(1200)
+        self.assertIn("Looks ahead", page.inner_text(".tune-lead"))
+        page.click("#tune-out button[data-a='56'][data-b='400']")
+        page.wait_for_timeout(1200)
+        self.assertEqual(page.input_value("#c-smart-horizon"), "56")
+        self.assertEqual(page.input_value("#c-smart-buffer"), "400")
+        self.assertIn("Your current settings", page.get_attribute("#tune-out button.here", "aria-label"))
+        self.assertEqual(page.evaluate("document.activeElement.dataset.a"), "56")
+        page.click("[data-tune='planner']")
+        page.wait_for_timeout(800)
+        self.assertEqual(page.locator("#tune-out table.map button").count(), 20)
+        self.assertIn("share of spare money saved", page.inner_text("#tune-out").lower())
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_save_open_and_link(self):
+        page = self.open()
+        page.select_option("#preset", "shifts")
+        page.locator("#c-rent").fill("610")
+        self.settle(page)
+        with page.expect_download() as info:
+            page.click("#save-file")
+        saved = json.loads(Path(info.value.path()).read_text())
+        self.assertEqual(saved["rent"], 610)
+        self.assertEqual(M.validate_settings(saved), [])
+        saved["rent"] = 700
+        with tempfile.TemporaryDirectory() as d:
+            good, bad = Path(d) / "good.json", Path(d) / "bad.json"
+            good.write_text("\ufeff" + json.dumps(saved), encoding="utf-8")
+            bad.write_text(json.dumps(dict(saved, rent=-5)), encoding="utf-8")
+            page.set_input_files("#file-in", str(good))
+            page.wait_for_timeout(600)
+            self.assertEqual(page.input_value("#c-rent"), "700")
+            self.assertIn("Opened good.json", page.inner_text("#io-msg"))
+            page.set_input_files("#file-in", str(bad))
+            page.wait_for_timeout(300)
+            self.assertIn("rent must be", page.inner_text("#io-msg"))
+            self.assertEqual(page.input_value("#c-rent"), "700")
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+        page.click("#copy-link")
+        page.wait_for_timeout(300)
+        url = page.evaluate("location.href")
+        self.assertIn("#s=", url)
+        self.assertEqual(M.decode_link(url)["rent"], 700)
+        page.close()
+        page = self.browser.new_page()
+        page.goto(APP_URL + "#" + M.encode_link(dict(M.default_settings("tight"), rent=333)))
+        page.wait_for_selector("#table-card table")
+        self.assertEqual(page.input_value("#c-rent"), "333")
+        self.assertEqual(page.input_value("#preset"), "tight")
+        self.assertIn("Opened the settings in the link", page.inner_text("#io-msg"))
+        page.locator("#c-rent").fill("400")
+        self.settle(page)
+        self.assertNotIn("#", page.evaluate("location.href"))
+        # A new link pasted into the same tab is picked up too.
+        page.goto(APP_URL + "#" + M.encode_link(dict(M.default_settings("shifts"), rent=444)))
+        page.wait_for_timeout(500)
+        self.assertEqual(page.input_value("#c-rent"), "444")
+        page.goto(APP_URL + "#s=abc")
+        page.wait_for_timeout(300)
+        self.assertIn("damaged", page.inner_text("#io-msg"))
+        self.assertEqual(page.input_value("#c-rent"), "444")
+        page.close()
+        page = self.browser.new_page()
+        page.goto(APP_URL + "#s=abc")
+        page.wait_for_selector("#table-card table")
+        self.assertIn("damaged", page.inner_text("#io-msg"))
+        self.assertEqual(page.input_value("#preset"), "steady")
+        page.close()
+
     def test_phone_layout_fits(self):
         page = self.open(390, 844)
+        page.wait_for_selector("#tune-out table.map")
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+        self.assertLessEqual(page.locator("#tune-out table.map").bounding_box()["width"],
+                             page.locator("#tune-card").bounding_box()["width"])
         self.assertLess(page.locator(".results").bounding_box()["y"], page.locator(".settings").bounding_box()["y"])
         page.close()
 

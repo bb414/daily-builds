@@ -10,8 +10,10 @@ drops below the person's comfort point, they move money back from the pot (a
 "rescue"). Overdraft interest is charged only beyond the interest-free limit.
 """
 
+import base64
 import json
 import math
+import re
 
 FORMAT = "save-or-sink-settings"
 VERSION = 1
@@ -426,8 +428,8 @@ def stress_test(s, years=200, rules=None):
     problems = validate_settings(s)
     if problems:
         raise ValueError(problems[0])
-    if not 1 <= years <= 20000:
-        raise ValueError("years must be from 1 to 20000")
+    if not _is_num(years) or years != int(years) or not 1 <= years <= 20000:
+        raise ValueError("years must be a whole number from 1 to 20000")
     rules = rules or RULES
     runs = {r: [] for r in rules}
     for k in range(years):
@@ -499,15 +501,16 @@ def sweep(s, rule="smart", dials=None, years=200):
         raise ValueError("rule must be one of: %s" % ", ".join(SWEEP_DEFAULTS))
     if not _is_num(years) or years != int(years) or not 1 <= years <= 20000:
         raise ValueError("years must be a whole number from 1 to 20000")
-    dials = dict(SWEEP_DEFAULTS[rule] if dials is None else dials)
-    if len(dials) != 2:
+    dials = SWEEP_DEFAULTS[rule] if dials is None else dials
+    if not isinstance(dials, dict) or len(dials) != 2:
         raise ValueError("choose exactly two dials to sweep")
     for key, values in dials.items():
         if key not in RULE_LIMITS[rule]:
             raise ValueError("%s has no dial called %s; try: %s" % (rule, key, ", ".join(RULE_LIMITS[rule])))
         lo, hi = RULE_LIMITS[rule][key]
         whole = key in INTEGER_KEYS
-        if not values or any(not _is_num(v) or not lo <= v <= hi or (whole and v != int(v)) for v in values):
+        if (not isinstance(values, (list, tuple)) or not values
+                or any(not _is_num(v) or not lo <= v <= hi or (whole and v != int(v)) for v in values)):
             raise ValueError("%s values must be %snumbers from %s to %s" % (key, "whole " if whole else "", lo, hi))
     (ka, va), (kb, vb) = dials.items()
     if len(va) * len(vb) * years > 2000000:
@@ -564,5 +567,35 @@ def money(p, signed=False):
     return "%s£%d.%02d" % (sign, pounds, pence)
 
 
-def settings_json(s):
-    return json.dumps(s, indent=2, ensure_ascii=False)
+# ---------------------------------------------------------------------------
+# Settings links (identical to the app)
+# ---------------------------------------------------------------------------
+
+LINK_MISSING = "That link does not contain Save or sink settings."
+LINK_DAMAGED = "That link is damaged: the settings in it could not be read."
+_LINK = re.compile(r"(?:^|[#&?])s=([A-Za-z0-9_-]+)")
+
+
+def encode_link(s):
+    """Settings as a link fragment: s= then the JSON in URL-safe base64 without padding."""
+    raw = json.dumps(s, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return "s=" + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _no_constants(name):
+    raise ValueError(name)
+
+
+def decode_link(text):
+    """Accepts a whole link from the app or just its fragment. Returns the settings (not yet validated)."""
+    m = _LINK.search(str(text).strip())
+    if not m:
+        raise ValueError(LINK_MISSING)
+    b = m.group(1)
+    try:
+        if len(b) % 4 == 1:
+            raise ValueError(b)
+        raw = base64.urlsafe_b64decode(b + "=" * (-len(b) % 4))
+        return json.loads(raw.decode("utf-8"), parse_constant=_no_constants)
+    except ValueError:
+        raise ValueError(LINK_DAMAGED) from None
