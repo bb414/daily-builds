@@ -1,0 +1,75 @@
+import contextlib
+import io
+import json
+import os
+import tempfile
+import unittest
+
+import helpers  # noqa: F401  (puts the project on the path)
+
+from second_opinion.__main__ import main
+
+
+def run(*args):
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = main(list(args))
+        except SystemExit as exc:
+            code = exc.code
+    return code, out.getvalue(), err.getvalue()
+
+
+class CliTests(unittest.TestCase):
+    def test_synth_score_and_cohort(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = os.path.join(d, "sessions")
+            code, out, _ = run("synth", "--n", "12", "--advice", "verdict", "--advice", "reason", "--out", folder)
+            self.assertEqual(code, 0)
+            self.assertIn("Wrote 24 synthetic sessions", out)
+            files = sorted(os.listdir(folder))
+            self.assertEqual(len(files), 24)
+
+            code, out, _ = run("score", os.path.join(folder, files[0]))
+            self.assertEqual(code, 0)
+            self.assertIn("Profile:", out)
+            self.assertIn("The moments that mattered", out)
+
+            code, out, _ = run("score", "--json", os.path.join(folder, files[0]))
+            self.assertEqual(code, 0)
+            self.assertIn("reliance", json.loads(out))
+
+            report = os.path.join(d, "report.html")
+            code, out, _ = run("cohort", folder, "--html", report, "--resamples", "200", "--permutations", "200")
+            self.assertEqual(code, 0)
+            self.assertIn("cohort of 24 people", out)
+            self.assertIn("Differences from advice: reason, feedback off", out)
+            with open(report, encoding="utf-8") as f:
+                page = f.read()
+            self.assertIn("<svg", page)
+            self.assertIn("synthetic", page)
+            self.assertNotIn("http://", page)
+            self.assertNotIn("https://", page)
+
+    def test_errors_are_friendly(self):
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w") as f:
+                f.write("[1, 2")
+            code, _, err = run("score", bad)
+            self.assertEqual(code, 2)
+            self.assertIn("not valid JSON", err)
+            code, _, err = run("cohort", os.path.join(d, "missing.json"))
+            self.assertEqual(code, 2)
+            code, _, err = run("cohort", d)
+            self.assertEqual(code, 2)
+            os.remove(bad)
+            code, _, err = run("cohort", d)
+            self.assertEqual(code, 1)
+            self.assertIn("No sessions found", err)
+            code, _, err = run("synth", "--n", "0", "--out", d)
+            self.assertEqual(code, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
