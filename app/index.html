@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Act triage: where does an AI system sit under the EU AI Act?</title>
+<meta name="description" content="Classifies an AI system under the EU AI Act as amended by the Digital Omnibus, explains why with article references, and lists the obligations and dates that follow. Simplified and illustrative, not legal advice.">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --ink: #1a1d24;
+  --ink-2: #454b57;
+  --ink-3: #687080;
+  --line: #d9dde5;
+  --accent: #1f4e9c;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3ebf8;
+  --banned: #a3221c;
+  --banned-soft: #fbe5e3;
+  --high: #b4580f;
+  --high-soft: #fdeedd;
+  --gpai: #6a3fa0;
+  --gpai-soft: #efe6fa;
+  --transparency: #1d6f8a;
+  --transparency-soft: #def1f6;
+  --minimal: #2b7a47;
+  --minimal-soft: #e1f3e7;
+  --out: #5b6270;
+  --out-soft: #e9ebef;
+  --focus: #e3a400;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(15, 20, 30, .06), 0 4px 16px rgba(15, 20, 30, .06);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161b;
+    --surface: #1c1f26;
+    --surface-2: #252932;
+    --ink: #eceff4;
+    --ink-2: #c3c9d4;
+    --ink-3: #9aa2b1;
+    --line: #343a46;
+    --accent: #8db1f0;
+    --accent-ink: #0e1626;
+    --accent-soft: #22304a;
+    --banned: #ff8a80;
+    --banned-soft: #3b2120;
+    --high: #f6ad6b;
+    --high-soft: #3a2a1a;
+    --gpai: #c4a3f0;
+    --gpai-soft: #2e2440;
+    --transparency: #7fd0e6;
+    --transparency-soft: #1a3239;
+    --minimal: #7fd8a0;
+    --minimal-soft: #1a3324;
+    --out: #b5bcc8;
+    --out-soft: #2a2e36;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-inner { max-width: 1200px; margin: 0 auto; padding: 14px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.top-inner h1 { font-size: 1.2rem; margin: 0; }
+.top-inner p { margin: 0; color: var(--ink-3); font-size: .88rem; }
+.disclaimer { margin-left: auto; font-size: .82rem; font-weight: 700; padding: 6px 10px; border-radius: 8px; background: var(--high-soft); color: var(--ink); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 20px 20px 60px; display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.stack > * + * { margin-top: 18px; }
+h2 { font-size: 1.15rem; margin: 0 0 6px; }
+h3 { font-size: 1rem; margin: 0 0 8px; }
+.muted { color: var(--ink-3); }
+.small { font-size: .88rem; }
+
+/* Questions */
+fieldset { border: 0; border-top: 1px solid var(--line); margin: 16px 0 0; padding: 14px 0 0; }
+legend { font-weight: 700; padding: 0; }
+.q { margin-top: 10px; }
+.q > label, .q > .label { display: block; font-weight: 600; font-size: .92rem; }
+.q select, .q input[type="text"], .q input[type="number"], .q input[type="date"] { width: 100%; margin-top: 4px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.hint { font-size: .8rem; color: var(--ink-3); margin: 3px 0 0; }
+.check { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 8px; font-size: .92rem; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+.check .art { color: var(--ink-3); font-size: .8rem; }
+.radios { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.radios label { position: relative; }
+.radios input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.radios span { display: inline-block; padding: 6px 11px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: .9rem; background: var(--surface); }
+.radios input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.radios input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Results */
+.tier { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.badge { display: inline-block; padding: 6px 12px; border-radius: 10px; font-weight: 800; font-size: 1.05rem; }
+.t-prohibited { background: var(--banned-soft); color: var(--banned); }
+.t-highRisk { background: var(--high-soft); color: var(--high); }
+.t-gpaiSystemic, .t-gpai { background: var(--gpai-soft); color: var(--gpai); }
+.t-exempt63, .t-transparency { background: var(--transparency-soft); color: var(--transparency); }
+.t-minimal { background: var(--minimal-soft); color: var(--minimal); }
+.t-outOfScope { background: var(--out-soft); color: var(--out); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: .78rem; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+ol.trace { margin: 10px 0 0; padding-left: 22px; }
+ol.trace li { margin: 4px 0; }
+.art-ref { font-size: .8rem; color: var(--ink-3); white-space: nowrap; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
+.status { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.s-applies { background: var(--banned-soft); color: var(--banned); }
+.s-upcoming { background: var(--accent-soft); color: var(--accent); }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.kpi { background: var(--surface-2); border-radius: 12px; padding: 12px; }
+.kpi .k { font-size: .8rem; color: var(--ink-3); }
+.kpi .v { font-size: 1.35rem; font-weight: 800; }
+.kpi .s { font-size: .8rem; color: var(--ink-3); }
+.table-wrap { overflow-x: auto; position: relative; }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: minmax(0, 1fr); padding: 14px 14px 48px; }
+  .disclaimer { margin-left: 0; }
+}
+@media (max-width: 520px) {
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+  .card { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
+      <rect x="2" y="3" width="30" height="7" rx="3" fill="var(--banned)"/>
+      <rect x="2" y="13" width="22" height="7" rx="3" fill="var(--high)"/>
+      <rect x="2" y="23" width="14" height="7" rx="3" fill="var(--minimal)"/>
+    </svg>
+    <div>
+      <h1>AI Act triage</h1>
+      <p>Where does an AI system sit under the EU AI Act, and what follows?</p>
+    </div>
+    <p class="disclaimer">Simplified and illustrative. Not legal advice.</p>
+  </div>
+</header>
+
+<main id="main">
+  <form class="card" id="questions" aria-labelledby="q-title" novalidate>
+    <h2 id="q-title">The AI system</h2>
+    <div class="q">
+      <label for="preset">Start from an example</label>
+      <select id="preset"></select>
+    </div>
+    <div id="q-body"></div>
+  </form>
+
+  <div class="stack" id="results">
+    <section class="card" aria-labelledby="tier-title">
+      <h2 id="tier-title" class="sr-only">Result</h2>
+      <div class="tier" id="tier"></div>
+      <div class="tags" id="tags" style="margin-top:10px"></div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+    <section class="card" aria-labelledby="why-title">
+      <h2 id="why-title">Why</h2>
+      <ol class="trace" id="trace"></ol>
+    </section>
+    <section class="card" aria-labelledby="obl-title">
+      <h2 id="obl-title">What follows</h2>
+      <p class="small muted" id="obl-sub"></p>
+      <div class="table-wrap" id="obligations"></div>
+    </section>
+    <section class="card" aria-labelledby="uk-title">
+      <h2 id="uk-title">The UK view</h2>
+      <ul id="uk"></ul>
+    </section>
+  </div>
+</main>
+
+<script>
+/* MODEL START */
+var AiActTriage = (function () {
+  'use strict';
+
+  /* RULES START */
+  var RULES = {
+    "source": "Regulation (EU) 2024/1689 (the AI Act) as amended by Regulation (EU) 2026/1744 (the Digital Omnibus on AI, in force 27 July 2026). Simplified and illustrative, not legal advice.",
+    "checked": "2026-11-24",
+    "dates": {"prohibitions": {"amended": "2025-02-02", "original": "2025-02-02", "basis": "Art 113, point (a)"}, "prohibitionsNew": {"amended": "2026-12-02", "original": null, "basis": "Art 113, point (a), as amended"}, "literacy": {"amended": "2025-02-02", "original": "2025-02-02", "basis": "Art 113, point (a)"}, "gpai": {"amended": "2025-08-02", "original": "2025-08-02", "basis": "Art 113, point (b)"}, "gpaiLegacy": {"amended": "2027-08-02", "original": "2027-08-02", "basis": "Art 111(3)"}, "transparency": {"amended": "2026-08-02", "original": "2026-08-02", "basis": "Art 113"}, "transparencyLegacy": {"amended": "2026-12-02", "original": "2026-08-02", "basis": "Art 111, as amended"}, "annex3": {"amended": "2027-12-02", "original": "2026-08-02", "basis": "Art 113, point (c)(i), as amended"}, "annex1": {"amended": "2028-08-02", "original": "2027-08-02", "basis": "Art 113, point (c)(ii), as amended"}},
+    "dateLabels": {"prohibitions": "Banned practices", "prohibitionsNew": "New bans on intimate-image and child abuse generators", "literacy": "AI literacy", "gpai": "General-purpose AI models", "gpaiLegacy": "General-purpose AI models already on the market", "transparency": "Transparency duties", "transparencyLegacy": "Marking content from generators already on the market", "annex3": "High-risk: Annex III uses", "annex1": "High-risk: products under Annex I"},
+    "prohibitions": [
+      {"id": "manipulation", "point": "Art 5(1)(a)", "dateKey": "prohibitions", "label": "Subliminal, manipulative or deceptive techniques that materially distort behaviour and cause significant harm"},
+      {"id": "vulnerability", "point": "Art 5(1)(b)", "dateKey": "prohibitions", "label": "Exploiting vulnerabilities due to age, disability or social or economic situation, causing significant harm"},
+      {"id": "intimateImages", "point": "Art 5(1)(ba)", "dateKey": "prohibitionsNew", "label": "Creating or manipulating intimate images of identifiable people without their consent"},
+      {"id": "csam", "point": "Art 5(1)(bb)", "dateKey": "prohibitionsNew", "label": "Generating child sexual abuse material"},
+      {"id": "socialScoring", "point": "Art 5(1)(c)", "dateKey": "prohibitions", "label": "Social scoring that leads to unjustified or unrelated detrimental treatment"},
+      {"id": "crimeProfiling", "point": "Art 5(1)(d)", "dateKey": "prohibitions", "label": "Predicting that a person will commit a crime based solely on profiling or personality traits"},
+      {"id": "faceScraping", "point": "Art 5(1)(e)", "dateKey": "prohibitions", "label": "Building facial recognition databases by untargeted scraping of images from the internet or CCTV"},
+      {"id": "emotionWork", "point": "Art 5(1)(f)", "dateKey": "prohibitions", "label": "Emotion recognition in a workplace or educational institution, other than for medical or safety reasons"},
+      {"id": "biometricSensitive", "point": "Art 5(1)(g)", "dateKey": "prohibitions", "label": "Biometric categorisation to infer race, political opinions, trade union membership, beliefs, sex life or sexual orientation"},
+      {"id": "realtimeRbi", "point": "Art 5(1)(h)", "dateKey": "prohibitions", "label": "Real-time remote biometric identification in public spaces for law enforcement, outside the narrow exceptions"}
+    ],
+    "annex3": [
+      {"id": "biometrics", "point": "Annex III, point 1", "label": "Biometrics: remote identification, categorisation or emotion recognition (where not banned)", "uk": ["ICO"]},
+      {"id": "infrastructure", "point": "Annex III, point 2", "label": "Safety component in critical infrastructure: digital infrastructure, road traffic, water, gas, heating or electricity", "uk": ["the sector regulator, for example Ofgem or Ofwat"]},
+      {"id": "education", "point": "Annex III, point 3", "label": "Education: admissions, grading, assessing the right level of education, or monitoring tests", "uk": ["ICO", "EHRC", "Ofqual"]},
+      {"id": "employment", "point": "Annex III, point 4", "label": "Employment: recruitment, filtering applications, promotion, termination, task allocation or performance monitoring", "uk": ["ICO", "EHRC"]},
+      {"id": "publicBenefits", "point": "Annex III, point 5(a)", "label": "Public authorities deciding eligibility for public assistance benefits and services", "uk": ["ICO", "EHRC"]},
+      {"id": "credit", "point": "Annex III, point 5(b)", "label": "Creditworthiness or credit scoring of individuals (not fraud detection)", "uk": ["FCA", "ICO"]},
+      {"id": "insurance", "point": "Annex III, point 5(c)", "label": "Risk assessment and pricing for life or health insurance", "uk": ["FCA", "ICO"]},
+      {"id": "emergency", "point": "Annex III, point 5(d)", "label": "Evaluating emergency calls, dispatching emergency services or triaging patients", "uk": ["ICO", "the relevant health or emergency service regulator"]},
+      {"id": "lawEnforcement", "point": "Annex III, point 6", "label": "Law enforcement uses, such as assessing risk of becoming a victim or the reliability of evidence", "uk": ["ICO"]},
+      {"id": "migration", "point": "Annex III, point 7", "label": "Migration, asylum and border control", "uk": ["ICO"]},
+      {"id": "justice", "point": "Annex III, point 8", "label": "Administration of justice, or influencing elections and voting behaviour", "uk": ["ICO", "the Electoral Commission"]}
+    ],
+    "derogations": [
+      {"id": "procedural", "point": "Art 6(3)(a)", "label": "It performs a narrow procedural task"},
+      {"id": "improve", "point": "Art 6(3)(b)", "label": "It improves the result of a human activity already completed"},
+      {"id": "patterns", "point": "Art 6(3)(c)", "label": "It detects decision patterns or deviations, without replacing or influencing a completed human assessment without proper human review"},
+      {"id": "preparatory", "point": "Art 6(3)(d)", "label": "It performs a preparatory task for an assessment in an Annex III use"}
+    ],
+    "obligations": [
+      {"id": "literacy", "role": "both", "trigger": "inScope", "dateKey": "literacy", "article": "Art 4", "text": "Take measures to support the AI literacy of staff and others who operate or use the system for you"},
+      {"id": "p_rms", "role": "provider", "trigger": "highRisk", "article": "Art 9", "text": "Run a risk management system across the whole life cycle"},
+      {"id": "p_data", "role": "provider", "trigger": "highRisk", "article": "Art 10", "text": "Govern training, validation and testing data, including checks for bias"},
+      {"id": "p_techdoc", "role": "provider", "trigger": "highRisk", "article": "Art 11, Annex IV", "text": "Draw up technical documentation (a simplified form is allowed for SMEs and small mid-caps)"},
+      {"id": "p_logs", "role": "provider", "trigger": "highRisk", "article": "Art 12", "text": "Build in automatic logging of events"},
+      {"id": "p_instructions", "role": "provider", "trigger": "highRisk", "article": "Art 13", "text": "Give deployers clear instructions for use"},
+      {"id": "p_oversight", "role": "provider", "trigger": "highRisk", "article": "Art 14", "text": "Design the system so people can oversee it effectively"},
+      {"id": "p_accuracy", "role": "provider", "trigger": "highRisk", "article": "Art 15", "text": "Achieve appropriate accuracy, robustness and cybersecurity"},
+      {"id": "p_qms", "role": "provider", "trigger": "highRisk", "article": "Art 17", "text": "Operate a quality management system (proportionate for SMEs and small mid-caps)"},
+      {"id": "p_records", "role": "provider", "trigger": "highRisk", "article": "Arts 18 and 19", "text": "Keep documentation for 10 years and keep the logs under your control"},
+      {"id": "p_conformity", "role": "provider", "trigger": "highRisk", "article": "Arts 43, 47 and 48", "text": "Complete the conformity assessment, sign the EU declaration of conformity and affix the CE marking"},
+      {"id": "p_register", "role": "provider", "trigger": "annex3", "article": "Art 49(1)", "text": "Register the system in the EU database before placing it on the market"},
+      {"id": "p_corrective", "role": "provider", "trigger": "highRisk", "article": "Art 20", "text": "Take corrective action, and inform others, if the system stops conforming"},
+      {"id": "p_monitoring", "role": "provider", "trigger": "highRisk", "article": "Art 72", "text": "Monitor the system after it is placed on the market"},
+      {"id": "p_incidents", "role": "provider", "trigger": "highRisk", "article": "Art 73", "text": "Report serious incidents to the market surveillance authority"},
+      {"id": "d_instructions", "role": "deployer", "trigger": "highRisk", "article": "Art 26(1)", "text": "Use the system in line with the provider's instructions"},
+      {"id": "d_oversight", "role": "deployer", "trigger": "highRisk", "article": "Art 26(2)", "text": "Give human oversight to people with the competence, training and authority to do it"},
+      {"id": "d_input", "role": "deployer", "trigger": "highRisk", "article": "Art 26(4)", "text": "Make sure input data you control is relevant and sufficiently representative"},
+      {"id": "d_monitor", "role": "deployer", "trigger": "highRisk", "article": "Art 26(5)", "text": "Monitor how it operates, and tell the provider and authorities about risks and serious incidents"},
+      {"id": "d_logs", "role": "deployer", "trigger": "highRisk", "article": "Art 26(6)", "text": "Keep the automatically generated logs for at least six months"},
+      {"id": "d_workers", "role": "deployer", "trigger": "highRiskWorkplace", "article": "Art 26(7)", "text": "Inform workers' representatives and affected workers before using it at work"},
+      {"id": "d_inform", "role": "deployer", "trigger": "annex3", "article": "Art 26(11)", "text": "Tell people when they are subject to decisions the system makes or helps to make"},
+      {"id": "d_explain", "role": "deployer", "trigger": "annex3", "article": "Art 86", "text": "Be ready to explain the system's role in a decision to an affected person who asks"},
+      {"id": "d_register", "role": "deployer", "trigger": "annex3PublicAuthority", "article": "Arts 26(8) and 49(3)", "text": "Register your use of the system in the EU database"},
+      {"id": "d_fria", "role": "deployer", "trigger": "fria", "article": "Art 27", "text": "Carry out a fundamental rights impact assessment before first use"},
+      {"id": "e_document", "role": "provider", "trigger": "exempt63", "article": "Art 6(4)", "text": "Document why the system is not high-risk before placing it on the market, and give the assessment to authorities on request"},
+      {"id": "e_register", "role": "provider", "trigger": "exempt63", "article": "Art 49(2)", "text": "Register the system in the EU database (simplified content)"},
+      {"id": "t_interact", "role": "provider", "trigger": "interacts", "dateKey": "transparency", "article": "Art 50(1)", "text": "Make sure people are told they are interacting with an AI system, unless that is obvious"},
+      {"id": "t_mark", "role": "provider", "trigger": "generates", "dateKey": "transparency", "article": "Art 50(2)", "text": "Mark generated audio, images, video and text in a machine-readable way so they can be detected as AI-generated"},
+      {"id": "t_emotion", "role": "deployer", "trigger": "emotionBiocat", "dateKey": "transparency", "article": "Art 50(3)", "text": "Tell people exposed to emotion recognition or biometric categorisation"},
+      {"id": "t_deepfake", "role": "deployer", "trigger": "deepfake", "dateKey": "transparency", "article": "Art 50(4)", "text": "Disclose deepfakes, and AI-generated text published to inform the public on matters of public interest unless it has human editorial control"},
+      {"id": "g_docs", "role": "provider", "trigger": "gpaiClosedOrSystemic", "dateKey": "gpai", "article": "Art 53(1)(a) and (b)", "text": "Keep technical documentation for the AI Office and give information to providers who build on the model"},
+      {"id": "g_copyright", "role": "provider", "trigger": "gpai", "dateKey": "gpai", "article": "Art 53(1)(c)", "text": "Put in place a policy to comply with EU copyright law"},
+      {"id": "g_summary", "role": "provider", "trigger": "gpai", "dateKey": "gpai", "article": "Art 53(1)(d)", "text": "Publish a sufficiently detailed summary of the content used for training"},
+      {"id": "g_notify", "role": "provider", "trigger": "gpaiSystemic", "dateKey": "gpai", "article": "Art 52", "text": "Notify the Commission that the model meets the systemic-risk threshold"},
+      {"id": "g_systemic", "role": "provider", "trigger": "gpaiSystemic", "dateKey": "gpai", "article": "Art 55", "text": "Evaluate and test the model, assess and mitigate systemic risks, report serious incidents and protect cybersecurity"}
+    ],
+    "penalties": {"prohibited": {"amount": 35000000, "share": 0.07, "article": "Art 99(3)"}, "operator": {"amount": 15000000, "share": 0.03, "article": "Art 99(4)"}, "information": {"amount": 7500000, "share": 0.01, "article": "Art 99(5)"}, "gpai": {"amount": 15000000, "share": 0.03, "article": "Art 101"}},
+    "ukBaseline": [
+      "The UK has no cross-sector AI statute in force. The government's approach asks existing regulators to apply five principles within their remits: safety, security and robustness; appropriate transparency and explainability; fairness; accountability and governance; and contestability and redress.",
+      "Existing law still applies: data protection (UK GDPR and the Data Protection Act 2018, overseen by the ICO, including the rules on solely automated decisions as amended by the Data (Use and Access) Act 2025), equality law (Equality Act 2010) and consumer protection law."
+    ],
+    "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
+    "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices."
+  };
+  /* RULES END */
+
+  var ROLES = ['provider', 'deployer', 'both'];
+  var EXCLUSIONS = ['none', 'military', 'research', 'personal'];
+  var GPAI = ['none', 'gpai', 'systemic'];
+  var DEPLOYER_TYPES = ['private', 'publicAuthority', 'publicService'];
+  var TIERS = {
+    outOfScope: 'Outside the AI Act',
+    prohibited: 'Banned practice',
+    highRisk: 'High-risk',
+    gpaiSystemic: 'General-purpose AI model with systemic risk',
+    gpai: 'General-purpose AI model',
+    exempt63: 'Annex III use, but not high-risk',
+    transparency: 'Transparency duties',
+    minimal: 'Minimal risk'
+  };
+  var TIER_ORDER = ['prohibited', 'highRisk', 'gpaiSystemic', 'gpai', 'exempt63', 'transparency', 'minimal'];
+
+  function ids(list) { return list.map(function (x) { return x.id; }); }
+  function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+  function pick(value, allowed, fallback) { return allowed.indexOf(value) >= 0 ? value : fallback; }
+  function flag(value) { return value === true; }
+
+  // Fill in defaults and drop anything that is not a valid answer.
+  function normalise(a) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) a = {};
+    var turnover = Number(a.turnover);
+    var prohibitionIds = ids(RULES.prohibitions);
+    return {
+      name: typeof a.name === 'string' ? Array.from(a.name).slice(0, 120).join('') : '',
+      role: pick(a.role, ROLES, 'deployer'),
+      takeover: flag(a.takeover),
+      eu: a.eu !== false,
+      excluded: pick(a.excluded, EXCLUSIONS, 'none'),
+      prohibited: Array.isArray(a.prohibited) ? prohibitionIds.filter(function (id) { return a.prohibited.indexOf(id) >= 0; }) : [],
+      annex1: flag(a.annex1),
+      annex3: pick(a.annex3, [''].concat(ids(RULES.annex3)), ''),
+      derogation: pick(a.derogation, [''].concat(ids(RULES.derogations)), ''),
+      profiling: flag(a.profiling),
+      interacts: flag(a.interacts),
+      generates: flag(a.generates),
+      generatedBefore: flag(a.generatedBefore),
+      emotionBiocat: flag(a.emotionBiocat),
+      deepfake: flag(a.deepfake),
+      gpai: pick(a.gpai, GPAI, 'none'),
+      gpaiBefore: flag(a.gpaiBefore),
+      gpaiOpen: flag(a.gpaiOpen),
+      deployerType: pick(a.deployerType, DEPLOYER_TYPES, 'private'),
+      workplace: flag(a.workplace),
+      turnover: isFinite(turnover) && turnover >= 0 ? Math.min(turnover, 1e7) : 0,
+      sme: flag(a.sme)
+    };
+  }
+
+  // Whole days from one ISO date (YYYY-MM-DD) to another.
+  function daysBetween(fromIso, toIso) {
+    var f = Date.UTC(+fromIso.slice(0, 4), +fromIso.slice(5, 7) - 1, +fromIso.slice(8, 10));
+    var t = Date.UTC(+toIso.slice(0, 4), +toIso.slice(5, 7) - 1, +toIso.slice(8, 10));
+    return Math.round((t - f) / 86400000);
+  }
+
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // 2027-12-02 -> "2 December 2027".
+  function longDate(iso) { return String(+iso.slice(8, 10)) + ' ' + MONTHS[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4); }
+
+  // A real calendar date written as YYYY-MM-DD (so 2026-02-30 is rejected).
+  function validIso(s) {
+    if (typeof s !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s)) return false;
+    var d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)));
+    return d.getUTCFullYear() === +s.slice(0, 4) && d.getUTCMonth() === +s.slice(5, 7) - 1 && d.getUTCDate() === +s.slice(8, 10);
+  }
+
+  function classify(answersIn, asOfIn) {
+    var a = normalise(answersIn);
+    var asOf = validIso(asOfIn) ? asOfIn : RULES.checked;
+    var trace = [], tags = [];
+    var step = function (text, article) { trace.push({ text: text, article: article || '' }); };
+    var res = { answers: a, asOf: asOf, inScope: true, route: null, highRisk: false, exempt: false, trace: trace };
+
+    // 1. Scope.
+    if (!a.eu) { res.inScope = false; step('The system is not placed on the EU market or put into service there, and its output is not used in the EU.', 'Art 2(1)'); }
+    else if (a.excluded === 'military') { res.inScope = false; step('Used exclusively for military, defence or national security purposes, which are excluded.', 'Art 2(3)'); }
+    else if (a.excluded === 'research') { res.inScope = false; step('Developed and used only for scientific research, or still in research and testing before being placed on the market.', 'Art 2(6) and (8)'); }
+    else if (a.excluded === 'personal' && a.role === 'deployer') { res.inScope = false; step('Used by an individual for purely personal, non-professional purposes, so deployer duties do not apply.', 'Art 2(10)'); }
+    else step('In scope: placed on the EU market, put into service there, or used in a way whose output reaches the EU.', 'Art 2(1)');
+
+    var roles = a.role === 'both' ? ['provider', 'deployer'] : [a.role];
+    if (!res.inScope) {
+      res.tier = 'outOfScope';
+      return finish(res, a, roles, ['outOfScope']);
+    }
+
+    // 2. Banned practices.
+    if (a.prohibited.length) {
+      a.prohibited.forEach(function (id) {
+        var p = byId(RULES.prohibitions, id);
+        step('Banned practice: ' + lower(p.label) + '. Banned from ' + longDate(RULES.dates[p.dateKey].amended) + '.', p.point);
+      });
+      step('A banned practice cannot be placed on the market, put into service or used in the EU, so the other tests are not run until it is removed.', 'Art 5');
+      res.tier = 'prohibited';
+      return finish(res, a, roles, ['prohibited']);
+    }
+
+    // 3. High-risk: products under Annex I, then the uses listed in Annex III.
+    if (a.annex1) {
+      res.highRisk = true; res.route = 'annex1';
+      step('A product, or a safety component of a product, covered by EU product law in Annex I that needs a third-party conformity assessment, so it is high-risk.', 'Art 6(1)');
+    }
+    if (a.annex3) {
+      var area = byId(RULES.annex3, a.annex3);
+      step('Intended for a use listed in Annex III: ' + lower(area.label) + '.', area.point);
+      if (a.derogation && a.profiling) {
+        step('The exemption for systems that do not pose a significant risk is not available, because the system profiles people.', 'Art 6(3), last subparagraph');
+        res.highRisk = true; res.route = 'annex3';
+      } else if (a.derogation) {
+        var d = byId(RULES.derogations, a.derogation);
+        step('Not high-risk under the exemption: ' + lower(d.label) + '. The provider must document this assessment and register the system.', d.point + ', Art 6(4)');
+        res.exempt = !res.highRisk;
+      } else {
+        step('None of the exemptions applies, so it is high-risk.', 'Art 6(2)');
+        res.highRisk = true; res.route = 'annex3';
+      }
+    }
+    if (res.highRisk) {
+      tags.push('highRisk');
+      if (a.takeover && roles.indexOf('provider') < 0) {
+        roles = ['provider', 'deployer'];
+        step('You put your name on the system, changed it substantially or changed its intended purpose, so you take on the provider\'s duties as well.', 'Art 25(1)');
+      }
+      step('High-risk rules apply from ' + longDate(RULES.dates[res.route].amended) + ' (originally ' + longDate(RULES.dates[res.route].original) + ', before the Digital Omnibus).', RULES.dates[res.route].basis);
+    } else if (res.exempt) tags.push('exempt63');
+
+    // 4. Transparency duties.
+    var t = [];
+    if (a.interacts && roles.indexOf('provider') >= 0) t.push(['It interacts directly with people.', 'Art 50(1)']);
+    if (a.generates && roles.indexOf('provider') >= 0) t.push(['It generates audio, images, video or text' + (a.generatedBefore ? ', and was on the market before 2 August 2026, so marking is due by 2 December 2026.' : '.'), 'Art 50(2)']);
+    if (a.emotionBiocat && roles.indexOf('deployer') >= 0) t.push(['You use it for emotion recognition or biometric categorisation.', 'Art 50(3)']);
+    if (a.deepfake && roles.indexOf('deployer') >= 0) t.push(['You publish deepfakes, or generated text on matters of public interest.', 'Art 50(4)']);
+    t.forEach(function (x) { step('Transparency duty: ' + lower(x[0]), x[1]); });
+    if (t.length) tags.push('transparency');
+
+    // 5. General-purpose AI models.
+    if (a.gpai !== 'none' && roles.indexOf('provider') >= 0) {
+      if (a.gpai === 'systemic') step('You provide a general-purpose AI model with systemic risk (presumed above 10^25 floating-point operations of training compute).', 'Art 51');
+      else step('You provide a general-purpose AI model' + (a.gpaiOpen ? ' under a free and open-source licence, so some documentation duties fall away.' : '.'), a.gpaiOpen ? 'Art 53(1), (2)' : 'Art 53(1)');
+      if (a.gpaiBefore) step('The model was on the market before 2 August 2025, so it must comply by 2 August 2027.', 'Art 111(3)');
+      tags.push(a.gpai === 'systemic' ? 'gpaiSystemic' : 'gpai');
+    }
+
+    if (!tags.length) { step('No banned practice, high-risk use, transparency trigger or general-purpose model: minimal risk. Only the AI literacy duty applies.', 'Art 4'); tags.push('minimal'); }
+    tags = TIER_ORDER.filter(function (k) { return tags.indexOf(k) >= 0; });   // most serious first
+    res.tier = tags[0];
+    return finish(res, a, roles, tags);
+  }
+
+  function lower(s) { return s.charAt(0).toLowerCase() + s.slice(1); }
+
+  // Which obligations follow from the classification, by role, with dates.
+  function triggered(trigger, res, a) {
+    var area = a.annex3;
+    var annex3HR = res.highRisk && res.route === 'annex3';
+    switch (trigger) {
+      case 'inScope': return res.inScope;
+      case 'highRisk': return res.highRisk;
+      case 'annex3': return annex3HR;
+      case 'highRiskWorkplace': return res.highRisk && a.workplace;
+      case 'annex3PublicAuthority': return annex3HR && a.deployerType === 'publicAuthority';
+      case 'fria': return annex3HR && area !== 'infrastructure' && (a.deployerType !== 'private' || area === 'credit' || area === 'insurance');
+      case 'exempt63': return res.exempt;
+      case 'interacts': return a.interacts;
+      case 'generates': return a.generates;
+      case 'emotionBiocat': return a.emotionBiocat;
+      case 'deepfake': return a.deepfake;
+      case 'gpai': return a.gpai !== 'none';
+      case 'gpaiSystemic': return a.gpai === 'systemic';
+      case 'gpaiClosedOrSystemic': return a.gpai !== 'none' && (!a.gpaiOpen || a.gpai === 'systemic');
+    }
+    return false;
+  }
+
+  function dateKeyFor(o, res, a) {
+    if (o.id === 't_mark' && a.generatedBefore) return 'transparencyLegacy';
+    if (o.id.indexOf('g_') === 0 && a.gpaiBefore) return 'gpaiLegacy';
+    if (o.dateKey) return o.dateKey;
+    if (o.trigger === 'exempt63') return 'annex3';
+    return res.route;
+  }
+
+  function finish(res, a, roles, tags) {
+    res.roles = roles;
+    res.tags = tags;
+    res.tierLabel = TIERS[res.tier] + (res.tier === 'highRisk' ? (res.route === 'annex1' ? ' (product under Annex I)' : ' (Annex III use)') : '');
+    var obligations = [];
+    if (res.tier === 'prohibited') {
+      a.prohibited.forEach(function (id) {
+        var p = byId(RULES.prohibitions, id);
+        obligations.push({ id: 'ban_' + id, role: 'both', article: p.point, text: 'Stop: ' + lower(p.label), dateKey: p.dateKey });
+      });
+    }
+    if (res.inScope) {
+      RULES.obligations.forEach(function (o) {
+        if (res.tier === 'prohibited' && o.id !== 'literacy') return;
+        if (o.role !== 'both' && roles.indexOf(o.role) < 0) return;
+        if (!triggered(o.trigger, res, a)) return;
+        obligations.push({ id: o.id, role: o.role, article: o.article, text: o.text, dateKey: dateKeyFor(o, res, a) });
+      });
+    }
+    obligations.forEach(function (o) {
+      var d = RULES.dates[o.dateKey];
+      o.date = d.amended;
+      o.originalDate = d.original;
+      o.daysUntil = daysBetween(res.asOf, o.date);
+      o.status = o.daysUntil <= 0 ? 'applies' : 'upcoming';
+    });
+    obligations.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+    res.obligations = obligations;
+    var upcoming = obligations.filter(function (o) { return o.status === 'upcoming'; });
+    res.nextDeadline = upcoming.length ? { date: upcoming[0].date, dateKey: upcoming[0].dateKey, count: upcoming.filter(function (o) { return o.date === upcoming[0].date; }).length } : null;
+    res.penalty = penaltyFor(res, a);
+    res.uk = ukNotes(res, a);
+    return res;
+  }
+
+  // The highest fine tier that could apply, in euros, for the company's turnover.
+  function penaltyFor(res, a) {
+    var key = res.tier === 'prohibited' ? 'prohibited'
+      : (res.highRisk || res.exempt || res.tags.indexOf('transparency') >= 0) ? 'operator'
+      : (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) ? 'gpai' : null;
+    if (!key) return null;
+    var p = RULES.penalties[key];
+    var share = p.share * a.turnover * 1e6;
+    var smeRule = a.sme && key !== 'gpai';
+    return { key: key, article: p.article, amount: p.amount, share: p.share, sme: smeRule, max: Math.round(smeRule ? Math.min(p.amount, share) : Math.max(p.amount, share)) };
+  }
+
+  function ukNotes(res, a) {
+    var notes = RULES.ukBaseline.slice();
+    if (a.annex3) {
+      var area = byId(RULES.annex3, a.annex3);
+      notes.push('For this use (' + lower(area.label.split(':')[0]) + '), regulators whose remits are likely to be engaged include ' + area.uk.join(', ') + '.');
+    }
+    if (a.annex1) notes.push(RULES.ukAnnex1);
+    if (res.tags.indexOf('transparency') >= 0) notes.push(RULES.ukTransparency);
+    return notes;
+  }
+
+  var api = {
+    RULES: RULES, TIERS: TIERS, TIER_ORDER: TIER_ORDER, ROLES: ROLES, EXCLUSIONS: EXCLUSIONS, GPAI: GPAI, DEPLOYER_TYPES: DEPLOYER_TYPES,
+    normalise: normalise, classify: classify, daysBetween: daysBetween, validIso: validIso, longDate: longDate
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
+})();
+/* MODEL END */
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var M = AiActTriage;
+  var R = M.RULES;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var PRESETS = {
+    shortlister: { name: 'Shortlister: CV screening for a retail chain', role: 'deployer', annex3: 'employment', profiling: true, workplace: true, turnover: 400 },
+    helpdesk: { name: 'Helpdesk chatbot on a shop website', role: 'both', interacts: true, generates: true, generatedBefore: true, turnover: 400 },
+    moodMonitor: { name: 'Mood monitor for call-centre staff', role: 'deployer', prohibited: ['emotionWork'], workplace: true, turnover: 400 },
+    loanEngine: { name: 'Loan decision engine at a credit union', role: 'deployer', annex3: 'credit', profiling: true, turnover: 60, sme: true },
+    benefits: { name: 'Benefits eligibility checker for a council', role: 'deployer', annex3: 'publicBenefits', profiling: true, deployerType: 'publicAuthority', turnover: 900 },
+    transcript: { name: 'Interview notes tidier', role: 'provider', annex3: 'employment', derogation: 'improve', interacts: false, turnover: 12, sme: true },
+    insulin: { name: 'Insulin dosing app (a medical device)', role: 'provider', annex1: true, interacts: true, turnover: 85, sme: true },
+    openModel: { name: 'Open-weights language model', role: 'provider', gpai: 'gpai', gpaiOpen: true, generates: true, turnover: 30, sme: true },
+    invoices: { name: 'Duplicate invoice detector', role: 'deployer', turnover: 400 }
+  };
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'className') e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+
+  function longDate(iso) {
+    var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)));
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+  function euros(x) {
+    if (x >= 1e9) return '€' + (x / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'bn';
+    if (x >= 1e6) return '€' + (x / 1e6).toFixed(1).replace(/\.0$/, '') + 'm';
+    return '€' + Math.round(x).toLocaleString('en-GB');
+  }
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // ---------- Questions ----------
+  function radios(name, options, legend) {
+    var box = el('div', { className: 'radios', role: 'radiogroup', 'aria-label': legend });
+    options.forEach(function (o) {
+      box.appendChild(el('label', {}, [el('input', { type: 'radio', name: name, value: o[0] }), el('span', { text: o[1] })]));
+    });
+    return box;
+  }
+  function check(id, label, art) {
+    return el('label', { className: 'check', for: id }, [el('input', { type: 'checkbox', id: id }), el('span', {}, [label + ' ', art ? el('span', { className: 'art', text: art }) : null])]);
+  }
+  function select(id, options) {
+    var s = el('select', { id: id });
+    options.forEach(function (o) { s.appendChild(el('option', { value: o[0], text: o[1] })); });
+    return s;
+  }
+  function q(labelText, control, hint, forId) {
+    return el('div', { className: 'q' }, [forId ? el('label', { for: forId, text: labelText }) : el('span', { className: 'label', text: labelText }), control, hint ? el('p', { className: 'hint', text: hint }) : null]);
+  }
+
+  function buildQuestions() {
+    Object.keys(PRESETS).forEach(function (k) { $('preset').appendChild(el('option', { value: k, text: PRESETS[k].name })); });
+    $('preset').insertBefore(el('option', { value: '', text: 'Your own system' }), $('preset').firstChild);
+    var body = $('q-body');
+    var fs = function (legend, kids) { return el('fieldset', {}, [el('legend', { text: legend })].concat(kids)); };
+
+    body.appendChild(fs('1. About it', [
+      q('Name', el('input', { type: 'text', id: 'a-name', maxlength: '120' }), null, 'a-name'),
+      q('Your role', radios('role', [['provider', 'Provider'], ['deployer', 'Deployer'], ['both', 'Both']], 'Your role'), 'Provider: develops it or has it developed and markets it under its own name. Deployer: uses it professionally.'),
+      check('a-eu', 'Placed on the EU market, used in the EU, or its output is used in the EU', 'Art 2(1)'),
+      q('Exclusions', select('a-excluded', [['none', 'None of these'], ['military', 'Only for military, defence or national security'], ['research', 'Only for scientific research, or not yet on the market'], ['personal', 'Personal, non-professional use by an individual']]), null, 'a-excluded'),
+      check('a-takeover', 'We put our name on someone else\'s system, changed it substantially, or changed its intended purpose', 'Art 25')
+    ]));
+
+    var bans = R.prohibitions.map(function (p) { return check('ban-' + p.id, p.label, p.point); });
+    body.appendChild(fs('2. Banned uses', [el('p', { className: 'hint', text: 'Tick any that the system does.' })].concat(bans)));
+
+    body.appendChild(fs('3. High-risk tests', [
+      check('a-annex1', 'It is, or is a safety component of, a product under Annex I EU product law (for example a medical device, machinery, a toy or radio equipment) that needs a third-party conformity assessment', 'Art 6(1)'),
+      q('Intended use listed in Annex III', select('a-annex3', [['', 'None of these']].concat(R.annex3.map(function (x) { return [x.id, x.label]; }))), null, 'a-annex3'),
+      q('Does an exemption apply?', select('a-derogation', [['', 'No, none of these']].concat(R.derogations.map(function (x) { return [x.id, x.label]; }))), 'Art 6(3): only for Annex III uses that do not pose a significant risk.', 'a-derogation'),
+      check('a-profiling', 'It profiles people (evaluates personal aspects such as performance, health, behaviour or reliability)', 'Art 6(3)')
+    ]));
+
+    body.appendChild(fs('4. Transparency triggers', [
+      check('a-interacts', 'Provider: it interacts directly with people, for example a chatbot', 'Art 50(1)'),
+      check('a-generates', 'Provider: it generates audio, images, video or text', 'Art 50(2)'),
+      check('a-generatedBefore', 'That generator was on the market before 2 August 2026', 'Art 111'),
+      check('a-emotionBiocat', 'Deployer: you use emotion recognition or biometric categorisation (where not banned)', 'Art 50(3)'),
+      check('a-deepfake', 'Deployer: you publish deepfakes, or generated text on matters of public interest', 'Art 50(4)')
+    ]));
+
+    body.appendChild(fs('5. General-purpose AI models', [
+      q('Do you provide a general-purpose AI model?', select('a-gpai', [['none', 'No'], ['gpai', 'Yes'], ['systemic', 'Yes, with systemic risk (for example over 10^25 FLOP of training compute)']]), null, 'a-gpai'),
+      check('a-gpaiOpen', 'Released under a free and open-source licence', 'Art 53(2)'),
+      check('a-gpaiBefore', 'On the market before 2 August 2025', 'Art 111(3)')
+    ]));
+
+    body.appendChild(fs('6. Your organisation', [
+      q('Type of deployer', select('a-deployerType', [['private', 'Private business'], ['publicAuthority', 'Public authority or body governed by public law'], ['publicService', 'Private body providing public services']]), null, 'a-deployerType'),
+      check('a-workplace', 'Used at work, affecting your staff', 'Art 26(7)'),
+      q('Worldwide annual turnover (€ million)', el('input', { type: 'number', id: 'a-turnover', min: '0', step: '1', inputmode: 'decimal' }), 'Used only to estimate the maximum fine.', 'a-turnover'),
+      check('a-sme', 'An SME or start-up', 'Art 99(6)'),
+      q('Check dates as of', el('input', { type: 'date', id: 'a-asof' }), 'Which duties already apply depends on the date.', 'a-asof')
+    ]));
+
+    $('preset').addEventListener('change', function () { if (this.value) loadAnswers(PRESETS[this.value]); });
+    $('questions').addEventListener('change', function (e) { if (e.target.id !== 'preset') { $('preset').value = ''; render(); } });
+    $('questions').addEventListener('input', function (e) { if (e.target.id === 'a-name' || e.target.id === 'a-turnover') render(); });
+    $('questions').addEventListener('submit', function (e) { e.preventDefault(); });
+    $('a-asof').value = todayIso();
+    $('preset').value = 'shortlister';
+    loadAnswers(PRESETS.shortlister);
+  }
+
+  var BOOLS = ['eu', 'takeover', 'annex1', 'profiling', 'interacts', 'generates', 'generatedBefore', 'emotionBiocat', 'deepfake', 'gpaiOpen', 'gpaiBefore', 'workplace', 'sme'];
+
+  function loadAnswers(raw) {
+    var a = M.normalise(raw);
+    $('a-name').value = a.name;
+    document.querySelectorAll('input[name="role"]').forEach(function (r) { r.checked = r.value === a.role; });
+    BOOLS.forEach(function (k) { $('a-' + k).checked = a[k]; });
+    ['excluded', 'annex3', 'derogation', 'gpai', 'deployerType'].forEach(function (k) { $('a-' + k).value = a[k]; });
+    $('a-turnover').value = a.turnover;
+    R.prohibitions.forEach(function (p) { $('ban-' + p.id).checked = a.prohibited.indexOf(p.id) >= 0; });
+    render();
+  }
+
+  function readAnswers() {
+    var role = document.querySelector('input[name="role"]:checked');
+    var a = { name: $('a-name').value, role: role ? role.value : 'deployer', turnover: $('a-turnover').value === '' ? 0 : Number($('a-turnover').value) };
+    BOOLS.forEach(function (k) { a[k] = $('a-' + k).checked; });
+    ['excluded', 'annex3', 'derogation', 'gpai', 'deployerType'].forEach(function (k) { a[k] = $('a-' + k).value; });
+    a.prohibited = R.prohibitions.filter(function (p) { return $('ban-' + p.id).checked; }).map(function (p) { return p.id; });
+    return a;
+  }
+
+  // ---------- Results ----------
+  function render() {
+    var asOf = M.validIso($('a-asof').value) ? $('a-asof').value : todayIso();
+    var res = M.classify(readAnswers(), asOf);
+    var tier = $('tier');
+    tier.innerHTML = '';
+    tier.appendChild(el('span', { className: 'badge t-' + res.tier, text: res.tierLabel }));
+    tier.appendChild(el('span', { className: 'muted', text: (res.answers.name || 'This system') + ', as ' + res.roles.join(' and ') }));
+    var tags = $('tags');
+    tags.innerHTML = '';
+    res.tags.filter(function (t) { return t !== res.tier; }).forEach(function (t) { tags.appendChild(el('span', { className: 'tag t-' + t, text: 'Also: ' + M.TIERS[t].toLowerCase() })); });
+
+    var applies = res.obligations.filter(function (o) { return o.status === 'applies'; }).length;
+    var kpis = $('kpis');
+    kpis.innerHTML = '';
+    var kpi = function (k, v, s) { return el('div', { className: 'kpi' }, [el('div', { className: 'k', text: k }), el('div', { className: 'v', text: v }), el('div', { className: 's', text: s })]); };
+    kpis.appendChild(kpi('Duties', String(res.obligations.length), applies + ' apply now, as of ' + longDate(res.asOf)));
+    kpis.appendChild(kpi('Next deadline', res.nextDeadline ? longDate(res.nextDeadline.date) : 'None', res.nextDeadline ? res.nextDeadline.count + ' more ' + (res.nextDeadline.count === 1 ? 'duty starts' : 'duties start') : 'Everything listed already applies'));
+    kpis.appendChild(kpi('Maximum fine', res.penalty ? euros(res.penalty.max) : 'n/a', res.penalty ? (res.penalty.sme ? 'SME: the lower of ' : 'The higher of ') + euros(res.penalty.amount) + ' and ' + Math.round(res.penalty.share * 100) + '% of turnover (' + res.penalty.article + ')' : 'No specific fine tier'));
+
+    var trace = $('trace');
+    trace.innerHTML = '';
+    res.trace.forEach(function (s) { trace.appendChild(el('li', {}, [s.text + ' ', s.article ? el('span', { className: 'art-ref', text: s.article }) : null])); });
+
+    $('obl-sub').textContent = res.obligations.length ? 'Each duty, who it falls on and when it applies under the amended Act. Dates as of ' + longDate(res.asOf) + '.' : 'No duties under the AI Act.';
+    var box = $('obligations');
+    box.innerHTML = '';
+    if (res.obligations.length) {
+      var tb = el('table');
+      tb.appendChild(el('thead', {}, [el('tr', {}, ['Duty', 'Who', 'Article', 'Applies from'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+      var tbody = el('tbody');
+      res.obligations.forEach(function (o) {
+        tbody.appendChild(el('tr', {}, [
+          el('td', { text: o.text }),
+          el('td', { text: o.role === 'both' ? 'All' : o.role.charAt(0).toUpperCase() + o.role.slice(1) }),
+          el('td', { className: 'art-ref', text: o.article }),
+          el('td', {}, [longDate(o.date) + ' ', el('span', { className: 'status s-' + o.status, text: o.status === 'applies' ? 'applies' : 'in ' + o.daysUntil + ' days' })])
+        ]));
+      });
+      tb.appendChild(tbody);
+      box.appendChild(tb);
+    }
+    var uk = $('uk');
+    uk.innerHTML = '';
+    res.uk.forEach(function (n) { uk.appendChild(el('li', { text: n })); });
+  }
+
+  buildQuestions();
+})();
+</script>
+</body>
+</html>

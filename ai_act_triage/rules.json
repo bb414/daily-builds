@@ -1,0 +1,536 @@
+{
+  "source": "Regulation (EU) 2024/1689 (the AI Act) as amended by Regulation (EU) 2026/1744 (the Digital Omnibus on AI, in force 27 July 2026). Simplified and illustrative, not legal advice.",
+  "checked": "2026-11-24",
+  "dates": {
+    "prohibitions": {
+      "amended": "2025-02-02",
+      "original": "2025-02-02",
+      "basis": "Art 113, point (a)"
+    },
+    "prohibitionsNew": {
+      "amended": "2026-12-02",
+      "original": null,
+      "basis": "Art 113, point (a), as amended"
+    },
+    "literacy": {
+      "amended": "2025-02-02",
+      "original": "2025-02-02",
+      "basis": "Art 113, point (a)"
+    },
+    "gpai": {
+      "amended": "2025-08-02",
+      "original": "2025-08-02",
+      "basis": "Art 113, point (b)"
+    },
+    "gpaiLegacy": {
+      "amended": "2027-08-02",
+      "original": "2027-08-02",
+      "basis": "Art 111(3)"
+    },
+    "transparency": {
+      "amended": "2026-08-02",
+      "original": "2026-08-02",
+      "basis": "Art 113"
+    },
+    "transparencyLegacy": {
+      "amended": "2026-12-02",
+      "original": "2026-08-02",
+      "basis": "Art 111, as amended"
+    },
+    "annex3": {
+      "amended": "2027-12-02",
+      "original": "2026-08-02",
+      "basis": "Art 113, point (c)(i), as amended"
+    },
+    "annex1": {
+      "amended": "2028-08-02",
+      "original": "2027-08-02",
+      "basis": "Art 113, point (c)(ii), as amended"
+    }
+  },
+  "dateLabels": {
+    "prohibitions": "Banned practices",
+    "prohibitionsNew": "New bans on intimate-image and child abuse generators",
+    "literacy": "AI literacy",
+    "gpai": "General-purpose AI models",
+    "gpaiLegacy": "General-purpose AI models already on the market",
+    "transparency": "Transparency duties",
+    "transparencyLegacy": "Marking content from generators already on the market",
+    "annex3": "High-risk: Annex III uses",
+    "annex1": "High-risk: products under Annex I"
+  },
+  "prohibitions": [
+    {
+      "id": "manipulation",
+      "point": "Art 5(1)(a)",
+      "dateKey": "prohibitions",
+      "label": "Subliminal, manipulative or deceptive techniques that materially distort behaviour and cause significant harm"
+    },
+    {
+      "id": "vulnerability",
+      "point": "Art 5(1)(b)",
+      "dateKey": "prohibitions",
+      "label": "Exploiting vulnerabilities due to age, disability or social or economic situation, causing significant harm"
+    },
+    {
+      "id": "intimateImages",
+      "point": "Art 5(1)(ba)",
+      "dateKey": "prohibitionsNew",
+      "label": "Creating or manipulating intimate images of identifiable people without their consent"
+    },
+    {
+      "id": "csam",
+      "point": "Art 5(1)(bb)",
+      "dateKey": "prohibitionsNew",
+      "label": "Generating child sexual abuse material"
+    },
+    {
+      "id": "socialScoring",
+      "point": "Art 5(1)(c)",
+      "dateKey": "prohibitions",
+      "label": "Social scoring that leads to unjustified or unrelated detrimental treatment"
+    },
+    {
+      "id": "crimeProfiling",
+      "point": "Art 5(1)(d)",
+      "dateKey": "prohibitions",
+      "label": "Predicting that a person will commit a crime based solely on profiling or personality traits"
+    },
+    {
+      "id": "faceScraping",
+      "point": "Art 5(1)(e)",
+      "dateKey": "prohibitions",
+      "label": "Building facial recognition databases by untargeted scraping of images from the internet or CCTV"
+    },
+    {
+      "id": "emotionWork",
+      "point": "Art 5(1)(f)",
+      "dateKey": "prohibitions",
+      "label": "Emotion recognition in a workplace or educational institution, other than for medical or safety reasons"
+    },
+    {
+      "id": "biometricSensitive",
+      "point": "Art 5(1)(g)",
+      "dateKey": "prohibitions",
+      "label": "Biometric categorisation to infer race, political opinions, trade union membership, beliefs, sex life or sexual orientation"
+    },
+    {
+      "id": "realtimeRbi",
+      "point": "Art 5(1)(h)",
+      "dateKey": "prohibitions",
+      "label": "Real-time remote biometric identification in public spaces for law enforcement, outside the narrow exceptions"
+    }
+  ],
+  "annex3": [
+    {
+      "id": "biometrics",
+      "point": "Annex III, point 1",
+      "label": "Biometrics: remote identification, categorisation or emotion recognition (where not banned)",
+      "uk": [
+        "ICO"
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "point": "Annex III, point 2",
+      "label": "Safety component in critical infrastructure: digital infrastructure, road traffic, water, gas, heating or electricity",
+      "uk": [
+        "the sector regulator, for example Ofgem or Ofwat"
+      ]
+    },
+    {
+      "id": "education",
+      "point": "Annex III, point 3",
+      "label": "Education: admissions, grading, assessing the right level of education, or monitoring tests",
+      "uk": [
+        "ICO",
+        "EHRC",
+        "Ofqual"
+      ]
+    },
+    {
+      "id": "employment",
+      "point": "Annex III, point 4",
+      "label": "Employment: recruitment, filtering applications, promotion, termination, task allocation or performance monitoring",
+      "uk": [
+        "ICO",
+        "EHRC"
+      ]
+    },
+    {
+      "id": "publicBenefits",
+      "point": "Annex III, point 5(a)",
+      "label": "Public authorities deciding eligibility for public assistance benefits and services",
+      "uk": [
+        "ICO",
+        "EHRC"
+      ]
+    },
+    {
+      "id": "credit",
+      "point": "Annex III, point 5(b)",
+      "label": "Creditworthiness or credit scoring of individuals (not fraud detection)",
+      "uk": [
+        "FCA",
+        "ICO"
+      ]
+    },
+    {
+      "id": "insurance",
+      "point": "Annex III, point 5(c)",
+      "label": "Risk assessment and pricing for life or health insurance",
+      "uk": [
+        "FCA",
+        "ICO"
+      ]
+    },
+    {
+      "id": "emergency",
+      "point": "Annex III, point 5(d)",
+      "label": "Evaluating emergency calls, dispatching emergency services or triaging patients",
+      "uk": [
+        "ICO",
+        "the relevant health or emergency service regulator"
+      ]
+    },
+    {
+      "id": "lawEnforcement",
+      "point": "Annex III, point 6",
+      "label": "Law enforcement uses, such as assessing risk of becoming a victim or the reliability of evidence",
+      "uk": [
+        "ICO"
+      ]
+    },
+    {
+      "id": "migration",
+      "point": "Annex III, point 7",
+      "label": "Migration, asylum and border control",
+      "uk": [
+        "ICO"
+      ]
+    },
+    {
+      "id": "justice",
+      "point": "Annex III, point 8",
+      "label": "Administration of justice, or influencing elections and voting behaviour",
+      "uk": [
+        "ICO",
+        "the Electoral Commission"
+      ]
+    }
+  ],
+  "derogations": [
+    {
+      "id": "procedural",
+      "point": "Art 6(3)(a)",
+      "label": "It performs a narrow procedural task"
+    },
+    {
+      "id": "improve",
+      "point": "Art 6(3)(b)",
+      "label": "It improves the result of a human activity already completed"
+    },
+    {
+      "id": "patterns",
+      "point": "Art 6(3)(c)",
+      "label": "It detects decision patterns or deviations, without replacing or influencing a completed human assessment without proper human review"
+    },
+    {
+      "id": "preparatory",
+      "point": "Art 6(3)(d)",
+      "label": "It performs a preparatory task for an assessment in an Annex III use"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "literacy",
+      "role": "both",
+      "trigger": "inScope",
+      "dateKey": "literacy",
+      "article": "Art 4",
+      "text": "Take measures to support the AI literacy of staff and others who operate or use the system for you"
+    },
+    {
+      "id": "p_rms",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 9",
+      "text": "Run a risk management system across the whole life cycle"
+    },
+    {
+      "id": "p_data",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 10",
+      "text": "Govern training, validation and testing data, including checks for bias"
+    },
+    {
+      "id": "p_techdoc",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 11, Annex IV",
+      "text": "Draw up technical documentation (a simplified form is allowed for SMEs and small mid-caps)"
+    },
+    {
+      "id": "p_logs",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 12",
+      "text": "Build in automatic logging of events"
+    },
+    {
+      "id": "p_instructions",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 13",
+      "text": "Give deployers clear instructions for use"
+    },
+    {
+      "id": "p_oversight",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 14",
+      "text": "Design the system so people can oversee it effectively"
+    },
+    {
+      "id": "p_accuracy",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 15",
+      "text": "Achieve appropriate accuracy, robustness and cybersecurity"
+    },
+    {
+      "id": "p_qms",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 17",
+      "text": "Operate a quality management system (proportionate for SMEs and small mid-caps)"
+    },
+    {
+      "id": "p_records",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Arts 18 and 19",
+      "text": "Keep documentation for 10 years and keep the logs under your control"
+    },
+    {
+      "id": "p_conformity",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Arts 43, 47 and 48",
+      "text": "Complete the conformity assessment, sign the EU declaration of conformity and affix the CE marking"
+    },
+    {
+      "id": "p_register",
+      "role": "provider",
+      "trigger": "annex3",
+      "article": "Art 49(1)",
+      "text": "Register the system in the EU database before placing it on the market"
+    },
+    {
+      "id": "p_corrective",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 20",
+      "text": "Take corrective action, and inform others, if the system stops conforming"
+    },
+    {
+      "id": "p_monitoring",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 72",
+      "text": "Monitor the system after it is placed on the market"
+    },
+    {
+      "id": "p_incidents",
+      "role": "provider",
+      "trigger": "highRisk",
+      "article": "Art 73",
+      "text": "Report serious incidents to the market surveillance authority"
+    },
+    {
+      "id": "d_instructions",
+      "role": "deployer",
+      "trigger": "highRisk",
+      "article": "Art 26(1)",
+      "text": "Use the system in line with the provider's instructions"
+    },
+    {
+      "id": "d_oversight",
+      "role": "deployer",
+      "trigger": "highRisk",
+      "article": "Art 26(2)",
+      "text": "Give human oversight to people with the competence, training and authority to do it"
+    },
+    {
+      "id": "d_input",
+      "role": "deployer",
+      "trigger": "highRisk",
+      "article": "Art 26(4)",
+      "text": "Make sure input data you control is relevant and sufficiently representative"
+    },
+    {
+      "id": "d_monitor",
+      "role": "deployer",
+      "trigger": "highRisk",
+      "article": "Art 26(5)",
+      "text": "Monitor how it operates, and tell the provider and authorities about risks and serious incidents"
+    },
+    {
+      "id": "d_logs",
+      "role": "deployer",
+      "trigger": "highRisk",
+      "article": "Art 26(6)",
+      "text": "Keep the automatically generated logs for at least six months"
+    },
+    {
+      "id": "d_workers",
+      "role": "deployer",
+      "trigger": "highRiskWorkplace",
+      "article": "Art 26(7)",
+      "text": "Inform workers' representatives and affected workers before using it at work"
+    },
+    {
+      "id": "d_inform",
+      "role": "deployer",
+      "trigger": "annex3",
+      "article": "Art 26(11)",
+      "text": "Tell people when they are subject to decisions the system makes or helps to make"
+    },
+    {
+      "id": "d_explain",
+      "role": "deployer",
+      "trigger": "annex3",
+      "article": "Art 86",
+      "text": "Be ready to explain the system's role in a decision to an affected person who asks"
+    },
+    {
+      "id": "d_register",
+      "role": "deployer",
+      "trigger": "annex3PublicAuthority",
+      "article": "Arts 26(8) and 49(3)",
+      "text": "Register your use of the system in the EU database"
+    },
+    {
+      "id": "d_fria",
+      "role": "deployer",
+      "trigger": "fria",
+      "article": "Art 27",
+      "text": "Carry out a fundamental rights impact assessment before first use"
+    },
+    {
+      "id": "e_document",
+      "role": "provider",
+      "trigger": "exempt63",
+      "article": "Art 6(4)",
+      "text": "Document why the system is not high-risk before placing it on the market, and give the assessment to authorities on request"
+    },
+    {
+      "id": "e_register",
+      "role": "provider",
+      "trigger": "exempt63",
+      "article": "Art 49(2)",
+      "text": "Register the system in the EU database (simplified content)"
+    },
+    {
+      "id": "t_interact",
+      "role": "provider",
+      "trigger": "interacts",
+      "dateKey": "transparency",
+      "article": "Art 50(1)",
+      "text": "Make sure people are told they are interacting with an AI system, unless that is obvious"
+    },
+    {
+      "id": "t_mark",
+      "role": "provider",
+      "trigger": "generates",
+      "dateKey": "transparency",
+      "article": "Art 50(2)",
+      "text": "Mark generated audio, images, video and text in a machine-readable way so they can be detected as AI-generated"
+    },
+    {
+      "id": "t_emotion",
+      "role": "deployer",
+      "trigger": "emotionBiocat",
+      "dateKey": "transparency",
+      "article": "Art 50(3)",
+      "text": "Tell people exposed to emotion recognition or biometric categorisation"
+    },
+    {
+      "id": "t_deepfake",
+      "role": "deployer",
+      "trigger": "deepfake",
+      "dateKey": "transparency",
+      "article": "Art 50(4)",
+      "text": "Disclose deepfakes, and AI-generated text published to inform the public on matters of public interest unless it has human editorial control"
+    },
+    {
+      "id": "g_docs",
+      "role": "provider",
+      "trigger": "gpaiClosedOrSystemic",
+      "dateKey": "gpai",
+      "article": "Art 53(1)(a) and (b)",
+      "text": "Keep technical documentation for the AI Office and give information to providers who build on the model"
+    },
+    {
+      "id": "g_copyright",
+      "role": "provider",
+      "trigger": "gpai",
+      "dateKey": "gpai",
+      "article": "Art 53(1)(c)",
+      "text": "Put in place a policy to comply with EU copyright law"
+    },
+    {
+      "id": "g_summary",
+      "role": "provider",
+      "trigger": "gpai",
+      "dateKey": "gpai",
+      "article": "Art 53(1)(d)",
+      "text": "Publish a sufficiently detailed summary of the content used for training"
+    },
+    {
+      "id": "g_notify",
+      "role": "provider",
+      "trigger": "gpaiSystemic",
+      "dateKey": "gpai",
+      "article": "Art 52",
+      "text": "Notify the Commission that the model meets the systemic-risk threshold"
+    },
+    {
+      "id": "g_systemic",
+      "role": "provider",
+      "trigger": "gpaiSystemic",
+      "dateKey": "gpai",
+      "article": "Art 55",
+      "text": "Evaluate and test the model, assess and mitigate systemic risks, report serious incidents and protect cybersecurity"
+    }
+  ],
+  "penalties": {
+    "prohibited": {
+      "amount": 35000000,
+      "share": 0.07,
+      "article": "Art 99(3)"
+    },
+    "operator": {
+      "amount": 15000000,
+      "share": 0.03,
+      "article": "Art 99(4)"
+    },
+    "information": {
+      "amount": 7500000,
+      "share": 0.01,
+      "article": "Art 99(5)"
+    },
+    "gpai": {
+      "amount": 15000000,
+      "share": 0.03,
+      "article": "Art 101"
+    }
+  },
+  "ukBaseline": [
+    "The UK has no cross-sector AI statute in force. The government's approach asks existing regulators to apply five principles within their remits: safety, security and robustness; appropriate transparency and explainability; fairness; accountability and governance; and contestability and redress.",
+    "Existing law still applies: data protection (UK GDPR and the Data Protection Act 2018, overseen by the ICO, including the rules on solely automated decisions as amended by the Data (Use and Access) Act 2025), equality law (Equality Act 2010) and consumer protection law."
+  ],
+  "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
+  "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices."
+}
