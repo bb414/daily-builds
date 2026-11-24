@@ -8,11 +8,11 @@ Where does an AI system sit under the EU AI Act, and what follows? Answer about 
 - every **duty** that follows, who it falls on (provider or deployer), the article, and the date it applies under the amended Act, with a countdown from any date you pick;
 - a **before-and-after timeline** of what the Digital Omnibus (Regulation (EU) 2026/1744) moved for this system;
 - **what would change the result**: each answer is changed on its own and the system classified again, so you can see which answers carry the result (and which to check most carefully), with a "Try it" button for each;
-- the **maximum fine** for the company's turnover, and a short **UK view** (the UK has no AI statute, so this points to the regulators and laws already in play).
+- the **maximum fine** for the company's turnover, and a short **UK view** (the UK has no cross-sector AI statute, so this points to the regulators and laws already in play).
 
 For many systems at once there is an **AI register**: add systems, get one roadmap of what starts when across all of them, and download or import the register as CSV or JSON. The CSV is the same file the Python `register` command reads, which prints the plan and writes a Markdown report and a CSV of every duty.
 
-Everything runs offline in one HTML file. There are no requests to any server, no accounts, and no real organisations: the nine examples are invented.
+Everything runs offline in one HTML file. There are no requests to any server, no accounts, and no real systems or companies: the nine examples are invented.
 
 ## Why
 
