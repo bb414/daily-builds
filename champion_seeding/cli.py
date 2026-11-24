@@ -113,7 +113,7 @@ def fmt_value(key, v):
 def format_sweep(sw):
     key = sw["key"]
     lines = ["What if %s changes? Share using the tool at the end, by strategy (* marks the best)" % model.PARAM_LABELS[key].lower(), "",
-             "  %-10s" % model.PARAM_LABELS[key][:10] + "".join("%16s" % model.STRATEGY_LABELS[s] for s in model.STRATEGY_KEYS)]
+             "  %-10s" % "Value" + "".join("%16s" % model.STRATEGY_LABELS[s] for s in model.STRATEGY_KEYS)]
     for pt in sw["points"]:
         cells = []
         for r in pt["results"]:

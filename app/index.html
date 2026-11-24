@@ -22,12 +22,16 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.45; }
-  header { padding: 20px 24px 6px; }
-  header h1 { margin: 0; font-size: 1.6rem; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  header { padding: 22px 24px 6px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+  header h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.01em; }
+  header h1 span { color: var(--champion); }
   header p { margin: 4px 0 0; color: var(--muted); max-width: 72ch; }
+  .chip { font-size: 0.78rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--card); white-space: nowrap; }
   .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; padding: 12px 24px 24px; align-items: start; }
   .layout > * { min-width: 0; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
   h2 { font-size: 1.02rem; margin: 0 0 8px; }
   .control { margin: 12px 0; }
   .control label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; font-weight: 600; }
@@ -38,12 +42,16 @@
   fieldset { border: 0; padding: 0; margin: 12px 0; min-width: 0; }
   legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; padding: 0; }
   .strategies { display: grid; gap: 6px; }
-  .strategies label { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.8rem; color: var(--muted); cursor: pointer; display: block; }
+  .strategies label { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 0.78rem; color: var(--muted); cursor: pointer; display: block; }
+  .strategies input { accent-color: var(--accent); margin: 0 4px 0 0; }
+  .strategies label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 1px; }
   .strategies strong { color: var(--ink); font-size: 0.88rem; }
   .strategies label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   details.group { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
   summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; }
-  .headline { border-left: 6px solid var(--accent); }
+  .headline { border-left: 6px solid var(--s-spread); }
+  .headline .kicker { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0; }
+  .headline.error { border-left-color: var(--champion); }
   .headline h2 { font-size: 1.35rem; margin: 0 0 4px; }
   .headline p { margin: 4px 0; }
   .why { margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; }
@@ -51,6 +59,7 @@
   .kpi .label { font-size: 0.82rem; color: var(--muted); }
   .kpi .value { font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .kpi .sub { font-size: 0.8rem; color: var(--muted); }
+  .kpi .value.words { font-size: 1.15rem; padding: 0.2em 0; }
   .chart-card { margin-bottom: 16px; }
   .net-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: start; }
   .net { width: 100%; height: auto; display: block; }
@@ -58,6 +67,11 @@
   .legend .key { display: inline-flex; align-items: center; gap: 6px; }
   .legend svg { width: 22px; height: 10px; flex: none; }
   .chart { width: 100%; height: 260px; display: block; }
+  .chart.empty { height: 0; }
+  .empty-note { border: 1px dashed var(--line); border-radius: 8px; padding: 18px; text-align: center; color: var(--muted); font-size: 0.88rem; }
+  .how { font-size: 0.9rem; }
+  .how summary { cursor: pointer; font-weight: 650; }
+  .how li { margin: 4px 0; }
   table.compare { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
   table.compare th, table.compare td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
   table.compare .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -71,6 +85,7 @@
   .check { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
   .check input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; }
   input[type=text] { width: 100%; padding: 7px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  #sweep-summary, #robust-summary { font-size: 0.95rem; }
   .status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 4px 0 0; }
   .group-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
   .net.picking circle { cursor: pointer; }
@@ -81,11 +96,14 @@
   footer { padding: 0 24px 32px; color: var(--muted); font-size: 0.85rem; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; padding: 8px 12px 24px; }
+    .controls { position: static; max-height: none; overflow: visible; }
+    footer { padding: 0 12px 24px; }
     header { padding: 16px 12px 4px; }
     .kpis { grid-template-columns: 1fr 1fr; }
     .net-wrap { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
+    .chip { white-space: normal; border-radius: 10px; }
     table.compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
     table.compare tr { display: block; border-bottom: 1px solid var(--line); padding: 6px 0; }
     table.compare th, table.compare td { display: flex; justify-content: space-between; border: 0; padding: 3px 8px; }
@@ -95,8 +113,11 @@
 </head>
 <body>
 <header>
-  <h1>Champion Seeding</h1>
-  <p>You have a handful of champions for a new AI tool. Where should they sit? Simulate how use spreads (and fades) through an organisation's network, and compare five ways of choosing champions.</p>
+  <div>
+    <h1>Champion <span>Seeding</span></h1>
+    <p>You have a handful of champions for a new AI tool. Where should they sit? Simulate how use spreads (and fades) through an organisation's network of working relationships, and compare five ways of choosing champions.</p>
+  </div>
+  <span class="chip">Synthetic organisations. Runs offline. Nothing leaves your browser.</span>
 </header>
 
 <main class="layout">
@@ -171,7 +192,8 @@
       </div>
       <p id="sweep-summary" role="status"></p>
       <div class="legend" id="sweep-legend"></div>
-      <svg class="chart" id="sweep-chart" role="img" aria-label="What-if chart, not run yet"></svg>
+      <p class="empty-note" id="sweep-empty">Choose a setting and run the what-if to see where the best strategy changes. It takes a few seconds.</p>
+      <svg class="chart empty" id="sweep-chart" role="img" aria-label="What-if chart, not run yet"></svg>
     </div>
     <div class="card chart-card">
       <h2>Does it hold in other organisations?</h2>
@@ -181,15 +203,27 @@
       <table class="compare" id="robust-table"></table>
     </div>
     <div class="card chart-card">
-      <h2>Compare the five strategies</h2>
-      <p class="help">Same organisation, same number of champions, same luck in each simulated rollout. Only where the champions sit changes.</p>
+      <h2>Compare the strategies</h2>
+      <p class="help">Same organisation, same number of champions, same luck in each simulated rollout. Only where the champions sit changes. Ranked by the share using the tool at the end.</p>
       <table class="compare" id="compare"></table>
     </div>
+    <details class="card how">
+      <summary>How the model works</summary>
+      <ul>
+        <li><strong>The organisation.</strong> People are split into teams and teams into departments. Each person has close contacts in their own team, a few in other teams of their department and fewer elsewhere, drawn at random to match the averages you set.</li>
+        <li><strong>Champions</strong> use the tool from day one, never give up, and count as several users in the eyes of their contacts.</li>
+        <li><strong>Trying it.</strong> Each week, a person whose job suits the tool becomes open to it once the share of their contacts using it passes their personal bar (between half and one and a half times the average social proof). Once open, each contact using it gives them a chance to try it. Anyone can also try it unprompted.</li>
+        <li><strong>Dropping it.</strong> Users with no contacts using it drop it at the weekly rate you set; the more of their contacts use it, the less likely they are to stop.</li>
+        <li><strong>Fair comparisons.</strong> Every strategy faces the same organisation and the same weekly luck in each rollout, so differences come from where the champions sit.</li>
+        <li><strong>Strategies.</strong> Best connected picks the most contacts. Bridge builders picks the highest betweenness (how many shortest paths between others run through a person). One team first fills the most tightly knit team, then the next. One per team takes the best-connected person in each team, most tightly knit teams first.</li>
+      </ul>
+      <p class="help">All numbers are illustrative. The model shows how network structure and social proof interact; it is not calibrated to any real organisation.</p>
+    </details>
   </section>
 </main>
 
 <footer>
-  <p>Synthetic organisations, generated in your browser. Nothing is sent anywhere. The model is a thinking tool built on stated assumptions, not a forecast.</p>
+  <p>Champion Seeding is a thinking tool built on stated assumptions, not a forecast. Every organisation in it is synthetic and generated in your browser.</p>
 </footer>
 
 <script>
@@ -966,8 +1000,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     var busy = setTimeout(function () { if (my === token) box.classList.add('busy'); }, 150);
     function step() {
       if (my !== token) { clearTimeout(busy); return; }
-      if (!net) net = M.buildNetwork(p);
-      else { results.push(M.runStrategy(net, p, keys[i])); i++; }
+      try {
+        if (!net) net = M.buildNetwork(p);
+        else { results.push(M.runStrategy(net, p, keys[i])); i++; }
+      } catch (e) {
+        clearTimeout(busy);
+        box.classList.remove('busy');
+        var head = document.getElementById('headline');
+        head.className = 'card headline error';
+        head.textContent = 'Something went wrong while running the simulation: ' + e.message + '. Try another scenario, or reload the page.';
+        return;
+      }
       if (i < keys.length) { setTimeout(step, 0); return; }
       clearTimeout(busy);
       box.classList.remove('busy');
@@ -979,7 +1022,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       }
       lastCode = M.encodeParams(p);
       try { history.replaceState(null, '', '#' + lastCode); } catch (e) { /* some browsers block this for local files */ }
-      current = { p: p, net: net, layout: layout(net, p), cmp: { params: p, network: M.summariseNetwork(net), results: results,
+      var lay = layout(net, p);
+      document.getElementById('net').setAttribute('viewBox', lay.view);
+      current = { p: p, net: net, layout: lay.pos, teamCircles: lay.circles, cmp: { params: p, network: M.summariseNetwork(net), results: results,
         ranking: M.rankStrategies(results).map(function (r) { return r.strategy; }) } };
       var week = document.getElementById('week');
       week.max = p.weeks;
@@ -1012,7 +1057,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
 
   function renderHeadline(r) {
     var box = document.getElementById('headline'), cmp = current.cmp;
+    box.className = 'card headline';
     box.innerHTML = '';
+    box.appendChild(el('p', { 'class': 'kicker' }, 'Showing: ' + M.STRATEGIES[r.strategy].label));
     var best = cmp.ranking[0], bestR = resultFor(best), mine = M.STRATEGIES[r.strategy].label, isCustom = r.strategy === 'custom';
     var title;
     if (best === r.strategy) title = isCustom ? 'Your picks are the best choice here' : mine + ' is the best strategy here';
@@ -1027,7 +1074,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   function kpi(label, value, sub) {
     var d = el('div', { 'class': 'card kpi' });
     d.appendChild(el('div', { 'class': 'label' }, label));
-    d.appendChild(el('div', { 'class': 'value' }, value));
+    d.appendChild(el('div', { 'class': /^[0-9.]/.test(value) ? 'value' : 'value words' }, value));
     d.appendChild(el('div', { 'class': 'sub' }, sub));
     return d;
   }
@@ -1048,7 +1095,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     for (var d = 0; d < D; d++) teamsByDept.push([]);
     for (t = 0; t < T; t++) teamsByDept[t % D].push(t);
     var centres = [];
-    var deptR = D > 1 ? 185 : 0;
+    var most = 0;
+    teamsByDept.forEach(function (list) { most = Math.max(most, list.length); });
+    var deptR = D > 1 ? 150 + 25 * most : 0;
     for (d = 0; d < D; d++) {
       var da = 2 * Math.PI * d / D - Math.PI / 2;
       var dx = cx + deptR * Math.cos(da), dy = cy + deptR * Math.sin(da);
@@ -1061,13 +1110,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     }
     var seen = [];
     for (t = 0; t < T; t++) seen.push(0);
+    var circles = [];
+    for (t = 0; t < T; t++) circles.push([centres[t][0], centres[t][1], 5 + 4.4 * Math.sqrt(net.teamSize[t]) + 8]);
     for (i = 0; i < net.size; i++) {
       var tm = net.team[i], n = net.teamSize[tm], k = seen[tm]++;
-      var r = 5 + 2.2 * Math.sqrt(n) * 2;
+      var r = 5 + 4.4 * Math.sqrt(n);
       var a = 2 * Math.PI * k / n;
       pos.push([centres[tm][0] + r * Math.cos(a), centres[tm][1] + r * Math.sin(a)]);
     }
-    return pos;
+    // Fit the drawing to its contents so there is no empty band around it.
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    circles.forEach(function (c) { x0 = Math.min(x0, c[0] - c[2]); y0 = Math.min(y0, c[1] - c[2]); x1 = Math.max(x1, c[0] + c[2]); y1 = Math.max(y1, c[1] + c[2]); });
+    var view = [x0 - 6, y0 - 6, x1 - x0 + 12, y1 - y0 + 12].map(function (v) { return v.toFixed(1); }).join(' ');
+    return { pos: pos, circles: circles, view: view };
   }
 
   function renderNetwork() {
@@ -1081,6 +1136,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     for (var i = 0; i < net.size; i++) everSoFar.push(0);
     for (var w = 0; w <= week; w++) for (i = 0; i < net.size; i++) if (current.sample.states[w][i]) everSoFar[i] = 1;
     selected().champions.forEach(function (c) { champs[c] = true; });
+    current.teamCircles.forEach(function (c) {
+      svg.appendChild(svgEl('circle', { cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: c[2].toFixed(1), fill: 'var(--accent-soft)', 'fill-opacity': 0.55, stroke: 'none' }));
+    });
     for (i = 0; i < net.size; i++) {
       net.adj[i].forEach(function (j) {
         if (j > i) svg.appendChild(svgEl('line', { x1: pos[i][0].toFixed(1), y1: pos[i][1].toFixed(1), x2: pos[j][0].toFixed(1), y2: pos[j][1].toFixed(1), stroke: 'var(--edge)', 'stroke-width': 0.8 }));
@@ -1103,10 +1161,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     document.getElementById('net-note').textContent = 'Week ' + week + ': ' + using + ' of ' + net.size + ' people using it. This is one sample rollout; the numbers above average ' + current.p.runs + '.';
     var legend = document.getElementById('net-legend');
     legend.innerHTML = '';
-    [['Champion', 'var(--champion)'], ['Using it', 'var(--user)'], ['Tried, then dropped it', 'var(--lapsed)'], ['Not yet', 'var(--never)']].forEach(function (k) {
+    var keys = [['Champion', 'var(--champion)'], ['Using it', 'var(--user)'], ['Tried, then dropped it', 'var(--lapsed)'], ['Not yet', 'var(--never)']];
+    if ((current.p.custom || []).length) keys.push(['Your pick', 'none']);
+    keys.forEach(function (k) {
       var key = el('span', { 'class': 'key' });
       var s = svgEl('svg', { viewBox: '0 0 10 10', 'aria-hidden': 'true' });
-      s.appendChild(svgEl('circle', { cx: 5, cy: 5, r: 4.5, fill: k[1] }));
+      s.appendChild(svgEl('circle', { cx: 5, cy: 5, r: 3.8, fill: k[1] === 'none' ? 'var(--never)' : k[1], stroke: k[1] === 'none' ? 'var(--ink)' : 'none', 'stroke-width': 1.6 }));
       key.appendChild(s);
       key.appendChild(document.createTextNode(k[0]));
       legend.appendChild(key);
@@ -1133,7 +1193,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
 
   function renderCurve(r) {
     var svg = document.getElementById('curve'), p = current.p;
-    var W = svg.clientWidth || 640, H = svg.clientHeight || 260, m = { l: 40, r: 12, t: 10, b: 30 };
+    var W = svg.clientWidth || 640, H = svg.clientHeight || 260, m = { l: 40, r: 12, t: 10, b: 34 };
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     var x = function (v) { return m.l + (W - m.l - m.r) * v / p.weeks; };
@@ -1149,6 +1209,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       tx.textContent = String(wk);
       svg.appendChild(tx);
     }
+    var cap = svgEl('text', { x: W - m.r, y: H - 2, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+    cap.textContent = 'Weeks';
+    svg.appendChild(cap);
     var band = r.curveHigh.map(function (v, i) { return x(i).toFixed(1) + ',' + y(v).toFixed(1); })
       .concat(r.curveLow.map(function (v, i) { return [i, v]; }).reverse().map(function (q) { return x(q[0]).toFixed(1) + ',' + y(q[1]).toFixed(1); }));
     svg.appendChild(svgEl('polygon', { points: band.join(' '), fill: 'var(--s-' + r.strategy + ')', 'fill-opacity': 0.15 }));
@@ -1221,6 +1284,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     var legend = document.getElementById('sweep-legend');
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     legend.innerHTML = '';
+    svg.classList.toggle('empty', !sweepState);
+    document.getElementById('sweep-empty').hidden = !!sweepState;
     if (!sweepState) return;
     var sw = sweepState.sweep, spec = specFor(sw.key), pts = sw.points;
     var spans = M.winnerSpans(sw);
@@ -1416,6 +1481,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
 
   buildControls();
   buildSaveControls();
+  if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
+    document.querySelectorAll('details.group').forEach(function (d) { d.open = false; });
+  }
   if (location.hash.length > 1) {
     state.params = M.decodeParams(location.hash);
     state.preset = matchPreset(state.params);
