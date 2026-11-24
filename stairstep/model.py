@@ -544,6 +544,37 @@ def evaluate(data, fc):
     }
 
 
+def pilot_windows(data, fc, settings, length, stores):
+    """What a pilot of the AI against the best simple method would have measured,
+    on the given stores over `length` weeks, for every start week in the test year."""
+    s = normalise_settings(settings)
+    ids = SIMPLER + ["ai"]
+    out = []
+    start = data["testStart"]
+    while start + length <= data["weeks"]:
+        absolute = {m: 0 for m in ids}
+        actual = 0
+        for p in range(len(data["sales"])):
+            for st in stores:
+                y = data["sales"][p][st]
+                for t in range(start, start + length):
+                    actual += y[t]
+                    for m in ids:
+                        absolute[m] += abs(y[t] - fc["forecasts"][m][p][st][t])
+        if actual <= 0:
+            out.append({"start": start, "aiWape": None, "bestSimpler": None, "bestWape": None, "gain": None, "clears": False})
+        else:
+            best = "naive"
+            for m in SIMPLER:
+                if absolute[m] / actual < absolute[best] / actual:
+                    best = m
+            gain = absolute[best] / actual - absolute["ai"] / actual
+            out.append({"start": start, "aiWape": absolute["ai"] / actual, "bestSimpler": best,
+                        "bestWape": absolute[best] / actual, "gain": gain, "clears": gain >= s["threshold"]})
+        start += 1
+    return out
+
+
 def run(settings=None):
     data = simulate(settings)
     fc = forecast_all(data, settings)

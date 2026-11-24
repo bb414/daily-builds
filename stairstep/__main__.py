@@ -5,32 +5,53 @@ import json
 import sys
 
 from . import data as datafile
-from . import model, report
+from . import model, report, sweep
 
+# (option, settings key, type, help). Defaults come from model.SETTINGS.
+OPTIONS = [
+    ("--seed", "seed", int, "world number"),
+    ("--holidays", "holidays", float, "festival strength, 0 to 2"),
+    ("--promo-lift", "promoLift", float, "extra sales in a promotion week, 0 to 1.5"),
+    ("--noise", "noise", float, "random noise, 0 to 0.6"),
+    ("--growth", "growth", float, "growth per year, -0.2 to 0.3"),
+    ("--horizon", "horizon", int, "weeks ahead, 1 to 4"),
+    ("--override-rate", "overrideRate", float, "share of AI forecasts planners change, 0 to 1"),
+    ("--optimism", "optimism", float, "average upward push of an override, -0.3 to 0.3"),
+    ("--insight", "insight", float, "share of the AI's error planners can see, 0 to 1"),
+    ("--buffer", "buffer", float, "safety stock, 0 to 0.5"),
+    ("--threshold", "threshold", float, "gain the AI needs over simple methods, 0 to 0.1"),
+]
 
-def _add_settings(p, world=True):
-    defaults = {k: v[0] for k, v in model.SETTINGS.items()}
-    if world:
-        p.add_argument("--seed", type=int, default=defaults["seed"], help="world number (default %(default)s)")
-        p.add_argument("--holidays", type=float, default=defaults["holidays"], help="festival strength, 0 to 2 (default %(default)s)")
-        p.add_argument("--promo-lift", dest="promoLift", type=float, default=defaults["promoLift"],
-                       help="extra sales in a promotion week, 0 to 1.5 (default %(default)s)")
-        p.add_argument("--noise", type=float, default=defaults["noise"], help="random noise, 0 to 0.6 (default %(default)s)")
-        p.add_argument("--growth", type=float, default=defaults["growth"], help="growth per year, -0.2 to 0.3 (default %(default)s)")
-    p.add_argument("--horizon", type=int, default=defaults["horizon"], help="weeks ahead, 1 to 4 (default %(default)s)")
-    p.add_argument("--override-rate", dest="overrideRate", type=float, default=defaults["overrideRate"],
-                   help="share of AI forecasts planners change, 0 to 1 (default %(default)s)")
-    p.add_argument("--optimism", type=float, default=defaults["optimism"],
-                   help="average upward push of an override, -0.3 to 0.3 (default %(default)s)")
-    p.add_argument("--insight", type=float, default=defaults["insight"],
-                   help="share of the AI's error planners can see, 0 to 1 (default %(default)s)")
-    p.add_argument("--buffer", type=float, default=defaults["buffer"], help="safety stock, 0 to 0.5 (default %(default)s)")
-    p.add_argument("--threshold", type=float, default=defaults["threshold"],
-                   help="gain the AI needs over simple methods, 0 to 0.1 (default %(default)s)")
+def _add_settings(p, skip=()):
+    p.add_argument("--settings", help="start from the settings in a JSON file, such as a results file from the app")
+    for flag, key, kind, text in OPTIONS:
+        if key in skip:
+            continue
+        # The default is None so that options only override what --settings loaded
+        # when they are given; the model fills in anything still missing.
+        p.add_argument(flag, dest=key, type=kind, default=None,
+                       help="%s (default %s)" % (text, model.SETTINGS[key][0]))
 
 
 def _settings(args):
-    return {k: getattr(args, k) for k in model.SETTINGS if hasattr(args, k)}
+    """Settings from the command line, on top of any loaded with --settings."""
+    base = {}
+    if getattr(args, "settings", None):
+        try:
+            with open(args.settings, encoding="utf-8") as f:
+                loaded = json.load(f)
+        except json.JSONDecodeError:
+            raise datafile.DataError("%s is not valid JSON." % args.settings) from None
+        if isinstance(loaded, dict) and isinstance(loaded.get("settings"), dict):
+            loaded = loaded["settings"]
+        if not isinstance(loaded, dict) or not any(k in model.SETTINGS for k in loaded):
+            raise datafile.DataError("No Stairstep settings found in %s." % args.settings)
+        base = {k: v for k, v in loaded.items() if k in model.SETTINGS}
+    for _, key, _, _ in OPTIONS:
+        value = getattr(args, key, None)
+        if value is not None:
+            base[key] = value
+    return base
 
 
 def _cmd_run(args):
@@ -67,6 +88,22 @@ def _cmd_simulate(args):
     return 0
 
 
+def _cmd_sweep(args):
+    if args.worlds < 1:
+        raise datafile.DataError("--worlds must be at least 1.")
+    settings = _settings(args)
+
+    def progress(done, total):
+        print("  world %d of %d" % (done, total), file=sys.stderr, end="\r" if done < total else "\n")
+
+    rows = sweep.sweep(settings, worlds=args.worlds, first_seed=args.first_seed, progress=None if args.quiet else progress)
+    sys.stdout.write(sweep.summary_text(rows))
+    if args.csv:
+        sweep.write_csv(rows, args.csv)
+        print("One row per world written to %s" % args.csv)
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="python -m stairstep",
                                      description="Forecast value added: does each forecasting step, AI included, earn its place?")
@@ -84,6 +121,14 @@ def build_parser():
     p.add_argument("--out", required=True, help="CSV file to write")
     _add_settings(p)
     p.set_defaults(func=_cmd_simulate)
+
+    p = sub.add_parser("sweep", help="check how often the conclusions hold across many synthetic worlds")
+    p.add_argument("--worlds", type=int, default=20, help="how many worlds (seeds) to run (default 20)")
+    p.add_argument("--first-seed", dest="first_seed", type=int, default=1, help="first seed (default 1)")
+    p.add_argument("--csv", help="also write one row per world as CSV")
+    p.add_argument("--quiet", action="store_true", help="do not show progress")
+    _add_settings(p, skip=("seed",))
+    p.set_defaults(func=_cmd_sweep)
     return parser
 
 

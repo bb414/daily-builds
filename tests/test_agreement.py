@@ -55,6 +55,15 @@ class AgreementTests(unittest.TestCase):
         assert_same(self, j["forecasts"], fc["forecasts"])
         assert_same(self, j["results"], model.evaluate(data, fc))
 
+    def test_pilot_windows_match_the_app(self):
+        jobs = [{"settings": {}, "length": 13, "stores": [0, 1, 2, 3, 4, 5, 6, 7]},
+                {"settings": {"seed": 3, "threshold": 0.08}, "length": 8, "stores": [0, 7]},
+                {"settings": {"holidays": 0}, "length": 26, "stores": [3]}]
+        js = node_bridge("pilot", jobs)
+        for job, j in zip(jobs, js):
+            r = model.run(job["settings"])
+            assert_same(self, j, model.pilot_windows(r["data"], r["forecasts"], job["settings"], job["length"], job["stores"]))
+
     def test_settings_are_normalised_the_same(self):
         inputs = [{}, None, {"holidays": 9, "noise": -1, "horizon": 2.7, "seed": -5, "optimism": "lots", "insight": True},
                   {"seed": 1e12, "threshold": 0.05, "buffer": 0.25, "horizon": 0}]

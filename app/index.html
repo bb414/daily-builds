@@ -792,6 +792,34 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     };
   }
 
+  // A pilot: the AI against the best simple method on a few stores for a few
+  // weeks. Returns what such a pilot would have measured for every possible
+  // start week in the test year, all products together.
+  function pilotWindows(data, fc, settings, length, stores) {
+    var s = normaliseSettings(settings);
+    var ids = ['naive', 'average', 'seasonal', 'smoothing', 'ai'];
+    var out = [];
+    for (var start = data.testStart; start + length <= data.weeks; start++) {
+      var abs = { naive: 0, average: 0, seasonal: 0, smoothing: 0, ai: 0 };
+      var actual = 0;
+      for (var p = 0; p < data.sales.length; p++) {
+        for (var i = 0; i < stores.length; i++) {
+          var y = data.sales[p][stores[i]];
+          for (var t = start; t < start + length; t++) {
+            actual += y[t];
+            for (var k = 0; k < ids.length; k++) { abs[ids[k]] += Math.abs(y[t] - fc.forecasts[ids[k]][p][stores[i]][t]); }
+          }
+        }
+      }
+      if (actual <= 0) { out.push({ start: start, aiWape: null, bestSimpler: null, bestWape: null, gain: null, clears: false }); continue; }
+      var best = 'naive';
+      ['naive', 'average', 'seasonal', 'smoothing'].forEach(function (id) { if (abs[id] / actual < abs[best] / actual) { best = id; } });
+      var gain = abs[best] / actual - abs.ai / actual;
+      out.push({ start: start, aiWape: abs.ai / actual, bestSimpler: best, bestWape: abs[best] / actual, gain: gain, clears: gain >= s.threshold });
+    }
+    return out;
+  }
+
   function run(settings) {
     var data = simulate(settings);
     var fc = forecastAll(data, settings);
@@ -816,6 +844,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     solveRidge: solveRidge,
     forecastAll: forecastAll,
     evaluate: evaluate,
+    pilotWindows: pilotWindows,
     weekType: weekType,
     run: run
   };
@@ -841,7 +870,14 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     sku: 0,
     store: -1,
     shown: { naive: false, average: true, seasonal: false, smoothing: false, ai: true, planner: true },
+    pilotLength: 13,
+    pilotStores: 'all',
     run: null
+  };
+  var PILOT_STORES = {
+    all: { label: 'All 8 stores', stores: [0, 1, 2, 3, 4, 5, 6, 7] },
+    two: { label: 'Two stores: Orchard and Punggol', stores: [0, 7] },
+    one: { label: 'One store: Bishan', stores: [3] }
   };
 
   function esc(v) {
@@ -903,7 +939,11 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       }
       return '<fieldset><legend>' + esc(g) + '</legend>' + inner + '</fieldset>';
     }).join('');
-    html += '<div class="btn-row" style="margin-top: 18px"><button class="btn" type="button" data-action="reset">Reset all settings</button></div>';
+    html += '<div class="btn-row" style="margin-top: 18px"><button class="btn" type="button" data-action="reset">Reset all settings</button>' +
+      '<button class="btn" type="button" data-action="copy-link">Copy a link to these settings</button>' +
+      '<button class="btn" type="button" data-action="load">Load settings from a results file</button>' +
+      '<input type="file" id="load-file" accept=".json,application/json" class="visually-hidden" tabindex="-1" aria-hidden="true" aria-label="Settings or results file"></div>' +
+      '<p class="small muted" id="link-note" role="status"></p>';
     form.innerHTML = html;
   }
 
@@ -942,9 +982,45 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     schedule();
   });
   form.addEventListener('submit', function (e) { e.preventDefault(); });
+  function note(text) { document.getElementById('link-note').textContent = text; }
+
+  function copyLink() {
+    writeHash();
+    var link = location.href;
+    function fallback() {
+      window.prompt('Copy this link:', link);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(function () { note('Link copied. Anyone who opens this file with it sees the same settings.'); }, fallback);
+    } else { fallback(); }
+  }
+
+  function loadSettingsFile(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var obj;
+      try { obj = JSON.parse(String(reader.result)); } catch (err) { note('That file is not valid JSON.'); return; }
+      var given = obj && typeof obj === 'object' && obj.settings && typeof obj.settings === 'object' ? obj.settings : obj;
+      var known = given && typeof given === 'object' ? Object.keys(given).filter(function (k) { return Object.prototype.hasOwnProperty.call(M.SETTINGS, k); }) : [];
+      if (!known.length) { note('No Stairstep settings found in that file.'); return; }
+      state.settings = M.normaliseSettings(Object.assign({}, M.normaliseSettings({}), given));
+      syncControls();
+      note('Loaded ' + known.length + ' settings from ' + file.name + '.');
+      schedule();
+    };
+    reader.onerror = function () { note('The file could not be read.'); };
+    reader.readAsText(file);
+  }
+
+  form.addEventListener('change', function (e) {
+    if (e.target.id === 'load-file' && e.target.files && e.target.files[0]) { loadSettingsFile(e.target.files[0]); e.target.value = ''; }
+  });
+
   form.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-action]');
     if (!btn) { return; }
+    if (btn.getAttribute('data-action') === 'copy-link') { copyLink(); return; }
+    if (btn.getAttribute('data-action') === 'load') { document.getElementById('load-file').click(); return; }
     if (btn.getAttribute('data-action') === 'new-world') {
       state.settings = M.normaliseSettings(Object.assign({}, state.settings, { seed: Math.floor(Math.random() * 100000) }));
     } else if (btn.getAttribute('data-action') === 'reset') {
@@ -956,8 +1032,27 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   /* ---------- Results ---------- */
 
+  // Settings live in the page address after #, so a link reopens the same world.
+  function readHash() {
+    var out = {};
+    (location.hash || '').replace(/^#/, '').split('&').forEach(function (pair) {
+      var kv = pair.split('=');
+      if (kv.length === 2 && Object.prototype.hasOwnProperty.call(M.SETTINGS, kv[0]) && kv[1] !== '' && isFinite(Number(kv[1]))) {
+        out[kv[0]] = Number(kv[1]);
+      }
+    });
+    return out;
+  }
+  function writeHash() {
+    var defaults = M.normaliseSettings({});
+    var parts = Object.keys(state.settings).filter(function (k) { return state.settings[k] !== defaults[k]; })
+      .map(function (k) { return k + '=' + state.settings[k]; });
+    try { history.replaceState(null, '', parts.length ? '#' + parts.join('&') : location.pathname + location.search); } catch (e) { /* not allowed here */ }
+  }
+
   function compute() {
     var t0 = performance.now();
+    writeHash();
     state.run = M.run(state.settings);
     renderResults();
     var n = state.run.results.methods[0].n;
@@ -1230,6 +1325,63 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     document.getElementById('ex-summary').textContent = seriesDescription(series);
   }
 
+  function pilotSection() {
+    var lengths = [8, 13, 26].map(function (n) { return '<option value="' + n + '"' + (n === state.pilotLength ? ' selected' : '') + '>' + n + ' weeks</option>'; }).join('');
+    var stores = Object.keys(PILOT_STORES).map(function (k) { return '<option value="' + k + '"' + (k === state.pilotStores ? ' selected' : '') + '>' + esc(PILOT_STORES[k].label) + '</option>'; }).join('');
+    return '<section class="card" aria-labelledby="pilot-title"><h2 id="pilot-title">Would a pilot have told you?</h2>' +
+      '<p class="small muted">Before rolling out, most firms run a pilot: the AI against their current method in a few stores for a few weeks. Each bar below is what one pilot would have measured, depending on the week it started.</p>' +
+      '<div class="explorer-controls"><label>Pilot length<select id="pilot-length">' + lengths + '</select></label><label>Pilot stores<select id="pilot-stores">' + stores + '</select></label></div>' +
+      '<p id="pilot-summary"></p><div class="chart" id="pilot-chart"></div>' +
+      '<div class="legend"><span><span class="dot" style="background: var(--good)"></span>Clears the bar</span><span><span class="dot" style="background: var(--c-naive)"></span>Falls short</span>' +
+      '<span><span class="dot" style="background: var(--ink)"></span>Full year, all stores (dashed)</span><span><span class="dot" style="background: var(--bad)"></span>The bar the AI must clear (dotted)</span></div></section>';
+  }
+
+  function pilotChart(windows, full, threshold, width) {
+    var height = 230, left = 44, right = 12, top = 14, bottom = 30;
+    var values = windows.map(function (w) { return w.gain === null ? 0 : w.gain; }).concat([full, threshold, 0]);
+    var hi = Math.max.apply(null, values), lo = Math.min.apply(null, values);
+    hi = hi + (hi - lo) * 0.08 + 0.001; lo = Math.min(0, lo - (hi - lo) * 0.04);
+    var iw = width - left - right, ih = height - top - bottom, n = windows.length;
+    function y(v) { return top + ih - (v - lo) / (hi - lo) * ih; }
+    var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Gain measured by each possible pilot, in points">';
+    for (var g = 0; g <= 4; g++) {
+      var v = lo + (hi - lo) * g / 4;
+      svg += '<line class="grid" x1="' + left + '" x2="' + (width - right) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + (v * 100).toFixed(0) + '</text>';
+    }
+    var bw = iw / n;
+    windows.forEach(function (w, i) {
+      if (w.gain === null) { return; }
+      var y0 = y(0), y1 = y(w.gain);
+      svg += '<rect x="' + (left + i * bw + bw * 0.15).toFixed(1) + '" y="' + Math.min(y0, y1).toFixed(1) + '" width="' + (bw * 0.7).toFixed(1) +
+        '" height="' + Math.max(1, Math.abs(y1 - y0)).toFixed(1) + '" fill="' + (w.clears ? 'var(--good)' : 'var(--c-naive)') + '"/>';
+    });
+    svg += '<line x1="' + left + '" x2="' + (width - right) + '" y1="' + y(full).toFixed(1) + '" y2="' + y(full).toFixed(1) + '" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/>';
+    svg += '<line x1="' + left + '" x2="' + (width - right) + '" y1="' + y(threshold).toFixed(1) + '" y2="' + y(threshold).toFixed(1) + '" stroke="var(--bad)" stroke-width="2" stroke-dasharray="2 4"/>';
+    [0, Math.floor((n - 1) / 2), n - 1].forEach(function (i) {
+      svg += '<text x="' + (left + (i + 0.5) * bw).toFixed(1) + '" y="' + (height - 8) + '" text-anchor="middle">starts wk ' + (i + 1) + '</text>';
+    });
+    return svg + '</svg>';
+  }
+
+  function drawPilot() {
+    var holder = document.getElementById('pilot-chart');
+    if (!holder || !state.run) { return; }
+    var run = state.run, r = run.results;
+    var windows = M.pilotWindows(run.data, run.forecasts, state.settings, state.pilotLength, PILOT_STORES[state.pilotStores].stores);
+    var full = bestSimple(r.methods).wape - r.methods[4].wape;
+    var gains = windows.filter(function (w) { return w.gain !== null; }).map(function (w) { return w.gain; });
+    var clears = windows.filter(function (w) { return w.clears; }).length;
+    var lo = Math.min.apply(null, gains), hi = Math.max.apply(null, gains);
+    var worst = windows.filter(function (w) { return w.gain === lo; })[0], best = windows.filter(function (w) { return w.gain === hi; })[0];
+    var where = PILOT_STORES[state.pilotStores].label.split(':')[0].toLowerCase();
+    document.getElementById('pilot-summary').innerHTML = 'A ' + state.pilotLength + '-week pilot in ' + esc(where) + ' would have measured the AI\'s gain over the best simple method at anywhere from <strong>' +
+      signed(lo * 100, 1) + '</strong> points (starting in week ' + (worst.start - run.data.testStart + 1) + ') to <strong>' + signed(hi * 100, 1) + '</strong> points (starting in week ' +
+      (best.start - run.data.testStart + 1) + '). The full year says <strong>' + signed(full * 100, 1) + '</strong>. ' + clears + ' of ' + windows.length +
+      ' start weeks clear the ' + (state.settings.threshold * 100).toFixed(1) + '-point bar.';
+    holder.innerHTML = pilotChart(windows, full, state.settings.threshold, Math.max(300, Math.floor(holder.clientWidth || 700)));
+  }
+
   function downloads() {
     return '<section class="card" aria-labelledby="dl-title"><h2 id="dl-title">Take the numbers with you</h2>' +
       '<p class="small muted">Every forecast for the third year, or the summary above, to check in a spreadsheet or the Python companion.</p>' +
@@ -1239,8 +1391,9 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   function renderResults() {
     var r = state.run.results;
-    results.innerHTML = headline(r) + stairstep(r) + skuTable(r) + advance(state.run) + weekTypes(r) + overrides(r) + explorer(state.run) + downloads();
+    results.innerHTML = headline(r) + stairstep(r) + skuTable(r) + advance(state.run) + pilotSection() + weekTypes(r) + overrides(r) + explorer(state.run) + downloads();
     drawExplorer();
+    drawPilot();
   }
 
   function forecastsCsv(run) {
@@ -1266,7 +1419,9 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   }
 
   results.addEventListener('change', function (e) {
-    if (e.target.id === 'ex-sku') { state.sku = Number(e.target.value); drawExplorer(); }
+    if (e.target.id === 'pilot-length') { state.pilotLength = Number(e.target.value); drawPilot(); }
+    else if (e.target.id === 'pilot-stores') { state.pilotStores = e.target.value; drawPilot(); }
+    else if (e.target.id === 'ex-sku') { state.sku = Number(e.target.value); drawExplorer(); }
     else if (e.target.id === 'ex-store') { state.store = Number(e.target.value); drawExplorer(); }
     else if (e.target.getAttribute('data-method')) { state.shown[e.target.getAttribute('data-method')] = e.target.checked; drawExplorer(); }
   });
@@ -1280,8 +1435,9 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     }
   });
   var resizeTimer = null;
-  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawExplorer, 150); });
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { drawExplorer(); drawPilot(); }, 150); });
 
+  state.settings = M.normaliseSettings(Object.assign({}, M.normaliseSettings({}), readHash()));
   renderControls();
   compute();
 })();

@@ -21,6 +21,7 @@ module.exports = { loadModel };
 // Bridge for the Python agreement tests. Reads JSON from standard input:
 //   node tests/load_model.cjs run < settings-list.json     results and every forecast
 //   node tests/load_model.cjs data < datasets.json         forecasts and results for given datasets
+//   node tests/load_model.cjs pilot < jobs.json            pilot windows for given settings
 //   node tests/load_model.cjs settings < inputs.json       normalised settings
 if (require.main === module) {
   const M = loadModel();
@@ -36,6 +37,11 @@ if (require.main === module) {
     out = input.map((job) => {
       const fc = M.forecastAll(job.data, job.settings);
       return { forecasts: fc.forecasts, results: M.evaluate(job.data, fc) };
+    });
+  } else if (process.argv[2] === 'pilot') {
+    out = input.map((job) => {
+      const r = M.run(job.settings);
+      return M.pilotWindows(r.data, r.forecasts, job.settings, job.length, job.stores);
     });
   } else if (process.argv[2] === 'settings') {
     out = input.map((s) => M.normaliseSettings(s));

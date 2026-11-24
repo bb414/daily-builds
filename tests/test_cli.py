@@ -52,6 +52,43 @@ class CliTests(unittest.TestCase):
             # Same numbers either way: only the source line and product labels differ.
             self.assertEqual(from_file.splitlines()[2], direct.splitlines()[2])
 
+    def test_sweep(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "worlds.csv")
+            code, out, _ = run("sweep", "--worlds", "2", "--first-seed", "5", "--quiet", "--csv", path, "--override-rate", "0.5")
+            self.assertEqual(code, 0)
+            self.assertIn("2 worlds (seeds 5 to 6)", out)
+            self.assertIn("How often each conclusion holds", out)
+            with open(path, encoding="utf-8") as f:
+                lines = f.read().strip().splitlines()
+            self.assertEqual(len(lines), 3)
+            self.assertTrue(lines[0].startswith("seed,aiGain"))
+        code, _, err = run("sweep", "--worlds", "0")
+        self.assertEqual(code, 2)
+
+    def test_settings_file_from_the_app(self):
+        with tempfile.TemporaryDirectory() as d:
+            results = os.path.join(d, "results.json")
+            code, _, _ = run("run", "--seed", "12", "--holidays", "0.4", "--json", results)
+            self.assertEqual(code, 0)
+            code, loaded, _ = run("run", "--settings", results)
+            code2, direct, _ = run("run", "--seed", "12", "--holidays", "0.4")
+            self.assertEqual(loaded, direct)
+            code, changed, _ = run("run", "--settings", results, "--holidays", "1")
+            code2, direct2, _ = run("run", "--seed", "12", "--holidays", "1")
+            self.assertEqual(changed, direct2, "options given on the command line win")
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w") as f:
+                f.write('{"colour": "blue"}')
+            code, _, err = run("run", "--settings", bad)
+            self.assertEqual(code, 2)
+            self.assertIn("No Stairstep settings", err)
+            with open(bad, "w") as f:
+                f.write("{oops")
+            code, _, err = run("run", "--settings", bad)
+            self.assertEqual(code, 2)
+            self.assertIn("not valid JSON", err)
+
     def test_settings_are_applied_and_errors_are_friendly(self):
         code, out, _ = run("run", "--holidays", "0", "--promo-lift", "0")
         self.assertEqual(code, 0)

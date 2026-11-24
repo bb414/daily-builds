@@ -116,6 +116,48 @@ class AppTests(unittest.TestCase):
         self.assertNotIn("AI model error", page.locator("#ex-summary").inner_text())
         self.assertEqual(self.problems, [])
 
+    def test_pilot_section(self):
+        page = self.open()
+        run = model.run({})
+        windows = model.pilot_windows(run["data"], run["forecasts"], {}, 13, list(range(8)))
+        low = min(w["gain"] for w in windows)
+        self.assertIn(report.signed(low * 100), page.locator("#pilot-summary").inner_text())
+        self.assertEqual(page.locator("#pilot-chart rect").count(), 40)
+        page.select_option("#pilot-length", "8")
+        page.select_option("#pilot-stores", "two")
+        self.assertEqual(page.locator("#pilot-chart rect").count(), 45)
+        self.assertIn("8-week pilot in two stores", page.locator("#pilot-summary").inner_text())
+        self.assertEqual(self.problems, [])
+
+    def test_settings_travel_in_the_address_and_in_files(self):
+        page = self.open()
+        page.locator("#in-noise").focus()
+        page.keyboard.press("End")
+        page.wait_for_timeout(400)
+        self.assertIn("noise=0.6", page.evaluate("location.hash"))
+        context = self.browser.new_context()
+        self.addCleanup(context.close)
+        other = context.new_page()
+        other.goto(URL + "#seed=42&holidays=0.5&bogus=3&noise=abc")
+        other.wait_for_selector(".stairs")
+        self.assertEqual(other.locator("#in-seed").input_value(), "42")
+        self.assertEqual(other.locator("#out-holidays").inner_text(), "50%")
+        expected = model.run({"seed": 42, "holidays": 0.5})["results"]
+        self.assertIn(report.headline(expected), other.locator(".headline").inner_text())
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "results.json")
+            with open(path, "w") as f:
+                f.write('{"settings": {"seed": 9, "insight": 0.6}, "methods": []}')
+            page.locator("#load-file").set_input_files(path)
+            page.wait_for_function("document.getElementById('link-note').textContent.startsWith('Loaded')")
+            page.wait_for_timeout(400)
+            self.assertIn(report.headline(model.run({"seed": 9, "insight": 0.6})["results"]), page.locator(".headline").inner_text())
+            with open(path, "w") as f:
+                f.write('{"nothing": 1}')
+            page.locator("#load-file").set_input_files(path)
+            page.wait_for_function("document.getElementById('link-note').textContent.startsWith('No Stairstep')")
+        self.assertEqual(self.problems, [])
+
     def test_phone_layout(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)

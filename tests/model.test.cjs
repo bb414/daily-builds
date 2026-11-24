@@ -192,3 +192,23 @@ test('keeping only downward overrides', () => {
   const none = M.run({ overrideRate: 0 }).results;
   assert.equal(none.downOnly.wape, none.methods[4].wape);
 });
+
+test('pilot windows', () => {
+  const r = M.run({});
+  const all = [0, 1, 2, 3, 4, 5, 6, 7];
+  const w13 = M.pilotWindows(r.data, r.forecasts, {}, 13, all);
+  assert.equal(w13.length, 52 - 13 + 1);
+  assert.equal(w13[0].start, 104);
+  // A 52-week pilot in every store is simply the full test year.
+  const year = M.pilotWindows(r.data, r.forecasts, {}, 52, all);
+  assert.equal(year.length, 1);
+  const best = r.results.methods.slice(0, 4).reduce((a, m) => (m.wape < a.wape ? m : a));
+  assert.ok(Math.abs(year[0].gain - (best.wape - r.results.methods[4].wape)) < 1e-12);
+  assert.equal(year[0].bestSimpler, best.id);
+  // Short pilots swing widely around the full-year answer.
+  const gains = w13.map((x) => x.gain);
+  assert.ok(Math.min(...gains) < year[0].gain / 2);
+  assert.ok(Math.max(...gains) > year[0].gain * 1.5);
+  w13.forEach((x) => assert.equal(x.clears, x.gain >= 0.03));
+  assert.equal(M.pilotWindows(r.data, r.forecasts, {}, 53, all).length, 0);
+});
