@@ -81,7 +81,7 @@ The Python suite also runs the Node.js tests. Tests that need Node.js, or Playwr
 |---|---|---|---|
 | `app/index.html` | HTML, CSS, JavaScript | 1,860 lines: 280 of styles, 780 of model (340 of them the message bank), 770 of interface | The whole test, scoring and results, in one offline file |
 | `second_opinion/` | Python | 1,370 lines | Scoring (a line-for-line mirror of the app's), synthetic participants, pooling and statistics, power by simulation, text and HTML reports |
-| `tests/` | Python and JavaScript | 1,290 lines | Unit tests for both, agreement tests, and end-to-end browser tests |
+| `tests/` | Python and JavaScript | 1,320 lines | Unit tests for both, agreement tests, and end-to-end browser tests |
 
 The app does the job for one person. The toolkit does what a browser page cannot do well: batch work over hundreds of files, resampling statistics, thousands of simulated studies, and reports you can keep. The scoring logic exists in both languages, so `tests/test_agreement.py` runs the app's own model block in Node.js and checks that it gives exactly the same results as Python on more than 200 sessions, including unfinished and malformed ones; that both build the same message order from the same seed; and that a CSV exported by the app loads into Python unchanged.
 
