@@ -190,6 +190,41 @@ class ValueOfInformationTests(unittest.TestCase):
         self.assertIsNone(M.analyse(m)["voi"])
 
 
+class NarrowingTests(unittest.TestCase):
+    def test_narrowing_keeps_the_median_and_shrinks_the_range(self):
+        t = M.TEMPLATES[0]
+        for di, d in enumerate(t["terms"][0]["drivers"]):
+            half = M.narrow_driver(t, 0, di, 0.5)["terms"][0]["drivers"][di]
+            self.assertAlmostEqual(M.quantile(half, 0), M.quantile(d, 0), places=9)
+            if d["dist"] == "lognormal":
+                self.assertAlmostEqual(math.log(half["high"] / half["low"]), math.log(d["high"] / d["low"]) / 2)
+            same = M.narrow_driver(t, 0, di, 1)["terms"][0]["drivers"][di]
+            self.assertAlmostEqual(same["low"], d["low"])
+            self.assertAlmostEqual(same["high"], d["high"])
+        normal = one_driver("normal", 10, 30)
+        n = M.narrow_driver(normal, 0, 0, 0.25)["terms"][0]["drivers"][0]
+        self.assertEqual((n["low"], n["high"]), (17.5, 22.5))
+        self.assertEqual(t["terms"][0]["drivers"][0]["low"], 22000)  # the original is untouched
+
+    def test_pinning_down(self):
+        t = M.TEMPLATES[1]
+        pinned = M.narrow_driver(t, 0, 1, 0)
+        d = pinned["terms"][0]["drivers"][1]
+        self.assertEqual(d["dist"], "fixed")
+        self.assertAlmostEqual(d["low"], M.quantile(t["terms"][0]["drivers"][1], 0))
+        self.assertLess(d["low"], 1)  # a percentage is pinned as a fraction
+        self.assertEqual(M.validate_model(pinned), [])
+        before, after = M.analyse(t), M.analyse(pinned)
+        self.assertLess(after["p90"] - after["p10"], before["p90"] - before["p10"])
+
+    def test_plan_command(self):
+        from rangefinder.__main__ import pilot_plan
+        base, rows = pilot_plan(M.TEMPLATES[1], 0.5)
+        self.assertEqual(len(rows), 6)
+        self.assertEqual([r["widthChange"] for r in rows], sorted(r["widthChange"] for r in rows))
+        self.assertTrue(all(r["widthChange"] < 0.01 for r in rows))
+
+
 class DeepTests(unittest.TestCase):
     def test_sobol_first_order_matches_the_app(self):
         from rangefinder.deep import sobol

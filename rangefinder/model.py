@@ -235,6 +235,36 @@ def midpoint(d):
     return m / 100 if d["dist"] == "share" else m
 
 
+def narrow_driver(model, term, index, factor):
+    """A copy of the model with one driver's range shrunk around its median.
+
+    factor 0.5 halves the range (on the scale the range is defined on, so a
+    skewed range stays skewed); factor 0 pins the driver at its median.
+    """
+    out = json.loads(json.dumps(model))
+    d = out["terms"][term]["drivers"][index]
+    if d["dist"] == "fixed":
+        return out
+    if factor <= 0:
+        # A fixed driver is used as it is, so a percentage becomes a fraction here.
+        d["low"] = d["high"] = quantile(d, 0)
+        d["dist"] = "fixed"
+        return out
+    lo, hi = d["low"], d["high"]
+    if d["dist"] == "lognormal":
+        a, b = math.log(lo), math.log(hi)
+        c, h = (a + b) / 2, (b - a) / 2 * factor
+        d["low"], d["high"] = math.exp(c - h), math.exp(c + h)
+    elif d["dist"] == "share":
+        a, b = _logit(lo / 100), _logit(hi / 100)
+        c, h = (a + b) / 2, (b - a) / 2 * factor
+        d["low"], d["high"] = 100 / (1 + math.exp(-(c - h))), 100 / (1 + math.exp(-(c + h)))
+    else:
+        c, h = (lo + hi) / 2, (hi - lo) / 2 * factor
+        d["low"], d["high"] = c - h, c + h
+    return out
+
+
 def drivers_of(model):
     out = []
     for ti, term in enumerate(model["terms"]):

@@ -86,6 +86,18 @@ class AppAgreesWithPython(unittest.TestCase):
         for m, g in zip(models, got):
             close(self, M.analyse(m), g, m["title"])
 
+    def test_narrowing_agrees(self):
+        calls, expect = [], []
+        for m in variants():
+            for ti, term in enumerate(m["terms"]):
+                for di in range(len(term["drivers"])):
+                    for f in (0, 0.25, 0.5, 1):
+                        calls.append({"fn": "narrowDriver", "args": [m, ti, di, f]})
+                        expect.append(M.narrow_driver(m, ti, di, f))
+        got = js(calls)
+        for g, e in zip(got, expect):
+            close(self, e, g, "narrow")
+
     def test_inverse_normal_agrees(self):
         ps = [1e-12, 1e-6, 0.01, 0.02425, 0.2, 0.5, 0.77, 0.97576, 0.999, 1 - 1e-12]
         got = js([{"fn": "invNorm", "args": [p]} for p in ps])

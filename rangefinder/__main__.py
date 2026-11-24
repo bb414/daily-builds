@@ -7,7 +7,7 @@ import os
 import sys
 
 from .deep import sobol, stability
-from .model import TEMPLATES, analyse, drivers_of, format_value, simulate, validate_model
+from .model import TEMPLATES, analyse, drivers_of, format_value, narrow_driver, simulate, validate_model
 from .report import text_report
 
 
@@ -74,6 +74,54 @@ def cmd_deep(args):
     return 0
 
 
+def pilot_plan(model, factor):
+    """For every driver: what narrowing its range would do to the range and to the decision."""
+    base = analyse(model)
+    rows = []
+    for i, (ti, di, d) in enumerate(drivers_of(model)):
+        if d["dist"] == "fixed":
+            continue
+        r = analyse(narrow_driver(model, ti, di, factor))
+        rows.append({
+            "name": d["name"],
+            "width": r["p90"] - r["p10"],
+            "widthChange": (r["p90"] - r["p10"]) / (base["p90"] - base["p10"]) - 1,
+            "wrong": r["voi"]["wrongChance"] if r["voi"] else None,
+            "evppi": base["voi"]["drivers"][i]["evppi"] if base["voi"] else None,
+        })
+    rows.sort(key=lambda x: x["widthChange"])
+    return base, rows
+
+
+def cmd_plan(args):
+    model = load_model(args.model)
+
+    def fv(x):
+        return format_value(x, model["unit"], model["unitPosition"])
+
+    base, rows = pilot_plan(model, args.factor)
+    what = "pinning down" if args.factor <= 0 else "narrowing to %d%% of its width" % round(args.factor * 100)
+    print("%s: what %s each range would do" % (model["title"] or "Untitled estimate", what))
+    print("")
+    print("Now: most likely %s to %s" % (fv(base["p10"]), fv(base["p90"])) + (
+        ", %d%% chance the call is wrong" % round(base["voi"]["wrongChance"] * 100) if base["voi"] else ""))
+    print("")
+    width = max(len(r["name"]) for r in rows)
+    head = "  %-*s  %18s" % (width, "Driver", "80% range width")
+    if base["voi"]:
+        head += "  %16s  %12s" % ("Wrong call after", "Worth up to")
+    print(head)
+    for r in rows:
+        line = "  %-*s  %10s (%+4d%%)" % (width, r["name"], fv(r["width"]), round(r["widthChange"] * 100))
+        if r["wrong"] is not None:
+            line += "  %15d%%  %12s" % (round(r["wrong"] * 100), fv(r["evppi"]))
+        print(line)
+    print("")
+    print("Each row narrows one range around today's median and reruns everything else unchanged.")
+    print("Use it to decide what a pilot or a piece of research should measure.")
+    return 0
+
+
 def cmd_template(args):
     if args.key is None:
         for t in TEMPLATES:
@@ -111,6 +159,11 @@ def main(argv=None):
     d.add_argument("--seeds", type=int, default=20, help="how many seeds for the stability check")
     d.add_argument("--seed", type=int, default=11)
     d.set_defaults(func=cmd_deep)
+
+    n = sub.add_parser("plan", help="what narrowing each range would do: a guide to what a pilot should measure")
+    n.add_argument("model")
+    n.add_argument("--factor", type=float, default=0.5, help="new width as a share of the old (0 pins it down)")
+    n.set_defaults(func=cmd_plan)
 
     t = sub.add_parser("template", help="list the examples, or write one out as a model file")
     t.add_argument("key", nargs="?")

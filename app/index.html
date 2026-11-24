@@ -83,6 +83,14 @@ input[type="text"], input[type="number"], select {
 input[aria-invalid="true"] { border-color: var(--bad); background: var(--bad-soft); }
 label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--ink-2); min-width: 0; }
 
+.file-btn { display: inline-flex; align-items: center; }
+.file-btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.status { min-height: 0; margin: -6px 0 12px; font-size: 14px; color: var(--ink-2); }
+.status:empty { display: none; }
+.status.error { color: var(--bad-ink); font-weight: 600; }
+.narrow { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.narrow .controls { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px; margin: 8px 0; }
+
 /* Layout */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; margin-bottom: 16px; }
 .toolbar .field { width: min(360px, 100%); }
@@ -173,7 +181,13 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <select id="template"></select>
     </label>
     <p class="small muted" id="template-about" style="margin:0 0 8px;flex:1;min-width:220px"></p>
+    <div class="btn-row" role="group" aria-label="Save and share">
+      <button class="btn small-btn" type="button" id="save-btn">Download model</button>
+      <label class="btn small-btn file-btn"><input type="file" id="open-file" accept=".json,application/json" class="sr-only"> Open a model</label>
+      <button class="btn small-btn" type="button" id="link-btn">Copy a link</button>
+    </div>
   </div>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
 
   <div class="layout">
     <section class="editor card" aria-labelledby="editor-title">
@@ -202,6 +216,7 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <div class="card" id="summary"></div>
       <div class="card" id="dist-card"></div>
       <div class="card" id="voi-card"></div>
+      <div class="card" id="narrow-card" aria-labelledby="narrow-title"></div>
       <div class="card" id="tornado-card"></div>
       <div class="card" id="drivers-card"></div>
     </section>
@@ -587,6 +602,32 @@ function midpoint(d) {
   return d.dist === 'share' ? m / 100 : m;
 }
 
+// A copy of the model with one driver's range shrunk around its median
+// (factor 0.5 halves it; factor 0 pins it at its median).
+function narrowDriver(model, term, index, factor) {
+  const out = JSON.parse(JSON.stringify(model));
+  const d = out.terms[term].drivers[index];
+  if (d.dist === 'fixed') return out;
+  if (factor <= 0) {
+    // A fixed driver is used as it is, so a percentage becomes a fraction here.
+    d.low = d.high = quantile(d, 0);
+    d.dist = 'fixed';
+    return out;
+  }
+  const lo = d.low, hi = d.high;
+  if (d.dist === 'lognormal') {
+    const a = Math.log(lo), b = Math.log(hi), c = (a + b) / 2, h = (b - a) / 2 * factor;
+    d.low = Math.exp(c - h); d.high = Math.exp(c + h);
+  } else if (d.dist === 'share') {
+    const a = logit(lo / 100), b = logit(hi / 100), c = (a + b) / 2, h = (b - a) / 2 * factor;
+    d.low = 100 / (1 + Math.exp(-(c - h))); d.high = 100 / (1 + Math.exp(-(c + h)));
+  } else {
+    const c = (lo + hi) / 2, h = (hi - lo) / 2 * factor;
+    d.low = c - h; d.high = c + h;
+  }
+  return out;
+}
+
 function driversOf(model) {
   const out = [];
   model.terms.forEach((term, ti) => term.drivers.forEach((d, di) => out.push([ti, di, d])));
@@ -788,6 +829,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TEMPLATES, FORMAT, VERSION, DISTS, DIST_LABELS, Z95, Z90, MAX_TERMS, MAX_DRIVERS_PER_TERM, MAX_DRIVERS,
     MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, mulberry32, shuffle, invNorm, validateModel,
     distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse, valueOfInformation,
+    narrowDriver,
     formatNumber, formatValue, formatDriver
   };
 }
@@ -927,6 +969,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   /* ---------- Running ---------- */
   function schedule() {
+    if ($('#template').value !== 'yours') setTemplateSelect('yours');
     clearTimeout(state.timer);
     state.timer = setTimeout(run, 180);
   }
@@ -955,18 +998,20 @@ if (typeof module !== 'undefined' && module.exports) {
     if (problems.length) {
       box.innerHTML = '<strong>Fix ' + (problems.length === 1 ? 'this' : 'these') + ' to see results:</strong><ul>' + problems.slice(0, 6).map(p => '<li>' + esc(p) + '</li>').join('') + '</ul>';
       box.hidden = false;
-      ['#summary', '#dist-card', '#voi-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = '0.35'; });
+      ['#summary', '#dist-card', '#voi-card', '#narrow-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = '0.35'; });
       return;
     }
     box.hidden = true;
-    ['#summary', '#dist-card', '#voi-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = ''; });
+    ['#summary', '#dist-card', '#voi-card', '#narrow-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = ''; });
     const r = analyse(m, null, null, true);
     state.result = r;
     renderSummary(r);
     renderDistribution(r);
     renderVoi(r);
+    renderNarrow(r);
     renderTornado(r);
     renderDrivers(r);
+    saveLocal();
   }
 
   /* ---------- Results ---------- */
@@ -1087,6 +1132,46 @@ if (typeof module !== 'undefined' && module.exports) {
     card.innerHTML = h;
   }
 
+  /* ---------- Narrowing one range (what a pilot would buy) ---------- */
+  function narrowOptions() {
+    const out = [];
+    state.model.terms.forEach((term, ti) => term.drivers.forEach((d, di) => {
+      if (d.dist !== 'fixed') out.push({ti: ti, di: di, name: d.name || ('Driver ' + (di + 1))});
+    }));
+    return out;
+  }
+
+  function renderNarrow(r) {
+    const box = $('#narrow-card');
+    const opts = narrowOptions();
+    if (!opts.length) { box.innerHTML = ''; box.hidden = true; return; }
+    box.hidden = false;
+    let pick = state.narrowPick;
+    if (!pick || !opts.some(o => o.ti === pick.ti && o.di === pick.di)) {
+      const first = r.voi ? r.voi.order.find(i => r.drivers[i].dist !== 'fixed') : r.tornado.find(i => r.drivers[i].dist !== 'fixed');
+      const d = r.drivers[first];
+      pick = {ti: d.term, di: d.index};
+    }
+    state.narrowPick = pick;
+    const factor = state.narrowFactor === undefined ? 0.5 : state.narrowFactor;
+    const after = analyse(narrowDriver(state.model, pick.ti, pick.di, factor));
+    const row = (label, x) => '<tr><th scope="row">' + label + '</th><td class="num">' + esc(fv(x.p10)) + ' to ' + esc(fv(x.p90)) + '</td>' +
+      (x.voi ? '<td class="num">' + Math.round(x.voi.wrongChance * 100) + '%</td>' : '') + '</tr>';
+    const name = state.model.terms[pick.ti].drivers[pick.di].name;
+    const shrink = 1 - (after.p90 - after.p10) / (r.p90 - r.p10);
+    box.innerHTML = '<h2 id="narrow-title">Try narrowing a range</h2>' +
+      '<p class="small muted">What if a pilot or some research made one range narrower, centred on today\'s median?</p>' +
+      '<div class="controls"><label class="field">Driver<select id="narrow-driver">' +
+      opts.map(o => '<option value="' + o.ti + ':' + o.di + '"' + (o.ti === pick.ti && o.di === pick.di ? ' selected' : '') + '>' + esc(o.name) + '</option>').join('') +
+      '</select></label><label class="field">How much<select id="narrow-factor">' +
+      [[0.5, 'Halve it'], [0.25, 'Cut it to a quarter'], [0, 'Pin it down']].map(([f, l]) => '<option value="' + f + '"' + (f === factor ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></label></div>' +
+      '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col"></th><th scope="col">Most likely range</th>' + (r.voi ? '<th scope="col">Chance the call is wrong</th>' : '') + '</tr></thead><tbody>' +
+      row('Now', r) + row('After', after) + '</tbody></table></div>' +
+      '<p class="small" style="margin-top:8px">' + (factor === 0 ? 'Pinning down' : (factor === 0.5 ? 'Halving' : 'Cutting to a quarter')) + ' the range for <strong>' + esc(name) + '</strong> ' +
+      (shrink > 0.005 ? 'makes the likely range of the estimate ' + Math.round(shrink * 100) + '% narrower.' : 'barely changes the likely range of the estimate.') + '</p>';
+  }
+
   function renderTornado(r) {
     const rows = r.tornado.map(i => r.drivers[i]).filter(d => d.swing > 0);
     if (!rows.length) {
@@ -1146,13 +1231,142 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#drivers-card').innerHTML = h;
   }
 
-  /* ---------- Templates ---------- */
-  function loadTemplate(key) {
-    const t = TEMPLATES.find(x => x.key === key) || TEMPLATES[0];
-    state.model = clone(t);
-    $('#template-about').textContent = t.about;
+  /* ---------- Templates, saving and sharing ---------- */
+  const STORE_KEY = 'range-finder-model-v1';
+
+  function useModel(model, about) {
+    state.model = model;
+    if (model.unitPosition !== 'suffix') model.unitPosition = 'prefix';
+    if (model.threshold === undefined) model.threshold = null;
+    if (typeof model.thresholdLabel !== 'string') model.thresholdLabel = '';
+    model.terms.forEach(t => t.drivers.forEach(d => { if (typeof d.unit !== 'string') d.unit = ''; }));
+    state.narrowPick = null;
+    $('#template-about').textContent = about || '';
     renderEditor();
     run();
+  }
+
+  function loadTemplate(key) {
+    if (key === 'yours') return;
+    const t = TEMPLATES.find(x => x.key === key) || TEMPLATES[0];
+    setTemplateSelect(t.key);
+    useModel(clone(t), t.about);
+  }
+
+  function setTemplateSelect(key) {
+    const sel = $('#template');
+    const yours = sel.querySelector('option[value="yours"]');
+    if (key === 'yours' && !yours) sel.insertAdjacentHTML('afterbegin', '<option value="yours">Your estimate</option>');
+    if (key !== 'yours' && yours) yours.remove();
+    sel.value = key;
+  }
+
+  function cleanForExport(model) {
+    const out = clone(model);
+    delete out.key;
+    delete out.about;
+    out.format = FORMAT;
+    out.version = VERSION;
+    return out;
+  }
+
+  function saveLocal() {
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state.model)); } catch (e) { /* storage unavailable: nothing to do */ }
+  }
+
+  function readLocal() {
+    try {
+      const raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      const m = JSON.parse(raw);
+      return validateModel(m).length ? null : m;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStatus(text, isError) {
+    const el = $('#status');
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+  }
+
+  function toBase64Url(text) {
+    const bytes = new TextEncoder().encode(text);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function fromBase64Url(text) {
+    const b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+
+  function download() {
+    const m = cleanForExport(state.model);
+    const name = (m.title || 'estimate').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'estimate';
+    const blob = new Blob([JSON.stringify(m, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+    setStatus('Downloaded ' + name + '.json. Open it here again later, or run it with the Python version.');
+  }
+
+  function openFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      e.target.value = '';
+      let m;
+      try {
+        m = JSON.parse(String(reader.result));
+      } catch (ex) {
+        setStatus('That file could not be opened: it is not valid JSON.', true);
+        return;
+      }
+      const problems = validateModel(m);
+      if (problems.length) {
+        setStatus('That file could not be opened: ' + problems[0], true);
+        return;
+      }
+      setTemplateSelect('yours');
+      useModel(m, '');
+      setStatus('Opened ' + file.name + '.');
+    };
+    reader.onerror = () => setStatus('That file could not be read.', true);
+    reader.readAsText(file);
+  }
+
+  function copyLink() {
+    const base = location.href.split('#')[0];
+    const link = base + '#model=' + toBase64Url(JSON.stringify(cleanForExport(state.model)));
+    history.replaceState(null, '', link);
+    const done = () => setStatus('Link copied. Anyone who opens this file with the link sees the same estimate.');
+    const fallback = () => setStatus('The link is now in the address bar: copy it from there.');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fallback);
+    else fallback();
+  }
+
+  function modelFromLink() {
+    const m = /#model=([A-Za-z0-9_-]+)/.exec(location.hash);
+    if (!m) return null;
+    try {
+      const model = JSON.parse(fromBase64Url(m[1]));
+      const problems = validateModel(model);
+      if (problems.length) { setStatus('The estimate in this link could not be used: ' + problems[0], true); return null; }
+      return model;
+    } catch (e) {
+      setStatus('The estimate in this link could not be read.', true);
+      return null;
+    }
   }
 
   function init() {
@@ -1163,7 +1377,31 @@ if (typeof module !== 'undefined' && module.exports) {
     editor.addEventListener('change', e => { if (e.target.tagName === 'SELECT') onEditorInput(e); });
     editor.addEventListener('click', onEditorClick);
     $('#add-term').addEventListener('click', addTerm);
-    loadTemplate(TEMPLATES[0].key);
+    $('#save-btn').addEventListener('click', download);
+    $('#open-file').addEventListener('change', openFile);
+    $('#link-btn').addEventListener('click', copyLink);
+    $('#narrow-card').addEventListener('change', e => {
+      if (e.target.id === 'narrow-driver') {
+        const [ti, di] = e.target.value.split(':').map(Number);
+        state.narrowPick = {ti: ti, di: di};
+      } else if (e.target.id === 'narrow-factor') {
+        state.narrowFactor = Number(e.target.value);
+      } else {
+        return;
+      }
+      renderNarrow(state.result);
+      const el = document.getElementById(e.target.id);
+      if (el) el.focus();
+    });
+    const linked = modelFromLink();
+    const saved = linked ? null : readLocal();
+    if (linked || saved) {
+      setTemplateSelect('yours');
+      useModel(linked || saved, '');
+      if (linked) setStatus('Opened the estimate from the link.');
+    } else {
+      loadTemplate(TEMPLATES[0].key);
+    }
   }
   init();
 })();

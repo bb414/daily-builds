@@ -124,6 +124,69 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_narrowing_a_range(self):
+        page = self.open()
+        card = page.inner_text("#narrow-card")
+        self.assertIn("Try narrowing a range", card)
+        self.assertIn("Share who would try a meal kit", page.input_value("#narrow-driver") and
+                      page.inner_text("#narrow-driver option:checked"))
+        before = page.inner_text("#narrow-card tbody tr:nth-child(2)")
+        page.select_option("#narrow-factor", "0")
+        after = page.inner_text("#narrow-card tbody tr:nth-child(2)")
+        self.assertNotEqual(before, after)
+        self.assertIn("Pinning down", page.inner_text("#narrow-card"))
+        self.assertEqual(page.evaluate("document.activeElement.id"), "narrow-factor")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_download_open_link_and_autosave(self):
+        import json
+        import tempfile
+        page = self.open()
+        page.select_option("#template", "bike-share")
+        self.settle(page)
+        page.fill("#f-title", "My bikes")
+        self.settle(page)
+        self.assertEqual(page.input_value("#template"), "yours")
+        with page.expect_download() as info:
+            page.click("#save-btn")
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "m.json"
+            info.value.save_as(str(path))
+            saved = json.loads(path.read_text())
+            self.assertEqual(saved["title"], "My bikes")
+            self.assertNotIn("key", saved)
+            from rangefinder.model import validate_model
+            self.assertEqual(validate_model(saved), [])
+            # Reloading restores the last estimate from this browser.
+            page.reload()
+            page.wait_for_selector("#summary .range")
+            self.assertEqual(page.input_value("#f-title"), "My bikes")
+            # Opening a file, then a broken one.
+            saved["title"] = "Opened from a file"
+            path.write_text(json.dumps(saved))
+            page.set_input_files("#open-file", str(path))
+            page.wait_for_function("document.querySelector('#f-title').value === 'Opened from a file'")
+            bad = Path(d) / "bad.json"
+            bad.write_text('{"format": "range-finder-model", "terms": []}')
+            page.set_input_files("#open-file", str(bad))
+            page.wait_for_selector("#status.error")
+            self.assertIn("could not be opened", page.inner_text("#status"))
+        # A share link reproduces the estimate in a fresh browser.
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+        page.click("#link-btn")
+        link = page.evaluate("location.href")
+        self.assertIn("#model=", link)
+        other = self.browser.new_page()
+        other.goto(link)
+        other.wait_for_selector("#summary .range")
+        self.assertEqual(other.input_value("#f-title"), "Opened from a file")
+        self.assertEqual(other.inner_text("#summary .range"), page.inner_text("#summary .range"))
+        other.goto(APP_URL + "#model=not-base64!")
+        other.close()
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_phone_layout_fits(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
