@@ -45,7 +45,9 @@ Python, R, and JavaScript/HTML are all fair game. Prefer what suits the idea: a 
 
 ## What a good build looks like
 
-- **Small but finished.** Something a person could run or open in a few minutes and get value from. Roughly 150 to 800 lines of real code.
+- **Small but finished.** Something a person could run or open in a few minutes and get value from.
+- **A good UI, always.** Every build ships a polished, interactive interface someone can open and use straight away: ideally a self-contained HTML app that works offline by double-clicking the file, or a local web app started with one command. A command-line tool on its own is not enough. Clean layout, clear typography, responsive on a phone, keyboard accessible, readable charts.
+- **Refined, not rushed.** After the first working version, every build goes through at least five refinement loops: two that add depth, one focused purely on the UI, then two that audit everything in great detail.
 - **Runs offline with no API keys or paid services.** Use synthetic or openly licensed bundled data. If a free public API is genuinely central to the idea, it must fail gracefully when offline.
 - **Tested.** Includes at least a few automated tests or a self-check, and they pass before anything is pushed.
 - **Explains itself.** README covers what it is, why it matters (linked to the themes above), how to run it, and what could come next.
