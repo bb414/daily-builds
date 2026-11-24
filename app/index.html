@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stairstep</title>
+<meta name="description" content="Forecast value added for a confectionery chain: does each step of the forecast, AI included, actually earn its place?">
+<style>
+:root {
+  --bg: #f4f3ee;
+  --surface: #ffffff;
+  --surface-2: #efede6;
+  --ink: #1b2129;
+  --muted: #5a6371;
+  --line: #dcd9cf;
+  --accent: #2c56c8;
+  --accent-ink: #ffffff;
+  --accent-soft: #e5ebfa;
+  --good: #1b7347;
+  --good-soft: #def2e6;
+  --bad: #b23a2c;
+  --bad-soft: #fbe6e2;
+  --warn: #8a5d00;
+  --warn-soft: #faf0d6;
+  --festival: rgba(214, 150, 30, 0.16);
+  --c-naive: #8d939c;
+  --c-average: #5f7590;
+  --c-seasonal: #b08a4f;
+  --c-smoothing: #2f8f86;
+  --c-ai: #4b46c8;
+  --c-planner: #d0662a;
+  --c-actual: #1b2129;
+  --focus: #f0b400;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(20, 24, 32, 0.05), 0 4px 14px rgba(20, 24, 32, 0.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #13161b;
+    --surface: #1c2027;
+    --surface-2: #252a33;
+    --ink: #eceef2;
+    --muted: #a2abb8;
+    --line: #343a45;
+    --accent: #7d9cf0;
+    --accent-ink: #0f1420;
+    --accent-soft: #232d45;
+    --good: #6fd19c;
+    --good-soft: #1c3427;
+    --bad: #f08a7b;
+    --bad-soft: #3b2320;
+    --warn: #e8bf62;
+    --warn-soft: #3a3020;
+    --festival: rgba(232, 191, 98, 0.14);
+    --c-naive: #9aa1ab;
+    --c-average: #8aa2c0;
+    --c-seasonal: #d1aa6c;
+    --c-smoothing: #4fc2b6;
+    --c-ai: #9b97ff;
+    --c-planner: #f08a4b;
+    --c-actual: #eceef2;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+[tabindex="-1"]:focus { outline: none; }
+.skip { position: absolute; left: 8px; top: -60px; background: var(--surface); padding: 8px 12px; border-radius: 8px; z-index: 10; }
+.skip:focus { top: 8px; }
+header.top { max-width: 1240px; margin: 0 auto; padding: 18px 20px 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; letter-spacing: -0.01em; }
+.brand svg { width: 24px; height: 24px; }
+.top-note { color: var(--muted); font-size: 0.88rem; }
+.intro { max-width: 1240px; margin: 0 auto; padding: 4px 20px 10px; }
+.intro h1 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); line-height: 1.15; letter-spacing: -0.02em; margin: 6px 0 8px; }
+.intro p { max-width: 80ch; margin: 0; color: var(--muted); }
+.layout { max-width: 1240px; margin: 0 auto; padding: 10px 20px 48px; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
+.panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+.stack > * + * { margin-top: 18px; }
+h2 { font-size: 1.2rem; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+h3 { font-size: 0.95rem; margin: 0 0 8px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.87rem; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; font-weight: 700; color: var(--accent); margin: 0 0 4px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset + fieldset { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+legend { font-weight: 800; font-size: 0.95rem; padding: 0; margin-bottom: 6px; }
+.control { margin: 10px 0 0; }
+.control-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 0.9rem; }
+.control-top label { font-weight: 600; }
+.control output { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.control input[type=range] { width: 100%; margin: 4px 0 0; accent-color: var(--accent); min-height: 28px; }
+.control .help { font-size: 0.8rem; color: var(--muted); margin-top: 0; }
+.seed-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.seed-row input { width: 110px; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; padding: 9px 14px; border-radius: 10px; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.status { font-size: 0.82rem; color: var(--muted); min-height: 1.3em; margin-top: 8px; }
+.headline { font-size: clamp(1.2rem, 2.4vw, 1.5rem); line-height: 1.35; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 0.84rem; font-weight: 700; background: var(--surface-2); white-space: nowrap; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+
+/* Stairstep */
+.stairs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: end; margin-top: 8px; }
+.step { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; }
+.step-delta { text-align: center; font-size: 0.78rem; font-weight: 800; min-height: 1.3em; }
+.step-delta.good { color: var(--good); }
+.step-delta.bad { color: var(--bad); }
+.step-value { text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.step-bar-wrap { height: 200px; display: flex; align-items: flex-end; border-bottom: 2px solid var(--line); }
+.step-bar { width: 100%; border-radius: 8px 8px 0 0; min-height: 2px; }
+.step-name { text-align: center; font-size: 0.82rem; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+
+table.data { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.data th:first-child, table.data td:first-child { text-align: left; white-space: normal; }
+table.data thead th { color: var(--muted); font-weight: 600; font-size: 0.82rem; vertical-align: bottom; }
+.scroll { overflow-x: auto; }
+td.best { outline: 2px solid var(--muted); outline-offset: -3px; border-radius: 6px; }
+td.win { background: var(--good-soft); color: var(--good); font-weight: 800; border-radius: 6px; }
+td.lose { color: var(--bad); }
+.verdict { display: inline-block; padding: 2px 8px; border-radius: 99px; font-weight: 700; font-size: 0.8rem; }
+.verdict.ai { background: var(--good-soft); color: var(--good); }
+.verdict.simpler { background: var(--surface-2); color: var(--muted); }
+
+.hbars { display: grid; gap: 6px; }
+.hrow { display: grid; grid-template-columns: 150px minmax(0, 1fr) 56px; gap: 10px; align-items: center; font-size: 0.86rem; }
+.htrack { height: 12px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.hfill { display: block; height: 100%; border-radius: 99px; }
+.hval { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.types h3 { margin-bottom: 4px; }
+.types .hrow { grid-template-columns: 110px minmax(0, 1fr) 48px; }
+
+.ov-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ov { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.ov .big { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ov.good { border-color: var(--good); }
+.ov.bad { border-color: var(--bad); }
+
+.explorer-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 10px; }
+.explorer-controls label { display: grid; gap: 4px; font-size: 0.86rem; font-weight: 600; }
+select { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); min-height: 44px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.86rem; }
+.toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; min-height: 32px; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { fill: var(--muted); font-family: inherit; font-size: 12px; }
+.chart .grid { stroke: var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.84rem; color: var(--muted); margin-top: 8px; }
+footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 0.85rem; }
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .panel { position: static; max-height: none; }
+  .ov-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .types { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  header.top, .intro, .layout, footer.foot { padding-left: 14px; padding-right: 14px; }
+  .card { padding: 14px; }
+  .stairs { gap: 5px; }
+  .step-bar-wrap { height: 150px; }
+  .step-name { font-size: 0.72rem; }
+  .step-value { font-size: 0.82rem; }
+  .step-delta { font-size: 0.7rem; }
+  .hrow { grid-template-columns: 96px minmax(0, 1fr) 48px; font-size: 0.8rem; }
+  .ov-grid { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#results">Skip to the results</a>
+<header class="top">
+  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h4v-6h4v-4h4V6h6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/></svg><span>Stairstep</span></div>
+  <div class="top-note">Works offline. Every number is calculated in this page.</div>
+</header>
+<section class="intro">
+  <h1>Does the AI forecast earn its place?</h1>
+  <p>A confectionery chain with eight stores and twelve products forecasts next week's sales in six ways, from "same as last week" to an AI model with planners' overrides on top. Each step is judged by how much it cuts forecast error compared with the step before it: its <strong>forecast value added</strong>. Change the world and the people, and see where the AI is worth it.</p>
+</section>
+<div class="layout">
+  <aside class="panel card" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+    <form id="settings" novalidate></form>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </aside>
+  <main id="results" class="stack" tabindex="-1"></main>
+</div>
+<footer class="foot">The chain, its stores' sales and the planners are synthetic: generated in this page from a random seed. Festival weeks follow an invented three-year calendar in which Chinese New Year, Hari Raya and Deepavali move from year to year, as they do in real life.</footer>
+<script>
+/* MODEL START */
+(function (root) {
+  'use strict';
+
+  // Everything here uses only + - * / and floor, never exp, log or sqrt, so the
+  // Python version can reproduce every number bit for bit.
+  var YEAR = 52;
+  var SQRT3 = 1.7320508075688772;
+  var ALPHA = 0.2;      // smoothing: weight on the newest level
+  var GAMMA = 0.15;     // smoothing: weight on the newest seasonal index
+  var MA_WEEKS = 8;     // moving average length
+  var LAMBDA = 2;       // ridge penalty for the AI model
+  var REFIT_EVERY = 4;  // weeks between refits of the AI model
+
+  var STORES = [
+    { id: 'orchard', name: 'Orchard', size: 1.6 },
+    { id: 'tampines', name: 'Tampines', size: 1.3 },
+    { id: 'jurong-east', name: 'Jurong East', size: 1.2 },
+    { id: 'bishan', name: 'Bishan', size: 1.0 },
+    { id: 'bedok', name: 'Bedok', size: 0.9 },
+    { id: 'clementi', name: 'Clementi', size: 0.8 },
+    { id: 'woodlands', name: 'Woodlands', size: 0.7 },
+    { id: 'punggol', name: 'Punggol', size: 0.6 }
+  ];
+
+  // Week of the year (0 to 51) of each event in years 1, 2 and 3. Lunar and
+  // Islamic calendar festivals move from year to year; the others do not.
+  // Each shape entry is [weeks from the event, share of the full effect].
+  var EVENTS = [
+    { id: 'cny', name: 'Chinese New Year', weeks: [5, 3, 6], shape: [[-2, 0.5], [-1, 1], [0, 0.7], [1, -0.4]] },
+    { id: 'valentine', name: 'Valentine\'s Day', weeks: [6, 6, 6], shape: [[-1, 0.4], [0, 1]] },
+    { id: 'raya', name: 'Hari Raya Puasa', weeks: [16, 15, 13], shape: [[-2, 0.4], [-1, 1], [0, 0.5], [1, -0.3]] },
+    { id: 'deepavali', name: 'Deepavali', weeks: [44, 43, 45], shape: [[-1, 1], [0, 0.6], [1, -0.2]] },
+    { id: 'christmas', name: 'Christmas', weeks: [50, 50, 50], shape: [[-1, 0.7], [0, 1], [1, -0.5]] }
+  ];
+
+  // Weekly units in an average store. events: peak multiplier for each event.
+  // promo: chance of a chain-wide promotion in any week. promoLift: how strongly
+  // this product responds to a promotion.
+  var PRODUCTS = [
+    { id: 'pineapple-tarts', name: 'Pineapple tarts', base: 30, events: { cny: 3.5 }, promo: 0.04, promoLift: 1 },
+    { id: 'kueh-bangkit', name: 'Kueh bangkit', base: 12, events: { cny: 4 }, promo: 0.03, promoLift: 0.8 },
+    { id: 'love-letters', name: 'Love letters', base: 14, events: { cny: 3 }, promo: 0.04, promoLift: 0.8 },
+    { id: 'kueh-lapis', name: 'Kueh lapis', base: 10, events: { raya: 3, cny: 1.5 }, promo: 0.04, promoLift: 0.8 },
+    { id: 'almond-londons', name: 'Almond londons', base: 8, events: { raya: 3.5 }, promo: 0.03, promoLift: 0.8 },
+    { id: 'murukku', name: 'Murukku', base: 7, events: { deepavali: 4 }, promo: 0.03, promoLift: 0.8 },
+    { id: 'truffles', name: 'Chocolate truffles', base: 16, events: { valentine: 3, christmas: 2 }, promo: 0.06, promoLift: 1 },
+    { id: 'gingerbread', name: 'Gingerbread tins', base: 4, events: { christmas: 5 }, promo: 0.02, promoLift: 0.6 },
+    { id: 'gummy-bears', name: 'Gummy bears', base: 40, events: {}, promo: 0.12, promoLift: 1.2 },
+    { id: 'butter-mints', name: 'Butter mints', base: 28, events: {}, promo: 0.05, promoLift: 0.6 },
+    { id: 'mochi', name: 'Mochi assortment', base: 18, events: { cny: 1.3 }, promo: 0.08, promoLift: 1 },
+    { id: 'gift-box', name: 'Luxury gift box', base: 1.5, events: { cny: 3, christmas: 3 }, promo: 0, promoLift: 0 }
+  ];
+
+  var METHODS = [
+    { id: 'naive', name: 'Naive', detail: 'Last week\'s sales' },
+    { id: 'average', name: 'Moving average', detail: 'The average of the last eight weeks' },
+    { id: 'seasonal', name: 'Seasonal naive', detail: 'The same week last year' },
+    { id: 'smoothing', name: 'Seasonal smoothing', detail: 'Exponential smoothing with a weekly seasonal pattern' },
+    { id: 'ai', name: 'AI model', detail: 'A regression trained on all stores, with promotions and the festival calendar' },
+    { id: 'planner', name: 'AI + planners', detail: 'The AI forecast after planners\' manual overrides' }
+  ];
+
+  // [default, lowest, highest, whole number?]
+  var SETTINGS = {
+    seed: [7, 0, 4294967295, true],
+    holidays: [1, 0, 2, false],
+    promoLift: [0.5, 0, 1.5, false],
+    noise: [0.2, 0, 0.6, false],
+    growth: [0.06, -0.2, 0.3, false],
+    horizon: [1, 1, 4, true],
+    overrideRate: [0.3, 0, 1, false],
+    optimism: [0.12, -0.3, 0.3, false],
+    insight: [0.2, 0, 1, false],
+    buffer: [0.1, 0, 0.5, false],
+    threshold: [0.03, 0, 0.1, false]
+  };
+
+  function normaliseSettings(input) {
+    var s = input || {};
+    var out = {};
+    Object.keys(SETTINGS).forEach(function (key) {
+      var spec = SETTINGS[key];
+      var v = s[key];
+      if (typeof v !== 'number' || !isFinite(v)) { v = spec[0]; }
+      if (spec[3]) { v = Math.floor(v); }
+      out[key] = Math.min(spec[2], Math.max(spec[1], v));
+    });
+    return out;
+  }
+
+  // Seeded generator (mulberry32), identical in the Python version.
+  function makeRng(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Roughly normal noise from four uniforms (mean 0, standard deviation 1).
+  function normal(rng) {
+    return (rng() + rng() + rng() + rng() - 2) * SQRT3;
+  }
+
+  function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+  function tri(w, centre, radius) {
+    var d = Math.abs(w - centre) / radius;
+    return d >= 1 ? 0 : 1 - d;
+  }
+
+  // School holidays in June and December lift sales a little; September dips.
+  function seasonFactor(woy) {
+    return 1 + 0.08 * tri(woy, 24, 3) + 0.1 * tri(woy, 47, 4) - 0.05 * tri(woy, 34, 4);
+  }
+
+  function eventFeatures(weeks) {
+    var features = [];
+    EVENTS.forEach(function (e) {
+      e.shape.forEach(function (part) {
+        var flags = [];
+        for (var t = 0; t < weeks; t++) {
+          var year = Math.floor(t / YEAR);
+          flags.push(year < e.weeks.length && t % YEAR === e.weeks[year] + part[0] ? 1 : 0);
+        }
+        features.push({ id: e.id + (part[0] < 0 ? '' : '+') + part[0], event: e.id, offset: part[0], weight: part[1], flags: flags });
+      });
+    });
+    return features;
+  }
+
+  // Three years of weekly sales for every product in every store.
+  function simulate(settings) {
+    var s = normaliseSettings(settings);
+    var weeks = 3 * YEAR;
+    var rng = makeRng(s.seed);
+    var promo = PRODUCTS.map(function (p) {
+      var row = [];
+      for (var t = 0; t < weeks; t++) { row.push(rng() < p.promo ? 1 : 0); }
+      return row;
+    });
+    var events = eventFeatures(weeks);
+    var sales = PRODUCTS.map(function (p, pi) {
+      return STORES.map(function (st) {
+        var row = [];
+        for (var t = 0; t < weeks; t++) {
+          var m = p.base * st.size;
+          m = m * seasonFactor(t % YEAR);
+          m = m * (1 + s.growth * t / YEAR);
+          events.forEach(function (f) {
+            var k = p.events[f.event];
+            if (k !== undefined && f.flags[t]) { m = m * Math.max(0.3, 1 + (k - 1) * s.holidays * f.weight); }
+          });
+          if (promo[pi][t]) { m = m * (1 + s.promoLift * p.promoLift); }
+          else if (t > 0 && promo[pi][t - 1]) { m = m * Math.max(0.3, 1 - 0.3 * s.promoLift * p.promoLift); }
+          var z = normal(rng);
+          var cv = s.noise + 1 / (1 + m);
+          row.push(Math.max(0, Math.floor(m * (1 + cv * z) + 0.5)));
+        }
+        return row;
+      });
+    });
+    return {
+      weeks: weeks,
+      testStart: weeks - YEAR,
+      skus: PRODUCTS.map(function (p) { return { id: p.id, name: p.name }; }),
+      stores: STORES.map(function (st) { return { id: st.id, name: st.name }; }),
+      sales: sales,
+      promo: promo,
+      events: events,
+      synthetic: true
+    };
+  }
+
+  /* ---------- Forecasting methods ---------- */
+
+  function emptyGrid(data) {
+    return data.sales.map(function (rows) {
+      return rows.map(function () {
+        var row = [];
+        for (var t = 0; t < data.weeks; t++) { row.push(null); }
+        return row;
+      });
+    });
+  }
+
+  function naive(data, h) {
+    var out = emptyGrid(data);
+    data.sales.forEach(function (rows, p) {
+      rows.forEach(function (y, s) {
+        for (var t = data.testStart; t < data.weeks; t++) { out[p][s][t] = y[t - h]; }
+      });
+    });
+    return out;
+  }
+
+  function movingAverage(data, h) {
+    var out = emptyGrid(data);
+    data.sales.forEach(function (rows, p) {
+      rows.forEach(function (y, s) {
+        for (var t = data.testStart; t < data.weeks; t++) {
+          var sum = 0;
+          for (var k = t - h - MA_WEEKS + 1; k <= t - h; k++) { sum += y[k]; }
+          out[p][s][t] = sum / MA_WEEKS;
+        }
+      });
+    });
+    return out;
+  }
+
+  function seasonalNaive(data) {
+    var out = emptyGrid(data);
+    data.sales.forEach(function (rows, p) {
+      rows.forEach(function (y, s) {
+        for (var t = data.testStart; t < data.weeks; t++) { out[p][s][t] = y[t - YEAR]; }
+      });
+    });
+    return out;
+  }
+
+  // Multiplicative seasonal exponential smoothing (Holt-Winters without a
+  // trend), started from the first year and updated every week. A forecast h
+  // weeks ahead uses only what was known h weeks before.
+  function smoothingSeries(y, h, testStart) {
+    var fc = [];
+    for (var i = 0; i < y.length; i++) { fc.push(null); }
+    var level = 0;
+    for (var t = 0; t < YEAR; t++) { level += y[t]; }
+    level = level / YEAR;
+    if (level < 0.1) { level = 0.1; }
+    // Starting pattern: each week of the first year, averaged with its
+    // neighbours to damp the noise.
+    var season = [];
+    for (t = 0; t < YEAR; t++) {
+      var prev = y[t === 0 ? 0 : t - 1], next = y[t === YEAR - 1 ? YEAR - 1 : t + 1];
+      season.push(clamp((prev + y[t] + next) / 3 / level, 0.1, 10));
+    }
+    for (var o = YEAR; o < y.length; o++) {
+      var si = season[o % YEAR];
+      var newLevel = ALPHA * (y[o] / si) + (1 - ALPHA) * level;
+      if (newLevel < 0.1) { newLevel = 0.1; }
+      season[o % YEAR] = clamp(GAMMA * (y[o] / newLevel) + (1 - GAMMA) * si, 0.1, 10);
+      level = newLevel;
+      var target = o + h;
+      if (target >= testStart && target < y.length) { fc[target] = level * season[target % YEAR]; }
+    }
+    return fc;
+  }
+
+  function smoothing(data, h) {
+    return data.sales.map(function (rows) {
+      return rows.map(function (y) { return smoothingSeries(y, h, data.testStart); });
+    });
+  }
+
+  function featureNames(data) {
+    return ['intercept', 'recent', 'last four weeks', 'same week last year', 'promotion', 'week after a promotion']
+      .concat(data.events.map(function (e) { return 'event ' + e.id; }))
+      .concat(['festival week last year']);
+  }
+
+  // Features for forecasting week t from h weeks earlier, as ratios to the
+  // store's average over the 52 weeks it could see. Returns [level, x].
+  function features(data, p, s, t, h) {
+    var y = data.sales[p][s];
+    var sum = 0;
+    for (var k = t - h - 51; k <= t - h; k++) { sum += y[k]; }
+    var level = sum / YEAR + 0.5;
+    var recent4 = y[t - h - 3] + y[t - h - 2] + y[t - h - 1] + y[t - h];
+    var promoNow = data.promo[p][t];
+    var postPromo = data.promo[p][t - 1] && !promoNow ? 1 : 0;
+    var x = [1, y[t - h] / level, recent4 / 4 / level, y[t - YEAR] / level, promoNow, postPromo];
+    var lastYear = 0;
+    data.events.forEach(function (e) {
+      x.push(e.flags[t]);
+      if (e.flags[t - YEAR]) { lastYear = 1; }
+    });
+    x.push(lastYear);
+    return [level, x];
+  }
+
+  // Solves (X'X + lambda I) b = X'y by Gaussian elimination with partial
+  // pivoting. xtx holds only the upper triangle. The intercept is not penalised.
+  function solveRidge(xtx, xty) {
+    var n = xty.length;
+    var a = [], b = [];
+    for (var i = 0; i < n; i++) {
+      var row = [];
+      for (var j = 0; j < n; j++) {
+        var v = i <= j ? xtx[i][j] : xtx[j][i];
+        if (i === j && i > 0) { v = v + LAMBDA; }
+        row.push(v);
+      }
+      a.push(row);
+      b.push(xty[i]);
+    }
+    for (var col = 0; col < n; col++) {
+      var piv = col;
+      for (var r = col + 1; r < n; r++) {
+        if (Math.abs(a[r][col]) > Math.abs(a[piv][col])) { piv = r; }
+      }
+      if (piv !== col) {
+        var tmp = a[piv]; a[piv] = a[col]; a[col] = tmp;
+        var tb = b[piv]; b[piv] = b[col]; b[col] = tb;
+      }
+      if (Math.abs(a[col][col]) < 1e-12) { continue; }
+      for (r = col + 1; r < n; r++) {
+        var f = a[r][col] / a[col][col];
+        if (f !== 0) {
+          for (var c = col; c < n; c++) { a[r][c] -= f * a[col][c]; }
+          b[r] -= f * b[col];
+        }
+      }
+    }
+    var beta = [];
+    for (i = 0; i < n; i++) { beta.push(0); }
+    for (i = n - 1; i >= 0; i--) {
+      var total = b[i];
+      for (j = i + 1; j < n; j++) { total -= a[i][j] * beta[j]; }
+      beta[i] = Math.abs(a[i][i]) < 1e-12 ? 0 : total / a[i][i];
+    }
+    return beta;
+  }
+
+  // One regression per product, pooled across stores and refitted every four
+  // weeks on everything known by then.
+  function aiModel(data, h) {
+    var out = emptyGrid(data);
+    var coefficients = [];
+    var first = 51 + h;
+    var nStores = data.stores.length;
+    data.sales.forEach(function (rows, p) {
+      var n = 7 + data.events.length;
+      var xtx = [], xty = [];
+      for (var i = 0; i < n; i++) {
+        var row = [];
+        for (var j = 0; j < n; j++) { row.push(0); }
+        xtx.push(row);
+        xty.push(0);
+      }
+      var next = first;
+      var beta = null;
+      for (var start = data.testStart; start < data.weeks; start += REFIT_EVERY) {
+        for (; next <= start - h; next++) {
+          for (var s = 0; s < nStores; s++) {
+            var fx = features(data, p, s, next, h);
+            var x = fx[1];
+            var target = rows[s][next] / fx[0];
+            for (i = 0; i < n; i++) {
+              xty[i] += x[i] * target;
+              for (j = i; j < n; j++) { xtx[i][j] += x[i] * x[j]; }
+            }
+          }
+        }
+        beta = solveRidge(xtx, xty);
+        for (var t = start; t < Math.min(start + REFIT_EVERY, data.weeks); t++) {
+          for (s = 0; s < nStores; s++) {
+            var f2 = features(data, p, s, t, h);
+            var dot = 0;
+            for (i = 0; i < n; i++) { dot += beta[i] * f2[1][i]; }
+            out[p][s][t] = Math.max(0, f2[0] * dot);
+          }
+        }
+      }
+      coefficients.push(beta);
+    });
+    return { forecasts: out, coefficients: coefficients };
+  }
+
+  // Planners override some AI forecasts. They have a little real information
+  // (insight: the share of the AI's error they can see), some noise of their
+  // own, and a tendency to push forecasts up (optimism). Their random draws
+  // come from a separate stream, so changing them never changes the sales.
+  function planners(data, ai, s) {
+    var out = emptyGrid(data);
+    var info = emptyGrid(data);
+    var rng = makeRng((s.seed ^ 0x9E3779B9) >>> 0);
+    data.sales.forEach(function (rows, p) {
+      rows.forEach(function (y, st) {
+        for (var t = data.testStart; t < data.weeks; t++) {
+          var u = rng();
+          var z = normal(rng);
+          var base = ai[p][st][t];
+          var f = base;
+          if (u < s.overrideRate) {
+            f = Math.max(0, base * (1 + s.optimism + 0.15 * z) + s.insight * (y[t] - base));
+          }
+          out[p][st][t] = f;
+          info[p][st][t] = u < s.overrideRate;
+        }
+      });
+    });
+    return { forecasts: out, overridden: info };
+  }
+
+  /* ---------- Scoring ---------- */
+
+  function weekType(data, p, t) {
+    if (data.promo[p][t] || (t > 0 && data.promo[p][t - 1])) { return 'promo'; }
+    for (var i = 0; i < data.events.length; i++) { if (data.events[i].flags[t]) { return 'festival'; } }
+    return 'ordinary';
+  }
+
+  function newTally() { return { abs: 0, signed: 0, actual: 0, sold: 0, waste: 0, lost: 0, n: 0 }; }
+
+  function addTally(tally, actual, forecast, buffer) {
+    var stock = Math.floor(forecast * (1 + buffer) + 0.5);
+    var sold = Math.min(stock, actual);
+    tally.abs += Math.abs(actual - forecast);
+    tally.signed += forecast - actual;
+    tally.actual += actual;
+    tally.sold += sold;
+    tally.waste += stock - sold;
+    tally.lost += actual - sold;
+    tally.n += 1;
+  }
+
+  function summary(tally) {
+    var a = tally.actual;
+    return {
+      n: tally.n,
+      actual: a,
+      wape: a > 0 ? tally.abs / a : null,
+      bias: a > 0 ? tally.signed / a : null,
+      fillRate: a > 0 ? tally.sold / a : null,
+      waste: tally.waste,
+      lost: tally.lost
+    };
+  }
+
+  function forecastAll(data, settings) {
+    var s = normaliseSettings(settings);
+    var ai = aiModel(data, s.horizon);
+    var plan = planners(data, ai.forecasts, s);
+    return {
+      settings: s,
+      forecasts: {
+        naive: naive(data, s.horizon),
+        average: movingAverage(data, s.horizon),
+        seasonal: seasonalNaive(data),
+        smoothing: smoothing(data, s.horizon),
+        ai: ai.forecasts,
+        planner: plan.forecasts
+      },
+      overridden: plan.overridden,
+      coefficients: ai.coefficients,
+      featureNames: featureNames(data)
+    };
+  }
+
+  function evaluate(data, fc) {
+    var s = fc.settings;
+    var ids = METHODS.map(function (m) { return m.id; });
+    var overall = {}, bySku = [], byType = { festival: {}, promo: {}, ordinary: {} };
+    ids.forEach(function (id) {
+      overall[id] = newTally();
+      Object.keys(byType).forEach(function (k) { byType[k][id] = newTally(); });
+    });
+    var groups = { up: null, down: null, small: null, large: null };
+    Object.keys(groups).forEach(function (k) { groups[k] = { n: 0, before: 0, after: 0, actual: 0 }; });
+    data.sales.forEach(function (rows, p) {
+      var sku = {};
+      ids.forEach(function (id) { sku[id] = newTally(); });
+      rows.forEach(function (y, st) {
+        for (var t = data.testStart; t < data.weeks; t++) {
+          var type = weekType(data, p, t);
+          ids.forEach(function (id) {
+            var f = fc.forecasts[id][p][st][t];
+            addTally(overall[id], y[t], f, s.buffer);
+            addTally(sku[id], y[t], f, s.buffer);
+            addTally(byType[type][id], y[t], f, s.buffer);
+          });
+          if (fc.overridden[p][st][t]) {
+            var before = fc.forecasts.ai[p][st][t];
+            var after = fc.forecasts.planner[p][st][t];
+            if (after !== before) {
+              var dir = after > before ? 'up' : 'down';
+              var size = Math.abs(after - before) / Math.max(before, 1) < 0.2 ? 'small' : 'large';
+              [dir, size].forEach(function (k) {
+                groups[k].n += 1;
+                groups[k].before += Math.abs(y[t] - before);
+                groups[k].after += Math.abs(y[t] - after);
+                groups[k].actual += y[t];
+              });
+            }
+          }
+        }
+      });
+      var w = {};
+      ids.forEach(function (id) { w[id] = summary(sku[id]); });
+      var simpler = ['naive', 'average', 'seasonal', 'smoothing'];
+      var best = simpler[0];
+      simpler.forEach(function (id) {
+        if (w[id].wape !== null && (w[best].wape === null || w[id].wape < w[best].wape)) { best = id; }
+      });
+      var gain = w.ai.wape !== null && w[best].wape !== null ? w[best].wape - w.ai.wape : null;
+      var plannerGain = w.ai.wape !== null && w.planner.wape !== null ? w.ai.wape - w.planner.wape : null;
+      bySku.push({
+        id: data.skus[p].id,
+        name: data.skus[p].name,
+        methods: w,
+        bestSimpler: best,
+        aiGain: gain,
+        plannerGain: plannerGain,
+        verdict: gain !== null && gain >= s.threshold ? 'ai' : 'simpler'
+      });
+    });
+    var methods = METHODS.map(function (m, i) {
+      var r = summary(overall[m.id]);
+      r.id = m.id;
+      r.name = m.name;
+      var naiveWape = summary(overall.naive).wape;
+      var prev = i > 0 ? summary(overall[ids[i - 1]]).wape : null;
+      r.fvaNaive = r.wape !== null && naiveWape !== null ? naiveWape - r.wape : null;
+      r.fvaPrevious = i > 0 && r.wape !== null && prev !== null ? prev - r.wape : null;
+      return r;
+    });
+    var types = {};
+    Object.keys(byType).forEach(function (k) {
+      types[k] = {};
+      ids.forEach(function (id) { types[k][id] = summary(byType[k][id]); });
+    });
+    var overrides = {};
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k];
+      overrides[k] = {
+        n: g.n,
+        wapeBefore: g.actual > 0 ? g.before / g.actual : null,
+        wapeAfter: g.actual > 0 ? g.after / g.actual : null,
+        improved: g.actual > 0 ? (g.before - g.after) / g.actual : null
+      };
+    });
+    return {
+      settings: s,
+      methods: methods,
+      bySku: bySku,
+      byWeekType: types,
+      overrides: overrides,
+      deployOn: bySku.filter(function (x) { return x.verdict === 'ai'; }).length
+    };
+  }
+
+  function run(settings) {
+    var data = simulate(settings);
+    var fc = forecastAll(data, settings);
+    return { data: data, forecasts: fc, results: evaluate(data, fc) };
+  }
+
+  var api = {
+    YEAR: YEAR,
+    STORES: STORES,
+    EVENTS: EVENTS,
+    PRODUCTS: PRODUCTS,
+    METHODS: METHODS,
+    SETTINGS: SETTINGS,
+    normaliseSettings: normaliseSettings,
+    makeRng: makeRng,
+    seasonFactor: seasonFactor,
+    simulate: simulate,
+    smoothingSeries: smoothingSeries,
+    features: features,
+    featureNames: featureNames,
+    solveRidge: solveRidge,
+    forecastAll: forecastAll,
+    evaluate: evaluate,
+    weekType: weekType,
+    run: run
+  };
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
+  else { root.Stairstep = api; }
+})(this);
+/* MODEL END */
+</script>
+<script>
+(function () {
+  'use strict';
+  var M = window.Stairstep;
+  var form = document.getElementById('settings');
+  var results = document.getElementById('results');
+  var statusEl = document.getElementById('status');
+  var IDS = M.METHODS.map(function (m) { return m.id; });
+  var NAMES = {};
+  M.METHODS.forEach(function (m) { NAMES[m.id] = m.name; });
+  var MINUS = '−';
+
+  var state = {
+    settings: M.normaliseSettings({}),
+    sku: 0,
+    store: -1,
+    shown: { naive: false, average: true, seasonal: false, smoothing: false, ai: true, planner: true },
+    run: null
+  };
+
+  function esc(v) {
+    return String(v === null || v === undefined ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function signed(x, digits, unit) {
+    var v = Math.abs(x) < Math.pow(10, -digits) / 2 ? 0 : x;
+    var text = Math.abs(v).toFixed(digits) + (unit || '');
+    return v > 0 ? '+' + text : (v < 0 ? MINUS + text : text);
+  }
+  function pct1(x) { return x === null ? 'n/a' : (x * 100).toFixed(1) + '%'; }
+  function pct0(x) { return Math.round(x * 100) + '%'; }
+  function pts(x) { return (Math.abs(x) * 100).toFixed(1) + (Math.abs(x * 100) >= 0.95 && Math.abs(x * 100) < 1.05 ? ' point' : ' points'); }
+  function units(n) { return Math.round(n).toLocaleString('en-GB'); }
+  function colour(id) { return 'var(--c-' + id + ')'; }
+
+  /* ---------- Settings panel ---------- */
+
+  var CONTROLS = [
+    { group: 'The world', key: 'holidays', label: 'Festival strength', min: 0, max: 2, step: 0.1,
+      fmt: function (v) { return pct0(v); }, help: 'Size of the Chinese New Year, Hari Raya, Deepavali, Valentine\'s and Christmas peaks. 0% removes them.' },
+    { group: 'The world', key: 'promoLift', label: 'Promotion lift', min: 0, max: 1.5, step: 0.05,
+      fmt: function (v) { return '+' + pct0(v); }, help: 'Extra sales in a chain-wide promotion week, before each product\'s own response.' },
+    { group: 'The world', key: 'noise', label: 'Random noise', min: 0, max: 0.6, step: 0.05,
+      fmt: function (v) { return pct0(v); }, help: 'Week-to-week randomness that no method can predict.' },
+    { group: 'The world', key: 'growth', label: 'Growth per year', min: -0.2, max: 0.3, step: 0.01,
+      fmt: function (v) { return signed(v * 100, 0, '%'); }, help: '' },
+    { group: 'Forecasting', key: 'horizon', label: 'Weeks ahead', min: 1, max: 4, step: 1,
+      fmt: function (v) { return v + (v === 1 ? ' week' : ' weeks'); }, help: 'How far ahead each forecast is made, for example to allow for delivery times.' },
+    { group: 'Planners', key: 'overrideRate', label: 'How often they override', min: 0, max: 1, step: 0.05,
+      fmt: function (v) { return pct0(v); }, help: 'Share of AI forecasts a planner changes by hand.' },
+    { group: 'Planners', key: 'optimism', label: 'Optimism', min: -0.3, max: 0.3, step: 0.01,
+      fmt: function (v) { return signed(v * 100, 0, '%'); }, help: 'How far an override pushes the forecast up on average.' },
+    { group: 'Planners', key: 'insight', label: 'What they know', min: 0, max: 1, step: 0.05,
+      fmt: function (v) { return pct0(v); }, help: 'Share of the AI\'s error a planner can see from local knowledge.' },
+    { group: 'Stock and decisions', key: 'buffer', label: 'Safety stock', min: 0, max: 0.5, step: 0.05,
+      fmt: function (v) { return '+' + pct0(v); }, help: 'Ordered on top of the forecast. Anything unsold after a week is wasted.' },
+    { group: 'Stock and decisions', key: 'threshold', label: 'The AI must beat simple methods by', min: 0, max: 0.1, step: 0.005,
+      fmt: function (v) { return (v * 100).toFixed(1) + ' pts'; }, help: 'Below this gain in error, a product keeps its best simple method.' }
+  ];
+
+  function renderControls() {
+    var groups = [];
+    CONTROLS.forEach(function (c) { if (groups.indexOf(c.group) < 0) { groups.push(c.group); } });
+    var html = groups.map(function (g) {
+      var inner = CONTROLS.filter(function (c) { return c.group === g; }).map(function (c) {
+        var v = state.settings[c.key];
+        return '<div class="control"><div class="control-top"><label for="in-' + c.key + '">' + esc(c.label) + '</label>' +
+          '<output id="out-' + c.key + '" for="in-' + c.key + '">' + esc(c.fmt(v)) + '</output></div>' +
+          '<input type="range" id="in-' + c.key + '" name="' + c.key + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + v + '"' +
+          ' aria-valuetext="' + esc(c.fmt(v)) + '"' + (c.help ? ' aria-describedby="help-' + c.key + '"' : '') + '>' +
+          (c.help ? '<p class="help" id="help-' + c.key + '">' + esc(c.help) + '</p>' : '') + '</div>';
+      }).join('');
+      if (g === 'The world') {
+        inner += '<div class="seed-row"><label class="small" for="in-seed"><strong>World number</strong></label>' +
+          '<input type="number" id="in-seed" name="seed" min="0" max="4294967295" step="1" value="' + state.settings.seed + '">' +
+          '<button class="btn" type="button" data-action="new-world">New world</button></div>';
+      }
+      return '<fieldset><legend>' + esc(g) + '</legend>' + inner + '</fieldset>';
+    }).join('');
+    html += '<div class="btn-row" style="margin-top: 18px"><button class="btn" type="button" data-action="reset">Reset all settings</button></div>';
+    form.innerHTML = html;
+  }
+
+  function syncControls() {
+    CONTROLS.forEach(function (c) {
+      var input = document.getElementById('in-' + c.key);
+      var v = state.settings[c.key];
+      input.value = v;
+      input.setAttribute('aria-valuetext', c.fmt(v));
+      document.getElementById('out-' + c.key).textContent = c.fmt(v);
+    });
+    document.getElementById('in-seed').value = state.settings.seed;
+  }
+
+  var timer = null;
+  function schedule() {
+    statusEl.textContent = 'Recalculating…';
+    clearTimeout(timer);
+    timer = setTimeout(compute, 120);
+  }
+
+  form.addEventListener('input', function (e) {
+    var key = e.target.name;
+    if (!key) { return; }
+    var v = Number(e.target.value);
+    if (key === 'seed' && (e.target.value === '' || !isFinite(v))) { return; }
+    var next = {};
+    Object.keys(state.settings).forEach(function (k) { next[k] = state.settings[k]; });
+    next[key] = v;
+    state.settings = M.normaliseSettings(next);
+    var c = CONTROLS.filter(function (x) { return x.key === key; })[0];
+    if (c) {
+      document.getElementById('out-' + key).textContent = c.fmt(state.settings[key]);
+      e.target.setAttribute('aria-valuetext', c.fmt(state.settings[key]));
+    }
+    schedule();
+  });
+  form.addEventListener('submit', function (e) { e.preventDefault(); });
+  form.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn) { return; }
+    if (btn.getAttribute('data-action') === 'new-world') {
+      state.settings = M.normaliseSettings(Object.assign({}, state.settings, { seed: Math.floor(Math.random() * 100000) }));
+    } else if (btn.getAttribute('data-action') === 'reset') {
+      state.settings = M.normaliseSettings({});
+    }
+    syncControls();
+    schedule();
+  });
+
+  /* ---------- Results ---------- */
+
+  function compute() {
+    var t0 = performance.now();
+    state.run = M.run(state.settings);
+    renderResults();
+    var n = state.run.results.methods[0].n;
+    statusEl.textContent = 'Updated: ' + n.toLocaleString('en-GB') + ' forecasts per method in ' + Math.round(performance.now() - t0) + ' ms.';
+  }
+
+  function bestSimple(methods) {
+    var best = methods[0];
+    methods.slice(0, 4).forEach(function (m) { if (m.wape < best.wape) { best = m; } });
+    return best;
+  }
+
+  function headline(r) {
+    var methods = r.methods;
+    var simple = bestSimple(methods), ai = methods[4], planner = methods[5];
+    var text;
+    if (ai.wape < simple.wape) {
+      text = 'The AI model cuts forecast error from ' + pct1(simple.wape) + ' with the best simple method (' + simple.name.toLowerCase() +
+        ') to ' + pct1(ai.wape) + '.';
+    } else {
+      text = 'The AI model does not beat the best simple method: ' + pct1(ai.wape) + ' error against ' + pct1(simple.wape) + ' for ' + simple.name.toLowerCase() + '.';
+    }
+    if (planner.fvaPrevious < -0.0005) { text += ' Planners\' overrides then give back ' + pts(planner.fvaPrevious) + '.'; }
+    else if (planner.fvaPrevious > 0.0005) { text += ' Planners\' overrides take off another ' + pts(planner.fvaPrevious) + '.'; }
+    else { text += ' Planners\' overrides make almost no difference.'; }
+    var wasteSaved = simple.waste - ai.waste;
+    var chips = '<span class="chip ' + (r.deployOn ? 'good' : 'bad') + '">Worth using on ' + r.deployOn + ' of ' + r.bySku.length + ' products</span>' +
+      '<span class="chip ' + (wasteSaved >= 0 ? 'good' : 'bad') + '">' + (wasteSaved >= 0 ? 'Unsold stock down ' : 'Unsold stock up ') + units(Math.abs(wasteSaved)) + ' units a year</span>' +
+      '<span class="chip ' + (simple.lost - ai.lost >= 0 ? 'good' : 'bad') + '">Sales met: ' + pct1(simple.fillRate) + ' to ' + pct1(ai.fillRate) + '</span>';
+    return '<section class="card" aria-labelledby="headline-title"><p class="eyebrow" id="headline-title">The answer under these settings</p>' +
+      '<p class="headline">' + esc(text) + '</p><div class="chips">' + chips + '</div>' +
+      '<p class="small muted" style="margin-top: 10px">Compared over the third year: ' + r.methods[0].n.toLocaleString('en-GB') +
+      ' weekly forecasts per method (12 products in 8 stores, 52 weeks). Error is WAPE: total absolute error as a share of total sales.</p></section>';
+  }
+
+  function stairstep(r) {
+    var max = 0;
+    r.methods.forEach(function (m) { if (m.wape > max) { max = m.wape; } });
+    max = max * 1.08;
+    var steps = r.methods.map(function (m, i) {
+      var h = max > 0 ? (m.wape / max) * 100 : 0;
+      var delta = '';
+      if (i > 0 && m.fvaPrevious !== null) {
+        var cls = m.fvaPrevious > 0.0005 ? 'good' : (m.fvaPrevious < -0.0005 ? 'bad' : '');
+        delta = '<div class="step-delta ' + cls + '">' + signed(-m.fvaPrevious * 100, 1) + '</div>';
+      } else {
+        delta = '<div class="step-delta">start</div>';
+      }
+      return '<div class="step">' + delta + '<div class="step-value">' + pct1(m.wape) + '</div>' +
+        '<div class="step-bar-wrap"><div class="step-bar" style="height:' + h.toFixed(2) + '%; background:' + colour(m.id) + '"></div></div>' +
+        '<div class="step-name">' + esc(m.name) + '</div></div>';
+    }).join('');
+    var rows = r.methods.map(function (m) {
+      return '<tr><th scope="row"><span class="dot" style="background:' + colour(m.id) + '"></span> ' + esc(m.name) + '</th>' +
+        '<td>' + pct1(m.wape) + '</td><td>' + signed(m.bias * 100, 1, '%') + '</td>' +
+        '<td>' + (m.fvaNaive === null ? '' : signed(m.fvaNaive * 100, 1)) + '</td>' +
+        '<td>' + units(m.waste) + '</td><td>' + units(m.lost) + '</td><td>' + pct1(m.fillRate) + '</td></tr>';
+    }).join('');
+    return '<section class="card" aria-labelledby="stairs-title"><h2 id="stairs-title">The stairstep</h2>' +
+      '<p class="small muted">Each bar is a forecasting step\'s error. The number above it is how much it changed the error compared with the step to its left: negative is better.</p>' +
+      '<div class="stairs" role="img" aria-label="' + esc(r.methods.map(function (m) { return m.name + ' ' + pct1(m.wape); }).join(', ')) + '">' + steps + '</div>' +
+      '<div class="scroll" style="margin-top: 16px"><table class="data"><caption class="visually-hidden">Error, bias and stock for each step</caption>' +
+      '<thead><tr><th scope="col">Step</th><th scope="col">Error</th><th scope="col">Bias</th><th scope="col">Value added vs naive (pts)</th>' +
+      '<th scope="col">Unsold units</th><th scope="col">Lost sales units</th><th scope="col">Sales met</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="small muted" style="margin-top: 8px">Stock is ordered at the forecast plus ' + pct0(r.settings.buffer) + ' safety stock. Positive bias means forecasts run high.</p></section>';
+  }
+
+  function skuTable(r) {
+    var rows = r.bySku.slice().sort(function (a, b) { return b.aiGain - a.aiGain; }).map(function (s) {
+      var cells = IDS.map(function (id) {
+        var cls = '';
+        if (id === s.bestSimpler) { cls = 'best'; }
+        if (id === 'ai' && s.verdict === 'ai') { cls = 'win'; }
+        if (id === 'planner' && s.plannerGain < -0.0005) { cls = 'lose'; }
+        return '<td class="' + cls + '">' + pct1(s.methods[id].wape) + '</td>';
+      }).join('');
+      var verdict = s.verdict === 'ai'
+        ? '<span class="verdict ai">Use the AI</span> <span class="small muted">' + pts(s.aiGain) + ' better</span>'
+        : '<span class="verdict simpler">Keep ' + esc(NAMES[s.bestSimpler].toLowerCase()) + '</span> <span class="small muted">' +
+          (s.aiGain > 0 ? 'AI only ' + pts(s.aiGain) + ' better' : 'AI no better') + '</span>';
+      return '<tr><th scope="row">' + esc(s.name) + '</th>' + cells + '<td style="text-align:left">' + verdict + '</td></tr>';
+    }).join('');
+    return '<section class="card" aria-labelledby="sku-title"><h2 id="sku-title">Where the AI earns its place</h2>' +
+      '<p class="small muted">Error by product. The outlined cell is the best simple method; green means the AI beats it by at least ' +
+      (r.settings.threshold * 100).toFixed(1) + ' points; red means planners made the AI worse.</p>' +
+      '<div class="scroll"><table class="data"><caption class="visually-hidden">Forecast error for each product and method</caption><thead><tr><th scope="col">Product</th>' +
+      M.METHODS.map(function (m) { return '<th scope="col">' + esc(m.name) + '</th>'; }).join('') + '<th scope="col" style="text-align:left">Verdict</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div></section>';
+  }
+
+  function hbars(values, max) {
+    return '<div class="hbars">' + IDS.map(function (id) {
+      var v = values[id].wape;
+      return '<div class="hrow"><span>' + esc(NAMES[id]) + '</span><span class="htrack" aria-hidden="true"><span class="hfill" style="width:' +
+        (v === null || !max ? 0 : (v / max) * 100).toFixed(2) + '%; background:' + colour(id) + '"></span></span><span class="hval">' + pct1(v) + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function weekTypes(r) {
+    var labels = { festival: 'Festival weeks', promo: 'Promotion weeks', ordinary: 'Ordinary weeks' };
+    var max = 0;
+    Object.keys(labels).forEach(function (k) { IDS.forEach(function (id) { var v = r.byWeekType[k][id].wape; if (v > max) { max = v; } }); });
+    return '<section class="card" aria-labelledby="types-title"><h2 id="types-title">When the AI helps most</h2>' +
+      '<p class="small muted">Error in three kinds of week. Festival weeks are the weeks around a festival; promotion weeks include the week after a promotion.</p><div class="types">' +
+      Object.keys(labels).map(function (k) {
+        var n = r.byWeekType[k].naive.n;
+        return '<div><h3>' + labels[k] + ' <span class="muted small">(' + n.toLocaleString('en-GB') + ' forecasts)</span></h3>' + (n ? hbars(r.byWeekType[k], max) : '<p class="small muted">None in this world.</p>') + '</div>';
+      }).join('') + '</div></section>';
+  }
+
+  function overrides(r) {
+    var o = r.overrides;
+    var total = o.up.n + o.down.n;
+    var labels = { up: 'Pushed up', down: 'Pushed down', small: 'Small changes (under 20%)', large: 'Large changes (20% or more)' };
+    var cards = ['up', 'down', 'small', 'large'].map(function (k) {
+      var g = o[k];
+      if (!g.n) { return '<div class="ov"><h3>' + labels[k] + '</h3><p class="small muted">None.</p></div>'; }
+      var good = g.improved > 0;
+      return '<div class="ov ' + (good ? 'good' : 'bad') + '"><h3>' + labels[k] + '</h3><div class="big">' + signed(-g.improved * 100, 1) + ' pts</div>' +
+        '<p class="small">' + g.n.toLocaleString('en-GB') + ' overrides. Error ' + pct1(g.wapeBefore) + ' before, ' + pct1(g.wapeAfter) + ' after.</p></div>';
+    }).join('');
+    return '<section class="card" aria-labelledby="ov-title"><h2 id="ov-title">Which overrides help?</h2>' +
+      '<p class="small muted">' + (total ? 'Planners changed ' + total.toLocaleString('en-GB') + ' AI forecasts (' + pct1(total / r.methods[0].n) + '). ' : 'Planners changed no forecasts. ') +
+      'Each card shows how much those overrides changed the error on the forecasts they touched: negative is better.</p>' +
+      '<div class="ov-grid">' + cards + '</div></section>';
+  }
+
+  function seriesFor(run, p, s) {
+    var d = run.data, fc = run.forecasts.forecasts;
+    var out = { actual: [], promo: [], festival: [] };
+    IDS.forEach(function (id) { out[id] = []; });
+    for (var t = d.testStart; t < d.weeks; t++) {
+      var a = 0;
+      var f = {};
+      IDS.forEach(function (id) { f[id] = 0; });
+      var stores = s < 0 ? d.stores.map(function (_, i) { return i; }) : [s];
+      stores.forEach(function (st) {
+        a += d.sales[p][st][t];
+        IDS.forEach(function (id) { f[id] += fc[id][p][st][t]; });
+      });
+      out.actual.push(a);
+      IDS.forEach(function (id) { out[id].push(f[id]); });
+      out.promo.push(d.promo[p][t]);
+      out.festival.push(d.events.some(function (e) { return e.flags[t]; }) ? 1 : 0);
+    }
+    return out;
+  }
+
+  function lineChart(series, width) {
+    var height = 280, left = 44, right = 12, top = 12, bottom = 30;
+    var n = series.actual.length;
+    var max = 1;
+    series.actual.forEach(function (v) { if (v > max) { max = v; } });
+    IDS.forEach(function (id) { if (state.shown[id]) { series[id].forEach(function (v) { if (v > max) { max = v; } }); } });
+    max = max * 1.08;
+    var iw = width - left - right, ih = height - top - bottom;
+    function x(i) { return left + (i + 0.5) * iw / n; }
+    function y(v) { return top + ih - (v / max) * ih; }
+    var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-labelledby="ex-title ex-desc">' +
+      '<title id="ex-title">Weekly sales and forecasts in the third year</title><desc id="ex-desc">' + esc(seriesDescription(series)) + '</desc>';
+    series.festival.forEach(function (f, i) {
+      if (f) { svg += '<rect x="' + (left + i * iw / n).toFixed(1) + '" y="' + top + '" width="' + (iw / n).toFixed(1) + '" height="' + ih + '" fill="var(--festival)"/>'; }
+    });
+    for (var g = 0; g <= 4; g++) {
+      var v = max * g / 4;
+      svg += '<line class="grid" x1="' + left + '" x2="' + (width - right) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + Math.round(v) + '</text>';
+    }
+    [1, 13, 26, 39, 52].forEach(function (w) {
+      svg += '<text x="' + x(w - 1).toFixed(1) + '" y="' + (height - 8) + '" text-anchor="middle">wk ' + w + '</text>';
+    });
+    series.promo.forEach(function (pr, i) {
+      if (pr) { svg += '<path d="M' + x(i).toFixed(1) + ' ' + (top + ih - 9) + ' l5 8 h-10 z" fill="var(--warn)"/>'; }
+    });
+    function path(values) {
+      return values.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
+    }
+    IDS.forEach(function (id) {
+      if (state.shown[id]) { svg += '<path d="' + path(series[id]) + '" fill="none" stroke="' + colour(id) + '" stroke-width="2"/>'; }
+    });
+    svg += '<path d="' + path(series.actual) + '" fill="none" stroke="var(--c-actual)" stroke-width="2.5" stroke-dasharray="1 0"/>';
+    return svg + '</svg>';
+  }
+
+  function seriesDescription(series) {
+    var a = 0;
+    series.actual.forEach(function (v) { a += v; });
+    return IDS.filter(function (id) { return state.shown[id]; }).map(function (id) {
+      var e = 0;
+      series[id].forEach(function (v, i) { e += Math.abs(v - series.actual[i]); });
+      return NAMES[id] + ' error ' + pct1(a > 0 ? e / a : null);
+    }).join(', ') + '. ' + a.toLocaleString('en-GB') + ' units sold in the year.';
+  }
+
+  function explorer(run) {
+    var d = run.data;
+    var opts = d.skus.map(function (s, i) { return '<option value="' + i + '"' + (i === state.sku ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+    var stores = '<option value="-1"' + (state.store < 0 ? ' selected' : '') + '>All stores</option>' +
+      d.stores.map(function (s, i) { return '<option value="' + i + '"' + (i === state.store ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+    var toggles = IDS.map(function (id) {
+      return '<label><input type="checkbox" data-method="' + id + '"' + (state.shown[id] ? ' checked' : '') + '> <span class="dot" style="background:' + colour(id) + '"></span>' + esc(NAMES[id]) + '</label>';
+    }).join('');
+    return '<section class="card" aria-labelledby="ex-h"><h2 id="ex-h">Look at one product</h2>' +
+      '<div class="explorer-controls"><label>Product<select id="ex-sku">' + opts + '</select></label><label>Store<select id="ex-store">' + stores + '</select></label></div>' +
+      '<div class="toggles" role="group" aria-label="Forecasts to show">' + toggles + '</div>' +
+      '<div class="chart" id="ex-chart" style="margin-top: 10px"></div>' +
+      '<div class="legend"><span><span class="dot" style="background: var(--c-actual)"></span>Actual sales</span><span><span class="dot" style="background: var(--festival); outline: 1px solid var(--line)"></span>Festival weeks</span><span><span class="dot" style="background: var(--warn)"></span>Promotion</span></div>' +
+      '<p class="small muted" id="ex-summary" style="margin-top: 8px"></p></section>';
+  }
+
+  function drawExplorer() {
+    var holder = document.getElementById('ex-chart');
+    if (!holder || !state.run) { return; }
+    var series = seriesFor(state.run, state.sku, state.store);
+    var width = Math.max(300, Math.floor(holder.clientWidth || 700));
+    holder.innerHTML = lineChart(series, width);
+    document.getElementById('ex-summary').textContent = seriesDescription(series);
+  }
+
+  function downloads() {
+    return '<section class="card" aria-labelledby="dl-title"><h2 id="dl-title">Take the numbers with you</h2>' +
+      '<p class="small muted">Every forecast for the third year, or the summary above, to check in a spreadsheet or the Python companion.</p>' +
+      '<div class="btn-row"><button class="btn primary" type="button" data-action="csv">Download forecasts (CSV)</button>' +
+      '<button class="btn" type="button" data-action="json">Download results (JSON)</button></div></section>';
+  }
+
+  function renderResults() {
+    var r = state.run.results;
+    results.innerHTML = headline(r) + stairstep(r) + skuTable(r) + weekTypes(r) + overrides(r) + explorer(state.run) + downloads();
+    drawExplorer();
+  }
+
+  function forecastsCsv(run) {
+    var d = run.data, fc = run.forecasts;
+    var lines = ['product,store,week,actual,' + IDS.join(',') + ',overridden'];
+    d.sales.forEach(function (rows, p) {
+      rows.forEach(function (y, s) {
+        for (var t = d.testStart; t < d.weeks; t++) {
+          lines.push([d.skus[p].id, d.stores[s].id, t + 1, y[t]].concat(IDS.map(function (id) { return fc.forecasts[id][p][s][t].toFixed(3); }))
+            .concat([fc.overridden[p][s][t] ? 1 : 0]).join(','));
+        }
+      });
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  function download(name, text, type) {
+    var blob = new Blob([text], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  results.addEventListener('change', function (e) {
+    if (e.target.id === 'ex-sku') { state.sku = Number(e.target.value); drawExplorer(); }
+    else if (e.target.id === 'ex-store') { state.store = Number(e.target.value); drawExplorer(); }
+    else if (e.target.getAttribute('data-method')) { state.shown[e.target.getAttribute('data-method')] = e.target.checked; drawExplorer(); }
+  });
+  results.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn || !state.run) { return; }
+    if (btn.getAttribute('data-action') === 'csv') {
+      download('stairstep-forecasts-world-' + state.settings.seed + '.csv', forecastsCsv(state.run), 'text/csv');
+    } else if (btn.getAttribute('data-action') === 'json') {
+      download('stairstep-results-world-' + state.settings.seed + '.json', JSON.stringify(state.run.results, null, 2) + '\n', 'application/json');
+    }
+  });
+  var resizeTimer = null;
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawExplorer, 150); });
+
+  renderControls();
+  compute();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Only needed for the browser tests in tests/test_app_ui.py
+playwright
