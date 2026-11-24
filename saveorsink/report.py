@@ -14,8 +14,13 @@ def percent(x):
     return whole(x * 100)
 
 
+def preset_label(s):
+    preset = s.get("preset")
+    return PRESETS[preset]["label"] if isinstance(preset, str) and preset in PRESETS else "Custom settings"
+
+
 def summary_report(s, summary, years):
-    label = PRESETS.get(s.get("preset"), {}).get("label", "Custom settings")
+    label = preset_label(s)
     rescue = {"overdrawn": "as soon as they are overdrawn", "near-limit": "only when within £100 of the limit",
               "never": "never"}[s["rescue"]]
     lines = [
@@ -37,7 +42,7 @@ def summary_report(s, summary, years):
             "%d%%" % percent(x["cameBack"]) if saving else "n/a",
             percent(x["beyondChance"]), money(x["net"]["p50"], signed=True) if saving else "n/a"))
     lines += ["", "Set aside, moved in and better off are typical years (medians); raids are a yearly average;",
-              "came back is the share of everything moved into savings that was moved back out;",
+              "came back is the share of what went into savings (including interest) that was moved back out;",
               "past limit is the share of years that go beyond the interest-free overdraft at least once."]
     return "\n".join(lines)
 
@@ -56,7 +61,7 @@ def dial_text(key, value):
 def sweep_report(s, result):
     """The sweep as a table, best off first, with the frontier marked."""
     ka, kb = result["dials"]
-    label = PRESETS.get(s.get("preset"), {}).get("label", "Custom settings")
+    label = preset_label(s)
     lines = [
         "Tuning the %s: %s, %s simulated years per row" % (
             RULE_NAMES[result["rule"]].split(" (")[0].lower(), label, "{:,}".format(result["years"])),

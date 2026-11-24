@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 
@@ -12,16 +13,20 @@ from .report import summary_report, sweep_report, year_report
 
 
 def load_settings(args):
-    if getattr(args, "link", None):
+    if getattr(args, "link", None) is not None:
         s = decode_link(args.link)
-    elif args.settings:
+    elif args.settings is not None:
         try:
             with open(args.settings, encoding="utf-8-sig") as f:
                 s = json.load(f)
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ValueError("%s is not valid JSON: %s" % (args.settings, exc)) from None
+        except RecursionError:
+            raise ValueError("%s is nested too deeply to be Save or sink settings" % args.settings) from None
     else:
         s = default_settings(args.preset)
+    if not isinstance(s, dict):
+        raise ValueError("These are not Save or sink settings.")
     if getattr(args, "rescue", None):
         s["rescue"] = args.rescue
     if getattr(args, "seed", None) is not None:
@@ -72,7 +77,9 @@ def parse_dial(text):
     try:
         nums = [float(v) for v in values.split(",") if v.strip()]
     except ValueError:
-        raise ValueError("--dial %s has a value that is not a number" % name.strip()) from None
+        nums = [math.nan]
+    if not all(math.isfinite(v) for v in nums):
+        raise ValueError("--dial %s has a value that is not a number" % name.strip())
     return name.strip(), [int(v) if v == int(v) else v for v in nums]
 
 
@@ -101,8 +108,14 @@ def cmd_sweep(args):
 
 def cmd_settings(args):
     if args.link:
-        print("#" + encode_link(default_settings(args.preset)))
-        print("\nAdd that to the end of the app's address (after index.html) to open these settings.")
+        fragment = "#" + encode_link(default_settings(args.preset))
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as f:
+                f.write(fragment + "\n")
+            print("Wrote a link fragment for the %s settings to %s" % (args.preset, args.out))
+        else:
+            print(fragment)
+            print("\nAdd that to the end of the app's address (after index.html) to open these settings.")
         return 0
     text = json.dumps(default_settings(args.preset), indent=2, ensure_ascii=False)
     if args.out:

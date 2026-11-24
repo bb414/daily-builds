@@ -200,6 +200,7 @@ details.how summary { cursor: pointer; font-weight: 700; }
           <summary>How Save or sink works</summary>
           <p>Each simulated year runs from Monday 1 September to 31 August. Student loan payments arrive at the start of each term, wages arrive on Fridays for the hours worked that week, rent leaves on the 1st and bills on the 10th of each month, and everyday spending, nights out and the odd unexpected cost are drawn at random around the amounts you set. Every saving rule runs through exactly the same years, so differences come from the rules alone.</p>
           <p>Each rule moves money from the current account into a savings pot at the end of the day. If the current account then falls below your comfort point, you move money back from the pot (a "raid"). Overdraft interest is charged only beyond the interest-free limit, and savings interest is paid on the pot. Both are simple annual rates, charged or paid monthly.</p>
+          <p>The verdict calls a rule safe when it is no more than 2 percentage points more likely than not saving to go past the limit in a year, spends no more days past it on average, and does not leave the student worse off in a typical year.</p>
           <p>The smart saver looks at the last 28 days of card spending, projects it forward over its forecast window, adds rent and bills it knows are coming, keeps a safety buffer, and saves a share of whatever is left. Its blind spot is anything outside that window: a two-week forecast made the day after a loan payment sees a full account and none of the rent due over the rest of the term.</p>
           <p>The term planner does the same sums but always looks as far as the next loan payment (or 31 August after the last one), so every rent payment that loan has to cover is in view. It saves less at the start of term and gets raided far less.</p>
           <p>The tuning map runs one rule many times with different settings over the same years, so you can see which dial changes the risk and which only changes the amount. The Python package does the same over more years and marks the best trade-offs: settings where nothing else leaves the student better off without also going past the limit in more years or being raided more often.</p>
@@ -306,6 +307,7 @@ function validateSettings(s) {
     if (bad(s[key], lo, hi, isInt)) problems.push(key + ' must be a ' + (isInt ? 'whole ' : '') + 'number from ' + lo + ' to ' + hi + '.');
   });
   if (RESCUE_MODES.indexOf(s.rescue) < 0) problems.push('rescue must be one of: overdrawn, near-limit, never.');
+  if (s.preset !== undefined && s.preset !== null && typeof s.preset !== 'string') problems.push('preset must be text.');
   const rules = s.rules;
   if (!isObj(rules)) { problems.push('rules must be an object.'); return problems; }
   Object.keys(RULE_LIMITS).forEach(rule => {
@@ -474,13 +476,13 @@ function simulate(s, days, rule, trace) {
       const safe = bal - expected - pennies(p.buffer);
       if (safe > 0) move = Math.min(Math.floor(safe * p.aggressiveness), pennies(p.cap));
     } else if (rule === 'planner' && d >= LEARNING_DAYS) {
-      // Like the smart saver, but it budgets for every day until the next loan payment
-      // (wages are left out, to be safe) and for every bill due before then.
+      // Like the smart saver, but it budgets for every day until the next loan payment, or until
+      // 31 August after the last one (wages are left out, to be safe), and for every bill due by then.
       const from = Math.max(0, d - 27);
       let spent = 0;
       for (let k = from; k <= d; k++) spent += history[k];
       const nxt = nextLoanDay(d);
-      let expected = spent / (d + 1 - from) * (nxt - d);
+      let expected = spent / (d + 1 - from) * (Math.min(nxt, DAYS - 1) - d);
       const to = Math.min(DAYS, nxt + 1);
       for (let k = d + 1; k < to; k++) expected += sched[k];
       const safe = bal - expected - pennies(p.buffer);
@@ -553,8 +555,9 @@ function meanOf(xs) {
 }
 
 function cameBack(results) {
-  const moved = sumOf(results.map(x => x.savedIn));
-  return moved > 0 ? sumOf(results.map(x => x.rescued)) / moved : 0;
+  // Share of everything that went into savings (money moved in plus interest) that was moved back out.
+  const wentIn = sumOf(results.map(x => x.savedIn + x.interestEarned));
+  return wentIn > 0 ? sumOf(results.map(x => x.rescued)) / wentIn : 0;
 }
 
 function stressTest(s, years, rules) {
@@ -562,7 +565,7 @@ function stressTest(s, years, rules) {
   if (problems.length) throw new Error(problems[0]);
   years = years === undefined ? 200 : years;
   if (!isNum(years) || !Number.isInteger(years) || years < 1 || years > 20000) throw new Error('years must be a whole number from 1 to 20000');
-  rules = rules || RULES;
+  rules = rules && rules.length ? rules : RULES;
   const runs = {};
   rules.forEach(r => { runs[r] = []; });
   for (let k = 0; k < years; k++) {
@@ -706,12 +709,12 @@ function encodeLink(s) {
 
 function decodeLink(text) {
   // Accepts a whole link or just its fragment. Returns the settings object (not yet validated).
-  const m = /(?:^|[#&?])s=([A-Za-z0-9_-]+)/.exec(String(text).trim());
+  const m = /(?:^|[#&?])s=([A-Za-z0-9_-]+)/.exec(String(text).replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, ''));
   if (!m) throw new Error(LINK_MISSING);
   const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
   try {
     const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
-    return JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+    return JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
   } catch (e) {
     throw new Error(LINK_DAMAGED);
   }
@@ -734,7 +737,7 @@ if (typeof module !== 'undefined' && module.exports) {
   if (typeof document === 'undefined') return;
   const $ = sel => document.querySelector(sel);
   const YEARS = 300;
-  const state = {s: defaultSettings('steady'), view: 'smart', tune: 'smart', yearIndex: 0, timer: null, mt: null, summary: null, focusCell: null};
+  const state = {s: defaultSettings('steady'), open: {}, view: 'smart', tune: 'smart', yearIndex: 0, timer: null, mt: null, summary: null, focusCell: null};
 
   function esc(t) {
     return String(t).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -784,9 +787,12 @@ if (typeof module !== 'undefined' && module.exports) {
   function getVal(c) { return c.rule ? state.s.rules[c.rule][c.key] : state.s[c.key]; }
 
   function renderControls() {
+    // Keep whichever groups the reader has opened or closed.
+    document.querySelectorAll('#controls details.group').forEach(d => { state.open[d.dataset.group] = d.open; });
     let h = '';
     CONTROLS.forEach(g => {
-      h += '<details class="group"' + (g.open ? ' open' : '') + '><summary>' + esc(g.group) + '</summary>';
+      const open = g.group in state.open ? state.open[g.group] : g.open;
+      h += '<details class="group" data-group="' + esc(g.group) + '"' + (open ? ' open' : '') + '><summary>' + esc(g.group) + '</summary>';
       g.items.forEach(c => {
         const id = controlId(c), v = getVal(c);
         // A value from a file or link may sit off the slider's usual range or steps: widen the slider rather than move the value.
@@ -848,7 +854,9 @@ if (typeof module !== 'undefined' && module.exports) {
   function renderVerdict(sum) {
     const savers = RULES.filter(r => r !== 'none');
     const base = sum.none.beyondChance;
-    const safe = savers.filter(r => sum[r].beyondChance <= base + 0.02);
+    // "Safe" means no more than 2 points more likely to go past the limit, no more days past it on average,
+    // and not worse off in a typical year.
+    const safe = savers.filter(r => sum[r].beyondChance <= base + 0.02 && sum[r].meanDaysBeyond <= sum.none.meanDaysBeyond + 1 && sum[r].net.p50 >= 0);
     let h = '<h2>The verdict</h2>';
     const notes = [];
     const best = safe.length ? safe.reduce((a, b) => (sum[b].endPot.p50 > sum[a].endPot.p50 ? b : a)) : null;
@@ -858,7 +866,7 @@ if (typeof module !== 'undefined' && module.exports) {
         ' Here the budget, not the saving rule, is the problem.</p>';
     } else if (best) {
       h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>' + esc(shortName(best)) + '</strong> leaves the most set aside on 31 August (' +
-        nm(sum[best].endPot.p50) + ' in a typical year) without adding to the risk of going past the interest-free overdraft.</p>';
+        nm(sum[best].endPot.p50) + ' in a typical year) without noticeably adding to the risk of going past the interest-free overdraft.</p>';
       if (sum[best].cameBack > 0.5) {
         const calm = safe.filter(r => r !== best && sum[r].cameBack <= 0.25 && sum[r].endPot.p50 >= 0.75 * sum[best].endPot.p50);
         if (calm.length) {
@@ -869,20 +877,27 @@ if (typeof module !== 'undefined' && module.exports) {
         }
       }
     } else {
-      const least = savers.reduce((a, b) => (sum[b].beyondChance < sum[a].beyondChance ? b : a));
-      h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>every saving rule adds to the risk</strong> of going past the interest-free overdraft. The gentlest is ' +
-        esc(shortName(least)) + ' (' + pct(sum[least].beyondChance) + ' of years, against ' + pct(base) + ' with no automatic saving). Saving here mostly means borrowing to save.</p>';
+      // The gentlest rule: fewest days past the limit on average, then the least money lost.
+      const least = savers.reduce((a, b) => {
+        const da = sum[a].meanDaysBeyond, db = sum[b].meanDaysBeyond;
+        return db < da || (db === da && sum[b].net.p50 > sum[a].net.p50) ? b : a;
+      });
+      const days = n => Math.round(n) + ' day' + (Math.round(n) === 1 ? '' : 's');
+      h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>every saving rule either adds to the risk</strong> of going past the interest-free overdraft or leaves you worse off. The gentlest is ' +
+        esc(shortName(least)) + ': past the limit in ' + pct(sum[least].beyondChance) + ' of years and for ' + days(sum[least].meanDaysBeyond) + ' a year on average, against ' +
+        pct(base) + ' and ' + days(sum.none.meanDaysBeyond) + ' with no automatic saving. Saving here mostly means borrowing to save.</p>';
     }
     const most = savers.reduce((a, b) => (sum[b].meanRescues > sum[a].meanRescues ? b : a));
     if (sum[most].meanRescues >= 12) {
-      notes.push(esc(shortName(most)) + ' moves the most money in and out: you would raid the pot about <strong>' + Math.round(sum[most].meanRescues) + ' times a year</strong>, so much of what it saves just goes round in circles.');
+      notes.push(esc(shortName(most)) + ' is raided most often: about <strong>' + Math.round(sum[most].meanRescues) + ' times a year</strong>, so much of what it saves just goes round in circles.');
     }
     const riskiest = savers.reduce((a, b) => (sum[b].beyondChance > sum[a].beyondChance ? b : a));
     if (sum[riskiest].beyondChance > base + 0.05) {
       notes.push(esc(shortName(riskiest)) + ' pushes you past the interest-free overdraft in <strong>' + pct(sum[riskiest].beyondChance) + '</strong> of years, against ' + pct(base) + ' with no automatic saving.');
     }
     const losers = savers.filter(r => sum[r].net.p50 < 0);
-    if (losers.length) notes.push(losers.map(r => esc(shortName(r))).join(' and ') + ' leave' + (losers.length === 1 ? 's' : '') + ' you <strong>worse off</strong> in a typical year: the extra overdraft interest outweighs the savings interest.');
+    const names = losers.map(r => esc(shortName(r)));
+    if (losers.length) notes.push((names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]) + ' leave' + (losers.length === 1 ? 's' : '') + ' you <strong>worse off</strong> in a typical year: the extra overdraft interest outweighs the savings interest.');
     if (notes.length) h += '<div class="callout">' + notes.map(n => '<p style="margin:0 0 6px">' + n + '</p>').join('') + '</div>';
     $('#verdict-card').innerHTML = h;
     $('#announce').textContent = 'Results updated for ' + YEARS + ' simulated years.';
@@ -902,7 +917,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cell('Past the overdraft limit', '<span class="risk ' + riskClass(x.beyondChance) + '">' + pct(x.beyondChance) + ' of years</span>') +
         cell('Better or worse off', r === 'none' ? 'n/a' : nm(x.net.p50, true)) + '</tr>';
     });
-    h += '</tbody></table></div><p class="note">"Came back out" is the share of everything moved into savings that you later moved back. "Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving: moving your own money between accounts does not make you richer by itself.</p>';
+    h += '</tbody></table></div><p class="note">"Came back out" is the share of what went into savings (including interest) that you later moved back. "Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving: moving your own money between accounts does not make you richer by itself.</p>';
     $('#table-card').innerHTML = h;
   }
 
@@ -1019,18 +1034,18 @@ if (typeof module !== 'undefined' && module.exports) {
       lead = '<strong>' + esc(big.label) + '</strong> is the dial that matters here: it moves the chance of going past the limit by about ' + Math.round(eBig * 100) +
         ' points on average, against ' + Math.round(eSmall * 100) + ' for ' + esc(small.label.toLowerCase()) + '.';
     }
-    const safe = rows.filter(r => r.beyondChance <= base + 0.02);
+    const safe = rows.filter(r => r.beyondChance <= base + 0.02 && r.net >= 0);
     const flat = Math.max(...rows.map(r => r.beyondChance)) - Math.min(...rows.map(r => r.beyondChance)) < 0.02;
     let top = null;
     if (safe.length && Math.max(...safe.map(r => r.endPot)) < 100) {
-      lead += ' No setting here keeps anything set aside in a typical year without adding to the risk.';
+      lead += ' No setting here keeps anything set aside in a typical year without noticeably adding to the risk or leaving you worse off.';
     } else if (safe.length) {
       top = safe.reduce((a, b) => (b.endPot > a.endPot ? b : a));
-      lead += ' The most it sets aside without adding to the risk is about <span class="nw">' + esc(pounds(top.endPot)) + '</span> in a typical year (' + esc(both(top)) + ')' +
+      lead += ' The most it sets aside without noticeably adding to the risk is about <span class="nw">' + esc(pounds(top.endPot)) + '</span> in a typical year (' + esc(both(top)) + ')' +
         (top.meanRescues >= 12 ? ', but you would raid it about ' + Math.round(top.meanRescues) + ' times a year.' : '.');
     } else {
       const least = rows.reduce((a, b) => (b.beyondChance < a.beyondChance ? b : a));
-      lead += ' Every setting here adds to the risk: the safest (' + esc(both(least)) + ') goes past the limit in ' + pct(least.beyondChance) + ' of years, against ' + pct(base) + ' without saving.';
+      lead += ' Every setting here adds to the risk or leaves you worse off: the safest (' + esc(both(least)) + ') goes past the limit in ' + pct(least.beyondChance) + ' of years, against ' + pct(base) + ' without saving.';
     }
     let h = '<p class="tune-lead">' + lead + '</p>' +
       '<p class="map-axis">Rows: ' + esc(da.label.toLowerCase()) + '. Columns: ' + esc(db.label.toLowerCase()) + '. Each square: set aside on 31 August in a typical year, and ' +
@@ -1047,7 +1062,7 @@ if (typeof module !== 'undefined' && module.exports) {
         const label = da.label + ' ' + da.fmt(a) + ', ' + db.label.toLowerCase() + ' ' + db.fmt(b) + ': ' + pounds(r.endPot) + ' set aside in a typical year, past the overdraft limit in ' +
           pct(r.beyondChance) + ' of years, ' + (n < 1 ? 'hardly ever raided' : 'raided about ' + n + ' time' + (n === 1 ? '' : 's') + ' a year') + ', ' +
           (r.net < 0 ? money(-r.net) + ' worse off' : money(r.net) + ' better off') + ' than not saving.' +
-          (r === top ? ' The most set aside without adding to the risk.' : '') + (here ? ' Your current settings.' : '');
+          (r === top ? ' The most set aside without noticeably adding to the risk.' : '') + (here ? ' Your current settings.' : '');
         h += '<td><button type="button" class="' + cls + '" data-a="' + a + '" data-b="' + b + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
           '<b>' + esc(pounds(r.endPot)) + '</b><span>' + (flat ? Math.round(r.meanRescues) + '<em class="wide"> raids</em>' : pct(r.beyondChance) + '<em class="wide"> past limit</em>') + '</span></button></td>';
       });
@@ -1055,7 +1070,7 @@ if (typeof module !== 'undefined' && module.exports) {
     });
     h += '</tbody></table></div><p class="keys">Shading shows the extra chance of going past the limit, compared with not saving.</p><div class="keys">' +
       RISK_KEYS.map((k, i) => '<span><i style="background:' + (i ? 'color-mix(in srgb, var(--bad) ' + (i * 14) + '%, var(--surface))' : 'var(--surface-2)') + '"></i>' + k + '</span>').join('') +
-      '</div><div class="keys">' + (top ? '<span><i style="border:2px solid var(--ink)"></i>Most set aside without adding to the risk</span>' : '') +
+      '</div><div class="keys">' + (top ? '<span><i style="border:2px solid var(--ink)"></i>Most set aside without noticeably adding to the risk</span>' : '') +
       '<span><i style="box-shadow:inset 0 0 0 3px var(--accent)"></i>Your current settings</span></div>';
     const box = $('#tune-out');
     box.innerHTML = h;
@@ -1098,7 +1113,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const problems = validateSettings(s);
     if (problems.length) { say(from + ' could not be used. ' + problems.slice(0, 3).join(' '), true); return false; }
     state.s = JSON.parse(JSON.stringify(s));
-    if (PRESETS[state.s.preset]) $('#preset').value = state.s.preset;
+    if (Object.prototype.hasOwnProperty.call(PRESETS, state.s.preset)) $('#preset').value = state.s.preset;
     renderControls();
     run();
     return true;
@@ -1123,7 +1138,8 @@ if (typeof module !== 'undefined' && module.exports) {
     reader.onload = () => {
       let s;
       try { s = JSON.parse(String(reader.result).replace(/^\uFEFF/, '')); } catch (e) { say(file.name + ' is not valid JSON.', true); return; }
-      if (useSettings(s, file.name)) say('Opened ' + file.name + '.');
+      if (useSettings(s, file.name)) { clearLink(); say('Opened ' + file.name + '.'); }
+      $('#open-file').focus();
     };
     reader.onerror = () => say(file.name + ' could not be read.', true);
     reader.readAsText(file);

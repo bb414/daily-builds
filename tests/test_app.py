@@ -100,6 +100,8 @@ class AppAgreesWithPython(unittest.TestCase):
                ["smart", {"horizon": 7, "buffer": [0]}, 5], ["smart", [], 5], ["smart", None, 2.5],
                ["planner", {"buffer": [0], "aggressiveness": [True]}, 5], ["planner", None, 0],
                ["planner", {"buffer": list(range(100)), "aggressiveness": [0.5] * 10}, 5000]]
+        same = js([{"fn": "stressTest", "args": [s, 3, []]}, {"fn": "stressTest", "args": [s, 3.0, ["planner"]]}])
+        self.assertEqual(same, plain([M.stress_test(s, 3, []), M.stress_test(s, 3.0, ["planner"])]))
         got = js([{"fn": "sweep", "args": [s] + b, "catchErrors": True} for b in bad]
                  + [{"fn": "stressTest", "args": [s, y], "catchErrors": True} for y in (0, 2.5, 20001)])
         expect = []
@@ -120,8 +122,11 @@ class AppAgreesWithPython(unittest.TestCase):
         self.assertEqual([M.decode_link("file:///x/app/index.html#" + k) for k in links], settings)
         back = js([{"fn": "decodeLink", "args": ["#" + M.encode_link(s)]} for s in settings])
         self.assertEqual(back, settings)
+        # Both write exactly the same link for the same settings (Python's 4.0 is written as 4, like the app).
+        self.assertEqual(links, [M.encode_link(s) for s in settings])
         bad = ["", "nothing here", "#s=", "#s=abc", "#s=e30x", "#s=" + "_" * 9, "#t=e30", "#s=bm90IGpzb24",
-               "#s=TmFO", "#s=" + M.encode_link([1])[2:]]
+               "#s=TmFO", "#s=" + M.encode_link([1])[2:], "#s=77u_e30", "\x1c#" + M.encode_link({}),
+               "\ufeff#" + M.encode_link({}), " \t#" + M.encode_link({}) + "\n"]
         got = js([{"fn": "decodeLink", "args": [b], "catchErrors": True} for b in bad])
         expect = []
         for b in bad:
@@ -145,10 +150,13 @@ class AppAgreesWithPython(unittest.TestCase):
                  changed(lambda s: s["rules"].pop("payday")), changed(lambda s: s["rules"]["smart"].update(horizon=2.5)),
                  changed(lambda s: s["rules"]["smart"].update(knowsBills=1)),
                  changed(lambda s: s["rules"]["roundup"].update(multiplier=0)),
-                 changed(lambda s: s.update(shockChance="0.5", startBalance=None))]
+                 changed(lambda s: s.update(shockChance="0.5", startBalance=None)),
+                 changed(lambda s: s.update(preset=["steady"])), changed(lambda s: s.update(preset=None)),
+                 changed(lambda s: s.pop("preset"))]
         got = js([{"fn": "validateSettings", "args": [c]} for c in cases])
         self.assertEqual(got, [M.validate_settings(c) for c in cases])
-        came = [[], [{"savedIn": 0, "rescued": 0}], [{"savedIn": 300, "rescued": 100}, {"savedIn": 7, "rescued": 3}]]
+        came = [[], [{"savedIn": 0, "interestEarned": 0, "rescued": 0}],
+                [{"savedIn": 300, "interestEarned": 1, "rescued": 100}, {"savedIn": 7, "interestEarned": 0, "rescued": 3}]]
         amounts = [0, 5, 99, 100, 123456, 99999, 99999.6, -4570, 123449.5, 0.4, -0.4, 1e8, 2449, -123456.7]
         got = js([{"fn": "money", "args": [a]} for a in amounts] + [{"fn": "money", "args": [a, True]} for a in amounts]
                  + [{"fn": "yearSeed", "args": [s, k]} for s in (0, 1, 4294967295) for k in (0, 5, 999)]

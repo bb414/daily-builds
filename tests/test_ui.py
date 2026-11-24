@@ -92,8 +92,11 @@ class BrowserTests(unittest.TestCase):
         page.select_option("#c-rescue", "never")
         page.wait_for_timeout(1200)
         self.assertIn("Looks ahead", page.inner_text(".tune-lead"))
+        page.click("details[data-group='Saving rules'] > summary")
         page.click("#tune-out button[data-a='56'][data-b='400']")
         page.wait_for_timeout(1200)
+        # The group the reader opened stays open when the controls are redrawn.
+        self.assertTrue(page.evaluate("document.querySelector(\"details[data-group='Saving rules']\").open"))
         self.assertEqual(page.input_value("#c-smart-horizon"), "56")
         self.assertEqual(page.input_value("#c-smart-buffer"), "400")
         self.assertIn("Your current settings", page.get_attribute("#tune-out button.here", "aria-label"))
@@ -124,6 +127,7 @@ class BrowserTests(unittest.TestCase):
             page.wait_for_timeout(600)
             self.assertEqual(page.input_value("#c-rent"), "700")
             self.assertIn("Opened good.json", page.inner_text("#io-msg"))
+            self.assertEqual(page.evaluate("document.activeElement.id"), "open-file")
             page.set_input_files("#file-in", str(bad))
             page.wait_for_timeout(300)
             self.assertIn("rent must be", page.inner_text("#io-msg"))
@@ -141,6 +145,17 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(page.input_value("#c-rent"), "333")
         self.assertEqual(page.input_value("#preset"), "tight")
         self.assertIn("Opened the settings in the link", page.inner_text("#io-msg"))
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "other.json"
+            f.write_text(json.dumps(dict(M.default_settings("steady"), rent=777)), encoding="utf-8")
+            page.set_input_files("#file-in", str(f))
+            page.wait_for_timeout(600)
+        # Opening a file replaces the settings from the link, so the old link leaves the address bar.
+        self.assertEqual(page.input_value("#c-rent"), "777")
+        self.assertNotIn("#", page.evaluate("location.href"))
+        page.goto(APP_URL + "#" + M.encode_link(dict(M.default_settings("tight"), rent=333)))
+        page.wait_for_timeout(500)
+        self.assertEqual(page.input_value("#c-rent"), "333")
         page.locator("#c-rent").fill("400")
         self.settle(page)
         self.assertNotIn("#", page.evaluate("location.href"))
@@ -158,6 +173,20 @@ class BrowserTests(unittest.TestCase):
         page.wait_for_selector("#table-card table")
         self.assertIn("damaged", page.inner_text("#io-msg"))
         self.assertEqual(page.input_value("#preset"), "steady")
+        page.close()
+
+    def test_verdict_never_recommends_a_rule_that_costs_money(self):
+        page = self.open()
+        page.select_option("#preset", "tight")
+        page.locator("#c-overdraftLimit").fill("0")
+        page.select_option("#c-rescue", "never")
+        page.wait_for_timeout(800)
+        text = page.inner_text("#verdict-card")
+        self.assertNotIn("Smart saver leaves the most", text)
+        for line in text.splitlines():
+            if "leaves the most set aside" in line:
+                rule = line.split(", ", 1)[1].split(" leaves")[0]
+                self.assertNotIn(rule + " leave", text.split(line, 1)[1])
         page.close()
 
     def test_phone_layout_fits(self):

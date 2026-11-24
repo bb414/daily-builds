@@ -118,6 +118,8 @@ def validate_settings(s):
                 key, "whole " if key in INTEGER_KEYS else "", lo, hi))
     if s.get("rescue") not in RESCUE_MODES:
         problems.append("rescue must be one of: overdrawn, near-limit, never.")
+    if s.get("preset") is not None and not isinstance(s["preset"], str):
+        problems.append("preset must be text.")
     rules = s.get("rules")
     if not isinstance(rules, dict):
         problems.append("rules must be an object.")
@@ -332,14 +334,14 @@ def simulate(s, days, rule, trace=False):
             if safe > 0:
                 move = min(int(math.floor(safe * p["aggressiveness"])), pennies(p["cap"]))
         elif rule == "planner" and d >= LEARNING_DAYS:
-            # Like the smart saver, but it budgets for every day until the next loan payment
-            # (wages are left out, to be safe) and for every bill due before then.
+            # Like the smart saver, but it budgets for every day until the next loan payment, or until
+            # 31 August after the last one (wages are left out, to be safe), and for every bill due by then.
             window = history[max(0, d - 27):d + 1]
             spent = 0
             for x in window:
                 spent += x
             nxt = next_loan_day(d)
-            expected = spent / len(window) * (nxt - d)
+            expected = spent / len(window) * (min(nxt, DAYS - 1) - d)
             for k in range(d + 1, min(DAYS, nxt + 1)):
                 expected += sched[k]
             safe = bal - expected - pennies(p["buffer"])
@@ -418,9 +420,9 @@ def _mean(xs):
 
 
 def came_back(results):
-    """Share of everything moved into savings that was moved back out again."""
-    moved = _sum([x["savedIn"] for x in results])
-    return _sum([x["rescued"] for x in results]) / moved if moved > 0 else 0.0
+    """Share of everything that went into savings (money moved in plus interest) that was moved back out."""
+    went_in = _sum([x["savedIn"] + x["interestEarned"] for x in results])
+    return _sum([x["rescued"] for x in results]) / went_in if went_in > 0 else 0.0
 
 
 def stress_test(s, years=200, rules=None):
@@ -430,6 +432,7 @@ def stress_test(s, years=200, rules=None):
         raise ValueError(problems[0])
     if not _is_num(years) or years != int(years) or not 1 <= years <= 20000:
         raise ValueError("years must be a whole number from 1 to 20000")
+    years = int(years)
     rules = rules or RULES
     runs = {r: [] for r in rules}
     for k in range(years):
@@ -501,6 +504,7 @@ def sweep(s, rule="smart", dials=None, years=200):
         raise ValueError("rule must be one of: %s" % ", ".join(SWEEP_DEFAULTS))
     if not _is_num(years) or years != int(years) or not 1 <= years <= 20000:
         raise ValueError("years must be a whole number from 1 to 20000")
+    years = int(years)
     dials = SWEEP_DEFAULTS[rule] if dials is None else dials
     if not isinstance(dials, dict) or len(dials) != 2:
         raise ValueError("choose exactly two dials to sweep")
@@ -576,9 +580,20 @@ LINK_DAMAGED = "That link is damaged: the settings in it could not be read."
 _LINK = re.compile(r"(?:^|[#&?])s=([A-Za-z0-9_-]+)")
 
 
+def _js_numbers(x):
+    """Whole-number floats as ints, so the JSON matches what the app writes (4.0 becomes 4)."""
+    if isinstance(x, float) and x.is_integer():
+        return int(x)
+    if isinstance(x, dict):
+        return {k: _js_numbers(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_js_numbers(v) for v in x]
+    return x
+
+
 def encode_link(s):
     """Settings as a link fragment: s= then the JSON in URL-safe base64 without padding."""
-    raw = json.dumps(s, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    raw = json.dumps(_js_numbers(s), separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return "s=" + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
@@ -588,7 +603,7 @@ def _no_constants(name):
 
 def decode_link(text):
     """Accepts a whole link from the app or just its fragment. Returns the settings (not yet validated)."""
-    m = _LINK.search(str(text).strip())
+    m = _LINK.search(str(text).strip(" \t\r\n"))
     if not m:
         raise ValueError(LINK_MISSING)
     b = m.group(1)
@@ -597,5 +612,5 @@ def decode_link(text):
             raise ValueError(b)
         raw = base64.urlsafe_b64decode(b + "=" * (-len(b) % 4))
         return json.loads(raw.decode("utf-8"), parse_constant=_no_constants)
-    except ValueError:
+    except (ValueError, RecursionError):
         raise ValueError(LINK_DAMAGED) from None

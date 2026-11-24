@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import copy
 import io
@@ -198,12 +199,20 @@ class StressTests(unittest.TestCase):
 
     def test_came_back(self):
         self.assertEqual(M.came_back([]), 0)
-        self.assertEqual(M.came_back([{"savedIn": 0, "rescued": 0}]), 0)
-        self.assertEqual(M.came_back([{"savedIn": 300, "rescued": 100}, {"savedIn": 100, "rescued": 100}]), 0.5)
+        self.assertEqual(M.came_back([{"savedIn": 0, "interestEarned": 0, "rescued": 0}]), 0)
+        self.assertEqual(M.came_back([{"savedIn": 300, "interestEarned": 0, "rescued": 100},
+                                      {"savedIn": 90, "interestEarned": 10, "rescued": 100}]), 0.5)
+        # Raids can take back interest as well as money moved in, but never more than went in.
+        for preset in M.PRESETS:
+            summary = M.stress_test(M.default_settings(preset), 40)
+            for r in M.RULES:
+                self.assertTrue(0 <= summary[r]["cameBack"] <= 1, (preset, r, summary[r]["cameBack"]))
 
     def test_bad_inputs(self):
         with self.assertRaises(ValueError):
             M.stress_test(M.default_settings(), 0)
+        self.assertEqual(M.stress_test(M.default_settings(), 3.0)["none"]["years"], 3)
+        self.assertEqual(M.sweep(M.default_settings(), "planner", years=2.0)["years"], 2)
         s = M.default_settings()
         s["rent"] = -5
         with self.assertRaises(ValueError):
@@ -336,8 +345,20 @@ class CliTests(unittest.TestCase):
             rows = (Path(d) / "w.csv").read_text().splitlines()
             self.assertEqual(len(rows), 5)
             self.assertTrue(rows[0].startswith("horizon,buffer,set_aside_median"))
+            with open(Path(d) / "list.json", "w") as f:
+                f.write("[1]")
+            code, out = self.run_cli("run", "--settings", str(Path(d) / "list.json"), "--seed", "3")
+            self.assertEqual((code, out.strip()), (2, "Error: These are not Save or sink settings."))
+            with open(Path(d) / "deep.json", "w") as f:
+                f.write("[" * 100000 + "]" * 100000)
+            code, out = self.run_cli("run", "--settings", str(Path(d) / "deep.json"))
+            self.assertEqual(code, 2)
+            self.assertIn("nested too deeply", out)
+            self.assertEqual(self.run_cli("settings", "tight", "--link", "-o", str(Path(d) / "l.txt"))[0], 0)
+            self.assertTrue((Path(d) / "l.txt").read_text().startswith("#s="))
             code, out = self.run_cli("settings", "tight", "--link")
             link = out.splitlines()[0]
+            self.assertEqual(link, "#" + M.encode_link(M.default_settings("tight")))
             self.assertTrue(link.startswith("#s="))
             code, out = self.run_cli("run", "--years", "5", "--link", "file:///app/index.html" + link)
             self.assertEqual(code, 0)
@@ -347,7 +368,12 @@ class CliTests(unittest.TestCase):
         for argv in (("run", "--years", "0"), ("run", "--settings", "missing.json"), ("year", "--rule", "magic"),
                      ("year", "--year", "0"), ("sweep", "--dial", "horizon"), ("sweep", "--dial", "horizon=a,b"),
                      ("sweep", "--dial", "horizon=7", "--dial", "horizon=14"), ("sweep", "--dial", "cap=1"),
-                     ("sweep", "--years", "0"), ("run", "--link", "#s=abc"), ("run", "--link", "#s=e30")):
+                     ("sweep", "--years", "0"), ("run", "--link", "#s=abc"), ("run", "--link", "#s=e30"),
+                     ("run", "--link", "s=bnVsbA", "--rescue", "never"), ("run", "--link", ""), ("run", "--settings", ""),
+                     ("sweep", "--dial", "horizon=inf", "--dial", "buffer=0"),
+                     ("sweep", "--dial", "horizon=nan", "--dial", "buffer=0"),
+                     ("run", "--link", "#" + M.encode_link(dict(M.default_settings(), preset=["x"]))),
+                     ("run", "--link", "#s=" + base64.urlsafe_b64encode(b"[" * 5000 + b"]" * 5000).decode())):
             code, out = self.run_cli(*argv)
             self.assertEqual(code, 2, argv)
             self.assertIn("Error:", out)
