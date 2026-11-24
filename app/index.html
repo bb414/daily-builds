@@ -124,7 +124,8 @@ tr.best td { font-weight: 700; }
 .r-ok { background: #f6e1cc; background: color-mix(in srgb, var(--d2) 35%, var(--surface)); }
 .r-bad { background: #f5d6d3; background: color-mix(in srgb, var(--bad) 25%, var(--surface)); }
 .robust caption { caption-side: bottom; text-align: left; padding-top: 6px; }
-.robust td, .robust th { padding: 8px 4px; }
+.robust td, .robust th { padding: 8px 4px; white-space: nowrap; }
+.robust { max-width: 760px; }
 .card-table td, .card-table th { text-align: center; }
 .card-table td:first-child, .card-table th:first-child { text-align: left; }
 
@@ -223,6 +224,12 @@ tr.best td { font-weight: 700; }
       <div id="leftover"></div>
       <p class="small" id="leftover-note"></p>
     </section>
+    <section class="card" aria-labelledby="robust-title">
+      <h2 id="robust-title">What if the forecast is wrong?</h2>
+      <p class="small muted">The plan is made with the demand and price sensitivity you entered. Each cell shows how much profit that plan loses when the truth is different, against the plan you would make if you had known the truth.</p>
+      <div class="table-wrap" id="robust"></div>
+      <p class="small" id="robust-note"></p>
+    </section>
     <div class="grid-2">
       <section class="card" aria-labelledby="card-title">
         <h2 id="card-title">Shelf card</h2>
@@ -231,22 +238,16 @@ tr.best td { font-weight: 700; }
         <p class="small" id="card-note"></p>
         <div class="actions"><button type="button" class="btn" id="card-download">Download the card (CSV)</button></div>
       </section>
-      <section class="card" aria-labelledby="robust-title">
-        <h2 id="robust-title">What if the forecast is wrong?</h2>
-        <p class="small muted">The plan is made with the demand and price sensitivity you entered. Each cell shows how much profit that plan loses when the truth is different, against the plan you would make if you had known the truth.</p>
-        <div class="table-wrap" id="robust"></div>
-        <p class="small" id="robust-note"></p>
+      <section class="card" aria-labelledby="share-title">
+        <h2 id="share-title">Keep these numbers</h2>
+        <p class="small muted">The page address always holds the current settings, so a bookmark or a copied link opens exactly this plan.</p>
+        <div class="actions">
+          <button type="button" class="btn" id="copy-link">Copy a link to this plan</button>
+          <button type="button" class="btn" id="reset">Back to the example</button>
+        </div>
+        <p class="small" id="share-msg" role="status"></p>
       </section>
     </div>
-    <section class="card" aria-labelledby="share-title">
-      <h2 id="share-title">Keep these numbers</h2>
-      <p class="small muted">The page address always holds the current settings, so a bookmark or a copied link opens exactly this plan.</p>
-      <div class="actions">
-        <button type="button" class="btn" id="copy-link">Copy a link to this plan</button>
-        <button type="button" class="btn" id="reset">Back to the example</button>
-      </div>
-      <p class="small" id="share-msg" role="status"></p>
-    </section>
   </div>
 </main>
 

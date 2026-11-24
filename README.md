@@ -79,10 +79,10 @@ Two groups of Python tests need extra tools and are skipped without them: the ag
 
 | Part | Language | Roughly | What it does |
 | --- | --- | --- | --- |
-| `app/index.html` | HTML, CSS, JavaScript | 1,010 lines: 130 CSS, 290 model, 470 interface, 120 markup | The whole browser app. The model sits between `MODEL START` and `MODEL END` and also runs in Node.js. |
-| `markdown_ladder/` | Python (standard library) | 660 lines | The same model, the command line, the robustness check, range planning and the reports. |
-| `tests/` | JavaScript and Python | 190 JavaScript, 360 Python | Model tests in Node.js, Python tests, agreement tests between the two languages, and browser tests. |
-| `tools/` | Python | 40 lines | Regenerates the screenshots in `docs/`. |
+| `app/index.html` | HTML, CSS, JavaScript | 1,050 lines: 140 CSS, 300 model, 490 interface, 120 markup | The whole browser app. The model sits between `MODEL START` and `MODEL END` and also runs in Node.js. |
+| `markdown_ladder/` | Python (standard library) | 700 lines | The same model, the command line, the robustness check, range planning and the reports. |
+| `tests/` | JavaScript and Python | 200 JavaScript, 400 Python | Model tests in Node.js, Python tests, agreement tests between the two languages, and browser tests. |
+| `tools/` | Python | 45 lines | Regenerates the screenshots in `docs/`. |
 
 The browser is the right place to explore one product and see why the plan looks the way it does. Python is the right place for a whole range at once, for files that feed a spreadsheet or a till system, and for repeatable reports.
 
@@ -107,7 +107,9 @@ So with price sensitivity 2, a 20% discount lifts demand by 1 / 0.8² = 1.56, or
 | | |
 | --- | --- |
 | ![The markdown ladder: the best discount for every day and stock level](docs/ladder.png) | ![What to expect: stock left each day, the chance of each price, and leftovers](docs/outlook.png) |
-| ![The shelf card and the forecast robustness grid](docs/card-and-robustness.png) | ![The plan on a phone](docs/phone.png) |
+| ![The shelf card](docs/card.png) | ![The plan on a phone](docs/phone.png) |
+
+![What if the forecast is wrong: profit lost for each combination of errors](docs/robust.png)
 
 `python tools/screenshots.py` regenerates them (it needs Playwright for Python).
 

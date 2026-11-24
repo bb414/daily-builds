@@ -1,0 +1,48 @@
+product,day,weekday,pct10_from_units,pct20_from_units,pct30_from_units,pct50_from_units
+Chocolate truffle box,1,Mon,52,,,
+Chocolate truffle box,2,Tue,46,55,,
+Chocolate truffle box,3,Wed,39,47,58,
+Chocolate truffle box,4,Thu,33,40,48,
+Chocolate truffle box,5,Fri,26,31,38,60
+Chocolate truffle box,6,Sat,17,20,25,38
+Chocolate truffle box,7,Sun,6,7,9,14
+"Fresh mochi, pack of six",1,Thu,39,,,
+"Fresh mochi, pack of six",2,Fri,26,34,,
+"Fresh mochi, pack of six",3,Sat,11,15,20,36
+Coffee eclairs,1,Thu,28,,,
+Coffee eclairs,2,Fri,10,13,20,
+Festive biscuit tins,1,Mon,113,,,
+Festive biscuit tins,2,Tue,106,,,
+Festive biscuit tins,3,Wed,100,,,
+Festive biscuit tins,4,Thu,93,119,,
+Festive biscuit tins,5,Fri,85,109,,
+Festive biscuit tins,6,Sat,76,96,,
+Festive biscuit tins,7,Sun,65,82,107,
+Festive biscuit tins,8,Mon,57,72,94,
+Festive biscuit tins,9,Tue,50,64,83,
+Festive biscuit tins,10,Wed,44,55,72,
+Festive biscuit tins,11,Thu,37,46,61,113
+Festive biscuit tins,12,Fri,29,36,47,86
+Festive biscuit tins,13,Sat,19,23,30,52
+Festive biscuit tins,14,Sun,6,8,11,17
+Pistachio macarons (box of 12),1,Wed,43,,,
+Pistachio macarons (box of 12),2,Thu,35,43,,
+Pistachio macarons (box of 12),3,Fri,27,33,42,
+Pistachio macarons (box of 12),4,Sat,17,21,26,43
+Pistachio macarons (box of 12),5,Sun,6,7,9,15
+Strawberry tarts,1,Fri,,,,
+Strawberry tarts,2,Sat,10,14,20,
+Salted caramel brownies,1,Mon,,,,
+Salted caramel brownies,2,Tue,39,45,,
+Salted caramel brownies,3,Wed,24,28,34,50
+Salted caramel brownies,4,Thu,10,12,15,21
+Gingerbread figures,1,Mon,75,,,
+Gingerbread figures,2,Tue,67,,,
+Gingerbread figures,3,Wed,59,76,,
+Gingerbread figures,4,Thu,51,66,,
+Gingerbread figures,5,Fri,43,56,75,
+Gingerbread figures,6,Sat,36,46,61,
+Gingerbread figures,7,Sun,28,36,48,
+Gingerbread figures,8,Mon,21,26,35,68
+Gingerbread figures,9,Tue,13,17,21,42
+Gingerbread figures,10,Wed,5,7,9,16

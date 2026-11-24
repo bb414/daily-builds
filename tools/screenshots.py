@@ -25,11 +25,8 @@ def main(out_dir, dark=False, scale=2, review=False):
         desktop.screenshot(path=str(out / ("overview%s.png" % suffix)), clip={"x": 0, "y": 0, "width": 1280, "height": 900})
         if review:
             desktop.screenshot(path=str(out / ("full-page%s.png" % suffix)), full_page=True)
-        for section, name in (("#map-title", "ladder"), ("#outlook-title", "outlook"), ("#card-title", "card-and-robustness")):
-            box = desktop.locator(section).locator("xpath=ancestor::section[1]")
-            if name == "card-and-robustness":
-                box = desktop.locator(section).locator("xpath=ancestor::div[contains(@class,'grid-2')][1]")
-            box.screenshot(path=str(out / ("%s%s.png" % (name, suffix))))
+        for section, name in (("#map-title", "ladder"), ("#outlook-title", "outlook"), ("#card-title", "card"), ("#robust-title", "robust")):
+            desktop.locator(section).locator("xpath=ancestor::section[1]").screenshot(path=str(out / ("%s%s.png" % (name, suffix))))
         phone = browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=scale, color_scheme="dark" if dark else "light")
         phone.goto(APP_URL)
         if review:
