@@ -51,7 +51,7 @@ def cmd_run(args):
             w.writerow(names + [model["outputName"] or "estimate"])
             for k in range(len(values)):
                 w.writerow([repr(col[k]) for col in columns] + [repr(values[k])])
-        print("\nWrote %d samples to %s" % (len(values), args.csv))
+        print("\nWrote {:,} samples to {}".format(len(values), args.csv))
     return 0
 
 
@@ -89,8 +89,8 @@ def cmd_deep(args):
         print("  %-16s %10s  (spread %s to %s, sd %s)" % (label, fv(x["mean"]), fv(x["min"]), fv(x["max"]), fv(x["sd"])))
     if "probAbove" in st:
         x = st["probAbove"]
-        print("  %-16s %9.1f%%  (spread %.1f%% to %.1f%%)" % ("Chance of clearing", x["mean"] * 100, x["min"] * 100,
-                                                            x["max"] * 100))
+        print("  %-16s %10s  (spread %.1f%% to %.1f%%)" % ("Chance of clearing", "%.1f%%" % (x["mean"] * 100),
+                                                            x["min"] * 100, x["max"] * 100))
     return 0
 
 

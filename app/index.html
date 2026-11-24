@@ -17,8 +17,6 @@
   --line: #e1e0d9;
   --line-2: #c3c2b7;
   --accent: #2a78d6;
-  --accent-ink: #1c5cab;
-  --accent-soft: #e8f1fc;
   --mark: #eb6834;
   --mark-ink: #a8431b;
   --mark-soft: #fdf0e9;
@@ -34,16 +32,14 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
-    --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
-    --accent-soft: #15263b; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+    --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
     --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
-  --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
-  --accent-soft: #15263b; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+  --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
   --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
 }
 * { box-sizing: border-box; }
@@ -63,6 +59,7 @@ h2 { font-size: 19px; }
 h3 { font-size: 16px; }
 p { margin: 0 0 10px; }
 .muted { color: var(--muted); }
+.nw { white-space: nowrap; }
 .small { font-size: 14px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
 .btn { appearance: none; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; font-size: 15px; padding: 8px 14px; border-radius: 10px; cursor: pointer; min-height: 40px; }
@@ -104,7 +101,6 @@ label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color:
 details.how { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; color: var(--ink-2); }
 details.how summary { cursor: pointer; font-weight: 600; color: var(--ink); }
 details.how p { margin-top: 8px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 90px 120px; gap: 8px; }
 .term { border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; overflow: hidden; }
 .term-head { display: grid; grid-template-columns: 130px 1fr auto; gap: 8px; align-items: center; padding: 10px; background: var(--surface-2); }
 .term-head select { font-weight: 600; }
@@ -119,7 +115,6 @@ details.how p { margin-top: 8px; }
 .term-foot { padding: 0 10px 10px; }
 .problems { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
 .problems ul { margin: 4px 0 0; padding-left: 18px; }
-.equation { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 
 /* Results */
 .hero { display: grid; gap: 4px; }
@@ -159,8 +154,6 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 }
 @media (max-width: 560px) {
   .tagline { display: none; }
-  .grid-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .grid-3 > :first-child { grid-column: 1 / -1; }
   .term-head { grid-template-columns: 1fr auto; }
   .term-head > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
   .driver-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding-left: 0; }
@@ -869,6 +862,8 @@ if (typeof module !== 'undefined' && module.exports) {
   }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function fv(x) { return formatValue(x, state.model.unit, state.model.unitPosition); }
+  // A formatted value for running text, kept on one line so "-£49.2k" never breaks after the minus.
+  function nv(x) { return '<span class="nw">' + esc(fv(x)) + '</span>'; }
 
   /* ---------- Editor ---------- */
   function numAttr(x) { return isNum(x) ? String(x) : ''; }
@@ -1070,7 +1065,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const m = state.model;
     let h = '<div class="hero"><div class="label">' + esc(m.outputName || 'Estimate') + ': most likely between</div>' +
       '<div class="range">' + esc(fv(r.p10)) + ' <span class="to">and</span> ' + esc(fv(r.p90)) + '</div>' +
-      '<div class="sub">Middle estimate (median) <strong>' + esc(fv(r.p50)) + '</strong>. Average ' + esc(fv(r.mean)) + '. There is a 10% chance it is below the low end and a 10% chance it is above the high end.</div></div>';
+      '<div class="sub">Middle estimate (median) <strong>' + nv(r.p50) + '</strong>. Average ' + nv(r.mean) + '. There is a 10% chance it is below the low end and a 10% chance it is above the high end.</div></div>';
     if (r.threshold !== null) {
       const go = r.probAbove >= 0.5;
       h += '<div class="chips"><span class="chip ' + (go ? 'go' : 'nogo') + '">' + Math.round(r.probAbove * 100) + '% chance of clearing ' + esc(fv(r.threshold)) + '</span>' +
@@ -1080,11 +1075,11 @@ if (typeof module !== 'undefined' && module.exports) {
     if (isNum(mid) && Math.abs(med) > 0) {
       const gap = (mid - med) / Math.abs(med);
       if (Math.abs(gap) >= 0.1) {
-        h += '<div class="callout">Plugging in the middle of every range gives <strong>' + esc(fv(mid)) + '</strong>, which is ' +
+        h += '<div class="callout">Plugging in the middle of every range gives <strong>' + nv(mid) + '</strong>, which is ' +
           Math.round(Math.abs(gap) * 100) + '% ' + (gap > 0 ? 'above' : 'below') + ' the median. Single-number estimates built from midpoints ' +
           (gap > 0 ? 'overstate' : 'understate') + ' what is likely here, because ranges for skewed quantities are not symmetric.</div>';
       } else {
-        h += '<p class="note">Plugging in the middle of every range gives ' + esc(fv(mid)) + ', close to the median.</p>';
+        h += '<p class="note">Plugging in the middle of every range gives ' + nv(mid) + ', close to the median.</p>';
       }
     }
     $('#summary').innerHTML = h;
@@ -1171,8 +1166,8 @@ if (typeof module !== 'undefined' && module.exports) {
     const v = r.voi;
     const go = v.decision === 'go';
     let h = '<h2>What to check before deciding</h2>' +
-      '<p>On today\'s ranges the expected ' + esc((m.outputName || 'estimate').toLowerCase()) + ' is <strong>' + esc(fv(v.expected)) + '</strong>, ' +
-      (go ? 'above' : 'below') + ' the threshold of ' + esc(fv(r.threshold)) + ', so the call is to <strong>' + (go ? 'go ahead' : 'hold off') + '</strong>. ' +
+      '<p>On today\'s ranges the expected ' + esc((m.outputName || 'estimate').toLowerCase()) + ' is <strong>' + nv(v.expected) + '</strong>, ' +
+      (go ? 'above' : 'below') + ' the threshold of ' + nv(r.threshold) + ', so the call is to <strong>' + (go ? 'go ahead' : 'hold off') + '</strong>. ' +
       'There is a <strong>' + Math.round(v.wrongChance * 100) + '%</strong> chance that is the wrong call' +
       (v.wrongChance > 0.5 ? ': more likely than not, but ' + (go ? 'the upside if it goes well outweighs the shortfall if it does not' : 'the shortfall if it goes badly outweighs the upside if it goes well') + ', so the expected value still favours this call.' : '.') + '</p>';
     if (v.evpi <= 0) {
@@ -1180,7 +1175,7 @@ if (typeof module !== 'undefined' && module.exports) {
       card.innerHTML = h;
       return;
     }
-    h += '<p class="small">Knowing every driver exactly would be worth up to <strong>' + esc(fv(v.evpi)) + '</strong> on average, the most worth spending on research or a pilot before deciding.</p>';
+    h += '<p class="small">Knowing every driver exactly would be worth up to <strong>' + nv(v.evpi) + '</strong> on average, the most worth spending on research or a pilot before deciding.</p>';
     h += '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Check first</th><th scope="col">Chance it changes the call</th><th scope="col">Worth up to</th></tr></thead><tbody>';
     const maxV = Math.max(...v.drivers.map(x => x.evppi)) || 1;
     v.order.filter(i => r.drivers[i].dist !== 'fixed').slice(0, 6).forEach((i, k) => {
