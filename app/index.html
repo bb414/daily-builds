@@ -66,6 +66,7 @@ body {
 }
 a { color: var(--accent); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+[tabindex="-1"]:focus { outline: none; }
 .skip { position: absolute; left: 8px; top: -60px; background: var(--surface); padding: 8px 12px; border-radius: 8px; z-index: 10; }
 .skip:focus { top: 8px; }
 header.top {
@@ -111,6 +112,11 @@ p { margin: 0 0 12px; }
 .notice { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 14px; border-radius: 8px; }
 .notice.warn { border-color: var(--warn); background: var(--warn-soft); }
 .error-text { color: var(--scam); font-weight: 600; min-height: 1.5em; margin: 6px 0 0; }
+#import-error:empty { min-height: 0; margin: 0; }
+.btn.quiet { background: transparent; border-color: transparent; color: var(--accent); padding-left: 10px; padding-right: 10px; text-decoration: underline; text-underline-offset: 3px; }
+.btn.quiet:hover { background: var(--accent-soft); }
+.secondary-row { margin-top: 6px; gap: 4px; }
+.start-row { gap: 16px; }
 
 /* Progress */
 .progress { margin: 4px 0 18px; }
@@ -192,6 +198,8 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 .cell.good { border-color: var(--genuine); }
 .cell.bad { border-color: var(--scam); }
 svg text { fill: var(--ink); font-family: inherit; }
+svg text.halo { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.quadrant { max-width: 300px; margin: 0 auto; }
 svg .axis { stroke: var(--line); }
 svg .muted-text { fill: var(--muted); }
 .chart { width: 100%; height: auto; display: block; }
@@ -234,6 +242,8 @@ details.debrief[open] > summary::before { content: "\2212"; }
 .feedback-card.right { border-color: var(--genuine); background: var(--genuine-soft); }
 .feedback-card.wrong { border-color: var(--scam); background: var(--scam-soft); }
 .feedback-card h2 { font-size: 1.4rem; }
+.fb-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+.fb-cues { margin: 0 0 14px; padding-left: 20px; }
 .timeline { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; }
 .tl-cell { display: grid; justify-items: center; gap: 4px; padding: 6px 0; border-radius: 8px; background: var(--surface-2); }
 .tl-cell.tl-err { background: var(--scam-soft); }
@@ -253,15 +263,18 @@ details.debrief[open] > summary::before { content: "\2212"; }
 .all-rules > summary { cursor: pointer; font-weight: 600; }
 .scroll { overflow-x: auto; }
 tr.best td { font-weight: 700; }
+table.data td:nth-child(n+2) { white-space: nowrap; }
+@media (pointer: coarse) { .choice label .hint, .shortcuts { display: none; } }
 footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 860px) {
   .grid-2, .profile-card { grid-template-columns: minmax(0, 1fr); }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tiles .tile:last-child { grid-column: span 2; }
   .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) {
-  .hbar-row, .db-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "track" "value"; }
+  .hbar-row, .hbar-row.wide, .db-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "track" "value"; }
   main { padding: 4px 14px 40px; }
   header.top { padding: 14px 14px 4px; }
   .card { padding: 16px; }
@@ -279,7 +292,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
 <a class="skip" href="#app">Skip to content</a>
 <header class="top">
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="15" cy="12" r="7" fill="none" stroke="#6a3db3" stroke-width="2.2"/></svg>
+    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="15" cy="12" r="7" fill="none" style="stroke: var(--checker)" stroke-width="2.2"/></svg>
     <span>Second opinion</span>
   </div>
   <div class="top-note">Works offline. Nothing you do here leaves this page.</div>
@@ -1152,10 +1165,13 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
             '<li><span class="step-num">3</span><div><strong>On your own again.</strong> Six more messages, to see whether anything changed.</div></li>' +
           '</ol>' +
           resumeNotice() +
-          '<div class="btn-row">' +
+          '<div class="btn-row start-row">' +
             '<button class="btn primary big" type="button" data-action="start">Start the test</button>' +
-            '<button class="btn" type="button" data-action="example">See an example result</button>' +
-            '<button class="btn" type="button" data-action="import">Open saved results</button>' +
+            '<span class="muted small">About ten minutes</span>' +
+          '</div>' +
+          '<div class="btn-row secondary-row">' +
+            '<button class="btn quiet" type="button" data-action="example">See an example result</button>' +
+            '<button class="btn quiet" type="button" data-action="import">Open saved results</button>' +
             '<input type="file" id="import-file" accept=".json,application/json" class="visually-hidden" tabindex="-1" aria-hidden="true">' +
           '</div>' +
           '<p class="error-text" id="import-error" role="alert"></p>' +
@@ -1291,9 +1307,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     var info = PHASE_INFO[trial.phase];
     var inPhase = phaseIndex(trial);
     var total = phaseCount(trial.phase);
-    var progress = '<div class="progress" aria-label="Progress">' +
+    var progress = '<div class="progress">' +
       '<div class="progress-top"><span><strong>Part ' + info.number + ' of 3:</strong> ' + esc(info.title) + '</span>' +
-      '<span>Message ' + inPhase + ' of ' + total + '</span></div><div class="bar" style="grid-template-columns: 6fr 16fr 6fr">' +
+      '<span>Message ' + inPhase + ' of ' + total + '</span></div><div class="bar" aria-hidden="true" style="grid-template-columns: 6fr 16fr 6fr">' +
       M.PHASES.map(function (p) {
         var n = phaseCount(p);
         var done = trials().filter(function (t) { return t.phase === p && M.isComplete(t); }).length;
@@ -1309,9 +1325,10 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       var aiRight = trial.ai.verdict === trial.truth;
       panel = '<div class="feedback-card ' + (yourRight ? 'right' : 'wrong') + '">' +
         '<h2 id="feedback-title" tabindex="-1">' + (trial.truth === 'scam' ? 'This was a scam' : 'This was genuine') + '</h2>' +
-        '<p>Your final answer: ' + answerChip(trial.final.answer) + ' <strong>' + (yourRight ? 'right' : 'wrong') + '</strong>. ' +
-        'The checker said ' + answerChip(trial.ai.verdict) + ' <strong>' + (aiRight ? 'right' : 'wrong') + '</strong>.</p>' +
-        '<p class="small">' + esc(item.cues[0]) + '</p>' +
+        '<p class="fb-line">You said ' + answerChip(trial.final.answer) + ' <strong>' + (yourRight ? 'You were right.' : 'You were wrong.') + '</strong></p>' +
+        '<p class="fb-line">The checker said ' + answerChip(trial.ai.verdict) + ' <strong>' + (aiRight ? 'It was right.' : 'It was wrong.') + '</strong></p>' +
+        '<p class="small" style="margin: 10px 0 4px"><strong>' + (trial.truth === 'scam' ? 'Warning signs' : 'Why it is genuine') + '</strong></p>' +
+        '<ul class="small fb-cues">' + item.cues.map(function (cue) { return '<li>' + esc(cue) + '</li>'; }).join('') + '</ul>' +
         '<button class="btn primary big" type="button" data-action="next">' + (state.index === trials().length - 1 ? 'Finish and see results' : 'Next message') + '</button></div>';
     } else if (!isFinal) {
       var label = trial.phase === 'with' ? 'Ask the checker' : (state.index === trials().length - 1 ? 'Finish and see results' : 'Next message');
@@ -1385,18 +1402,17 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<rect x="' + x(0) + '" y="' + y(1) + '" width="' + inner + '" height="' + inner + '" fill="none" class="axis" stroke-width="1"/>' +
       '<line x1="' + x(mid) + '" x2="' + x(mid) + '" y1="' + y(0) + '" y2="' + y(1) + '" class="axis" stroke-dasharray="3 3"/>' +
       '<line x1="' + x(0) + '" x2="' + x(1) + '" y1="' + y(mid) + '" y2="' + y(mid) + '" class="axis" stroke-dasharray="3 3"/>' +
-      '<text x="' + (x(0.75)) + '" y="' + (y(0.94)) + '" text-anchor="middle" font-size="10" class="muted-text">Calibrated</text>' +
-      '<text x="' + (x(0.25)) + '" y="' + (y(0.94)) + '" text-anchor="middle" font-size="10" class="muted-text">Under-reliant</text>' +
-      '<text x="' + (x(0.75)) + '" y="' + (y(0.04)) + '" text-anchor="middle" font-size="10" class="muted-text">Over-reliant</text>' +
-      '<text x="' + (x(0.25)) + '" y="' + (y(0.04)) + '" text-anchor="middle" font-size="10" class="muted-text">Second-guesser</text>' +
+      '<text x="' + (x(0.75)) + '" y="' + (y(0.87)) + '" text-anchor="middle" font-size="10" class="muted-text halo">Calibrated</text>' +
+      '<text x="' + (x(0.25)) + '" y="' + (y(0.87)) + '" text-anchor="middle" font-size="10" class="muted-text halo">Under-reliant</text>' +
+      '<text x="' + (x(0.75)) + '" y="' + (y(0.1)) + '" text-anchor="middle" font-size="10" class="muted-text halo">Over-reliant</text>' +
+      '<text x="' + (x(0.25)) + '" y="' + (y(0.1)) + '" text-anchor="middle" font-size="10" class="muted-text halo">Second-guesser</text>' +
       '<text x="' + x(0.5) + '" y="' + (size + 2) + '" text-anchor="middle" font-size="10.5">Took good advice</text>' +
       '<text transform="translate(12 ' + y(0.5) + ') rotate(-90)" text-anchor="middle" font-size="10.5">Resisted bad advice</text>' +
       '<text x="' + x(0) + '" y="' + (y(0) + 13) + '" font-size="9" class="muted-text" text-anchor="middle">0%</text>' +
       '<text x="' + x(1) + '" y="' + (y(0) + 13) + '" font-size="9" class="muted-text" text-anchor="middle">100%</text>' +
       '<text x="' + (x(0) - 4) + '" y="' + (y(1) + 4) + '" font-size="9" class="muted-text" text-anchor="end">100%</text>';
     if (rair !== null && rsr !== null) {
-      svg += '<circle cx="' + x(rair) + '" cy="' + y(rsr) + '" r="9" fill="var(--accent)" stroke="var(--surface)" stroke-width="3"/>' +
-        '<text x="' + x(rair) + '" y="' + (y(rsr) - 14) + '" text-anchor="middle" font-size="11" font-weight="700">You</text>';
+      svg += '<circle cx="' + x(rair) + '" cy="' + y(rsr) + '" r="9" fill="var(--accent)" stroke="var(--surface)" stroke-width="3"/>';
     } else if (rair !== null) {
       svg += '<line x1="' + x(rair) + '" x2="' + x(rair) + '" y1="' + y(0) + '" y2="' + y(1) + '" stroke="var(--accent)" stroke-width="4" stroke-dasharray="6 5" stroke-linecap="round"/>';
     } else if (rsr !== null) {
@@ -1477,7 +1493,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<p>When the checker was right and you were not, you switched to its answer <strong>' + c.checkerRight.corrected + ' of ' + c.checkerRight.n + '</strong> times. ' +
       'When you were right and it was wrong, you held firm <strong>' + c.checkerWrong.heldFirm + ' of ' + c.checkerWrong.n + '</strong> times.</p>' +
       (p.tentative ? '<p class="notice warn small">This rests on only ' + decisive + (decisive === 1 ? ' moment' : ' moments') + ' where your first answer and the checker disagreed and one of you was right, so treat it as a hint rather than a verdict.</p>' : '') +
-      '</div><div>' + quadrant(r.rair, r.rsr) + '</div></section>';
+      '</div><div class="quadrant">' + quadrant(r.rair, r.rsr) +
+      '<p class="legend" style="justify-content: center"><span><span class="swatch" style="background: var(--accent); border-radius: 50%"></span>' +
+      (r.rair !== null && r.rsr !== null ? 'You' : (r.rair === null && r.rsr === null ? 'No position to show' : 'You are somewhere on the dashed line')) + '</span></p></div></section>';
 
     html += '<section class="stack" style="margin-top: 22px" aria-labelledby="scores-title">' +
       '<h2 id="scores-title">Scores at a glance</h2><div class="tiles">' +

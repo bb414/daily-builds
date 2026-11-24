@@ -126,44 +126,48 @@ def _fmt(key, value):
     if key == "brierFinal":
         return "%.3f" % value
     if key in ("complementarity", "change"):
-        return "%+.0f pts" % (value * 100)
+        v = round(value * 100)
+        return "0 pts" if v == 0 else "%+d pts" % v
     return pct(value)
 
 
 def _forest(summary, key, label, colours):
+    """One small dot-and-interval chart per measure. Groups are told apart by colour (see the legend)."""
     groups = summary["groups"]
     signed = key in ("complementarity", "change")
     lo_axis, hi_axis = (-0.5, 0.5) if signed else (0.0, 1.0)
     if key == "brierFinal":
         lo_axis, hi_axis = 0.0, 0.5
-    width, left, right = 560, 190, 70
-    row_h = 30
-    height = 36 + row_h * len(groups)
+    width, left, right = 460, 24, 84
+    row_h = 28
+    height = 40 + row_h * len(groups)
     inner = width - left - right
 
     def x(v):
         v = max(lo_axis, min(hi_axis, v))
         return left + (v - lo_axis) / (hi_axis - lo_axis) * inner
 
-    parts = ['<svg viewBox="0 0 %d %d" role="img" aria-label="%s by group">' % (width, height, html.escape(label))]
+    parts = ['<svg viewBox="0 0 %d %d" role="img" aria-label="%s: %s">' % (
+        width, height, html.escape(label), html.escape("; ".join(
+            "%s %s" % (g["name"], "no data" if g["stats"][key]["mean"] is None else _fmt(key, g["stats"][key]["mean"]))
+            for g in groups)))]
     for tick in [lo_axis, (lo_axis + hi_axis) / 2, hi_axis]:
-        parts.append('<line x1="%.1f" x2="%.1f" y1="8" y2="%d" class="grid"/>' % (x(tick), x(tick), height - 22))
+        parts.append('<line x1="%.1f" x2="%.1f" y1="6" y2="%d" class="grid"/>' % (x(tick), x(tick), height - 24))
         parts.append('<text x="%.1f" y="%d" text-anchor="middle" class="tick">%s</text>' % (
             x(tick), height - 6, html.escape(_fmt(key, tick))))
     for i, g in enumerate(groups):
         st = g["stats"][key]
-        y = 22 + i * row_h
-        parts.append('<text x="%d" y="%d" text-anchor="end" class="label">%s</text>' % (
-            left - 10, y + 4, html.escape(g["name"])))
-        if st["mean"] is None:
-            parts.append('<text x="%d" y="%d" class="tick">no data</text>' % (left, y + 4))
-            continue
+        y = 20 + i * row_h
         colour = colours[i % len(colours)]
+        parts.append('<circle cx="8" cy="%d" r="5" fill="%s"/>' % (y, colour))
+        if st["mean"] is None:
+            parts.append('<text x="%d" y="%d" class="tick">no data</text>' % (left + 4, y + 5))
+            continue
         if st["low"] is not None:
-            parts.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="%s" stroke-width="3" stroke-linecap="round"/>' % (
+            parts.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="%s" stroke-width="4" stroke-linecap="round"/>' % (
                 x(st["low"]), x(st["high"]), y, y, colour))
-        parts.append('<circle cx="%.1f" cy="%d" r="6" fill="%s"/>' % (x(st["mean"]), y, colour))
-        parts.append('<text x="%d" y="%d" class="value">%s</text>' % (width - right + 8, y + 4, html.escape(_fmt(key, st["mean"]))))
+        parts.append('<circle cx="%.1f" cy="%d" r="7" fill="%s" stroke="var(--card)" stroke-width="2"/>' % (x(st["mean"]), y, colour))
+        parts.append('<text x="%d" y="%d" class="value">%s</text>' % (width - right + 10, y + 5, html.escape(_fmt(key, st["mean"]))))
     parts.append("</svg>")
     return "".join(parts)
 
@@ -183,9 +187,6 @@ def _scatter(summary, colours):
     parts.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" class="frame"/>' % (x(0), y(1), inner, inner))
     parts.append('<line x1="%.1f" x2="%.1f" y1="%.1f" y2="%.1f" class="grid"/>' % (x(0.5), x(0.5), y(0), y(1)))
     parts.append('<line x1="%.1f" x2="%.1f" y1="%.1f" y2="%.1f" class="grid"/>' % (x(0), x(1), y(0.5), y(0.5)))
-    for label, (qx, qy) in [("Calibrated", (0.75, 0.96)), ("Under-reliant", (0.25, 0.96)),
-                            ("Over-reliant", (0.75, 0.03)), ("Second-guesser", (0.25, 0.03))]:
-        parts.append('<text x="%.1f" y="%.1f" text-anchor="middle" class="tick">%s</text>' % (x(qx), y(qy), label))
     for i, g in enumerate(summary["groups"]):
         colour = colours[i % len(colours)]
         for r in g["rows"]:
@@ -195,6 +196,9 @@ def _scatter(summary, colours):
             jy = (rng.random() - 0.5) * 0.05
             parts.append('<circle cx="%.1f" cy="%.1f" r="4" fill="%s" fill-opacity="0.55"/>' % (
                 x(min(1, max(0, r["rair"] + jx))), y(min(1, max(0, r["rsr"] + jy))), colour))
+    for label, (qx, qy) in [("Calibrated", (0.75, 0.88)), ("Under-reliant", (0.25, 0.88)),
+                            ("Over-reliant", (0.75, 0.1)), ("Second-guesser", (0.25, 0.1))]:
+        parts.append('<text x="%.1f" y="%.1f" text-anchor="middle" class="tick halo">%s</text>' % (x(qx), y(qy), label))
     parts.append('<text x="%.1f" y="%d" text-anchor="middle" class="label">Took good advice</text>' % (x(0.5), size - 4))
     parts.append('<text transform="translate(14 %.1f) rotate(-90)" text-anchor="middle" class="label">Resisted bad advice</text>' % y(0.5))
     parts.append("</svg>")
@@ -262,9 +266,10 @@ h1 { margin: 0 0 6px; } h2 { margin: 0 0 8px; font-size: 1.2rem; } h3 { margin: 
 .muted { color: var(--muted); }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
 .grid { stroke: var(--line); } .frame { fill: none; stroke: var(--line); }
-svg { width:100%%; height:auto; display:block; } svg text { fill: var(--ink); font-size: 12px; }
-svg .tick { fill: var(--muted); font-size: 10.5px; } svg .value { font-weight: 700; }
-.forests { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 16px; }
+svg { width:100%%; height:auto; display:block; } svg text { fill: var(--ink); font-size: 14px; }
+svg .tick { fill: var(--muted); font-size: 12.5px; } svg .value { font-weight: 700; font-size: 15px; }
+svg .halo { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.forests { display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%%, 400px), 1fr)); gap: 0 16px; }
 .legend { display:flex; flex-wrap:wrap; gap:14px; } .sw { display:inline-block; width:12px; height:12px; border-radius:50%%; margin-right:6px; vertical-align:-1px; }
 table { border-collapse: collapse; width: 100%%; font-size: 0.9rem; } th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
 .scroll { overflow-x: auto; }
