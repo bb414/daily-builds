@@ -292,3 +292,44 @@ test('CSV export has one row per message and escapes properly', () => {
   s.id = 'a,"b"';
   assert.ok(M.sessionToCsv(s).split('\n')[1].startsWith('"a,""b"""'));
 });
+
+test('replaying simple rules on a perfect, unshakeable person', () => {
+  const s = fill(M.buildSession(9), (t) => [t.truth, 100]);
+  const rp = M.score(s).replay;
+  const byKey = (key, th) => rp.rules.find((r) => r.key === key && r.threshold === th);
+  assert.equal(rp.n, 16);
+  assert.deepEqual(rp.actual, { correct: 16, accuracy: 1 });
+  assert.equal(byKey('first', null).correct, 16);
+  assert.equal(byKey('checker', null).correct, 12);
+  assert.equal(byKey('checker', null).switched, 4);
+  M.OWN_THRESHOLDS.forEach((th) => assert.equal(byKey('unsure', th).correct, 16, 'never unsure, never switches'));
+  // The checker's four mistakes carry 71%, 76%, 78% and 84% confidence.
+  assert.equal(byKey('confident', 75).correct, 13);
+  assert.equal(byKey('confident', 80).correct, 15);
+  assert.equal(byKey('confident', 85).correct, 16);
+  assert.equal(rp.best.key, 'first', 'ties go to the simplest rule listed first');
+  assert.equal(rp.rules.length, 2 + M.OWN_THRESHOLDS.length + M.CHECKER_THRESHOLDS.length);
+});
+
+test('replaying rules finds the confidence cut-off that avoids the checker\'s mistakes', () => {
+  // First answers always disagree with the checker, at 60% confidence.
+  const s = fill(M.buildSession(4), (t, stage) => {
+    if (t.phase !== 'with') { return [t.truth, 80]; }
+    return stage === 'initial' ? [other(t.ai.verdict), 60] : [other(t.ai.verdict), 60];
+  });
+  const rp = M.score(s).replay;
+  assert.equal(rp.actual.correct, 4);
+  assert.equal(rp.rules[0].correct, 4);
+  assert.equal(rp.rules[1].correct, 12);
+  const unsure50 = rp.rules.find((r) => r.key === 'unsure' && r.threshold === 50);
+  const unsure60 = rp.rules.find((r) => r.key === 'unsure' && r.threshold === 60);
+  assert.equal(unsure50.correct, 4);
+  assert.equal(unsure60.correct, 12);
+  // Following only at 85% or more picks up the right advice at 85% and above, and none of the mistakes.
+  const c85 = rp.rules.find((r) => r.key === 'confident' && r.threshold === 85);
+  const rightAt85 = M.ITEMS.filter((i) => i.role === 'checker' && i.ai.verdict === i.truth && i.ai.confidence >= 85).length;
+  assert.equal(c85.correct, 4 + rightAt85);
+  // At 80% or more it follows all twelve right verdicts and only one mistake (84%).
+  assert.deepEqual([rp.best.key, rp.best.threshold, rp.best.correct], ['confident', 80, 15]);
+  assert.equal(M.score(M.buildSession(4)).replay.best, null);
+});

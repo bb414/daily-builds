@@ -181,6 +181,50 @@ class AppTests(unittest.TestCase):
         self.assertIn("Message 2 of 16", page.locator("main").inner_text())
         self.assertEqual(self.problems, [])
 
+    def test_example_result(self):
+        page = self.open()
+        page.get_by_role("button", name="See an example result").click()
+        self.assertIn("This is an example", page.locator("main").inner_text())
+        self.assertEqual(page.locator("#results-title").inner_text(), "Over-reliant")
+        self.assertIn("In hindsight, the best simple rule for you was", page.locator("main").inner_text())
+        self.assertEqual(page.locator(".all-rules tbody tr").count(), 12)
+        page.get_by_role("button", name="Back to the start").click()
+        page.wait_for_selector("#start-title")
+        self.assertEqual(self.problems, [])
+
+    def test_resume_after_closing_the_page(self):
+        page = self.open()
+        page.get_by_role("button", name="Start the test").click()
+        page.get_by_role("button", name="Begin part 1").click()
+        for _ in range(3):
+            page.keyboard.press("s")
+            page.keyboard.press("2")
+            page.keyboard.press("Enter")
+        page.reload()
+        self.assertIn("You have an unfinished test", page.locator("main").inner_text())
+        self.assertIn("message 4 of 28", page.locator("main").inner_text())
+        page.get_by_role("button", name="Resume where you left off").click()
+        self.assertIn("Message 4 of 6", page.locator("main").inner_text())
+        # Finish part 1, answer one checker message's first stage, then reload mid-message.
+        for _ in range(3):
+            page.keyboard.press("g")
+            page.keyboard.press("2")
+            page.keyboard.press("Enter")
+        page.get_by_role("button", name="Begin part 2").click()
+        page.keyboard.press("g")
+        page.keyboard.press("2")
+        page.keyboard.press("Enter")
+        page.reload()
+        page.get_by_role("button", name="Resume where you left off").click()
+        self.assertEqual(page.locator(".checker-card").count(), 1, "resumes at the checker's advice")
+        page.reload()
+        page.get_by_role("button", name="Discard it").click()
+        self.assertNotIn("unfinished test", page.locator("main").inner_text())
+        page.evaluate("localStorage.setItem('second-opinion-progress', '{broken')")
+        page.reload()
+        self.assertNotIn("unfinished test", page.locator("main").inner_text())
+        self.assertEqual(self.problems, [])
+
     def test_full_run_ignoring_the_checker_on_a_phone(self):
         page = self.open(390, 844)
         self.no_overflow(page, "the start screen")

@@ -34,6 +34,8 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Profile:", out)
             self.assertIn("The moments that mattered", out)
+            self.assertIn("What if you had used a simple rule?", out)
+            self.assertIn("best in hindsight", out)
 
             code, out, _ = run("score", "--json", os.path.join(folder, files[0]))
             self.assertEqual(code, 0)
@@ -47,6 +49,7 @@ class CliTests(unittest.TestCase):
             with open(report, encoding="utf-8") as f:
                 page = f.read()
             self.assertIn("<svg", page)
+            self.assertIn("Which simple rule would have served each group best?", page)
             self.assertIn("synthetic", page)
             self.assertNotIn("http://", page)
             self.assertNotIn("https://", page)

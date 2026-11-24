@@ -81,6 +81,46 @@ def _confidence_stats(pairs):
     }
 
 
+OWN_THRESHOLDS = (50, 60, 70, 80, 90)
+CHECKER_THRESHOLDS = (75, 80, 85, 90, 95)
+
+
+def replay(w):
+    """Replay simple reliance rules on completed checker trials (same as the app).
+
+    Rules: always keep your first answer; always go with the checker; go with it
+    only when you were at most T% sure; go with it only when it was at least C%
+    confident. The best rule is picked in hindsight (first listed wins a tie).
+    """
+    def run(follow):
+        correct = switched = 0
+        for t in w:
+            use_checker = t["initial"]["answer"] != t["ai"]["verdict"] and follow(t)
+            if use_checker:
+                switched += 1
+            if (t["ai"]["verdict"] if use_checker else t["initial"]["answer"]) == t["truth"]:
+                correct += 1
+        return {"correct": correct, "switched": switched, "accuracy": _ratio(correct, len(w))}
+
+    actual = sum(1 for t in w if t["final"]["answer"] == t["truth"])
+    rules = [dict(key="first", threshold=None, **run(lambda t: False)),
+             dict(key="checker", threshold=None, **run(lambda t: True))]
+    for th in OWN_THRESHOLDS:
+        rules.append(dict(key="unsure", threshold=th, **run(lambda t, th=th: t["initial"]["confidence"] <= th)))
+    for th in CHECKER_THRESHOLDS:
+        rules.append(dict(key="confident", threshold=th, **run(lambda t, th=th: t["ai"]["confidence"] >= th)))
+    best = None
+    for r in rules:
+        if best is None or r["correct"] > best["correct"]:
+            best = r
+    return {
+        "n": len(w),
+        "actual": {"correct": actual, "accuracy": _ratio(actual, len(w))},
+        "rules": rules,
+        "best": best if w else None,
+    }
+
+
 def profile_for(rair, rsr, n_correctable, n_misleading):
     if rair is None and rsr is None:
         key = "untested"
@@ -222,6 +262,7 @@ def score(session):
     }
 
     complementarity = None
+    replay_result = replay(w)
     if n["with"] > 0:
         complementarity = accuracy["withFinal"] - max(accuracy["withInitial"], accuracy["checker"])
     confidence = {
@@ -239,6 +280,7 @@ def score(session):
         "accuracy": accuracy,
         "reliance": reliance,
         "trust": trust,
+        "replay": replay_result,
         "complementarity": complementarity,
         "confidence": confidence,
         "change": change,

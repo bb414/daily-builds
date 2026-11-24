@@ -128,7 +128,37 @@ def person_row(session, by="condition"):
         "complementarity": s["complementarity"],
         "change": s["change"],
         "brierFinal": s["confidence"]["withFinal"]["brier"],
+        "replay": s["replay"],
     }
+
+
+def rule_label(rule):
+    if rule["key"] == "first":
+        return "Always keep your first answer"
+    if rule["key"] == "checker":
+        return "Always go with the checker"
+    if rule["key"] == "unsure":
+        return "Go with the checker only when you were %d%% sure or less" % rule["threshold"]
+    return "Go with the checker only when it was %d%% confident or more" % rule["threshold"]
+
+
+def rule_averages(rows):
+    """Average accuracy of each simple reliance rule across people, best first.
+
+    Unlike one person's hindsight-best rule, a rule that wins on average across a
+    whole group is a fair candidate for advice to the next group.
+    """
+    replays = [r["replay"] for r in rows if r["replay"]["n"]]
+    if not replays:
+        return {"actual": None, "rules": []}
+    rules = []
+    for i, rule in enumerate(replays[0]["rules"]):
+        values = [rp["rules"][i]["accuracy"] for rp in replays]
+        rules.append({"key": rule["key"], "threshold": rule["threshold"], "label": rule_label(rule),
+                      "accuracy": sum(values) / len(values)})
+    rules.sort(key=lambda r: -r["accuracy"])
+    actual = [rp["actual"]["accuracy"] for rp in replays]
+    return {"actual": sum(actual) / len(actual), "rules": rules}
 
 
 def _mean(values):
@@ -181,7 +211,7 @@ def summarise(sessions, by="condition", resamples=2000):
         for m in members:
             profiles[m["profile"]] = profiles.get(m["profile"], 0) + 1
         summary["groups"].append({"name": name, "people": len(members), "stats": stats,
-                                  "profiles": profiles, "rows": members})
+                                  "profiles": profiles, "rules": rule_averages(members), "rows": members})
     return summary
 
 

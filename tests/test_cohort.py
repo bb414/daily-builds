@@ -166,3 +166,36 @@ class PowerTests(unittest.TestCase):
         styles = {s["condition"]["advice"] for s in sessions}
         self.assertEqual(styles, {"verdict", "confidence", "reason"})
         self.assertTrue(all(s["condition"]["assignment"] == "random" for s in sessions))
+
+
+class RuleTests(unittest.TestCase):
+    def test_rule_averages(self):
+        sessions = simulate_cohort(40, seed=12)
+        summary = cohort.summarise(sessions, resamples=50)
+        rules = summary["groups"][0]["rules"]
+        self.assertEqual(len(rules["rules"]), 12)
+        accs = [r["accuracy"] for r in rules["rules"]]
+        self.assertEqual(accs, sorted(accs, reverse=True))
+        always = next(r for r in rules["rules"] if r["key"] == "checker")
+        self.assertAlmostEqual(always["accuracy"], 0.75)
+        first = next(r for r in rules["rules"] if r["key"] == "first")
+        expected = sum(score(s)["accuracy"]["withInitial"] for s in sessions) / 40
+        self.assertAlmostEqual(first["accuracy"], expected)
+        self.assertEqual(cohort.rule_averages([]), {"actual": None, "rules": []})
+        self.assertEqual(cohort.rule_label({"key": "unsure", "threshold": 60}),
+                         "Go with the checker only when you were 60% sure or less")
+
+
+class ExampleTests(unittest.TestCase):
+    def test_the_example_in_the_app_is_the_documented_synthetic_person(self):
+        import re
+        from helpers import APP
+        with open(APP, encoding="utf-8") as f:
+            page = f.read()
+        match = re.search(r"/\* EXAMPLE START \*/\s*var EXAMPLE = (.*?);\s*/\* EXAMPLE END \*/", page, re.S)
+        self.assertIsNotNone(match)
+        example = json.loads(match.group(1))
+        self.assertEqual(example, simulate_session(79, {"advice": "reason", "feedback": False}))
+        result = score(example)
+        self.assertEqual(result["profile"]["key"], "over")
+        self.assertTrue(result["complete"])

@@ -3,7 +3,7 @@
 import html
 import random
 
-from .cohort import MEASURES
+from .cohort import MEASURES, rule_label
 
 PROFILE_ORDER = ["calibrated", "takes-advice", "holds-firm", "over", "under", "misplaced", "untested"]
 PROFILE_LABELS = {
@@ -71,6 +71,18 @@ def session_text(session, result):
         if cs["n"]:
             lines.append("  %-14s %s right, %s sure, Brier %.3f" % (
                 label, pct(cs["accuracy"]), pct(cs["meanConfidence"]), cs["brier"]))
+    rp = result["replay"]
+    if rp["n"]:
+        lines += ["", "What if you had used a simple rule? (%d of %d right in fact)" % (rp["actual"]["correct"], rp["n"])]
+        for rule in rp["rules"]:
+            lines.append("  %2d of %d  %s%s" % (rule["correct"], rp["n"], rule_label(rule),
+                                                "  <- best in hindsight" if rule is rp["best"] else ""))
+    t = result["trust"]
+    if t["firstErrorAt"] is not None:
+        b, a = t["beforeFirstError"], t["afterFirstError"]
+        lines += ["", "Trust over time: the checker's first mistake was its message %d." % t["firstErrorAt"],
+                  "  Switched after disagreeing: %d of %d before it, %d of %d after it." % (
+                      b["switched"], b["disagreements"], a["switched"], a["disagreements"])]
     lines += ["", "Solo change, part 3 minus part 1: %s" % signed_points(result["change"])]
     if not result["complete"]:
         lines.append("Note: the session is unfinished; only answered messages are counted.")
@@ -92,6 +104,11 @@ def cohort_text(summary, comparisons=None):
             lines.append("  %-44s %s%s  (n=%d)" % (label, _fmt(key, st["mean"]), interval, st["n"]))
         profile_bits = ["%s %d" % (PROFILE_LABELS[p], g["profiles"][p]) for p in PROFILE_ORDER if p in g["profiles"]]
         lines.append("  Profiles: " + ", ".join(profile_bits))
+        rules = g["rules"]
+        if rules["rules"]:
+            lines.append("  Simple rules on the checker messages (average share right; people actually got %s):" % pct(rules["actual"]))
+            for rule in rules["rules"][:3]:
+                lines.append("    %s  %s" % (pct(rule["accuracy"]), rule["label"]))
         lines.append("")
     if comparisons:
         lines.append("Differences from %s (permutation tests)" % comparisons[0]["reference"])
@@ -195,6 +212,24 @@ def cohort_html(summary, comparisons=None, synthetic=False, title="Second opinio
         cells = "".join("<td>%d</td>" % g["profiles"].get(p, 0) for p in PROFILE_ORDER)
         profile_rows.append("<tr><th scope=\"row\">%s</th>%s</tr>" % (html.escape(g["name"]), cells))
     profile_head = "".join("<th scope=\"col\">%s</th>" % html.escape(PROFILE_LABELS[p]) for p in PROFILE_ORDER)
+    rules_html = ""
+    rule_cards = []
+    for i, g in enumerate(summary["groups"]):
+        rules = g["rules"]
+        if not rules["rules"]:
+            continue
+        items = "".join("<tr><td>%s</td><td>%s</td></tr>" % (html.escape(r["label"]), pct(r["accuracy"]))
+                        for r in rules["rules"][:5])
+        rule_cards.append('<div><h3><span class="sw" style="background:%s"></span>%s</h3>'
+                          '<p class="muted">What people actually did: %s right on the checker messages.</p>'
+                          '<div class="scroll"><table><thead><tr><th>Best simple rules</th><th>Right</th></tr></thead>'
+                          '<tbody>%s</tbody></table></div></div>' % (
+                              colours[i % len(colours)], html.escape(g["name"]), pct(rules["actual"]), items))
+    if rule_cards:
+        rules_html = ('<section class="card"><h2>Which simple rule would have served each group best?</h2>'
+                      '<p class="muted">Each rule is replayed on every person\'s own first answers. A rule that wins on '
+                      'average across a group is a fairer candidate for advice than one person\'s hindsight.</p>'
+                      '<div class="forests">%s</div></section>') % "".join(rule_cards)
     comp_html = ""
     if comparisons:
         labels = dict((k, l) for k, l, _ in MEASURES)
@@ -243,6 +278,7 @@ table { border-collapse: collapse; width: 100%%; font-size: 0.9rem; } th, td { t
 <div class="forests">%(forests)s</div>
 <div class="card"><h2>Where each person sits</h2><p class="muted">Each dot is one person (slightly jittered so overlapping people stay visible). People with no disagreements of one kind are left out.</p><div class="scatter">%(scatter)s</div></div>
 <div class="card"><h2>Profiles</h2><div class="scroll"><table><thead><tr><th>Group</th>%(profile_head)s</tr></thead><tbody>%(profile_rows)s</tbody></table></div></div>
+%(rules)s
 %(comparisons)s
 <p class="muted">Made with the Second opinion toolkit. RAIR is the share of correctable mistakes a person corrected after seeing the checker; RSR is the share of right answers they kept when the checker was wrong.</p>
 </main></body></html>
@@ -250,4 +286,5 @@ table { border-collapse: collapse; width: 100%%; font-size: 0.9rem; } th, td { t
         "title": html.escape(title), "people": summary["people"], "by": html.escape(summary["by"]),
         "banner": banner, "legend": legend, "forests": forests, "scatter": _scatter(summary, colours),
         "profile_head": profile_head, "profile_rows": "".join(profile_rows), "comparisons": comp_html,
+        "rules": rules_html,
     }
