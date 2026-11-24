@@ -74,7 +74,7 @@ test('buildSession is reproducible and follows the design', () => {
   const phases = a.trials.map((t) => t.phase);
   assert.deepEqual(phases, [...Array(6).fill('before'), ...Array(16).fill('with'), ...Array(6).fill('after')]);
   assert.equal(a.format, 'second-opinion-session');
-  assert.deepEqual(a.condition, { advice: 'reason', feedback: false });
+  assert.deepEqual(a.condition, { advice: 'reason', feedback: false, assignment: 'fixed' });
 });
 
 test('solo pairs are split across the two solo parts, for every seed tried', () => {
@@ -97,8 +97,56 @@ test('odd seeds and conditions are normalised', () => {
   assert.equal(M.buildSession('abc').seed, 1);
   assert.equal(M.buildSession(-7.9).seed, 7);
   assert.equal(M.buildSession(2 ** 32 + 5).seed, 5);
-  assert.deepEqual(M.buildSession(1, { advice: 'shout', feedback: 'yes' }).condition, { advice: 'reason', feedback: false });
-  assert.deepEqual(M.buildSession(1, { advice: 'verdict', feedback: true }).condition, { advice: 'verdict', feedback: true });
+  assert.deepEqual(M.buildSession(1, { advice: 'shout', feedback: 'yes' }).condition, { advice: 'reason', feedback: false, assignment: 'fixed' });
+  assert.deepEqual(M.buildSession(1, { advice: 'verdict', feedback: true }).condition, { advice: 'verdict', feedback: true, assignment: 'fixed' });
+});
+
+test('random assignment spreads people evenly over the three advice styles', () => {
+  const counts = { verdict: 0, confidence: 0, reason: 0 };
+  for (let seed = 1000; seed < 1300; seed++) {
+    const c = M.buildSession(seed, { advice: 'random', feedback: true }).condition;
+    assert.equal(c.assignment, 'random');
+    assert.equal(c.feedback, true);
+    counts[c.advice]++;
+  }
+  assert.deepEqual(counts, { verdict: 100, confidence: 100, reason: 100 });
+  // A saved random session keeps its label when normalised again.
+  assert.deepEqual(M.normaliseCondition({ advice: 'confidence', feedback: false, assignment: 'random' }, 5),
+    { advice: 'confidence', feedback: false, assignment: 'random' });
+});
+
+test('reliance over time splits at the checker\'s first mistake', () => {
+  const s = M.buildSession(21);
+  const w = s.trials.filter((t) => t.phase === 'with');
+  const firstWrong = w.findIndex((t) => t.ai.verdict !== t.truth);
+  assert.ok(firstWrong >= 2);
+  // Disagree with every message; switch only before the first mistake.
+  fill(s, (t, stage) => {
+    if (t.phase !== 'with') { return [t.truth, 70]; }
+    if (stage === 'initial') { return [other(t.ai.verdict), 60]; }
+    return [w.indexOf(t) < firstWrong ? t.ai.verdict : other(t.ai.verdict), 60];
+  });
+  const r = M.score(s).trust;
+  assert.equal(r.firstErrorAt, firstWrong + 1);
+  assert.deepEqual(r.beforeFirstError, { disagreements: firstWrong, switched: firstWrong, rate: 1 });
+  assert.deepEqual(r.afterFirstError, { disagreements: 15 - firstWrong, switched: 0, rate: 0 });
+  assert.equal(r.change, -1);
+  assert.equal(r.timeline.length, 16);
+  assert.equal(r.timeline[firstWrong].checkerRight, false);
+  // Trials stored out of order are put back in order first.
+  const shuffled = JSON.parse(JSON.stringify(s));
+  shuffled.trials.reverse();
+  assert.deepEqual(M.score(shuffled).trust, M.score(s).trust);
+  // Before the checker has made a mistake, everything is in the "before" window.
+  const early = M.buildSession(21);
+  early.trials.slice(0, 8).forEach((t) => {
+    t.initial = { answer: t.truth, confidence: 70 };
+    if (t.phase === 'with') { t.final = { answer: t.truth, confidence: 70 }; }
+  });
+  const e = M.score(early).trust;
+  assert.equal(e.firstErrorAt, null);
+  assert.equal(e.afterFirstError.rate, null);
+  assert.equal(e.change, null);
 });
 
 test('a perfect person who ignores the checker holds firm and is never corrected', () => {

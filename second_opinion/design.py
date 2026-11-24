@@ -98,12 +98,19 @@ def _ai_right(item):
     return item["ai_verdict"] is not None and item["ai_verdict"] == item["truth"]
 
 
-def normalise_condition(condition=None):
+def normalise_condition(condition=None, seed=1):
+    """How advice is shown and whether feedback is on. 'random' assigns an advice
+    style from the seed, exactly as the app does."""
     condition = condition or {}
-    advice = condition.get("advice")
+    requested = condition.get("advice")
+    random_assignment = requested == "random" or condition.get("assignment") == "random"
+    advice = requested if requested in ADVICE_STYLES else "reason"
+    if requested == "random":
+        advice = ADVICE_STYLES[(seed & 0xFFFFFFFF) % len(ADVICE_STYLES)]
     return {
-        "advice": advice if advice in ADVICE_STYLES else "reason",
+        "advice": advice,
         "feedback": condition.get("feedback") is True,
+        "assignment": "random" if random_assignment else "fixed",
     }
 
 
@@ -157,6 +164,6 @@ def build_session(seed, condition=None):
         "version": VERSION,
         "id": "so-" + _base36(s),
         "seed": s,
-        "condition": normalise_condition(condition),
+        "condition": normalise_condition(condition, s),
         "trials": trials,
     }

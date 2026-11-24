@@ -107,7 +107,7 @@ class SynthTests(unittest.TestCase):
         self.assertEqual(a, simulate_session(99, {"advice": "confidence"}))
         self.assertTrue(score(a)["complete"])
         self.assertTrue(a["synthetic"])
-        self.assertEqual(a["condition"], {"advice": "confidence", "feedback": False})
+        self.assertEqual(a["condition"], {"advice": "confidence", "feedback": False, "assignment": "fixed"})
 
     def test_assumed_effects_show_up_in_large_samples(self):
         def mean(values):
@@ -130,3 +130,39 @@ class SynthTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PowerTests(unittest.TestCase):
+    def test_parse_arm(self):
+        from second_opinion.power import parse_arm
+        self.assertEqual(parse_arm("reason"), {"advice": "reason", "feedback": False})
+        self.assertEqual(parse_arm("Verdict + feedback"), {"advice": "verdict", "feedback": True})
+        for bad in ("", "loud", "reason+shout", "+feedback"):
+            with self.assertRaises(ValueError):
+                parse_arm(bad)
+
+    def test_welch(self):
+        from second_opinion.power import welch_test
+        diff, p = welch_test([0.1, 0.2, 0.3, 0.2] * 10, [0.7, 0.8, 0.9, 0.8] * 10)
+        self.assertAlmostEqual(diff, 0.6)
+        self.assertLess(p, 1e-6)
+        self.assertEqual(welch_test([1, 1, 1], [1, 1, 1]), (0, 1.0))
+        self.assertEqual(welch_test([1], [1, 2]), (None, None))
+
+    def test_power_grows_with_size_and_matches_alpha_with_no_effect(self):
+        from second_opinion.power import power_curve, smallest_adequate
+        curve = power_curve({"advice": "verdict"}, {"advice": "reason"}, "followWhenWrong",
+                            [6, 120], reps=40, seed=3, shifts={"reason": 0.8, "verdict": -0.8})
+        self.assertLess(curve[0]["power"], curve[1]["power"])
+        self.assertGreater(curve[1]["power"], 0.9)
+        self.assertGreater(curve[1]["difference"], 0)
+        self.assertEqual(smallest_adequate(curve), 120)
+        null = power_curve({"advice": "reason"}, {"advice": "reason"}, "rsr", [40], reps=80, seed=5)
+        self.assertLess(null[0]["power"], 0.15)
+        self.assertIsNone(smallest_adequate(null))
+
+    def test_random_assignment_in_synthetic_people(self):
+        sessions = simulate_cohort(60, seed=8, condition={"advice": "random"})
+        styles = {s["condition"]["advice"] for s in sessions}
+        self.assertEqual(styles, {"verdict", "confidence", "reason"})
+        self.assertTrue(all(s["condition"]["assignment"] == "random" for s in sessions))

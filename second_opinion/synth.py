@@ -12,7 +12,7 @@ so that the analysis pipeline, and a study's sample size, can be tested end to e
 import math
 import random
 
-from .design import ITEM_BY_ID, build_session, normalise_condition
+from .design import ITEM_BY_ID, build_session
 
 # Log-odds of a correct judgement for an average person, by difficulty.
 BASE_LOGIT = {"easy": 2.0, "medium": 1.0, "hard": 0.0}
@@ -49,19 +49,20 @@ def _judge(item, skill, bias, rng):
     return {"answer": item["truth"] if correct else other, "confidence": _round_confidence(felt)}
 
 
-def simulate_session(seed, condition=None, person=None, crutch=0.0):
+def simulate_session(seed, condition=None, person=None, crutch=0.0, shifts=None):
     """Fill a session with one synthetic person's answers.
 
     crutch is the assumed drop in log-odds of a correct solo judgement after the
-    checker phase for a fully trusting person (0 means no effect).
+    checker phase for a fully trusting person (0 means no effect). shifts
+    overrides ADVICE_SHIFT, the assumed effect of each advice style on switching.
     """
     rng = random.Random(seed)
     person = person or draw_person(rng)
     session = build_session(seed, condition)
-    condition = normalise_condition(condition)
+    condition = session["condition"]
     session["synthetic"] = True
     trust = person["trust"]
-    shift = ADVICE_SHIFT[condition["advice"]]
+    shift = dict(ADVICE_SHIFT, **(shifts or {}))[condition["advice"]]
     for trial in session["trials"]:
         item = ITEM_BY_ID[trial["item"]]
         if trial["phase"] == "before":
@@ -89,7 +90,7 @@ def simulate_session(seed, condition=None, person=None, crutch=0.0):
     return session
 
 
-def simulate_cohort(n, seed=1, condition=None, crutch=0.0):
+def simulate_cohort(n, seed=1, condition=None, crutch=0.0, shifts=None):
     """Simulate n people under one condition. Seeds are derived from seed, so runs repeat."""
     master = random.Random(seed)
-    return [simulate_session(master.randrange(1, 2 ** 32), condition, crutch=crutch) for _ in range(n)]
+    return [simulate_session(master.randrange(1, 2 ** 32), condition, crutch=crutch, shifts=shifts) for _ in range(n)]

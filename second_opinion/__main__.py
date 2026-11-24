@@ -5,7 +5,7 @@ import json
 import os
 import sys
 
-from . import cohort, report, synth
+from . import cohort, power, report, synth
 from .design import ADVICE_STYLES
 from .metrics import score
 
@@ -58,6 +58,47 @@ def _cmd_cohort(args):
     return 0
 
 
+def _parse_shifts(items):
+    shifts = {}
+    for item in items or []:
+        style, _, value = item.partition("=")
+        if style not in ADVICE_STYLES or not value:
+            raise ValueError("--assume takes STYLE=NUMBER, for example reason=0.8, not %r" % item)
+        shifts[style] = float(value)
+    return shifts
+
+
+def _cmd_power(args):
+    arm_a, arm_b = power.parse_arm(args.a), power.parse_arm(args.b)
+    sizes = [int(x) for x in args.sizes.split(",") if x.strip()]
+    if not sizes or min(sizes) < 2:
+        raise ValueError("--sizes needs group sizes of at least 2, for example 25,50,100")
+    shifts = _parse_shifts(args.assume)
+    label = dict((k, l) for k, l, _ in cohort.MEASURES)[args.measure]
+    print("Power to detect a difference in: %s" % label)
+    print("Arm A: %s   Arm B: %s   (%d simulated studies per size, alpha %.2f)" % (args.a, args.b, args.reps, args.alpha))
+    print("Assumed effect of each advice style on switching (log-odds): %s" % ", ".join(
+        "%s %+.2f" % (k, v) for k, v in sorted(dict(synth.ADVICE_SHIFT, **shifts).items())))
+    print()
+    print("  People per arm   Power   Average difference (B minus A)")
+    curve = power.power_curve(arm_a, arm_b, args.measure, sizes, reps=args.reps, alpha=args.alpha,
+                              seed=args.seed, shifts=shifts, crutch=args.crutch)
+    for row in curve:
+        diff = "n/a" if row["difference"] is None else report.signed_points(row["difference"])
+        if args.measure == "brierFinal" and row["difference"] is not None:
+            diff = "%+.3f" % row["difference"]
+        print("  %14d   %4d%%   %s" % (row["n"], round(row["power"] * 100), diff))
+    n = power.smallest_adequate(curve, args.target)
+    print()
+    if n is None:
+        print("None of these sizes reaches %d%% power. Try larger groups." % round(args.target * 100))
+    else:
+        print("Smallest size tried with at least %d%% power: %d people per arm (%d in total)." % (
+            round(args.target * 100), n, 2 * n))
+    print("These numbers depend entirely on the assumed effects; they are a planning aid, not a promise.")
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="python -m second_opinion",
@@ -88,17 +129,34 @@ def build_parser():
     p.add_argument("--resamples", type=int, default=2000, help="bootstrap resamples (default 2000)")
     p.add_argument("--permutations", type=int, default=5000, help="permutation test shuffles (default 5000)")
     p.set_defaults(func=_cmd_cohort)
+
+    p = sub.add_parser("power", help="estimate how many people a study comparing two arms needs")
+    p.add_argument("--a", default="verdict", help="first arm, e.g. verdict or verdict+feedback (default verdict)")
+    p.add_argument("--b", default="reason", help="second arm (default reason)")
+    p.add_argument("--measure", default="followWhenWrong", choices=[k for k, _, _ in cohort.MEASURES],
+                   help="what to compare (default followWhenWrong)")
+    p.add_argument("--sizes", default="25,50,100,200", help="people per arm to try, comma separated")
+    p.add_argument("--reps", type=int, default=100, help="simulated studies per size (default 100)")
+    p.add_argument("--alpha", type=float, default=0.05, help="significance level (default 0.05)")
+    p.add_argument("--target", type=float, default=0.8, help="power to aim for (default 0.8)")
+    p.add_argument("--assume", action="append", metavar="STYLE=NUMBER",
+                   help="override an assumed advice effect, e.g. reason=0.8 (repeatable)")
+    p.add_argument("--crutch", type=float, default=0.0, help="assumed loss of solo skill, as in synth")
+    p.add_argument("--seed", type=int, default=1, help="random seed (default 1)")
+    p.set_defaults(func=_cmd_power)
     return parser
 
 
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
-    if getattr(args, "n", 1) is not None and args.command == "synth" and args.n < 1:
+    if args.command == "synth" and args.n < 1:
         parser.error("--n must be at least 1")
+    if args.command == "power" and (args.reps < 1 or not 0 < args.alpha < 1 or not 0 < args.target <= 1):
+        parser.error("--reps must be at least 1, and --alpha and --target must be between 0 and 1")
     try:
         return args.func(args)
-    except (cohort.SessionFileError, OSError) as exc:
+    except (cohort.SessionFileError, OSError, ValueError) as exc:
         print("Error: %s" % exc, file=sys.stderr)
         return 2
 

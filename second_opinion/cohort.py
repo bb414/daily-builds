@@ -51,7 +51,8 @@ def _session_from_csv_rows(rows):
     trials.sort(key=lambda t: t["position"])
     return {
         "format": "second-opinion-session", "version": 1, "id": first["session"],
-        "condition": {"advice": first["advice"], "feedback": first["feedback"].lower() == "true"},
+        "condition": {"advice": first["advice"], "feedback": first["feedback"].lower() == "true",
+                      "assignment": first.get("assignment") or "fixed"},
         "trials": trials,
     }
 

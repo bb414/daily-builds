@@ -49,6 +49,11 @@ def _ratio(k, n):
     return k / n if n > 0 else None
 
 
+def _position(trial):
+    p = trial.get("position")
+    return p if isinstance(p, (int, float)) and not isinstance(p, bool) else 0
+
+
 def _mean(values):
     if not values:
         return None
@@ -183,6 +188,39 @@ def score(session):
         "followWhenWrong": _ratio(int(followed_wrong), ai_wrong),
         "agreeWhenRight": _ratio(int(followed_right), ai_right),
     }
+    # Reliance over time: switching after a first disagreement, before and after
+    # the first message the checker got wrong (the mistake itself counts in neither).
+    ordered = sorted(w, key=_position)
+    first_error = None
+    timeline = []
+    for i, t in enumerate(ordered):
+        right = t["ai"]["verdict"] == t["truth"]
+        if not right and first_error is None:
+            first_error = i + 1
+        timeline.append({
+            "item": t["item"],
+            "checkerRight": right,
+            "disagreed": t["initial"]["answer"] != t["ai"]["verdict"],
+            "followed": t["final"]["answer"] == t["ai"]["verdict"],
+            "finalRight": t["final"]["answer"] == t["truth"],
+        })
+
+    def switching(items):
+        d = sum(1 for x in items if x["disagreed"])
+        k = sum(1 for x in items if x["disagreed"] and x["followed"])
+        return {"disagreements": d, "switched": k, "rate": _ratio(k, d)}
+
+    before_error = switching(timeline if first_error is None else timeline[:first_error - 1])
+    after_error = switching([] if first_error is None else timeline[first_error:])
+    trust = {
+        "firstErrorAt": first_error,
+        "beforeFirstError": before_error,
+        "afterFirstError": after_error,
+        "change": (after_error["rate"] - before_error["rate"]
+                   if before_error["rate"] is not None and after_error["rate"] is not None else None),
+        "timeline": timeline,
+    }
+
     complementarity = None
     if n["with"] > 0:
         complementarity = accuracy["withFinal"] - max(accuracy["withInitial"], accuracy["checker"])
@@ -200,6 +238,7 @@ def score(session):
         "correct": correct,
         "accuracy": accuracy,
         "reliance": reliance,
+        "trust": trust,
         "complementarity": complementarity,
         "confidence": confidence,
         "change": change,

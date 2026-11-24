@@ -51,6 +51,22 @@ class CliTests(unittest.TestCase):
             self.assertNotIn("http://", page)
             self.assertNotIn("https://", page)
 
+    def test_power(self):
+        code, out, _ = run("power", "--sizes", "10,30", "--reps", "10", "--assume", "reason=1.2")
+        self.assertEqual(code, 0)
+        self.assertIn("People per arm", out)
+        self.assertIn("reason +1.20", out)
+        self.assertIn("planning aid", out)
+        code, _, err = run("power", "--a", "shouting")
+        self.assertEqual(code, 2)
+        self.assertIn("advice style", err)
+        code, _, err = run("power", "--sizes", "1")
+        self.assertEqual(code, 2)
+        code, _, err = run("power", "--assume", "reason")
+        self.assertEqual(code, 2)
+        code, _, err = run("power", "--alpha", "2")
+        self.assertEqual(code, 2)
+
     def test_errors_are_friendly(self):
         with tempfile.TemporaryDirectory() as d:
             bad = os.path.join(d, "bad.json")

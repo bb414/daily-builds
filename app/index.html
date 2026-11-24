@@ -224,6 +224,28 @@ details.debrief[open] > summary::before { content: "\2212"; }
 .db-dot { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; }
 .db-dot.acc { background: var(--accent); border-radius: 50%; }
 .db-dot.conf { background: var(--warn); transform: rotate(45deg) scale(0.85); }
+.settings { margin-top: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.settings > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; }
+.settings-body { padding: 0 14px 14px; }
+.settings legend { font-size: 0.95rem; }
+.opt { display: flex; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
+.opt input { width: 18px; height: 18px; accent-color: var(--accent); }
+.feedback-card { border-radius: 12px; padding: 16px; border: 2px solid var(--line); }
+.feedback-card.right { border-color: var(--genuine); background: var(--genuine-soft); }
+.feedback-card.wrong { border-color: var(--scam); background: var(--scam-soft); }
+.feedback-card h2 { font-size: 1.4rem; }
+.timeline { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; }
+.tl-cell { display: grid; justify-items: center; gap: 4px; padding: 6px 0; border-radius: 8px; background: var(--surface-2); }
+.tl-cell.tl-err { background: var(--scam-soft); }
+.tl-cell.tl-first { outline: 2px solid var(--scam); }
+.tl-ai { font-weight: 800; font-size: 0.85rem; color: var(--genuine); }
+.tl-err .tl-ai { color: var(--scam); }
+.tl-you { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--checker); }
+.tl-you.switched, .tl-key.switched { background: var(--checker); border: 2px solid var(--checker); }
+.tl-you.held, .tl-key.held { background: transparent; border: 2px solid var(--checker); }
+.tl-you.agreed, .tl-key.agreed { background: var(--line); border: 2px solid var(--line); }
+.tl-key { border-radius: 50%; }
+.tl-key-x { color: var(--scam); font-weight: 800; }
 footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 860px) {
@@ -639,11 +661,18 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     return !!item.ai && item.ai.verdict === item.truth;
   }
 
-  function normaliseCondition(condition) {
+  // How the checker's advice is shown, and whether people see the right answer
+  // after each checker message. 'random' assigns one of the three advice styles
+  // from the session's seed, for running the test as a between-groups experiment.
+  function normaliseCondition(condition, seed) {
     var c = condition || {};
+    var random = c.advice === 'random' || c.assignment === 'random';
+    var advice = ADVICE_STYLES.indexOf(c.advice) >= 0 ? c.advice : 'reason';
+    if (c.advice === 'random') { advice = ADVICE_STYLES[(seed >>> 0) % ADVICE_STYLES.length]; }
     return {
-      advice: ADVICE_STYLES.indexOf(c.advice) >= 0 ? c.advice : 'reason',
-      feedback: c.feedback === true
+      advice: advice,
+      feedback: c.feedback === true,
+      assignment: random ? 'random' : 'fixed'
     };
   }
 
@@ -695,7 +724,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       version: VERSION,
       id: 'so-' + s.toString(36),
       seed: s,
-      condition: normaliseCondition(condition),
+      condition: normaliseCondition(condition, s),
       trials: trials
     };
   }
@@ -712,6 +741,8 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
   }
 
   function ratio(k, n) { return n > 0 ? k / n : null; }
+
+  function position(t) { return typeof t.position === 'number' ? t.position : 0; }
 
   function mean(values) {
     if (!values.length) { return null; }
@@ -853,6 +884,37 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       agreeWhenRight: ratio(followedRight, aiRight)
     };
 
+    // Reliance over time: how often first disagreements ended with a switch to
+    // the checker, before and after the first message it got wrong. The
+    // mistake itself counts in neither window.
+    var ordered = w.slice().sort(function (x, y) { return position(x) - position(y); });
+    var firstError = null;
+    var timeline = ordered.map(function (t, i) {
+      var right = t.ai.verdict === t.truth;
+      if (!right && firstError === null) { firstError = i + 1; }
+      return {
+        item: t.item,
+        checkerRight: right,
+        disagreed: t.initial.answer !== t.ai.verdict,
+        followed: t.final.answer === t.ai.verdict,
+        finalRight: t.final.answer === t.truth
+      };
+    });
+    function switching(list) {
+      var d = 0, k = 0;
+      list.forEach(function (x) { if (x.disagreed) { d++; if (x.followed) { k++; } } });
+      return { disagreements: d, switched: k, rate: ratio(k, d) };
+    }
+    var beforeError = switching(firstError === null ? timeline : timeline.slice(0, firstError - 1));
+    var afterError = switching(firstError === null ? [] : timeline.slice(firstError));
+    var trust = {
+      firstErrorAt: firstError,
+      beforeFirstError: beforeError,
+      afterFirstError: afterError,
+      change: (beforeError.rate !== null && afterError.rate !== null) ? afterError.rate - beforeError.rate : null,
+      timeline: timeline
+    };
+
     var complementarity = null;
     if (n['with'] > 0) {
       complementarity = accuracy.withFinal - Math.max(accuracy.withInitial, accuracy.checker);
@@ -872,6 +934,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       correct: correct,
       accuracy: accuracy,
       reliance: reliance,
+      trust: trust,
       complementarity: complementarity,
       confidence: confidence,
       change: change,
@@ -905,7 +968,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     return problems.slice(0, 5);
   }
 
-  var CSV_COLUMNS = ['session', 'advice', 'feedback', 'position', 'item', 'phase', 'truth',
+  var CSV_COLUMNS = ['session', 'advice', 'feedback', 'assignment', 'position', 'item', 'phase', 'truth',
     'initial_answer', 'initial_confidence', 'initial_ms', 'ai_verdict', 'ai_confidence',
     'final_answer', 'final_confidence', 'final_ms'];
 
@@ -918,7 +981,8 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     var rows = [CSV_COLUMNS.join(',')];
     session.trials.forEach(function (t) {
       var i = t.initial || {}, f = t.final || {}, a = t.ai || {};
-      rows.push([session.id, session.condition.advice, session.condition.feedback, t.position, t.item, t.phase, t.truth,
+      var c = session.condition || {};
+      rows.push([session.id, c.advice, c.feedback, c.assignment || 'fixed', t.position, t.item, t.phase, t.truth,
         i.answer, i.confidence, i.ms, a.verdict, a.confidence, f.answer, f.confidence, f.ms].map(cell).join(','));
     });
     return rows.join('\n') + '\n';
@@ -934,6 +998,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     ITEM_BY_ID: ITEM_BY_ID,
     PROFILES: PROFILES,
     makeRng: makeRng,
+    normaliseCondition: normaliseCondition,
     buildSession: buildSession,
     isComplete: isComplete,
     score: score,
@@ -977,6 +1042,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     stage: 'initial',
     shownAt: 0,
     condition: { advice: 'reason', feedback: false },
+    settingsOpen: false,
     imported: false
   };
 
@@ -1033,6 +1099,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
             '<input type="file" id="import-file" accept=".json,application/json" class="visually-hidden" tabindex="-1" aria-hidden="true">' +
           '</div>' +
           '<p class="error-text" id="import-error" role="alert"></p>' +
+          settingsPanel() +
         '</section>' +
         '<aside class="card stack" aria-labelledby="before-title">' +
           '<h2 id="before-title">Before you start</h2>' +
@@ -1045,6 +1112,26 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     focusFirst('start-title');
   }
 
+  var ADVICE_LABELS = {
+    verdict: 'Verdict only',
+    confidence: 'Verdict and confidence',
+    reason: 'Verdict, confidence and a reason',
+    random: 'Assign one of these at random'
+  };
+
+  function settingsPanel() {
+    var c = state.condition;
+    return '<details class="settings"' + (state.settingsOpen ? ' open' : '') + '><summary>Running this as an experiment? Settings</summary>' +
+      '<div class="settings-body">' +
+      '<fieldset><legend>How the checker shows its advice</legend>' +
+      ['reason', 'confidence', 'verdict', 'random'].map(function (v) {
+        return '<label class="opt"><input type="radio" name="advice-style" value="' + v + '"' + (c.advice === v ? ' checked' : '') + '> ' + esc(ADVICE_LABELS[v]) + '</label>';
+      }).join('') + '</fieldset>' +
+      '<label class="opt"><input type="checkbox" id="feedback-toggle"' + (c.feedback ? ' checked' : '') + '> Show the right answer after each checker message</label>' +
+      '<p class="small muted">Showing a reason can make people trust advice more, including wrong advice. Feedback lets them learn when the checker is reliable. Random assignment lets you compare groups fairly: pool everyone\'s results files with the Python toolkit.</p>' +
+      '</div></details>';
+  }
+
   function renderPhase() {
     var phase = current().phase;
     var info = PHASE_INFO[phase];
@@ -1053,7 +1140,8 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       extra = '<div class="notice"><strong>How the checker shows its advice:</strong> ' +
         (state.session.condition.advice === 'verdict' ? 'just its verdict.' :
           state.session.condition.advice === 'confidence' ? 'its verdict and how confident it is.' :
-            'its verdict, how confident it is, and its reason.') + '</div>';
+            'its verdict, how confident it is, and its reason.') +
+        (state.session.condition.feedback ? ' After each message you will see the right answer, so you can learn when to trust it.' : '') + '</div>';
     }
     app.innerHTML =
       '<section class="card stack fade-in" style="max-width: 680px">' +
@@ -1124,7 +1212,16 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       CHANNEL_LABEL[item.channel].toLowerCase() + ' from ' + item.from;
     var panel;
     var isFinal = state.stage === 'final';
-    if (!isFinal) {
+    if (state.stage === 'feedback') {
+      var yourRight = trial.final.answer === trial.truth;
+      var aiRight = trial.ai.verdict === trial.truth;
+      panel = '<div class="feedback-card ' + (yourRight ? 'right' : 'wrong') + '">' +
+        '<h2 id="feedback-title" tabindex="-1">' + (trial.truth === 'scam' ? 'This was a scam' : 'This was genuine') + '</h2>' +
+        '<p>Your final answer: ' + answerChip(trial.final.answer) + ' <strong>' + (yourRight ? 'right' : 'wrong') + '</strong>. ' +
+        'The checker said ' + answerChip(trial.ai.verdict) + ' <strong>' + (aiRight ? 'right' : 'wrong') + '</strong>.</p>' +
+        '<p class="small">' + esc(item.cues[0]) + '</p>' +
+        '<button class="btn primary big" type="button" data-action="next">' + (state.index === trials().length - 1 ? 'Finish and see results' : 'Next message') + '</button></div>';
+    } else if (!isFinal) {
       var label = trial.phase === 'with' ? 'Ask the checker' : (state.index === trials().length - 1 ? 'Finish and see results' : 'Next message');
       panel = '<h2 class="visually-hidden">Your answer</h2>' +
         '<form id="answer-form" novalidate>' +
@@ -1158,7 +1255,11 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<section>' + renderMessage(item, 'msg-heading', heading) + '</section>' +
       '<section class="card panel" aria-label="Your answer">' + panel + '</section></div>';
     state.shownAt = performance.now();
-    if (isFinal) {
+    if (state.stage === 'feedback') {
+      announce((trial.truth === 'scam' ? 'This was a scam. ' : 'This was genuine. ') + 'You were ' +
+        (trial.final.answer === trial.truth ? 'right' : 'wrong') + '. The checker was ' + (trial.ai.verdict === trial.truth ? 'right.' : 'wrong.'));
+      focusFirst('feedback-title');
+    } else if (isFinal) {
       var aiText = 'The checker says ' + word(trial.ai.verdict) +
         (state.session.condition.advice !== 'verdict' ? ', ' + trial.ai.confidence + '% confident' : '') + '.';
       announce(aiText);
@@ -1266,6 +1367,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     if (state.imported) {
       html += '<p class="notice small">Showing saved results from a file (session ' + esc(session.id || 'unnamed') + ').</p>';
     }
+    var cond = session.condition || {};
+    var conditionNote = 'The checker showed ' + (ADVICE_LABELS[cond.advice] || ADVICE_LABELS.reason).toLowerCase() +
+      (cond.assignment === 'random' ? ' (assigned at random)' : '') + ', with feedback ' + (cond.feedback ? 'on' : 'off') + '.';
     if (!s.complete) {
       html += '<p class="notice warn small">This session is not finished, so these results only cover the ' + s.n.total + ' messages that were answered.</p>';
     }
@@ -1295,7 +1399,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
         { label: 'Checker alone', value: a.checker, detail: frac(s.correct.checker, s.n['with']), cls: 'checker' },
         { label: 'Your final answers', value: a.withFinal, detail: frac(s.correct.withFinal, s.n['with']), cls: 'final' }
       ]) +
-      '<p class="small muted" style="margin-top: 10px">You changed ' + r.switches.total + ' of ' + s.n['with'] + ' answers after seeing the checker' +
+      '<p class="small muted" style="margin-top: 10px">' + esc(conditionNote) + ' You changed ' + r.switches.total + ' of ' + s.n['with'] + ' answers after seeing the checker' +
       (r.disagreements ? ', and switched to its side in ' + r.switches.towardChecker + ' of the ' + r.disagreements + ' cases where you first disagreed.' : '.') + '</p></section>' +
       '<section class="card" aria-labelledby="moments-title"><h2 id="moments-title">The moments that mattered</h2>' +
       '<div class="matrix">' +
@@ -1314,6 +1418,9 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<section class="card" aria-labelledby="change-title"><h2 id="change-title">Before and after the checker</h2>' +
       changeText(s) + '</section></div>';
 
+    html += '<section class="card" style="margin-top: 22px" aria-labelledby="trust-title"><h2 id="trust-title">Did your trust change after its first mistake?</h2>' +
+      trustSection(s.trust, session.condition) + '</section>';
+
     html += '<section style="margin-top: 22px" aria-labelledby="debrief-title"><div class="section-title"><h2 id="debrief-title">Message by message</h2>' +
       '<span class="muted small">Open any message to see the warning signs.</span></div>' + debrief(session) + '</section>';
 
@@ -1326,6 +1433,40 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
 
     app.innerHTML = html;
     focusFirst('results-title');
+  }
+
+  function trustSection(trust, condition) {
+    if (!trust.timeline.length) { return '<p>No checker messages were answered.</p>'; }
+    var cells = trust.timeline.map(function (x, i) {
+      var label = 'Checker message ' + (i + 1) + ': checker ' + (x.checkerRight ? 'right' : 'wrong') + ', you ' +
+        (x.disagreed ? 'first disagreed and ' + (x.followed ? 'switched' : 'held your answer') : 'agreed from the start' + (x.followed ? '' : ' but then changed'));
+      return '<li class="tl-cell' + (x.checkerRight ? '' : ' tl-err') + (i + 1 === trust.firstErrorAt ? ' tl-first' : '') + '">' +
+        '<span class="tl-ai" aria-hidden="true">' + (x.checkerRight ? '\u2713' : '\u2717') + '</span>' +
+        '<span class="tl-you ' + (x.disagreed ? (x.followed ? 'switched' : 'held') : 'agreed') + '" aria-hidden="true"></span>' +
+        '<span class="visually-hidden">' + esc(label) + '</span></li>';
+    }).join('');
+    var b = trust.beforeFirstError, a = trust.afterFirstError;
+    var text;
+    if (trust.firstErrorAt === null) {
+      text = 'The checker had not made a mistake by the time you stopped.';
+    } else {
+      text = 'Its first mistake was checker message ' + trust.firstErrorAt + '. ' +
+        (b.disagreements ? 'Before that, when you first disagreed with it, you switched to its answer in ' + b.switched + ' of ' + b.disagreements + (b.disagreements === 1 ? ' case. ' : ' cases. ') :
+          'Before that, you never disagreed with it. ') +
+        (a.disagreements ? 'After it, you switched in ' + a.switched + ' of ' + a.disagreements + '.' : 'After it, you never disagreed with it.');
+      if (trust.change !== null) {
+        text += trust.change <= -0.2 ? ' You leaned on it less once it had slipped up.' :
+          trust.change >= 0.2 ? ' You leaned on it more as the test went on.' : ' Your trust in it stayed about the same.';
+      }
+      if (!condition.feedback) {
+        text += ' You were not told when it was wrong, so any change came from your own judgement of its advice.';
+      }
+    }
+    return '<p>' + esc(text) + '</p><ol class="timeline" aria-label="Each checker message in order">' + cells + '</ol>' +
+      '<div class="legend"><span><span class="swatch tl-key switched"></span>First disagreed, then switched</span>' +
+      '<span><span class="swatch tl-key held"></span>First disagreed, kept your answer</span>' +
+      '<span><span class="swatch tl-key agreed"></span>Agreed from the start</span>' +
+      '<span><span class="tl-key-x">\u2717</span> Checker wrong</span></div>';
   }
 
   function frac(k, n) { return n ? '(' + k + ' of ' + n + ')' : ''; }
@@ -1422,6 +1563,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
       if (trial.phase === 'with') { state.stage = 'final'; render(); return; }
     } else {
       trial.final = response;
+      if (state.session.condition.feedback) { state.stage = 'feedback'; render(); return; }
     }
     advance();
   }
@@ -1451,6 +1593,7 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     var action = btn.getAttribute('data-action');
     if (action === 'start') { start(); }
     else if (action === 'begin') { state.screen = 'trial'; render(); }
+    else if (action === 'next') { advance(); }
     else if (action === 'import') { document.getElementById('import-file').click(); }
     else if (action === 'download-json') {
       download('second-opinion-' + state.session.id + '.json', JSON.stringify(state.session, null, 2) + '\n', 'application/json');
@@ -1459,7 +1602,13 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
     } else if (action === 'restart') { start(); }
   });
 
+  app.addEventListener('toggle', function (e) {
+    if (e.target.classList && e.target.classList.contains('settings')) { state.settingsOpen = e.target.open; }
+  }, true);
+
   app.addEventListener('change', function (e) {
+    if (e.target.name === 'advice-style') { state.condition.advice = e.target.value; }
+    if (e.target.id === 'feedback-toggle') { state.condition.feedback = e.target.checked; }
     if (e.target.id === 'import-file' && e.target.files && e.target.files[0]) { importFile(e.target.files[0]); }
     if (e.target.name === 'answer' || e.target.name === 'confidence') {
       var err = document.getElementById('form-error');
@@ -1474,6 +1623,11 @@ footer.foot { max-width: 1080px; margin: 0 auto; padding: 0 20px 32px; color: va
 
   document.addEventListener('keydown', function (e) {
     if (state.screen !== 'trial' || e.altKey || e.ctrlKey || e.metaKey) { return; }
+    if (state.stage === 'feedback') {
+      var tagName = (document.activeElement && document.activeElement.tagName) || '';
+      if (e.key === 'Enter' && tagName !== 'BUTTON' && tagName !== 'A') { e.preventDefault(); advance(); }
+      return;
+    }
     var form = document.getElementById('answer-form');
     if (!form) { return; }
     var key = e.key.toLowerCase();
