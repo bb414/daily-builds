@@ -195,7 +195,7 @@ class ExampleTests(unittest.TestCase):
         match = re.search(r"/\* EXAMPLE START \*/\s*var EXAMPLE = (.*?);\s*/\* EXAMPLE END \*/", page, re.S)
         self.assertIsNotNone(match)
         example = json.loads(match.group(1))
-        self.assertEqual(example, simulate_session(79, {"advice": "reason", "feedback": False}))
+        self.assertEqual(example, simulate_session(1363, {"advice": "reason", "feedback": False}))
         result = score(example)
         self.assertEqual(result["profile"]["key"], "over")
         self.assertTrue(result["complete"])

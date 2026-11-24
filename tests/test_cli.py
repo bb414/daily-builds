@@ -92,3 +92,14 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RoundingTests(unittest.TestCase):
+    def test_reports_round_like_the_app(self):
+        from second_opinion.report import pct, signed_points
+        self.assertEqual(pct(10 / 16), "63%")
+        self.assertEqual(pct(0.125), "13%")
+        self.assertEqual(pct(None), "n/a")
+        self.assertEqual(signed_points(-0.0625), "-6 points")
+        self.assertEqual(signed_points(0.005), "+1 point")
+        self.assertEqual(signed_points(0.0), "0 points")

@@ -87,14 +87,14 @@ def _cmd_power(args):
         diff = "n/a" if row["difference"] is None else report.signed_points(row["difference"])
         if args.measure == "brierFinal" and row["difference"] is not None:
             diff = "%+.3f" % row["difference"]
-        print("  %14d   %4d%%   %s" % (row["n"], round(row["power"] * 100), diff))
+        print("  %14d   %4d%%   %s" % (row["n"], report.half_up(row["power"] * 100), diff))
     n = power.smallest_adequate(curve, args.target)
     print()
     if n is None:
-        print("None of these sizes reaches %d%% power. Try larger groups." % round(args.target * 100))
+        print("None of these sizes reaches %d%% power. Try larger groups." % report.half_up(args.target * 100))
     else:
         print("Smallest size tried with at least %d%% power: %d people per arm (%d in total)." % (
-            round(args.target * 100), n, 2 * n))
+            report.half_up(args.target * 100), n, 2 * n))
     print("These numbers depend entirely on the assumed effects; they are a planning aid, not a promise.")
     return 0
 

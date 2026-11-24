@@ -1,6 +1,7 @@
 """Text and HTML reports for one session or a whole cohort."""
 
 import html
+import math
 import random
 
 from .cohort import MEASURES, rule_label
@@ -14,14 +15,20 @@ PROFILE_LABELS = {
 GROUP_COLOURS = ["#2b55c9", "#c2571a", "#1d7349", "#6a3db3", "#a3204f", "#3f6f7d"]
 
 
+def half_up(x):
+    """Round halves upwards, like JavaScript's Math.round, so the app and the reports agree
+    (Python's round() sends 62.5 to 62; the app shows 63)."""
+    return math.floor(x + 0.5)
+
+
 def pct(x):
-    return "n/a" if x is None else "%d%%" % round(x * 100)
+    return "n/a" if x is None else "%d%%" % half_up(x * 100)
 
 
 def signed_points(x):
     if x is None:
         return "n/a"
-    v = round(x * 100)
+    v = half_up(x * 100)
     if v == 0:
         return "0 points"
     return "%+d %s" % (v, "point" if abs(v) == 1 else "points")
@@ -126,7 +133,7 @@ def _fmt(key, value):
     if key == "brierFinal":
         return "%.3f" % value
     if key in ("complementarity", "change"):
-        v = round(value * 100)
+        v = half_up(value * 100)
         return "0 pts" if v == 0 else "%+d pts" % v
     return pct(value)
 
