@@ -21,12 +21,12 @@ def preset_label(s):
 
 def summary_report(s, summary, years):
     label = preset_label(s)
-    rescue = {"overdrawn": "as soon as they are overdrawn", "near-limit": "only when within £100 of the limit",
-              "never": "never"}[s["rescue"]]
+    rescue = {"overdrawn": "moves money back from savings as soon as they are overdrawn",
+              "near-limit": "moves money back from savings only when within £100 of the limit",
+              "never": "never moves money back from savings"}[s["rescue"]]
     lines = [
         "Save or sink: %s, %s simulated years" % (label, "{:,}".format(years)),
-        "Interest-free overdraft %s; the student moves money back from savings %s." % (
-            money(s["overdraftLimit"] * 100), rescue),
+        "Interest-free overdraft %s; the student %s." % (money(s["overdraftLimit"] * 100), rescue),
         "",
         "  %-48s %10s %10s %8s %11s %11s %11s" % ("Rule", "Set aside", "Moved in", "Raids", "Came back", "Past limit",
                                                      "Better off"),
