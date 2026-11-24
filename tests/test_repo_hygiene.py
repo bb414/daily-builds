@@ -21,7 +21,7 @@ class HygieneTests(unittest.TestCase):
     def test_no_em_dashes_anywhere(self):
         for path in text_files():
             with open(path, encoding="utf-8") as f:
-                self.assertNotIn("—", f.read(), "%s contains an em dash" % os.path.relpath(path, ROOT))
+                self.assertNotIn("\u2014", f.read(), "%s contains an em dash" % os.path.relpath(path, ROOT))
 
     def test_readme_links_point_to_real_files(self):
         with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
