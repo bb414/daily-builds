@@ -249,6 +249,69 @@ class ScoringTests(unittest.TestCase):
         self.assertFalse(M.score_session(s)["complete"])
 
 
+class DeeperMeasuresTests(unittest.TestCase):
+    def test_inverse_normal(self):
+        from statistics import NormalDist
+        for p in (1e-6, 0.01, 0.0243, 0.1, 0.5, 0.8, 0.976, 0.999):
+            self.assertAlmostEqual(M.inv_norm(p), NormalDist().inv_cdf(p), delta=1e-8)
+        with self.assertRaises(ValueError):
+            M.inv_norm(0)
+
+    def test_signal_detection(self):
+        s = M.build_session(12)
+        r1 = [t for t in s["trials"] if t["round"] == 1]
+        for t in r1:
+            t["final"] = answer(t["truth"])
+        d = M.sdt(r1)
+        z = M.inv_norm(0.9)
+        self.assertAlmostEqual(d["dPrime"], 2 * z)
+        self.assertAlmostEqual(d["c"], 0)
+        # Calling everything genuine: no hits, no false alarms, so a strongly trusting bias.
+        for t in r1:
+            t["final"] = answer("genuine")
+        d = M.sdt(r1)
+        self.assertAlmostEqual(d["dPrime"], 0)
+        self.assertAlmostEqual(d["c"], z)
+        self.assertIsNone(M.sdt([t for t in r1 if t["truth"] == "scam"]))
+
+    def test_strategies(self):
+        s = M.build_session(13, "checker", {"checkerWrong": 3})
+        for t in s["trials"]:
+            if t["checker"]:
+                # Always start wrong and unsure, then keep the first answer.
+                t["initial"] = answer(M.other(t["truth"]), sure=False)
+                t["final"] = dict(t["initial"])
+        st = {x["key"]: x for x in M.strategies(s["trials"])}
+        self.assertEqual(st["yourFinal"]["correct"], 0)
+        self.assertEqual(st["yourFirst"]["correct"], 0)
+        self.assertEqual(st["alwaysFollow"]["correct"], 9)
+        self.assertEqual(st["followWhenUnsure"]["correct"], 9)
+        confident_right = sum(1 for t in s["trials"] if t["checker"] and t["checker"]["confidence"] >= 0.9
+                              and t["checker"]["correct"])
+        self.assertEqual(st["followConfident"]["correct"], confident_right)
+        self.assertEqual([x["key"] for x in M.strategies(s["trials"])], [k for k, _ in M.STRATEGIES])
+        self.assertIsNone(M.strategies([t for t in s["trials"] if not t["checker"]]))
+
+    def test_cue_profile(self):
+        s = M.build_session(14)
+        for t in s["trials"]:
+            t["final"] = answer("genuine")
+        cp = M.cue_profile(s["trials"])
+        self.assertEqual(cp["missedScams"], 14)
+        self.assertEqual(cp["falseAlarms"], 0)
+        for row in cp["missed"]:
+            self.assertEqual(row["count"], row["seen"])
+        counts = [r["count"] for r in cp["missed"]]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+        for t in s["trials"]:
+            t["final"] = answer("scam")
+        cp = M.cue_profile(s["trials"])
+        self.assertEqual((cp["missedScams"], cp["falseAlarms"]), (0, 14))
+        self.assertEqual(cp["missed"], [])
+        total = sum(len(M.BY_ID[t["messageId"]]["decoys"]) for t in s["trials"] if t["truth"] == "genuine")
+        self.assertEqual(sum(r["count"] for r in cp["fooledBy"]), total)
+
+
 class SimulationTests(unittest.TestCase):
     def test_full_reliance_copies_the_checker(self):
         persona = {"skill": 0.7, "sureBias": 0.0, "reliance": 1.0, "learning": 0.0}

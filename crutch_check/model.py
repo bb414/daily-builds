@@ -396,6 +396,111 @@ def _diff(a, b):
     return None if a is None or b is None else a - b
 
 
+STRATEGIES = [
+    ("yourFinal", "Your final answers"),
+    ("yourFirst", "Never use the checker (your first answers)"),
+    ("alwaysFollow", "Always follow the checker"),
+    ("followConfident", "Follow it only when it is at least 90% sure"),
+    ("followWhenUnsure", "Follow it only when you said \"probably\""),
+]
+
+
+def strategies(trials):
+    """What would have happened in round 2 under simple rules for using the checker."""
+    ts = [t for t in trials if t.get("checker") and t.get("initial") and t.get("final")]
+    if not ts:
+        return None
+    correct = {k: 0 for k, _ in STRATEGIES}
+    for t in ts:
+        adv = t["checker"]
+        ini = t["initial"]
+        picks = {
+            "yourFinal": t["final"]["verdict"],
+            "yourFirst": ini["verdict"],
+            "alwaysFollow": adv["verdict"],
+            "followConfident": adv["verdict"] if adv["confidence"] >= 0.9 else ini["verdict"],
+            "followWhenUnsure": ini["verdict"] if ini["sure"] else adv["verdict"],
+        }
+        for k, v in picks.items():
+            correct[k] += v == t["truth"]
+    n = len(ts)
+    return [{"key": k, "label": label, "correct": correct[k], "n": n, "accuracy": correct[k] / n}
+            for k, label in STRATEGIES]
+
+
+# Acklam's rational approximation to the inverse normal CDF (relative error < 1.2e-9).
+_A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+      1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
+_B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+      6.680131188771972e+01, -1.328068155288572e+01]
+_C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+      -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
+_D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00]
+
+
+def inv_norm(p):
+    if p <= 0 or p >= 1:
+        raise ValueError("p must be between 0 and 1")
+    if p < 0.02425:
+        q = math.sqrt(-2 * math.log(p))
+        return ((((((_C[0] * q + _C[1]) * q + _C[2]) * q + _C[3]) * q + _C[4]) * q + _C[5])
+                / ((((_D[0] * q + _D[1]) * q + _D[2]) * q + _D[3]) * q + 1))
+    if p > 1 - 0.02425:
+        q = math.sqrt(-2 * math.log(1 - p))
+        return -((((((_C[0] * q + _C[1]) * q + _C[2]) * q + _C[3]) * q + _C[4]) * q + _C[5])
+                 / ((((_D[0] * q + _D[1]) * q + _D[2]) * q + _D[3]) * q + 1))
+    q = p - 0.5
+    r = q * q
+    return ((((((_A[0] * r + _A[1]) * r + _A[2]) * r + _A[3]) * r + _A[4]) * r + _A[5]) * q
+            / (((((_B[0] * r + _B[1]) * r + _B[2]) * r + _B[3]) * r + _B[4]) * r + 1))
+
+
+def sdt(trials):
+    """Signal detection: sensitivity (d') and bias (c) from final answers.
+
+    Uses the log-linear correction (add 0.5 to each count and 1 to each total)
+    so perfect scores stay finite. c above zero means leaning towards
+    "genuine" (trusting), below zero leaning towards "scam" (suspicious).
+    """
+    st = round_stats(trials)
+    if st["scams"] == 0 or st["genuines"] == 0:
+        return None
+    h = (st["hits"] + 0.5) / (st["scams"] + 1)
+    f = (st["falseAlarms"] + 0.5) / (st["genuines"] + 1)
+    zh, zf = inv_norm(h), inv_norm(f)
+    return {"dPrime": zh - zf, "c": -(zh + zf) / 2, "hitRate": st["hitRate"],
+            "falseAlarmRate": st["falseAlarmRate"]}
+
+
+def cue_profile(trials):
+    """Which warning signs were on the scams someone missed, and which decoys fooled them."""
+    missed, seen, fooled = {}, {}, {}
+    missed_n = false_alarms = 0
+    for t in trials:
+        if not t.get("final"):
+            continue
+        m = BY_ID[t["messageId"]]
+        wrong = t["final"]["verdict"] != t["truth"]
+        if t["truth"] == "scam":
+            for cue in m["cues"]:
+                seen[cue] = seen.get(cue, 0) + 1
+                if wrong:
+                    missed[cue] = missed.get(cue, 0) + 1
+            missed_n += wrong
+        elif wrong:
+            false_alarms += 1
+            for d in m["decoys"]:
+                fooled[d] = fooled.get(d, 0) + 1
+
+    def ranked(counts, extra=None):
+        keys = sorted(counts, key=lambda k: (-counts[k], k))
+        return [dict({"cue": k, "label": CUES[k], "count": counts[k]},
+                     **({"seen": extra[k]} if extra else {})) for k in keys]
+
+    return {"missedScams": missed_n, "falseAlarms": false_alarms,
+            "missed": ranked(missed, seen), "fooledBy": ranked(fooled)}
+
+
 def score_session(session):
     """Score a session (complete or not) and return a results dictionary."""
     trials = session["trials"]
@@ -409,6 +514,8 @@ def score_session(session):
         t.get("initial") for t in trials if t.get("checker"))
     assisted = assisted_stats(trials) if session["arm"] == "checker" else None
     profile = classify(session["arm"], assisted, complete)
+    sdt1 = sdt([t for t in trials if t["round"] == 1])
+    sdt3 = sdt([t for t in trials if t["round"] == 3])
     return {
         "arm": session["arm"],
         "complete": complete,
@@ -417,7 +524,12 @@ def score_session(session):
         "change": {
             "accuracy": _diff(rounds[2]["accuracy"], rounds[0]["accuracy"]),
             "brier": _diff(rounds[2]["brier"], rounds[0]["brier"]),
+            "dPrime": _diff(sdt3 and sdt3["dPrime"], sdt1 and sdt1["dPrime"]),
+            "c": _diff(sdt3 and sdt3["c"], sdt1 and sdt1["c"]),
         },
+        "sdt": {"round1": sdt1, "round3": sdt3},
+        "strategies": strategies(trials) if session["arm"] == "checker" else None,
+        "cueProfile": cue_profile(trials),
         "profile": profile,
         "profileTitle": PROFILES[profile],
     }
@@ -489,27 +601,49 @@ def simulate_responses(session, persona, seed):
 # Validation and CSV
 # ---------------------------------------------------------------------------
 
+def _is_int(x):
+    return isinstance(x, int) and not isinstance(x, bool)
+
+
+def _valid_answer(r):
+    return (isinstance(r, dict) and r.get("verdict") in ("scam", "genuine")
+            and isinstance(r.get("sure"), bool))
+
+
 def validate_session(session):
-    """Raise ValueError with a readable message if the session is not usable."""
+    """Raise ValueError with a readable message if the session is not usable.
+
+    The browser app applies exactly the same rules, with the same messages.
+    """
     if not isinstance(session, dict) or session.get("format") != FORMAT:
-        raise ValueError("not a crutch-check session file")
+        raise ValueError("not a Crutch check session file")
     if session.get("arm") not in ARMS:
-        raise ValueError("session has an unknown arm")
+        raise ValueError("session has an unknown group (arm)")
     trials = session.get("trials")
     if not isinstance(trials, list) or not trials:
-        raise ValueError("session has no trials")
-    for t in trials:
-        if t.get("messageId") not in BY_ID:
-            raise ValueError("unknown message id: %r" % t.get("messageId"))
-        if t.get("round") not in (1, 2, 3):
-            raise ValueError("trial has an invalid round")
-        if BY_ID[t["messageId"]]["truth"] != t.get("truth"):
-            raise ValueError("trial %s has the wrong answer key" % t["messageId"])
+        raise ValueError("session has no messages")
+    for i, t in enumerate(trials):
+        where = "message %d" % (i + 1)
+        if not isinstance(t, dict):
+            raise ValueError("%s is not a valid record" % where)
+        m = BY_ID.get(t.get("messageId")) if isinstance(t.get("messageId"), str) else None
+        if m is None:
+            raise ValueError("%s has an unknown message id" % where)
+        if not _is_int(t.get("round")) or t["round"] not in (1, 2, 3):
+            raise ValueError("%s has an invalid round" % where)
+        if t.get("truth") != m["truth"]:
+            raise ValueError("%s has the wrong answer key" % where)
+        adv = t.get("checker")
+        if adv is not None:
+            if (not isinstance(adv, dict) or adv.get("verdict") not in ("scam", "genuine")
+                    or isinstance(adv.get("confidence"), bool)
+                    or not isinstance(adv.get("confidence"), (int, float))
+                    or not 0 <= adv["confidence"] <= 1
+                    or adv.get("correct") is not (adv["verdict"] == m["truth"])):
+                raise ValueError("%s has invalid checker advice" % where)
         for key in ("initial", "final"):
-            r = t.get(key)
-            if r is not None and (r.get("verdict") not in ("scam", "genuine")
-                                  or not isinstance(r.get("sure"), bool)):
-                raise ValueError("trial %s has an invalid %s answer" % (t["messageId"], key))
+            if t.get(key) is not None and not _valid_answer(t[key]):
+                raise ValueError("%s has an invalid %s answer" % (where, key))
     return session
 
 

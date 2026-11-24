@@ -1,7 +1,7 @@
 """Analysing a whole study: many sessions, some with the checker and some without."""
 
 from . import stats
-from .model import BY_ID, PROFILES, score_session
+from .model import BY_ID, PROFILES, STRATEGIES, score_session
 
 PROFILE_ORDER = ["calibrated", "over_reliant", "under_reliant", "mixed", "few_disagreements"]
 
@@ -32,6 +32,11 @@ def participant_summary(session):
         "underReliance": a.get("underReliance"),
         "switchRate": (switched / dis) if dis else None,
         "profile": res["profile"],
+        "cPre": res["sdt"]["round1"] and res["sdt"]["round1"]["c"],
+        "cPost": res["sdt"]["round3"] and res["sdt"]["round3"]["c"],
+        "dPre": res["sdt"]["round1"] and res["sdt"]["round1"]["dPrime"],
+        "dPost": res["sdt"]["round3"] and res["sdt"]["round3"]["dPrime"],
+        "strategies": {x["key"]: x["accuracy"] for x in res["strategies"]} if res["strategies"] else None,
     }
 
 
@@ -110,7 +115,7 @@ def analyse(sessions, n_perm=5000, n_boot=2000, seed=1):
     arms = {}
     for name, group in (("checker", chk), ("control", ctl)):
         arms[name] = {"n": len(group)}
-        for key in ("pre", "during", "post", "gain", "brierPre", "brierPost"):
+        for key in ("pre", "during", "post", "gain", "brierPre", "brierPost", "cPre", "cPost", "dPre", "dPost"):
             arms[name][key] = _describe(group, key)
 
     reliance = None
@@ -129,6 +134,9 @@ def analyse(sessions, n_perm=5000, n_boot=2000, seed=1):
             "beatChecker": beat,
             "switchGainR": stats.pearson([r["switchRate"] for r in chk], [r["gain"] for r in chk]),
             "switchGainN": sum(1 for r in chk if r["switchRate"] is not None),
+            "strategies": [{"key": k, "label": label,
+                            "mean": stats.mean([r["strategies"][k] for r in chk if r["strategies"]])}
+                           for k, label in STRATEGIES],
         }
 
     return {
@@ -166,6 +174,11 @@ def _pval(p):
     return "< 0.001" if p < 0.001 else "%.3f" % p
 
 
+def _pair(arm, k1, k2):
+    x, y = arm[k1]["mean"], arm[k2]["mean"]
+    return "n/a" if x is None or y is None else "%.2f to %.2f" % (x, y)
+
+
 def _effect_line(label, cmp):
     if cmp is None:
         return "  %s: needs at least two complete sessions in each group." % label
@@ -189,6 +202,10 @@ def study_report(an, top_items=8):
         lines.append("  %-34s %14s %10s" % (label, _p(a[key]["mean"]), _p(c[key]["mean"])))
     lines.append("  %-34s %14s %10s" % ("Change, round 1 to round 3", _pts(a["gain"]["mean"]),
                                          _pts(c["gain"]["mean"])))
+    lines.append("  %-34s %14s %10s" % ("Sensitivity d', round 1 then 3", _pair(a, "dPre", "dPost"),
+                                         _pair(c, "dPre", "dPost")))
+    lines.append("  %-34s %14s %10s" % ("Leaning c, round 1 then 3", _pair(a, "cPre", "cPost"),
+                                         _pair(c, "cPre", "cPost")))
     lines += [
         "",
         "Differences between the groups (with the checker minus without)",
@@ -208,6 +225,9 @@ def study_report(an, top_items=8):
             "  Beat the checker on its own: %d of %d" % (r["beatChecker"], a["n"]),
             "  Patterns: " + ", ".join("%s %d" % (PROFILES[k], v) for k, v in r["profiles"].items() if v),
         ]
+        lines.append("  What if everyone had used one simple rule in round 2 (average accuracy):")
+        for st in r["strategies"]:
+            lines.append("    %-48s %s" % (st["label"], _p(st["mean"])))
         if r["switchGainR"] is not None:
             lines.append("  Reliance and learning: correlation between how often people switched to the")
             lines.append("  checker and their change from round 1 to 3 is r = %.2f (n = %d)." % (

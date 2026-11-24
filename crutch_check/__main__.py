@@ -7,6 +7,7 @@ import sys
 from .cohort import SCENARIOS, simulate_cohort
 from .htmlreport import study_html
 from .model import PERSONAS, build_session, simulate_responses
+from .power import power_curve, power_report
 from .report import session_report
 from .sessions import load_sessions, write_bundle, write_csv
 from .study import analyse, study_report
@@ -61,6 +62,15 @@ def cmd_analyse(args):
     return 0
 
 
+def cmd_power(args):
+    def progress(n):
+        print("  ...finished %d per group" % n, file=sys.stderr)
+    result = power_curve(args.scenario, sizes=args.sizes, sims=args.sims, alpha=args.alpha, seed=args.seed,
+                         design={"checkerWrong": args.checker_wrong}, progress=progress)
+    print(power_report(result))
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m crutch_check",
                                 description="Score and analyse Crutch check sessions.")
@@ -98,6 +108,15 @@ def main(argv=None):
     a.add_argument("--bootstrap", type=int, default=2000)
     a.add_argument("--seed", type=int, default=1)
     a.set_defaults(func=cmd_analyse)
+
+    w = sub.add_parser("power", help="how many participants a study needs, by simulation")
+    w.add_argument("--scenario", choices=sorted(SCENARIOS), default="crutch")
+    w.add_argument("--sizes", type=int, nargs="+", default=[20, 40, 80, 160], help="participants per group")
+    w.add_argument("--sims", type=int, default=100, help="simulated studies per group size")
+    w.add_argument("--alpha", type=float, default=0.05)
+    w.add_argument("--checker-wrong", type=int, default=3)
+    w.add_argument("--seed", type=int, default=1)
+    w.set_defaults(func=cmd_power)
 
     args = p.parse_args(argv)
     try:

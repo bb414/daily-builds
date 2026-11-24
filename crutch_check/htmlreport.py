@@ -156,6 +156,15 @@ def study_html(an, title="Crutch check: study report"):
     rows_html += "<tr><td>Change, round 1 to round 3</td><td>%s</td><td>%s</td></tr>" % (
         _pts(a["gain"]["mean"]), _pts(c["gain"]["mean"]))
 
+    def pair(arm, k1, k2):
+        x, y = arm[k1]["mean"], arm[k2]["mean"]
+        return "n/a" if x is None or y is None else "%.2f to %.2f" % (x, y)
+
+    rows_html += "<tr><td>Sensitivity d&#8242;, round 1 to round 3</td><td>%s</td><td>%s</td></tr>" % (
+        pair(a, "dPre", "dPost"), pair(c, "dPre", "dPost"))
+    rows_html += "<tr><td>Leaning c, round 1 to round 3 (above 0 is trusting)</td><td>%s</td><td>%s</td></tr>" % (
+        pair(a, "cPre", "cPost"), pair(c, "cPre", "cPost"))
+
     rel = ""
     if r:
         prof = "".join("<li>%s: %d</li>" % (_e(PROFILES[k]), r["profiles"][k]) for k in PROFILE_ORDER)
@@ -171,10 +180,15 @@ def study_html(an, title="Crutch check: study report"):
 </div>
 <p>Accuracy in round 2: first answers %s, the checker alone %s, final answers %s.</p>
 <ul class="cols">%s</ul>
+<h3>What if everyone had used one simple rule?</h3>
+<p class="muted">Average accuracy on the round 2 messages under each rule, worked out from people's own first answers and the checker's advice.</p>
+<table><tr><th>Rule</th><th>Average accuracy</th></tr>%s</table>
 <h3>Reliance and learning</h3>%s%s</section>""" % (
             _pct(r["rair"]["mean"]), _pct(r["rsr"]["mean"]), _pct(r["overReliance"]["mean"]),
             r["beatChecker"], a["n"], _pct(r["initial"]["mean"]), _pct(r["checker"]["mean"]),
-            _pct(r["final"]["mean"]), prof, corr, _scatter(an))
+            _pct(r["final"]["mean"]), prof,
+            "".join("<tr><td>%s</td><td>%s</td></tr>" % (_e(x["label"]), _pct(x["mean"])) for x in r["strategies"]),
+            corr, _scatter(an))
 
     items = "".join(
         "<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
@@ -192,6 +206,7 @@ body{margin:0;background:#f9f9f7;color:#0b0b0b;font:15px/1.55 system-ui,-apple-s
 main{max-width:900px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:26px;margin:0 0 6px}h2{font-size:19px;margin:28px 0 10px}h3{font-size:16px;margin:18px 0 6px}
 section{background:#fff;border:1px solid #e1e0d9;border-radius:14px;padding:18px 20px;margin-top:16px}
+section>h2:first-child{margin-top:0}
 table{border-collapse:collapse;width:100%%;font-size:14px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #e1e0d9;vertical-align:top}
 th{color:#52514e;font-weight:600}td{font-variant-numeric:tabular-nums}
 svg{width:100%%;height:auto;max-width:600px;display:block;margin:8px 0}

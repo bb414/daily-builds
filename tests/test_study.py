@@ -147,6 +147,45 @@ class AnalysisTests(unittest.TestCase):
         self.assertNotIn("\u2014", page)
 
 
+class PowerTests(unittest.TestCase):
+    def test_power_grows_with_sample_size(self):
+        from crutch_check.power import expected_gain_difference, power_curve, power_report
+        res = power_curve("crutch", sizes=(10, 120), sims=30, seed=3)
+        small, large = res["rows"]
+        self.assertLess(small["afterPower"], large["afterPower"])
+        self.assertGreaterEqual(large["duringPower"], 0.9)
+        self.assertAlmostEqual(res["expected"], expected_gain_difference("crutch"))
+        self.assertAlmostEqual(res["expected"], -0.10)
+        self.assertLess(abs(large["meanDifference"] - res["expected"]), 0.03)
+        self.assertIn("Per group", power_report(res))
+
+    def test_no_effect_means_few_detections(self):
+        from crutch_check.power import power_curve, power_report
+        res = power_curve("none", sizes=(40,), sims=60, seed=5)
+        self.assertLessEqual(res["rows"][0]["afterPower"], 0.15)
+        self.assertIn("false alarms", power_report(res))
+
+    def test_bad_arguments(self):
+        from crutch_check.power import power_curve
+        with self.assertRaises(ValueError):
+            power_curve("nope")
+        with self.assertRaises(ValueError):
+            power_curve("crutch", sizes=(1,), sims=2)
+        with self.assertRaises(ValueError):
+            power_curve("crutch", sims=0)
+
+    def test_analysis_includes_strategies_and_signal_detection(self):
+        an = analyse(simulate_cohort(20, "mixed", seed=2), n_perm=100, n_boot=100)
+        keys = [x["key"] for x in an["reliance"]["strategies"]]
+        self.assertEqual(keys, [k for k, _ in M.STRATEGIES])
+        always = an["reliance"]["strategies"][2]["mean"]
+        self.assertAlmostEqual(always, an["reliance"]["checker"]["mean"])
+        self.assertIsNotNone(an["arms"]["control"]["dPre"]["mean"])
+        text = study_report(an)
+        self.assertIn("Always follow the checker", text)
+        self.assertIn("Sensitivity d'", text)
+
+
 class StudyCliTests(unittest.TestCase):
     def test_simulate_then_analyse(self):
         with tempfile.TemporaryDirectory() as d:
@@ -160,6 +199,12 @@ class StudyCliTests(unittest.TestCase):
             out = buf.getvalue()
             self.assertIn("16 complete (8 with the checker, 8 without)", out)
             self.assertTrue(Path(report).read_text().startswith("<!doctype html>"))
+
+    def test_power_command(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(cli(["power", "--scenario", "helper", "--sizes", "10", "20", "--sims", "5"]), 0)
+        self.assertIn("scenario 'helper'", buf.getvalue())
 
 
 if __name__ == "__main__":

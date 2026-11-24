@@ -145,6 +145,60 @@ class BrowserTests(unittest.TestCase):
         self.assertTrue(page.is_visible("#screen-intro"))
         page.close()
 
+    def test_open_a_saved_bundle_and_pick_a_session(self):
+        import json
+        import tempfile
+        from crutch_check.cohort import simulate_cohort
+        from crutch_check.sessions import bundle
+        sessions = simulate_cohort(2, "mixed", seed=1, study="ui")
+        with tempfile.TemporaryDirectory() as d:
+            good = Path(d) / "bundle.json"
+            good.write_text(json.dumps(bundle(sessions)))
+            bad = Path(d) / "bad.json"
+            bad.write_text('{"format": "something-else"}')
+            page = self.open()
+            page.set_input_files("#load-file", str(bad))
+            page.wait_for_selector("#load-error:not([hidden])")
+            self.assertIn("not a Crutch check session file", page.inner_text("#load-error"))
+            page.set_input_files("#load-file", str(good))
+            page.wait_for_selector("[data-pick]")
+            self.assertEqual(page.locator("[data-pick]").count(), 4)
+            self.assertTrue(page.is_hidden("#load-error"))
+            page.click("[data-pick='1']")
+            page.wait_for_selector("#screen-results:not([hidden])")
+            self.assertIn("Saved session: " + sessions[1]["participant"], page.inner_text("#results"))
+            self.assertEqual(self.errors, [])
+            page.close()
+
+    def test_resume_after_reload(self):
+        page = self.open()
+        page.click("#start-btn")
+        page.click("#break-go")
+        for _ in range(3):
+            page.wait_for_timeout(260)
+            page.keyboard.press("2")
+        page.reload()
+        page.wait_for_selector("#resume-banner:not([hidden])")
+        self.assertIn("message 4 of 28", page.inner_text("#resume-banner"))
+        page.click("#resume-btn")
+        page.wait_for_selector("#screen-trial:not([hidden])")
+        self.assertEqual(page.inner_text("#trial-count"), "Message 4 of 8")
+        page.reload()
+        page.click("#discard-btn")
+        self.assertTrue(page.is_hidden("#resume-banner"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_results_explain_strategies_instincts_and_cues(self):
+        page = self.open()
+        page.click("#demo-btn")
+        text = page.inner_text("#results")
+        for phrase in ("What if you had used it differently?", "Always follow the checker",
+                       "Your instincts on your own", "What tripped you up"):
+            self.assertIn(phrase, text)
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_every_control_has_a_name(self):
         page = self.open()
         unnamed = page.evaluate("""() => [...document.querySelectorAll('button, select, input')]

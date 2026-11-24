@@ -101,6 +101,57 @@ class AppAgreesWithPython(unittest.TestCase):
         got = js([{"fn": "scoreSession", "args": [p]} for p in partials])
         self.assertEqual(got, [jsonable(M.score_session(p)) for p in partials])
 
+    def test_inverse_normal_is_identical(self):
+        ps = [1e-9, 0.001, 0.02, 0.02425, 0.1, 0.3, 0.5, 0.77, 0.9, 0.97576, 0.99, 0.999999]
+        got = js([{"fn": "invNorm", "args": [p]} for p in ps])
+        for p, g in zip(ps, got):
+            self.assertAlmostEqual(g, M.inv_norm(p), delta=1e-12 * max(1, abs(g)))
+
+    def test_validation_gives_the_same_verdicts_and_messages(self):
+        good = M.simulate_responses(M.build_session(3), M.PERSONAS["leaner"], 4)
+
+        def broken(fn):
+            x = json.loads(json.dumps(good))
+            fn(x)
+            return x
+
+        t0 = 0
+        t2 = next(i for i, t in enumerate(good["trials"]) if t["checker"])
+        cases = [
+            good, None, [], "text", {}, dict(good, format="nope"), dict(good, arm="placebo"),
+            dict(good, trials=[]), dict(good, trials="x"),
+            broken(lambda x: x["trials"].__setitem__(t0, 5)),
+            broken(lambda x: x["trials"][t0].__setitem__("messageId", "zz")),
+            broken(lambda x: x["trials"][t0].__setitem__("messageId", "__proto__")),
+            broken(lambda x: x["trials"][t0].__setitem__("messageId", 7)),
+            broken(lambda x: x["trials"][t0].__setitem__("round", 4)),
+            broken(lambda x: x["trials"][t0].__setitem__("round", True)),
+            broken(lambda x: x["trials"][t0].__setitem__("round", "1")),
+            broken(lambda x: x["trials"][t0].__setitem__("truth", M.other(x["trials"][t0]["truth"]))),
+            broken(lambda x: x["trials"][t0].__setitem__("final", {"verdict": "maybe", "sure": True})),
+            broken(lambda x: x["trials"][t0].__setitem__("final", {"verdict": "scam", "sure": 1})),
+            broken(lambda x: x["trials"][t0].__setitem__("final", "scam")),
+            broken(lambda x: x["trials"][t2]["checker"].__setitem__("confidence", 1.5)),
+            broken(lambda x: x["trials"][t2]["checker"].__setitem__("confidence", True)),
+            broken(lambda x: x["trials"][t2]["checker"].__setitem__("correct", not x["trials"][t2]["checker"]["correct"])),
+            broken(lambda x: x["trials"][t2].__setitem__("checker", "scam")),
+            broken(lambda x: x["trials"][t2].__setitem__("initial", {"verdict": "genuine"})),
+            broken(lambda x: x["trials"][t0].__setitem__("final", None)),
+        ]
+
+        def py(case):
+            try:
+                M.validate_session(case)
+                return {"ok": True}
+            except ValueError as exc:
+                return {"error": str(exc)}
+
+        got = js([{"fn": "validateSession", "args": [c], "catchErrors": True} for c in cases])
+        self.assertEqual(got, [py(c) for c in cases])
+        self.assertEqual(got[0], {"ok": True})
+        self.assertEqual(got[-1], {"ok": True})
+        self.assertEqual(sum("error" in g for g in got), len(cases) - 2)
+
     def test_checker_reasons_are_identical(self):
         s = M.build_session(9, "checker", {"checkerWrong": 4})
         got = js([{"fn": "checkerReasons", "args": [t]} for t in s["trials"]])

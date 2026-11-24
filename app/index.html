@@ -173,6 +173,12 @@ select, input[type="text"] {
 .study-box { border: 1px dashed var(--line-2); border-radius: 12px; padding: 12px 14px; margin-top: 8px; }
 .study-box p { margin-bottom: 8px; }
 
+.banner.resume { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.file-btn { display: inline-flex; align-items: center; }
+.file-btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.pick-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.pick-list button { width: 100%; text-align: left; font-weight: 400; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
 /* Progress */
 .progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .round-pill { font-weight: 700; font-size: 15px; }
@@ -256,6 +262,17 @@ select, input[type="text"] {
 .hbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 4px 4px 0; }
 .hbar.adv .fill { background: var(--checker); }
 .hbar.faint .fill { background: var(--accent); opacity: 0.45; }
+.hbar.you .name { font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; padding: 0; list-style: none; }
+.chips li { background: var(--surface-2); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+.chips li b { font-variant-numeric: tabular-nums; }
+.meter { position: relative; height: 34px; margin: 6px 0 2px; }
+.meter .line { position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: var(--line-2); }
+.meter .mid { position: absolute; left: 50%; top: 8px; width: 2px; height: 18px; background: var(--line-2); }
+.meter .mark { position: absolute; top: 8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; border: 2px solid var(--surface); }
+.meter .mark.r1 { background: var(--accent); opacity: 0.5; }
+.meter .mark.r3 { background: var(--accent); }
+.meter-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .hbar .val { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
 .axis-note { font-size: 12px; color: var(--muted); }
 .quad { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 14px; align-items: stretch; }
@@ -312,6 +329,10 @@ select, input[type="text"] {
 
   <!-- Intro -->
   <section id="screen-intro" aria-labelledby="intro-title">
+    <div class="banner resume" id="resume-banner" hidden>
+      <span id="resume-text"></span>
+      <span class="btn-row"><button class="btn primary" type="button" id="resume-btn">Resume</button><button class="btn" type="button" id="discard-btn">Discard it</button></span>
+    </div>
     <h1 id="intro-title" tabindex="-1">How well do you spot scams, with and without an AI checker?</h1>
     <p class="lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and a voicemail. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
     <ol class="steps">
@@ -374,6 +395,13 @@ select, input[type="text"] {
         </select>
         <button class="btn" type="button" id="demo-btn">Show an example result</button>
       </div>
+      <h2 style="margin-top:20px">Review a saved session</h2>
+      <p class="small muted">Open a session file (JSON) downloaded from this app to see its results again. A file with several sessions lets you pick one.</p>
+      <div class="demo-row">
+        <label class="btn file-btn"><input type="file" id="load-file" accept=".json,application/json" class="sr-only"> Open a session file</label>
+      </div>
+      <p class="error" id="load-error" role="alert" hidden></p>
+      <div id="bundle-list"></div>
     </div>
   </section>
 
@@ -1491,6 +1519,98 @@ function classify(arm, assisted, complete) {
 
 function diff(a, b) { return (a === null || b === null) ? null : a - b; }
 
+const STRATEGIES = [
+  ['yourFinal', 'Your final answers'],
+  ['yourFirst', 'Never use the checker (your first answers)'],
+  ['alwaysFollow', 'Always follow the checker'],
+  ['followConfident', 'Follow it only when it is at least 90% sure'],
+  ['followWhenUnsure', 'Follow it only when you said "probably"']
+];
+
+function strategies(trials) {
+  const ts = trials.filter(t => t.checker && t.initial && t.final);
+  if (!ts.length) return null;
+  const correct = {};
+  STRATEGIES.forEach(([k]) => { correct[k] = 0; });
+  ts.forEach(t => {
+    const adv = t.checker, ini = t.initial;
+    const picks = {
+      yourFinal: t.final.verdict,
+      yourFirst: ini.verdict,
+      alwaysFollow: adv.verdict,
+      followConfident: adv.confidence >= 0.9 ? adv.verdict : ini.verdict,
+      followWhenUnsure: ini.sure ? ini.verdict : adv.verdict
+    };
+    Object.keys(picks).forEach(k => { if (picks[k] === t.truth) correct[k] += 1; });
+  });
+  const n = ts.length;
+  return STRATEGIES.map(([k, label]) => ({key: k, label: label, correct: correct[k], n: n, accuracy: correct[k] / n}));
+}
+
+// Acklam's rational approximation to the inverse normal CDF (relative error < 1.2e-9).
+const ACK_A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+  1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+const ACK_B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+  6.680131188771972e+01, -1.328068155288572e+01];
+const ACK_C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+  -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+const ACK_D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+
+function invNorm(p) {
+  if (!(p > 0 && p < 1)) throw new Error('p must be between 0 and 1');
+  const C = ACK_C, D = ACK_D, A = ACK_A, B = ACK_B;
+  if (p < 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  if (p > 1 - 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  const q = p - 0.5, r = q * q;
+  return (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q /
+    (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
+}
+
+function sdt(trials) {
+  const st = roundStats(trials);
+  if (st.scams === 0 || st.genuines === 0) return null;
+  const h = (st.hits + 0.5) / (st.scams + 1);
+  const f = (st.falseAlarms + 0.5) / (st.genuines + 1);
+  const zh = invNorm(h), zf = invNorm(f);
+  return {dPrime: zh - zf, c: -(zh + zf) / 2, hitRate: st.hitRate, falseAlarmRate: st.falseAlarmRate};
+}
+
+function cueProfile(trials) {
+  const missed = {}, seen = {}, fooled = {};
+  let missedN = 0, falseAlarms = 0;
+  trials.forEach(t => {
+    if (!t.final) return;
+    const m = BY_ID[t.messageId];
+    const wrong = t.final.verdict !== t.truth;
+    if (t.truth === 'scam') {
+      m.cues.forEach(cue => {
+        seen[cue] = (seen[cue] || 0) + 1;
+        if (wrong) missed[cue] = (missed[cue] || 0) + 1;
+      });
+      if (wrong) missedN += 1;
+    } else if (wrong) {
+      falseAlarms += 1;
+      m.decoys.forEach(d => { fooled[d] = (fooled[d] || 0) + 1; });
+    }
+  });
+  const ranked = (counts, extra) => Object.keys(counts)
+    .sort((a, b) => (counts[b] - counts[a]) || (a < b ? -1 : a > b ? 1 : 0))
+    .map(k => {
+      const row = {cue: k, label: CUES[k], count: counts[k]};
+      if (extra) row.seen = extra[k];
+      return row;
+    });
+  return {missedScams: missedN, falseAlarms: falseAlarms, missed: ranked(missed, seen), fooledBy: ranked(fooled)};
+}
+
 function scoreSession(session) {
   const trials = session.trials;
   const rounds = [1, 2, 3].map(rnum => {
@@ -1502,6 +1622,8 @@ function scoreSession(session) {
   const complete = trials.every(t => t.final) && trials.filter(t => t.checker).every(t => t.initial);
   const assisted = session.arm === 'checker' ? assistedStats(trials) : null;
   const profile = classify(session.arm, assisted, complete);
+  const sdt1 = sdt(trials.filter(t => t.round === 1));
+  const sdt3 = sdt(trials.filter(t => t.round === 3));
   return {
     arm: session.arm,
     complete: complete,
@@ -1509,8 +1631,13 @@ function scoreSession(session) {
     assisted: assisted,
     change: {
       accuracy: diff(rounds[2].accuracy, rounds[0].accuracy),
-      brier: diff(rounds[2].brier, rounds[0].brier)
+      brier: diff(rounds[2].brier, rounds[0].brier),
+      dPrime: diff(sdt3 && sdt3.dPrime, sdt1 && sdt1.dPrime),
+      c: diff(sdt3 && sdt3.c, sdt1 && sdt1.c)
     },
+    sdt: {round1: sdt1, round3: sdt3},
+    strategies: session.arm === 'checker' ? strategies(trials) : null,
+    cueProfile: cueProfile(trials),
     profile: profile,
     profileTitle: PROFILES[profile]
   };
@@ -1564,6 +1691,41 @@ function simulateResponses(session, persona, seed) {
     }
   });
   return out;
+}
+
+function validAnswer(r) {
+  return r !== null && typeof r === 'object' && !Array.isArray(r) &&
+    (r.verdict === 'scam' || r.verdict === 'genuine') && typeof r.sure === 'boolean';
+}
+
+function isPlainObject(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
+
+// The Python package applies exactly the same rules, with the same messages.
+function validateSession(session) {
+  if (!isPlainObject(session) || session.format !== FORMAT) throw new Error('not a Crutch check session file');
+  if (ARMS.indexOf(session.arm) < 0) throw new Error('session has an unknown group (arm)');
+  const trials = session.trials;
+  if (!Array.isArray(trials) || !trials.length) throw new Error('session has no messages');
+  trials.forEach((t, i) => {
+    const where = 'message ' + (i + 1);
+    if (!isPlainObject(t)) throw new Error(where + ' is not a valid record');
+    const m = typeof t.messageId === 'string' && Object.prototype.hasOwnProperty.call(BY_ID, t.messageId) ? BY_ID[t.messageId] : null;
+    if (!m) throw new Error(where + ' has an unknown message id');
+    if (!Number.isInteger(t.round) || [1, 2, 3].indexOf(t.round) < 0) throw new Error(where + ' has an invalid round');
+    if (t.truth !== m.truth) throw new Error(where + ' has the wrong answer key');
+    const adv = t.checker;
+    if (adv !== null && adv !== undefined) {
+      if (!isPlainObject(adv) || (adv.verdict !== 'scam' && adv.verdict !== 'genuine') ||
+          typeof adv.confidence !== 'number' || !(adv.confidence >= 0 && adv.confidence <= 1) ||
+          adv.correct !== (adv.verdict === m.truth)) {
+        throw new Error(where + ' has invalid checker advice');
+      }
+    }
+    ['initial', 'final'].forEach(key => {
+      if (t[key] !== null && t[key] !== undefined && !validAnswer(t[key])) throw new Error(where + ' has an invalid ' + key + ' answer');
+    });
+  });
+  return session;
 }
 
 const BUNDLE_FORMAT = 'crutch-check-bundle';
@@ -1627,7 +1789,7 @@ if (typeof module !== 'undefined' && module.exports) {
     PERSONAS, DEMO_SEEDS, CONF_SURE, CONF_UNSURE, CSV_COLUMNS, defaultDesign, mulberry32, hashString,
     shuffle, round2, assignArm, participantSeed, normaliseDesign, buildSession, checkerReasons,
     roundStats, assistedStats, classify, scoreSession, simulateResponses, sessionRows, toCSV,
-    BUNDLE_FORMAT, makeBundle, nextParticipantId
+    BUNDLE_FORMAT, makeBundle, nextParticipantId, STRATEGIES, strategies, invNorm, sdt, cueProfile, validateSession
   };
 }
 /* MODEL END */
@@ -1755,6 +1917,7 @@ if (typeof module !== 'undefined' && module.exports) {
     }
     state.session.startedAt = new Date().toISOString();
     state.index = 0;
+    saveProgress();
     showBreak(1);
   }
 
@@ -1826,6 +1989,14 @@ if (typeof module !== 'undefined' && module.exports) {
   function nextParticipant() {
     $('#participant-id').value = nextParticipantId(state.session.participant);
     updateStartLabel();
+  $('#load-file').addEventListener('change', onFileChosen);
+  $('#bundle-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-pick]');
+    if (b && state.picker) renderResults(state.picker[Number(b.getAttribute('data-pick'))], null, true);
+  });
+  $('#resume-btn').addEventListener('click', resume);
+  $('#discard-btn').addEventListener('click', () => { clearProgress(); offerResume(); focusEl($('#start-btn')); });
+  offerResume();
     show('screen-intro');
     focusEl($('#start-btn'));
   }
@@ -1939,6 +2110,7 @@ if (typeof module !== 'undefined' && module.exports) {
     const s = state.session;
     state.index += 1;
     if (state.index >= s.trials.length) { finish(); return; }
+    saveProgress();
     if (s.trials[state.index].round !== s.trials[state.index - 1].round) showBreak(s.trials[state.index].round);
     else renderTrial();
   }
@@ -1946,6 +2118,8 @@ if (typeof module !== 'undefined' && module.exports) {
   function finish() {
     const s = state.session;
     s.finishedAt = new Date().toISOString();
+    clearProgress();
+    $('#resume-banner').hidden = true;
     if (s.study) {
       saveSession(s);
       if (s.showResults === false) { renderThanks(s); return; }
@@ -1975,7 +2149,7 @@ if (typeof module !== 'undefined' && module.exports) {
       if (act === 'json') download(fileStem(s) + '.json', JSON.stringify(s, null, 2), 'application/json');
       else if (act === 'csv') download(fileStem(s) + '.csv', toCSV([s]), 'text/csv');
       else if (act === 'next') nextParticipant();
-      else if (act === 'restart') { show('screen-intro'); focusEl($('#intro-title')); }
+      else if (act === 'restart') { offerResume(); show('screen-intro'); focusEl($('#intro-title')); }
     }));
   }
 
@@ -2011,12 +2185,14 @@ if (typeof module !== 'undefined' && module.exports) {
     return 'Your accuracy on your own went ' + (pts > 0 ? 'up' : 'down') + ' by ' + Math.abs(pts) + ' percentage points from round 1 to round 3.';
   }
 
-  function renderResults(s, demoLabel) {
+  function renderResults(s, demoLabel, loaded) {
     const res = scoreSession(s);
     const [r1, r2, r3] = res.rounds;
     const a = res.assisted;
     let html = '';
     if (demoLabel) html += '<div class="banner"><strong>Example result.</strong> ' + esc(demoLabel) + ' Start the test to see your own.</div>';
+    if (loaded) html += '<div class="banner"><strong>Saved session' + (s.participant ? ': ' + esc(s.participant) : '') + '.</strong> ' +
+      (s.finishedAt ? 'Finished ' + esc(String(s.finishedAt).slice(0, 10)) + '. ' : '') + (s.arm === 'checker' ? 'With the checker in round 2.' : 'No checker in round 2 (comparison group).') + '</div>';
     html += '<div class="results-head"><div><h1 id="results-title" tabindex="-1">' + (demoLabel ? 'Example results' : 'Your results') + '</h1>' +
       '<p class="lede" style="margin:0">' + esc(changeSentence(res)) + '</p></div></div>';
 
@@ -2066,6 +2242,12 @@ if (typeof module !== 'undefined' && module.exports) {
     html += '<p class="small muted">Your Brier score (final answers, all rounds) is ' + (all.brier === null ? 'n/a' : all.brier.toFixed(3)) +
       '. Lower is better: 0 means always right and certain, 0.25 is what you would get by always saying "50:50".</p></div>';
 
+    html += '<div class="grid-2" style="margin-top:16px">';
+    if (res.strategies) html += strategiesCard(res, s);
+    html += instinctCard(res);
+    html += cuesCard(res.cueProfile);
+    html += '</div>';
+
     html += '<div class="card review" style="margin-top:16px"><h2>Message by message</h2><p class="small muted">Open any message to see the answer, the warning signs and what made it look the other way.</p>';
     [1, 2, 3].forEach(rnum => {
       const labels = s.arm === 'checker' ? ROUND_LABELS : CONTROL_ROUND_LABELS;
@@ -2080,12 +2262,71 @@ if (typeof module !== 'undefined' && module.exports) {
       '<button class="btn" type="button" data-act="csv">Download answers (CSV)</button>' +
       '<button class="btn primary" type="button" data-act="restart">Back to the start</button></div></div>';
 
-    if (s.study && !demoLabel) html += studyPanelHTML(s);
+    if (s.study && !demoLabel && !loaded) html += studyPanelHTML(s);
     const root = $('#results');
     root.innerHTML = html;
     wireResultButtons(root, s);
     show('screen-results');
     focusEl($('#results-title'));
+  }
+
+  function strategiesCard(res, s) {
+    let h = '<div class="card"><h2>What if you had used it differently?</h2>' +
+      '<p class="small muted">Your score on the 12 round 2 messages under some simple rules for using the checker.</p><div class="hbars">';
+    res.strategies.forEach(st => {
+      const cls = st.key === 'yourFinal' ? 'you' : st.key === 'alwaysFollow' ? 'adv' : 'faint';
+      h += hbar(st.label, st.accuracy, cls, st.label + ': ' + st.correct + ' of ' + st.n);
+    });
+    h += '</div>';
+    const best = res.strategies.reduce((a, b) => (b.accuracy > a.accuracy ? b : a));
+    const mine = res.strategies[0];
+    if (best.key === 'yourFinal' || best.accuracy === mine.accuracy) h += '<p class="small">None of the simple rules beat what you actually did.</p>';
+    else h += '<p class="small">"' + esc(best.label) + '" would have scored ' + best.correct + ' of ' + best.n + ', against your ' + mine.correct + '.</p>';
+    if (!s.design.showConfidence) h += '<p class="small muted">The 90% rule uses the checker\'s confidence, which was hidden from you in this test.</p>';
+    return h + '</div>';
+  }
+
+  function biasWord(c) {
+    if (c === null || c === undefined) return 'n/a';
+    if (c > 0.25) return 'trusting';
+    if (c < -0.25) return 'suspicious';
+    return 'balanced';
+  }
+
+  function instinctCard(res) {
+    const a = res.sdt.round1, b = res.sdt.round3;
+    let h = '<div class="card"><h2>Your instincts on your own</h2>';
+    if (!a || !b) return h + '<p class="muted">Finish rounds 1 and 3 to see this.</p></div>';
+    const pos = c => (50 + Math.max(-1, Math.min(1, c / 1.5)) * 50).toFixed(1) + '%';
+    h += '<p>Leaning in round 1: <strong>' + biasWord(a.c) + '</strong>. In round 3: <strong>' + biasWord(b.c) + '</strong>.</p>' +
+      '<div class="meter" role="img" aria-label="Bias in round 1 was ' + a.c.toFixed(2) + ' and in round 3 was ' + b.c.toFixed(2) + '. Negative means suspicious, positive means trusting.">' +
+      '<span class="line"></span><span class="mid"></span>' +
+      '<span class="mark r1" style="left:' + pos(a.c) + '" title="Round 1"></span><span class="mark r3" style="left:' + pos(b.c) + '" title="Round 3"></span></div>' +
+      '<div class="meter-scale"><span>Calls too much a scam</span><span>Balanced</span><span>Lets scams through</span></div>' +
+      '<ul class="chips" style="margin-top:12px"><li>Round 1 marker: faded</li><li>Round 3 marker: solid</li></ul>' +
+      '<p class="small">Sensitivity (d\u2032), how well you tell scams from genuine messages regardless of leaning: <b>' + a.dPrime.toFixed(2) + '</b> in round 1 and <b>' + b.dPrime.toFixed(2) + '</b> in round 3. 0 is guessing; above 2 is very good.</p>' +
+      '<p class="small muted">Signal detection measures, worked out from your scam and genuine answers separately, so being suspicious and being skilled are not confused.</p></div>';
+    return h;
+  }
+
+  function cuesCard(cp) {
+    let h = '<div class="card"><h2>What tripped you up</h2>';
+    if (!cp.missedScams && !cp.falseAlarms) return h + '<p>You didn\'t miss a single scam or wrongly flag a genuine message. Impressive.</p></div>';
+    if (cp.missedScams) {
+      h += '<p>You let <strong>' + cp.missedScams + '</strong> scam' + (cp.missedScams === 1 ? '' : 's') + ' through. The warning signs they carried most often:</p><ul class="cue-list">';
+      cp.missed.slice(0, 3).forEach(r => { h += '<li>' + esc(r.label) + ': missed on ' + r.count + ' of ' + r.seen + ' scams with this sign</li>'; });
+      h += '</ul>';
+    } else {
+      h += '<p>You caught every scam.</p>';
+    }
+    if (cp.falseAlarms) {
+      h += '<p>You flagged <strong>' + cp.falseAlarms + '</strong> genuine message' + (cp.falseAlarms === 1 ? '' : 's') + ' as scams. What made them look suspicious:</p><ul class="cue-list">';
+      cp.fooledBy.slice(0, 3).forEach(r => { h += '<li>' + esc(r.label) + ' (' + r.count + ')</li>'; });
+      h += '</ul>';
+    } else {
+      h += '<p>You didn\'t wrongly flag any genuine messages.</p>';
+    }
+    return h + '</div>';
   }
 
   function reviewItem(t) {
@@ -2125,6 +2366,103 @@ if (typeof module !== 'undefined' && module.exports) {
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
   }
 
+  /* ---------- Opening saved sessions ---------- */
+  function sessionsFromJSON(data) {
+    let items;
+    if (isPlainObject(data) && data.format === BUNDLE_FORMAT) items = Array.isArray(data.sessions) ? data.sessions : [];
+    else if (Array.isArray(data)) items = data;
+    else items = [data];
+    if (!items.length) throw new Error('the file has no sessions in it');
+    return items.map((x, i) => {
+      try {
+        validateSession(x);
+      } catch (e) {
+        throw new Error((items.length > 1 ? 'session ' + (i + 1) + ': ' : '') + e.message);
+      }
+      x.design = normaliseDesign(x.design);
+      return x;
+    });
+  }
+
+  function onFileChosen(e) {
+    const file = e.target.files && e.target.files[0];
+    const err = $('#load-error');
+    err.hidden = true;
+    $('#bundle-list').innerHTML = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let list;
+      try {
+        list = sessionsFromJSON(JSON.parse(String(reader.result)));
+      } catch (ex) {
+        err.textContent = 'That file could not be opened: ' + (ex instanceof SyntaxError ? 'it is not valid JSON.' : ex.message + '.');
+        err.hidden = false;
+        return;
+      } finally {
+        e.target.value = '';
+      }
+      if (list.length === 1) { renderResults(list[0], null, true); return; }
+      showPicker(list);
+    };
+    reader.onerror = () => { err.textContent = 'That file could not be read.'; err.hidden = false; };
+    reader.readAsText(file);
+  }
+
+  function showPicker(list) {
+    state.picker = list;
+    let h = '<p class="small"><strong>' + list.length + ' sessions</strong> in this file. Choose one to see its results.</p><ul class="pick-list">';
+    list.forEach((x, i) => {
+      const r = scoreSession(x);
+      const who = x.participant ? x.participant : 'Session ' + (i + 1);
+      h += '<li><button class="btn" type="button" data-pick="' + i + '"><span>' + esc(who) + ' (' + (x.arm === 'checker' ? 'with the checker' : 'without') + ')</span>' +
+        '<span class="muted">' + pct(r.rounds[0].accuracy) + ' then ' + pct(r.rounds[2].accuracy) + (r.complete ? '' : ', unfinished') + '</span></button></li>';
+    });
+    $('#bundle-list').innerHTML = h + '</ul>';
+  }
+
+  /* ---------- Resuming an unfinished test ---------- */
+  const PROGRESS_KEY = 'crutch-check-in-progress-v1';
+  function saveProgress() {
+    try { window.localStorage.setItem(PROGRESS_KEY, JSON.stringify({session: state.session, index: state.index})); } catch (e) { /* not available */ }
+  }
+  function clearProgress() {
+    try { window.localStorage.removeItem(PROGRESS_KEY); } catch (e) { /* not available */ }
+  }
+  function loadProgress() {
+    try {
+      const raw = window.localStorage.getItem(PROGRESS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      validateSession(p.session);
+      if (!Number.isInteger(p.index) || p.index < 0 || p.index >= p.session.trials.length) return null;
+      return p;
+    } catch (e) {
+      return null;
+    }
+  }
+  function offerResume() {
+    const p = loadProgress();
+    $('#resume-banner').hidden = !p;
+    if (p) {
+      $('#resume-text').textContent = 'You have an unfinished test' + (p.session.participant ? ' for participant ' + p.session.participant : '') +
+        ', stopped at message ' + (p.index + 1) + ' of ' + p.session.trials.length + '.';
+    }
+  }
+  function resume() {
+    const p = loadProgress();
+    if (!p) { offerResume(); return; }
+    state.session = p.session;
+    state.session.design = normaliseDesign(state.session.design);
+    state.index = p.index;
+    const t = state.session.trials[state.index];
+    t.initial = null;
+    t.final = null;
+    $('#resume-banner').hidden = true;
+    show('screen-trial');
+    renderTrial();
+  }
+
   /* ---------- Demo ---------- */
   const DEMO_LABELS = {
     calibrated: 'A simulated person who uses the checker well.',
@@ -2147,6 +2485,14 @@ if (typeof module !== 'undefined' && module.exports) {
     if (b) onStoreAction(b.getAttribute('data-store'));
   });
   updateStartLabel();
+  $('#load-file').addEventListener('change', onFileChosen);
+  $('#bundle-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-pick]');
+    if (b && state.picker) renderResults(state.picker[Number(b.getAttribute('data-pick'))], null, true);
+  });
+  $('#resume-btn').addEventListener('click', resume);
+  $('#discard-btn').addEventListener('click', () => { clearProgress(); offerResume(); focusEl($('#start-btn')); });
+  offerResume();
   $('#demo-btn').addEventListener('click', showDemo);
   $('#break-go').addEventListener('click', () => {
     state.lockUntil = performance.now() + 250;
