@@ -161,6 +161,8 @@ class FileAndReportTests(unittest.TestCase):
         self.assertGreater(shared["random"], shared["easy"])
         with self.assertRaises(ValueError):
             simulate_session(random.Random(1), habit="weigher", mistakes="sometimes")
+        with self.assertRaises(ValueError):
+            simulate_session(random.Random(1), habit="weigher", ai_style="shouty")
 
     def test_honest_confidence_is_calibrated(self):
         rng = random.Random(12)

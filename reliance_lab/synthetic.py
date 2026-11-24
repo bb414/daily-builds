@@ -18,6 +18,8 @@ CONFIDENCE_LEVELS = (0.55, 0.7, 0.85, 0.95)
 
 MISTAKES = ("random", "hard", "easy")
 
+AI_STYLES = ("calibrated", "confident", "hidden")
+
 HABITS = {
     "rubber-stamper": "Switches to the AI in 90% of disagreements, whatever it says",
     "sceptic": "Switches to the AI in only 15% of disagreements",
@@ -59,6 +61,8 @@ def simulate_session(rng: random.Random, *, habit: str, n: int = 20, ai_accuracy
         raise ValueError(f"Unknown habit: {habit}")
     if mistakes not in MISTAKES:
         raise ValueError(f"Unknown mistakes setting: {mistakes}")
+    if ai_style not in AI_STYLES:
+        raise ValueError(f"Unknown advisor style: {ai_style}")
     truths = ["fraud" if i < n // 2 else "genuine" for i in range(n)]
     rng.shuffle(truths)
     you_right_all = [rng.random() < human_accuracy for _ in range(n)]
