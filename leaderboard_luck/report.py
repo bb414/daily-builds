@@ -34,6 +34,17 @@ def ordinal(n: int) -> str:
     return f"{n}{SUFFIXES.get(n % 10, 'th')}"
 
 
+def standing(p: dict, share: float) -> str:
+    """Where your team's skill stands against the rivals', in words (as in the browser app)."""
+    if p["skillSpread"] == 0:
+        if p["yourSharpe"] > 0:
+            return "better than every rival"
+        return "weaker than every rival" if p["yourSharpe"] < 0 else "exactly as skilled as every rival"
+    if share >= 0.5:
+        return "better than " + ("over 99%" if share >= 0.995 else pct(share, 0)) + " of the field"
+    return "weaker than " + ("over 99%" if share <= 0.005 else pct(1 - share, 0)) + " of the field"
+
+
 def rule_words(p: dict) -> str:
     """The scoring rule in the middle of a sentence, e.g. "highest Sharpe ratio"."""
     label = RULE_LABELS[p["rule"]]
@@ -53,8 +64,9 @@ def describe(p: dict, every_length: bool = False) -> list[str]:
         first,
         f"  Your team: true Sharpe {p['yourSharpe']:.2f} at {pct(p['yourVol'], 0)} volatility",
         f"  Rivals: skill spread {p['skillSpread']:.2f}, typical risk {pct(p['fieldVol'], 0)}, "
-        f"{n_gamblers} gambler{'' if n_gamblers == 1 else 's'} at {p['gamblerMultiple']:g}x risk, "
-        f"market correlation {p['correlation']:.2f}" + (", fat tails" if p["fatTails"] else ""),
+        + (f"{n_gamblers} gambler{'' if n_gamblers == 1 else 's'} at {p['gamblerMultiple']:g}x risk, " if n_gamblers
+           else "no gamblers, ")
+        + f"market correlation {p['correlation']:.2f}" + (", fat tails" if p["fatTails"] else ""),
     ]
     if p["catchUp"] or p["rivalsCatchUp"] > 0:
         when = f"{pct(p['checkpoint'], 0)} of the way through" if every_length else f"day {checkpoint_day(p)}"
@@ -73,7 +85,7 @@ def simulate_report(r: dict) -> str:
     lines = ["Leaderboard luck", ""] + describe(p) + [
         f"  {r['sims']:,} simulated challenges, luck number {p['seed']}",
         "",
-        f"  Your team is better than {pct(r['skillPercentile'], 0)} of the field.",
+        f"  Your team is {standing(p, r['skillPercentile'])}.",
         f"  Chance of winning       {pct(you['pWin']):>7}   (fair share {pct(1 / p['teams'])})",
         f"  Chance of a top 3       {pct(you['pTop3']):>7}",
         f"  Average finishing place {you['meanRank']:>7.1f}",
@@ -104,7 +116,7 @@ def sample_report(params: dict, k: int, top: int = 10) -> str:
     p = normalise(params)
     teams = sample_competition(p, k)
     top = top if top > 0 else len(teams)
-    lines = [f"Challenge number {k + 1}", "", *describe(p), "",
+    lines = [f"Challenge number {k + 1}", "", *describe(p), f"  Luck number {p['seed']}", "",
              f"  {'Place':<7}{'Team':<12}{'Type':<9}{'Skill':>7}{'Risk':>9}{'Return':>9}{'Drawdown':>10}  Status"]
     shown = [t for t in teams if t["rank"] <= top]
     you = next(t for t in teams if t["you"])

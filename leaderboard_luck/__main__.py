@@ -15,7 +15,7 @@ from .report import sample_report, simulate_report
 
 FLAGS = {
     "teams": ("--teams", int, "teams in the challenge, including yours"),
-    "days": ("--days", int, "length of the challenge in trading days (5 a week, 250 a year)"),
+    "days": ("--days", int, "length of the challenge in trading days, 5 a week and 250 a year"),
     "skillSpread": ("--skill-spread", float, "spread of rivals' true Sharpe ratios around zero"),
     "fieldVol": ("--field-vol", float, "typical rival volatility as a fraction, 0.2 meaning 20 per cent a year"),
     "gamblers": ("--gamblers", float, "share of rivals who are gamblers, as a fraction"),
@@ -73,17 +73,17 @@ def warn_if_clamped(p: dict) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="python -m leaderboard_luck",
+    parser = argparse.ArgumentParser(prog="python -m leaderboard_luck", allow_abbrev=False,
                                      description="How much of a trading-challenge leaderboard is skill?")
     sub = parser.add_subparsers(dest="command", required=True)
-    s = sub.add_parser("simulate", help="simulate many challenges and report your team's chances")
+    s = sub.add_parser("simulate", allow_abbrev=False, help="simulate many challenges and report your team's chances")
     add_settings(s, "simulate")
     s.add_argument("--json", action="store_true", help="print the full result as JSON")
-    c = sub.add_parser("sample", help="show one simulated challenge, place by place")
+    c = sub.add_parser("sample", allow_abbrev=False, help="show one simulated challenge, place by place")
     add_settings(c, "sample")
     c.add_argument("--index", type=int, default=0, metavar="N", help="which challenge, counting from 0 (default 0)")
     c.add_argument("--top", type=int, default=10, metavar="N", help="how many places to show, plus your team; 0 shows every team (default 10)")
-    d = sub.add_parser("design", help="compare scoring rules and challenge lengths (the organiser's view)")
+    d = sub.add_parser("design", allow_abbrev=False, help="compare scoring rules and challenge lengths (the organiser's view)")
     add_settings(d, "design")
     d.add_argument("--sims-each", type=int, default=400, metavar="N", help="challenges per rule and length (default 400)")
     d.add_argument("--workers", type=int, default=os.cpu_count() or 1, metavar="N",
@@ -118,7 +118,11 @@ def main(argv: list[str] | None = None) -> int:
                 Path(args.html).write_text(design_html(params, rows, args.sims_each), encoding="utf-8")
                 print(f"Wrote {args.html}")
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        message = str(exc)
+        for key, (flag, _, _) in FLAGS.items():
+            if message.startswith(key + " "):
+                message = flag + message[len(key):]
+        print(f"error: {message}", file=sys.stderr)
         return 2
     return 0
 

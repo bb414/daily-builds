@@ -181,9 +181,10 @@ table.data tr.you td, table.data tr.you th { background: var(--accent-soft); fon
 @media (max-width: 600px) {
   #sample-table .wide-col { display: none; }
   #sample-table td, #sample-table th { padding: 6px 5px; }
-  #sample-table td:last-child, #sample-table th:last-child { min-width: 0; }
+  #sample-table .status-note { display: block; }
 }
 .kind { display: inline-flex; align-items: center; gap: 6px; }
+.status-note { display: none; font-size: 0.8125rem; font-weight: 400; color: var(--ink-2); white-space: normal; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .stale #results, .stale-chart { opacity: 0.55; transition: opacity 0.2s; }
 .prose { max-width: 72ch; }
@@ -1054,7 +1055,7 @@ if (typeof module !== 'undefined' && module.exports) {
   var SLIDERS = [
     { key: 'yourSharpe', group: 'you', label: 'Skill: your true Sharpe ratio', min: -1, max: 3, step: 0.1,
       fmt: function (v) { return v.toFixed(1); },
-      hint: function () { return '0 means no real edge, 1 is very good, 2 is exceptional. Better than ' + pct(M.skillPercentile(params)) + ' of rivals.'; } },
+      hint: function () { return '0 means no real edge, 1 is very good, 2 is exceptional. Your team is ' + standing(params, M.skillPercentile(params)) + '.'; } },
     { key: 'yourVol', group: 'you', label: 'Risk: your volatility', min: 0.02, max: 1, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'Annualised. Leverage scales risk and return together, so it does not change your Sharpe ratio.'; } },
@@ -1424,20 +1425,28 @@ if (typeof module !== 'undefined' && module.exports) {
     drawWinners(r);
   }
 
+  // Where your team's skill stands against the rivals', in words.
+  function standing(p, share) {
+    if (p.skillSpread === 0) {
+      return p.yourSharpe > 0 ? 'better than every rival' : (p.yourSharpe < 0 ? 'weaker than every rival' : 'exactly as skilled as every rival');
+    }
+    if (share >= 0.5) return 'better than ' + (share >= 0.995 ? 'over 99%' : pct(share)) + ' of the field';
+    return 'weaker than ' + (share <= 0.005 ? 'over 99%' : pct(1 - share)) + ' of the field';
+  }
+
   function insightText(r) {
     var p = r.params;
     var parts = [];
     var fair = 1 / p.teams;
     var wins = pct(r.you.pWin, 1) + ' of ' + lengthAdjective(p.days) + ' challenges';
-    if (r.skillPercentile < 0.5) {
-      parts.push('Your team is weaker than ' + pct(1 - r.skillPercentile) + ' of the field and wins ' + wins +
-        ' (a fair share would be ' + pct(fair, 1) + ').');
+    var lead = 'Your team is ' + standing(p, r.skillPercentile);
+    var strong = p.skillSpread === 0 ? p.yourSharpe > 0 : r.skillPercentile >= 0.5;
+    if (!strong) {
+      parts.push(lead + ' and wins ' + wins + ' (a fair share would be ' + pct(fair, 1) + ').');
     } else if (r.you.pWin < fair) {
-      parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field, yet it wins only ' + wins +
-        ', less than a fair share of ' + pct(fair, 1) + '.');
+      parts.push(lead + ', yet it wins only ' + wins + ', less than a fair share of ' + pct(fair, 1) + '.');
     } else {
-      parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field and wins ' + wins +
-        ', against a fair share of ' + pct(fair, 1) + '.');
+      parts.push(lead + ' and wins ' + wins + ', against a fair share of ' + pct(fair, 1) + '.');
     }
     var chances = r.curve.map(function (c) { return c.pWin; });
     var flat = Math.max.apply(null, chances) - Math.min.apply(null, chances) < 1e-9;
@@ -1447,8 +1456,8 @@ if (typeof module !== 'undefined' && module.exports) {
     } else if (r.bestVol > p.yourVol + 0.04 && r.bestPWin > r.you.pWin + 0.005) {
       parts.push('Taking more risk is the quickest way up the table: at ' + pct(r.bestVol) + ' volatility your chance of winning would be ' +
         pct(r.bestPWin, 1) + '.');
-      if (p.rule === 'drawdown') {
-        var best = r.curve.filter(function (c) { return c.vol === r.bestVol; })[0];
+      var best = r.curve.filter(function (c) { return c.vol === r.bestVol; })[0];
+      if (p.rule === 'drawdown' && best.pOut >= 0.005) {
         parts.push('At that risk the drawdown limit would knock your team out of ' + pct(best.pOut) + ' of challenges' +
           (r.bestVol < M.VOL_GRID[M.VOL_GRID.length - 1] ? ', and beyond it knockouts cost more than the extra risk gains.' : '.'));
       }
@@ -1630,7 +1639,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var sx = function (d) { return m.l + (W - m.l - m.r) * d / p.days; };
     var sy = function (v) { return H - m.b - (H - m.t - m.b) * (v - lo) / (hi - lo); };
     var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
-      'aria-label': 'Account value over the challenge for the top five teams and yours. Open circles mark teams going for broke. Full results are in the table below.' });
+      'aria-label': 'Account value over the challenge for the top five teams and yours. Open circles mark teams going for broke. The top ten and your team are in the table below.' });
     var nTicks = Math.round((hi - lo) / tick);
     for (var i = 0; i <= nTicks; i++) {
       var v = lo + tick * i;
@@ -1664,7 +1673,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var head = el('thead');
     var hr = el('tr');
     ['Place', 'Team', 'Type', 'True skill', 'Risk', 'Return', 'Worst drawdown', 'Status'].forEach(function (h, i) {
-      hr.appendChild(el('th', (i === 2 || i === 4 || i === 6) ? { scope: 'col', class: 'wide-col' } : { scope: 'col' }, h));
+      hr.appendChild(el('th', (i === 2 || i === 4 || i === 6 || i === 7) ? { scope: 'col', class: 'wide-col' } : { scope: 'col' }, h));
     });
     head.appendChild(hr);
     t.appendChild(head);
@@ -1698,7 +1707,9 @@ if (typeof module !== 'undefined' && module.exports) {
       tr.appendChild(el('td', { class: 'wide-col' }, pct(x.maxDD, 1)));
       var status = x.bust ? 'Blown up' : (x.out ? 'Out: drawdown' : '');
       if (x.switchDay !== null) status = (status ? status + '; ' : '') + 'went for broke on day ' + x.switchDay;
-      tr.appendChild(el('td', {}, status));
+      tr.appendChild(el('td', { class: 'wide-col' }, status));
+      // On phones the Status column is hidden, so the status sits under the team's name instead.
+      if (status) nameCell.appendChild(el('span', { class: 'status-note' }, status));
       body.appendChild(tr);
     });
     t.appendChild(body);

@@ -41,8 +41,8 @@ def findings(rows: list[dict]) -> list[str]:
         best_rule_each.append(max(RULES, key=lambda rule: (by[(rule, days)]["pBestWins"], -RULES.index(rule))))
     winners = {rule: best_rule_each.count(rule) for rule in RULES}
     top = max(RULES, key=lambda rule: winners[rule])
-    out.append(f"Ranking on {IN_A_SENTENCE[top]} picked out the most skilled team most often at "
-               f"{winners[top]} of the {len(DURATIONS)} lengths tested.")
+    count = f"all {len(DURATIONS)}" if winners[top] == len(DURATIONS) else f"{winners[top]} of the {len(DURATIONS)}"
+    out.append(f"Ranking on {IN_A_SENTENCE[top]} picked out the most skilled team most often at {count} lengths tested.")
     year = {rule: by[(rule, DURATIONS[-1])] for rule in RULES}
     best_year = max(RULES, key=lambda rule: year[rule]["pBestWins"])
     share = year[best_year]["pBestWins"]
@@ -61,7 +61,7 @@ def design_report(params: dict, rows: list[dict], sims_each: int) -> str:
     by = _by(rows)
     names = short_names(params)
     lines = ["Leaderboard luck: how long before skill shows?", ""] + describe(params, every_length=True) + [
-        f"  {sims_each:,} simulated challenges for each rule and length", "",
+        f"  {sims_each:,} simulated challenges for each rule and length, luck number {params['seed']}", "",
         "  Chance the most skilled team wins (rank correlation between true skill and final place):",
         "  " + f"{'Length':<10}" + "".join(f"{names[r]:>30}" for r in RULES)]
     for days in DURATIONS:
@@ -168,7 +168,7 @@ def design_html(params: dict, rows: list[dict], sims_each: int) -> str:
 <title>Leaderboard luck: how long before skill shows?</title><style>{CSS}</style></head>
 <body><main>
 <h1>How long before skill shows?</h1>
-<p class="lede">Each scoring rule simulated {sims_each:,} times at seven lengths, from one week to a year of trading days.
+<p class="lede">Each scoring rule simulated {sims_each:,} times (luck number {params["seed"]}) at seven lengths, from one week to a year of trading days.
 "Most skilled team wins" is how often the team with the highest true Sharpe ratio finishes first. Rank correlation
 measures how closely the whole final table follows true skill: 0 is pure luck, 1 is a perfect match.</p>
 <div class="card"><h2>What the numbers say</h2><ul>{found}</ul></div>

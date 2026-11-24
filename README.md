@@ -122,10 +122,10 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 
 | Part | Language | Lines | What it does |
 |---|---|---|---|
-| `app/index.html`, layout and styles | HTML and CSS | 337 | Page structure, light and dark themes, phone layout |
+| `app/index.html`, layout and styles | HTML and CSS | 338 | Page structure, light and dark themes, phone layout |
 | `app/index.html`, model | JavaScript | 636 | The simulation, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
-| `app/index.html`, interface | JavaScript | 763 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links |
-| `leaderboard_luck/` | Python | 1,026 | A line-for-line port of the model, the command line, text and JSON reports, and the organiser's design report |
+| `app/index.html`, interface | JavaScript | 773 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links |
+| `leaderboard_luck/` | Python | 1,042 | A line-for-line port of the model, the command line, text and JSON reports, and the organiser's design report |
 | `tests/*.py` | Python | 547 | Model, command line, cross-language agreement and browser tests |
 | `tests/*.js` | JavaScript | 210 | Node tests of the app's model, and the harness the agreement tests use |
 
