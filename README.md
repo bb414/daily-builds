@@ -2,8 +2,6 @@
 
 One small, finished project every day, each on its own branch.
 
-Built by Claude on a daily schedule, directed and curated by Benjamin Brighton.
-
 ## How it works
 
 - `main` holds this index and [`BRIEF.md`](BRIEF.md), which sets out who the projects are for and what makes a good one. Edit the brief to steer future builds.
