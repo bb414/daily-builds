@@ -39,9 +39,12 @@ Background worth drawing on:
 
 Aim for roughly two thirds of builds on the priority research themes and one third on the wider themes. Don't use the same theme two days running.
 
-## Stack
+## Stack: two versions where it makes sense
 
-Python, R, and JavaScript/HTML are all fair game. Prefer what suits the idea: a single-file HTML app for interactive tools, Python or R for analysis, simulation and data work.
+- **Every build has a browser app** written in HTML, CSS and JavaScript: one self-contained file that works offline when you double-click it. This is the version anyone can open and use.
+- **Most builds also get a companion version in another language**, usually Python (R is fine for statistics-heavy ideas). Add it when it does something the browser app can't do as well: a command-line tool, batch runs, heavier analysis or data processing, exportable reports, or a reusable package. Skip it when it would add nothing, and say why.
+- **When the same logic exists in both versions, tests must prove they agree.** Keep the browser app's core logic in one clearly marked block so it can be run and tested outside the browser.
+- **The README explains the split**: which language does what, and roughly how much of each there is.
 
 ## What a good build looks like
 
