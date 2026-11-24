@@ -19,7 +19,6 @@
   --accent: #2a78d6;
   --accent-ink: #1c5cab;
   --accent-soft: #e8f1fc;
-  --accent-faint: #b7d3f6;
   --mark: #eb6834;
   --mark-ink: #a8431b;
   --mark-soft: #fdf0e9;
@@ -36,7 +35,7 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
     --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
-    --accent-soft: #15263b; --accent-faint: #1c5cab; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+    --accent-soft: #15263b; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
     --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
   }
 }
@@ -44,7 +43,7 @@
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7;
   --muted: #a3a29b; --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --accent-ink: #86b6ef;
-  --accent-soft: #15263b; --accent-faint: #1c5cab; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
+  --accent-soft: #15263b; --mark: #d95926; --mark-ink: #f2a27f; --mark-soft: #36211a;
   --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
 }
 * { box-sizing: border-box; }
@@ -100,6 +99,11 @@ label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color:
 .editor, .results, .card { min-width: 0; }
 
 /* Editor */
+.meta-grid { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px; margin-top: 6px; }
+.meta-grid .wide { grid-column: 1 / -1; }
+details.how { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; color: var(--ink-2); }
+details.how summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+details.how p { margin-top: 8px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 90px 120px; gap: 8px; }
 .term { border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; overflow: hidden; }
 .term-head { display: grid; grid-template-columns: 130px 1fr auto; gap: 8px; align-items: center; padding: 10px; background: var(--surface-2); }
@@ -110,7 +114,7 @@ label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color:
 .driver:last-child { border-bottom: 0; }
 .driver-top { display: flex; gap: 6px; align-items: center; }
 .driver-top .times { color: var(--muted); font-weight: 700; width: 14px; text-align: center; flex: none; }
-.driver-bottom { display: grid; grid-template-columns: 1fr 1fr 1.6fr 0.8fr; gap: 6px; padding-left: 20px; }
+.driver-bottom { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr) minmax(158px, 1.7fr) minmax(54px, 0.7fr); gap: 6px; padding-left: 20px; }
 .driver-bottom label.field { font-weight: 500; font-size: 12px; }
 .term-foot { padding: 0 10px 10px; }
 .problems { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
@@ -132,10 +136,11 @@ svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
 svg.chart text { fill: var(--muted); font-size: 12px; font-family: inherit; }
 svg.chart .lbl { fill: var(--ink); font-size: 12.5px; }
 svg.chart .val { fill: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg.chart .lbl, svg.chart .val, svg.chart .thr-text { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 svg.chart .grid { stroke: var(--line); stroke-width: 1; }
 svg.chart .axis { stroke: var(--line-2); stroke-width: 1; }
 svg.chart .bar { fill: var(--accent); }
-svg.chart .bar.faint { fill: var(--accent-faint); }
+svg.chart .bar.faint { fill: var(--accent); fill-opacity: 0.35; }
 svg.chart .thr { stroke: var(--mark); stroke-width: 2; }
 svg.chart .thr-text { fill: var(--mark-ink); font-weight: 600; }
 svg.chart .base { stroke: var(--ink-2); stroke-width: 1.5; }
@@ -161,6 +166,10 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .driver-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding-left: 0; }
   .hero .range { font-size: 26px; }
   .card { padding: 14px; }
+  table.data td.num { white-space: normal; }
+  table.data { font-size: 13.5px; }
+  .share-bar { display: none; }
+  .meta-grid { grid-template-columns: minmax(0, 1fr) 90px; }
 }
 </style>
 </head>
@@ -193,8 +202,8 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
     <section class="editor card" aria-labelledby="editor-title">
       <h2 id="editor-title">Your estimate</h2>
       <p class="small muted">For each driver, give a range you are 90% sure contains the true value. Drivers in a term are multiplied together, and the terms are added up or taken away.</p>
-      <div class="grid-3">
-        <label class="field">Name of the estimate <input type="text" id="f-title" data-key="title"></label>
+      <div class="meta-grid">
+        <label class="field wide">Name of the estimate <input type="text" id="f-title" data-key="title"></label>
         <label class="field">What it measures <input type="text" id="f-output" data-key="outputName"></label>
         <label class="field">Unit, e.g. £ <input type="text" id="f-unit" data-key="unit" maxlength="12"></label>
       </div>
@@ -203,11 +212,16 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
         <button class="btn small-btn" type="button" id="add-term">Add a term</button>
       </div>
       <h3 style="margin-top:18px">The decision</h3>
-      <div class="grid-3" style="grid-template-columns: 1fr 140px">
+      <div class="meta-grid">
         <label class="field">Rule <input type="text" id="f-thr-label" data-key="thresholdLabel"></label>
         <label class="field">Threshold <input type="number" step="any" id="f-threshold" data-key="threshold"></label>
       </div>
       <p class="note">Leave the threshold empty if there is no decision to make.</p>
+      <details class="how">
+        <summary>How Range finder works</summary>
+        <p>Each driver is a range you are 90% sure about, so there is a 5% chance the truth is below your low value and a 5% chance it is above your high value. Pick the kind of range that fits: <strong>skewed</strong> for positive quantities where being out by a factor is as likely as being out by an amount (counts, prices, volumes), <strong>symmetric</strong> when errors either way are equally likely, <strong>percentage</strong> for shares between 0 and 100, <strong>even</strong> when any value between the two ends is equally likely (here low and high are hard limits), and <strong>known exactly</strong> for fixed numbers.</p>
+        <p>Range finder then draws 10,000 combinations using Latin hypercube sampling (every slice of every range is used exactly once), works out the estimate for each, and summarises the results. Because each driver appears once and terms are only multiplied and added, it can also work out exactly how much of the spread each driver causes, and how much knowing each one would be worth before a decision.</p>
+      </details>
     </section>
 
     <section class="results" aria-labelledby="results-title" aria-live="polite">
@@ -452,10 +466,10 @@ const FORMAT = 'range-finder-model';
 const VERSION = 1;
 const DISTS = ['lognormal', 'normal', 'share', 'uniform', 'fixed'];
 const DIST_LABELS = {
-  lognormal: 'Positive, skewed (lognormal)',
+  lognormal: 'Skewed (lognormal)',
   normal: 'Symmetric (normal)',
-  share: 'Percentage (0 to 100)',
-  uniform: 'Anywhere in the range (uniform)',
+  share: 'Percentage',
+  uniform: 'Even (uniform)',
   fixed: 'Known exactly'
 };
 const Z95 = 1.6448536269514722;
@@ -1051,6 +1065,13 @@ if (typeof module !== 'undefined' && module.exports) {
     return ticks;
   }
 
+  // Charts are drawn at the card's real width so their text stays readable on a phone.
+  function chartWidth(sel) {
+    const el = $(sel);
+    const w = el ? el.clientWidth - 36 : 640;
+    return Math.max(280, Math.min(720, Math.round(w || 640)));
+  }
+
   function renderDistribution(r) {
     const vals = r.values;
     const srt = vals.slice().sort((a, b) => a - b);
@@ -1066,12 +1087,12 @@ if (typeof module !== 'undefined' && module.exports) {
       counts[b] += 1;
       shown += 1;
     });
-    const W = 640, H = 230, L = 10, R = 10, T = 28, B = 34;
+    const W = chartWidth('#dist-card'), H = W < 480 ? 200 : 230, L = 10, R = 10, T = 28, B = 34;
     const pw = W - L - R, ph = H - T - B;
     const maxC = Math.max(...counts) || 1;
     const x = v => L + pw * (v - lo) / (hi - lo);
     let svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="dist-title dist-desc">';
-    niceTicks(lo, hi, 6).forEach(t => {
+    niceTicks(lo, hi, W < 480 ? 4 : 6).forEach(t => {
       svg += '<line class="grid" x1="' + x(t).toFixed(1) + '" x2="' + x(t).toFixed(1) + '" y1="' + T + '" y2="' + (T + ph) + '"/>' +
         '<text x="' + x(t).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle">' + esc(fv(t)) + '</text>';
     });
@@ -1095,7 +1116,7 @@ if (typeof module !== 'undefined' && module.exports) {
     svg += '</svg>';
     $('#dist-card').innerHTML = '<h2 id="dist-title">How likely each outcome is</h2>' +
       '<p class="sr-only" id="dist-desc">Histogram of ' + r.n + ' simulated outcomes. The middle 80% runs from ' + esc(fv(r.p10)) + ' to ' + esc(fv(r.p90)) + ', with a median of ' + esc(fv(r.p50)) + '.</p>' +
-      '<div class="legend"><span><i style="background:var(--accent)"></i>Middle 80% of outcomes</span><span><i style="background:var(--accent-faint)"></i>Outer 20%</span><span><i style="background:var(--ink-2);width:2px"></i>Median</span>' +
+      '<div class="legend"><span><i style="background:var(--accent)"></i>Middle 80% of outcomes</span><span><i style="background:var(--accent);opacity:0.35"></i>Outer 20%</span><span><i style="background:var(--ink-2);width:2px"></i>Median</span>' +
       (r.threshold !== null ? '<span><i style="background:var(--mark);width:3px"></i>Threshold</span>' : '') + '</div>' + svg +
       '<p class="note">' + r.n.toLocaleString('en-GB') + ' simulated outcomes' + (shown < vals.length ? '; the most extreme ' + (100 * (vals.length - shown) / vals.length).toFixed(1) + '% are off the chart' : '') + '.</p>';
   }
@@ -1119,12 +1140,12 @@ if (typeof module !== 'undefined' && module.exports) {
       return;
     }
     h += '<p class="small">Knowing every driver exactly would be worth up to <strong>' + esc(fv(v.evpi)) + '</strong> on average, the most worth spending on research or a pilot before deciding.</p>';
-    h += '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Check first</th><th scope="col">Could change the call</th><th scope="col">Worth up to</th></tr></thead><tbody>';
+    h += '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Check first</th><th scope="col">Chance it changes the call</th><th scope="col">Worth up to</th></tr></thead><tbody>';
     const maxV = Math.max(...v.drivers.map(x => x.evppi)) || 1;
     v.order.filter(i => r.drivers[i].dist !== 'fixed').slice(0, 6).forEach((i, k) => {
       const x = v.drivers[i];
       h += '<tr><td>' + (k === 0 && x.evppi > 0 ? '<strong>' + esc(r.drivers[i].name) + '</strong>' : esc(r.drivers[i].name)) + '</td>' +
-        '<td class="num">' + (x.flip > 0 && x.flip < 0.005 ? 'under 1%' : Math.round(x.flip * 100) + '% of the time') + '</td>' +
+        '<td class="num">' + (x.flip > 0 && x.flip < 0.005 ? 'under 1%' : Math.round(x.flip * 100) + '%') + '</td>' +
         '<td class="num"><span class="share-bar" style="width:' + (60 * x.evppi / maxV).toFixed(1) + 'px;background:var(--mark)"></span>' + esc(fv(x.evppi)) + '</td></tr>';
     });
     h += '</tbody></table></div>';
@@ -1183,24 +1204,16 @@ if (typeof module !== 'undefined' && module.exports) {
     if (r.threshold !== null) { lo = Math.min(lo, r.threshold); hi = Math.max(hi, r.threshold); }
     const pad = (hi - lo) * 0.18 || 1;
     lo -= pad; hi += pad;
-    const W = 640, rowH = 34, T = 22, B = 30, labelW = 210;
+    const W = chartWidth('#tornado-card');
+    const stacked = W < 480;
+    const rowH = stacked ? 50 : 34, T = 22, B = 30, labelW = stacked ? 12 : 210;
     const H = T + rows.length * rowH + B;
-    const pw = W - labelW - 16;
+    const pw = W - labelW - (stacked ? 12 : 16);
     const x = v => labelW + pw * (v - lo) / (hi - lo);
     let svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="tor-title">';
-    niceTicks(lo, hi, 5).forEach(t => {
+    niceTicks(lo, hi, stacked ? 3 : 5).forEach(t => {
       svg += '<line class="grid" x1="' + x(t).toFixed(1) + '" x2="' + x(t).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/>' +
         '<text x="' + x(t).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(fv(t)) + '</text>';
-    });
-    rows.forEach((d, k) => {
-      const y = T + k * rowH;
-      const a = Math.min(d.lowOut, d.highOut), b = Math.max(d.lowOut, d.highOut);
-      const name = d.name.length > 30 ? d.name.slice(0, 29) + '…' : d.name;
-      svg += '<text class="lbl" x="' + (labelW - 10) + '" y="' + (y + 21) + '" text-anchor="end">' + esc(name) + '<title>' + esc(d.name) + '</title></text>';
-      svg += '<rect class="bar" x="' + x(a).toFixed(1) + '" y="' + (y + 8) + '" width="' + Math.max(2, x(b) - x(a)).toFixed(1) + '" height="18" rx="4">' +
-        '<title>' + esc(d.name) + ': ' + esc(fv(d.lowOut)) + ' at its 10th percentile, ' + esc(fv(d.highOut)) + ' at its 90th</title></rect>';
-      svg += '<text class="val" x="' + (x(a) - 5).toFixed(1) + '" y="' + (y + 21) + '" text-anchor="end">' + esc(fv(a)) + '</text>';
-      svg += '<text class="val" x="' + (x(b) + 5).toFixed(1) + '" y="' + (y + 21) + '" text-anchor="start">' + esc(fv(b)) + '</text>';
     });
     const bx = x(r.atMedians);
     svg += '<line class="base" x1="' + bx.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y1="' + (T - 4) + '" y2="' + (H - B) + '"/>';
@@ -1209,6 +1222,20 @@ if (typeof module !== 'undefined' && module.exports) {
       const tx = x(r.threshold);
       svg += '<line class="thr" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/>';
     }
+    rows.forEach((d, k) => {
+      const y = T + k * rowH;
+      const a = Math.min(d.lowOut, d.highOut), b = Math.max(d.lowOut, d.highOut);
+      const maxChars = stacked ? Math.floor(W / 7) : 30;
+      const name = d.name.length > maxChars ? d.name.slice(0, maxChars - 1) + '\u2026' : d.name;
+      const by = stacked ? y + 24 : y + 8;
+      const ty = by + 13;
+      if (stacked) svg += '<text class="lbl" x="' + labelW + '" y="' + (y + 16) + '">' + esc(name) + '<title>' + esc(d.name) + '</title></text>';
+      else svg += '<text class="lbl" x="' + (labelW - 10) + '" y="' + ty + '" text-anchor="end">' + esc(name) + '<title>' + esc(d.name) + '</title></text>';
+      svg += '<rect class="bar" x="' + x(a).toFixed(1) + '" y="' + by + '" width="' + Math.max(2, x(b) - x(a)).toFixed(1) + '" height="18" rx="4">' +
+        '<title>' + esc(d.name) + ': ' + esc(fv(d.lowOut)) + ' at its 10th percentile, ' + esc(fv(d.highOut)) + ' at its 90th</title></rect>';
+      svg += '<text class="val" x="' + (x(a) - 5).toFixed(1) + '" y="' + ty + '" text-anchor="end">' + esc(fv(a)) + '</text>';
+      svg += '<text class="val" x="' + (x(b) + 5).toFixed(1) + '" y="' + ty + '" text-anchor="start">' + esc(fv(b)) + '</text>';
+    });
     svg += '</svg>';
     $('#tornado-card').innerHTML = '<h2 id="tor-title">Which ranges matter most</h2>' +
       '<p class="small muted">Each bar shows the estimate when one driver moves from its 10th to its 90th percentile and everything else stays at its median.</p>' + svg;
@@ -1392,6 +1419,13 @@ if (typeof module !== 'undefined' && module.exports) {
       renderNarrow(state.result);
       const el = document.getElementById(e.target.id);
       if (el) el.focus();
+    });
+    let lastWidth = window.innerWidth;
+    window.addEventListener('resize', () => {
+      if (Math.abs(window.innerWidth - lastWidth) < 40 || !state.result) return;
+      lastWidth = window.innerWidth;
+      clearTimeout(state.resizeTimer);
+      state.resizeTimer = setTimeout(() => { renderDistribution(state.result); renderTornado(state.result); }, 150);
     });
     const linked = modelFromLink();
     const saved = linked ? null : readLocal();

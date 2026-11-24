@@ -18,10 +18,10 @@ FORMAT = "range-finder-model"
 VERSION = 1
 DISTS = ("lognormal", "normal", "share", "uniform", "fixed")
 DIST_LABELS = {
-    "lognormal": "Positive, skewed (lognormal)",
+    "lognormal": "Skewed (lognormal)",
     "normal": "Symmetric (normal)",
-    "share": "Percentage (0 to 100)",
-    "uniform": "Anywhere in the range (uniform)",
+    "share": "Percentage",
+    "uniform": "Even (uniform)",
     "fixed": "Known exactly",
 }
 Z95 = 1.6448536269514722   # a 90% range runs from the 5th to the 95th percentile
