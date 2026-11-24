@@ -163,3 +163,10 @@ test('robustness: perfect knowledge is never beaten, and the planned case scores
   near(asPlanned.planned, asPlanned.ideal, 1e-7);
   near(asPlanned.ideal, M.solve(M.PRESETS.truffles).value, 1e-9);
 });
+
+test('the robustness check is not capped by the input limits', function () {
+  const cfg = { stock: 300, days: 1, price: 5, demand: 100, elasticity: 1, wasteCost: 0.5 };
+  const top = M.robustness(cfg).filter(function (c) { return c.demandFactor === 1.5 && c.elasticityFactor === 1; })[0];
+  const capped = M.solve(Object.assign({}, cfg, { demand: 150 })).value;   // the input limit would cap demand at 100
+  assert.ok(top.ideal > capped, 'true demand of 150 is modelled as 150, not 100');
+});

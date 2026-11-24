@@ -353,8 +353,10 @@ var MarkdownLadder = (function () {
 
   // Backward induction over days, stock left and the current ladder step.
   // V[t][i][s]: best expected (revenue - waste cost) from day t with s units, already at step i.
-  function solve(cfgIn) {
-    var cfg = normalise(cfgIn);
+  function solve(cfgIn) { return solveExact(normalise(cfgIn)); }
+
+  // The same, for settings that are already complete (used directly by the robustness check).
+  function solveExact(cfg) {
     var T = cfg.days, S = cfg.stock, J = LADDER.length;
     var terminal = [];
     for (var s = 0; s <= S; s++) terminal.push(-cfg.wasteCost * s);
@@ -399,8 +401,9 @@ var MarkdownLadder = (function () {
 
   // Exact expected outcome of following a policy, by pushing the probability of every
   // (stock, step) state forward one day at a time. No simulation involved.
-  function evaluate(cfgIn, policyFn) {
-    var cfg = normalise(cfgIn);
+  function evaluate(cfgIn, policyFn) { return evaluateExact(normalise(cfgIn), policyFn); }
+
+  function evaluateExact(cfg, policyFn) {
     var T = cfg.days, S = cfg.stock, J = LADDER.length;
     var dist = [];
     for (var i = 0; i < J; i++) { var row = new Array(S + 1).fill(0); dist.push(row); }
@@ -497,16 +500,15 @@ var MarkdownLadder = (function () {
     var cells = [];
     ROBUST_ELASTICITY.forEach(function (g) {
       ROBUST_DEMAND.forEach(function (f) {
-        var truthIn = {};
-        Object.keys(cfg).forEach(function (k) { truthIn[k] = cfg[k]; });
-        truthIn.demand = cfg.demand * f;
-        truthIn.elasticity = cfg.elasticity * g;
-        var truth = normalise(truthIn);
-        var ideal = solve(truth).value;
+        // Not clamped to the input limits: the truth can lie outside what you would type in.
+        var truth = normalise(cfg);
+        truth.demand = cfg.demand * f;
+        truth.elasticity = cfg.elasticity * g;
+        var ideal = solveExact(truth).value;
         cells.push({
           demandFactor: f, elasticityFactor: g,
-          planned: evaluate(truth, plan).profit,
-          never: evaluate(truth, POLICIES.never()).profit,
+          planned: evaluateExact(truth, plan).profit,
+          never: evaluateExact(truth, POLICIES.never()).profit,
           ideal: ideal
         });
       });
@@ -682,7 +684,8 @@ var MarkdownLadder = (function () {
 
   function firstMove(sol) {
     var j = sol.policy[0][0][sol.cfg.stock];
-    return j === 0 ? 'keep the full price today, and come back tomorrow with the stock count.' : 'take ' + M.LADDER[j] + '% off today.';
+    if (j > 0) return 'take ' + M.LADDER[j] + '% off today.';
+    return sol.cfg.days > 1 ? 'keep the full price today, and check again tomorrow with the stock count.' : 'keep the full price today.';
   }
 
   function renderToday(sol) {
@@ -718,13 +721,17 @@ var MarkdownLadder = (function () {
     var priceOf = function (j) { return money(full * (1 - M.LADDER[j] / 100)); };
     var parts = ['At ' + priceOf(0) + ' you would expect to sell ' + num(soldToday[0]) + ' today'];
     if (pick > 0) {
-      parts.push('at ' + priceOf(pick) + ', ' + num(soldToday[pick]) + '. The extra sales now are worth more than the margin given away, because otherwise too much is left near the sell-by date.');
+      parts.push('at ' + priceOf(pick) + ', ' + num(soldToday[pick]) + '. The extra sales now are worth more than the margin given away, because otherwise more would be left near the sell-by date.');
+    } else if (soldToday[1] - soldToday[0] < 0.05) {
+      parts.push('at ' + priceOf(1) + ', about the same. A discount would only give away margin.');
     } else {
-      var next = 1;
-      parts.push('at ' + priceOf(next) + ', ' + num(soldToday[next]) + '. That lift is not worth the margin yet: there is still time to sell at full price, and you can cut tomorrow if sales are slow.');
+      parts.push('at ' + priceOf(1) + ', ' + num(soldToday[1]) + '. That extra demand is not worth the margin given away' +
+        (sol.cfg.days > 1 ? ': there is still time to sell at full price, and you can cut tomorrow if sales are slow.' : '.'));
     }
-    var gap = values[pick] - Math.max.apply(null, values.filter(function (v, j) { return j !== pick; }));
-    return parts.join('; ') + (gap < 1 ? ' The top options are within ' + money(Math.max(gap, 0)) + ' of each other, so this choice matters less than the days ahead.' : '');
+    var others = values.filter(function (v, j) { return j !== pick; });
+    var gap = values[pick] - Math.max.apply(null, others);
+    var close = others.length && gap < 0.01 * Math.abs(values[pick]);
+    return parts.join('; ') + (close ? ' The next-best price is within ' + money(Math.max(gap, 0)) + ' (under 1%), so today\'s choice matters less than the days ahead.' : '');
   }
 
   function renderCompare(cmp) {

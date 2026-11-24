@@ -63,18 +63,21 @@ def load_range(path):
             raise ValueError("%s is missing the column(s): %s" % (path, ", ".join(missing)))
         products = []
         for n, row in enumerate(reader, 2):
-            if not any((v or "").strip() for v in row.values()):
+            cells = {k: v.strip() for k, v in row.items() if isinstance(k, str) and isinstance(v, str)}
+            if not any(cells.values()):
                 continue
-            raw = {k: (row.get(k) or "").strip() for k in RANGE_COLUMNS if (row.get(k) or "").strip() != ""}
+            raw = {k: cells[k] for k in RANGE_COLUMNS if cells.get(k)}
             notes = []
             cfg = model.normalise(raw)
             for k in model.FIELDS:
                 if k in raw:
                     v = model.js_number(raw[k])
+                    f = model.FIELDS[k]
                     if not math.isfinite(v):
                         notes.append("%s %r is not a number, used %s" % (k, raw[k], cfg[k]))
                     elif abs(v - cfg[k]) > 1e-9:
-                        notes.append("%s %s is outside the allowed range, used %s" % (k, raw[k], cfg[k]))
+                        notes.append("%s %s changed to %s (allowed %s to %s%s)" % (
+                            k, raw[k], cfg[k], f["min"], f["max"], ", whole numbers" if f["step"] == 1 else ""))
             if "pattern" in raw and raw["pattern"] != cfg["pattern"]:
                 notes.append("pattern %r is unknown, used flat" % raw["pattern"])
             products.append({"name": raw.get("name") or "row %d" % n, "cfg": cfg, "notes": notes})

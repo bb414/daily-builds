@@ -155,7 +155,11 @@ def expected_values(win, price, nxt, s_max):
 
 def solve(cfg_in):
     """Backward induction. Returns the best expected value, the value tables and the policy."""
-    cfg = normalise(cfg_in)
+    return solve_exact(normalise(cfg_in))
+
+
+def solve_exact(cfg):
+    """The same, for settings that are already complete (used directly by the robustness check)."""
     T, S, J = cfg["days"], cfg["stock"], len(LADDER)
     terminal = [-cfg["wasteCost"] * s for s in range(S + 1)]
     V = [None] * (T + 1)
@@ -206,7 +210,10 @@ def policy_rule(sol, pct, days_left):
 
 def evaluate(cfg_in, policy_fn):
     """Exact expected outcome of following a policy (no simulation)."""
-    cfg = normalise(cfg_in)
+    return evaluate_exact(normalise(cfg_in), policy_fn)
+
+
+def evaluate_exact(cfg, policy_fn):
     T, S, J = cfg["days"], cfg["stock"], len(LADDER)
     dist = [[0.0] * (S + 1) for _ in range(J)]
     dist[0][S] = 1.0
@@ -304,12 +311,13 @@ def robustness(cfg_in):
     cells = []
     for g in ROBUST_ELASTICITY:
         for f in ROBUST_DEMAND:
-            truth = normalise(dict(cfg, demand=cfg["demand"] * f, elasticity=cfg["elasticity"] * g))
-            ideal = solve(truth)["value"]
+            # Not clamped to the input limits: the truth can lie outside what you would type in.
+            truth = dict(cfg, demand=cfg["demand"] * f, elasticity=cfg["elasticity"] * g)
+            ideal = solve_exact(truth)["value"]
             cells.append({
                 "demandFactor": f, "elasticityFactor": g,
-                "planned": evaluate(truth, plan)["profit"],
-                "never": evaluate(truth, policy_never(None))["profit"],
+                "planned": evaluate_exact(truth, plan)["profit"],
+                "never": evaluate_exact(truth, policy_never(None))["profit"],
                 "ideal": ideal,
             })
     return cells

@@ -27,15 +27,23 @@ def step_label(j):
 
 
 def config_from_args(args):
+    """Settings from a preset and/or flags. Prints a note for any value that had to be adjusted."""
     cfg = dict(model.PRESETS[args.preset]) if args.preset else {}
+    given = {}
     for name in model.FIELDS:
         value = getattr(args, name)
         if value is not None:
-            cfg[name] = value
+            cfg[name] = given[name] = value
     if args.pattern:
         cfg["pattern"] = args.pattern
     if args.allow_price_rises:
         cfg["monotone"] = False
+    used = model.normalise(cfg)
+    for name, value in given.items():
+        if abs(value - used[name]) > 1e-9:
+            f = model.FIELDS[name]
+            print("Note: %s %s changed to %s (allowed %s to %s%s)." % (
+                name, value, used[name], f["min"], f["max"], ", whole numbers" if f["step"] == 1 else ""), file=sys.stderr)
     return cfg
 
 
@@ -54,8 +62,9 @@ def cmd_plan(args):
     cmp = model.compare_policies(cfg, {"pct": args.rule_pct, "daysLeft": args.rule_days})
     sol = cmp["solution"]
     pattern_names = {"flat": "same every day", "highStreet": "busy weekends", "office": "quiet weekends"}
-    print("%d units, %d selling days from %s, full price %s, demand %.1f a day at full price (%s)" % (
-        cfg["stock"], cfg["days"], model.DAY_NAMES[cfg["startDay"]], money(cfg["price"]), cfg["demand"], pattern_names[cfg["pattern"]]))
+    print("%d %s, %d selling %s from %s, full price %s, demand %.1f a day at full price (%s)" % (
+        cfg["stock"], "unit" if cfg["stock"] == 1 else "units", cfg["days"], "day" if cfg["days"] == 1 else "days",
+        model.DAY_NAMES[cfg["startDay"]], money(cfg["price"]), cfg["demand"], pattern_names[cfg["pattern"]]))
     print("Price sensitivity %.1f, appeal lost per day %d%%" % (cfg["elasticity"], cfg["freshness"]))
     print("Disposal %s a unit, stock cost %s a unit%s" % (money(cfg["wasteCost"]), money(cfg["unitCost"]),
                                                           "" if cfg["monotone"] else ", prices may go back up"))
@@ -123,10 +132,8 @@ def cmd_range(args):
     return 0
 
 
-def build_parser():
-    p = argparse.ArgumentParser(prog="python -m markdown_ladder", description="Plan the best markdowns for stock with a sell-by date.")
-    sub = p.add_subparsers(dest="command", required=True)
-    plan = sub.add_parser("plan", help="the best plan for one product, against simple rules")
+def add_product_args(plan):
+    """The settings that describe one product, shared by the plan and robust commands."""
     plan.add_argument("--preset", choices=list(model.PRESETS), help="start from an example product")
     plan.add_argument("--stock", type=int)
     plan.add_argument("--days", type=int, help="selling days until the sell-by date")
@@ -139,14 +146,19 @@ def build_parser():
     plan.add_argument("--start-day", dest="startDay", type=int, choices=range(7), help="0 = Monday")
     plan.add_argument("--pattern", choices=list(model.WEEK_PATTERNS))
     plan.add_argument("--allow-price-rises", action="store_true", help="let the price go back up after a markdown")
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="python -m markdown_ladder", description="Plan the best markdowns for stock with a sell-by date.")
+    sub = p.add_subparsers(dest="command", required=True)
+    plan = sub.add_parser("plan", help="the best plan for one product, against simple rules")
+    add_product_args(plan)
     plan.add_argument("--rule-pct", type=int, choices=model.LADDER[1:], default=30, help="discount for the simple rule")
     plan.add_argument("--rule-days", type=int, default=2, help="days left when the simple rule kicks in")
     plan.set_defaults(func=cmd_plan)
 
     robust = sub.add_parser("robust", help="score the plan when demand or price sensitivity differ from the forecast")
-    for action in plan._actions:
-        if action.dest in list(model.FIELDS) + ["preset", "pattern", "allow_price_rises"]:
-            robust._add_action(action)
+    add_product_args(robust)
     robust.set_defaults(func=cmd_robust)
 
     rng = sub.add_parser("range", help="plan every product in a CSV file (see examples/range.csv)")

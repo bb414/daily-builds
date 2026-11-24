@@ -79,6 +79,12 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("prices may go back up", out)
         self.assertIn("50% off with 1 day left", out)
 
+    def test_adjusted_arguments_are_explained(self):
+        code, out, err = run_cli("plan", "--days", "0", "--demand", "500")
+        self.assertEqual(code, 0)
+        self.assertIn("Note: days 0 changed to 1 (allowed 1 to 21, whole numbers).", err)
+        self.assertIn("Note: demand 500.0 changed to 100 (allowed 0.1 to 100).", err)
+
     def test_bad_arguments_are_rejected(self):
         self.assertEqual(run_cli("plan", "--preset", "nope")[0], 2)
         self.assertEqual(run_cli("plan", "--rule-pct", "25")[0], 2)
@@ -119,6 +125,17 @@ class RangeTests(unittest.TestCase):
         self.assertEqual(len(products[0]["notes"]), 3)
         code, out, _ = run_cli("range", str(self.dir / "c.csv"))
         self.assertIn("Adjusted inputs:", out)
+
+    def test_rows_with_extra_cells_are_read(self):
+        (self.dir / "d.csv").write_text("name,stock,days,price,demand\nA,10,3,5,4,extra\n\n", encoding="utf-8")
+        products = report.load_range(self.dir / "d.csv")
+        self.assertEqual([p["name"] for p in products], ["A"])
+
+    def test_robustness_is_not_capped_by_input_limits(self):
+        cfg = {"stock": 300, "days": 1, "price": 5, "demand": 100, "elasticity": 1, "wasteCost": 0.5}
+        top = next(c for c in model.robustness(cfg) if c["demandFactor"] == 1.5 and c["elasticityFactor"] == 1)
+        self.assertGreater(top["ideal"], model.solve(dict(cfg, demand=150))["value"] + 1)
+        self.assertAlmostEqual(top["ideal"], model.solve_exact(dict(model.normalise(cfg), demand=150))["value"])
 
     def test_robust_command(self):
         code, out, _ = run_cli("robust", "--preset", "truffles")
