@@ -21,7 +21,7 @@ There are two ways to use it, built on the same model:
 
 Two of the questions behind this project:
 
-- **Helper or crutch?** An AI tool can make people better while they use it and worse once it is gone. That is the question behind a randomised experiment on whether an AI scam checker sharpens or weakens 16 to 18-year-olds' own judgement. This app uses the same before, during and after shape, so the "after" round is the one that matters.
+- **Helper or crutch?** An AI tool can make people better while they use it and worse once it is gone. It is the question behind the dissertation project *Helper or Crutch? Young People and an AI Scam Checker*, a randomised experiment on whether an AI scam checker sharpens or weakens 16 to 18-year-olds' own judgement. This app borrows that before, during and after shape, so the "after" round is the one that matters. It is a separate tool, with its own fictional messages and simulated participants, not that study's materials or data.
 - **Why AI stalls at the pilot stage.** A pilot usually measures how well people do *with* the tool. It rarely measures whether they use it appropriately (taking good advice, rejecting bad advice) or what happens to their skills. A tool that is right 75% of the time can still make a team worse if people follow it blindly, or add nothing if they ignore it. Those effects are invisible in a headline accuracy figure, and they are exactly what decides whether a tool is worth scaling.
 
 It also sits squarely in consumer fintech and digital financial literacy: the messages cover the scams young people actually meet (fake delivery fees, "Hi, it's me on a new number", safe-account calls, rental deposits, task scams, money-mule job offers, fake support accounts) alongside genuine messages that look suspicious (a real customs charge, a real security update, a real prize draw).
@@ -42,7 +42,7 @@ What you can do in it:
 - **Change the checker** under "Test settings": how often it is right in round 2 (11, 10, 9 or 8 of 12), and whether it shows its reasons and its confidence.
 - **Read your results**: accuracy in each round, how you used the checker (good switches, missed help, talked out of it, held firm), whether you and the checker beat the better of the two, what would have happened under simple rules such as "always follow it", your leaning towards suspicious or trusting, how well your confidence matched your accuracy, which warning signs you missed, and a message-by-message review with the answer and the red flags.
 - **See an example** for a simulated person who uses the checker well, leans on it, or ignores it.
-- **Run a study** (tick "Study mode"): give each participant an ID, and the app puts half of them in a comparison group without the checker, chosen at random but fixed by ID. Sessions are kept in the browser until you download them all as one file, and you can hide the results from participants.
+- **Run a study** (tick "Study mode"): give each participant an ID, and the app puts half of them in a comparison group without the checker, at random but balanced in blocks of four numbered IDs. Sessions are kept in the browser until you clear them, you can download them all as one file at any point, and you can hide the results from participants.
 - **Review a saved session** by opening a session file, or pick one person from a study file.
 - **Download** any session as JSON or its answers as CSV.
 
@@ -73,7 +73,7 @@ python -m crutch_check analyse my-study-folder/ --html report.html
 # How many participants would a study need to detect a "crutch" effect?
 python -m crutch_check power --scenario crutch --sizes 20 40 80 160
 
-# Flatten sessions into one CSV (one row per message) for Excel or R
+# Flatten sessions into one CSV (one row per message) for a spreadsheet or R
 python -m crutch_check csv my-study-folder/ -o answers.csv
 
 # Run all the tests (the app tests need Node.js; the browser tests need Playwright)
@@ -99,7 +99,7 @@ From these:
 - **Held firm** (relative self-reliance, RSR): held firm as a share of the times you were right and the checker was wrong. RAIR and RSR come from Schemmer and colleagues' work on appropriate reliance on AI advice (IUI 2023).
 - **Followed it when it was wrong** (over-reliance) and **rejected it when it was right** (under-reliance).
 - **Teamwork**: your final accuracy minus the better of your first answers and the checker alone. Above zero means the pair beat both partners.
-- **Your pattern**: well calibrated (RAIR and RSR both at least 50%), leaning on the checker, going it alone, or swayed the wrong way. With fewer than two disagreements there is not enough evidence to say.
+- **Your pattern**: well calibrated (RAIR and RSR both at least 50%, or no chance to show one of them), leaning on the checker, going it alone, or swayed the wrong way. With fewer than two disagreements there is not enough evidence to say.
 - **What if**: your round 2 score under simple rules: always follow the checker, never look at it, follow it only when it is at least 90% sure, or follow it only when you said "probably".
 
 For **rounds 1 and 3** (on your own):
@@ -138,7 +138,7 @@ With only eight messages before and after, each person's change is noisy, so det
 
 **The checker.** It is scripted, not a real model, so that its accuracy is controlled exactly. It is wrong on a set number of the 12 round 2 messages, split between missed scams and false alarms. When it is right it is 78% to 98% sure and quotes the message's real warning or reassuring signs. When it is wrong it is 60% to 85% sure and quotes the decoys, which is how a keyword-based checker really fails ("contains a link", "sender matches an organisation you use").
 
-**Study allocation.** In study mode the participant ID and study name are hashed, and the hash seeds the generator that decides the group, so the same ID always lands in the same group with the same messages, and any session can be rebuilt exactly.
+**Study allocation.** In study mode, IDs ending in a number are grouped into blocks of four (P000 to P003, P004 to P007 and so on), and each block is shuffled so that two people get the checker and two do not. The shuffle is seeded by a hash of the study name and block, and each person's messages by a hash of the study name and ID, so the same ID always lands in the same group with the same messages and any session can be rebuilt exactly. IDs without a number get a seeded coin toss.
 
 **Simulated participants.** Each has a skill (chance of being right on an easy message, 12 points lower per difficulty step), a tendency to say "definitely", a reliance level (how readily they switch to the checker when they disagree, nudged up when the checker shows high confidence and down when they were sure) and a learning effect applied in round 3. In a simulated study, learning with the checker is `helper - crutch x reliance`, and without it is a small practice effect. Four scenarios set those numbers: `mixed`, `helper`, `crutch` and `none`.
 
@@ -148,13 +148,13 @@ With only eight messages before and after, each person's change is noisy, so det
 
 | Part | Language | What it does | Roughly |
 |---|---|---|---|
-| Browser app model | JavaScript | Sessions, the scripted checker, scoring, signal detection, strategies, simulated participants, validation and CSV, inside `app/index.html` | 560 lines |
+| Browser app model | JavaScript | Sessions, the scripted checker, scoring, signal detection, strategies, simulated participants, validation and CSV, inside `app/index.html` | 570 lines |
 | Message bank in the app | JavaScript (data) | A copy of `messages.json`, written in by `tools/embed_messages.py` | 790 lines |
-| Browser app interface | JavaScript | The three rounds, the checker panel, results, study mode, saving, loading and resuming | 750 lines |
+| Browser app interface | JavaScript | The three rounds, the checker panel, results, study mode, saving, loading and resuming | 770 lines |
 | Browser app styling and layout | CSS and HTML | Layout, typography, light and dark colours, phone layout | 480 lines |
-| Python package | Python (standard library only) | The same model, plus file loading, study analysis, statistics, cohort simulation, power analysis, text and HTML reports, and the command line | 1,760 lines |
+| Python package | Python (standard library only) | The same model, plus file loading, study analysis, statistics, cohort simulation, power analysis, text and HTML reports, and the command line | 1,780 lines |
 | Message bank | JSON | The 36 messages and the warning-sign labels, shared by both versions | 520 lines |
-| Tests | Python (and a small Node.js runner) | Model tests, statistics tests, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 1,250 lines |
+| Tests | Python (and a small Node.js runner) | Model tests, statistics tests, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 1,300 lines |
 
 The two versions never call each other. The app does everything in the browser, and the Python package runs on its own. What Python adds is the part a single browser tab does badly: pooling many people's sessions, comparing groups with proper statistics, simulating thousands of studies, and producing reports to share.
 
@@ -189,7 +189,7 @@ Edit `crutch_check/messages.json`, keeping 6 messages of each kind at each diffi
 - **Eight messages per round is a short test.** One message is 12.5 points, so individual results are noisy. The power analysis shows the consequence for studies.
 - **Ten minutes cannot show real deskilling.** In a single session round 3 measures immediate carry-over, not what happens after months of relying on a tool.
 - **Answer order is fixed** (scam options first) to keep the keyboard keys stable. A study could counterbalance it.
-- **Group allocation is random by ID, not blocked**, so small studies can end up with unequal groups (a simulated study always has equal groups).
+- **Groups are only balanced within whole blocks of four numbered IDs.** A study that stops part way through a block, or uses IDs without numbers, can end up slightly unequal, and someone who knows three allocations in a block can work out the fourth.
 - **The simulated people are a model, not data.** Their parameters are plausible guesses, chosen to illustrate the analysis.
 - **Sessions saved in study mode live in one browser** until downloaded. Clearing browser data deletes them.
 

@@ -354,10 +354,10 @@ select, input[type="text"] {
       <span class="btn-row"><button class="btn primary" type="button" id="resume-btn">Resume</button><button class="btn" type="button" id="discard-btn">Discard it</button></span>
     </div>
     <h1 id="intro-title" tabindex="-1">How well do you spot scams, with and without an AI checker?</h1>
-    <p class="lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and more. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
+    <p class="lede" id="intro-lede">You'll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and more. Halfway through, an AI checker gives you a second opinion. It is right most of the time, but not always.</p>
     <ol class="steps">
       <li class="step"><span class="num">1</span><h3>On your own</h3><p>8 messages. Judge each one yourself.</p></li>
-      <li class="step assisted"><span class="num">2</span><h3>With the checker</h3><p>12 messages. Answer first, see what the checker says, then give your final answer.</p></li>
+      <li class="step assisted" id="intro-step2"><span class="num">2</span><h3>With the checker</h3><p>12 messages. Answer first, see what the checker says, then give your final answer.</p></li>
       <li class="step"><span class="num">3</span><h3>On your own again</h3><p>8 more messages, without the checker. Did round 2 help or hinder?</p></li>
     </ol>
     <p class="muted small">Takes about 10 minutes. There is no time limit, you get your full results at the end, and nothing you do leaves this device.</p>
@@ -391,7 +391,7 @@ select, input[type="text"] {
             <label class="field"><span>Participant ID</span><input type="text" id="participant-id" value="P001" autocomplete="off" spellcheck="false"></label>
             <label class="field wide"><span>Who gets the checker in round 2?</span>
               <select id="allocation">
-                <option value="random">Half of participants, picked at random by ID</option>
+                <option value="random">Half of participants, at random (balanced in blocks of four IDs)</option>
                 <option value="checker">Everyone</option>
                 <option value="control">Nobody (everyone is in the comparison group)</option>
               </select></label>
@@ -1329,17 +1329,24 @@ function points(x) { const v = Math.floor(Math.abs(x) * 100 + 0.5); return x < 0
 function other(verdict) { return verdict === 'scam' ? 'genuine' : 'scam'; }
 function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
-// The hash is passed through the generator first: the lowest bit of an FNV-1a
-// hash only reflects how many characters have odd codes, so it is not random.
+// Permuted blocks of four: IDs ending in a number (P000 to P003, P004 to P007
+// and so on) are shuffled in blocks so that each block has two people in each
+// group. Other IDs get a coin toss. The hash always goes through the generator
+// first: the lowest bit of an FNV-1a hash is not random.
 function assignArm(study, participant) {
-  return mulberry32(hashString('arm|' + study + '|' + participant))() < 0.5 ? 'checker' : 'control';
+  const m = /^([\s\S]*?)([0-9]{1,9})$/.exec(participant);
+  if (!m) return mulberry32(hashString('arm|' + study + '|' + participant))() < 0.5 ? 'checker' : 'control';
+  const n = Number(m[2]);
+  const block = Math.floor(n / 4);
+  const order = shuffle(['checker', 'checker', 'control', 'control'], mulberry32(hashString('block|' + study + '|' + m[1] + '|' + block)));
+  return order[n % 4];
 }
 
 function participantSeed(study, participant) {
   return hashString(study + '|' + participant);
 }
 
-const NUMERIC = /^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$/;
+const NUMERIC = /^[ \t\n\r\f\v]*[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\n\r\f\v]*$/;
 
 function intOr(x, dflt) {
   let v = NaN;
@@ -1958,39 +1965,52 @@ if (typeof module !== 'undefined' && module.exports) {
 
   /* ---------- Sessions kept on this device (study mode) ---------- */
   const STORE_KEY = 'crutch-check-sessions-v1';
-  let storageWorks = true;
 
-  function loadSaved() {
+  // problem is '' when the saved list can be read, 'blocked' when the browser
+  // refuses storage, and 'unreadable' when what is stored is not a list.
+  function readStore() {
+    let raw;
     try {
-      const raw = window.localStorage.getItem(STORE_KEY);
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
+      raw = window.localStorage.getItem(STORE_KEY);
     } catch (e) {
-      storageWorks = false;
-      return [];
+      return {list: [], problem: 'blocked'};
+    }
+    if (!raw) return {list: [], problem: ''};
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? {list: list, problem: ''} : {list: [], problem: 'unreadable'};
+    } catch (e) {
+      return {list: [], problem: 'unreadable'};
     }
   }
 
+  function loadSaved() { return readStore().list; }
+
   function saveSession(session) {
-    const list = loadSaved();
-    list.push(Object.assign({}, session, {saved: undefined}));
+    const store = readStore();
+    if (store.problem) return false;
+    store.list.push(Object.assign({}, session, {saved: undefined}));
     try {
-      window.localStorage.setItem(STORE_KEY, JSON.stringify(list));
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(store.list));
       return true;
     } catch (e) {
-      storageWorks = false;
       return false;
     }
   }
 
   function clearSaved() {
-    try { window.localStorage.removeItem(STORE_KEY); } catch (e) { storageWorks = false; }
+    try { window.localStorage.removeItem(STORE_KEY); } catch (e) { /* storage blocked: nothing to clear */ }
   }
 
   function savedSummaryHTML(context) {
-    const list = loadSaved();
-    if (!storageWorks) {
+    const store = readStore();
+    const list = store.list;
+    if (store.problem === 'blocked') {
       return '<div class="study-box"><p>This browser won\'t let the page keep sessions, so download each one before moving on.</p></div>';
+    }
+    if (store.problem === 'unreadable') {
+      return '<div class="study-box"><p>The sessions stored in this browser could not be read, so new sessions are not being added to them. Download each session before moving on.</p>' +
+        (context === 'settings' ? '<div class="btn-row"><button class="btn" type="button" data-store="clear">Clear saved sessions</button></div>' : '') + '</div>';
     }
     if (!list.length) {
       return context === 'settings' ? '<p class="small muted">No sessions saved on this device yet.</p>' : '';
@@ -2036,8 +2056,22 @@ if (typeof module !== 'undefined' && module.exports) {
       (shows.length ? ', shows its ' + shows.join(' and ') : ', verdict only') + (studyMode() ? ', study mode' : '') + ')';
   }
 
+  const INTRO_COPY = {
+    normal: {
+      lede: $('#intro-lede').textContent,
+      step2: $('#intro-step2').innerHTML
+    },
+    study: {
+      lede: 'You\'ll play Sam, a university student, and decide whether 28 messages are scams or genuine: texts, emails, direct messages and more. Some people get a second opinion from an AI checker halfway through; others judge every message on their own. You\'ll find out which when you get there.',
+      step2: '<span class="num">2</span><h3>Round 2</h3><p>12 messages, with or without an AI checker, depending on your group.</p>'
+    }
+  };
+
   function updateStartLabel() {
     updateSettingsSummary();
+    const copy = studyMode() && $('#allocation').value !== 'checker' ? INTRO_COPY.study : INTRO_COPY.normal;
+    $('#intro-lede').textContent = copy.lede;
+    $('#intro-step2').innerHTML = copy.step2;
     const on = studyMode();
     $('#study-fields').hidden = !on;
     const id = $('#participant-id').value.trim();
@@ -2171,7 +2205,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function studyPanelHTML(s) {
     const own = s.saved === false
-      ? '<p class="error">This session could not be saved in the browser. Download it now before moving on.</p>' +
+      ? '<p class="error">This session could not be saved in the browser (storage may be full or blocked). Download it now before moving on.</p>' +
         '<div class="btn-row"><button class="btn" type="button" data-act="json">Download this session (JSON)</button></div>'
       : '';
     return '<div class="card" style="margin-top:16px"><h2>For the person running the study</h2>' +
@@ -2537,6 +2571,7 @@ if (typeof module !== 'undefined' && module.exports) {
   /* ---------- Wiring ---------- */
   $('#start-btn').addEventListener('click', startTest);
   $('#opt-study').addEventListener('change', updateStartLabel);
+  $('#allocation').addEventListener('change', updateStartLabel);
   $('#settings').addEventListener('change', updateSettingsSummary);
   $('#participant-id').addEventListener('input', updateStartLabel);
   document.addEventListener('click', e => {

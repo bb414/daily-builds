@@ -46,7 +46,7 @@ def simulate_cohort(n_per_arm=60, scenario="mixed", seed=1, design=None, study="
 
     Arms are balanced and shuffled. Each participant's messages come from the
     same seed the browser app would use for that study name and ID, so any
-    simulated participant can be rerun in the app.
+    simulated participant's messages can be rebuilt in the app.
     """
     if effects is None:
         if scenario not in SCENARIOS:

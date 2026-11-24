@@ -110,20 +110,31 @@ def clamp(x, lo, hi):
 # Building a session
 # ---------------------------------------------------------------------------
 
+_NUMBERED_ID = re.compile(r"^(.*?)([0-9]{1,9})\Z", re.DOTALL)
+
+
 def assign_arm(study, participant):
     """Reproducible random allocation to the checker or control arm.
 
-    The hash goes through the generator first: the lowest bit of an FNV-1a hash
-    only reflects how many characters have odd codes, so it is not random.
+    Permuted blocks of four: IDs ending in a number (P000 to P003, P004 to
+    P007 and so on) are shuffled in blocks so that each block has two people in
+    each group. Other IDs get a coin toss. The hash always goes through the
+    generator first: the lowest bit of an FNV-1a hash is not random.
     """
-    return "checker" if mulberry32(hash_string("arm|" + study + "|" + participant))() < 0.5 else "control"
+    m = _NUMBERED_ID.match(participant)
+    if not m:
+        return "checker" if mulberry32(hash_string("arm|" + study + "|" + participant))() < 0.5 else "control"
+    n = int(m.group(2))
+    order = shuffle(["checker", "checker", "control", "control"],
+                    mulberry32(hash_string("block|%s|%s|%d" % (study, m.group(1), n // 4))))
+    return order[n % 4]
 
 
 def participant_seed(study, participant):
     return hash_string(study + "|" + participant)
 
 
-_NUMERIC = re.compile(r"^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$")
+_NUMERIC = re.compile(r"^[ \t\n\r\f\v]*[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\n\r\f\v]*$")
 
 
 def _int_or(x, default):
@@ -133,7 +144,10 @@ def _int_or(x, default):
     if isinstance(x, (int, float)):
         v = float(x)
     elif isinstance(x, str) and _NUMERIC.match(x):
-        v = float(x)
+        try:
+            v = float(x)
+        except ValueError:
+            return default
     else:
         return default
     return int(v) if math.isfinite(v) else default

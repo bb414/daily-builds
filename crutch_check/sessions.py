@@ -45,6 +45,8 @@ def load_sessions(paths):
     for p in paths:
         p = Path(p)
         files = sorted(p.glob("*.json")) if p.is_dir() else [p]
+        if p.is_dir() and not files:
+            raise ValueError("%s has no .json files in it" % p)
         for f in files:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))

@@ -121,7 +121,8 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(M.normalise_design({"checkerWrong": -3})["checkerWrong"], 0)
         self.assertEqual(M.normalise_design({"checkerWrong": "2"})["checkerWrong"], 2)
         self.assertEqual(M.normalise_design({"checkerWrong": 2.9})["checkerWrong"], 2)
-        for bad in ("abc", "", None, True, float("nan"), "0x5", "1_0", "inf", [], {}):
+        for bad in ("abc", "", None, True, float("nan"), "0x5", "1_0", "inf", [], {},
+                    "\u0665", "\uff15", "\ufeff5", "\x1c5", "\u00a05"):
             self.assertEqual(M.normalise_design({"checkerWrong": bad})["checkerWrong"], 3, bad)
         self.assertEqual(M.normalise_design({"checkerWrong": " 4 "})["checkerWrong"], 4)
         self.assertEqual(M.normalise_design({"checkerWrong": "2e0"})["checkerWrong"], 2)
@@ -155,8 +156,25 @@ class SessionTests(unittest.TestCase):
         agree = sum(a == b for a, b in zip(arms, parity)) / len(ids)
         self.assertTrue(0.35 < agree < 0.65, agree)
         switches = sum(a != b for a, b in zip(arms, arms[1:])) / (len(ids) - 1)
-        self.assertTrue(0.35 < switches < 0.65, switches)
+        self.assertTrue(0.35 < switches < 0.8, switches)
         self.assertEqual(len({M.assign_arm(s, "P001") for s in ("a", "b", "c", "d", "e", "f", "g", "h")}), 2)
+
+    def test_numbered_ids_are_balanced_in_blocks_of_four(self):
+        arms = [M.assign_arm("pilot-study", "P%03d" % i) for i in range(400)]
+        self.assertEqual(arms.count("checker"), 200)
+        for b in range(100):
+            self.assertEqual(arms[4 * b:4 * b + 4].count("checker"), 2)
+        patterns = {tuple(arms[4 * b:4 * b + 4]) for b in range(100)}
+        self.assertEqual(len(patterns), 6)  # every arrangement of two and two turns up
+        # P001 to P020 (the app's default numbering) is balanced across whole blocks.
+        first = [M.assign_arm("pilot-study", "P%03d" % i) for i in range(4, 20)]
+        self.assertEqual(first.count("checker"), 8)
+        # Different prefixes or studies are shuffled independently.
+        self.assertNotEqual([M.assign_arm("a", "P%03d" % i) for i in range(40)],
+                            [M.assign_arm("b", "P%03d" % i) for i in range(40)])
+        # IDs without a number fall back to a coin toss.
+        coins = [M.assign_arm("pilot-study", "anna-%s" % c) for c in "abcdefghijklmnopqrstuvwxyz"]
+        self.assertTrue(5 < coins.count("checker") < 21)
 
     def test_points_rounds_halves_away_from_zero(self):
         self.assertEqual([M.points(x) for x in (0.625, -0.125, 0.125, 0.375, -0.375, 0, 1)],
@@ -422,6 +440,9 @@ class FileTests(unittest.TestCase):
             (d / "bad.json").write_text("{not json")
             with self.assertRaises(ValueError):
                 load_sessions([d / "bad.json"])
+            (d / "nothing").mkdir()
+            with self.assertRaisesRegex(ValueError, "no .json files"):
+                load_sessions([d / "nothing"])
             for empty in ('{"format": "crutch-check-bundle", "sessions": null}',
                           '{"format": "crutch-check-bundle", "sessions": []}', "[]"):
                 (d / "empty.json").write_text(empty)

@@ -45,7 +45,9 @@ class AppAgreesWithPython(unittest.TestCase):
         texts = ["", "a", "P001", "study|P001", "Zoë", "李明", "smile \U0001F600", "x" * 300]
         got = js([{"fn": "hashString", "args": [t]} for t in texts])
         self.assertEqual(got, [M.hash_string(t) for t in texts])
-        pairs = [("pilot", "P%03d" % i) for i in range(60)] + [("", ""), ("Étude", "Zoë")]
+        pairs = [("pilot", "P%03d" % i) for i in range(60)] + [("", ""), ("Étude", "Zoë")] + [
+            ("s", "P001\n"), ("s", "A12345678901"), ("s", "x"), ("s", "007"), ("s", "P9"), ("s", "P\n12"),
+            ("s", "anna"), ("other", "P003"), ("s", "Q-0004"), ("s", "\u0665")]
         got = js([{"fn": "assignArm", "args": list(p)} for p in pairs]
                  + [{"fn": "participantSeed", "args": list(p)} for p in pairs])
         self.assertEqual(got, [M.assign_arm(*p) for p in pairs] + [M.participant_seed(*p) for p in pairs])
@@ -67,7 +69,9 @@ class AppAgreesWithPython(unittest.TestCase):
                    {"checkerWrong": None}, {"checkerWrong": True}, {"showReasons": 0, "extra": 5},
                    {"checkerWrong": "0x5"}, {"checkerWrong": "1_0"}, {"checkerWrong": " 4 "},
                    {"checkerWrong": "2e0"}, {"checkerWrong": "-1.5"}, {"checkerWrong": [3]},
-                   {"showReasons": [], "showConfidence": {}}, {"showReasons": False, "showConfidence": "no"}]
+                   {"showReasons": [], "showConfidence": {}}, {"showReasons": False, "showConfidence": "no"},
+                   {"checkerWrong": "\u0665"}, {"checkerWrong": "\uff15"}, {"checkerWrong": "\ufeff5"},
+                   {"checkerWrong": "\x1c5"}, {"checkerWrong": "\u00a05"}, {"checkerWrong": "\t5\n"}]
         got = js([{"fn": "normaliseDesign", "args": [d]} for d in designs])
         self.assertEqual(got, [M.normalise_design(d) for d in designs])
 

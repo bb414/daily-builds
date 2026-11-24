@@ -261,6 +261,26 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(errors, [])
         page.close()
 
+    def test_unreadable_saved_sessions_are_not_overwritten(self):
+        page = self.open()
+        page.evaluate("localStorage.setItem('crutch-check-sessions-v1', '{broken')")
+        page.reload()
+        page.click("#settings summary")
+        page.check("#opt-study")
+        self.assertIn("could not be read", page.inner_text("#saved-panel"))
+        self.assertIn("Some people get a second opinion", page.inner_text("#intro-lede"))
+        page.uncheck("#opt-show-results")
+        page.click("#start-btn")
+        self.answer_all(page)
+        page.wait_for_selector("#screen-results:not([hidden])")
+        self.assertIn("could not be saved", page.inner_text("#results"))
+        self.assertEqual(page.evaluate("localStorage.getItem('crutch-check-sessions-v1')"), "{broken")
+        page.click("[data-act=next]")
+        page.select_option("#allocation", "checker")
+        self.assertIn("Halfway through, an AI checker", page.inner_text("#intro-lede"))
+        page.evaluate("localStorage.clear()")
+        page.close()
+
     def test_unfinished_comparison_session_is_described_correctly(self):
         import json
         import tempfile
