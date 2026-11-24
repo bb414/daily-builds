@@ -8,7 +8,8 @@ from pathlib import Path
 
 from reliance_lab.__main__ import main
 from reliance_lab.report import class_csv, class_report, model_report, session_report
-from reliance_lab.sessions import (SessionError, auroc, classify_trial, counterfactuals,
+from reliance_lab.html_report import class_html
+from reliance_lab.sessions import (SessionError, auroc, bootstrap, bootstrap_mean, classify_trial, counterfactuals,
                                    estimate_params, load_session, score_session)
 from reliance_lab.synthetic import HABITS, make_class, simulate_session
 
@@ -91,6 +92,27 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(hidden["aiBias"], 0.0)
 
 
+class BootstrapTests(unittest.TestCase):
+    def test_intervals_contain_the_estimate_and_are_reproducible(self):
+        trials = make_class(1, seed=4)[0]["trials"]
+        s = score_session(trials)
+        ci = bootstrap(trials, reps=500, seed=2)
+        self.assertEqual(ci, bootstrap(trials, reps=500, seed=2))
+        for key in ("initialAccuracy", "finalAccuracy", "complementarity"):
+            lo, hi = ci[key]
+            self.assertLessEqual(lo, s[key] + 1e-12)
+            self.assertGreaterEqual(hi, s[key] - 1e-12)
+
+    def test_unanimous_session_has_zero_width_and_missing_measures(self):
+        trials = [dict(TOY[0], initial="fraud", ai="fraud", final="fraud") for _ in range(10)]
+        ci = bootstrap(trials, reps=200)
+        self.assertEqual(ci["finalAccuracy"], (1.0, 1.0))
+        self.assertIsNone(ci["rair"])
+        self.assertIsNone(bootstrap_mean([0.1]))
+        lo, hi = bootstrap_mean([0.0, 0.1, 0.2, 0.3], reps=500)
+        self.assertTrue(0.0 <= lo <= 0.15 <= hi <= 0.3)
+
+
 class FileAndReportTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -152,6 +174,11 @@ class FileAndReportTests(unittest.TestCase):
         self.assertEqual(len(rows), 9)
         self.assertTrue(rows[0].startswith("label,habit,aiStyle,n,"))
         self.assertIn("Best possible rule", model_report())
+        page = class_html(sessions)
+        self.assertTrue(page.startswith("<!DOCTYPE html>"))
+        self.assertIn("8 of these 8 sessions are synthetic", page)
+        self.assertEqual(page.count("<tr><td>"), 8)
+        self.assertNotIn("http", page.replace('xmlns="http://www.w3.org/2000/svg"', ""))
 
     def test_command_line(self):
         out = io.StringIO()
@@ -170,7 +197,8 @@ class FileAndReportTests(unittest.TestCase):
         csv_path = self.dir / "class.csv"
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            self.assertEqual(main(["score", *files, "--csv", str(csv_path)]), 0)
+            self.assertEqual(main(["score", *files, "--csv", str(csv_path), "--html", str(self.dir / "r.html")]), 0)
+        self.assertTrue((self.dir / "r.html").exists())
         self.assertIn("Class summary: 6 sessions", out.getvalue())
         self.assertTrue(csv_path.exists())
         err = io.StringIO()

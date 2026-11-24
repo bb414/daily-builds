@@ -285,3 +285,35 @@ def gain_grid(params: dict | None = None, policy: str = "optimal", steps: int = 
     values = [lo + (hi - lo) * i / (n - 1) for i in range(n)]
     gains = [[evaluate({**p, "human": h, "ai": a}, policy)["gain"] for a in values] for h in values]
     return {"values": values, "gains": gains}
+
+
+SENSITIVITY_STEPS = {
+    "human": 0.05, "ai": 0.05, "overlap": 0.2, "aiSignal": 0.5, "humanSignal": 0.5,
+    "aiBias": 0.5, "humanBias": 0.5,
+}
+
+SENSITIVITY_LABELS = {
+    "human": "Person’s accuracy ±5 pts",
+    "ai": "AI’s accuracy ±5 pts",
+    "overlap": "Error overlap ±0.2",
+    "aiSignal": "AI confidence signal ±0.5",
+    "humanSignal": "Person’s confidence signal ±0.5",
+    "aiBias": "AI overconfidence ±0.5",
+    "humanBias": "Person’s overconfidence ±0.5",
+}
+
+
+def sensitivity(params: dict | None = None, policy: str = "optimal") -> list[dict]:
+    """How far team accuracy moves if each assumption is nudged down or up by a fixed step,
+    biggest swing first. Values are clamped to their ranges, so a setting at its limit can
+    only move one way."""
+    p = normalise(params)
+    base = evaluate(p, policy)["team"]
+    rows = []
+    for order, (key, step) in enumerate(SENSITIVITY_STEPS.items()):
+        low = evaluate({**p, key: p[key] - step}, policy)["team"] - base
+        high = evaluate({**p, key: p[key] + step}, policy)["team"] - base
+        rows.append({"key": key, "label": SENSITIVITY_LABELS[key], "step": step, "low": low,
+                     "high": high, "swing": abs(high - low), "order": order})
+    rows.sort(key=lambda r: (-r["swing"], r["order"]))
+    return rows

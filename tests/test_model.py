@@ -161,6 +161,33 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class SensitivityTests(unittest.TestCase):
+    def test_sensitivity_is_sorted_and_consistent(self):
+        from reliance_lab.model import sensitivity
+        rows = sensitivity({}, "surer")
+        self.assertEqual(len(rows), 7)
+        swings = [r["swing"] for r in rows]
+        self.assertEqual(swings, sorted(swings, reverse=True))
+        base = evaluate({}, "surer")["team"]
+        ai = next(r for r in rows if r["key"] == "ai")
+        self.assertAlmostEqual(ai["high"], evaluate({"ai": 0.9}, "surer")["team"] - base, places=12)
+        self.assertGreater(ai["high"], 0)
+        overlap = next(r for r in rows if r["key"] == "overlap")
+        self.assertLess(overlap["high"], 0, "more shared blind spots always hurt")
+
+    def test_bias_does_not_move_the_best_possible_rule(self):
+        from reliance_lab.model import sensitivity
+        for r in sensitivity({}, "optimal"):
+            if r["key"] in ("aiBias", "humanBias"):
+                self.assertEqual((r["low"], r["high"]), (0.0, 0.0))
+
+    def test_a_setting_at_its_limit_only_moves_one_way(self):
+        from reliance_lab.model import sensitivity
+        rows = {r["key"]: r for r in sensitivity({"ai": 0.99}, "optimal")}
+        self.assertEqual(rows["ai"]["high"], 0.0)
+        self.assertLess(rows["ai"]["low"], 0)
+
+
 class SweepTests(unittest.TestCase):
     def test_gain_grid_matches_single_evaluations(self):
         from reliance_lab.model import gain_grid

@@ -115,6 +115,38 @@ class AppTests(unittest.TestCase):
         self.assertLessEqual(width, 390)
         self.assertEqual(self.problems, [])
 
+    def test_presets_and_settings_link(self):
+        page = self.open()
+        page.click("#tab-model")
+        page.select_option("#preset", label="Two equals with honest confidence")
+        self.assertIn("Equally accurate", page.inner_text("#preset-hint"))
+        self.assertEqual(page.input_value("#s-human"), "0.8")
+        url = page.url
+        self.assertIn("#model?human=0.8&ai=0.8", url)
+        self.assertIn("Biggest gains", page.inner_text("#lever-note"))
+        other = self.browser.new_page()
+        other.goto(url)
+        self.assertEqual(other.get_attribute("#tab-model", "aria-selected"), "true")
+        self.assertEqual(other.input_value("#s-humanSignal"), "2")
+        other.close()
+        page.click("#tab-try")
+        self.assertNotIn("#model?", page.url)
+        self.assertEqual(self.problems, [])
+
+    def test_opening_a_saved_results_file(self):
+        page = self.open()
+        sample = Path(__file__).resolve().parent.parent / "examples" / "sessions" / "P01.json"
+        page.set_input_files("#open-file", str(sample))
+        self.assertTrue(page.is_visible("#try-debrief"))
+        self.assertEqual(page.locator("#trial-table tbody tr").count(), 20)
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "bad.json"
+            bad.write_text('{"format": "something else"}')
+            page.click("#again-btn")
+            page.set_input_files("#open-file", str(bad))
+            self.assertIn("not a Reliance lab results file", page.inner_text("#open-status"))
+            self.assertTrue(page.is_visible("#try-setup"))
+
     def test_tabs_work_from_the_keyboard(self):
         page = self.open()
         page.focus("#tab-try")

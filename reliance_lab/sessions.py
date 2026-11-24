@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import random
 from pathlib import Path
 
 from .model import DEFAULTS, clamp, logit, norm_inv, normalise
@@ -223,3 +224,69 @@ def load_session(path: str | Path) -> dict:
     data.setdefault("label", Path(path).stem)
     data.setdefault("settings", {})
     return data
+
+
+BOOTSTRAP_METRICS = ("initialAccuracy", "aiAccuracy", "finalAccuracy", "complementarity", "rair", "rsr")
+
+
+def _quick_metrics(trials: list[dict]) -> dict:
+    """The bootstrapped measures only, without the checks and AUROCs of score_session."""
+    n = len(trials)
+    you = sum(t["initial"] == t["truth"] for t in trials) / n
+    ai = sum(t["ai"] == t["truth"] for t in trials) / n
+    final = sum(t["final"] == t["truth"] for t in trials) / n
+    ai_only = [t for t in trials if t["initial"] != t["truth"] and t["ai"] == t["truth"]]
+    you_only = [t for t in trials if t["initial"] == t["truth"] and t["ai"] != t["truth"]]
+    return {
+        "initialAccuracy": you,
+        "aiAccuracy": ai,
+        "finalAccuracy": final,
+        "complementarity": final - max(you, ai),
+        "rair": _ratio(sum(t["final"] == t["ai"] for t in ai_only), len(ai_only)),
+        "rsr": _ratio(sum(t["final"] == t["initial"] for t in you_only), len(you_only)),
+    }
+
+
+def _percentile(sorted_vals: list[float], q: float) -> float:
+    """Linear-interpolation percentile of an already sorted list."""
+    pos = (len(sorted_vals) - 1) * q
+    lo = math.floor(pos)
+    hi = math.ceil(pos)
+    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (pos - lo)
+
+
+def bootstrap(trials: list[dict], reps: int = 1000, seed: int = 1, level: float = 0.95) -> dict:
+    """Percentile bootstrap intervals for the main measures of one session.
+
+    A session of 20 payments is a small sample; these intervals show how much each number could
+    move by chance. A measure gets ``None`` when most resamples have no cases to compute it from.
+    """
+    score_session(trials)  # validates
+    rng = random.Random(seed)
+    n = len(trials)
+    samples = {m: [] for m in BOOTSTRAP_METRICS}
+    for _ in range(reps):
+        m = _quick_metrics([trials[rng.randrange(n)] for _ in range(n)])
+        for key in BOOTSTRAP_METRICS:
+            if m[key] is not None:
+                samples[key].append(m[key])
+    tail = (1 - level) / 2
+    out = {}
+    for key, vals in samples.items():
+        if len(vals) < reps / 2:
+            out[key] = None
+        else:
+            vals.sort()
+            out[key] = (_percentile(vals, tail), _percentile(vals, 1 - tail))
+    return out
+
+
+def bootstrap_mean(values: list[float], reps: int = 2000, seed: int = 1, level: float = 0.95) -> tuple | None:
+    """Percentile bootstrap interval for the mean of a list (for example, across a class)."""
+    vals = [v for v in values if v is not None]
+    if len(vals) < 2:
+        return None
+    rng = random.Random(seed)
+    means = sorted(sum(rng.choice(vals) for _ in vals) / len(vals) for _ in range(reps))
+    tail = (1 - level) / 2
+    return _percentile(means, tail), _percentile(means, 1 - tail)

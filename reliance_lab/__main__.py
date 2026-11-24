@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .model import DEFAULTS, analyse
+from .html_report import class_html
 from .report import class_csv, class_report, model_report, session_report
 from .sessions import SessionError, load_session
 from .sweep import run_sweep, summarise, sweep_csv, sweep_report
@@ -37,6 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--threshold", type=float, default=0.8,
                    help="confidence bar for the 'follow when sure' replay (default 0.8)")
     s.add_argument("--csv", metavar="PATH", help="also write one row per session to a CSV file")
+    s.add_argument("--html", metavar="PATH", help="also write a self-contained HTML class report")
 
     w = sub.add_parser("sweep", help="run the model over a grid of assumptions and summarise where pairing pays")
     w.add_argument("--margin", type=float, default=0.5,
@@ -80,6 +82,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.csv:
             Path(args.csv).write_text(class_csv(sessions), encoding="utf-8")
             print(f"\nWrote {args.csv}")
+        if args.html:
+            Path(args.html).write_text(class_html(sessions), encoding="utf-8")
+            print(f"\nWrote {args.html}")
         return 0
     if args.command == "sweep":
         rows = run_sweep()

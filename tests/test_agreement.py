@@ -140,6 +140,13 @@ class AgreementTests(unittest.TestCase):
             p, rule, steps = call["args"]
             self.assert_same(j, model.gain_grid(p, rule, steps), f"grid {rule} {json.dumps(p)}")
 
+    def test_sensitivity_agrees(self):
+        calls = [{"fn": "sensitivity", "args": [p, rule]} for p in EDGE_PARAMS for rule in model.POLICIES]
+        js = run_js(calls)
+        for call, j in zip(calls, js):
+            p, rule = call["args"]
+            self.assert_same(j, model.sensitivity(p, rule), f"sensitivity {rule} {json.dumps(p)}")
+
     def test_labels_and_defaults_agree(self):
         js = run_js([{"fn": "normalise", "args": [{}]}])[0]
         self.assert_same(js, model.normalise({}), "defaults")

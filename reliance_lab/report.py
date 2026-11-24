@@ -6,7 +6,7 @@ import csv
 import io
 
 from .model import POLICIES, analyse
-from .sessions import counterfactuals, score_session
+from .sessions import bootstrap, bootstrap_mean, counterfactuals, score_session
 
 MISTAKE_NAMES = {
     "random": "mistakes anywhere",
@@ -70,10 +70,13 @@ def session_report(session: dict, threshold: float = 0.8) -> str:
     if s.get("mistakes") in MISTAKE_NAMES:
         style += ", " + MISTAKE_NAMES[s["mistakes"]]
     tag = " (synthetic)" if session.get("synthetic") else ""
+    ci = bootstrap(trials)
     lines = [
         f"{session.get('label', 'session')}{tag}: {m['n']} cases, advisor {style}",
         f"  First calls {pct(m['initialAccuracy'], 0)}, AI {pct(m['aiAccuracy'], 0)}, "
         f"final {pct(m['finalAccuracy'], 0)} ({pts(m['complementarity'])} on the better of the two)",
+        f"  95% bootstrap interval for that gain: {interval(ci['complementarity'], points=True)}; "
+        f"for final accuracy: {interval(ci['finalAccuracy'])}",
         f"  Switched to a right AI {m['switchedToAI']} of {m['aiOnlyRight']} times; "
         f"held firm against a wrong AI {m['keptOwn']} of {m['youOnlyRight']} times",
         f"  Confidence: mean {pct(m['meanConfidence'], 0)}, overconfidence {pts(m['overconfidence'])}, "
@@ -85,6 +88,14 @@ def session_report(session: dict, threshold: float = 0.8) -> str:
         value = pct(cf["accuracy"], 0) if cf["available"] else "n/a (AI confidence hidden)"
         lines.append(f"    {cf['label']:<48}{value}")
     return "\n".join(lines)
+
+
+def interval(ci: tuple | None, points: bool = False) -> str:
+    if ci is None:
+        return "n/a"
+    if points:
+        return f"{ci[0] * 100:+.1f} to {ci[1] * 100:+.1f} pts"
+    return f"{ci[0] * 100:.0f}% to {ci[1] * 100:.0f}%"
 
 
 def _mean(values: list[float | None]) -> float | None:
@@ -121,6 +132,9 @@ def class_report(sessions: list[dict]) -> str:
     groups: dict[str, list[dict]] = {}
     for r in rows:
         groups.setdefault(r["aiStyle"] or "unknown", []).append(r)
+    comp = [r["complementarity"] for r in rows]
+    lines.append(f"  Mean gain on the better of the two: {pts(_mean(comp))} "
+                 f"(95% bootstrap interval across sessions {interval(bootstrap_mean(comp), points=True)})")
     for style, group in sorted(groups.items()):
         beat = sum(r["complementarity"] > 0 for r in group)
         lines.append(

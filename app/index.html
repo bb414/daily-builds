@@ -253,6 +253,16 @@ table.data thead th { color: var(--muted); font-weight: 600; }
   background: linear-gradient(90deg, var(--bad-ramp), var(--surface-2), var(--team)); }
 .chart canvas { position: absolute; display: block; }
 
+.preset { margin-bottom: 8px; }
+.preset label { display: block; font-weight: 600; font-size: 0.9375rem; margin-bottom: 6px; }
+.select {
+  font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); min-height: 44px;
+}
+.open-file { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.open-file label.btn { display: inline-flex; align-items: center; }
+.open-file input:focus-visible + .hint, .open-file:focus-within label.btn { outline: 3px solid var(--focus); outline-offset: 2px; }
+
 /* about tab */
 .prose { max-width: 72ch; }
 .prose h2 { margin-top: 28px; }
@@ -329,6 +339,11 @@ table.data thead th { color: var(--muted); font-weight: 600; }
           <span class="hint">Takes about five minutes for 20 payments.</span>
         </div>
       </form>
+      <div class="open-file">
+        <label for="open-file" class="btn">Open a saved results file</label>
+        <input type="file" id="open-file" accept=".json,application/json" class="visually-hidden">
+        <p class="hint" id="open-status" role="status"></p>
+      </div>
     </div>
 
     <div id="try-case" hidden>
@@ -419,13 +434,22 @@ table.data thead th { color: var(--muted); font-weight: 600; }
   <section id="panel-model" role="tabpanel" aria-labelledby="tab-model" tabindex="-1" hidden>
     <div class="model-grid">
       <form class="card controls" id="model-form" aria-label="Model assumptions">
+        <div class="preset">
+          <label for="preset">Start from a scenario</label>
+          <select id="preset" class="select"></select>
+          <p class="hint" id="preset-hint"></p>
+        </div>
         <h3>The two of you</h3>
         <div id="sliders-a"></div>
         <h3>Confidence</h3>
         <div id="sliders-b"></div>
         <h3>Rule settings</h3>
         <div id="sliders-c"></div>
-        <button type="button" class="btn" id="reset-model">Reset to defaults</button>
+        <div class="btn-row">
+          <button type="button" class="btn" id="reset-model">Reset to defaults</button>
+          <button type="button" class="btn" id="copy-link">Copy link to these settings</button>
+        </div>
+        <p class="hint" id="link-status" aria-live="polite"></p>
       </form>
       <div>
         <div class="tiles" id="model-tiles"></div>
@@ -461,6 +485,16 @@ table.data thead th { color: var(--muted); font-weight: 600; }
           </div>
           <div class="chart" id="map-chart"></div>
           <p class="hint" id="map-note" aria-live="polite"></p>
+        </div>
+        <div class="card">
+          <div class="chart-head"><h3>Which lever matters most?</h3><span class="hint" id="lever-rule"></span></div>
+          <p class="hint">Each assumption nudged down and up by a set step, everything else held where it is.</p>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="background:var(--shared)"></i>Setting lowered</span>
+            <span><i class="sw" style="background:var(--accent)"></i>Setting raised</span>
+          </div>
+          <div class="chart" id="lever-chart"></div>
+          <p id="lever-note"></p>
         </div>
         <div class="card">
           <div class="chart-head"><h3>Raising the bar for following the AI</h3><span class="hint">Rule: follow the AI when it sounds at least this sure</span></div>
@@ -802,6 +836,39 @@ var RelianceModel = (function () {
     return { values: values, gains: gains };
   }
 
+  // How far team accuracy moves if each assumption is nudged down or up by a fixed step.
+  var SENSITIVITY_STEPS = {
+    human: 0.05, ai: 0.05, overlap: 0.2, aiSignal: 0.5, humanSignal: 0.5, aiBias: 0.5, humanBias: 0.5
+  };
+  var SENSITIVITY_LABELS = {
+    human: 'Person\u2019s accuracy \u00b15 pts',
+    ai: 'AI\u2019s accuracy \u00b15 pts',
+    overlap: 'Error overlap \u00b10.2',
+    aiSignal: 'AI confidence signal \u00b10.5',
+    humanSignal: 'Person\u2019s confidence signal \u00b10.5',
+    aiBias: 'AI overconfidence \u00b10.5',
+    humanBias: 'Person\u2019s overconfidence \u00b10.5'
+  };
+
+  function sensitivity(params, policy) {
+    var p = normalise(params);
+    var base = evaluate(p, policy).team;
+    var keys = Object.keys(SENSITIVITY_STEPS);
+    return keys.map(function (key, order) {
+      var step = SENSITIVITY_STEPS[key];
+      var down = {};
+      var up = {};
+      down[key] = p[key] - step;
+      up[key] = p[key] + step;
+      var low = evaluate(Object.assign({}, p, down), policy).team - base;
+      var high = evaluate(Object.assign({}, p, up), policy).team - base;
+      return { key: key, label: SENSITIVITY_LABELS[key], step: step, low: low, high: high,
+        swing: Math.abs(high - low), order: order };
+    }).sort(function (x, y) {
+      return (y.swing - x.swing) || (x.order - y.order);
+    });
+  }
+
   /* ---------- synthetic payment cases for the hands-on exercise ---------- */
 
   function hashCode(str) {
@@ -1137,6 +1204,7 @@ var RelianceModel = (function () {
     analyse: analyse,
     thresholdCurve: thresholdCurve,
     gainGrid: gainGrid,
+    sensitivity: sensitivity,
     hashCode: hashCode,
     mulberry32: mulberry32,
     idealFraudProbability: idealFraudProbability,
@@ -1210,7 +1278,11 @@ if (typeof module !== 'undefined' && module.exports) {
       document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
     });
     if (focus) tab.focus();
-    if (tab.id === 'tab-model') renderModel();
+    if (tab.id === 'tab-model') {
+      renderModel();
+    } else if ((location.hash || '').indexOf('#model?') === 0) {
+      try { history.replaceState(null, '', location.href.split('#')[0]); } catch (err) { /* ignore */ }
+    }
   }
   tabs.forEach(function (tab, i) {
     tab.addEventListener('click', function () { selectTab(tab, false); });
@@ -1299,6 +1371,64 @@ if (typeof module !== 'undefined' && module.exports) {
       hint: function () { return 'Used by "defer at a fixed rate": the share of disagreements handed to the AI.'; } }
   ];
 
+  var PRESETS = [
+    { name: 'A good model and a decent reviewer', note: 'The defaults: the AI is a bit better, both have some sense of when they are right.',
+      params: {} },
+    { name: 'Rubber-stamp risk', note: 'A strong model and a weaker reviewer who cannot tell when they are right. Hard to add anything.',
+      params: { human: 0.7, ai: 0.92, overlap: 0.3, aiSignal: 1.0, humanSignal: 0.4, humanBias: 0.3 } },
+    { name: 'Two equals with honest confidence', note: 'Equally accurate, unrelated mistakes, and both know when they are unsure. The best case for pairing.',
+      params: { human: 0.8, ai: 0.8, overlap: 0, aiSignal: 2, humanSignal: 2 } },
+    { name: 'A chatty assistant that always sounds sure', note: 'Its confidence says almost nothing and runs high, so following it when it sounds sure is no filter at all.',
+      params: { human: 0.78, ai: 0.82, overlap: 0.2, aiSignal: 0.3, humanSignal: 1.0, aiBias: 1.5 } },
+    { name: 'Shared blind spots', note: 'The person and the AI tend to fail on the same cases, so the pair has little to correct.',
+      params: { human: 0.8, ai: 0.85, overlap: 0.6, aiSignal: 1.5, humanSignal: 1.0 } },
+    { name: 'Expert reviewer, weaker model', note: 'The person is better. Now the risk is over-ruling the AI on the cases it gets right.',
+      params: { human: 0.9, ai: 0.78, overlap: 0.1, aiSignal: 1.5, humanSignal: 1.2, humanBias: 0.6 } }
+  ];
+
+  function buildPresets() {
+    var sel = $('#preset');
+    sel.appendChild(el('option', { value: '' }, 'Choose a scenario\u2026'));
+    PRESETS.forEach(function (pr, i) { sel.appendChild(el('option', { value: String(i) }, pr.name)); });
+    sel.addEventListener('change', function () {
+      if (sel.value === '') return;
+      var pr = PRESETS[parseInt(sel.value, 10)];
+      modelParams = Object.assign({}, M.DEFAULTS, pr.params);
+      modelSource = null;
+      $('#preset-hint').textContent = pr.note;
+      renderModel();
+    });
+  }
+
+  function clearPreset() {
+    $('#preset').value = '';
+    $('#preset-hint').textContent = '';
+  }
+
+  // Settings live in the address (#model?human=0.75&...) so a link reopens them.
+  function settingsHash() {
+    return '#model?' + Object.keys(M.DEFAULTS).map(function (k) {
+      return k + '=' + Math.round(modelParams[k] * 1000) / 1000;
+    }).join('&');
+  }
+
+  function writeHash() {
+    try { history.replaceState(null, '', settingsHash()); } catch (err) { /* some viewers block this */ }
+  }
+
+  function readHash() {
+    var h = location.hash || '';
+    if (h.indexOf('#model?') !== 0) return false;
+    var out = Object.assign({}, M.DEFAULTS);
+    h.slice(7).split('&').forEach(function (pair) {
+      var bits = pair.split('=');
+      var v = parseFloat(bits[1]);
+      if (Object.prototype.hasOwnProperty.call(M.DEFAULTS, bits[0]) && isFinite(v)) out[bits[0]] = v;
+    });
+    modelParams = M.normalise(out);
+    return true;
+  }
+
   function buildSliders() {
     SLIDERS.forEach(function (s) {
       var wrap = el('div', { class: 'slider' });
@@ -1312,6 +1442,7 @@ if (typeof module !== 'undefined' && module.exports) {
       input.value = modelParams[s.key];
       input.addEventListener('input', function () {
         modelParams[s.key] = parseFloat(input.value);
+        clearPreset();
         renderModel();
       });
       wrap.appendChild(label);
@@ -1390,7 +1521,9 @@ if (typeof module !== 'undefined' && module.exports) {
     drawErrorChart(a);
     drawErrorTable(a);
     drawMap(a);
+    drawLevers(a);
     drawCurve(a);
+    writeHash();
   }
 
   function niceStep(range, maxTicks) {
@@ -1561,6 +1694,71 @@ if (typeof module !== 'undefined' && module.exports) {
     box.insertBefore(s, box.firstChild);
   }
 
+  var LEVER_PHRASES = {
+    human: ['a less accurate reviewer', 'a reviewer who is 5 points more accurate'],
+    ai: ['a model 5 points less accurate', 'a model 5 points more accurate'],
+    overlap: ['fewer shared blind spots (overlap down 0.2)', 'more shared blind spots'],
+    aiSignal: ['vaguer AI confidence', 'AI confidence that says more about when it is right'],
+    humanSignal: ['a reviewer with a worse sense of their own certainty', 'a reviewer with a better sense of their own certainty'],
+    aiBias: ['toning down how sure the AI sounds', 'an AI that sounds surer'],
+    humanBias: ['a reviewer who is less sure of themselves', 'a reviewer who is surer of themselves']
+  };
+
+  function leverSummary(rows) {
+    var gains = rows.map(function (r) {
+      var up = r.high >= r.low;
+      return { key: r.key, gain: Math.max(r.high, r.low), phrase: LEVER_PHRASES[r.key][up ? 1 : 0] };
+    }).filter(function (g) { return g.gain > 0.001; })
+      .sort(function (x, y) { return y.gain - x.gain; });
+    if (!gains.length) return 'No single nudge improves this rule: it is already as good as these settings allow.';
+    var top = gains.slice(0, 2).map(function (g) { return g.phrase + ' (' + pts(g.gain) + ')'; });
+    return 'Biggest gains for this rule: ' + top.join(', then ') + '.';
+  }
+
+  function drawLevers(a) {
+    var box = $('#lever-chart');
+    box.innerHTML = '';
+    var rule = mapRule();
+    var rows = M.sensitivity(a.params, rule);
+    $('#lever-rule').textContent = 'Rule: ' + M.POLICY_LABELS[rule].toLowerCase();
+    var W = Math.max(280, box.clientWidth || 600);
+    var narrow = W < 560;
+    var labelW = narrow ? 0 : 250;
+    var rowH = narrow ? 46 : 30;
+    var barH = 14;
+    var top = 4;
+    var H = top + rows.length * rowH + 22;
+    var maxAbs = 0.005;
+    rows.forEach(function (r) { maxAbs = Math.max(maxAbs, Math.abs(r.low), Math.abs(r.high)); });
+    var pad = 58;
+    var x0 = labelW + pad;
+    var x1 = W - pad;
+    var mid = (x0 + x1) / 2;
+    var sx = function (v) { return mid + (x1 - x0) / 2 * v / maxAbs; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Change in team accuracy when each assumption is lowered or raised. ' + rows.map(function (r) {
+        return r.label + ': lowered ' + pts(r.low) + ', raised ' + pts(r.high);
+      }).join('; ') });
+    svgEl('line', { x1: mid, x2: mid, y1: 0, y2: H - 18, class: 'axis' }, s);
+    svgText(s, mid, H - 4, 'No change', { 'text-anchor': 'middle' });
+    rows.forEach(function (r, i) {
+      var y = top + i * rowH + (narrow ? 18 : (rowH - barH) / 2);
+      svgText(s, 0, narrow ? y - 5 : y + barH / 2 + 4, r.label, { style: 'fill:var(--ink);font-weight:500' });
+      [{ v: r.low, c: 'var(--shared)', dy: 0 }, { v: r.high, c: 'var(--accent)', dy: barH / 2 }].forEach(function (b) {
+        var xa = Math.min(sx(0), sx(b.v));
+        var w = Math.abs(sx(b.v) - sx(0));
+        svgEl('rect', { x: xa, y: y + b.dy, width: Math.max(w, 0.5), height: barH / 2 - 1, rx: 2, fill: b.c }, s);
+      });
+      var hiSide = Math.max(r.low, r.high);
+      var loSide = Math.min(r.low, r.high);
+      if (hiSide > 0.0005) svgText(s, sx(hiSide) + 4, y + barH / 2 + 4, pts(hiSide), { style: 'fill:var(--ink)' });
+      if (loSide < -0.0005) svgText(s, sx(loSide) - 4, y + barH / 2 + 4, pts(loSide), { 'text-anchor': 'end', style: 'fill:var(--ink)' });
+      if (hiSide <= 0.0005 && loSide >= -0.0005) svgText(s, mid + 6, y + barH / 2 + 4, 'no effect');
+    });
+    box.appendChild(s);
+    $('#lever-note').textContent = leverSummary(rows);
+  }
+
   function cssColour(name) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     var m = /^#([0-9a-f]{6})$/i.exec(v);
@@ -1669,7 +1867,22 @@ if (typeof module !== 'undefined' && module.exports) {
   $('#reset-model').addEventListener('click', function () {
     modelParams = Object.assign({}, M.DEFAULTS);
     modelSource = null;
+    clearPreset();
     renderModel();
+  });
+
+  $('#copy-link').addEventListener('click', function () {
+    writeHash();
+    var link = location.href.split('#')[0] + settingsHash();
+    var status = $('#link-status');
+    var fallback = function () { status.textContent = 'Copy this link: ' + link; };
+    try {
+      navigator.clipboard.writeText(link).then(function () {
+        status.textContent = 'Link copied. Opening it with this file shows the same settings.';
+      }, fallback);
+    } catch (err) {
+      fallback();
+    }
   });
 
   var resizeTimer = null;
@@ -1998,6 +2211,30 @@ if (typeof module !== 'undefined' && module.exports) {
     t.appendChild(body);
   }
 
+  $('#open-file').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    var status = $('#open-status');
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        if (!data || data.format !== 'reliance-lab-session' || !Array.isArray(data.trials)) {
+          throw new Error('This is not a Reliance lab results file.');
+        }
+        M.scoreSession(data.trials);
+        status.textContent = '';
+        session = { settings: data.settings || {}, trials: data.trials, cases: null, index: data.trials.length, current: null };
+        showDebrief();
+      } catch (err) {
+        status.textContent = 'Could not open that file: ' + (err instanceof SyntaxError ? 'it is not valid JSON.' : err.message);
+      }
+      e.target.value = '';
+    };
+    reader.onerror = function () { status.textContent = 'Could not read that file.'; };
+    reader.readAsText(file);
+  });
+
   $('#download-btn').addEventListener('click', function () {
     var record = {
       format: 'reliance-lab-session',
@@ -2009,7 +2246,7 @@ if (typeof module !== 'undefined' && module.exports) {
       trials: session.trials
     };
     var blob = new Blob([JSON.stringify(record, null, 1)], { type: 'application/json' });
-    var a = el('a', { href: URL.createObjectURL(blob), download: 'reliance-session-' + session.settings.code + '.json' });
+    var a = el('a', { href: URL.createObjectURL(blob), download: 'reliance-session-' + (session.settings.code || 'results') + '.json' });
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
@@ -2028,8 +2265,13 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#setup-form button[type="submit"]').focus();
   });
 
+  buildPresets();
   buildSliders();
-  renderModel();
+  if (readHash()) {
+    selectTab($('#tab-model'), false);
+  } else {
+    renderModel();
+  }
 })();
 </script>
 </body>
