@@ -111,7 +111,7 @@ The levers chart turns the same model into a "where should we invest?" question.
 | `app/index.html` | HTML and CSS | 590 lines | Layout, light and dark themes, responsive design |
 | | JavaScript (model block) | 710 lines | The reliance model, the payment generator, session scoring; runs in the browser and in Node.js for tests |
 | | JavaScript (interface) | 1,070 lines | The exercise, debrief, charts, presets, links and file loading |
-| `reliance_lab/` | Python | 1,290 lines | The same model and scoring (tested to agree), plus what a browser page does badly: batch scoring of many files, bootstrap intervals, an HTML class report, a 3,888-scenario sweep and synthetic classes |
+| `reliance_lab/` | Python | 1,300 lines | The same model and scoring (tested to agree), plus what a browser page does badly: batch scoring of many files, bootstrap intervals, an HTML class report, a 3,888-scenario sweep and synthetic classes |
 | `tests/` | Python and JavaScript | 1,020 lines | Unit tests for both, agreement tests between them, and browser tests of the app |
 
 The browser app is the version anyone can open and use. The Python companion is for whoever runs a class or wants to go beyond one set of assumptions.
