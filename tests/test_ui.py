@@ -36,10 +36,14 @@ class BrowserTests(unittest.TestCase):
         page.on("request", lambda r: self.requests.append(r.url))
         page.goto(APP_URL)
         page.wait_for_selector("#summary .range")
+        page.wait_for_selector("#narrow-driver")   # the narrowing card is drawn just after the main results
         return page
 
     def settle(self, page):
+        # Edits are recalculated after a short pause; wait for that and for the narrowing card that follows.
         page.wait_for_timeout(450)
+        page.wait_for_function("!document.querySelector('#narrow-card') || document.querySelector('#narrow-card').hidden "
+                               "|| document.querySelector('#problems').hidden === false || !!document.querySelector('#narrow-driver')")
 
     def test_loads_with_results_and_no_requests(self):
         page = self.open()
