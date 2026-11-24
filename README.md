@@ -96,6 +96,7 @@ The **virtual experiment** is the part the browser app cannot do. Each simulated
 
 Compared with No AI (change in own test score):
   AI first     -1.7 pts (95% CI -6.6 pts to +3.1 pts), d = -0.13, p = 0.477
+  Human first  -1.0 pts (95% CI -5.7 pts to +3.7 pts), d = -0.08, p = 0.675
 ```
 
 The accuracy gain during training is obvious (about +17 points, p < 0.001), but the erosion of people's own judgement is not detectable at this size. The **power analysis** shows why: the effect is about -2.7 points (Cohen's d of about -0.19), and with 20-item tests a study would need roughly 460 participants per arm for 80% power. A small study that finds "no harm to judgement" may simply be too small to see it.
@@ -128,7 +129,7 @@ Each simulated person works through a series of yes-or-no cases.
 4. **Switching.** When a person and the AI disagree, the person weighs their own confidence against their trust in the AI and, if it is shown, how sure the AI sounds.
 5. **Trust.** When people find out the right answer, trust rises after the AI was right and falls three times as fast after it was wrong (adjustable).
 6. **Own judgement.** Thinking for yourself and then getting feedback builds skill, twice as fast after a visible disagreement with the AI. Accepting the AI without thinking gives no practice and lets skill fade towards a coin flip.
-7. **Stress test.** From a chosen case the AI's real accuracy drops, but its stated confidence does not change, so nobody is warned.
+7. **Stress test.** After a chosen case the AI's real accuracy drops (it can only get worse), but its stated confidence does not change, so nobody is warned.
 8. **Verdict.** The same people and cases are run without the AI. More than 1 point more accurate with the AI counts as a lift; ending more than 1 point worse on their own than the comparison group counts as eroded judgement. The four combinations give Helper, Crutch, No lift and Liability.
 
 The fixed behavioural constants (how decisive people are, how noisy confidence is, how much the AI's answer anchors people, minutes per case) are listed at the top of the model block in `app/index.html` and in `reliance_lab/model.py`.

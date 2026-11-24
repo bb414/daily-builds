@@ -885,6 +885,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       label.appendChild(el('output', { id: 'o-' + spec.key, 'for': 'p-' + spec.key }));
       var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
       input.addEventListener('input', function () {
+        if (input.step === 'any') {
+          // Back to normal steps after an exact value from a link or file.
+          input.step = spec.step;
+          var snapped = spec.min + Math.round((Number(input.value) - spec.min) / spec.step) * spec.step;
+          input.value = Math.round(snapped * 1e9) / 1e9;
+        }
         state.params[spec.key] = Number(input.value);
         var drift = state.params.driftAccuracy;
         state.params = M.normaliseParams(state.params);
@@ -942,7 +948,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
 
   var last = null;
 
-  var token = 0, lastCode = '', pendingFocus = null;
+  var token = 0, lastCode = '';
 
   function showError(e) {
     var box = document.getElementById('verdict');
@@ -970,15 +976,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       resultsBox.classList.remove('busy');
       resultsBox.removeAttribute('aria-busy');
       var control = results.none;
-      finish(M.WORKFLOW_KEYS.map(function (key) {
+      finish(p, M.WORKFLOW_KEYS.map(function (key) {
         return { workflow: key, result: results[key], control: control, verdict: M.verdictFor(results[key], control) };
       }));
     }
     setTimeout(step, 0);
   }
 
-  function finish(rows) {
-    var a = rows[M.WORKFLOW_KEYS.indexOf(state.params.workflow)];
+  // p is the settings this run was computed for; they may be older than state.params.
+  function finish(p, rows) {
+    var a = rows[M.WORKFLOW_KEYS.indexOf(p.workflow)];
     last = a;
     renderVerdict(a);
     renderKpis(a);
@@ -989,7 +996,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     document.getElementById('live').textContent = a.verdict.label + '. Accuracy with the AI ' + pct(a.result.teamAccuracy) +
       ', own judgement afterwards ' + pct(a.result.skillAfter) + '.';
     document.body.setAttribute('data-runs', String(++runCount));
-    var code = M.encodeParams(state.params);
+    var code = M.encodeParams(p);
     lastCode = code;
     try { history.replaceState(null, '', '#' + code); } catch (e) { /* some browsers block this for local files */ }
     if ((robust && robust.code !== code) || (robustJob && robustJob.code !== code)) {
@@ -1340,6 +1347,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
 
   function renderCompare(rows) {
     var table = document.getElementById('compare');
+    // If a button in the table has focus, put focus back on the same button after rebuilding.
+    var focused = table.contains(document.activeElement) ? document.activeElement.getAttribute('data-workflow') : null;
     table.innerHTML = '';
     var head = el('tr');
     ['Workflow', 'Accuracy with the AI', 'Own judgement after', 'Misled', 'Time per case', 'Verdict'].forEach(function (h, i) {
@@ -1357,7 +1366,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
         state.params.workflow = row.workflow;
         document.querySelectorAll('input[name=workflow]').forEach(function (x) { x.checked = x.value === row.workflow; });
         markCustom();
-        pendingFocus = row.workflow;
         run();
       });
       th.appendChild(b);
@@ -1373,9 +1381,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    if (pendingFocus) {
-      var again = table.querySelector('button[data-workflow="' + pendingFocus + '"]');
-      pendingFocus = null;
+    if (focused) {
+      var again = table.querySelector('button[data-workflow="' + focused + '"]');
       if (again) again.focus();
     }
   }

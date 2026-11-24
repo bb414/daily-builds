@@ -171,12 +171,24 @@ class UiTest(unittest.TestCase):
         page.dispatch_event("#p-driftAccuracy", "input")
         self.settle(page)
         self.assertEqual(page.inner_text("#o-driftAccuracy"), "70%")
+        # Focus is only restored if it was still in the table.
+        page.click("#compare button[data-workflow=on_request]")
+        page.focus("#p-humanAccuracy")
+        self.settle(page)
+        self.assertEqual(page.evaluate("document.activeElement.id"), "p-humanAccuracy")
         # A link pasted into the same tab is applied.
         page.evaluate("location.hash = 'rounds=125&workflow=none&people=75'")
         self.settle(page)
         self.assertEqual(page.inner_text("#o-rounds"), "125")
         self.assertEqual(page.get_attribute("#p-rounds", "step"), "any")
         self.assertEqual(page.inner_text("#verdict h2"), "Baseline: no AI")
+        # Moving that slider returns it to normal steps.
+        page.focus("#p-rounds")
+        page.keyboard.press("ArrowRight")
+        self.settle(page)
+        self.assertEqual(page.get_attribute("#p-rounds", "step"), "10")
+        self.assertEqual(int(page.inner_text("#o-rounds")) % 10, 0)
+        self.assertIn("rounds=" + page.inner_text("#o-rounds"), page.url)
         self.assertEqual(self.errors, [])
         page.close()
 
