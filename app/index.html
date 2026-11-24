@@ -320,7 +320,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
     <div id="try-setup" class="card">
       <h2>Review flagged payments with an AI advisor</h2>
       <p class="lede">You are checking card payments that a fraud system has flagged. For each one you make your own call first and say how sure you are. Then you see an AI advisor's view and make a final decision. At the end you see how well you used the advice.</p>
-      <p class="hint">Everything is synthetic and stays in this page. Half the payments are fraud. The advisor's mistakes are set in advance, so its accuracy is exactly what you choose below.</p>
+      <p class="hint">Everything is synthetic and stays in this page. Half the payments are fraud. The advisor's mistakes are set in advance, so its accuracy is what you choose below, to the nearest whole payment.</p>
       <form id="setup-form" class="setup-grid">
         <fieldset>
           <legend>How many payments</legend>
@@ -549,7 +549,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
       <div class="callout"><strong>The key idea.</strong> When a person and an AI disagree, exactly one of them is right. Any reliance habit that treats every disagreement the same way (always defer, never defer, defer 70% of the time) lands somewhere between the two solo accuracies. Beating both needs a signal that tells you <em>which</em> disagreements to give to the AI, and the only places that signal can come from are confidence: the AI's and your own.</div>
 
       <h2>The exercise</h2>
-      <p>The "Try it yourself" tab uses a two-step design common in research on AI advice: you decide first, then see the advice, then decide again. That separates your own judgement from the AI's influence. The payments are generated from six cues with fixed odds of fraud, so an ideal reader of the cues would get about 85% right. The advisor's mistakes are chosen in advance, so it is right exactly as often as you set. You can put its mistakes anywhere, on the tricky payments (where the clues point the wrong way, so you are likely to be fooled too) or on the obvious ones (where you should catch them).</p>
+      <p>The "Try it yourself" tab uses a two-step design common in research on AI advice: you decide first, then see the advice, then decide again. That separates your own judgement from the AI's influence. The payments are generated from six cues with fixed odds of fraud, so an ideal reader of the cues would get about 85% right. The advisor's mistakes are chosen in advance, so it is right as often as you set, to the nearest whole payment. You can put its mistakes anywhere, on the tricky payments (where the clues point the wrong way, so you are likely to be fooled too) or on the obvious ones (where you should catch them).</p>
       <p>Two measures, from Schemmer and colleagues (2023), summarise how you used the advice:</p>
       <ul>
         <li><strong>Switching when it helped</strong> (relative AI reliance): of the payments where you were wrong and the AI was right, how often you switched to the AI.</li>
@@ -564,7 +564,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
         <li><strong>error overlap</strong>: how far they tend to get the same cases wrong. Errors they share can never be fixed by any rule;</li>
         <li>how much each side's <strong>confidence</strong> tells you about whether it is right (in signal detection terms, d', from 0 for "no information" to 4 for "almost perfect"), and whether either side is <strong>overconfident</strong>.</li>
       </ul>
-      <p>It then compares four rules for settling disagreements: deferring at a fixed rate, following the AI whenever it shows at least a set confidence, going with whoever is surer, and the best possible rule, which weighs both confidences exactly. Every result is calculated exactly, not simulated, and each rule's errors are split into the three kinds in the first chart.</p>
+      <p>It then compares four rules for settling disagreements: deferring at a fixed rate, following the AI whenever it shows at least a set confidence, going with whoever is surer, and the best possible rule, which weighs both confidences perfectly. Every result is calculated from formulas, not simulated, and each rule's errors are split into the three kinds in the first chart.</p>
       <p>The other views answer follow-up questions. The map shows, for every combination of the two accuracies, whether a rule lets the pair beat both. The levers chart nudges each assumption in turn to show what would help most: a more accurate model, more honest confidence, or a reviewer whose mistakes differ from the AI's. The last chart shows what happens as you raise the confidence bar for following the AI.</p>
       <p>One result is worth knowing: if both sides' confidence is honest and their errors are unrelated, "go with whoever is surer" <em>is</em> the best possible rule. Overconfidence on either side, or errors that cluster on the same cases, is what breaks it.</p>
 

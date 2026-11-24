@@ -78,6 +78,11 @@ def _naive_sum(values) -> float:
     return total
 
 
+def _js_round(x: float) -> int:
+    """Round half up, like JavaScript's Math.round (Python's round() rounds half to even)."""
+    return math.floor(x + 0.5)
+
+
 def _ratio(num: int, den: int) -> float | None:
     return num / den if den > 0 else None
 
@@ -157,7 +162,7 @@ def counterfactuals(trials: list[dict], threshold: float = 0.8) -> list[dict]:
         {"key": "ai", "label": "Always take the AI’s answer", "available": True,
          "accuracy": acc(lambda t: t["ai"])},
         {"key": "threshold",
-         "label": f"Take the AI’s answer when it shows {round(threshold * 100)}% or more",
+         "label": f"Take the AI’s answer when it shows {_js_round(threshold * 100)}% or more",
          "available": shown,
          "accuracy": acc(lambda t: t["ai"] if t["aiConfidence"] >= threshold else t["initial"])
          if shown else None},

@@ -118,7 +118,7 @@ class AgreementTests(unittest.TestCase):
         for trials in trial_sets:
             calls += [{"fn": "scoreSession", "args": [trials]},
                       {"fn": "counterfactuals", "args": [trials, 0.75]},
-                      {"fn": "counterfactuals", "args": [trials, 0.9]},
+                      {"fn": "counterfactuals", "args": [trials, 0.825]},
                       {"fn": "estimateParams", "args": [trials]}]
             calls += [{"fn": "classifyTrial", "args": [t]} for t in trials]
         js = run_js(calls)
@@ -126,7 +126,7 @@ class AgreementTests(unittest.TestCase):
         for k, trials in enumerate(trial_sets):
             self.assert_same(js[i], sessions.score_session(trials), f"score {k}")
             self.assert_same(js[i + 1], sessions.counterfactuals(trials, 0.75), f"cf75 {k}")
-            self.assert_same(js[i + 2], sessions.counterfactuals(trials, 0.9), f"cf90 {k}")
+            self.assert_same(js[i + 2], sessions.counterfactuals(trials, 0.825), f"cf825 {k}")
             self.assert_same(js[i + 3], sessions.estimate_params(trials), f"estimate {k}")
             i += 4
             for t in trials:
