@@ -265,3 +265,48 @@ test('critical infrastructure is registered nationally and has no right to an ex
   assert.ok(jobs.indexOf('p_register') >= 0 && jobs.indexOf('d_explain') >= 0);
   assert.equal(jobs.indexOf('p_register_national'), -1);
 });
+
+test('personal use only removes deployer duties', function () {
+  const both = M.classify({ role: 'both', excluded: 'personal', interacts: true, deepfake: true }, AS_OF);
+  assert.deepEqual(plain(both.roles), ['provider']);
+  assert.deepEqual(ids(both), ['literacy', 't_interact'], 'the deployer deepfake duty falls away');
+  assert.ok(both.trace.some(function (s) { return s.article === 'Art 2(10)'; }));
+  assert.equal(M.classify({ role: 'deployer', excluded: 'personal', deepfake: true }, AS_OF).tier, 'outOfScope');
+});
+
+test('a ban that is not yet in force does not hide the duties that apply until then', function () {
+  const before = M.classify({ role: 'provider', prohibited: ['intimateImages'], generates: true }, AS_OF);
+  assert.equal(before.tier, 'prohibited');
+  assert.deepEqual(ids(before), ['literacy', 't_mark', 'ban_intimateImages']);
+  assert.equal(ob(before, 'ban_intimateImages').status, 'upcoming');
+  const after = M.classify({ role: 'provider', prohibited: ['intimateImages'], generates: true }, '2026-12-02');
+  assert.deepEqual(ids(after), ['literacy', 'ban_intimateImages'], 'once the ban applies, the analysis stops');
+  assert.equal(after.stopped, true);
+});
+
+test('an exemption cannot undo the Annex I route', function () {
+  const r = M.classify({ role: 'provider', annex1: true, annex3: 'employment', derogation: 'improve' }, AS_OF);
+  assert.equal(r.tier, 'highRisk');
+  assert.equal(r.route, 'annex1');
+  assert.equal(r.exempt, false);
+  assert.ok(r.trace.some(function (s) { return /stays high-risk as an Annex I product/.test(s.text); }));
+  assert.ok(!r.trace.some(function (s) { return /must document this assessment/.test(s.text); }));
+});
+
+test('fines: exempt deployers, missing turnover and public authorities', function () {
+  assert.equal(M.classify({ role: 'deployer', annex3: 'employment', derogation: 'improve', turnover: 100 }, AS_OF).penalty, null, 'only the literacy duty, which Art 99(4) does not list');
+  assert.equal(M.classify({ role: 'provider', annex3: 'employment', derogation: 'improve', turnover: 100 }, AS_OF).penalty.max, 15000000);
+  const sme = M.classify({ annex3: 'employment', sme: true }, AS_OF).penalty;
+  assert.equal(sme.turnoverKnown, false);
+  assert.equal(sme.max, 15000000, 'not EUR 0');
+  assert.equal(M.classify({ annex3: 'employment', sme: true, turnover: 10 }, AS_OF).penalty.max, 300000);
+  assert.equal(M.classify({ annex3: 'publicBenefits', deployerType: 'publicAuthority', turnover: 50 }, AS_OF).penalty.publicAuthority, true);
+});
+
+test('notes on answers read from a file', function () {
+  const notes = plain(M.inputNotes({ role: 'Deployer', profiling: 'yes', prohibited: 'csam', colour: 'blue', id: 'x' }));
+  assert.deepEqual(notes, ['role "Deployer" is not one of: provider, deployer, both', 'profiling "yes" is not true or false, so it was treated as false',
+    'prohibited "csam" is not a list, so it was ignored', 'unknown answer "colour" was ignored']);
+  assert.deepEqual(plain(M.inputNotes(M.RULES.examples[0])), []);
+  assert.deepEqual(plain(M.readRegisterCsv('constructor,name\nA,B\n').warnings), ['ignored unknown column(s): constructor']);
+});

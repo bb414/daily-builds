@@ -4,7 +4,6 @@ Simplified and illustrative, not legal advice.
 """
 
 import csv
-import decimal
 import io
 import json
 import re
@@ -30,19 +29,6 @@ def _trim(s):
     return s.strip(" \t\r\n")
 
 
-def js_number_string(x):
-    """JavaScript's String(x) for a finite, non-negative number."""
-    if x == int(x) and abs(x) < 1e21:
-        return str(int(x))
-    r = repr(float(x))
-    if "e" in r:
-        if abs(x) >= 1e-6:
-            return format(decimal.Decimal(r), "f")
-        mantissa, exponent = r.split("e")
-        return mantissa + "e" + ("-" if exponent.startswith("-") else "+") + exponent.lstrip("+-").lstrip("0")
-    return r
-
-
 def _cell(s):
     return '"' + s.replace('"', '""') + '"' if re.search(r'[",\r\n]', s) else s
 
@@ -62,7 +48,7 @@ def to_csv(answers_list):
             elif k == "prohibited":
                 cells.append(";".join(v))
             elif k == "turnover":
-                cells.append(js_number_string(v) if v else "")
+                cells.append(model.js_number_string(v) if v else "")
             elif k in BLANK and v == BLANK[k]:
                 cells.append("")
             else:
@@ -110,6 +96,8 @@ def read_csv_text(text):
     out = {"rows": [], "warnings": [], "error": None}
     if text.startswith("\ufeff"):
         text = text[1:]
+    if csv.field_size_limit() < 2 ** 31 - 1:
+        csv.field_size_limit(2 ** 31 - 1)  # the browser app has no limit on the length of a cell
     rows = [r for r in csv.reader(io.StringIO(text, newline="")) if any(_trim(c) for c in r)]
     if not rows:
         out["error"] = "it is empty"
@@ -143,8 +131,7 @@ def read_json(data):
         data = data["systems"]
     if not isinstance(data, list):
         raise ValueError("a JSON register must be a list of systems")
-    rows = [{"answers": a, "notes": [] if isinstance(a, dict) else ["this entry is not an object, so defaults were used"]}
-            for a in data]
+    rows = [{"answers": a, "notes": model.input_notes(a)} for a in data]
     if not rows:
         raise ValueError("it lists no systems")
     return rows

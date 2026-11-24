@@ -33,7 +33,7 @@ python3 -m ai_act_triage register examples/register.csv
 python3 -m ai_act_triage register examples/register.csv --markdown plan.md --csv duties.csv
 ```
 
-`classify` takes a JSON file of answers (the same names the app uses; see `examples/shortlister.json`). `register` takes a CSV with one system per row, or a JSON file the app downloaded. Column names are not case-sensitive, blank cells take the usual answer, and anything it cannot read is listed under "Notes on the input" rather than silently dropped. `examples/register-report.md` and `examples/register-duties.csv` show the output for the nine examples.
+`classify` takes a JSON file of answers (the same names the app uses; see `examples/shortlister.json`). `register` takes a CSV with one system per row, or a JSON file the app downloaded. Column names are not case-sensitive, blank cells take the usual answer, and anything it cannot read (an unknown column or answer, "Deployer" instead of "deployer", "maybe" for a yes/no question) is listed under "Notes on the input" rather than silently dropped. Dates are counted from today unless you give `--as-of`. `examples/register-report.md` and `examples/register-duties.csv` show the output for the nine examples.
 
 **Tests:**
 
@@ -72,11 +72,11 @@ The rules engine exists twice so that the app works as a single offline file and
 
 ## How it works
 
-**1. Scope** (Art 2). Out of scope if the system is not placed on the EU market, put into service there or used so that its output reaches the EU (Art 2(1)); if it is used only for military, defence or national security (Art 2(3)); if it is only for scientific research, or still in research and testing before being placed on the market (Art 2(6) and (8)); or, for deployers only, if an individual uses it for purely personal purposes (Art 2(10)).
+**1. Scope** (Art 2). Out of scope if the system is not placed on the EU market, put into service there or used so that its output reaches the EU (Art 2(1)); if it is used only for military, defence or national security (Art 2(3)); or if it is developed and put into service only for scientific research and development (Art 2(6)). A system still in development should be answered as it will be when placed on the market: research and testing before then is outside the Act, but testing in real-world conditions is not (Art 2(8)). Purely personal use by an individual removes only deployer duties (Art 2(10)): a deployer is then out of scope, and someone answering "both" keeps only the provider's duties.
 
-**2. Banned practices** (Art 5) stop the analysis: nothing else is assessed until the practice is removed.
+**2. Banned practices** (Art 5) in force on the chosen date stop the analysis: nothing else is assessed until the practice is removed. A ban that has not started yet (the two new ones before 2 December 2026, or any ban before 2 February 2025) is listed as an upcoming duty, and the other tests still run so the duties that apply in the meantime are shown.
 
-**3. High-risk.** A product, or a safety component of a product, under the EU product law in Annex I that needs a third-party conformity assessment is high-risk (Art 6(1)). A use listed in Annex III is high-risk (Art 6(2)) unless one of the four Art 6(3) conditions applies **and** the system does not profile people; profiling always makes an Annex III system high-risk. An exempt system still carries two duties: documenting the assessment (Art 6(4)) and registering in the EU database (Art 49(2)). Where both Annex I and Annex III apply, the app uses the Annex III route and its earlier date. A deployer who puts its name on a high-risk system, substantially modifies it or changes its intended purpose takes on the provider's duties too (Art 25(1)).
+**3. High-risk.** A product, or a safety component of a product, under the EU product law in Annex I that needs a third-party conformity assessment is high-risk (Art 6(1)). A use listed in Annex III is high-risk (Art 6(2)) unless one of the four Art 6(3) conditions applies **and** the system does not profile people; profiling always makes an Annex III system high-risk. An exempt system still carries two duties: documenting the assessment (Art 6(4)) and registering in the EU database (Art 49(2)). Where a system is both an Annex I product and a high-risk Annex III use, the app uses the Annex III route and its earlier date; an Art 6(3) exemption removes only the Annex III route, so such a product stays high-risk under Art 6(1). Every high-risk result also notes the transitional rule for systems already on the market (Art 111(2)). A deployer who puts its name on a high-risk system, substantially modifies it or changes its intended purpose takes on the provider's duties too (Art 25(1)).
 
 **4. Transparency** (Art 50) and **general-purpose AI models** (Arts 51 to 55) are assessed alongside, so a high-risk chatbot shows both sets of duties. The result's headline is the most serious tag; the others appear as "Also:" tags.
 
@@ -88,7 +88,7 @@ The rules engine exists twice so that the app works as a single offline file and
 
 ### The provisions, dates and thresholds this relies on
 
-Checked on 24 November 2026. Regulation (EU) 2024/1689 (the AI Act), as amended by **Regulation (EU) 2026/1744** of 8 July 2026 (the Digital Omnibus on AI), published in the Official Journal on 24 July 2026 and in force from 27 July 2026. The amending regulation's dates were checked against its text on EUR-Lex. The point that self-assessed exempt systems must still be registered (the Commission proposed removing this; the final text kept it in a simplified form) comes from law-firm commentary on the final text, not from the regulation itself.
+Checked on 24 November 2026. Regulation (EU) 2024/1689 (the AI Act), as amended by **Regulation (EU) 2026/1744** of 8 July 2026 (the Digital Omnibus on AI), published in the Official Journal on 24 July 2026 and in force from 27 July 2026. The amending regulation's dates were checked against its text on EUR-Lex. Two points come from published commentary quoting the final text rather than from the regulation itself: that self-assessed exempt systems must still be registered (the Commission proposed removing this; the final text kept it in a simplified form), and the new wording of Art 4 (providers and deployers "shall take measures to support the development of AI literacy").
 
 | What | Provision | Date or threshold used |
 |---|---|---|
@@ -105,7 +105,9 @@ Checked on 24 November 2026. Regulation (EU) 2024/1689 (the AI Act), as amended 
 | High-risk, Annex I products | Art 6(1), Art 113(c)(ii) as amended | From 2 August 2028 (was 2 August 2027) |
 | Exemptions and the profiling rule | Art 6(3), Art 6(4), Art 49(2) | Same date as Annex III |
 | Provider duties | Arts 9 to 15, 17 to 20, 43, 47 to 49, 72, 73 | Route date |
-| Critical infrastructure: national registration, no EU database entry, no right to an explanation, no impact assessment | Art 49(5), Art 49(3), Art 86(1), Art 27(1) | Annex III, point 2 |
+| Registration in the EU database | Art 49(1) (providers), Art 49(3) (public-authority deployers) | Annex III systems |
+| Critical infrastructure: national registration, no EU database entry, no right to an explanation, no impact assessment | Art 49(5), Art 49(1) and (3), Art 86(1), Art 27(1) | Annex III, point 2 |
+| High-risk systems already on the market | Art 111(2) | Caught only after a significant change in design; systems for public authorities must comply by 2 August 2030 (shown as a note) |
 | Deployer duties | Art 26(1), (2), (4) to (8), (11); Art 86 | Route date |
 | Fundamental rights impact assessment | Art 27 | Public bodies and private bodies providing public services, plus credit scoring and life or health insurance (Annex III, points 5(b) and (c)) |
 | Fines: banned practices | Art 99(3) | Up to €35m or 7% of worldwide annual turnover, whichever is higher |
@@ -114,7 +116,7 @@ Checked on 24 November 2026. Regulation (EU) 2024/1689 (the AI Act), as amended 
 | Fines: public authorities | Art 99(8) | Each Member State decides how far fines apply (shown as a note) |
 | Fines: general-purpose model providers | Art 101 | Up to €15m or 3%, whichever is higher; no SME rule |
 
-Where a system has duties under both Art 99(4) and Art 101 (a model provider whose product also has transparency duties), the larger cap is shown. The Art 99(5) tier for supplying incorrect information (€7.5m or 1%) is in the rules file but is not tied to any classification.
+Where a system has duties under both Art 99(4) and Art 101 (a model provider whose product also has transparency duties), the larger cap is shown. With no turnover given, the fixed amount is shown and labelled as such. A deployer of an exempt Annex III system has only the literacy duty, which Art 99(4) does not list, so no fine tier is shown for it. The Art 99(5) tier for supplying incorrect information (€7.5m or 1%) is in the rules file but is not tied to any classification.
 
 **The UK view** is deliberately short. As of November 2026 the UK has no cross-sector AI statute in force. The government's approach asks existing regulators to apply five principles (from the 2023 white paper) within their remits. The app lists the laws that already apply (UK GDPR and the Data Protection Act 2018, including the automated decision-making rules as changed by the Data (Use and Access) Act 2025; the Equality Act 2010; consumer law; the Online Safety Act 2023 for online services) and the regulators most likely to be engaged for each Annex III area.
 
@@ -122,10 +124,11 @@ Where a system has duties under both Art 99(4) and Art 101 (a model provider who
 
 - **Not legal advice, and not complete.** The Act runs to well over a hundred articles and thirteen annexes, with Commission guidelines, codes of practice and harmonised standards on top. This models the classification logic and the main duties only. Sector law, national rules, data protection and contract terms are out of scope.
 - **Answers carry the judgement.** Whether a use falls in Annex III, or whether an Art 6(3) exemption applies, is exactly where real assessments are argued. The app takes the answers as given; the pivots show which ones matter, not which are right.
+- Art 111(2) is shown as a note on every high-risk result rather than asked as a question, and Annex I products under Section B (vehicles, aircraft, ships, rail; Art 2(2)) are not told apart from Section A.
 - Annex III is summarised to one line per area; the real points are longer and have carve-outs (for example fraud detection under point 5(b)). Law enforcement and migration systems are registered in a secure, non-public section of the database (Art 49(4)); the app does not distinguish this.
 - The Omnibus's relief for small mid-cap companies (simplified documentation and lower fine caps) is mentioned in duty wording but not modelled in the fine calculation. Fines are statutory maxima, not predictions.
 - The provider and deployer duties are the main ones, not every sub-paragraph; for example the serious incident reporting deadlines in Art 73 (15 days, or 10 or 2 days in the gravest cases) are not shown.
-- The register lives in one browser's local storage. Clearing site data clears it; download a copy to keep it.
+- The register lives in one browser's local storage and uses each system's name as its key: adding or importing a system with the same name replaces the old one (the app says so). Clearing site data clears it; download a copy to keep it.
 - Names that begin with `=`, `+`, `-` or `@` are written to CSV as they are. Spreadsheet programs may treat such cells as formulas.
 - Legal facts were checked once, on 24 November 2026. If the Act is amended again, `rules.json` is the one place to change.
 

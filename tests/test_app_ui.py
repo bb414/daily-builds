@@ -154,12 +154,47 @@ class AppTests(unittest.TestCase):
         page.wait_for_function("document.querySelectorAll('#register tbody tr').length === 10")
         msg = page.inner_text("#reg-msg")
         self.assertIn("Imported 1 system from messy.csv. Check: New one: profiling", msg)
+        page.set_input_files("#reg-import", files=[{"name": "again.json", "mimeType": "application/json",
+                                                    "buffer": json.dumps([{"name": "New one", "role": "Provider"}]).encode("utf-8")}])
+        page.wait_for_function("document.getElementById('reg-msg').textContent.indexOf('again.json') > 0")
+        msg = page.inner_text("#reg-msg")
+        self.assertIn("1 system replaced one already in the register with the same name.", msg)
+        self.assertIn('New one: role "Provider" is not one of', msg)
+        self.assertEqual(page.locator("#register tbody tr").count(), 10)
         page.set_input_files("#reg-import", files=[{"name": "bad.csv", "mimeType": "text/csv", "buffer": b"title\nx\n"}])
         page.wait_for_function("document.getElementById('reg-msg').textContent.indexOf('Could not import') === 0")
         self.assertIn('it needs a "name" column', page.inner_text("#reg-msg"))
         self.assertEqual(page.locator("#register tbody tr").count(), 10)
         self.assertEqual(self.errors, [])
         page.close()
+
+    def test_unnamed_systems_get_unique_names(self):
+        page = self.open()
+        page.evaluate("window.localStorage.clear()")
+        page.reload()
+        page.fill("#a-name", "")
+        page.dispatch_event("#a-name", "input")
+        for _ in range(2):
+            page.click("#reg-add")
+        page.locator("#register tbody tr").nth(0).get_by_role("button", name="Remove").click()
+        page.click("#reg-add")
+        names = page.eval_on_selector_all("#register tbody tr td:first-child", "cells => cells.map(c => c.textContent)")
+        self.assertEqual(sorted(names), ["System 1", "System 2"], "a new unnamed system never overwrites another")
+        page.close()
+
+    def test_phone_bar_jumps_to_the_result(self):
+        page = self.open(390, 844)
+        page.evaluate("window.scrollTo(0, 0)")
+        bar = page.locator("#jump")
+        self.assertTrue(bar.is_visible())
+        self.assertIn("High-risk", bar.inner_text())
+        bar.click()
+        page.wait_for_function("document.getElementById('jump').classList.contains('away')")
+        self.assertEqual(self.errors, [])
+        page.close()
+        desk = self.open()
+        self.assertFalse(desk.locator("#jump").is_visible())
+        desk.close()
 
     def test_every_control_has_a_label(self):
         page = self.open()

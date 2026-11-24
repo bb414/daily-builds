@@ -259,7 +259,7 @@ var AiActTriage = (function () {
       {"id": "csam", "point": "Art 5(1)(bb)", "dateKey": "prohibitionsNew", "label": "Generating child sexual abuse material"},
       {"id": "socialScoring", "point": "Art 5(1)(c)", "dateKey": "prohibitions", "label": "Social scoring that leads to unjustified or unrelated detrimental treatment"},
       {"id": "crimeProfiling", "point": "Art 5(1)(d)", "dateKey": "prohibitions", "label": "Predicting that a person will commit a crime based solely on profiling or personality traits"},
-      {"id": "faceScraping", "point": "Art 5(1)(e)", "dateKey": "prohibitions", "label": "Building facial recognition databases by untargeted scraping of images from the internet or CCTV"},
+      {"id": "faceScraping", "point": "Art 5(1)(e)", "dateKey": "prohibitions", "label": "Building facial recognition databases by untargeted scraping of facial images from the internet or CCTV footage"},
       {"id": "emotionWork", "point": "Art 5(1)(f)", "dateKey": "prohibitions", "label": "Emotion recognition in a workplace or educational institution, other than for medical or safety reasons"},
       {"id": "biometricSensitive", "point": "Art 5(1)(g)", "dateKey": "prohibitions", "label": "Biometric categorisation to infer race, political opinions, trade union membership, beliefs, sex life or sexual orientation"},
       {"id": "realtimeRbi", "point": "Art 5(1)(h)", "dateKey": "prohibitions", "label": "Real-time remote biometric identification in public spaces for law enforcement, outside the narrow exceptions"}
@@ -330,7 +330,7 @@ var AiActTriage = (function () {
     "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
     "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices.",
     "questions": {"role": "Your role", "eu": "Used in the EU", "excluded": "Exclusion", "takeover": "Rebranded or substantially changed a high-risk system", "prohibited": "Banned practice", "annex1": "Product under Annex I", "annex3": "Annex III use", "derogation": "Art 6(3) exemption", "profiling": "Profiles people", "interacts": "Interacts directly with people", "generates": "Generates audio, images, video or text", "generatedBefore": "Generator on the market before 2 August 2026", "emotionBiocat": "Uses emotion recognition or biometric categorisation", "deepfake": "Publishes deepfakes or generated text on matters of public interest", "gpai": "Provides a general-purpose AI model", "gpaiOpen": "Model released under a free and open-source licence", "gpaiBefore": "Model on the market before 2 August 2025", "deployerType": "Type of deployer", "workplace": "Used at work, affecting staff", "sme": "SME or start-up"},
-    "choices": {"role": [{"id": "provider", "label": "Provider"}, {"id": "deployer", "label": "Deployer"}, {"id": "both", "label": "Both"}], "excluded": [{"id": "none", "label": "None of these"}, {"id": "military", "label": "Only for military, defence or national security"}, {"id": "research", "label": "Only for scientific research, or not yet on the market"}, {"id": "personal", "label": "Personal, non-professional use by an individual"}], "gpai": [{"id": "none", "label": "No"}, {"id": "gpai", "label": "Yes"}, {"id": "systemic", "label": "Yes, with systemic risk (for example over 10^25 FLOP of training compute)"}], "deployerType": [{"id": "private", "label": "Private business"}, {"id": "publicAuthority", "label": "Public authority or body governed by public law"}, {"id": "publicService", "label": "Private body providing public services"}]},
+    "choices": {"role": [{"id": "provider", "label": "Provider"}, {"id": "deployer", "label": "Deployer"}, {"id": "both", "label": "Both"}], "excluded": [{"id": "none", "label": "None of these"}, {"id": "military", "label": "Only for military, defence or national security"}, {"id": "research", "label": "Only for scientific research and development"}, {"id": "personal", "label": "Personal, non-professional use by an individual"}], "gpai": [{"id": "none", "label": "No"}, {"id": "gpai", "label": "Yes"}, {"id": "systemic", "label": "Yes, with systemic risk (for example over 10^25 FLOP of training compute)"}], "deployerType": [{"id": "private", "label": "Private business"}, {"id": "publicAuthority", "label": "Public authority or body governed by public law"}, {"id": "publicService", "label": "Private body providing public services"}]},
     "examples": [
       {"id": "shortlister", "name": "Shortlister: CV screening for a retail chain", "role": "deployer", "annex3": "employment", "profiling": true, "workplace": true, "turnover": 400},
       {"id": "helpdesk", "name": "Helpdesk chatbot on a shop website", "role": "both", "interacts": true, "generates": true, "generatedBefore": true, "turnover": 400},
@@ -420,16 +420,20 @@ var AiActTriage = (function () {
     var asOf = validIso(asOfIn) ? asOfIn : RULES.checked;
     var trace = [], tags = [];
     var step = function (text, article) { trace.push({ text: text, article: article || '' }); };
-    var res = { answers: a, asOf: asOf, inScope: true, route: null, highRisk: false, exempt: false, trace: trace };
+    var res = { answers: a, asOf: asOf, inScope: true, route: null, highRisk: false, exempt: false, stopped: false, trace: trace };
 
     // 1. Scope.
     if (!a.eu) { res.inScope = false; step('The system is not placed on the EU market or put into service there, and its output is not used in the EU.', 'Art 2(1)'); }
     else if (a.excluded === 'military') { res.inScope = false; step('Used exclusively for military, defence or national security purposes, which are excluded.', 'Art 2(3)'); }
-    else if (a.excluded === 'research') { res.inScope = false; step('Developed and used only for scientific research, or still in research and testing before being placed on the market.', 'Art 2(6) and (8)'); }
+    else if (a.excluded === 'research') { res.inScope = false; step('Developed and put into service only for scientific research and development.', 'Art 2(6)'); }
     else if (a.excluded === 'personal' && a.role === 'deployer') { res.inScope = false; step('Used by an individual for purely personal, non-professional purposes, so deployer duties do not apply.', 'Art 2(10)'); }
-    else step('In scope: placed on the EU market, put into service there, or used in a way whose output reaches the EU.', 'Art 2(1)');
+    else {
+      step('In scope: placed on the EU market, put into service there, or used in a way whose output reaches the EU.', 'Art 2(1)');
+      if (a.excluded === 'personal') step('Purely personal use by an individual removes only the deployer\'s duties; the provider\'s duties still apply.', 'Art 2(10)');
+    }
 
     var roles = a.role === 'both' ? ['provider', 'deployer'] : [a.role];
+    if (res.inScope && a.excluded === 'personal') roles = ['provider'];
     if (!res.inScope) {
       res.tier = 'outOfScope';
       return finish(res, a, roles, ['outOfScope']);
@@ -437,13 +441,21 @@ var AiActTriage = (function () {
 
     // 2. Banned practices.
     if (a.prohibited.length) {
+      var live = 0;
       a.prohibited.forEach(function (id) {
         var p = byId(RULES.prohibitions, id);
-        step('Banned practice: ' + lower(p.label) + '. Banned from ' + longDate(RULES.dates[p.dateKey].amended) + '.', p.point);
+        var from = RULES.dates[p.dateKey].amended;
+        if (daysBetween(asOf, from) <= 0) live++;
+        step('Banned practice: ' + lower(p.label) + '. Banned from ' + longDate(from) + (daysBetween(asOf, from) > 0 ? ', after the chosen date.' : '.'), p.point);
       });
-      step('A banned practice cannot be placed on the market, put into service or used in the EU, so the other tests are not run until it is removed.', 'Art 5');
-      res.tier = 'prohibited';
-      return finish(res, a, roles, ['prohibited']);
+      if (live) {
+        step('A banned practice cannot be placed on the market, put into service or used in the EU, so the other tests are not run until it is removed.', 'Art 5');
+        res.tier = 'prohibited';
+        res.stopped = true;
+        return finish(res, a, roles, ['prohibited']);
+      }
+      step('Until the ban applies, the other tests still run, so the duties that apply in the meantime are listed too.', 'Art 113');
+      tags.push('prohibited');
     }
 
     // 3. High-risk: products under Annex I, then the uses listed in Annex III.
@@ -459,8 +471,11 @@ var AiActTriage = (function () {
         res.highRisk = true; res.route = 'annex3';
       } else if (a.derogation) {
         var d = byId(RULES.derogations, a.derogation);
-        step('Not high-risk under the exemption: ' + lower(d.label) + '. The provider must document this assessment and register the system.', d.point + ', Art 6(4)');
-        res.exempt = !res.highRisk;
+        if (res.highRisk) step('An exemption applies to the Annex III use (' + lower(d.label) + '), but it only removes the Annex III route: the system stays high-risk as an Annex I product.', d.point);
+        else {
+          step('Not high-risk under the exemption: ' + lower(d.label) + '. The provider must document this assessment and register the system.', d.point + ', Art 6(4)');
+          res.exempt = true;
+        }
       } else {
         step('None of the exemptions applies, so it is high-risk.', 'Art 6(2)');
         res.highRisk = true; res.route = 'annex3';
@@ -473,6 +488,7 @@ var AiActTriage = (function () {
         step('You put your name on the system, changed it substantially or changed its intended purpose, so you take on the provider\'s duties as well.', 'Art 25(1)');
       }
       step('High-risk rules apply from ' + longDate(RULES.dates[res.route].amended) + ' (originally ' + longDate(RULES.dates[res.route].original) + ', before the Digital Omnibus).', RULES.dates[res.route].basis);
+      step('A high-risk system already on the market before then is generally caught only if its design changes significantly afterwards, but systems for public authorities must comply by 2 August 2030.', 'Art 111(2)');
     } else if (res.exempt) tags.push('exempt63');
 
     // 4. Transparency duties.
@@ -539,7 +555,7 @@ var AiActTriage = (function () {
     res.tags = tags;
     res.tierLabel = TIERS[res.tier] + (res.tier === 'highRisk' ? (res.route === 'annex1' ? ' (product under Annex I)' : ' (Annex III use)') : '');
     var obligations = [];
-    if (res.tier === 'prohibited') {
+    if (tags.indexOf('prohibited') >= 0) {
       a.prohibited.forEach(function (id) {
         var p = byId(RULES.prohibitions, id);
         obligations.push({ id: 'ban_' + id, role: 'both', article: p.point, text: 'Stop: ' + lower(p.label), dateKey: p.dateKey });
@@ -547,7 +563,7 @@ var AiActTriage = (function () {
     }
     if (res.inScope) {
       RULES.obligations.forEach(function (o) {
-        if (res.tier === 'prohibited' && o.id !== 'literacy') return;
+        if (res.stopped && o.id !== 'literacy') return;
         if (o.role !== 'both' && roles.indexOf(o.role) < 0) return;
         if (!triggered(o.trigger, res, a)) return;
         obligations.push({ id: o.id, role: o.role, article: o.article, text: o.text, dateKey: dateKeyFor(o, res, a) });
@@ -607,18 +623,20 @@ var AiActTriage = (function () {
   // The highest fine that could apply, in euros, for the company's turnover. When a system has duties under
   // two fine regimes (operator duties under Art 99(4) and model duties under Art 101), the larger cap is shown.
   function penaltyFor(res, a) {
+    // Operator duties under Art 99(4) are the provider's and deployer's high-risk and transparency duties; an exempt
+    // system's duties (documenting and registering) are the provider's alone.
     var keys = [];
-    if (res.tier === 'prohibited') keys.push('prohibited');
-    else {
-      if (res.highRisk || res.exempt || res.tags.indexOf('transparency') >= 0) keys.push('operator');
-      if (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) keys.push('gpai');
-    }
+    if (res.tags.indexOf('prohibited') >= 0) keys.push('prohibited');
+    if (res.highRisk || (res.exempt && res.roles.indexOf('provider') >= 0) || res.tags.indexOf('transparency') >= 0) keys.push('operator');
+    if (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) keys.push('gpai');
     var best = null;
     keys.forEach(function (key) {
       var p = RULES.penalties[key];
       var share = p.share * a.turnover * 1e6;
       var smeRule = a.sme && key !== 'gpai';
-      var c = { key: key, article: p.article, amount: p.amount, share: p.share, sme: smeRule, max: Math.round(smeRule ? Math.min(p.amount, share) : Math.max(p.amount, share)) };
+      // With no turnover given, only the fixed amount is known, so that is shown.
+      var max = a.turnover > 0 ? (smeRule ? Math.min(p.amount, share) : Math.max(p.amount, share)) : p.amount;
+      var c = { key: key, article: p.article, amount: p.amount, share: p.share, sme: smeRule, turnoverKnown: a.turnover > 0, max: Math.round(max) };
       if (!best || c.max > best.max) best = c;
     });
     // Each Member State decides how far fines can be imposed on public authorities (Art 99(8)).
@@ -736,6 +754,47 @@ var AiActTriage = (function () {
     return { tier: base.tier, tested: list.length, pivots: found };
   }
 
+  // ---------- Checking answers read from a file ----------
+  var BOOL_FIELDS = ['takeover', 'eu', 'annex1', 'profiling', 'interacts', 'generates', 'generatedBefore', 'emotionBiocat', 'deepfake', 'gpaiBefore', 'gpaiOpen', 'workplace', 'sme'];
+
+  // A value as it should appear in a note: text in quotes, numbers as JavaScript writes them.
+  function showValue(v) {
+    if (typeof v === 'string') return '"' + v + '"';
+    if (v === null) return 'null';
+    if (Array.isArray(v)) return 'a list';
+    if (typeof v === 'object') return 'an object';
+    return String(v);
+  }
+
+  // Everything normalise() had to ignore or change in answers read from a JSON file, in words.
+  function inputNotes(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ['the answers are not an object, so the defaults were used'];
+    var a = normalise(raw), notes = [];
+    var choices = { role: ROLES, excluded: EXCLUSIONS, annex3: ids(RULES.annex3), derogation: ids(RULES.derogations), gpai: GPAI, deployerType: DEPLOYER_TYPES };
+    var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+    Object.keys(raw).forEach(function (k) {
+      var v = raw[k];
+      if (k === 'id') return;
+      if (!own(a, k)) notes.push('unknown answer "' + k + '" was ignored');
+      else if (k === 'name') {
+        if (typeof v !== 'string') notes.push('name ' + showValue(v) + ' is not text, so it was left blank');
+        else if (Array.from(v).length > 120) notes.push('name was cut to 120 characters');
+      } else if (own(choices, k)) {
+        if (v !== a[k] && !(v === '' && (k === 'annex3' || k === 'derogation'))) notes.push(k + ' ' + showValue(v) + ' is not one of: ' + choices[k].join(', '));
+      } else if (BOOL_FIELDS.indexOf(k) >= 0) {
+        if (v !== true && v !== false) notes.push(k + ' ' + showValue(v) + ' is not true or false, so it was treated as ' + (a[k] ? 'true' : 'false'));
+      } else if (k === 'prohibited') {
+        if (!Array.isArray(v)) notes.push('prohibited ' + showValue(v) + ' is not a list, so it was ignored');
+        else v.forEach(function (x) { if (ids(RULES.prohibitions).indexOf(x) < 0) notes.push('prohibited ' + showValue(x) + ' is not a known banned practice'); });
+      } else if (k === 'turnover') {
+        var n = Number(v);
+        if (!isFinite(n) || n < 0) notes.push('turnover ' + showValue(v) + ' is not a number of euro millions, so 0 was used');
+        else if (n > 1e7) notes.push('turnover ' + showValue(v) + ' was capped at 10000000 (euro millions)');
+      }
+    });
+    return notes;
+  }
+
   // ---------- Register files ----------
   var CSV_BOOLS = ['takeover', 'eu', 'annex1', 'profiling', 'interacts', 'generates', 'generatedBefore', 'emotionBiocat',
     'deepfake', 'gpaiBefore', 'gpaiOpen', 'workplace', 'sme'];
@@ -829,7 +888,7 @@ var AiActTriage = (function () {
     var out = { rows: [], warnings: [], error: null };
     var rows = csvRows(text).filter(function (r) { return r.some(function (c) { return trimCell(c) !== ''; }); });
     if (!rows.length) { out.error = 'it is empty'; return out; }
-    var canonical = {};
+    var canonical = Object.create(null);
     CSV_COLUMNS.forEach(function (c) { canonical[c.toLowerCase()] = c; });
     var headers = rows[0].map(function (h) { h = trimCell(h); return canonical[h.toLowerCase()] || h; });
     if (headers.indexOf('name') < 0) { out.error = 'it needs a "name" column'; return out; }
@@ -837,7 +896,7 @@ var AiActTriage = (function () {
     headers.forEach(function (h) { if (h && CSV_COLUMNS.indexOf(h) < 0 && unknown.indexOf(h) < 0) unknown.push(h); });
     if (unknown.length) out.warnings.push('ignored unknown column(s): ' + unknown.join(', '));
     rows.slice(1).forEach(function (r) {
-      var cells = {};
+      var cells = Object.create(null);
       headers.forEach(function (h, j) { if (h) cells[h] = j < r.length ? trimCell(r[j]) : ''; });
       out.rows.push(registerRow(cells));
     });
@@ -849,7 +908,7 @@ var AiActTriage = (function () {
     RULES: RULES, TIERS: TIERS, TIER_ORDER: TIER_ORDER, ROLES: ROLES, EXCLUSIONS: EXCLUSIONS, GPAI: GPAI, DEPLOYER_TYPES: DEPLOYER_TYPES,
     normalise: normalise, classify: classify, daysBetween: daysBetween, validIso: validIso, longDate: longDate,
     omnibusChanges: omnibusChanges, roadmap: roadmap, pivots: pivots, answerLabel: answerLabel, euros: euros,
-    CSV_COLUMNS: CSV_COLUMNS, registerCsv: registerCsv, csvRows: csvRows, readRegisterCsv: readRegisterCsv
+    CSV_COLUMNS: CSV_COLUMNS, inputNotes: inputNotes, registerCsv: registerCsv, csvRows: csvRows, readRegisterCsv: readRegisterCsv
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -919,7 +978,7 @@ var AiActTriage = (function () {
       q('Name', el('input', { type: 'text', id: 'a-name', maxlength: '120' }), null, 'a-name'),
       q('Your role', radios('role', opts('role'), 'Your role'), 'Provider: develops it or has it developed and markets it under its own name. Deployer: uses it professionally.'),
       check('a-eu', 'Placed on the EU market, used in the EU, or its output is used in the EU', 'Art 2(1)'),
-      q('Exclusions', select('a-excluded', opts('excluded')), null, 'a-excluded'),
+      q('Exclusions', select('a-excluded', opts('excluded')), 'Still in development? Answer as it will be when placed on the market. Research and testing before then is outside the Act, but testing in real-world conditions is not (Art 2(8)).', 'a-excluded'),
       check('a-takeover', 'We put our name on someone else\'s system, changed it substantially, or changed its intended purpose', 'Art 25')
     ]));
 
@@ -1004,7 +1063,7 @@ var AiActTriage = (function () {
     var kpi = function (k, v, s) { return el('div', { className: 'kpi' }, [el('div', { className: 'k', text: k }), el('div', { className: 'v', text: v }), el('div', { className: 's', text: s })]); };
     kpis.appendChild(kpi('Duties', String(res.obligations.length), applies + (applies === 1 ? ' applies' : ' apply') + ' now, as of ' + longDate(res.asOf)));
     kpis.appendChild(kpi('Next deadline', res.nextDeadline ? longDate(res.nextDeadline.date) : 'None', res.nextDeadline ? res.nextDeadline.count + ' more ' + (res.nextDeadline.count === 1 ? 'duty starts' : 'duties start') : 'Everything listed already applies'));
-    kpis.appendChild(kpi('Maximum fine', res.penalty ? euros(res.penalty.max) : 'n/a', res.penalty ? (res.penalty.sme ? 'SME: the lower of ' : 'The higher of ') + euros(res.penalty.amount) + ' and ' + Math.round(res.penalty.share * 100) + '% of turnover (' + res.penalty.article + ')' + (res.penalty.publicAuthority ? '. For public authorities, national rules decide how far fines apply (Art 99(8))' : '') : 'No specific fine tier'));
+    kpis.appendChild(kpi('Maximum fine', res.penalty ? euros(res.penalty.max) : 'n/a', res.penalty ? fineNote(res.penalty) : 'No specific fine tier'));
 
     var trace = $('trace');
     trace.innerHTML = '';
@@ -1037,6 +1096,13 @@ var AiActTriage = (function () {
     renderPivots(res);
     renderTimeline(res);
     if (register.length) renderRegister();
+  }
+
+  function fineNote(p) {
+    var pct = Math.round(p.share * 100) + '% of turnover';
+    var text = p.turnoverKnown ? (p.sme ? 'SME: the lower of ' : 'The higher of ') + euros(p.amount) + ' and ' + pct + ' (' + p.article + ')'
+      : 'No turnover given, so this is the fixed amount (' + p.article + '); ' + (p.sme ? 'an SME pays the lower of this and ' : 'a larger company can face up to ') + pct;
+    return text + (p.publicAuthority ? '. For public authorities, national rules decide how far fines apply (Art 99(8))' : '');
   }
 
   // ---------- What would change the result ----------
@@ -1143,17 +1209,27 @@ var AiActTriage = (function () {
     try { var raw = JSON.parse(window.localStorage.getItem(STORE) || '[]'); register = Array.isArray(raw) ? raw.map(M.normalise) : []; }
     catch (e) { register = []; }
   }
-  function saveRegister() { try { window.localStorage.setItem(STORE, JSON.stringify(register)); } catch (e) { /* storage blocked: keep for this visit */ } }
+  // Returns false if the browser would not save it (private browsing, blocked storage): the register then lasts for this visit only.
+  function saveRegister() {
+    try { window.localStorage.setItem(STORE, JSON.stringify(register)); return true; } catch (e) { return false; }
+  }
+  var NOT_SAVED = ' This browser would not save the register, so it will be lost when the page closes: download a copy to keep it.';
+  // Keep two open tabs in step: when another tab changes the register, reload it here.
+  window.addEventListener('storage', function (e) { if (e.key === STORE) { loadRegister(); renderRegister(); } });
+  function freeName() {
+    var names = register.map(function (r) { return r.name; });
+    for (var n = 1; ; n++) if (names.indexOf('System ' + n) < 0) return 'System ' + n;
+  }
 
   // Add a system, or replace the one with the same name. Returns the stored answers and whether one was replaced.
   function addToRegister(answers, quiet) {
     var a = M.normalise(answers);
-    if (!a.name) a.name = 'System ' + (register.length + 1);
+    if (!a.name) a.name = freeName();
     var same = register.map(function (r) { return r.name; }).indexOf(a.name);
     if (same >= 0) register[same] = a; else register.push(a);
-    saveRegister();
+    var saved = saveRegister();
     if (!quiet) renderRegister();
-    return { answers: a, replaced: same >= 0 };
+    return { answers: a, replaced: same >= 0, saved: saved };
   }
 
   function renderRegister() {
@@ -1223,13 +1299,14 @@ var AiActTriage = (function () {
   function currentAsOf() { return M.validIso($('a-asof').value) ? $('a-asof').value : todayIso(); }
 
   $('reg-add').addEventListener('click', function () {
-    var replaced = addToRegister(readAnswers()).replaced;
-    $('reg-msg').textContent = replaced ? 'Updated that system in the register.' : 'Added to the register.';
+    var r = addToRegister(readAnswers());
+    $('reg-msg').textContent = (r.replaced ? 'Updated that system in the register.' : 'Added to the register.') + (r.saved ? '' : NOT_SAVED);
   });
   $('reg-examples').addEventListener('click', function () {
-    R.examples.forEach(function (e) { addToRegister(e, true); });
+    var saved = true;
+    R.examples.forEach(function (e) { saved = addToRegister(e, true).saved && saved; });
     renderRegister();
-    $('reg-msg').textContent = 'Added all ' + R.examples.length + ' examples.';
+    $('reg-msg').textContent = 'Added all ' + R.examples.length + ' examples.' + (saved ? '' : NOT_SAVED);
   });
   $('reg-clear').addEventListener('click', function () {
     if (register.length && !window.confirm('Remove every system from the register?')) return;
@@ -1263,20 +1340,25 @@ var AiActTriage = (function () {
       if (data && !Array.isArray(data) && Array.isArray(data.systems)) data = data.systems;
       if (!Array.isArray(data)) return 'Could not import ' + name + ': a JSON register must be a list of systems.';
       if (!data.length) return 'Could not import ' + name + ': it lists no systems.';
-      rows = data.map(function (a) { return { answers: a, notes: a && typeof a === 'object' && !Array.isArray(a) ? [] : ['this entry is not an object, so defaults were used'] }; });
+      rows = data.map(function (a) { return { answers: a, notes: M.inputNotes(a) }; });
     } else {
       var out = M.readRegisterCsv(text);
       if (out.error) return 'Could not import ' + name + ': ' + out.error + '.';
       rows = out.rows;
       warnings = out.warnings;
     }
-    var notes = warnings.slice();
+    var notes = warnings.slice(), replaced = 0, saved = true;
     rows.forEach(function (r) {
-      var a = addToRegister(r.answers, true).answers;
-      r.notes.forEach(function (n) { notes.push(a.name + ': ' + n); });
+      var added = addToRegister(r.answers, true);
+      if (added.replaced) replaced++;
+      saved = added.saved && saved;
+      r.notes.forEach(function (n) { notes.push(added.answers.name + ': ' + n); });
     });
     renderRegister();
-    return 'Imported ' + plural(rows.length, 'system', 'systems') + ' from ' + name + '.' + (notes.length ? ' Check: ' + notes.slice(0, 5).join('; ') + (notes.length > 5 ? '; and ' + (notes.length - 5) + ' more.' : '.') : '');
+    return 'Imported ' + plural(rows.length, 'system', 'systems') + ' from ' + name + '.' +
+      (replaced ? ' ' + plural(replaced, 'system', 'systems') + ' replaced one already in the register with the same name.' : '') +
+      (notes.length ? ' Check: ' + notes.slice(0, 5).join('; ') + (notes.length > 5 ? '; and ' + (notes.length - 5) + ' more.' : '.') : '') +
+      (saved ? '' : NOT_SAVED);
   }
   $('reg-import').addEventListener('change', function () {
     var file = this.files && this.files[0];

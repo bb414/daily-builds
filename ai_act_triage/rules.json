@@ -100,7 +100,7 @@
       "id": "faceScraping",
       "point": "Art 5(1)(e)",
       "dateKey": "prohibitions",
-      "label": "Building facial recognition databases by untargeted scraping of images from the internet or CCTV"
+      "label": "Building facial recognition databases by untargeted scraping of facial images from the internet or CCTV footage"
     },
     {
       "id": "emotionWork",
@@ -588,7 +588,7 @@
       },
       {
         "id": "research",
-        "label": "Only for scientific research, or not yet on the market"
+        "label": "Only for scientific research and development"
       },
       {
         "id": "personal",

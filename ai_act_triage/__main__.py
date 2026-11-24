@@ -6,6 +6,7 @@
 """
 
 import argparse
+import datetime
 import json
 import sys
 
@@ -28,8 +29,13 @@ def describe(res):
         out.append("No duties under the AI Act.")
     p = res["penalty"]
     if p:
-        out += ["", "Maximum fine: %s (%s of %s and %d%% of worldwide turnover, %s)." % (
-            euros(p["max"]), "the lower" if p["sme"] else "the higher", euros(p["amount"]), round(p["share"] * 100), p["article"])]
+        if p["turnoverKnown"]:
+            out += ["", "Maximum fine: %s (%s of %s and %d%% of worldwide turnover, %s)." % (
+                euros(p["max"]), "the lower" if p["sme"] else "the higher", euros(p["amount"]), round(p["share"] * 100), p["article"])]
+        else:
+            out += ["", "Maximum fine: %s (%s). No turnover was given, so this is the fixed amount; %s %d%% of worldwide turnover." % (
+                euros(p["max"]), p["article"], "an SME pays the lower of this and" if p["sme"] else "a larger company can face up to",
+                round(p["share"] * 100))]
         if p["publicAuthority"]:
             out.append("For public authorities, national rules decide how far fines apply (Art 99(8)).")
     out += ["", "The UK view:"] + ["  - " + n for n in res["uk"]]
@@ -70,7 +76,10 @@ def cmd_classify(args):
     if args.as_of and not model.valid_iso(args.as_of):
         print("--as-of must be a date written as YYYY-MM-DD", file=sys.stderr)
         return 2
-    print(describe(model.classify(answers, args.as_of)))
+    print(describe(model.classify(answers, args.as_of or datetime.date.today().isoformat())))
+    notes = model.input_notes(answers)
+    if notes:
+        print("\nNotes on the input:\n" + "\n".join("  - " + n for n in notes))
     return 0
 
 
@@ -78,9 +87,10 @@ def cmd_register(args):
     if args.as_of and not model.valid_iso(args.as_of):
         print("--as-of must be a date written as YYYY-MM-DD", file=sys.stderr)
         return 2
+    args.as_of = args.as_of or datetime.date.today().isoformat()
     try:
         rows, warnings = register.load(args.file)
-    except (OSError, ValueError, UnicodeDecodeError) as exc:
+    except (OSError, ValueError) as exc:  # UnicodeDecodeError and JSON errors are ValueErrors
         print("Could not read the register: %s" % exc, file=sys.stderr)
         return 2
     results = [model.classify(r["answers"], args.as_of) for r in rows]
@@ -106,11 +116,11 @@ def build_parser():
     sub = p.add_subparsers(dest="command", required=True)
     c = sub.add_parser("classify", help="classify one system from a JSON file of answers")
     c.add_argument("file")
-    c.add_argument("--as-of", help="check dates as of this day (YYYY-MM-DD); defaults to when the rules were last checked")
+    c.add_argument("--as-of", help="check dates as of this day (YYYY-MM-DD); defaults to today")
     c.set_defaults(func=cmd_classify)
     r = sub.add_parser("register", help="classify every system in a CSV register and plan the work by date")
     r.add_argument("file")
-    r.add_argument("--as-of", help="check dates as of this day (YYYY-MM-DD)")
+    r.add_argument("--as-of", help="check dates as of this day (YYYY-MM-DD); defaults to today")
     r.add_argument("--markdown", help="also write a Markdown roadmap report to this file")
     r.add_argument("--csv", help="also write every duty, with dates, to this CSV file")
     r.set_defaults(func=cmd_register)

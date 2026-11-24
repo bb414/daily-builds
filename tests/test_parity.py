@@ -96,12 +96,30 @@ class ParityTests(unittest.TestCase):
                  "\ufeff Name ,ROLE,profiling,colour,,name\nA,boss,maybe,blue,zz,B\n,,,\n\"C\",provider,YES\n",
                  'name,turnover,prohibited,eu\r\n"open quote,12\r\nD,abc,"csam, madeUp;socialScoring",\r\nE,-1,,No\r\nF,0x10,,maybe\n',
                  'name,annex3,derogation,gpai,deployerType,excluded\nG,credit,improve,systemic,publicService,research\nH,Credit,x,,nope,\n',
-                 'a"b,name\n"x"y,z\n"""q""",w\n']
+                 'a"b,name\n"x"y,z\n"""q""",w\n', "constructor,name,__proto__,toString\nA,B,C,D\n",
+                 "name,turnover\nbig," + "9" * 200000 + "\n"]
         js = call_js([{"fn": "readRegisterCsv", "args": [t]} for t in texts] + [{"fn": "csvRows", "args": [t]} for t in texts])
         for t, j in zip(texts, js[:len(texts)]):
             self.assertEqual(j, register.read_csv_text(t), repr(t))
         for t, j in zip(texts, js[len(texts):]):
             self.assertEqual(j, list(csv.reader(io.StringIO(t[1:] if t.startswith("\ufeff") else t, newline=""))), repr(t))
+
+    def test_input_notes_match(self):
+        odd = [None, [], "x", {}, {"role": "Deployer", "annex3": "Employment", "profiling": "yes", "prohibited": "csam", "turnover": "lots",
+               "colour": 1, "id": "x", "eu": None, "name": 5}, {"2": 1, "b": 2, "1": 3, "name": "n" * 130, "turnover": 1e9},
+               {"prohibited": ["csam", 4, None, "made up"], "gpai": ["gpai"], "annex3": "", "derogation": "", "sme": 1.5, "turnover": -2},
+               {"turnover": "400\u202f", "takeover": "true", "excluded": None, "deployerType": "publicAuthority"},
+               {"turnover": 10 ** 400}, {"turnover": "0x" + "f" * 300}, {"turnover": [1, 2]}, {"turnover": 1e-7}] + model.RULES["examples"]
+        js = call_js([{"fn": "inputNotes", "args": [a]} for a in odd])
+        for a, j in zip(odd, js):
+            self.assertEqual(j, model.input_notes(a), repr(a)[:200])
+
+    def test_numbers_and_dates_at_the_edges(self):
+        values = ["400\u202f", "\u3000 12 \u2028", "\x1c5", "0x" + "f" * 300, 10 ** 400, "1e400", " -0 ", "0b101", "Infinity"]
+        js = call_js([{"fn": "normalise", "args": [{"turnover": v}]} for v in values])
+        self.assertEqual([j["turnover"] for j in js], [model.normalise({"turnover": v})["turnover"] for v in values])
+        isos = ["0050-01-01", "0099-12-31", "0100-01-01", "1900-02-29", "2000-02-29", "9999-12-31"]
+        self.assertEqual(call_js([{"fn": "validIso", "args": [d]} for d in isos]), [model.valid_iso(d) for d in isos])
 
     def test_dates_match(self):
         isos = ["2026-02-30", "2028-02-29", "2027-13-01", "2026-1-01", "", None, "2026-11-24"]

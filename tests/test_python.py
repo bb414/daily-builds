@@ -49,17 +49,30 @@ class RulingTests(unittest.TestCase):
 
 class CommandLineTests(unittest.TestCase):
     def test_classify_example(self):
-        code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"))
+        code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"), "--as-of", "2026-11-24")
         self.assertEqual(code, 0)
         self.assertIn("High-risk (Annex III use)", out)
         self.assertIn("2 December 2027  in 373 days", out)
         self.assertIn("Maximum fine: €15m", out)
 
     def test_classify_lists_what_would_change_the_result(self):
-        code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"))
+        code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"), "--as-of", "2026-11-24")
         self.assertIn("What would change the result (20 single changes tried, 10 matter):", out)
         self.assertIn('"Annex III use" from Employment to none: becomes Minimal risk; 8 duties removed, no specific fine tier (was up to €15m).', out)
         self.assertIn('"SME or start-up" from no to yes: stays High-risk (Annex III use); maximum fine €12m (was €15m).', out)
+
+    def test_classify_lists_what_it_could_not_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "odd.json"
+            path.write_text(json.dumps({"role": "Deployer", "annex3": "Employment", "profiling": "yes", "colour": "blue"}), encoding="utf-8")
+            code, out, _ = run_cli("classify", str(path), "--as-of", "2026-11-24")
+            self.assertEqual(code, 0)
+            self.assertIn("Minimal risk", out)
+            self.assertIn('Notes on the input:\n  - role "Deployer" is not one of: provider, deployer, both', out)
+            self.assertIn('unknown answer "colour" was ignored', out)
+            path.write_text(json.dumps({"annex3": "employment", "sme": True}), encoding="utf-8")
+            code, out, _ = run_cli("classify", str(path), "--as-of", "2026-11-24")
+            self.assertIn("No turnover was given, so this is the fixed amount", out)
 
     def test_bad_input(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -86,7 +99,7 @@ class RegisterTests(unittest.TestCase):
     def test_register_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             md, dc = pathlib.Path(tmp) / "plan.md", pathlib.Path(tmp) / "duties.csv"
-            code, out, _ = run_cli("register", str(ROOT / "examples" / "register.csv"), "--markdown", str(md), "--csv", str(dc))
+            code, out, _ = run_cli("register", str(ROOT / "examples" / "register.csv"), "--as-of", "2026-11-24", "--markdown", str(md), "--csv", str(dc))
             self.assertEqual(code, 0)
             self.assertIn("AI register: 9 systems", out)
             self.assertIn("2 December 2027", out)
@@ -106,7 +119,7 @@ class RegisterTests(unittest.TestCase):
             path.write_text(json.dumps({"systems": model.RULES["examples"][:3] + [7]}), encoding="utf-8")
             rows, warnings = register.load(path)
             self.assertEqual(len(rows), 4)
-            self.assertEqual(rows[3]["notes"], ["this entry is not an object, so defaults were used"])
+            self.assertEqual(rows[3]["notes"], ["the answers are not an object, so the defaults were used"])
             code, out, _ = run_cli("register", str(path))
             self.assertEqual(code, 0)
             self.assertIn("AI register: 4 systems", out)

@@ -6,6 +6,7 @@ and both implementations, agree.
 """
 
 import datetime
+import decimal
 import json
 import math
 import pathlib
@@ -35,13 +36,45 @@ _JS_DECIMAL = re.compile(r"[+-]?(Infinity|([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0
 _JS_PREFIXED = re.compile(r"0([xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)")
 
 
+# The characters JavaScript's Number() and trim() treat as white space.
+_JS_SPACE = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
+
+def _to_float(n):
+    """float(n), but a huge integer becomes infinity, as it does in JavaScript, instead of raising OverflowError."""
+    try:
+        return float(n)
+    except OverflowError:
+        return math.inf if n > 0 else -math.inf
+
+
+def js_number_string(x):
+    """JavaScript's String(x) for a number."""
+    x = _to_float(x)
+    if x != x:
+        return "NaN"
+    if x in (math.inf, -math.inf):
+        return "Infinity" if x > 0 else "-Infinity"
+    if x < 0:
+        return "-" + js_number_string(-x)
+    if x == int(x) and x < 1e21:
+        return str(int(x))
+    r = repr(x)
+    if "e" in r:
+        if 1e-6 <= x < 1e21:
+            return format(decimal.Decimal(r), "f")
+        mantissa, exponent = r.split("e")
+        return mantissa + "e" + ("-" if exponent.startswith("-") else "+") + exponent.lstrip("+-").lstrip("0")
+    return r
+
+
 def _js_string(value):
     if value is None:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
+    if isinstance(value, (int, float)):
+        return js_number_string(value)
     if isinstance(value, list):
         return ",".join(_js_string(v) for v in value)
     if isinstance(value, dict):
@@ -58,15 +91,15 @@ def js_number(value):
     if isinstance(value, bool):
         return 1.0 if value else 0.0
     if isinstance(value, (int, float)):
-        return float(value)
+        return _to_float(value)
     if isinstance(value, list):
         return js_number(_js_string(value))
     if isinstance(value, str):
-        text = value.strip(" \t\n\r\v\f ﻿")
+        text = value.strip(_JS_SPACE)
         if not text:
             return 0.0
         if _JS_PREFIXED.fullmatch(text):
-            return float(int(text, 0))
+            return _to_float(int(text, 0))
         if _JS_DECIMAL.fullmatch(text):
             return float(text.replace("Infinity", "inf"))
     return math.nan
@@ -130,6 +163,8 @@ def valid_iso(s):
     """A real calendar date written as YYYY-MM-DD."""
     if not isinstance(s, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", s):
         return False
+    if int(s[:4]) < 100:
+        return False  # JavaScript's Date.UTC reads years 0 to 99 as 1900 to 1999, so the app rejects them too
     try:
         datetime.date(int(s[:4]), int(s[5:7]), int(s[8:]))
     except ValueError:
@@ -159,7 +194,7 @@ def classify(answers_in, as_of=None):
     def step(text, article=""):
         trace.append({"text": text, "article": article})
 
-    res = {"answers": a, "asOf": as_of, "inScope": True, "route": None, "highRisk": False, "exempt": False, "trace": trace}
+    res = {"answers": a, "asOf": as_of, "inScope": True, "route": None, "highRisk": False, "exempt": False, "stopped": False, "trace": trace}
 
     if not a["eu"]:
         res["inScope"] = False
@@ -169,25 +204,37 @@ def classify(answers_in, as_of=None):
         step("Used exclusively for military, defence or national security purposes, which are excluded.", "Art 2(3)")
     elif a["excluded"] == "research":
         res["inScope"] = False
-        step("Developed and used only for scientific research, or still in research and testing before being placed on the market.", "Art 2(6) and (8)")
+        step("Developed and put into service only for scientific research and development.", "Art 2(6)")
     elif a["excluded"] == "personal" and a["role"] == "deployer":
         res["inScope"] = False
         step("Used by an individual for purely personal, non-professional purposes, so deployer duties do not apply.", "Art 2(10)")
     else:
         step("In scope: placed on the EU market, put into service there, or used in a way whose output reaches the EU.", "Art 2(1)")
+        if a["excluded"] == "personal":
+            step("Purely personal use by an individual removes only the deployer's duties; the provider's duties still apply.", "Art 2(10)")
 
     roles = ["provider", "deployer"] if a["role"] == "both" else [a["role"]]
+    if res["inScope"] and a["excluded"] == "personal":
+        roles = ["provider"]
     if not res["inScope"]:
         res["tier"] = "outOfScope"
         return _finish(res, a, roles, ["outOfScope"])
 
     if a["prohibited"]:
+        live = 0
         for pid in a["prohibited"]:
             p = _by_id(RULES["prohibitions"], pid)
-            step("Banned practice: %s. Banned from %s." % (_lower(p["label"]), long_date(RULES["dates"][p["dateKey"]]["amended"])), p["point"])
-        step("A banned practice cannot be placed on the market, put into service or used in the EU, so the other tests are not run until it is removed.", "Art 5")
-        res["tier"] = "prohibited"
-        return _finish(res, a, roles, ["prohibited"])
+            start = RULES["dates"][p["dateKey"]]["amended"]
+            later = days_between(as_of, start) > 0
+            live += 0 if later else 1
+            step("Banned practice: %s. Banned from %s%s" % (_lower(p["label"]), long_date(start), ", after the chosen date." if later else "."), p["point"])
+        if live:
+            step("A banned practice cannot be placed on the market, put into service or used in the EU, so the other tests are not run until it is removed.", "Art 5")
+            res["tier"] = "prohibited"
+            res["stopped"] = True
+            return _finish(res, a, roles, ["prohibited"])
+        step("Until the ban applies, the other tests still run, so the duties that apply in the meantime are listed too.", "Art 113")
+        tags.append("prohibited")
 
     if a["annex1"]:
         res["highRisk"], res["route"] = True, "annex1"
@@ -200,9 +247,12 @@ def classify(answers_in, as_of=None):
             res["highRisk"], res["route"] = True, "annex3"
         elif a["derogation"]:
             d = _by_id(RULES["derogations"], a["derogation"])
-            step("Not high-risk under the exemption: %s. The provider must document this assessment and register the system." % _lower(d["label"]),
-                 d["point"] + ", Art 6(4)")
-            res["exempt"] = not res["highRisk"]
+            if res["highRisk"]:
+                step("An exemption applies to the Annex III use (%s), but it only removes the Annex III route: the system stays high-risk as an Annex I product." % _lower(d["label"]), d["point"])
+            else:
+                step("Not high-risk under the exemption: %s. The provider must document this assessment and register the system." % _lower(d["label"]),
+                     d["point"] + ", Art 6(4)")
+                res["exempt"] = True
         else:
             step("None of the exemptions applies, so it is high-risk.", "Art 6(2)")
             res["highRisk"], res["route"] = True, "annex3"
@@ -213,6 +263,7 @@ def classify(answers_in, as_of=None):
             step("You put your name on the system, changed it substantially or changed its intended purpose, so you take on the provider's duties as well.", "Art 25(1)")
         d = RULES["dates"][res["route"]]
         step("High-risk rules apply from %s (originally %s, before the Digital Omnibus)." % (long_date(d["amended"]), long_date(d["original"])), d["basis"])
+        step("A high-risk system already on the market before then is generally caught only if its design changes significantly afterwards, but systems for public authorities must comply by 2 August 2030.", "Art 111(2)")
     elif res["exempt"]:
         tags.append("exempt63")
 
@@ -289,13 +340,13 @@ def _finish(res, a, roles, tags):
     suffix = (" (product under Annex I)" if res["route"] == "annex1" else " (Annex III use)") if res["tier"] == "highRisk" else ""
     res["tierLabel"] = TIERS[res["tier"]] + suffix
     obligations = []
-    if res["tier"] == "prohibited":
+    if "prohibited" in tags:
         for pid in a["prohibited"]:
             p = _by_id(RULES["prohibitions"], pid)
             obligations.append({"id": "ban_" + pid, "role": "both", "article": p["point"], "text": "Stop: " + _lower(p["label"]), "dateKey": p["dateKey"]})
     if res["inScope"]:
         for o in RULES["obligations"]:
-            if res["tier"] == "prohibited" and o["id"] != "literacy":
+            if res["stopped"] and o["id"] != "literacy":
                 continue
             if o["role"] != "both" and o["role"] not in roles:
                 continue
@@ -355,21 +406,24 @@ def roadmap(results):
 
 def _penalty(res, a):
     """The highest fine that could apply. With duties under both Art 99(4) and Art 101, the larger cap is shown."""
+    # Operator duties under Art 99(4) are the provider's and deployer's high-risk and transparency duties; an exempt
+    # system's duties (documenting and registering) are the provider's alone.
     keys = []
-    if res["tier"] == "prohibited":
+    if "prohibited" in res["tags"]:
         keys.append("prohibited")
-    else:
-        if res["highRisk"] or res["exempt"] or "transparency" in res["tags"]:
-            keys.append("operator")
-        if "gpai" in res["tags"] or "gpaiSystemic" in res["tags"]:
-            keys.append("gpai")
+    if res["highRisk"] or (res["exempt"] and "provider" in res["roles"]) or "transparency" in res["tags"]:
+        keys.append("operator")
+    if "gpai" in res["tags"] or "gpaiSystemic" in res["tags"]:
+        keys.append("gpai")
     best = None
     for key in keys:
         p = RULES["penalties"][key]
         share = p["share"] * a["turnover"] * 1e6
         sme_rule = a["sme"] and key != "gpai"
+        # With no turnover given, only the fixed amount is known, so that is shown.
+        top = (min(p["amount"], share) if sme_rule else max(p["amount"], share)) if a["turnover"] > 0 else p["amount"]
         c = {"key": key, "article": p["article"], "amount": p["amount"], "share": p["share"], "sme": sme_rule,
-             "max": js_round(min(p["amount"], share) if sme_rule else max(p["amount"], share))}
+             "turnoverKnown": a["turnover"] > 0, "max": js_round(top)}
         if best is None or c["max"] > best["max"]:
             best = c
     if best:
@@ -404,6 +458,72 @@ def euros(x):
     if x >= 1e6:
         return "€%sm" % hundredths(js_round(x / 1e4))
     return "€{:,}".format(js_round(x))
+
+
+# ---------- Checking answers read from a file ----------
+BOOL_FIELDS = ["takeover", "eu", "annex1", "profiling", "interacts", "generates", "generatedBefore", "emotionBiocat",
+               "deepfake", "gpaiBefore", "gpaiOpen", "workplace", "sme"]
+_INDEX_KEY = re.compile(r"0|[1-9][0-9]*")
+
+
+def _js_key_order(keys):
+    """The order JavaScript's Object.keys gives: array-index keys in numeric order, then the rest as written."""
+    index = [k for k in keys if _INDEX_KEY.fullmatch(k) and int(k) < 4294967295]
+    return sorted(index, key=int) + [k for k in keys if k not in index]
+
+
+def show_value(v):
+    """A value as it should appear in a note: text in quotes, numbers as JavaScript writes them."""
+    if isinstance(v, str):
+        return '"%s"' % v
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, list):
+        return "a list"
+    if isinstance(v, dict):
+        return "an object"
+    return js_number_string(v)
+
+
+def input_notes(raw):
+    """Everything normalise() had to ignore or change in answers read from a JSON file, in words."""
+    if not isinstance(raw, dict):
+        return ["the answers are not an object, so the defaults were used"]
+    a, notes = normalise(raw), []
+    choices = {"role": ROLES, "excluded": EXCLUSIONS, "annex3": _ids(RULES["annex3"]), "derogation": _ids(RULES["derogations"]),
+               "gpai": GPAI, "deployerType": DEPLOYER_TYPES}
+    for k in _js_key_order(list(raw)):
+        v = raw[k]
+        if k == "id":
+            continue
+        if k not in a:
+            notes.append('unknown answer "%s" was ignored' % k)
+        elif k == "name":
+            if not isinstance(v, str):
+                notes.append("name %s is not text, so it was left blank" % show_value(v))
+            elif len(v) > 120:
+                notes.append("name was cut to 120 characters")
+        elif k in choices:
+            if v != a[k] or type(v) is not str:
+                if not (v == "" and k in ("annex3", "derogation")):
+                    notes.append("%s %s is not one of: %s" % (k, show_value(v), ", ".join(choices[k])))
+        elif k in BOOL_FIELDS:
+            if v is not True and v is not False:
+                notes.append("%s %s is not true or false, so it was treated as %s" % (k, show_value(v), "true" if a[k] else "false"))
+        elif k == "prohibited":
+            if not isinstance(v, list):
+                notes.append("prohibited %s is not a list, so it was ignored" % show_value(v))
+            else:
+                notes += ["prohibited %s is not a known banned practice" % show_value(x) for x in v if not (isinstance(x, str) and x in _ids(RULES["prohibitions"]))]
+        elif k == "turnover":
+            n = js_number(v)
+            if not math.isfinite(n) or n < 0:
+                notes.append("turnover %s is not a number of euro millions, so 0 was used" % show_value(v))
+            elif n > 1e7:
+                notes.append("turnover %s was capped at 10000000 (euro millions)" % show_value(v))
+    return notes
 
 
 # ---------- What would change the result ----------
