@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from .design import design_csv, design_html, design_report
-from .model import DEFAULTS, RULES, simulate, skill_by_length
+from .model import DEFAULTS, RULES, normalise, simulate, skill_by_length
 from .report import sample_report, simulate_report
 
 FLAGS = {
@@ -74,7 +74,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "design":
             if args.sims_each < 1 or args.workers < 1:
                 raise ValueError("--sims-each and --workers must be at least 1")
-            from .model import normalise
             params = normalise(p)
             rows = skill_by_length(params, args.sims_each, args.workers)
             print(design_report(params, rows, args.sims_each))

@@ -171,3 +171,11 @@ test('skill shows more clearly the longer the challenge runs', () => {
   while (!run.advance(13)) { /* keep going */ }
   assert.deepEqual(run.result(), rows);
 });
+
+test('when skills tie, a win by any of the most skilled teams counts', () => {
+  const r = M.simulate({ sims: 100, skillSpread: 0, yourSharpe: 0 });
+  assert.equal(r.winners.mostSkilled, 1);
+  const rows = M.skillByLength({ skillSpread: 0, yourSharpe: 0, teams: 6 }, 5);
+  // Under the drawdown rule every team can be knocked out, leaving no winner, so check the others.
+  rows.filter((row) => row.rule !== 'drawdown').forEach((row) => assert.equal(row.pBestWins, 1));
+});

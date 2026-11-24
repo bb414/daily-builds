@@ -116,6 +116,17 @@ class AppTests(unittest.TestCase):
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
         self.assertEqual(self.problems, [])
 
+    def test_follows_a_dark_system_theme(self):
+        def background(scheme):
+            page = self.browser.new_page(viewport={"width": 1280, "height": 900}, color_scheme=scheme)
+            page.goto(APP)
+            page.wait_for_function(DONE, timeout=30000)
+            rgb = page.evaluate("getComputedStyle(document.body).backgroundColor")
+            page.close()
+            return sum(int(v) for v in rgb[rgb.index("(") + 1:rgb.index(")")].split(",")[:3])
+        self.assertGreater(background("light"), 600)
+        self.assertLess(background("dark"), 150)
+
 
 if __name__ == "__main__":
     unittest.main()

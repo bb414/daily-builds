@@ -308,7 +308,7 @@ details.about[open] summary::after { content: " \25b4"; }
     <summary><h2 id="about-h">How it works</h2></summary>
     <div id="about">
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
-      <p>Your team is then run at your chosen risk and at twenty other levels on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
+      <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
       <p><strong>Going for broke.</strong> Your team, and a share of the steady rivals, can switch to a much higher risk if they are outside the top three at a checkpoint. Rivals judge their position against the other rivals, so their choices do not depend on yours and the risk curve still compares like with like. Studies of fund managers find the same behaviour: managers who are behind part-way through the year tend to raise their risk (Brown, Harlow and Starks, 1996; Chevalier and Ellison, 1997).</p>
       <p>Two thousand challenges are simulated each time. "New luck" draws a different two thousand, which shows how much the numbers move by chance: usually by less than a point.</p>
       <h3>What it means</h3>
@@ -749,16 +749,12 @@ var LeaderboardModel = (function () {
       add(state.grid[i], placeYou(c.rivals, alt), alt);
     }
     // Who won this competition, was it the most skilled team, and had it gone for broke?
-    var best = you.out ? null : { score: you.score, sharpe: p.yourSharpe, kind: 'you', index: -1, switched: you.switchDay !== null };
+    var best = you.out ? null : { score: you.score, sharpe: p.yourSharpe, kind: 'you', switched: you.switchDay !== null };
     var topSkill = p.yourSharpe;
-    var topSkillIndex = -1;
     c.rivals.forEach(function (rv, j) {
-      if (rv.sharpe > topSkill) {
-        topSkill = rv.sharpe;
-        topSkillIndex = j;
-      }
+      if (rv.sharpe > topSkill) topSkill = rv.sharpe;
       if (!rv.out && (best === null || rv.score > best.score)) {
-        best = { score: rv.score, sharpe: rv.sharpe, kind: rv.gambler ? 'gambler' : 'steady', index: j, switched: rv.switchDay !== null };
+        best = { score: rv.score, sharpe: rv.sharpe, kind: rv.gambler ? 'gambler' : 'steady', switched: rv.switchDay !== null };
       }
     });
     var w = state.winners;
@@ -767,7 +763,7 @@ var LeaderboardModel = (function () {
     } else {
       w[best.kind] += 1;
       if (best.sharpe <= 0) w.noEdge += 1;
-      if (best.index === topSkillIndex) w.mostSkilled += 1;
+      if (best.sharpe === topSkill) w.mostSkilled += 1;
       if (best.switched) w.switched += 1;
     }
   }
@@ -890,14 +886,14 @@ var LeaderboardModel = (function () {
     });
     var places = averageRanks(scores);
     job.corr += correlation(averageRanks(skills), places);
-    var topSkill = 0;
+    var topSkill = skills[0];
     var winner = -1;
-    for (var i = 1; i < skills.length; i++) if (skills[i] > skills[topSkill]) topSkill = i;
+    for (var i = 1; i < skills.length; i++) if (skills[i] > topSkill) topSkill = skills[i];
     for (var j = 0; j < scores.length; j++) {
       if (scores[j] > -Infinity && (winner < 0 || scores[j] > scores[winner])) winner = j;
     }
     if (winner >= 0) {
-      if (winner === topSkill) job.best += 1;
+      if (skills[winner] === topSkill) job.best += 1;
       if (skills[winner] <= 0) job.noEdge += 1;
       if (winner > 0 && c.rivals[winner - 1].gambler) job.gambler += 1;
     }
@@ -915,8 +911,18 @@ var LeaderboardModel = (function () {
     var p = normalise(params);
     var c = runCompetition(p, k, true);
     var you = runYou(p, c, p.yourVol, true);
+    // Rivals are numbered in a shuffled order (from a separate generator, so results are
+    // untouched); otherwise the gamblers would always be the lowest-numbered teams.
+    var namer = makeRng((competitionSeed(p.seed, k) ^ 0x5bd1e995) >>> 0);
+    var numbers = c.rivals.map(function (rv, j) { return j + 2; });
+    for (var i = numbers.length - 1; i > 0; i--) {
+      var swap = Math.floor(namer.uniform() * (i + 1));
+      var tmp = numbers[i];
+      numbers[i] = numbers[swap];
+      numbers[swap] = tmp;
+    }
     var teams = c.rivals.map(function (rv, j) {
-      return { name: 'Team ' + (j + 2), you: false, gambler: rv.gambler, sharpe: rv.sharpe, vol: rv.vol,
+      return { name: 'Team ' + numbers[j], you: false, gambler: rv.gambler, sharpe: rv.sharpe, vol: rv.vol,
         ret: rv.ret, realisedSharpe: rv.realisedSharpe, maxDD: rv.maxDD, bust: rv.bust, out: rv.out,
         score: rv.score, switchDay: rv.switchDay, path: rv.path };
     });
@@ -1054,7 +1060,10 @@ if (typeof module !== 'undefined' && module.exports) {
       hint: function () { return 'Including yours.'; } },
     { key: 'skillSpread', group: 'field-more', label: 'How much rivals’ skill varies', min: 0, max: 2, step: 0.05,
       fmt: function (v) { return v.toFixed(2); },
-      hint: function () { return 'Spread of rivals’ true Sharpe ratios around zero. At 0.75, one rival in six has a Sharpe above 0.75.'; } },
+      hint: function () {
+        return params.skillSpread > 0 ? 'Spread of rivals’ true Sharpe ratios around zero: about one rival in six has a Sharpe above ' +
+          params.skillSpread.toFixed(2) + '.' : 'Every rival has a true Sharpe ratio of exactly zero.';
+      } },
     { key: 'fieldVol', group: 'field-more', label: 'Typical rival risk', min: 0.05, max: 0.5, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'Annualised volatility of a steady team; each varies a little around this.'; } },
@@ -1194,6 +1203,8 @@ if (typeof module !== 'undefined' && module.exports) {
     sampleIndex = 0;
     drawSample();
     document.body.classList.add('stale');
+    $('#skill-chart').classList.add('stale-chart');
+    $('#skill-status').textContent = 'Waiting for the main simulation…';
     $('#status-text').textContent = 'Waiting…';
     clearTimeout(pending);
     pending = setTimeout(startRun, 180);
@@ -1570,17 +1581,18 @@ if (typeof module !== 'undefined' && module.exports) {
     var lo = Infinity;
     var hi = -Infinity;
     shown.forEach(function (t) { t.path.forEach(function (v) { lo = Math.min(lo, v); hi = Math.max(hi, v); }); });
-    lo = Math.min(lo, 1);
-    hi = Math.max(hi, 1);
-    var pad = (hi - lo) * 0.08 || 0.02;
-    lo -= pad;
-    hi += pad;
+    var range = Math.max(hi, 1) - Math.min(lo, 1);
+    var stepChoices = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1];
+    var tick = stepChoices.filter(function (c) { return range / c <= 5; })[0] || 1;
+    lo = Math.floor((Math.min(lo, 1) - 1) / tick) * tick + 1;
+    hi = Math.ceil((Math.max(hi, 1) - 1) / tick) * tick + 1;
     var sx = function (d) { return m.l + (W - m.l - m.r) * d / p.days; };
     var sy = function (v) { return H - m.b - (H - m.t - m.b) * (v - lo) / (hi - lo); };
     var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
       'aria-label': 'Account value over the challenge for the top five teams and yours. Open circles mark teams going for broke. Full results are in the table below.' });
-    for (var i = 0; i <= 4; i++) {
-      var v = lo + (hi - lo) * i / 4;
+    var nTicks = Math.round((hi - lo) / tick);
+    for (var i = 0; i <= nTicks; i++) {
+      var v = lo + tick * i;
       svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: 'grid' }, s);
       svgText(s, m.l - 6, sy(v) + 4, signed(v - 1, 0), { 'text-anchor': 'end' });
     }
@@ -1638,8 +1650,9 @@ if (typeof module !== 'undefined' && module.exports) {
       var kind = el('td', { class: 'wide-col' });
       kind.textContent = x.you ? 'You' : (x.gambler ? 'Gambler' : 'Steady');
       tr.appendChild(kind);
-      tr.appendChild(el('td', {}, x.sharpe.toFixed(2)));
-      tr.appendChild(el('td', { class: 'wide-col' }, pct(x.vol)));
+      tr.appendChild(el('td', {}, x.sharpe.toFixed(2).replace('-', '\u2212')));
+      var after = x.you ? params.catchUpVol : x.vol * params.gamblerMultiple;
+      tr.appendChild(el('td', { class: 'wide-col' }, pct(x.vol) + (x.switchDay !== null ? ' \u2192 ' + pct(after) : '')));
       tr.appendChild(el('td', {}, signed(x.ret)));
       tr.appendChild(el('td', { class: 'wide-col' }, pct(x.maxDD, 1)));
       var status = x.bust ? 'Blown up' : (x.out ? 'Out: drawdown' : '');

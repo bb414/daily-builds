@@ -8,7 +8,7 @@ Each team runs a strategy with a true Sharpe ratio (its skill) at a chosen volat
 Daily returns are ``mean + sd * z``, where every team's ``z`` shares a common market move (the
 correlation) and, optionally, fat tails. Rivals' skill is drawn around zero; a share of them are
 "gamblers" who run several times the usual risk. Your team's result is worked out at your chosen
-risk and at twenty other levels on exactly the same luck, so the curves compare like with like.
+risk and at twenty levels from 5% to 100% on exactly the same luck, so the curves compare like with like.
 """
 
 from __future__ import annotations
@@ -424,17 +424,15 @@ class Run:
         for i, vol in enumerate(VOL_GRID):
             alt = run_you(p, c, vol)
             _add(self.grid[i], place_you(c["rivals"], alt), alt)
-        best = None if you["out"] else {"score": you["score"], "sharpe": p["yourSharpe"], "kind": "you", "index": -1,
+        best = None if you["out"] else {"score": you["score"], "sharpe": p["yourSharpe"], "kind": "you",
                                         "switched": you["switchDay"] is not None}
         top_skill = p["yourSharpe"]
-        top_index = -1
         for j, rv in enumerate(c["rivals"]):
             if rv["sharpe"] > top_skill:
                 top_skill = rv["sharpe"]
-                top_index = j
             if not rv["out"] and (best is None or rv["score"] > best["score"]):
                 best = {"score": rv["score"], "sharpe": rv["sharpe"],
-                        "kind": "gambler" if rv["gambler"] else "steady", "index": j,
+                        "kind": "gambler" if rv["gambler"] else "steady",
                         "switched": rv["switchDay"] is not None}
         w = self.winners
         if best is None:
@@ -443,7 +441,7 @@ class Run:
             w[best["kind"]] += 1
             if best["sharpe"] <= 0:
                 w["noEdge"] += 1
-            if best["index"] == top_index:
+            if best["sharpe"] == top_skill:
                 w["mostSkilled"] += 1
             if best["switched"]:
                 w["switched"] += 1
@@ -527,16 +525,16 @@ def skill_job(params: dict | None, rule: str, days: int, sims_each: int = 300) -
         skills = [p["yourSharpe"]] + [rv["sharpe"] for rv in c["rivals"]]
         scores = [you["score"]] + [rv["score"] for rv in c["rivals"]]
         corr += correlation(average_ranks(skills), average_ranks(scores))
-        top_skill = 0
+        top_skill = skills[0]
         for i in range(1, len(skills)):
-            if skills[i] > skills[top_skill]:
-                top_skill = i
+            if skills[i] > top_skill:
+                top_skill = skills[i]
         winner = -1
         for j, sc in enumerate(scores):
             if sc > -math.inf and (winner < 0 or sc > scores[winner]):
                 winner = j
         if winner >= 0:
-            if winner == top_skill:
+            if skills[winner] == top_skill:
                 best += 1
             if skills[winner] <= 0:
                 no_edge += 1
@@ -563,11 +561,18 @@ def sample_competition(params: dict | None, k: int) -> list[dict]:
     p = normalise(params)
     c = run_competition(p, k, record=True)
     you = run_you(p, c, p["yourVol"], record=True)
+    # Rivals are numbered in a shuffled order (from a separate generator, so results are
+    # untouched); otherwise the gamblers would always be the lowest-numbered teams.
+    namer = Rng((competition_seed(p["seed"], k) ^ 0x5BD1E995) & MASK)
+    numbers = [j + 2 for j in range(len(c["rivals"]))]
+    for i in range(len(numbers) - 1, 0, -1):
+        swap = math.floor(namer.uniform() * (i + 1))
+        numbers[i], numbers[swap] = numbers[swap], numbers[i]
     teams = [{"name": "Your team", "you": True, "gambler": False, "sharpe": p["yourSharpe"], "vol": p["yourVol"],
               "ret": you["ret"], "realisedSharpe": you["sharpe"], "maxDD": you["maxDD"], "bust": you["bust"],
               "out": you["out"], "score": you["score"], "switchDay": you["switchDay"], "path": you["path"]}]
     for j, rv in enumerate(c["rivals"]):
-        teams.append({"name": f"Team {j + 2}", "you": False, "gambler": rv["gambler"], "sharpe": rv["sharpe"],
+        teams.append({"name": f"Team {numbers[j]}", "you": False, "gambler": rv["gambler"], "sharpe": rv["sharpe"],
                       "vol": rv["vol"], "ret": rv["ret"], "realisedSharpe": rv["realisedSharpe"],
                       "maxDD": rv["maxDD"], "bust": rv["bust"], "out": rv["out"], "score": rv["score"],
                       "switchDay": rv["switchDay"], "path": rv["path"]})

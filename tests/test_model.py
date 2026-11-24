@@ -68,6 +68,14 @@ class SimulationTests(unittest.TestCase):
         for c in r["curve"]:
             self.assertLessEqual(c["pWin"], c["pTop3"])
 
+    def test_tied_skill_counts_any_most_skilled_winner(self):
+        from leaderboard_luck.model import skill_by_length
+        self.assertEqual(simulate({"sims": 100, "skillSpread": 0, "yourSharpe": 0})["winners"]["mostSkilled"], 1)
+        # Under the drawdown rule every team can be knocked out, leaving no winner, so check the others.
+        for row in skill_by_length({"skillSpread": 0, "yourSharpe": 0, "teams": 6}, 5):
+            if row["rule"] != "drawdown":
+                self.assertEqual(row["pBestWins"], 1)
+
     def test_skill_percentile(self):
         self.assertAlmostEqual(skill_percentile(normalise({})), norm_cdf(1 / 0.75))
         self.assertEqual(skill_percentile(normalise({"skillSpread": 0, "yourSharpe": 0})), 0.5)

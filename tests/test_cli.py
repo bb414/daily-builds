@@ -55,6 +55,14 @@ class CommandLineTests(unittest.TestCase):
         code, _, err = run(["design", "--sims-each", "0"])
         self.assertEqual(code, 2)
 
+    def test_figures_round_like_the_browser_app(self):
+        from leaderboard_luck.report import fixed, pct, signed
+        # JavaScript: (6.25).toFixed(1) is "6.3", (1.005).toFixed(2) is "1.00" (1.005 is just below in binary).
+        self.assertEqual(pct(0.0625), "6.3%")
+        self.assertEqual(fixed(1.005, 2), "1.00")
+        self.assertEqual(signed(-0.011), "-1.1%")
+        self.assertEqual(signed(0.0004), "0.0%")
+
     def test_errors(self):
         code, _, err = run(["sample", "--index", "-1"])
         self.assertEqual(code, 2)

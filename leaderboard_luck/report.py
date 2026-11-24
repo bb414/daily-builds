@@ -2,16 +2,27 @@
 
 from __future__ import annotations
 
-from .model import RULE_LABELS, checkpoint_day, sample_competition
+from decimal import ROUND_HALF_UP, Decimal
+
+from .model import RULE_LABELS, checkpoint_day, normalise, sample_competition
+
+
+def fixed(x: float, digits: int) -> str:
+    """Like JavaScript's toFixed: rounds the exact binary value, halves away from zero, so the
+    reports print the same figures as the browser app (Python's format rounds halves to even)."""
+    q = Decimal(x).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP)
+    return f"{q:.{digits}f}"
 
 
 def pct(v: float, digits: int = 1) -> str:
-    return f"{v * 100:.{digits}f}%"
+    return fixed(v * 100, digits) + "%"
 
 
 def signed(v: float, digits: int = 1) -> str:
-    r = round(v * 100, digits)
-    return f"{0:.{digits}f}%" if r == 0 else f"{r:+.{digits}f}%"
+    text = fixed(v * 100, digits)
+    if float(text) == 0:
+        return fixed(0, digits) + "%"
+    return ("+" if v > 0 else "-") + text.lstrip("-") + "%"
 
 
 SUFFIXES = {1: "st", 2: "nd", 3: "rd"}
@@ -70,9 +81,10 @@ def simulate_report(r: dict) -> str:
 
 
 def sample_report(params: dict, k: int, top: int = 10) -> str:
-    teams = sample_competition(params, k)
+    p = normalise(params)
+    teams = sample_competition(p, k)
     lines = [f"Challenge number {k + 1}", "",
-             f"  {'Place':<7}{'Team':<12}{'Type':<9}{'Skill':>7}{'Risk':>7}{'Return':>9}{'Drawdown':>10}  Status"]
+             f"  {'Place':<7}{'Team':<12}{'Type':<9}{'Skill':>7}{'Risk':>9}{'Return':>9}{'Drawdown':>10}  Status"]
     shown = [t for t in teams if t["rank"] <= top]
     you = next(t for t in teams if t["you"])
     if you["rank"] > top:
@@ -83,6 +95,10 @@ def sample_report(params: dict, k: int, top: int = 10) -> str:
         if t["switchDay"] is not None:
             status = (status + "; " if status else "") + f"went for broke on day {t['switchDay']}"
         place = "-" if t["out"] else ordinal(t["rank"])
-        lines.append(f"  {place:<7}{t['name']:<12}{kind:<9}{t['sharpe']:>7.2f}{pct(t['vol'], 0):>7}"
+        risk = pct(t["vol"], 0)
+        if t["switchDay"] is not None:
+            after = p["catchUpVol"] if t["you"] else t["vol"] * p["gamblerMultiple"]
+            risk += f">{pct(after, 0)}"
+        lines.append(f"  {place:<7}{t['name']:<12}{kind:<9}{t['sharpe']:>7.2f}{risk:>9}"
                      f"{signed(t['ret']):>9}{pct(t['maxDD']):>10}  {status}")
     return "\n".join(lines)
