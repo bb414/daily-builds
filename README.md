@@ -121,6 +121,18 @@ At the end, a pilot still running after at least a year counts as **stuck in pil
 
 **Robustness scenarios** (`pilot_purgatory/robustness.py`) each change one thing for both organisations: typical pilot value 30% lower or 40% higher, the evidence bar raised to 2x or lowered to 1.2x, measurement noise 60% higher or halved, scaling costs 50% higher, sponsors 2.5 times as impatient, and a horizon one year shorter or longer.
 
+## Which language does what
+
+| Part | Language | What it does | Roughly |
+|---|---|---|---|
+| Browser app model | JavaScript | The pilots, quarters and Monte Carlo runs, inside `app/index.html` | 270 lines |
+| Browser app interface | JavaScript | Sliders, tabs, pilot lanes, charts, robustness check, share links | 550 lines |
+| Browser app styling and layout | CSS and HTML | Layout, typography, colours, phone layout | 250 lines |
+| Python package | Python (standard library only) | The same model, plus command-line reports, the robustness check and HTML export | 1,080 lines |
+| Tests | Python | Tests for the Python model, plus tests that run the app's JavaScript model in Node.js and check it agrees | 570 lines |
+
+The two versions never call each other: the app does all its calculating in the browser, and the Python package runs on its own. The model logic exists once in each language, and the tests keep the two in step.
+
 ## How the app and the Python version stay in step
 
 The app's model lives between `/* MODEL START */` and `/* MODEL END */` markers in `app/index.html`. `tests/test_app.py` runs exactly that code in Node.js and checks it against the Python model over 3,000 portfolios: outcome shares, barrier shares, net value, every quarter of the timeline, payback quarter, presets, default assumptions and labels. The two use different random number generators, so they agree in distribution rather than to the penny.
