@@ -59,7 +59,7 @@ def bundle(sessions):
 
 
 def write_bundle(sessions, path):
-    Path(path).write_text(json.dumps(bundle(sessions), indent=1), encoding="utf-8")
+    Path(path).write_text(json.dumps(bundle(sessions), separators=(",", ":")), encoding="utf-8")
 
 
 def write_csv(sessions, path):

@@ -18,7 +18,9 @@ def session_report(session):
             st["round"], labels[st["round"]] + ":", st["correct"], st["n"], pct(st["accuracy"])))
     ch = res["change"]["accuracy"]
     if ch is not None:
-        lines.append("  Change from round 1 to round 3: %+d percentage points" % points(ch))
+        pts = points(ch)
+        lines.append("  Change from round 1 to round 3: %s" % (
+            "no change" if pts == 0 else "%+d percentage points" % pts))
     a = res["assisted"]
     if a:
         c = a["cases"]

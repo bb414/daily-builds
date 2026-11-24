@@ -6,7 +6,7 @@ import sys
 
 from .cohort import SCENARIOS, simulate_cohort
 from .htmlreport import study_html
-from .model import PERSONAS, build_session, simulate_responses
+from .model import DEMO_SEEDS, PERSONAS, build_session, simulate_responses
 from .power import power_curve, power_report
 from .report import session_report
 from .sessions import load_sessions, write_bundle, write_csv
@@ -30,7 +30,7 @@ def cmd_csv(args):
 
 def cmd_demo(args):
     session = build_session(args.seed, "checker")
-    filled = simulate_responses(session, PERSONAS[args.persona], args.seed + 1)
+    filled = simulate_responses(session, PERSONAS[args.persona], args.response_seed)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(filled, f, indent=2)
@@ -87,7 +87,10 @@ def main(argv=None):
 
     d = sub.add_parser("demo", help="simulate one participant and print their report")
     d.add_argument("--persona", choices=sorted(PERSONAS), default="calibrated")
-    d.add_argument("--seed", type=int, default=2026)
+    d.add_argument("--seed", type=int, default=DEMO_SEEDS["session"],
+                   help="which messages (the default matches the app's example result)")
+    d.add_argument("--response-seed", type=int, default=DEMO_SEEDS["responses"],
+                   help="which simulated answers (the default matches the app's example result)")
     d.add_argument("--out", help="also save the simulated session as JSON")
     d.set_defaults(func=cmd_demo)
 
