@@ -20,7 +20,11 @@ class UiTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.pw = sync_playwright().start()
-        cls.browser = cls.pw.chromium.launch()
+        try:
+            cls.browser = cls.pw.chromium.launch()
+        except Exception as err:  # pragma: no cover - depends on the machine
+            cls.pw.stop()
+            raise unittest.SkipTest("Chromium for Playwright is not installed: %s" % err)
 
     @classmethod
     def tearDownClass(cls):
@@ -147,6 +151,49 @@ class UiTest(unittest.TestCase):
             os.unlink(fh.name)
         self.assertIn("not valid JSON", page.inner_text("#save-status"))
         self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_audit_regressions(self):
+        page = self.open()
+        # Choosing "Custom" updates the help text.
+        page.select_option("#preset", "custom")
+        self.assertEqual(page.inner_text("#preset-help"), "Your own settings.")
+        # Sliders announce their formatted value.
+        self.assertEqual(page.get_attribute("#p-driftAt", "aria-valuetext"), "Never")
+        # Switching workflow from the comparison table keeps keyboard focus on that row.
+        page.click("#compare button[data-workflow=human_first]")
+        self.settle(page)
+        self.assertEqual(page.evaluate("document.activeElement.getAttribute('data-workflow')"), "human_first")
+        # The AI cannot get better in the stress test.
+        page.fill("#p-aiAccuracy", "0.7")
+        page.dispatch_event("#p-aiAccuracy", "input")
+        page.fill("#p-driftAccuracy", "0.95")
+        page.dispatch_event("#p-driftAccuracy", "input")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#o-driftAccuracy"), "70%")
+        # A link pasted into the same tab is applied.
+        page.evaluate("location.hash = 'rounds=125&workflow=none&people=75'")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#o-rounds"), "125")
+        self.assertEqual(page.get_attribute("#p-rounds", "step"), "any")
+        self.assertEqual(page.inner_text("#verdict h2"), "Baseline: no AI")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_stays_responsive_at_extreme_settings(self):
+        import time
+        page = self.browser.new_page(viewport={"width": 1280, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(APP + "#people=1000&rounds=500&driftAt=250&workflow=ai_first")
+        page.wait_for_selector("#verdict h2", timeout=30000)
+        page.click("#robust-run")
+        page.wait_for_function("document.getElementById('robust-summary').textContent.includes('done')", timeout=30000)
+        start = time.time()
+        page.evaluate("1 + 1")
+        self.assertLess(time.time() - start, 1.5, "the page should answer while the check runs")
+        page.wait_for_selector("#robust-chart .tornado-row", timeout=120000)
+        self.assertEqual(errors, [])
         page.close()
 
     def test_every_control_has_an_accessible_name(self):

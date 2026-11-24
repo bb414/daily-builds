@@ -133,6 +133,8 @@
   .matrix .big { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .matrix .cap { display: none; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .error { border-left: 6px solid var(--liability); }
+  .results { transition: opacity 0.15s; }
+  .results.busy { opacity: 0.55; }
   .how { font-size: 0.9rem; }
   .how summary { cursor: pointer; font-weight: 650; }
   .how li { margin: 4px 0; }
@@ -217,7 +219,8 @@
   </section>
 
   <section class="results" aria-label="Results">
-    <div class="card verdict" id="verdict" aria-live="polite"></div>
+    <p class="sr-only" id="live" aria-live="polite"></p>
+    <div class="card verdict" id="verdict"></div>
     <div class="kpis" id="kpis"></div>
     <div class="card chart-card">
       <h2>Over the run</h2>
@@ -300,8 +303,8 @@ var RelianceModel = (function () {
     { key: 'aiOverconfidence', group: 'ai', label: 'AI overconfidence', help: '0 means the AI\'s stated confidence is honest; 1 means it sounds sure even when it is guessing.', min: 0, max: 1, step: 0.05, def: 0.2, fmt: 'dec' },
     { key: 'feedbackRate', group: 'setting', label: 'Feedback after each case', help: 'Share of cases where people later find out the right answer.', min: 0, max: 1, step: 0.05, def: 0.5, fmt: 'pct' },
     { key: 'rounds', group: 'setting', label: 'Cases per person', help: 'How many decisions each person makes with the AI available.', min: 20, max: 500, step: 10, def: 200, fmt: 'int', int: true },
-    { key: 'driftAt', group: 'stress', label: 'AI gets worse from case', help: 'A silent change, such as a new kind of scam the AI has never seen. 0 means it never happens.', min: 0, max: 500, step: 10, def: 0, fmt: 'case', int: true },
-    { key: 'driftAccuracy', group: 'stress', label: 'AI accuracy after the change', help: 'The AI keeps sounding exactly as confident as before.', min: 0.5, max: 0.99, step: 0.01, def: 0.65, fmt: 'pct' },
+    { key: 'driftAt', group: 'stress', label: 'AI gets worse after case', help: 'A silent change, such as a new kind of scam the AI has never seen. 0 means it never happens.', min: 0, max: 500, step: 10, def: 0, fmt: 'case', int: true },
+    { key: 'driftAccuracy', group: 'stress', label: 'AI accuracy after the change', help: 'It keeps sounding exactly as confident as before. It cannot be higher than the AI accuracy above.', min: 0.5, max: 0.99, step: 0.01, def: 0.65, fmt: 'pct' },
     { key: 'learningRate', group: 'advanced', label: 'Learning from practice', help: 'How fast skill grows when people think for themselves and get feedback.', min: 0, max: 0.01, step: 0.0005, def: 0.002, fmt: 'rate' },
     { key: 'decayRate', group: 'advanced', label: 'Skill decay from disuse', help: 'How fast skill fades on cases where people accept the AI without thinking.', min: 0, max: 0.01, step: 0.0005, def: 0.0015, fmt: 'rate' },
     { key: 'complacency', group: 'advanced', label: 'Rubber-stamping (AI first)', help: 'How strongly trust turns into accepting the AI\'s answer without thinking.', min: 0, max: 1, step: 0.05, def: 0.8, fmt: 'dec' },
@@ -423,17 +426,26 @@ var RelianceModel = (function () {
     return def;
   }
 
+  // Accepts numbers and plain decimal strings only ("0.7", "120", "1e-3"); anything else is rejected.
+  var NUMBER_PATTERN = /^[ \t\r\n]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\r\n]*$/;
+  function toNumber(raw) {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string' && NUMBER_PATTERN.test(raw)) return Number(raw);
+    return NaN;
+  }
+
   function normaliseParams(input) {
-    var src = input || {};
+    var src = (input && typeof input === 'object') ? input : {};
     var out = {};
     PARAMS.forEach(function (spec) {
-      var raw = src[spec.key];
-      var v = (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') ? NaN : Number(raw);
+      var v = toNumber(src[spec.key]);
       if (!isFinite(v)) v = spec.def;
       v = clamp(v, spec.min, spec.max);
-      if (spec.int) v = Math.round(v);
+      if (spec.int) v = Math.floor(v + 0.5);
       out[spec.key] = v;
     });
+    // A stress test can only make the AI worse.
+    if (out.driftAccuracy > out.aiAccuracy) out.driftAccuracy = out.aiAccuracy;
     out.workflow = WORKFLOW_KEYS.indexOf(src.workflow) >= 0 ? src.workflow : DEFAULTS.workflow;
     out.showConfidence = parseBool(src.showConfidence, DEFAULTS.showConfidence);
     return out;
@@ -671,27 +683,37 @@ var RelianceModel = (function () {
   function roundTo6(x) { return Math.floor(x * 1e6 + 0.5) / 1e6; }
   function specFor(key) { for (var i = 0; i < PARAMS.length; i++) if (PARAMS[i].key === key) return PARAMS[i]; return null; }
 
-  function sensitivity(input) {
+  // The robustness check is split into steps (start, then one point at a time) so the
+  // browser can run it in small chunks and stay responsive.
+  function sensitivityStart(input) {
     var p = normaliseParams(input);
     var baseControl = simulate(withWorkflow(p, 'none'));
     var base = p.workflow === 'none' ? baseControl : simulate(p);
     var b = classify(base, baseControl);
-    var rows = SENSITIVITY.map(function (item) {
-      var spec = specFor(item.key), v = p[item.key];
-      var lowV = roundTo6(clamp(item.mode === 'abs' ? v - item.amount : v * (1 - item.amount), spec.min, spec.max));
-      var highV = roundTo6(clamp(item.mode === 'abs' ? v + item.amount : v * (1 + item.amount), spec.min, spec.max));
-      function runAt(value) {
-        var q = withWorkflow(p, p.workflow);
-        q[item.key] = value;
-        q = normaliseParams(q);
-        var control = CONTROL_FREE.indexOf(item.key) >= 0 ? baseControl : simulate(withWorkflow(q, 'none'));
-        var result = p.workflow === 'none' ? control : simulate(q);
-        var c = classify(result, control);
-        return { value: q[item.key], lift: c.lift, skillGap: c.skillGap, verdict: c.key };
-      }
-      return { key: item.key, base: v, low: runAt(lowV), high: runAt(highV) };
+    return { p: p, baseControl: baseControl,
+      summary: { workflow: p.workflow, base: { lift: b.lift, skillGap: b.skillGap, verdict: b.key }, rows: [] } };
+  }
+
+  function sensitivityPoint(ctx, item, end) {
+    var p = ctx.p, spec = specFor(item.key), v = p[item.key];
+    var moved = end === 'low' ? (item.mode === 'abs' ? v - item.amount : v * (1 - item.amount))
+      : (item.mode === 'abs' ? v + item.amount : v * (1 + item.amount));
+    var q = withWorkflow(p, p.workflow);
+    q[item.key] = roundTo6(clamp(moved, spec.min, spec.max));
+    q = normaliseParams(q);
+    var control = CONTROL_FREE.indexOf(item.key) >= 0 ? ctx.baseControl : simulate(withWorkflow(q, 'none'));
+    var result = p.workflow === 'none' ? control : simulate(q);
+    var c = classify(result, control);
+    return { value: q[item.key], lift: c.lift, skillGap: c.skillGap, verdict: c.key };
+  }
+
+  function sensitivity(input) {
+    var ctx = sensitivityStart(input);
+    SENSITIVITY.forEach(function (item) {
+      ctx.summary.rows.push({ key: item.key, base: ctx.p[item.key],
+        low: sensitivityPoint(ctx, item, 'low'), high: sensitivityPoint(ctx, item, 'high') });
     });
-    return { workflow: p.workflow, base: { lift: b.lift, skillGap: b.skillGap, verdict: b.key }, rows: rows };
+    return ctx.summary;
   }
 
   function wholePct(x) { return Math.floor(x * 100 + 0.5) + '%'; }
@@ -700,8 +722,11 @@ var RelianceModel = (function () {
   function explain(a) {
     var r = a.result, c = a.control, p = r.params, out = [];
     if (p.workflow === 'none') {
-      out.push('Working alone, people reach ' + wholePct(r.teamAccuracy) + ' accuracy. ' +
-        (p.feedbackRate > 0 && p.learningRate > 0 ? 'Feedback on ' + wholePct(p.feedbackRate) + ' of cases lets them improve with practice.' : 'Without feedback, practice alone does not improve their judgement.'));
+      var tail;
+      if (p.feedbackRate === 0) tail = 'Without feedback, practice alone does not improve their judgement.';
+      else if (p.learningRate === 0) tail = 'Learning from practice is set to zero, so their judgement stays where it started.';
+      else tail = 'Feedback on ' + wholePct(p.feedbackRate) + ' of cases lets them improve with practice.';
+      out.push('Working alone, people reach ' + wholePct(r.teamAccuracy) + ' accuracy. ' + tail);
       return out;
     }
     if (r.aiRealisedAccuracy > c.teamAccuracy + 0.02) {
@@ -710,7 +735,8 @@ var RelianceModel = (function () {
       out.push('The AI is not clearly better than people working alone (' + wholePct(r.aiRealisedAccuracy) + ' against ' + wholePct(c.teamAccuracy) + '), so leaning on it cannot lift accuracy much.');
     }
     if (r.deferralRate > 0.2) {
-      out.push('People accepted the AI\'s answer without thinking on ' + wholePct(r.deferralRate) + ' of cases. Those cases give no practice, so their own skill fades.');
+      out.push('People accepted the AI\'s answer without thinking on ' + wholePct(r.deferralRate) + ' of cases. Those cases give no practice' +
+        (p.decayRate > 0 ? ', so their own skill fades.' : '.'));
     }
     if (p.feedbackRate < 0.3) {
       out.push('People find out the right answer on only ' + wholePct(p.feedbackRate) + ' of cases, so they learn slowly and their trust barely tracks how good the AI really is.');
@@ -789,6 +815,7 @@ var RelianceModel = (function () {
     checkpointsFor: checkpointsFor, simulate: simulate, classify: classify, verdictFor: verdictFor,
     analyse: analyse, compareWorkflows: compareWorkflows, movingAverage: movingAverage,
     SENSITIVITY: SENSITIVITY, CONTROL_FREE: CONTROL_FREE, sensitivity: sensitivity, explain: explain,
+    sensitivityStart: sensitivityStart, sensitivityPoint: sensitivityPoint, withWorkflow: withWorkflow,
     encodeParams: encodeParams, decodeParams: decodeParams, settingsFile: settingsFile, readSettingsFile: readSettingsFile
   };
 })();
@@ -832,7 +859,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     Object.keys(M.PRESETS).forEach(function (k) { presetSel.appendChild(el('option', { value: k }, M.PRESETS[k].label)); });
     presetSel.appendChild(el('option', { value: 'custom' }, 'Custom'));
     presetSel.addEventListener('change', function () {
-      if (presetSel.value === 'custom') return;
+      if (presetSel.value === 'custom') { markCustom(); return; }
       state.preset = presetSel.value;
       state.params = M.presetParams(state.preset);
       syncControls();
@@ -859,6 +886,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
       input.addEventListener('input', function () {
         state.params[spec.key] = Number(input.value);
+        var drift = state.params.driftAccuracy;
+        state.params = M.normaliseParams(state.params);
+        if (state.params.driftAccuracy !== drift) document.getElementById('p-driftAccuracy').value = state.params.driftAccuracy;
         refreshOutputs();
         markCustom();
         schedule();
@@ -882,14 +912,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
 
   function refreshOutputs() {
     M.PARAMS.forEach(function (spec) {
-      document.getElementById('o-' + spec.key).textContent = fmtValue(spec, state.params[spec.key]);
+      var text = fmtValue(spec, state.params[spec.key]);
+      document.getElementById('o-' + spec.key).textContent = text;
+      document.getElementById('p-' + spec.key).setAttribute('aria-valuetext', text);
     });
   }
 
   function syncControls() {
     document.getElementById('preset').value = state.preset;
     document.getElementById('preset-help').textContent = state.preset === 'custom' ? 'Your own settings.' : M.PRESETS[state.preset].help;
-    M.PARAMS.forEach(function (spec) { document.getElementById('p-' + spec.key).value = state.params[spec.key]; });
+    M.PARAMS.forEach(function (spec) {
+      var input = document.getElementById('p-' + spec.key), v = state.params[spec.key];
+      // Values from a link or file may fall between slider steps: keep them exact.
+      var steps = (v - spec.min) / spec.step;
+      input.step = Math.abs(steps - Math.round(steps)) > 1e-6 ? 'any' : spec.step;
+      input.value = v;
+    });
     refreshOutputs();
     document.querySelectorAll('input[name=workflow]').forEach(function (r) { r.checked = r.value === state.params.workflow; });
     document.getElementById('showConfidence').checked = state.params.showConfidence;
@@ -904,16 +942,42 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
 
   var last = null;
 
+  var token = 0, lastCode = '', pendingFocus = null;
+
+  function showError(e) {
+    var box = document.getElementById('verdict');
+    box.className = 'card verdict error';
+    box.textContent = 'Something went wrong while running the simulation: ' + e.message + '. Try another scenario, or reload the page.';
+    document.querySelector('.results').classList.remove('busy');
+  }
+
+  // Runs the four workflows one per tick, so a large simulation never freezes the page.
+  // A newer run cancels an older one that is still going.
   function run() {
-    var rows;
-    try {
-      rows = M.compareWorkflows(state.params);
-    } catch (e) {
-      var box = document.getElementById('verdict');
-      box.className = 'card verdict error';
-      box.textContent = 'Something went wrong while running the simulation: ' + e.message + '. Try another scenario, or reload the page.';
-      return;
+    var my = ++token;
+    var p = M.normaliseParams(state.params);
+    var results = {}, i = 0;
+    var resultsBox = document.querySelector('.results');
+    var busyTimer = setTimeout(function () { if (my === token) resultsBox.classList.add('busy'); }, 150);
+    resultsBox.setAttribute('aria-busy', 'true');
+    function step() {
+      if (my !== token) { clearTimeout(busyTimer); return; }
+      var wf = M.WORKFLOW_KEYS[i];
+      try { results[wf] = M.simulate(M.withWorkflow(p, wf)); } catch (e) { clearTimeout(busyTimer); showError(e); return; }
+      i++;
+      if (i < M.WORKFLOW_KEYS.length) { setTimeout(step, 0); return; }
+      clearTimeout(busyTimer);
+      resultsBox.classList.remove('busy');
+      resultsBox.removeAttribute('aria-busy');
+      var control = results.none;
+      finish(M.WORKFLOW_KEYS.map(function (key) {
+        return { workflow: key, result: results[key], control: control, verdict: M.verdictFor(results[key], control) };
+      }));
     }
+    setTimeout(step, 0);
+  }
+
+  function finish(rows) {
     var a = rows[M.WORKFLOW_KEYS.indexOf(state.params.workflow)];
     last = a;
     renderVerdict(a);
@@ -922,27 +986,64 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     renderShock(a);
     renderMatrix(a);
     renderCompare(rows);
+    document.getElementById('live').textContent = a.verdict.label + '. Accuracy with the AI ' + pct(a.result.teamAccuracy) +
+      ', own judgement afterwards ' + pct(a.result.skillAfter) + '.';
     document.body.setAttribute('data-runs', String(++runCount));
     var code = M.encodeParams(state.params);
+    lastCode = code;
     try { history.replaceState(null, '', '#' + code); } catch (e) { /* some browsers block this for local files */ }
-    if (robust && robust.code !== code) {
+    if ((robust && robust.code !== code) || (robustJob && robustJob.code !== code)) {
       robust = null;
+      robustJob = null;
+      setRobustBusy(false);
       document.getElementById('robust-chart').innerHTML = '';
       document.getElementById('robust-summary').textContent = 'Settings changed. Run the check again to test the new verdict.';
     }
   }
 
-  var robust = null;
+  var robust = null, robustJob = null;
 
-  function runRobustness() {
+  function setRobustBusy(busy) {
     var btn = document.getElementById('robust-run');
-    btn.disabled = true;
-    document.getElementById('robust-summary').textContent = 'Running 20 extra comparisons...';
-    setTimeout(function () {
-      robust = { code: M.encodeParams(state.params), data: M.sensitivity(state.params) };
-      btn.disabled = false;
+    btn.setAttribute('aria-disabled', busy ? 'true' : 'false');
+    btn.textContent = busy ? 'Running the check...' : 'Run the robustness check';
+  }
+
+  // Runs one moved assumption per tick and stops if the settings change part-way through.
+  function runRobustness() {
+    if (robustJob) return;
+    var job = robustJob = { code: M.encodeParams(state.params), ctx: null, k: 0 };
+    var total = M.SENSITIVITY.length * 2;
+    var summary = document.getElementById('robust-summary');
+    setRobustBusy(true);
+    document.getElementById('robust-chart').innerHTML = '';
+    summary.textContent = 'Running ' + total + ' extra comparisons...';
+    function step() {
+      if (robustJob !== job) return;
+      try {
+        if (!job.ctx) {
+          job.ctx = M.sensitivityStart(state.params);
+        } else {
+          var item = M.SENSITIVITY[Math.floor(job.k / 2)], end = job.k % 2 ? 'high' : 'low';
+          var point = M.sensitivityPoint(job.ctx, item, end);
+          if (end === 'low') job.ctx.summary.rows.push({ key: item.key, base: job.ctx.p[item.key], low: point });
+          else job.ctx.summary.rows[job.ctx.summary.rows.length - 1].high = point;
+          job.k++;
+          summary.textContent = 'Running ' + total + ' extra comparisons: ' + job.k + ' done.';
+        }
+      } catch (e) {
+        robustJob = null;
+        setRobustBusy(false);
+        summary.textContent = 'The check failed: ' + e.message;
+        return;
+      }
+      if (job.k < total) { setTimeout(step, 0); return; }
+      robustJob = null;
+      setRobustBusy(false);
+      robust = { code: job.code, data: job.ctx.summary };
       renderRobustness();
-    }, 30);
+    }
+    setTimeout(step, 0);
   }
 
   function renderRobustness() {
@@ -1135,10 +1236,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     box.innerHTML = '';
     box.appendChild(kpi('Accuracy with the AI', pct(r.teamAccuracy), 'Working alone: ' + pct(c.teamAccuracy)));
     box.appendChild(kpi('Own judgement afterwards', pct(r.skillAfter), 'Started at ' + pct(r.skillBefore) + '. Practising without the AI: ' + pct(c.skillAfter)));
-    box.appendChild(kpi('Misled by the AI', pct(r.misledRate), 'Of cases where the AI was wrong and they were right'));
-    box.appendChild(kpi('Rescued by the AI', pct(r.rescueRate), 'Of cases where the AI was right and they were wrong'));
-    box.appendChild(kpi('Trust in the AI', pct(r.trustEnd), 'Started at ' + pct(r.trustStart)));
-    box.appendChild(kpi('Pair versus the AI alone', pp(r.teamAccuracy - r.aiRealisedAccuracy), 'AI alone: ' + pct(r.aiRealisedAccuracy)));
+    var none = r.params.workflow === 'none';
+    box.appendChild(kpi('Misled by the AI', pct(r.misledRate), none ? 'Nobody sees the AI in this group' : 'Of cases where the AI was wrong and they were right'));
+    box.appendChild(kpi('Rescued by the AI', pct(r.rescueRate), none ? 'Nobody sees the AI in this group' : 'Of cases where the AI was right and they were wrong'));
+    box.appendChild(kpi('Trust in the AI', pct(r.trustEnd), none ? 'Unchanged: they never see it' : 'Started at ' + pct(r.trustStart)));
+    box.appendChild(kpi(none ? 'People versus the AI alone' : 'Pair versus the AI alone', pp(r.teamAccuracy - r.aiRealisedAccuracy), 'AI alone: ' + pct(r.aiRealisedAccuracy)));
   }
 
   function renderTimeChart(a) {
@@ -1225,7 +1327,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     var note = document.getElementById('shock-note'), sh = a.result.shock, v = a.verdict.shock;
     if (!sh) { note.hidden = true; return; }
     note.hidden = false;
-    var text = 'From case ' + sh.at + ' the AI is right only ' + pct(sh.aiAfter) + ' of the time (before: ' + pct(sh.aiBefore) + '), but sounds just as sure. ';
+    var text = 'After case ' + sh.at + ', the AI is right only ' + pct(sh.aiAfter) + ' of the time (before: ' + pct(sh.aiBefore) + '), but sounds just as sure. ';
     if (a.result.params.workflow === 'none') {
       text += 'People working alone are unaffected: ' + pct(sh.teamAfter) + ' accurate after the change.';
     } else {
@@ -1250,10 +1352,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       var tr = el('tr', { 'class': row.workflow === state.params.workflow ? 'current' : '' });
       var th = el('th', { scope: 'row' });
       var b = el('button', { type: 'button', 'aria-label': 'Use the ' + M.WORKFLOWS[row.workflow].label + ' workflow' }, M.WORKFLOWS[row.workflow].label);
+      b.setAttribute('data-workflow', row.workflow);
       b.addEventListener('click', function () {
         state.params.workflow = row.workflow;
         document.querySelectorAll('input[name=workflow]').forEach(function (x) { x.checked = x.value === row.workflow; });
         markCustom();
+        pendingFocus = row.workflow;
         run();
       });
       th.appendChild(b);
@@ -1269,6 +1373,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
+    if (pendingFocus) {
+      var again = table.querySelector('button[data-workflow="' + pendingFocus + '"]');
+      pendingFocus = null;
+      if (again) again.focus();
+    }
   }
 
   function renderMatrix(a) {
@@ -1305,6 +1414,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   }
   syncControls();
   run();
+  window.addEventListener('hashchange', function () {
+    var code = location.hash.replace(/^#/, '');
+    if (code && code !== lastCode) applyParams(M.decodeParams(code));
+  });
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);

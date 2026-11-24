@@ -12,6 +12,7 @@ process.stdin.on('end', () => {
     if (c.__compare) return M.compareWorkflows(c.__compare);
     if (c.__sensitivity) return M.sensitivity(c.__sensitivity);
     if (c.__explain) return M.explain(M.analyse(c.__explain));
+    if (c.__normalise) return M.normaliseParams(c.__normalise);
     return M.analyse(c);
   });
   process.stdout.write(JSON.stringify(out));

@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import math
 import sys
 
 from . import model
@@ -29,15 +30,26 @@ def speed(saved):
     return "%d%% %s than working alone" % (v, "faster" if saved > 0 else "slower")
 
 
+BOOL_WORDS = ("true", "false", "1", "0", "yes", "no", "on", "off")
+
+
 def parse_sets(pairs):
+    """Reads --set key=value pairs, rejecting unknown keys and values the model would ignore."""
     out = {}
+    numeric = [name for name, *_rest in model.PARAMS]
+    known = numeric + ["workflow", "showConfidence"]
     for pair in pairs or []:
         if "=" not in pair:
             raise SystemExit("--set expects key=value, got %r" % pair)
         key, value = pair.split("=", 1)
-        known = [name for name, *_rest in model.PARAMS] + ["workflow", "showConfidence"]
         if key not in known:
             raise SystemExit("Unknown setting %r. Known settings: %s" % (key, ", ".join(known)))
+        if key in numeric and not math.isfinite(model.to_number(value)):
+            raise SystemExit("--set %s needs a number, got %r" % (key, value))
+        if key == "workflow" and value not in model.WORKFLOW_KEYS:
+            raise SystemExit("--set workflow must be one of: %s" % ", ".join(model.WORKFLOW_KEYS))
+        if key == "showConfidence" and value.strip().lower() not in BOOL_WORDS:
+            raise SystemExit("--set showConfidence must be true or false")
         out[key] = value
     return out
 
@@ -93,7 +105,7 @@ def format_run(a):
         lines += ["", "Why:"] + ["  - " + text for text in reasons]
     sh = r["shock"]
     if sh:
-        lines += ["", "Stress test: from case %d the AI is right %s of the time (before: %s)." % (
+        lines += ["", "Stress test: after case %d the AI is right %s of the time (before: %s)." % (
             sh["at"], pct(sh["aiAfter"]), pct(sh["aiBefore"]))]
         if v["shock"] and p["workflow"] != "none":
             lines.append("  After the change, with the AI: %s; working alone: %s (%s)." % (
@@ -116,7 +128,7 @@ def format_compare(rows):
             model.WORKFLOW_LABELS[row["workflow"]], pct(r["teamAccuracy"], 1), pct(r["skillAfter"], 1),
             pct(r["misledRate"]), r["minutesPerCase"], row["verdict"]["label"]))
     if rows[0]["result"]["shock"]:
-        lines += ["", "  After the AI gets worse at case %d:" % rows[0]["result"]["shock"]["at"]]
+        lines += ["", "  Accuracy once the AI gets worse (after case %d):" % rows[0]["result"]["shock"]["at"]]
         for row in rows:
             lines.append("  %-12s %10s" % (model.WORKFLOW_LABELS[row["workflow"]], pct(row["result"]["shock"]["teamAfter"], 1)))
     return "\n".join(lines)
@@ -223,6 +235,8 @@ def format_power(pw):
         lines.append("  %-22d %5s  %s" % (row["n"], pct(row["rightWay"]), bar))
     if pw["needed"] is None:
         lines += ["", "  80% power is not reached at the sizes tested. Try larger --sizes."]
+    elif pw["neededAtMost"]:
+        lines += ["", "  %d or fewer participants per arm give 80%% power. Try smaller --sizes." % pw["needed"]]
     else:
         lines += ["", "  About %d participants per arm give 80%% power." % pw["needed"]]
     return "\n".join(lines)
@@ -274,7 +288,7 @@ def make_parser():
     common(sp)
     sp.add_argument("--arm", default="ai_first", choices=model.WORKFLOW_KEYS)
     sp.add_argument("--control", default="none", choices=model.WORKFLOW_KEYS)
-    sp.add_argument("--sizes", default="20,40,80,160,320", help="Comma-separated participants per arm")
+    sp.add_argument("--sizes", default="20,40,80,160,320,640", help="Comma-separated participants per arm")
     sp.add_argument("--reps", type=int, default=400)
     sp.add_argument("--pool", type=int, default=800)
     sp.add_argument("--items", type=int, default=20)
@@ -318,6 +332,8 @@ def main(argv=None):
             print(format_power(pw))
     except ValueError as err:
         raise SystemExit("Error: %s" % err)
+    except OSError as err:
+        raise SystemExit("Could not write %s: %s" % (err.filename, err.strerror))
     return 0
 
 

@@ -68,6 +68,21 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(p["workflow"], model.DEFAULTS["workflow"])
         self.assertEqual(model.normalise_params({"seed": float("nan")})["seed"], 42)
 
+    def test_only_plain_numbers_are_accepted(self):
+        default = model.DEFAULTS["rounds"]
+        for raw in (" ", "0x40", [100], "1_000", "\u0661\u0662\u0660", "1e999", "Infinity", "12abc", {}, True,
+                    10 ** 400, "nan"):
+            self.assertEqual(model.normalise_params({"rounds": raw})["rounds"], default, repr(raw))
+        self.assertEqual(model.normalise_params({"rounds": " 120 "})["rounds"], 120)
+        self.assertEqual(model.normalise_params({"rounds": "1e2"})["rounds"], 100)
+        self.assertEqual(model.normalise_params({"aiAccuracy": ".9"})["aiAccuracy"], 0.9)
+        self.assertEqual(model.normalise_params({"driftAt": 0.49999999999999994})["driftAt"], 1)
+        self.assertEqual(model.normalise_params("rounds=40")["rounds"], default)
+
+    def test_stress_test_can_only_make_the_ai_worse(self):
+        p = model.normalise_params({"aiAccuracy": 0.7, "driftAccuracy": 0.95})
+        self.assertEqual(p["driftAccuracy"], 0.7)
+
     def test_presets_survive_normalising(self):
         for key, preset in model.PRESETS.items():
             p = model.preset_params(key)
@@ -139,6 +154,17 @@ class ExperimentTest(unittest.TestCase):
         for row in pw["results"]:
             self.assertLessEqual(row["rightWay"], row["power"])
 
+    def test_power_flags_when_the_smallest_size_is_enough(self):
+        p = dict(self.params, decayRate=0.01, feedbackRate=0.0, complacency=1.0)
+        pw = experiment.power_curve(p, "ai_first", sizes=[150, 300], reps=30, pool=150, items=40)
+        if pw["results"][0]["rightWay"] >= 0.8:
+            self.assertTrue(pw["neededAtMost"])
+            self.assertEqual(pw["needed"], 150)
+        code, out = run_cli("power", "--sizes", "300", "--reps", "20", "--pool", "150", "--items", "40",
+                            "--set", "rounds=60", "--set", "decayRate=0.01", "--set", "feedbackRate=0",
+                            "--set", "complacency=1")
+        self.assertTrue("or fewer" in out or "not reached" in out or "About" in out)
+
     def test_smallest_size_interpolates(self):
         rows = [{"n": 20, "rightWay": 0.4}, {"n": 40, "rightWay": 0.6}, {"n": 80, "rightWay": 0.9}]
         self.assertEqual(experiment.smallest_size_for(rows, 0.8), 67)
@@ -170,7 +196,7 @@ class CliTest(unittest.TestCase):
             with open(md_path, encoding="utf-8") as fh:
                 md = fh.read()
             self.assertIn("| Arm | Pre-test |", md)
-            self.assertNotIn("—", md)
+            self.assertNotIn("\u2014", md)
 
     def test_power_output(self):
         code, out = run_cli("power", "--sizes", "10,20", "--reps", "20", "--pool", "40", "--set", "rounds=30")
@@ -182,12 +208,12 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         for label in model.WORKFLOW_LABELS.values():
             self.assertIn(label, out)
-        self.assertIn("After the AI gets worse at case 20", out)
+        self.assertIn("Accuracy once the AI gets worse (after case 20)", out)
         code, out = run_cli("compare", "--set", "people=50", "--set", "rounds=40", "--json")
         rows = json.loads(out)
         self.assertEqual([r["workflow"] for r in rows], model.WORKFLOW_KEYS)
         code, out = run_cli("run", "--set", "people=50", "--set", "rounds=40", "--set", "driftAt=20")
-        self.assertIn("Stress test: from case 20", out)
+        self.assertIn("Stress test: after case 20", out)
         self.assertIn("Time per case", out)
 
     def test_robustness_output(self):
@@ -222,12 +248,35 @@ class CliTest(unittest.TestCase):
 
     def test_bad_arguments_exit_cleanly(self):
         for args in (["run", "--set", "nonsense=1"], ["run", "--set", "novalue"], ["run", "--preset", "nope"],
-                     ["power", "--sizes", "a,b"], ["experiment", "--arms", "none,magic", "--n", "4"]):
+                     ["power", "--sizes", "a,b"], ["experiment", "--arms", "none,magic", "--n", "4"],
+                     ["experiment", "--arms", ",", "--n", "4"], ["power", "--items", "0", "--reps", "2", "--pool", "4"],
+                     ["experiment", "--n", "3", "--items", "3", "--set", "rounds=20", "--csv", "/nonexistent/dir/x.csv"],
+                     ["experiment", "--n", "3", "--items", "3", "--set", "rounds=20", "--markdown", "/nonexistent/dir/x.md"],
+                     ["run", "--set", "rounds=1OO"], ["run", "--set", "workflow=humanfirst"],
+                     ["run", "--set", "showConfidence=maybe"]):
             with self.subTest(args=args), self.assertRaises(SystemExit) as ctx:
-                with contextlib.redirect_stderr(io.StringIO()):
-                    run_cli(*args)
+                with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+                    cli.main(list(args))
             self.assertNotEqual(ctx.exception.code, 0)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HygieneTest(unittest.TestCase):
+    def test_no_em_dashes_anywhere(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dash = "\u2014"
+        found = []
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in (".git", "__pycache__")]
+            for name in files:
+                path = os.path.join(folder, name)
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        if dash in fh.read():
+                            found.append(os.path.relpath(path, root))
+                except (UnicodeDecodeError, OSError):
+                    continue
+        self.assertEqual(found, [])

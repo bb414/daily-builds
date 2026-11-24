@@ -67,6 +67,16 @@ class ParityTest(unittest.TestCase):
         js_specs = [(s["key"], s["group"], s["min"], s["max"], s["def"], bool(s.get("int"))) for s in js["P"]]
         self.assertEqual(js_specs, py_specs)
 
+    def test_odd_inputs_are_read_the_same_way(self):
+        odd = [{"rounds": v} for v in (" ", "0x40", [100], "1_000", "\u0661\u0662\u0660", "1e999", " 120 ", "1e2", True,
+                                       None, "", "12abc", 125, 0.49999999999999994, -3, 1e308)]
+        odd += [{"driftAt": 0.49999999999999994}, {"driftAt": 2.5}, {"aiAccuracy": 0.7, "driftAccuracy": 0.95}]
+        odd += [{"showConfidence": v} for v in ("no", "OFF", " 0 ", 0, 2, "yes", None)]
+        odd += [{"workflow": w} for w in ("AI first", "none", None, 3)]
+        js = run_js([{"__normalise": o} for o in odd])
+        for o, js_out in zip(odd, js):
+            self.assertEqual(js_out, model.normalise_params(o), repr(o))
+
     def test_random_numbers_match(self):
         out = subprocess.run([NODE, "-e", (
             "const M=require('./tests/load_model.js').loadModel();const r=M.makeRng(M.mixSeed(42,3));"

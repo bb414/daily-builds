@@ -237,7 +237,7 @@ test('explanations describe the result in words', () => {
   assert.match(none[0], /Working alone/);
   const shock = M.explain(M.analyse(Object.assign(M.presetParams('scam_teens'), { driftAt: 40, driftAccuracy: 0.55 })));
   assert.ok(shock.some((t) => /After the AI got worse/.test(t)));
-  for (const t of text.split(' ')) assert.ok(!t.includes('—'));
+  for (const t of text.split(' ')) assert.ok(!t.includes('\u2014'));
 });
 
 test('settings survive a round trip through the link and the file', () => {
@@ -258,4 +258,44 @@ test('bad links and files are handled safely', () => {
   assert.throws(() => M.readSettingsFile(null), /does not contain/);
   assert.throws(() => M.readSettingsFile({ hello: 1 }), /does not contain/);
   assert.throws(() => M.readSettingsFile('text'), /does not contain/);
+});
+
+test('only plain numbers are accepted from links and files', () => {
+  const def = M.DEFAULTS.rounds;
+  for (const raw of [' ', '0x40', [100], '1_000', '١٢٠', '1e999', 'Infinity', '12abc', {}, true]) {
+    assert.equal(M.normaliseParams({ rounds: raw }).rounds, def, JSON.stringify(raw));
+  }
+  assert.equal(M.normaliseParams({ rounds: ' 120 ' }).rounds, 120);
+  assert.equal(M.normaliseParams({ rounds: '1e2' }).rounds, 100);
+  assert.equal(M.normaliseParams({ aiAccuracy: '.9' }).aiAccuracy, 0.9);
+  assert.equal(M.normaliseParams({ driftAt: 0.49999999999999994 }).driftAt, 1);
+  assert.equal(M.normaliseParams(null).rounds, def);
+  assert.equal(M.normaliseParams('rounds=40').rounds, def);
+});
+
+test('the stress test can only make the AI worse', () => {
+  const p = M.normaliseParams({ aiAccuracy: 0.7, driftAccuracy: 0.95, driftAt: 60 });
+  assert.equal(p.driftAccuracy, 0.7);
+  assert.equal(M.normaliseParams({ aiAccuracy: 0.9, driftAccuracy: 0.6 }).driftAccuracy, 0.6);
+  const r = M.simulate(Object.assign(small(), { aiAccuracy: 0.7, driftAccuracy: 0.95, driftAt: 30 }));
+  assert.ok(r.shock.aiAfter < r.shock.aiBefore + 0.03);
+});
+
+test('explanations do not claim learning or fading that is switched off', () => {
+  const noLearn = M.explain(M.analyse(small({ workflow: 'none', feedbackRate: 0.25, learningRate: 0 })));
+  assert.match(noLearn[0], /Learning from practice is set to zero/);
+  const noFeedback = M.explain(M.analyse(small({ workflow: 'none', feedbackRate: 0 })));
+  assert.match(noFeedback[0], /Without feedback/);
+  const noDecay = M.explain(M.analyse(small({ workflow: 'ai_first', decayRate: 0 }))).join(' ');
+  assert.match(noDecay, /give no practice\./);
+  assert.doesNotMatch(noDecay, /skill fades/);
+});
+
+test('the step-by-step robustness check matches the one-shot version', () => {
+  const p = small({ people: 50, rounds: 30 });
+  const ctx = M.sensitivityStart(p);
+  for (const item of M.SENSITIVITY) {
+    ctx.summary.rows.push({ key: item.key, base: ctx.p[item.key], low: M.sensitivityPoint(ctx, item, 'low'), high: M.sensitivityPoint(ctx, item, 'high') });
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.summary)), JSON.parse(JSON.stringify(M.sensitivity(p))));
 });

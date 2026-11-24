@@ -6,6 +6,7 @@ versions produce the same numbers. ``tests/test_parity.py`` checks this.
 """
 
 import math
+import re
 
 # Fixed behavioural constants (see the README for what each one means).
 CONSTANTS = {
@@ -190,22 +191,38 @@ def _parse_bool(v, default):
     return default
 
 
+# Accepts numbers and plain decimal strings only ("0.7", "120", "1e-3"); anything else is rejected.
+NUMBER_PATTERN = re.compile(r"[ \t\r\n]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\r\n]*")
+
+
+def to_number(raw):
+    if isinstance(raw, bool):
+        return math.nan
+    try:
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        if isinstance(raw, str) and NUMBER_PATTERN.fullmatch(raw):
+            return float(raw)
+    except OverflowError:
+        pass
+    return math.nan
+
+
 def normalise_params(src=None):
     """Fills in defaults, clamps every number to its allowed range and rejects bad values."""
-    src = src or {}
+    src = src if isinstance(src, dict) else {}
     out = {}
     for key, _group, lo, hi, default, is_int in PARAMS:
-        raw = src.get(key)
-        try:
-            v = float("nan") if raw is None or raw == "" or isinstance(raw, bool) else float(raw)
-        except (TypeError, ValueError):
-            v = float("nan")
+        v = to_number(src.get(key))
         if not math.isfinite(v):
             v = default
         v = clamp(v, lo, hi)
         if is_int:
             v = int(math.floor(v + 0.5))
         out[key] = v
+    # A stress test can only make the AI worse.
+    if out["driftAccuracy"] > out["aiAccuracy"]:
+        out["driftAccuracy"] = out["aiAccuracy"]
     wf = src.get("workflow")
     out["workflow"] = wf if wf in WORKFLOW_KEYS else DEFAULTS["workflow"]
     out["showConfidence"] = _parse_bool(src.get("showConfidence"), DEFAULTS["showConfidence"])
@@ -498,7 +515,7 @@ PARAM_LABELS = {
     "aiOverconfidence": "AI overconfidence",
     "feedbackRate": "Feedback after each case",
     "rounds": "Cases per person",
-    "driftAt": "AI gets worse from case",
+    "driftAt": "AI gets worse after case",
     "driftAccuracy": "AI accuracy after the change",
     "learningRate": "Learning from practice",
     "decayRate": "Skill decay from disuse",
@@ -557,10 +574,12 @@ def explain(a):
     r, c, p = a["result"], a["control"], a["result"]["params"]
     out = []
     if p["workflow"] == "none":
-        if p["feedbackRate"] > 0 and p["learningRate"] > 0:
-            tail = "Feedback on %s of cases lets them improve with practice." % whole_pct(p["feedbackRate"])
-        else:
+        if p["feedbackRate"] == 0:
             tail = "Without feedback, practice alone does not improve their judgement."
+        elif p["learningRate"] == 0:
+            tail = "Learning from practice is set to zero, so their judgement stays where it started."
+        else:
+            tail = "Feedback on %s of cases lets them improve with practice." % whole_pct(p["feedbackRate"])
         out.append("Working alone, people reach %s accuracy. %s" % (whole_pct(r["teamAccuracy"]), tail))
         return out
     if r["aiRealisedAccuracy"] > c["teamAccuracy"] + 0.02:
@@ -570,8 +589,8 @@ def explain(a):
         out.append("The AI is not clearly better than people working alone (%s against %s), so leaning on it cannot lift accuracy much."
                    % (whole_pct(r["aiRealisedAccuracy"]), whole_pct(c["teamAccuracy"])))
     if r["deferralRate"] > 0.2:
-        out.append("People accepted the AI's answer without thinking on %s of cases. Those cases give no practice, so their own skill fades."
-                   % whole_pct(r["deferralRate"]))
+        out.append("People accepted the AI's answer without thinking on %s of cases. Those cases give no practice%s"
+                   % (whole_pct(r["deferralRate"]), ", so their own skill fades." if p["decayRate"] > 0 else "."))
     if p["feedbackRate"] < 0.3:
         out.append("People find out the right answer on only %s of cases, so they learn slowly and their trust barely tracks how good the AI really is."
                    % whole_pct(p["feedbackRate"]))

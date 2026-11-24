@@ -58,6 +58,8 @@ def run_experiment(params, arms=("none", "ai_first", "human_first"), n=60, items
     """
     params = model.normalise_params(params)
     arms = list(arms)
+    if not arms:
+        raise ValueError("Name at least one workflow")
     for arm in arms:
         if arm not in model.WORKFLOW_KEYS:
             raise ValueError("Unknown workflow: %s" % arm)
@@ -104,6 +106,8 @@ def power_curve(params, arm, control="none", sizes=(20, 40, 80, 160), reps=400, 
         raise ValueError("Sample sizes must be at least 2")
     if reps < 1 or pool < 2:
         raise ValueError("Need at least one replication and a pool of two or more")
+    if items < 1:
+        raise ValueError("The tests need at least one item")
     treated = [r["change"] for r in simulate_arm(params, arm, 1, pool, items)]
     base = [r["change"] for r in simulate_arm(params, control, 0, pool, items)]
     true_effect = welch(treated, base)
@@ -121,13 +125,18 @@ def power_curve(params, arm, control="none", sizes=(20, 40, 80, 160), reps=400, 
                 if (test["diff"] > 0) == (true_effect["diff"] > 0):
                     right_way += 1
         results.append({"n": size, "power": significant / reps, "rightWay": right_way / reps})
+    needed = smallest_size_for(results, 0.8)
     return {"params": params, "arm": arm, "control": control, "items": items, "pool": pool, "reps": reps,
-            "alpha": alpha, "effect": true_effect, "results": results,
-            "needed": smallest_size_for(results, 0.8)}
+            "alpha": alpha, "effect": true_effect, "results": results, "needed": needed,
+            "neededAtMost": needed is not None and results[0]["rightWay"] >= 0.8}
 
 
 def smallest_size_for(results, target):
-    """Interpolates the participants per arm needed to reach ``target`` power, or None if out of range."""
+    """Interpolates the participants per arm needed to reach ``target`` power, or None if out of range.
+
+    If the smallest size tested already reaches the target, that size is returned: the
+    true requirement may be lower (``power_curve`` flags this as ``neededAtMost``).
+    """
     prev = None
     for row in results:
         if row["rightWay"] >= target:
