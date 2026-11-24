@@ -8,7 +8,7 @@ from pathlib import Path
 from reliance_lab.sessions import load_session, score_session
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
 except ImportError:  # pragma: no cover - depends on the machine
     sync_playwright = None
 
@@ -138,14 +138,15 @@ class AppTests(unittest.TestCase):
         page = self.open()
         sample = Path(__file__).resolve().parent.parent / "examples" / "sessions" / "P01.json"
         page.set_input_files("#open-file", str(sample))
-        self.assertTrue(page.is_visible("#try-debrief"))
-        self.assertEqual(page.locator("#trial-table tbody tr").count(), 20)
+        # Files are read asynchronously, so wait for the result rather than checking at once.
+        expect(page.locator("#try-debrief")).to_be_visible()
+        expect(page.locator("#trial-table tbody tr")).to_have_count(20)
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "bad.json"
             bad.write_text('{"format": "something else"}')
             page.click("#again-btn")
             page.set_input_files("#open-file", str(bad))
-            self.assertIn("not a Reliance lab results file", page.inner_text("#open-status"))
+            expect(page.locator("#open-status")).to_contain_text("not a Reliance lab results file")
             self.assertTrue(page.is_visible("#try-setup"))
 
     def test_a_minimal_results_file_from_elsewhere(self):
@@ -156,6 +157,8 @@ class AppTests(unittest.TestCase):
                       {"truth": "genuine", "initial": "genuine", "initialConfidence": 0.9, "ai": "fraud", "final": "genuine"}]
             path.write_text(json.dumps({"format": "reliance-lab-session", "trials": trials}))
             page.set_input_files("#open-file", str(path))
+            # Wait inside the block: the browser reads the file after set_input_files returns.
+            expect(page.locator("#trial-table tbody tr")).to_have_count(2)
         table = page.inner_text("#trial-table")
         self.assertNotIn("undefined", table)
         self.assertNotIn("n/a", table)

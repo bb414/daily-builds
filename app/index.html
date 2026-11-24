@@ -1647,14 +1647,14 @@ if (typeof module !== 'undefined' && module.exports) {
       svgText(s, sx(v), H - 4, pct(v), { 'text-anchor': 'middle' });
     }
     var refs = [
-      { v: 1 - p.human, name: 'Person alone', color: 'var(--you)' },
-      { v: 1 - p.ai, name: 'AI alone', color: 'var(--ai)' }
+      { v: 1 - p.human, name: 'Person alone', colour: 'var(--you)' },
+      { v: 1 - p.ai, name: 'AI alone', colour: 'var(--ai)' }
     ].sort(function (m, n) { return m.v - n.v; });
     var barTop = function (i) { return top + i * rowH + (narrow ? 18 : (rowH - barH) / 2); };
     refs.forEach(function (r, i) {
       var x = sx(r.v);
       var line = function (y1, y2) {
-        svgEl('line', { x1: x, x2: x, y1: y1, y2: y2, stroke: r.color, 'stroke-width': 2, 'stroke-dasharray': '5 4' }, s);
+        svgEl('line', { x1: x, x2: x, y1: y1, y2: y2, stroke: r.colour, 'stroke-width': 2, 'stroke-dasharray': '5 4' }, s);
       };
       if (narrow) {
         line(top - 6, barTop(0) - 18);

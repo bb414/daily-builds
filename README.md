@@ -96,6 +96,14 @@ All figures below come from `python -m reliance_lab model` and `python -m relian
 - **An assistant that always sounds sure defeats the "follow it when it sounds sure" rule.** In the "chatty assistant" scenario every answer clears an 80% bar, so the rule becomes "always follow" (82.0%, no gain), while the best rule, which leans on the person's own confidence instead, still adds 3.3 points.
 - **Shared blind spots and vague confidence are the biggest brakes.** In the sweep, the best rule's average gain falls from 5.8 points with unrelated mistakes to 2.6 points when the overlap is 0.4, and rises from 2.5 points when the AI's confidence says nothing to 6.1 points when it is informative.
 
+The map shows the second and third points at a glance: under the default confidence settings, "go with whoever is surer" lets the pair beat both (green) along the diagonal where the two are about equally good, and adds little or nothing (grey) where one side is far better.
+
+![Where "go with whoever is surer" beats both, for every pair of accuracies](docs/map.png)
+
+The levers chart turns the same model into a "where should we invest?" question. Under the defaults, a model five points more accurate adds 2.8 points to the team, cutting shared blind spots adds 1.9, and making the AI's confidence more informative adds 1.2.
+
+![Which lever matters most under the default assumptions](docs/levers.png)
+
 ## Which language does what
 
 | Part | Language | Roughly | What it does |
