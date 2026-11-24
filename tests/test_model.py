@@ -234,6 +234,26 @@ class AuditRegressionTests(unittest.TestCase):
         m["terms"][0]["drivers"][0]["name"] = " \n "
         self.assertIn("needs a name", M.validate_model(m)[0])
 
+    def test_extreme_ranges_do_not_overflow(self):
+        r = M.analyse(one_driver("share", 1e-300, 50), 2000, 1)
+        self.assertTrue(0 <= r["p10"] <= r["p90"] <= 1)
+        self.assertIn("at least 1e-12", M.validate_model(one_driver("lognormal", 1e-13, 1e15))[0])
+        r = M.analyse(one_driver("lognormal", 1e-12, 1e15), 2000, 1)
+        self.assertTrue(math.isfinite(r["max"]))
+        self.assertEqual(M.logistic(-1000), 0.0)
+        self.assertEqual(M.logistic(1000), 1.0)
+        self.assertAlmostEqual(M.logistic(0.3), 1 / (1 + math.exp(-0.3)))
+
+    def test_deep_on_an_all_fixed_model(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "fixed.json"
+            f.write_text(json.dumps(one_driver("fixed", 3, 3)))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(cli(["deep", str(f), "--samples", "100", "--seeds", "2"]), 0)
+            row = next(line for line in buf.getvalue().splitlines() if "Drivers combining" in line)
+            self.assertEqual(row.split()[-2:], ["0%", "0%"])
+
     def test_percent_rounds_halves_up(self):
         self.assertEqual([M.percent(x) for x in (0.325, 0.125, 0.5, 0.004, 0.995)], [33, 13, 50, 0, 100])
 

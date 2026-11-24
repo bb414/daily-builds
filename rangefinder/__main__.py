@@ -62,7 +62,7 @@ def cmd_deep(args):
     res = analyse(model)
     names = [d["name"] for _, _, d in drivers_of(model)]
     varying = sum(1 for _, _, d in drivers_of(model) if d["dist"] != "fixed")
-    width = max(len(n) for n in names)
+    width = max([len(n) for n in names] + [len("Drivers combining"), len("Driver")])
     print("%s: heavier checks" % (model["title"] or "Untitled estimate"))
     print("")
     print("Sobol indices from %s pick-and-freeze runs (first-order checks the app's shares;" % "{:,}".format(
@@ -73,8 +73,8 @@ def cmd_deep(args):
     for r, s in zip(res["drivers"], sobol_rows):
         print("  %-*s  %8d%%  %10d%%  %11d%%" % (width, r["name"], percent(r["varShare"]),
                                                  percent(s["first"]), percent(s["total"])))
-    print("  %-*s  %8d%%  %10d%%" % (width, "Drivers combining", percent(res["interaction"]),
-                                     percent(max(0.0, 1 - sum(s["first"] for s in sobol_rows)))))
+    combined = max(0.0, 1 - sum(s["first"] for s in sobol_rows)) if res["sd"] > 0 else 0.0
+    print("  %-*s  %8d%%  %10d%%" % (width, "Drivers combining", percent(res["interaction"]), percent(combined)))
 
     def fv(x):
         return format_value(x, model["unit"], model["unitPosition"])

@@ -523,6 +523,7 @@ function invNorm(p) {
 }
 
 const MAX_ABS = 1e15;
+const MIN_SKEWED = 1e-12;
 function isNum(x) { return typeof x === 'number' && Number.isFinite(x); }
 function inBounds(x) { return isNum(x) && Math.abs(x) <= MAX_ABS; }
 // Trim ASCII white space only, exactly as the Python package does.
@@ -580,7 +581,7 @@ function validateModel(model) {
       if (!inBounds(lo) || (dist !== 'fixed' && !inBounds(hi))) { problems.push(label + ': numbers must be between -1e15 and 1e15.'); return; }
       if (dist === 'fixed') return;
       if (!(lo < hi)) problems.push(label + ': the low value must be below the high value.');
-      else if (dist === 'lognormal' && lo <= 0) problems.push(label + ': a skewed (lognormal) range must be above zero.');
+      else if (dist === 'lognormal' && lo < MIN_SKEWED) problems.push(label + ': a skewed (lognormal) range must be above zero (at least 1e-12).');
       else if (dist === 'share' && !(lo > 0 && hi < 100)) problems.push(label + ': a percentage range must be between 0 and 100, not including them.');
     });
   });
@@ -589,6 +590,13 @@ function validateModel(model) {
 }
 
 function logit(p) { return Math.log(p / (1 - p)); }
+
+// 1 / (1 + e^-x), written so that it never overflows (identical in the Python package).
+function logistic(x) {
+  if (x >= 0) return 1 / (1 + Math.exp(-x));
+  const e = Math.exp(x);
+  return e / (1 + e);
+}
 
 function distParams(d) {
   const lo = d.low, hi = d.high;
@@ -601,7 +609,7 @@ function distParams(d) {
 function transform(d, p, z, u) {
   if (d.dist === 'lognormal') return Math.exp(p.mu + p.sigma * z);
   if (d.dist === 'normal') return p.mu + p.sigma * z;
-  if (d.dist === 'share') return 1 / (1 + Math.exp(-(p.mu + p.sigma * z)));
+  if (d.dist === 'share') return logistic(p.mu + p.sigma * z);
   if (d.dist === 'uniform') return d.low + (d.high - d.low) * u;
   return d.low;
 }
@@ -840,7 +848,7 @@ function formatDriver(x, d) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TEMPLATES, FORMAT, VERSION, DISTS, DIST_LABELS, Z95, Z90, MAX_TERMS, MAX_DRIVERS_PER_TERM, MAX_DRIVERS,
-    MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, MAX_ABS, CURRENCY_PREFIXES, stripName, mulberry32, shuffle, invNorm, validateModel,
+    MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, MAX_ABS, MIN_SKEWED, CURRENCY_PREFIXES, logistic, stripName, mulberry32, shuffle, invNorm, validateModel,
     distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse, valueOfInformation,
     narrowDriver,
     formatNumber, formatValue, formatDriver
@@ -873,11 +881,14 @@ if (typeof module !== 'undefined' && module.exports) {
     return prefix + ' ' + name;
   }
 
+  function lowLabel(d) { return d.dist === 'fixed' ? 'Value for' : (d.dist === 'share' ? 'Low value (%) for' : 'Low value for'); }
+  function highLabel(d) { return d.dist === 'share' ? 'High value (%) for' : 'High value for'; }
+
   function relabelDriver(row, d) {
     const set = (sel, prefix) => { const el = row.querySelector(sel); if (el) el.setAttribute('aria-label', fieldLabel(prefix, d)); };
     set('[data-act="del-driver"]', 'Remove');
-    set('[data-f="low"]', d.dist === 'fixed' ? 'Value for' : 'Low value for');
-    set('[data-f="high"]', 'High value for');
+    set('[data-f="low"]', lowLabel(d));
+    set('[data-f="high"]', highLabel(d));
     set('[data-f="dist"]', 'Kind of range for');
     set('[data-f="unit"]', 'Unit for');
   }
@@ -891,8 +902,8 @@ if (typeof module !== 'undefined' && module.exports) {
       '<input type="text" id="' + base + 'n" data-f="name" value="' + esc(d.name || '') + '" placeholder="What is it?">' +
       '<button class="icon-btn" type="button" data-act="del-driver" aria-label="' + esc(fieldLabel('Remove', d)) + '">' + TRASH + '</button></div>' +
       '<div class="driver-bottom">' +
-      '<label class="field">' + (d.dist === 'fixed' ? 'Value' : 'Low') + pct + '<input type="number" step="any" data-f="low" value="' + numAttr(d.low) + '" aria-label="' + esc(fieldLabel(d.dist === 'fixed' ? 'Value for' : 'Low value for', d)) + '"></label>' +
-      '<label class="field">High' + pct + '<input type="number" step="any" data-f="high" value="' + numAttr(d.high) + '"' + (d.dist === 'fixed' ? ' disabled' : '') + ' aria-label="' + esc(fieldLabel('High value for', d)) + '"></label>' +
+      '<label class="field">' + (d.dist === 'fixed' ? 'Value' : 'Low') + pct + '<input type="number" step="any" data-f="low" value="' + numAttr(d.low) + '" aria-label="' + esc(fieldLabel(lowLabel(d), d)) + '"></label>' +
+      '<label class="field">High' + pct + '<input type="number" step="any" data-f="high" value="' + numAttr(d.high) + '"' + (d.dist === 'fixed' ? ' disabled' : '') + ' aria-label="' + esc(fieldLabel(highLabel(d), d)) + '"></label>' +
       '<label class="field">Kind of range<select data-f="dist" aria-label="' + esc(fieldLabel('Kind of range for', d)) + '">' + DISTS.map(k => '<option value="' + k + '"' + (k === d.dist ? ' selected' : '') + '>' + esc(DIST_LABELS[k]) + '</option>').join('') + '</select></label>' +
       '<label class="field">Unit<input type="text" data-f="unit" maxlength="12" value="' + esc(d.unit || '') + '" aria-label="' + esc(fieldLabel('Unit for', d)) + '"></label>' +
       '</div></div>';
@@ -942,6 +953,8 @@ if (typeof module !== 'undefined' && module.exports) {
       termEl.classList.toggle('minus', m.terms[ti].sign < 0);
     } else if (el.dataset.tf === 'name') {
       m.terms[ti].name = el.value;
+      const del = termEl.querySelector('[data-act="del-term"]');
+      if (del) del.setAttribute('aria-label', 'Remove the term ' + (el.value || (ti + 1)));
     } else if (el.dataset.f) {
       const row = el.closest('.driver');
       const di = Number(row.dataset.d);
@@ -1011,6 +1024,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   /* ---------- Running ---------- */
   function schedule() {
+    state.pending = true;
     if ($('#template').value !== 'yours') setTemplateSelect('yours');
     if (/^#model=/.test(location.hash)) history.replaceState(null, '', location.href.split('#')[0]);
     clearTimeout(state.timer);
@@ -1023,17 +1037,19 @@ if (typeof module !== 'undefined' && module.exports) {
       const row = document.querySelector('.driver[data-t="' + ti + '"][data-d="' + di + '"]');
       if (!row) return;
       const bad = [];
-      if (!(typeof d.name === 'string' && d.name.trim())) bad.push('name');
+      if (!(typeof d.name === 'string' && stripName(d.name))) bad.push('name');
       if (!isNum(d.low)) bad.push('low');
       if (d.dist !== 'fixed') {
         if (!isNum(d.high)) bad.push('high');
-        else if (isNum(d.low) && (!(d.low < d.high) || (d.dist === 'lognormal' && d.low <= 0) || (d.dist === 'share' && !(d.low > 0 && d.high < 100)))) bad.push('low', 'high');
+        else if (isNum(d.low) && (!(d.low < d.high) || (d.dist === 'lognormal' && d.low < MIN_SKEWED) || (d.dist === 'share' && !(d.low > 0 && d.high < 100)))) bad.push('low', 'high');
       }
       bad.forEach(f => { const el = row.querySelector('[data-f="' + f + '"]'); if (el) el.setAttribute('aria-invalid', 'true'); });
     }));
   }
 
   function run() {
+    state.pending = false;
+    clearTimeout(state.timer);
     const m = state.model;
     markInvalid();
     const problems = validateModel(m);
@@ -1207,7 +1223,7 @@ if (typeof module !== 'undefined' && module.exports) {
     if (!pick || !opts.some(o => o.ti === pick.ti && o.di === pick.di)) {
       const first = r.voi ? r.voi.order.find(i => r.drivers[i].dist !== 'fixed') : r.tornado.find(i => r.drivers[i].dist !== 'fixed');
       const d = r.drivers[first];
-      pick = {ti: d.term, di: d.index};
+      pick = d && opts.some(o => o.ti === d.term && o.di === d.index) ? {ti: d.term, di: d.index} : {ti: opts[0].ti, di: opts[0].di};
     }
     state.narrowPick = pick;
     const factor = state.narrowFactor === undefined ? 0.5 : state.narrowFactor;
@@ -1334,16 +1350,20 @@ if (typeof module !== 'undefined' && module.exports) {
     return out;
   }
 
+  // The model is saved with the example it came from, so an untouched example is not treated as "Your estimate".
   function saveLocal() {
-    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state.model)); } catch (e) { /* storage unavailable: nothing to do */ }
+    const key = state.yours ? 'yours' : $('#template').value;
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify({key: key, model: state.model})); } catch (e) { /* storage unavailable: nothing to do */ }
   }
 
   function readLocal() {
     try {
       const raw = window.localStorage.getItem(STORE_KEY);
       if (!raw) return null;
-      const m = JSON.parse(raw);
-      return validateModel(m).length ? null : m;
+      const saved = JSON.parse(raw);
+      if (!isObj(saved) || validateModel(saved.model).length) return null;
+      const known = TEMPLATES.some(t => t.key === saved.key);
+      return {key: known ? saved.key : 'yours', model: saved.model};
     } catch (e) {
       return null;
     }
@@ -1424,9 +1444,14 @@ if (typeof module !== 'undefined' && module.exports) {
         setStatus('That file could not be opened: ' + problems[0], true);
         return;
       }
+      const had = state.yours ? clone(state.model) : null;
       setTemplateSelect('yours');
       useModel(m, '');
-      setStatus('Opened ' + file.name + '.');
+      if (had && JSON.stringify(had) !== JSON.stringify(m) && stashPrevious(had)) {
+        setStatus('Opened ' + file.name + '. Your previous estimate is kept.', false, {label: 'Restore it', run: restorePrevious});
+      } else {
+        setStatus('Opened ' + file.name + '.');
+      }
     };
     reader.onerror = () => setStatus('That file could not be read.', true);
     reader.readAsText(file);
@@ -1485,6 +1510,7 @@ if (typeof module !== 'undefined' && module.exports) {
       } else {
         return;
       }
+      if (state.pending) run();
       if (validateModel(state.model).length || !state.result) return;
       renderNarrow(state.result);
       const el = document.getElementById(e.target.id);
@@ -1498,7 +1524,8 @@ if (typeof module !== 'undefined' && module.exports) {
       state.resizeTimer = setTimeout(() => { renderDistribution(state.result); renderTornado(state.result); }, 150);
     });
     const linked = modelFromLink();
-    const saved = readLocal();
+    const stored = readLocal();
+    const saved = stored && stored.key === 'yours' ? stored.model : null;
     if (linked) {
       // The link is now loaded, so drop it from the address bar: later edits are saved in the browser instead.
       history.replaceState(null, '', location.href.split('#')[0]);
@@ -1512,6 +1539,10 @@ if (typeof module !== 'undefined' && module.exports) {
     } else if (saved) {
       setTemplateSelect('yours');
       useModel(saved, '');
+    } else if (stored) {
+      const t = TEMPLATES.find(x => x.key === stored.key);
+      setTemplateSelect(t.key);
+      useModel(stored.model, t.about);
     } else {
       loadTemplate(TEMPLATES[0].key);
     }

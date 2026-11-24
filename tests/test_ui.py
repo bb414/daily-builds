@@ -262,7 +262,7 @@ class BrowserTests(unittest.TestCase):
         page.wait_for_timeout(200)
         link = page.evaluate("location.href")
         if "#model=" not in link:   # the clipboard worked, so the address bar was tidied; rebuild the link
-            link = page.evaluate("location.href.split('#')[0] + '#model=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('range-finder-model-v1')), {}))))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')")
+            link = page.evaluate("location.href.split('#')[0] + '#model=' + btoa(unescape(encodeURIComponent(JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('range-finder-model-v1')).model, {}))))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')")
         other = self.browser.new_page()
         other.goto(link)
         other.wait_for_selector("#summary .range")
@@ -273,6 +273,49 @@ class BrowserTests(unittest.TestCase):
         other.wait_for_selector("#summary .range")
         self.assertEqual(other.input_value("#f-title"), "Edited after opening")
         other.close()
+        page.close()
+
+    def test_untouched_example_is_not_your_estimate_after_a_reload(self):
+        page = self.open()
+        page.select_option("#template", "ai-assistant")
+        self.settle(page)
+        page.reload()
+        page.wait_for_selector("#summary .range")
+        self.assertEqual(page.input_value("#template"), "ai-assistant")
+        dialogs = []
+        page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
+        page.select_option("#template", "meal-kits")
+        self.settle(page)
+        self.assertEqual(dialogs, [])
+        self.assertEqual(page.input_value("#f-title"), "Meal kits for students in Wealdham")
+        page.close()
+
+    def test_second_audit_details(self):
+        import json
+        import tempfile
+        page = self.open()
+        # A name of only a non-breaking space counts as a name, as in validation.
+        page.fill(".driver[data-t='0'][data-d='0'] [data-f='name']", "\u00a0")
+        self.settle(page)
+        self.assertTrue(page.is_hidden("#problems"))
+        self.assertIsNone(page.get_attribute(".driver[data-t='0'][data-d='0'] [data-f='name']", "aria-invalid"))
+        # Renaming a term updates its delete button, and percentage fields say so.
+        page.fill("#t0name", "Student spending")
+        self.assertEqual(page.get_attribute(".term[data-t='0'] [data-act='del-term']", "aria-label"), "Remove the term Student spending")
+        self.assertEqual(page.get_attribute(".driver[data-t='0'][data-d='1'] [data-f='low']", "aria-label"),
+                         "Low value (%) for Share in self-catered housing")
+        self.settle(page)
+        # Opening a file keeps the edited estimate so it can be restored.
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "bikes.json"
+            from rangefinder.model import TEMPLATES
+            f.write_text(json.dumps(TEMPLATES[2]))
+            page.set_input_files("#open-file", str(f))
+            page.wait_for_function("document.querySelector('#f-title').value === 'A campus e-bike share'")
+            self.assertIn("previous estimate is kept", page.inner_text("#status"))
+            page.click("#status button")
+            page.wait_for_function("document.querySelector('#t0name').value === 'Student spending'")
+        self.assertEqual(self.errors, [])
         page.close()
 
     def test_phone_layout_fits(self):

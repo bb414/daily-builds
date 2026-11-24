@@ -99,6 +99,12 @@ class AppAgreesWithPython(unittest.TestCase):
         for g, e in zip(got, expect):
             close(self, e, g, "narrow")
 
+    def test_logistic_agrees(self):
+        xs = [-1500, -40, -3.2, -1e-9, 0, 1e-9, 0.7, 25, 1500]
+        got = js([{"fn": "logistic", "args": [x]} for x in xs])
+        for x, g in zip(xs, got):
+            self.assertAlmostEqual(g, M.logistic(x), delta=1e-15)
+
     def test_inverse_normal_agrees(self):
         ps = [1e-12, 1e-6, 0.01, 0.02425, 0.2, 0.5, 0.77, 0.97576, 0.999, 1 - 1e-12]
         got = js([{"fn": "invNorm", "args": [p]} for p in ps])
@@ -135,12 +141,14 @@ class AppAgreesWithPython(unittest.TestCase):
             changed(lambda m: d0(m).update(name=" \t ")), changed(lambda m: m.update(unit="\U0001D461" * 7)),
             changed(lambda m: m.update(unit="\U0001D461" * 13)), changed(lambda m: d0(m).update(low=1e300, high=1e308)),
             changed(lambda m: m.update(threshold=2e15)), changed(lambda m: d0(m).update(dist="fixed", low=-1e16)),
+            changed(lambda m: d0(m).update(low=1e-13)), changed(lambda m: d0(m).update(dist="share", low=1e-300, high=50)),
         ]
         got = js([{"fn": "validateModel", "args": [c]} for c in cases])
         self.assertEqual(got, [M.validate_model(c) for c in cases])
         self.assertEqual(got[0], [])
         valid = sum(1 for g in got if not g)
-        self.assertEqual(valid, 6)  # the base model, an empty threshold, a fixed driver, two odd names, a 7-character unit
+        self.assertEqual(valid, 7)  # the base model, an empty threshold, a fixed driver, two odd names, a 7-character unit,
+        # and a percentage range starting just above zero
 
     def test_formatting_is_identical(self):
         xs = [0, 1, -1, 0.5, 1.125, 2.675, 12.345, 99.95, 999.4, 999.5, 1234, 12345, 123456, 999499, 999500,

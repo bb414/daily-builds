@@ -101,7 +101,8 @@ def inv_norm(p):
 # Validation
 # ---------------------------------------------------------------------------
 
-MAX_ABS = 1e15   # the largest size of number a range may use
+MAX_ABS = 1e15      # the largest size of number a range may use
+MIN_SKEWED = 1e-12  # the smallest low value for a skewed range, so its samples never overflow
 
 
 def _is_num(x):
@@ -200,8 +201,8 @@ def validate_model(model):
                 continue
             if not lo < hi:
                 problems.append("%s: the low value must be below the high value." % label)
-            elif dist == "lognormal" and lo <= 0:
-                problems.append("%s: a skewed (lognormal) range must be above zero." % label)
+            elif dist == "lognormal" and lo < MIN_SKEWED:
+                problems.append("%s: a skewed (lognormal) range must be above zero (at least 1e-12)." % label)
             elif dist == "share" and not (0 < lo and hi < 100):
                 problems.append("%s: a percentage range must be between 0 and 100, not including them." % label)
     if total > MAX_DRIVERS:
@@ -215,6 +216,14 @@ def validate_model(model):
 
 def _logit(p):
     return math.log(p / (1 - p))
+
+
+def logistic(x):
+    """1 / (1 + e^-x), written so that it never overflows (identical in the app)."""
+    if x >= 0:
+        return 1 / (1 + math.exp(-x))
+    e = math.exp(x)
+    return e / (1 + e)
 
 
 def dist_params(d):
@@ -238,7 +247,7 @@ def transform(d, p, z, u):
     if dist == "normal":
         return p["mu"] + p["sigma"] * z
     if dist == "share":
-        return 1 / (1 + math.exp(-(p["mu"] + p["sigma"] * z)))
+        return logistic(p["mu"] + p["sigma"] * z)
     if dist == "uniform":
         return d["low"] + (d["high"] - d["low"]) * u
     return d["low"]

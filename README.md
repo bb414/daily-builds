@@ -122,13 +122,13 @@ For the meal-kit market the app shows that about a fifth of the spread (22%) com
 
 | Part | Language | What it does | Roughly |
 |---|---|---|---|
-| Browser app model | JavaScript | Validation, distributions, Latin hypercube sampling, analysis, value of information, narrowing and number formatting, inside `app/index.html` | 390 lines |
+| Browser app model | JavaScript | Validation, distributions, Latin hypercube sampling, analysis, value of information, narrowing and number formatting, inside `app/index.html` | 400 lines |
 | Examples in the app | JavaScript (data) | A copy of `templates.json`, written in by `tools/embed_templates.py` | 220 lines |
-| Browser app interface | JavaScript | The editor, the results cards and charts, saving, opening, share links | 670 lines |
-| Browser app styling and layout | CSS and HTML | Layout, typography, light and dark colours, phone layout | 250 lines |
-| Python package | Python (standard library only) | The same engine, plus text, CSV and JSON reports, the narrowing plan, Sobol indices, seed stability and the command line | 930 lines |
+| Browser app interface | JavaScript | The editor, the results cards and charts, saving, opening, share links | 700 lines |
+| Browser app styling and layout | CSS and HTML | Layout, typography, light and dark colours, phone layout | 240 lines |
+| Python package | Python (standard library only) | The same engine, plus text, CSV and JSON reports, the narrowing plan, Sobol indices, seed stability and the command line | 940 lines |
 | Examples | JSON | The three built-in examples and the textile reuse model | 140 lines |
-| Tests | Python (and a small Node.js runner) | Engine tests, statistical checks against brute force, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 950 lines |
+| Tests | Python (and a small Node.js runner) | Engine tests, statistical checks against brute force, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 1,020 lines |
 
 The two versions never call each other. What Python adds is the part a browser tab is not built for: Sobol indices from hundreds of thousands of runs, repeated runs under many seeds, a full narrowing plan, and files to feed into other tools.
 
