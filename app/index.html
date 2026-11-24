@@ -175,6 +175,7 @@ legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
 .progress-bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .progress-bar span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
 .case-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
+.case-layout > .card + .card { margin-top: 0; }
 @media (max-width: 860px) { .case-layout { grid-template-columns: 1fr; } }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
 .fact { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
