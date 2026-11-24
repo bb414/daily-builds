@@ -49,7 +49,7 @@ Python, R, and JavaScript/HTML are all fair game. Prefer what suits the idea: a 
 - **Runs offline with no API keys or paid services.** Use synthetic or openly licensed bundled data. If a free public API is genuinely central to the idea, it must fail gracefully when offline.
 - **Tested.** Includes at least a few automated tests or a self-check, and they pass before anything is pushed.
 - **Explains itself.** README covers what it is, why it matters (linked to the themes above), how to run it, and what could come next.
-- **Genuinely new.** Not a near-repeat of anything already in the README table.
+- **Entirely unique.** Every build must be a completely different project from every previous one. Themes can come round again, but the core idea, the problem it solves, how it works and what it produces must not overlap any earlier build. No variants, sequels, re-skins or extensions of past builds. No generic tutorial projects either (to-do lists, weather apps, basic calculators, plain chatbots): each one needs its own distinctive angle.
 - **Nothing confidential or personal.** No EPAM, client or employer data, no real people's personal data, nothing that imitates a real organisation's branding.
 
 ## Writing style

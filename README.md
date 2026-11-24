@@ -10,6 +10,6 @@ One small, finished project every day, each on its own branch.
 
 ## Projects
 
-| Date | Project | Theme | Stack | Branch |
-|------|---------|-------|-------|--------|
+| Date | Project | What it does | Theme | Stack | Branch |
+|------|---------|--------------|-------|-------|--------|
 <!-- NEW ROWS GO DIRECTLY BELOW THIS LINE, NEWEST FIRST -->
