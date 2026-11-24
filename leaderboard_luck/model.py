@@ -36,6 +36,10 @@ DEFAULTS = {
     "drawdownLimit": 0.15,
     "yourSharpe": 1,
     "yourVol": 0.2,
+    "catchUp": False,
+    "catchUpVol": 0.8,
+    "checkpoint": 0.75,
+    "rivalsCatchUp": 0,
     "sims": 2000,
     "seed": 1,
 }
@@ -52,6 +56,9 @@ RANGES = {
     "drawdownLimit": (0.02, 0.6, False),
     "yourSharpe": (-1, 3, False),
     "yourVol": (0.02, 1, False),
+    "catchUpVol": (0.02, 1, False),
+    "checkpoint": (0.25, 0.9, False),
+    "rivalsCatchUp": (0, 1, False),
     "sims": (100, 20000, True),
     "seed": (0, 4294967295, True),
 }
@@ -63,6 +70,9 @@ JUMP_SIZE = 3
 JUMP_NORM = math.sqrt(1 + JUMP_PROB * (JUMP_SIZE * JUMP_SIZE - 1))
 
 VOL_JITTER = 0.25
+
+# "Going for broke": a team outside the top three at the checkpoint switches to higher risk.
+CATCH_TOP = 3
 
 MASK = 0xFFFFFFFF
 
@@ -88,9 +98,9 @@ def normalise(params: dict | None = None) -> dict:
                 raise ValueError(f"rule must be one of {', '.join(RULES)}")
             out[key] = v
             continue
-        if key == "fatTails":
+        if key in ("fatTails", "catchUp"):
             if not isinstance(v, bool):
-                raise ValueError("fatTails must be true or false")
+                raise ValueError(f"{key} must be true or false")
             out[key] = v
             continue
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
@@ -205,26 +215,58 @@ def daily_sd(vol: float) -> float:
     return vol / math.sqrt(DAYS_PER_YEAR)
 
 
-def run_you(p: dict, z: list[float], vol: float, record: bool = False) -> dict:
+def interim_score(acc: Account, p: dict, n: int) -> float:
+    """The score a team would have on the leaderboard after n days."""
+    if acc.bust or (p["rule"] == "drawdown" and acc.max_dd > p["drawdownLimit"]):
+        return -math.inf
+    if p["rule"] != "sharpe":
+        return acc.wealth - 1
+    mean = acc.total / n
+    variance = (acc.total_sq - n * mean * mean) / (n - 1) if n > 1 else 0.0
+    return mean / math.sqrt(variance) * math.sqrt(DAYS_PER_YEAR) if variance > 0 else 0.0
+
+
+def checkpoint_day(p: dict) -> int:
+    return clamp(round_half_up(p["checkpoint"] * p["days"]), 1, p["days"] - 1)
+
+
+def ahead_of(scores: list[float], mine: float, skip: int) -> int:
+    return sum(1 for i, sc in enumerate(scores) if i != skip and sc > mine)
+
+
+def run_you(p: dict, c: dict, vol: float, record: bool = False) -> dict:
+    """Your team at a given starting risk, switching risk at the checkpoint if going for broke."""
     acc = Account(record)
     mu = daily_mean(p["yourSharpe"], vol)
     sd = daily_sd(vol)
-    for zt in z:
+    cp = checkpoint_day(p)
+    switch_day = None
+    for t, zt in enumerate(c["yourZ"]):
+        if t == cp and p["catchUp"]:
+            mine = interim_score(acc, p, cp)
+            if mine > -math.inf and ahead_of(c["checkpointScores"], mine, -1) >= CATCH_TOP:
+                mu = daily_mean(p["yourSharpe"], p["catchUpVol"])
+                sd = daily_sd(p["catchUpVol"])
+                switch_day = cp
         acc.step(mu + sd * zt)
     f = finish(acc, p)
+    f["switchDay"] = switch_day
     if record:
         f["path"] = acc.path
     return f
 
 
 def run_competition(p: dict, k: int, record: bool = False) -> dict:
-    """One whole competition: the rivals' results and your daily shocks."""
+    """One whole competition: the rivals' results, their standings at the checkpoint, and your
+    daily shocks, so your result can be worked out at any level of risk on the same luck."""
     g = Rng(competition_seed(p["seed"], k))
     n_rivals = p["teams"] - 1
     n_gamblers = round_half_up(p["gamblers"] * n_rivals)
+    n_catch = round_half_up(p["rivalsCatchUp"] * (n_rivals - n_gamblers))
     a = math.sqrt(p["correlation"])
     b = math.sqrt(1 - p["correlation"])
     fat = p["fatTails"]
+    days = p["days"]
     rivals = []
     for j in range(n_rivals):
         gambler = j < n_gamblers
@@ -232,23 +274,39 @@ def run_competition(p: dict, k: int, record: bool = False) -> dict:
         z2 = g.normal()
         rivals.append({
             "gambler": gambler,
+            "catcher": (not gambler) and j - n_gamblers < n_catch,
             "sharpe": p["skillSpread"] * z1,
             "vol": p["fieldVol"] * (p["gamblerMultiple"] if gambler else 1) * math.exp(VOL_JITTER * z2),
         })
-    market = [shock(g, fat) for _ in range(p["days"])]
-    for rv in rivals:
-        acc = Account(record)
-        mu = daily_mean(rv["sharpe"], rv["vol"])
-        sd = daily_sd(rv["vol"])
-        for t in range(p["days"]):
-            acc.step(mu + sd * (a * market[t] + b * shock(g, fat)))
-        f = finish(acc, p)
+    market = [shock(g, fat) for _ in range(days)]
+    shocks = [[shock(g, fat) for _ in range(days)] for _ in rivals]
+    your_z = [a * market[t] + b * shock(g, fat) for t in range(days)]
+
+    accs = [Account(record) for _ in rivals]
+    mus = [daily_mean(rv["sharpe"], rv["vol"]) for rv in rivals]
+    sds = [daily_sd(rv["vol"]) for rv in rivals]
+    switch_days = [None] * len(rivals)
+    cp = checkpoint_day(p)
+    checkpoint_scores = None
+    for day in range(days):
+        if day == cp:
+            checkpoint_scores = [interim_score(acc, p, cp) for acc in accs]
+            for i, rv in enumerate(rivals):
+                if (rv["catcher"] and checkpoint_scores[i] > -math.inf
+                        and ahead_of(checkpoint_scores, checkpoint_scores[i], i) >= CATCH_TOP):
+                    mus[i] = daily_mean(rv["sharpe"], rv["vol"] * p["gamblerMultiple"])
+                    sds[i] = daily_sd(rv["vol"] * p["gamblerMultiple"])
+                    switch_days[i] = cp
+        m = a * market[day]
+        for i in range(len(rivals)):
+            accs[i].step(mus[i] + sds[i] * (m + b * shocks[i][day]))
+    for i, rv in enumerate(rivals):
+        f = finish(accs[i], p)
         rv.update({"ret": f["ret"], "realisedSharpe": f["sharpe"], "maxDD": f["maxDD"], "bust": f["bust"],
-                   "out": f["out"], "score": f["score"]})
+                   "out": f["out"], "score": f["score"], "switchDay": switch_days[i]})
         if record:
-            rv["path"] = acc.path
-    your_z = [a * market[t] + b * shock(g, fat) for t in range(p["days"])]
-    return {"rivals": rivals, "yourZ": your_z}
+            rv["path"] = accs[i].path
+    return {"rivals": rivals, "yourZ": your_z, "checkpointScores": checkpoint_scores}
 
 
 def place_you(rivals: list[dict], you: dict) -> float:
@@ -312,21 +370,24 @@ def skill_percentile(p: dict) -> float:
 
 
 def _tally() -> dict:
-    return {"wins": 0, "top3": 0, "rankSum": 0.0, "out": 0}
+    return {"wins": 0, "top3": 0, "rankSum": 0.0, "out": 0, "switched": 0}
 
 
-def _add(t: dict, rank: float, out: bool) -> None:
-    if not out and rank == 1:
+def _add(t: dict, rank: float, you: dict) -> None:
+    if not you["out"] and rank == 1:
         t["wins"] += 1
-    if not out and rank <= 3:
+    if not you["out"] and rank <= 3:
         t["top3"] += 1
     t["rankSum"] += rank
-    if out:
+    if you["out"]:
         t["out"] += 1
+    if you["switchDay"] is not None:
+        t["switched"] += 1
 
 
 def _rates(t: dict, n: int) -> dict:
-    return {"pWin": t["wins"] / n, "pTop3": t["top3"] / n, "meanRank": t["rankSum"] / n, "pOut": t["out"] / n}
+    return {"pWin": t["wins"] / n, "pTop3": t["top3"] / n, "meanRank": t["rankSum"] / n, "pOut": t["out"] / n,
+            "pSwitched": t["switched"] / n}
 
 
 class Run:
@@ -337,7 +398,7 @@ class Run:
         self.done = 0
         self.main = _tally()
         self.grid = [_tally() for _ in VOL_GRID]
-        self.winners = {"you": 0, "gambler": 0, "steady": 0, "none": 0, "noEdge": 0, "mostSkilled": 0}
+        self.winners = {"you": 0, "gambler": 0, "steady": 0, "none": 0, "noEdge": 0, "mostSkilled": 0, "switched": 0}
 
     def advance(self, count: int) -> bool:
         stop = min(self.params["sims"], self.done + count)
@@ -349,12 +410,13 @@ class Run:
     def _one(self, k: int) -> None:
         p = self.params
         c = run_competition(p, k)
-        you = run_you(p, c["yourZ"], p["yourVol"])
-        _add(self.main, place_you(c["rivals"], you), you["out"])
+        you = run_you(p, c, p["yourVol"])
+        _add(self.main, place_you(c["rivals"], you), you)
         for i, vol in enumerate(VOL_GRID):
-            alt = run_you(p, c["yourZ"], vol)
-            _add(self.grid[i], place_you(c["rivals"], alt), alt["out"])
-        best = None if you["out"] else {"score": you["score"], "sharpe": p["yourSharpe"], "kind": "you", "index": -1}
+            alt = run_you(p, c, vol)
+            _add(self.grid[i], place_you(c["rivals"], alt), alt)
+        best = None if you["out"] else {"score": you["score"], "sharpe": p["yourSharpe"], "kind": "you", "index": -1,
+                                        "switched": you["switchDay"] is not None}
         top_skill = p["yourSharpe"]
         top_index = -1
         for j, rv in enumerate(c["rivals"]):
@@ -363,7 +425,8 @@ class Run:
                 top_index = j
             if not rv["out"] and (best is None or rv["score"] > best["score"]):
                 best = {"score": rv["score"], "sharpe": rv["sharpe"],
-                        "kind": "gambler" if rv["gambler"] else "steady", "index": j}
+                        "kind": "gambler" if rv["gambler"] else "steady", "index": j,
+                        "switched": rv["switchDay"] is not None}
         w = self.winners
         if best is None:
             w["none"] += 1
@@ -373,6 +436,8 @@ class Run:
                 w["noEdge"] += 1
             if best["index"] == top_index:
                 w["mostSkilled"] += 1
+            if best["switched"]:
+                w["switched"] += 1
 
     def result(self) -> dict:
         n = max(1, self.done)
@@ -407,15 +472,15 @@ def sample_competition(params: dict | None, k: int) -> list[dict]:
     """One competition in full, ranked. Competition k is the same as competition k in simulate()."""
     p = normalise(params)
     c = run_competition(p, k, record=True)
-    you = run_you(p, c["yourZ"], p["yourVol"], record=True)
+    you = run_you(p, c, p["yourVol"], record=True)
     teams = [{"name": "Your team", "you": True, "gambler": False, "sharpe": p["yourSharpe"], "vol": p["yourVol"],
               "ret": you["ret"], "realisedSharpe": you["sharpe"], "maxDD": you["maxDD"], "bust": you["bust"],
-              "out": you["out"], "score": you["score"], "path": you["path"]}]
+              "out": you["out"], "score": you["score"], "switchDay": you["switchDay"], "path": you["path"]}]
     for j, rv in enumerate(c["rivals"]):
         teams.append({"name": f"Team {j + 2}", "you": False, "gambler": rv["gambler"], "sharpe": rv["sharpe"],
                       "vol": rv["vol"], "ret": rv["ret"], "realisedSharpe": rv["realisedSharpe"],
                       "maxDD": rv["maxDD"], "bust": rv["bust"], "out": rv["out"], "score": rv["score"],
-                      "path": rv["path"]})
+                      "switchDay": rv["switchDay"], "path": rv["path"]})
     order = sorted(range(len(teams)), key=lambda i: (-teams[i]["score"], i))
     ranked = []
     for pos, i in enumerate(order):

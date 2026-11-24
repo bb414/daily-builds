@@ -14,7 +14,9 @@ FLAGS = {
     "fieldVol": ("--field-vol", float), "gamblers": ("--gamblers", float),
     "gamblerMultiple": ("--gambler-multiple", float), "correlation": ("--correlation", float),
     "drawdownLimit": ("--drawdown-limit", float), "yourSharpe": ("--your-sharpe", float),
-    "yourVol": ("--your-vol", float), "sims": ("--sims", int), "seed": ("--seed", int),
+    "yourVol": ("--your-vol", float), "catchUpVol": ("--catch-up-vol", float),
+    "checkpoint": ("--checkpoint", float), "rivalsCatchUp": ("--rivals-catch-up", float),
+    "sims": ("--sims", int), "seed": ("--seed", int),
 }
 
 
@@ -23,12 +25,15 @@ def add_settings(parser: argparse.ArgumentParser) -> None:
         parser.add_argument(flag, dest=key, type=kind, default=DEFAULTS[key], help=f"default {DEFAULTS[key]}")
     parser.add_argument("--rule", choices=RULES, default=DEFAULTS["rule"], help="how teams are ranked")
     parser.add_argument("--fat-tails", dest="fatTails", action="store_true", help="add occasional big-move days")
+    parser.add_argument("--catch-up", dest="catchUp", action="store_true",
+                        help="your team goes for broke if outside the top 3 at the checkpoint")
 
 
 def settings(args: argparse.Namespace) -> dict:
     p = {key: getattr(args, key) for key in FLAGS}
     p["rule"] = args.rule
     p["fatTails"] = args.fatTails
+    p["catchUp"] = args.catchUp
     return p
 
 

@@ -74,6 +74,29 @@ class SimulationTests(unittest.TestCase):
         self.assertEqual(skill_percentile(normalise({"skillSpread": 0, "yourSharpe": 0.1})), 1.0)
 
 
+class GoingForBrokeTests(unittest.TestCase):
+    def test_switching_to_the_same_risk_changes_nothing(self):
+        off = simulate({"sims": 200})["you"]
+        same = simulate({"sims": 200, "catchUp": True, "catchUpVol": 0.2})["you"]
+        self.assertEqual((same["pWin"], same["meanRank"]), (off["pWin"], off["meanRank"]))
+        self.assertGreater(same["pSwitched"], 0.5)
+
+    def test_going_for_broke_lifts_a_podium_finish(self):
+        off = simulate({"sims": 400})["you"]
+        on = simulate({"sims": 400, "catchUp": True})["you"]
+        self.assertGreater(on["pTop3"], off["pTop3"] + 0.1)
+
+    def test_rivals_switch_only_at_the_checkpoint_and_never_gamblers(self):
+        from leaderboard_luck.model import checkpoint_day
+        teams = sample_competition({"rivalsCatchUp": 1, "teams": 20}, 3)
+        cp = checkpoint_day(normalise({"teams": 20}))
+        switched = [t for t in teams if t["switchDay"] is not None and not t["you"]]
+        self.assertTrue(switched)
+        for t in switched:
+            self.assertEqual(t["switchDay"], cp)
+            self.assertFalse(t["gambler"])
+
+
 class SampleTests(unittest.TestCase):
     def test_sample_is_ranked_and_matches_the_simulation(self):
         p = {"sims": 100, "teams": 10, "days": 12}

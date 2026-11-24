@@ -29,6 +29,12 @@ class CommandLineTests(unittest.TestCase):
         self.assertTrue(data["params"]["fatTails"])
         self.assertEqual(data["sims"], 150)
 
+    def test_going_for_broke_flags(self):
+        code, out, _ = run(["simulate", "--sims", "120", "--catch-up", "--rivals-catch-up", "0.5", "--checkpoint", "0.5"])
+        self.assertEqual(code, 0)
+        self.assertIn("Going for broke at the checkpoint (day 10)", out)
+        self.assertIn("Went for broke", out)
+
     def test_sample(self):
         code, out, _ = run(["sample", "--index", "3", "--teams", "12"])
         self.assertEqual(code, 0)

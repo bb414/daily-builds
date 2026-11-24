@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .model import RULE_LABELS, sample_competition
+from .model import RULE_LABELS, checkpoint_day, sample_competition
 
 
 def pct(v: float, digits: int = 1) -> str:
@@ -33,6 +33,10 @@ def describe(p: dict) -> list[str]:
         f"{n_gamblers} gamblers at {p['gamblerMultiple']:g}x risk, market correlation {p['correlation']:.2f}"
         + (", fat tails" if p["fatTails"] else ""),
     ]
+    if p["catchUp"] or p["rivalsCatchUp"] > 0:
+        lines.append(f"  Going for broke at the checkpoint (day {checkpoint_day(p)}): your team "
+                     + (f"switches to {pct(p['catchUpVol'], 0)} if outside the top 3" if p["catchUp"] else "does not")
+                     + f"; {pct(p['rivalsCatchUp'], 0)} of steady rivals switch to {p['gamblerMultiple']:g}x their risk")
     return lines
 
 
@@ -50,10 +54,13 @@ def simulate_report(r: dict) -> str:
     ]
     if you["pOut"] > 0:
         lines.append(f"  Knocked out             {pct(you['pOut']):>7}")
+    if p["catchUp"]:
+        lines.append(f"  Went for broke          {pct(you['pSwitched']):>7}")
     lines += ["", "  Who wins:",
               f"    your team {pct(w['you'])}, a gambler {pct(w['gambler'])}, a steady team {pct(w['steady'])}"
               + (f", nobody {pct(w['none'])}" if w["none"] > 0 else ""),
-              f"    the most skilled team wins {pct(w['mostSkilled'])}; the winner has no real edge in {pct(w['noEdge'])}",
+              f"    the most skilled team wins {pct(w['mostSkilled'])}; the winner has no real edge in {pct(w['noEdge'])}"
+              + (f"; the winner went for broke in {pct(w['switched'])}" if p["catchUp"] or p["rivalsCatchUp"] > 0 else ""),
               "", "  Your chances at other levels of risk (same luck):",
               f"    {'Volatility':>10}{'Win':>9}{'Top 3':>9}{'Avg place':>11}{'Out':>8}"]
     for c in r["curve"]:
@@ -73,6 +80,8 @@ def sample_report(params: dict, k: int, top: int = 10) -> str:
     for t in shown:
         kind = "You" if t["you"] else ("Gambler" if t["gambler"] else "Steady")
         status = "Blown up" if t["bust"] else ("Out: drawdown" if t["out"] else "")
+        if t["switchDay"] is not None:
+            status = (status + "; " if status else "") + f"went for broke on day {t['switchDay']}"
         place = "-" if t["out"] else ordinal(t["rank"])
         lines.append(f"  {place:<7}{t['name']:<12}{kind:<9}{t['sharpe']:>7.2f}{pct(t['vol'], 0):>7}"
                      f"{signed(t['ret']):>9}{pct(t['maxDD']):>10}  {status}")

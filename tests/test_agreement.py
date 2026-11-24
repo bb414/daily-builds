@@ -43,6 +43,9 @@ SETTINGS = [
     {"sims": 100, "fieldVol": 0.5, "gamblerMultiple": 4, "gamblers": 0.8, "fatTails": True, "days": 120,
      "yourVol": 1, "rule": "drawdown", "drawdownLimit": 0.6, "seed": 4294967295},
     {"sims": 100, "skillSpread": 0, "correlation": 0, "teams": 3, "days": 5, "yourSharpe": 3},
+    {"sims": 100, "catchUp": True, "rivalsCatchUp": 0.5, "rule": "sharpe", "checkpoint": 0.4},
+    {"sims": 100, "catchUp": True, "catchUpVol": 1, "rivalsCatchUp": 1, "rule": "drawdown", "drawdownLimit": 0.12,
+     "fatTails": True, "teams": 40, "days": 30, "checkpoint": 0.9, "seed": 12},
 ]
 
 

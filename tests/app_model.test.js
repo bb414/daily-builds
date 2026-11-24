@@ -112,3 +112,42 @@ test('the random numbers look right', () => {
   assert.ok(Math.abs(sum / n) < 0.03);
   assert.ok(Math.abs(sumSq / n - 1) < 0.04);
 });
+
+test('going for broke at your current risk changes nothing but the record of switching', () => {
+  const off = M.simulate({ sims: 200 });
+  const same = M.simulate({ sims: 200, catchUp: true, catchUpVol: 0.2 });
+  assert.equal(same.you.pWin, off.you.pWin);
+  assert.equal(same.you.meanRank, off.you.meanRank);
+  assert.ok(same.you.pSwitched > 0.5);
+  assert.equal(off.you.pSwitched, 0);
+});
+
+test('going for broke when behind lifts a skilled team’s chance of a podium', () => {
+  const off = M.simulate({ sims: 500 });
+  const on = M.simulate({ sims: 500, catchUp: true });
+  assert.ok(on.you.pTop3 > off.you.pTop3 + 0.1);
+  assert.ok(on.you.pWin > off.you.pWin);
+});
+
+test('rivals who chase the lead switch only when behind, and show up among the winners', () => {
+  const r = M.simulate({ sims: 300, rivalsCatchUp: 1 });
+  assert.ok(r.winners.switched > 0.1);
+  const teams = M.sampleCompetition({ rivalsCatchUp: 1, teams: 20 }, 3);
+  const cp = M.checkpointDay(M.normalise({ teams: 20 }));
+  teams.filter((t) => !t.you).forEach((t) => {
+    if (t.switchDay !== null) {
+      assert.equal(t.switchDay, cp);
+      assert.equal(t.gambler, false);
+    }
+  });
+  assert.ok(teams.some((t) => t.switchDay !== null));
+});
+
+test('the checkpoint is always inside the challenge', () => {
+  [5, 6, 20, 250].forEach((days) => {
+    [0.25, 0.5, 0.9].forEach((checkpoint) => {
+      const d = M.checkpointDay(M.normalise({ days, checkpoint }));
+      assert.ok(d >= 1 && d <= days - 1, days + ' ' + checkpoint + ' ' + d);
+    });
+  });
+});
