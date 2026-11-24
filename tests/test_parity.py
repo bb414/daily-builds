@@ -109,7 +109,9 @@ class ParityTests(unittest.TestCase):
                "colour": 1, "id": "x", "eu": None, "name": 5}, {"2": 1, "b": 2, "1": 3, "name": "n" * 130, "turnover": 1e9},
                {"prohibited": ["csam", 4, None, "made up"], "gpai": ["gpai"], "annex3": "", "derogation": "", "sme": 1.5, "turnover": -2},
                {"turnover": "400\u202f", "takeover": "true", "excluded": None, "deployerType": "publicAuthority"},
-               {"turnover": 10 ** 400}, {"turnover": "0x" + "f" * 300}, {"turnover": [1, 2]}, {"turnover": 1e-7}] + model.RULES["examples"]
+               {"turnover": 10 ** 400}, {"turnover": "0x" + "f" * 300}, {"turnover": [1, 2]}, {"turnover": 1e-7},
+               {"turnover": 1152921504606846976, "sme": 123456789012345678901234, "name": 2 ** 70, "role": 1e16},
+               {"1" * 5000: 1, "4294967294": 1, "4294967295": 2, "01": 3, "-1": 4}] + model.RULES["examples"]
         js = call_js([{"fn": "inputNotes", "args": [a]} for a in odd])
         for a, j in zip(odd, js):
             self.assertEqual(j, model.input_notes(a), repr(a)[:200])
@@ -120,6 +122,15 @@ class ParityTests(unittest.TestCase):
         self.assertEqual([j["turnover"] for j in js], [model.normalise({"turnover": v})["turnover"] for v in values])
         isos = ["0050-01-01", "0099-12-31", "0100-01-01", "1900-02-29", "2000-02-29", "9999-12-31"]
         self.assertEqual(call_js([{"fn": "validIso", "args": [d]} for d in isos]), [model.valid_iso(d) for d in isos])
+
+    def test_number_strings_match(self):
+        rng = random.Random(5)
+        values = [rng.choice([1, -1]) * rng.random() * 10 ** rng.randint(-12, 30) for _ in range(400)]
+        values += [2 ** k for k in range(0, 80, 3)] + [0, 1e21, 1e-6, 1e-7, 123456789012345680000.0]
+        js = call_js([{"fn": "registerCsv", "args": [[{"turnover": abs(v)} for v in values]]}])[0]
+        self.assertEqual(js, register.to_csv([{"turnover": abs(v)} for v in values]))
+        notes = call_js([{"fn": "inputNotes", "args": [{"sme": v}]} for v in values])
+        self.assertEqual(notes, [model.input_notes({"sme": v}) for v in values])
 
     def test_dates_match(self):
         isos = ["2026-02-30", "2028-02-29", "2027-13-01", "2026-1-01", "", None, "2026-11-24"]

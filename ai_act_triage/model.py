@@ -57,9 +57,9 @@ def js_number_string(x):
         return "Infinity" if x > 0 else "-Infinity"
     if x < 0:
         return "-" + js_number_string(-x)
-    if x == int(x) and x < 1e21:
-        return str(int(x))
-    r = repr(x)
+    r = repr(x)  # the shortest digits that read back as x, which is what JavaScript prints too
+    if r.endswith(".0"):
+        return r[:-2]
     if "e" in r:
         if 1e-6 <= x < 1e21:
             return format(decimal.Decimal(r), "f")
@@ -358,6 +358,14 @@ def _finish(res, a, roles, tags):
         o["date"], o["originalDate"] = d["amended"], d["original"]
         o["daysUntil"] = days_between(res["asOf"], o["date"])
         o["status"] = "applies" if o["daysUntil"] <= 0 else "upcoming"
+    # A ban that has not started yet: duties starting on or after the ban date can never apply, so drop them,
+    # and drop any tag whose duties have all gone.
+    if not res["stopped"] and "prohibited" in tags:
+        ban_start = min(o["date"] for o in obligations if o["id"].startswith("ban_"))
+        obligations = [o for o in obligations if o["id"] == "literacy" or o["id"].startswith("ban_") or o["date"] < ban_start]
+        family = {"highRisk": ("p_", "d_"), "exempt63": ("e_",), "transparency": ("t_",), "gpai": ("g_",), "gpaiSystemic": ("g_",)}
+        tags = [t for t in tags if t not in family or any(o["id"].startswith(family[t]) for o in obligations)]
+        res["tags"] = tags
     obligations.sort(key=lambda o: o["date"])  # stable, like Array.prototype.sort in modern JavaScript
     res["obligations"] = obligations
     upcoming = [o for o in obligations if o["status"] == "upcoming"]
@@ -411,7 +419,7 @@ def _penalty(res, a):
     keys = []
     if "prohibited" in res["tags"]:
         keys.append("prohibited")
-    if res["highRisk"] or (res["exempt"] and "provider" in res["roles"]) or "transparency" in res["tags"]:
+    if "highRisk" in res["tags"] or ("exempt63" in res["tags"] and "provider" in res["roles"]) or "transparency" in res["tags"]:
         keys.append("operator")
     if "gpai" in res["tags"] or "gpaiSystemic" in res["tags"]:
         keys.append("gpai")
@@ -468,7 +476,7 @@ _INDEX_KEY = re.compile(r"0|[1-9][0-9]*")
 
 def _js_key_order(keys):
     """The order JavaScript's Object.keys gives: array-index keys in numeric order, then the rest as written."""
-    index = [k for k in keys if _INDEX_KEY.fullmatch(k) and int(k) < 4294967295]
+    index = [k for k in keys if len(k) <= 10 and _INDEX_KEY.fullmatch(k) and int(k) < 4294967295]
     return sorted(index, key=int) + [k for k in keys if k not in index]
 
 
@@ -563,6 +571,8 @@ def _candidates(a, base):
             out.append(("eu", None, True, "yes"))
         if a["excluded"] != "none":
             out.append(("excluded", None, "none", _choice_label("excluded", "none")))
+    elif a["excluded"] == "personal":
+        out.append(("excluded", None, "none", _choice_label("excluded", "none")))
     for field in PIVOT_FIELDS:
         v = a[field]
         if field == "role":
@@ -586,9 +596,12 @@ def _candidates(a, base):
     return out
 
 
-def _effect(from_tier, to_tier, net_duties, from_fine, to_fine, moved):
+def _effect(from_tier, to_tier, net_duties, from_fine, to_fine, moved, from_stopped, to_stopped):
     """Is the result after a change lighter or heavier? By tier, then the number of duties, the fine and the dates."""
-    d = SEVERITY.index(to_tier) - SEVERITY.index(from_tier)
+    if from_stopped != to_stopped:
+        d = 1 if from_stopped else -1  # lifting a ban that is in force is lighter, however many duties then appear
+    else:
+        d = SEVERITY.index(to_tier) - SEVERITY.index(from_tier)
     if not d:
         d = -net_duties
     if not d and from_fine != to_fine:
@@ -626,7 +639,8 @@ def pivots(answers_in, as_of=None):
                       "tier": res["tier"], "tierLabel": res["tierLabel"], "tierChanged": tier_changed,
                       "added": added, "removed": removed, "moved": moved,
                       "fine": None if fine == base_fine else {"from": base_fine, "to": fine},
-                      "effect": _effect(base["tier"], res["tier"], len(added) - len(removed), base_fine, fine, moved),
+                      "effect": _effect(base["tier"], res["tier"], len(added) - len(removed), base_fine, fine, moved,
+                                        base["stopped"], res["stopped"]),
                       "order": k})
     found.sort(key=lambda p: (0 if p["tierChanged"] else 1, -(len(p["added"]) + len(p["removed"]) + len(p["moved"])), p["order"]))
     for p in found:

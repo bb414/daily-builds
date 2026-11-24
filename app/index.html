@@ -576,6 +576,14 @@ var AiActTriage = (function () {
       o.daysUntil = daysBetween(res.asOf, o.date);
       o.status = o.daysUntil <= 0 ? 'applies' : 'upcoming';
     });
+    // A ban that has not started yet: duties starting on or after the ban date can never apply, so drop them,
+    // and drop any tag whose duties have all gone.
+    if (!res.stopped && tags.indexOf('prohibited') >= 0) {
+      var banStart = obligations.filter(function (o) { return o.id.indexOf('ban_') === 0; }).map(function (o) { return o.date; }).sort()[0];
+      obligations = obligations.filter(function (o) { return o.id === 'literacy' || o.id.indexOf('ban_') === 0 || o.date < banStart; });
+      var family = { highRisk: /^[pd]_/, exempt63: /^e_/, transparency: /^t_/, gpai: /^g_/, gpaiSystemic: /^g_/ };
+      res.tags = tags = tags.filter(function (t) { return !family[t] || obligations.some(function (o) { return family[t].test(o.id); }); });
+    }
     obligations.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     res.obligations = obligations;
     var upcoming = obligations.filter(function (o) { return o.status === 'upcoming'; });
@@ -627,7 +635,7 @@ var AiActTriage = (function () {
     // system's duties (documenting and registering) are the provider's alone.
     var keys = [];
     if (res.tags.indexOf('prohibited') >= 0) keys.push('prohibited');
-    if (res.highRisk || (res.exempt && res.roles.indexOf('provider') >= 0) || res.tags.indexOf('transparency') >= 0) keys.push('operator');
+    if (res.tags.indexOf('highRisk') >= 0 || (res.tags.indexOf('exempt63') >= 0 && res.roles.indexOf('provider') >= 0) || res.tags.indexOf('transparency') >= 0) keys.push('operator');
     if (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) keys.push('gpai');
     var best = null;
     keys.forEach(function (key) {
@@ -689,7 +697,7 @@ var AiActTriage = (function () {
     if (base.tier === 'outOfScope') {
       if (!a.eu) out.push(['eu', null, true, 'yes']);
       if (a.excluded !== 'none') out.push(['excluded', null, 'none', choiceLabel('excluded', 'none')]);
-    }
+    } else if (a.excluded === 'personal') out.push(['excluded', null, 'none', choiceLabel('excluded', 'none')]);
     PIVOT_FIELDS.forEach(function (field) {
       var v = a[field];
       if (field === 'role') other(field, ROLES);
@@ -708,8 +716,9 @@ var AiActTriage = (function () {
 
   // Is the result after a change lighter or heavier? Judged by tier, then the number of duties, the fine and the dates.
   var SEVERITY = TIER_ORDER.concat(['outOfScope']);
-  function effectOf(fromTier, toTier, netDuties, fromFine, toFine, moved) {
-    var d = SEVERITY.indexOf(toTier) - SEVERITY.indexOf(fromTier);
+  function effectOf(fromTier, toTier, netDuties, fromFine, toFine, moved, fromStopped, toStopped) {
+    // Lifting a ban that is in force is lighter, however many duties then appear.
+    var d = fromStopped !== toStopped ? (fromStopped ? 1 : -1) : SEVERITY.indexOf(toTier) - SEVERITY.indexOf(fromTier);
     if (!d) d = -netDuties;
     if (!d && fromFine !== toFine) d = (toFine || 0) < (fromFine || 0) ? 1 : -1;
     if (!d) moved.forEach(function (m) { d += m.to > m.from ? 1 : -1; });
@@ -744,7 +753,7 @@ var AiActTriage = (function () {
       found.push({ field: field, option: option, value: c[2], question: question, from: option ? 'yes' : answerLabel(field, a[field]), to: c[3],
         tier: res.tier, tierLabel: res.tierLabel, tierChanged: tierChanged, added: added, removed: removed, moved: moved,
         fine: fine === baseFine ? null : { from: baseFine, to: fine },
-        effect: effectOf(base.tier, res.tier, added.length - removed.length, baseFine, fine, moved), order: k });
+        effect: effectOf(base.tier, res.tier, added.length - removed.length, baseFine, fine, moved, base.stopped, res.stopped), order: k });
     });
     found.sort(function (x, y) {
       return (x.tierChanged === y.tierChanged ? 0 : x.tierChanged ? -1 : 1) ||
@@ -1210,12 +1219,21 @@ var AiActTriage = (function () {
     catch (e) { register = []; }
   }
   // Returns false if the browser would not save it (private browsing, blocked storage): the register then lasts for this visit only.
+  var storageOk = true;
   function saveRegister() {
-    try { window.localStorage.setItem(STORE, JSON.stringify(register)); return true; } catch (e) { return false; }
+    try { window.localStorage.setItem(STORE, JSON.stringify(register)); storageOk = true; } catch (e) { storageOk = false; }
+    return storageOk;
   }
   var NOT_SAVED = ' This browser would not save the register, so it will be lost when the page closes: download a copy to keep it.';
   // Keep two open tabs in step: when another tab changes the register, reload it here.
-  window.addEventListener('storage', function (e) { if (e.key === STORE) { loadRegister(); renderRegister(); } });
+  // Skipped if this tab could not save, so its unsaved systems are not lost.
+  window.addEventListener('storage', function (e) {
+    if ((e.key === STORE || e.key === null) && storageOk) {
+      loadRegister();
+      renderRegister();
+      $('reg-msg').textContent = 'The register was changed in another tab.';
+    }
+  });
   function freeName() {
     var names = register.map(function (r) { return r.name; });
     for (var n = 1; ; n++) if (names.indexOf('System ' + n) < 0) return 'System ' + n;
@@ -1250,7 +1268,13 @@ var AiActTriage = (function () {
       var load = el('button', { type: 'button', className: 'btn small', text: 'Open', 'aria-label': 'Open ' + r.answers.name });
       load.addEventListener('click', function () { $('preset').value = ''; loadAnswers(register[k]); window.scrollTo(0, 0); });
       var del = el('button', { type: 'button', className: 'btn small', text: 'Remove', 'aria-label': 'Remove ' + r.answers.name });
-      del.addEventListener('click', function () { register.splice(k, 1); saveRegister(); renderRegister(); $('reg-add').focus(); });
+      del.addEventListener('click', function () {
+        register.splice(k, 1);
+        var saved = saveRegister();
+        renderRegister();
+        $('reg-msg').textContent = 'Removed ' + r.answers.name + '.' + (saved ? '' : NOT_SAVED);
+        $('reg-add').focus();
+      });
       body.appendChild(el('tr', {}, [
         el('td', { text: r.answers.name }),
         el('td', {}, [el('span', { className: 'tag t-' + r.tier, text: r.tierLabel })]),
@@ -1310,7 +1334,10 @@ var AiActTriage = (function () {
   });
   $('reg-clear').addEventListener('click', function () {
     if (register.length && !window.confirm('Remove every system from the register?')) return;
-    register = []; saveRegister(); renderRegister(); $('reg-msg').textContent = 'The register is empty.';
+    register = [];
+    var saved = saveRegister();
+    renderRegister();
+    $('reg-msg').textContent = 'The register is empty.' + (saved ? '' : NOT_SAVED);
   });
 
   function download(name, type, text) {
@@ -1347,16 +1374,20 @@ var AiActTriage = (function () {
       rows = out.rows;
       warnings = out.warnings;
     }
-    var notes = warnings.slice(), replaced = 0, saved = true;
+    var notes = warnings.slice(), replaced = 0, repeated = 0, saved = true;
+    var before = register.map(function (r) { return r.name; }), seen = [];
     rows.forEach(function (r) {
-      var added = addToRegister(r.answers, true);
-      if (added.replaced) replaced++;
+      var added = addToRegister(r.answers, true), name = added.answers.name;
+      if (seen.indexOf(name) >= 0) repeated++;
+      else if (before.indexOf(name) >= 0) replaced++;
+      seen.push(name);
       saved = added.saved && saved;
       r.notes.forEach(function (n) { notes.push(added.answers.name + ': ' + n); });
     });
     renderRegister();
     return 'Imported ' + plural(rows.length, 'system', 'systems') + ' from ' + name + '.' +
       (replaced ? ' ' + plural(replaced, 'system', 'systems') + ' replaced one already in the register with the same name.' : '') +
+      (repeated ? ' ' + plural(repeated, 'row', 'rows') + ' repeated a name used earlier in the file, so the later row was kept.' : '') +
       (notes.length ? ' Check: ' + notes.slice(0, 5).join('; ') + (notes.length > 5 ? '; and ' + (notes.length - 5) + ' more.' : '.') : '') +
       (saved ? '' : NOT_SAVED);
   }

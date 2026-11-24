@@ -60,21 +60,21 @@ Dark mode follows the system setting: ![The benefits example in dark mode](docs/
 
 | Part | Language | Lines | What it does |
 |---|---|---:|---|
-| `app/index.html`: rules engine (between `MODEL START` and `MODEL END`) | JavaScript | 640 | Normalises answers, classifies, lists duties and dates, pivots, register roadmap, CSV reading and writing |
-| `app/index.html`: interface | JavaScript, HTML, CSS | 690 | Questions, results, timeline and roadmap charts (inline SVG), register, downloads and imports |
-| `ai_act_triage/rules.json` | JSON | 720 | The rules as data: dates, bans, Annex III areas, exemptions, 37 duties, fines, UK notes, examples. Copied into the app by `tools/sync_rules.py` |
-| `ai_act_triage/model.py` | Python | 520 | A line-for-line port of the rules engine |
-| `ai_act_triage/register.py`, `__main__.py` | Python | 370 | Register files (CSV and JSON), reports, and the command line |
-| `tests/` | JavaScript, Python | 720 | 18 Node tests, 9 Python tests, 9 parity tests, 9 browser tests |
-| `tools/` | Python | 110 | Rules sync and screenshots |
+| `app/index.html`: rules engine (between `MODEL START` and `MODEL END`) | JavaScript | 681 | Normalises answers, classifies, lists duties and dates, pivots, register roadmap, notes on odd input, CSV reading and writing. Includes the 98-line embedded copy of the rules |
+| `app/index.html`: interface | JavaScript, HTML, CSS | 737 | Questions, results, timeline and roadmap charts (inline SVG), register, downloads and imports |
+| `ai_act_triage/rules.json` | JSON | 709 | The rules as data: dates, bans, Annex III areas, exemptions, 37 duties, fines, UK notes, labels, examples. Copied into the app by `tools/sync_rules.py` |
+| `ai_act_triage/model.py` | Python | 648 | A line-for-line port of the rules engine |
+| `ai_act_triage/register.py`, `__main__.py` | Python | 366 | Register files (CSV and JSON), reports, and the command line |
+| `tests/` | JavaScript, Python | 879 | 25 Node tests, 11 Python tests, 11 parity tests, 11 browser tests |
+| `tools/` | Python | 112 | Rules sync and screenshots |
 
-The rules engine exists twice so that the app works as a single offline file and the Python package can run in scripts. The parity tests run the app's own engine in Node and check that both give identical results: 400 random systems across eight dates, pivots for 90 systems, roadmaps, odd and invalid inputs, euro formatting, and ten awkward CSV files (quotes, new lines, a missing closing quote, duplicate and unknown columns). They also check that the two copies of the rules are byte-for-byte the same data.
+The rules engine exists twice so that the app works as a single offline file and the Python package can run in scripts. The parity tests run the app's own engine in Node and check that both give identical results: 400 random systems across eight dates, pivots for 90 systems, roadmaps, notes on odd answers read from files, numbers written the way JavaScript writes them (over 400 values), unusual white space, huge numbers and early years, euro formatting, and twelve awkward CSV files (quotes, new lines, a missing closing quote, duplicate and unknown columns, a column called `constructor`, a cell of 200,000 characters). They also check that the two copies of the rules are the same data.
 
 ## How it works
 
 **1. Scope** (Art 2). Out of scope if the system is not placed on the EU market, put into service there or used so that its output reaches the EU (Art 2(1)); if it is used only for military, defence or national security (Art 2(3)); or if it is developed and put into service only for scientific research and development (Art 2(6)). A system still in development should be answered as it will be when placed on the market: research and testing before then is outside the Act, but testing in real-world conditions is not (Art 2(8)). Purely personal use by an individual removes only deployer duties (Art 2(10)): a deployer is then out of scope, and someone answering "both" keeps only the provider's duties.
 
-**2. Banned practices** (Art 5) in force on the chosen date stop the analysis: nothing else is assessed until the practice is removed. A ban that has not started yet (the two new ones before 2 December 2026, or any ban before 2 February 2025) is listed as an upcoming duty, and the other tests still run so the duties that apply in the meantime are shown.
+**2. Banned practices** (Art 5) in force on the chosen date stop the analysis: nothing else is assessed until the practice is removed. A ban that has not started yet (the two new ones before 2 December 2026, or any ban before 2 February 2025) is listed as an upcoming duty, and the other tests still run so the duties that apply in the meantime are shown; duties that would only start on or after the ban date are left out, because they can never apply.
 
 **3. High-risk.** A product, or a safety component of a product, under the EU product law in Annex I that needs a third-party conformity assessment is high-risk (Art 6(1)). A use listed in Annex III is high-risk (Art 6(2)) unless one of the four Art 6(3) conditions applies **and** the system does not profile people; profiling always makes an Annex III system high-risk. An exempt system still carries two duties: documenting the assessment (Art 6(4)) and registering in the EU database (Art 49(2)). Where a system is both an Annex I product and a high-risk Annex III use, the app uses the Annex III route and its earlier date; an Art 6(3) exemption removes only the Annex III route, so such a product stays high-risk under Art 6(1). Every high-risk result also notes the transitional rule for systems already on the market (Art 111(2)). A deployer who puts its name on a high-risk system, substantially modifies it or changes its intended purpose takes on the provider's duties too (Art 25(1)).
 
@@ -82,7 +82,7 @@ The rules engine exists twice so that the app works as a single offline file and
 
 **5. Duties and dates.** Each of the 37 duties in `rules.json` has a role, a trigger and a date key. The date comes from the amended Art 113 and from Art 111 for systems and models already on the market. Each duty shows whether it already applies on the chosen date or how many days remain, and the "original" 2024 date where the Omnibus moved it.
 
-**6. What would change the result.** The engine changes one answer at a time (each role, each yes/no answer, removing each ticked ban or the Annex III use, claiming or dropping an exemption, each kind of model and deployer), classifies again and keeps the changes that alter the tier, the duties, their dates or the maximum fine. Each is labelled as lightening the load or adding to it: first by how serious the tier is, then by the number of duties, then the fine, then whether dates move later or earlier. Scope answers are only varied when the system is out of scope, because "if it were not used in the EU" is true of every system.
+**6. What would change the result.** The engine changes one answer at a time (each role, each yes/no answer, removing each ticked ban or the Annex III use, claiming or dropping an exemption, each kind of model and deployer), classifies again and keeps the changes that alter the tier, the duties, their dates or the maximum fine. Each is labelled as lightening the load or adding to it: first by how serious the tier is, then by the number of duties, then the fine, then whether dates move later or earlier. Scope answers are only varied when the system is out of scope (or claims personal use), because "if it were not used in the EU" is true of every system. Lifting a ban that is in force always counts as lighter, even though the other duties then appear.
 
 **7. Register and roadmap.** The roadmap groups every duty of every system by the date it starts, with how many systems and duties each date reaches.
 

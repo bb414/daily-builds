@@ -161,10 +161,16 @@ class AppTests(unittest.TestCase):
         self.assertIn("1 system replaced one already in the register with the same name.", msg)
         self.assertIn('New one: role "Provider" is not one of', msg)
         self.assertEqual(page.locator("#register tbody tr").count(), 10)
+        page.set_input_files("#reg-import", files=[{"name": "twice.json", "mimeType": "application/json",
+                                                    "buffer": json.dumps([{"name": "Twin"}, {"name": "Twin", "sme": True}]).encode("utf-8")}])
+        page.wait_for_function("document.getElementById('reg-msg').textContent.indexOf('twice.json') > 0")
+        self.assertIn("1 row repeated a name used earlier in the file, so the later row was kept.", page.inner_text("#reg-msg"))
+        self.assertNotIn("replaced one already", page.inner_text("#reg-msg"))
+        self.assertEqual(page.locator("#register tbody tr").count(), 11)
         page.set_input_files("#reg-import", files=[{"name": "bad.csv", "mimeType": "text/csv", "buffer": b"title\nx\n"}])
         page.wait_for_function("document.getElementById('reg-msg').textContent.indexOf('Could not import') === 0")
         self.assertIn('it needs a "name" column', page.inner_text("#reg-msg"))
-        self.assertEqual(page.locator("#register tbody tr").count(), 10)
+        self.assertEqual(page.locator("#register tbody tr").count(), 11)
         self.assertEqual(self.errors, [])
         page.close()
 

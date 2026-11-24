@@ -310,3 +310,22 @@ test('notes on answers read from a file', function () {
   assert.deepEqual(plain(M.inputNotes(M.RULES.examples[0])), []);
   assert.deepEqual(plain(M.readRegisterCsv('constructor,name\nA,B\n').warnings), ['ignored unknown column(s): constructor']);
 });
+
+test('before a ban starts, duties that would only start on or after it are left out', function () {
+  const r = M.classify({ role: 'provider', prohibited: ['intimateImages'], annex3: 'employment', generates: true, generatedBefore: true }, AS_OF);
+  assert.deepEqual(ids(r), ['literacy', 'ban_intimateImages'], 'high-risk duties from 2027 and marking due on the ban date can never apply');
+  assert.deepEqual(plain(r.tags), ['prohibited'], 'no tag is left without duties');
+  const early = M.classify({ role: 'provider', prohibited: ['socialScoring'], gpai: 'gpai' }, '2025-01-01');
+  assert.deepEqual(ids(early), ['ban_socialScoring', 'literacy'], 'model duties from August 2025 come after the February 2025 ban');
+});
+
+test('pivots: lifting a ban in force is lighter, and personal use is a pivot', function () {
+  const p = plain(M.pivots({ role: 'provider', prohibited: ['manipulation'], annex3: 'employment', generates: true }, AS_OF)).pivots;
+  const lift = p.filter(function (x) { return x.field === 'prohibited'; })[0];
+  assert.ok(lift.added.length > 10);
+  assert.equal(lift.effect, 'lighter', 'even though many duties appear');
+  const personal = plain(M.pivots({ role: 'both', excluded: 'personal', deepfake: true }, AS_OF)).pivots;
+  const ex = personal.filter(function (x) { return x.field === 'excluded'; })[0];
+  assert.deepEqual(ex.added, ['t_deepfake']);
+  assert.equal(ex.effect, 'heavier');
+});
