@@ -1,0 +1,31 @@
+{
+  "format": "range-finder-model",
+  "version": 1,
+  "title": "A student textile reuse scheme",
+  "outputName": "Carbon saved per year",
+  "unit": "t CO2e",
+  "unitPosition": "suffix",
+  "threshold": 40,
+  "thresholdLabel": "Worth scaling up if it saves at least",
+  "terms": [
+    {
+      "name": "Emissions avoided by reusing clothes",
+      "sign": 1,
+      "drivers": [
+        {"name": "Items donated per year", "dist": "lognormal", "low": 8000, "high": 20000, "unit": "items"},
+        {"name": "Share reused rather than recycled", "dist": "share", "low": 40, "high": 70, "unit": "%"},
+        {"name": "Emissions avoided per reused item", "dist": "lognormal", "low": 3, "high": 12, "unit": "kg"},
+        {"name": "Kilograms to tonnes", "dist": "fixed", "low": 0.001, "high": 0.001, "unit": ""}
+      ]
+    },
+    {
+      "name": "Collection van emissions",
+      "sign": -1,
+      "drivers": [
+        {"name": "Van trips per year", "dist": "normal", "low": 80, "high": 150, "unit": "trips"},
+        {"name": "Emissions per trip", "dist": "lognormal", "low": 15, "high": 40, "unit": "kg"},
+        {"name": "Kilograms to tonnes (vans)", "dist": "fixed", "low": 0.001, "high": 0.001, "unit": ""}
+      ]
+    }
+  ]
+}

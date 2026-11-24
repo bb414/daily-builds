@@ -1133,7 +1133,8 @@ if (typeof module !== 'undefined' && module.exports) {
     let h = '<h2>What to check before deciding</h2>' +
       '<p>On today\'s ranges the expected ' + esc((m.outputName || 'estimate').toLowerCase()) + ' is <strong>' + esc(fv(v.expected)) + '</strong>, ' +
       (go ? 'above' : 'below') + ' the threshold of ' + esc(fv(r.threshold)) + ', so the call is to <strong>' + (go ? 'go ahead' : 'hold off') + '</strong>. ' +
-      'There is a <strong>' + Math.round(v.wrongChance * 100) + '%</strong> chance that is the wrong call.</p>';
+      'There is a <strong>' + Math.round(v.wrongChance * 100) + '%</strong> chance that is the wrong call' +
+      (v.wrongChance > 0.5 ? ': more likely than not, but ' + (go ? 'the upside if it goes well outweighs the shortfall if it does not' : 'the shortfall if it goes badly outweighs the upside if it goes well') + ', so the expected value still favours this call.' : '.') + '</p>';
     if (v.evpi <= 0) {
       h += '<p>Whatever the true values turn out to be, the call would not change, so there is nothing worth checking first.</p>';
       card.innerHTML = h;

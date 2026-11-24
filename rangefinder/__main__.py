@@ -29,6 +29,10 @@ def cmd_run(args):
         model["threshold"] = args.threshold
     res = analyse(model, args.samples, args.seed)
     print(text_report(model, res))
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as f:
+            json.dump(res, f, indent=2)
+        print("\nWrote the full analysis to %s" % args.json)
     if args.csv:
         values, columns = simulate(model, args.samples, args.seed)
         names = [d["name"] for _, _, d in drivers_of(model)]
@@ -151,6 +155,7 @@ def main(argv=None):
     r.add_argument("--seed", type=int, help="random seed (default: the model's, or 1)")
     r.add_argument("--threshold", type=float, help="override the decision threshold")
     r.add_argument("--csv", help="also write every sample to a CSV file")
+    r.add_argument("--json", help="also write the full analysis (every number the app shows) to a JSON file")
     r.set_defaults(func=cmd_run)
 
     d = sub.add_parser("deep", help="Sobol indices and seed stability (slower checks)")
