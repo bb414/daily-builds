@@ -13,6 +13,12 @@ def run(args):
     return code, out.getvalue(), err.getvalue()
 
 
+def table_rows(text):
+    lines = text.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip().startswith("Place"))
+    return [line for line in lines[start + 1:] if line.strip()]
+
+
 class CommandLineTests(unittest.TestCase):
     def test_simulate_report(self):
         code, out, _ = run(["simulate", "--sims", "200"])
@@ -40,6 +46,29 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Challenge number 4", out)
         self.assertIn("Your team", out)
+        # The top ten, then your team in 11th place; --top 0 shows all twelve teams.
+        self.assertEqual(len(table_rows(out)), 11)
+        self.assertTrue(table_rows(out)[-1].strip().startswith("11th   Your team"))
+        code, out, _ = run(["sample", "--index", "3", "--teams", "12", "--top", "0"])
+        self.assertEqual(len(table_rows(out)), 12)
+
+    def test_flat_risk_curve_is_described_as_flat(self):
+        code, out, _ = run(["simulate", "--sims", "150", "--rule", "sharpe"])
+        self.assertIn("Your chance of winning is the same at every level of risk", out)
+        self.assertIn("ranked on: highest Sharpe ratio", out)
+        self.assertNotIn("Best chance of winning", out)
+
+    def test_out_of_range_settings_are_pulled_back_with_a_note(self):
+        code, out, err = run(["simulate", "--sims", "100", "--gamblers", "20", "--json"])
+        self.assertEqual(code, 0)
+        self.assertIn("--gamblers 20 is outside 0 to 0.8, so 0.8 was used", err)
+        self.assertEqual(json.loads(out)["params"]["gamblers"], 0.8)
+
+    def test_commands_offer_only_the_settings_they_use(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            for args in (["sample", "--sims", "100"], ["design", "--days", "60"], ["design", "--rule", "sharpe"]):
+                with self.assertRaises(SystemExit):
+                    main(args)
 
     def test_design(self):
         import tempfile
@@ -51,7 +80,12 @@ class CommandLineTests(unittest.TestCase):
                                 "--csv", str(out_csv), "--html", str(out_html)])
             self.assertEqual(code, 0)
             self.assertIn("Chance the most skilled team wins", out)
+            self.assertIn("every length from 1 week to 1 year, every scoring rule (drawdown limit 15%)", out)
+            self.assertNotIn("trading days", out)
             self.assertTrue(out_csv.exists() and out_html.exists())
+            page = out_html.read_text(encoding="utf-8")
+            self.assertIn("Your team: true Sharpe 1.00", page)
+            self.assertIn("Return, 15% drawdown limit", page)
         code, _, err = run(["design", "--sims-each", "0"])
         self.assertEqual(code, 2)
 

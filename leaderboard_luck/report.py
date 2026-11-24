@@ -34,20 +34,35 @@ def ordinal(n: int) -> str:
     return f"{n}{SUFFIXES.get(n % 10, 'th')}"
 
 
-def describe(p: dict) -> list[str]:
+def rule_words(p: dict) -> str:
+    """The scoring rule in the middle of a sentence, e.g. "highest Sharpe ratio"."""
+    label = RULE_LABELS[p["rule"]]
+    return label[0].lower() + label[1:] + (f" ({pct(p['drawdownLimit'], 0)})" if p["rule"] == "drawdown" else "")
+
+
+def describe(p: dict, every_length: bool = False) -> list[str]:
+    """The settings, one line each. ``every_length`` is for the design report, which runs every
+    scoring rule at every length, so the length and rule settings do not apply."""
     n_gamblers = int(p["gamblers"] * (p["teams"] - 1) + 0.5)
+    if every_length:
+        first = (f"  {p['teams']} teams, every length from 1 week to 1 year, every scoring rule "
+                 f"(drawdown limit {pct(p['drawdownLimit'], 0)})")
+    else:
+        first = f"  {p['teams']} teams, {p['days']} trading days, ranked on: {rule_words(p)}"
     lines = [
-        f"  {p['teams']} teams, {p['days']} trading days, ranked on: {RULE_LABELS[p['rule']].lower()}"
-        + (f" ({pct(p['drawdownLimit'], 0)})" if p["rule"] == "drawdown" else ""),
+        first,
         f"  Your team: true Sharpe {p['yourSharpe']:.2f} at {pct(p['yourVol'], 0)} volatility",
         f"  Rivals: skill spread {p['skillSpread']:.2f}, typical risk {pct(p['fieldVol'], 0)}, "
-        f"{n_gamblers} gamblers at {p['gamblerMultiple']:g}x risk, market correlation {p['correlation']:.2f}"
-        + (", fat tails" if p["fatTails"] else ""),
+        f"{n_gamblers} gambler{'' if n_gamblers == 1 else 's'} at {p['gamblerMultiple']:g}x risk, "
+        f"market correlation {p['correlation']:.2f}" + (", fat tails" if p["fatTails"] else ""),
     ]
     if p["catchUp"] or p["rivalsCatchUp"] > 0:
-        lines.append(f"  Going for broke at the checkpoint (day {checkpoint_day(p)}): your team "
+        when = f"{pct(p['checkpoint'], 0)} of the way through" if every_length else f"day {checkpoint_day(p)}"
+        rivals = (f"{pct(p['rivalsCatchUp'], 0)} of steady rivals switch to {p['gamblerMultiple']:g}x their risk"
+                  if p["rivalsCatchUp"] > 0 else "no steady rivals switch")
+        lines.append(f"  Going for broke at the checkpoint ({when}): your team "
                      + (f"switches to {pct(p['catchUpVol'], 0)} if outside the top 3" if p["catchUp"] else "does not")
-                     + f"; {pct(p['rivalsCatchUp'], 0)} of steady rivals switch to {p['gamblerMultiple']:g}x their risk")
+                     + f"; {rivals}")
     return lines
 
 
@@ -76,14 +91,20 @@ def simulate_report(r: dict) -> str:
               f"    {'Volatility':>10}{'Win':>9}{'Top 3':>9}{'Avg place':>11}{'Out':>8}"]
     for c in r["curve"]:
         lines.append(f"    {pct(c['vol'], 0):>10}{pct(c['pWin']):>9}{pct(c['pTop3']):>9}{c['meanRank']:>11.1f}{pct(c['pOut']):>8}")
-    lines.append(f"  Best chance of winning: {pct(r['bestPWin'])} at {pct(r['bestVol'], 0)} volatility")
+    chances = [c["pWin"] for c in r["curve"]]
+    if max(chances) - min(chances) < 1e-9:
+        lines.append(f"  Your chance of winning is the same at every level of risk: {pct(r['bestPWin'])}")
+    else:
+        lines.append(f"  Best chance of winning: {pct(r['bestPWin'])} at {pct(r['bestVol'], 0)} volatility")
     return "\n".join(lines)
 
 
 def sample_report(params: dict, k: int, top: int = 10) -> str:
+    """One challenge's final table: the first ``top`` places and your team (every team if top is 0)."""
     p = normalise(params)
     teams = sample_competition(p, k)
-    lines = [f"Challenge number {k + 1}", "",
+    top = top if top > 0 else len(teams)
+    lines = [f"Challenge number {k + 1}", "", *describe(p), "",
              f"  {'Place':<7}{'Team':<12}{'Type':<9}{'Skill':>7}{'Risk':>9}{'Return':>9}{'Drawdown':>10}  Status"]
     shown = [t for t in teams if t["rank"] <= top]
     you = next(t for t in teams if t["you"])

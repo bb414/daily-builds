@@ -10,14 +10,14 @@ It is written for people who captain or coach trading-challenge teams and run so
 
 There are two parts:
 
-- **The browser app** (`app/index.html`): set your team's skill and risk, the field and the rules, and see your chances, the risk that maximises them, who usually wins, any single simulated challenge in full, and how the most skilled team fares at every length from one week to a year. One file, no installation, works offline.
+- **The browser app** (`app/index.html`): set your team's skill and risk, the field and the rules, and see your chances, the risk that maximises them, who usually wins, any single simulated challenge place by place, and how the most skilled team fares at every length from one week to a year. One file, no installation, works offline.
 - **The Python companion** (`leaderboard_luck/`): the same simulation from the command line, tested to give exactly the same numbers as the app, plus an organiser's report that compares every scoring rule at every length and writes text, CSV or a self-contained HTML page.
 
 All data is synthetic. Nothing here uses real market prices, real teams or real challenges.
 
 ## What it shows with the default settings
 
-The defaults describe a typical four-week (20 trading day) challenge: 30 teams ranked on highest return, rivals whose true Sharpe ratios are spread around zero (standard deviation 0.75), a fifth of rivals running three times the usual risk, and your team with a true Sharpe ratio of 1.0 at 20% volatility. That makes your team better than 91% of the field. Every figure below comes from 2,000 simulated challenges with luck number 1, and is the same in the app and in Python.
+The defaults describe a typical four-week (20 trading day) challenge: 30 teams ranked on highest return, rivals whose true Sharpe ratios are spread around zero (standard deviation 0.75), a fifth of rivals running three times the usual risk, and your team with a true Sharpe ratio of 1.0 at 20% volatility. That makes your team better than 91% of the field. Every figure in the next two tables comes from 2,000 simulated challenges with luck number 1, and is the same in the app and in Python.
 
 | | Result |
 |---|---|
@@ -34,14 +34,14 @@ So a team that is better than nine in ten of its rivals wins less often than a t
 | Scenario (everything else at the defaults) | Your chance of winning | What changes |
 |---|---|---|
 | Ranked on Sharpe ratio | 5.6% | Gamblers win 18.5% instead of 72.0%. Risk no longer matters: 5.6% at every volatility. |
-| Knocked out at a 10% drawdown | 2.6% | 4.7% of the time your team is knocked out. The best risk falls to 55% volatility (12.9%). |
+| Knocked out at a 10% drawdown | 2.6% | Your team is knocked out of 4.7% of challenges. The best risk falls to 55% volatility (12.9%), even though at that risk your team is knocked out of 63% of them. |
 | Your team goes for broke when behind | 8.6% | Switches to 80% volatility if outside the top 3 at day 15, which happens in 92.3% of challenges. Top-3 chance rises to 27.1%. |
 | Every steady rival chases the lead | 0.7% | Every steady rival outside the top 3 at day 15 triples its risk. |
 | Sixty per cent of rivals are gamblers | 0.4% | Gamblers win 94.3% of challenges. |
 | Twelve weeks (60 days) | 2.4% | The most skilled team wins 9.8%. |
 | A full year (250 days) | 3.4% | The most skilled team wins 19.3%, and the winner has no real edge in 8.0%. |
 
-The organiser's view, from `python -m leaderboard_luck design` with 400 challenges for each rule and length:
+The organiser's view, from `python -m leaderboard_luck design` with 400 challenges for each rule and length (the app's chart uses 300 per point, so its figures differ slightly):
 
 | Length | Ranked on return | Ranked on Sharpe ratio | Return with a 15% drawdown limit |
 |---|---|---|---|
@@ -58,13 +58,13 @@ Download or clone the branch and double-click `app/index.html`. It opens in any 
 
 ![How much risk should your team take, and who actually wins](docs/risk-and-winners.png)
 
-- **Your team, the field and the rules** are three cards of sliders. Secondary settings sit behind "More about the field" (typical volatility, how much riskier gamblers are, skill spread, market correlation) and "More about the markets" (fat tails).
+- **Your team, the field and the rules** are three cards of sliders. Secondary settings sit behind "More about the field" (how much rivals' skill varies, typical rival risk, how much riskier gamblers are, market correlation, and how many rivals go for broke when behind) and "More about the markets" (fat tails).
 - **Start from a scenario** loads one of nine presets, from a society league of eight to a full year of trading.
 - **New luck** reruns everything with a different random seed. The same settings and luck number always give the same results.
 - **Copy link to these settings** puts the settings in the page address, so you can send a scenario to your team or put it on a seminar slide.
 - **How much risk should your team take?** plots your chances of winning and of a top-3 finish at 20 levels of volatility, all on the same simulated luck, so the curve shows the effect of risk alone. Click the chart to set your risk.
 - **Who actually wins?** splits the wins between your team, the gamblers and the steady teams, and says how often the most skilled team wins and how often the winner had no real edge.
-- **One simulated challenge** shows a single challenge in full: the top five teams' paths, your team's path, and the final table with each team's true skill, risk, return and worst drawdown. Step through challenges one at a time.
+- **One simulated challenge** shows a single challenge place by place: the top five teams' paths, your team's path, and the top ten of the final table (plus your team, wherever it finished) with each team's true skill, risk, return and worst drawdown. Step through challenges one at a time.
 - **How long before skill shows?** runs every scoring rule at seven lengths, from one week to a year, with your other settings.
 - **How it works** explains the model, its limits and its sources.
 
@@ -91,14 +91,14 @@ Python 3.9 or later, standard library only. From the top folder of the branch:
 python -m leaderboard_luck simulate                       # your chances with the default settings
 python -m leaderboard_luck simulate --rule sharpe         # the same, ranked on Sharpe ratio
 python -m leaderboard_luck simulate --catch-up --json     # going for broke, as JSON
-python -m leaderboard_luck sample --index 0               # one simulated challenge in full
+python -m leaderboard_luck sample --index 0 --top 0       # one simulated challenge, every team
 python -m leaderboard_luck design                         # every rule at every length, as text
 python -m leaderboard_luck design --html report.html --csv report.csv
 ```
 
-Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--sims` and `--seed`. Out-of-range values are clamped to the same limits as the app's sliders. Run `python -m leaderboard_luck <command> --help` for details.
+Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
 
-`design` runs 21 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
+`sample` shows the top ten and your team (`--top` to change; `--top 0` shows every team). `design` runs every scoring rule at every length, so it takes no `--rule`, `--days` or `--sims`: that is 21 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
 
 ## Tests
 
@@ -112,11 +112,11 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 | Test file | What it checks |
 |---|---|
 | `tests/test_model.py` | The Python model: the random number generator, scoring rules, busts, drawdown knockouts, going for broke, tied skill, rank correlation, skill by length (and that the number of workers does not change it), sample challenges, and the design report's wording |
-| `tests/test_cli.py` | The commands, their text and JSON output, the design report's CSV and HTML, settings limits, error handling and rounding |
+| `tests/test_cli.py` | The commands, their text and JSON output, the design report's CSV and HTML, which settings each command takes, notes on out-of-range values, error handling and rounding |
 | `tests/test_agreement.py` | The app's model and the Python model give exactly the same numbers on 8 settings, including extreme ones, for simulations, sample challenges, skill by length and seeds |
 | `tests/app_model.test.js` | The app's model on its own in Node: determinism, chunked runs, scoring rules, busts, going for broke, settings limits, rank correlation, skill by length, and consistency between the summary and single challenges |
 | `tests/test_js.py` | Runs the Node tests from the Python suite |
-| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, the dark theme and phone width |
+| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, wording that follows the numbers, the dark theme and phone width |
 
 ## Which language does what
 
@@ -124,9 +124,9 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 |---|---|---|---|
 | `app/index.html`, layout and styles | HTML and CSS | 337 | Page structure, light and dark themes, phone layout |
 | `app/index.html`, model | JavaScript | 636 | The simulation, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
-| `app/index.html`, interface | JavaScript | 722 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links |
-| `leaderboard_luck/` | Python | 964 | A line-for-line port of the model, the command line, text and JSON reports, and the organiser's design report |
-| `tests/*.py` | Python | 498 | Model, command line, cross-language agreement and browser tests |
+| `app/index.html`, interface | JavaScript | 763 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links |
+| `leaderboard_luck/` | Python | 1,026 | A line-for-line port of the model, the command line, text and JSON reports, and the organiser's design report |
+| `tests/*.py` | Python | 547 | Model, command line, cross-language agreement and browser tests |
 | `tests/*.js` | JavaScript | 210 | Node tests of the app's model, and the harness the agreement tests use |
 
 The browser app is the main product; Python is the companion for batch runs, scripting and the organiser's report.

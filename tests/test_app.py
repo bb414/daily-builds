@@ -111,6 +111,21 @@ class AppTests(unittest.TestCase):
         other.close()
         self.assertEqual(self.problems, [])
 
+    def test_wording_follows_the_numbers(self):
+        page = self.open(url=APP + "#rule=drawdown&drawdownLimit=0.1")
+        self.assertIn("knock your team out of 63% of challenges", page.inner_text("#insight"))
+        page.close()
+        page = self.open(url=APP + "#rule=sharpe&catchUp=1")
+        self.assertNotIn("same at any volatility", page.inner_text("#insight"))
+        self.assertIn("Less risk would help", page.inner_text("#insight"))
+        page.close()
+        page = self.open(url=APP + "#days=250&teams=8")
+        insight = page.inner_text("#insight")
+        self.assertIn("year-long challenges, against a fair share of 12.5%", insight)
+        self.assertIn("Trading days: about a year.", page.inner_text("#rules-form"))
+        page.close()
+        self.assertEqual(self.problems, [])
+
     def test_fits_a_phone(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)

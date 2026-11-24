@@ -295,7 +295,7 @@ details.about[open] summary::after { content: " \25b4"; }
     <div class="legend" aria-hidden="true">
       <span><i class="sw line" style="background:var(--rule-return)"></i>Highest return</span>
       <span><i class="sw line" style="background:var(--rule-sharpe)"></i>Highest Sharpe ratio</span>
-      <span><i class="sw line" style="background:var(--rule-drawdown)"></i>Return with drawdown limit</span>
+      <span><i class="sw line" style="background:var(--rule-drawdown)"></i><span id="skill-dd-name">Return with a 15% drawdown limit</span></span>
     </div>
     <div class="chart" id="skill-chart"></div>
     <p id="skill-note"></p>
@@ -840,7 +840,7 @@ var LeaderboardModel = (function () {
   }
 
   // For each scoring rule and challenge length: how often the most skilled team wins, and how
-  // closely final places follow true skill (rank correlation, 1 = perfectly). Your team takes
+  // closely final places follow true skill (rank correlation, 1 = a perfect match). Your team takes
   // part at your settings. Advance in chunks like createRun; each step is one competition.
   function createSkillRun(params, simsEach) {
     var p = normalise(params);
@@ -1013,19 +1013,28 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
-  function weeks(days) {
-    var w = days / 5;
-    if (days % 5 === 0) return w === 1 ? '1 week' : w + ' weeks';
-    return 'about ' + Math.round(w) + ' weeks';
-  }
-
-  // "a four-week challenge" style wording for a challenge length in trading days.
+  // Challenge lengths in words: five trading days a week, about 21 a month, 250 a year.
   var NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
+  function months(days) { return Math.round(days / 21); }
+
+  function lengthWords(days) {
+    if (days <= 62) {
+      var w = Math.round(days / 5);
+      return (days % 5 === 0 ? '' : 'about ') + w + (w === 1 ? ' week' : ' weeks');
+    }
+    return months(days) >= 12 ? 'about a year' : 'about ' + months(days) + ' months';
+  }
+
+  // "a four-week challenge" style wording.
   function lengthAdjective(days) {
-    if (days % 5 !== 0) return days + '-day';
-    var w = days / 5;
-    return (w < NUMBER_WORDS.length ? NUMBER_WORDS[w] : String(w)) + '-week';
+    if (days <= 62) {
+      if (days % 5 !== 0) return days + '-day';
+      var w = days / 5;
+      return (w < NUMBER_WORDS.length ? NUMBER_WORDS[w] : String(w)) + '-week';
+    }
+    var mo = months(days);
+    return mo >= 12 ? 'year-long' : NUMBER_WORDS[mo] + '-month';
   }
 
   function ordinal(n) {
@@ -1070,8 +1079,12 @@ if (typeof module !== 'undefined' && module.exports) {
     { key: 'gamblers', group: 'field', label: 'Share of gamblers', min: 0, max: 0.8, step: 0.05,
       fmt: function (v) { return pct(v); },
       hint: function () {
-        var n = Math.floor(params.gamblers * (params.teams - 1) + 0.5);
-        return n + ' of the ' + (params.teams - 1) + ' rivals swing for the fences. Their skill is no better than anyone else’s.';
+        var nRivals = params.teams - 1;
+        var n = Math.floor(params.gamblers * nRivals + 0.5);
+        if (n === 0) return 'None of the ' + nRivals + ' rivals is a gambler.';
+        var mult = params.gamblerMultiple % 1 === 0 ? String(params.gamblerMultiple) : params.gamblerMultiple.toFixed(1);
+        return n + ' of the ' + nRivals + ' rivals ' + (n === 1 ? 'is a gambler' : 'are gamblers') + ', running ' +
+          mult + '× the usual risk. Their skill is no better than anyone else’s.';
       } },
     { key: 'gamblerMultiple', group: 'field-more', label: 'How much more risk gamblers run', min: 1, max: 4, step: 0.5,
       fmt: function (v) { return v.toFixed(1) + '×'; },
@@ -1085,11 +1098,12 @@ if (typeof module !== 'undefined' && module.exports) {
         var nRivals = params.teams - 1;
         var nSteady = nRivals - Math.floor(params.gamblers * nRivals + 0.5);
         var n = Math.floor(params.rivalsCatchUp * nSteady + 0.5);
-        return n + ' of the ' + nSteady + ' steady rivals switch to gambler-level risk if outside the top 3 at the checkpoint.';
+        return (n === 0 ? 'None' : n) + ' of the ' + nSteady + ' steady rivals ' + (n === 1 ? 'switches' : 'switch') +
+          ' to gambler-level risk if outside the top 3 at the checkpoint.';
       } },
     { key: 'days', group: 'rules', label: 'Length of the challenge', min: 5, max: 250, step: 5,
       fmt: function (v) { return v + ' days'; },
-      hint: function () { return 'Trading days: ' + weeks(params.days) + '.'; } },
+      hint: function () { return 'Trading days: ' + lengthWords(params.days) + '.'; } },
     { key: 'drawdownLimit', group: 'dd', label: 'Drawdown limit', min: 0.02, max: 0.6, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'A team is out once its account falls this far below its peak.'; } }
@@ -1262,7 +1276,12 @@ if (typeof module !== 'undefined' && module.exports) {
     work();
   }
 
+  function skillRuleName(rule) {
+    return rule === 'drawdown' ? 'Return with a ' + pct(params.drawdownLimit) + ' drawdown limit' : SHORT_RULE[rule];
+  }
+
   function drawSkill(rows) {
+    $('#skill-dd-name').textContent = skillRuleName('drawdown');
     var box = $('#skill-chart');
     box.classList.remove('stale-chart');
     box.innerHTML = '';
@@ -1277,7 +1296,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var get = function (rule, days) { return rows.filter(function (r) { return r.rule === rule && r.days === days; })[0]; };
     var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
       'aria-label': 'Chance the most skilled team wins by challenge length. ' + M.RULES.map(function (rule) {
-        return M.RULE_LABELS[rule] + ': ' + D.map(function (d) { return LENGTH_LABELS[d] + ' ' + pct(get(rule, d).pBestWins); }).join(', ');
+        return skillRuleName(rule) + ': ' + D.map(function (d) { return LENGTH_LABELS[d] + ' ' + pct(get(rule, d).pBestWins); }).join(', ');
       }).join('. ') });
     for (var i = 0; i <= axis.ticks; i++) {
       var v = yMax * i / axis.ticks;
@@ -1287,7 +1306,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var narrow = W < 560;
     D.forEach(function (d, k) {
       svgText(s, sx(k), H - m.b + 18, narrow ? SHORT_LENGTHS[d] : LENGTH_LABELS[d],
-        { 'text-anchor': k === 0 ? 'start' : (k === D.length - 1 ? 'end' : 'middle') });
+        { 'text-anchor': narrow ? 'middle' : (k === 0 ? 'start' : (k === D.length - 1 ? 'end' : 'middle')) });
     });
     var current = D.indexOf(params.days);
     if (current >= 0) {
@@ -1306,7 +1325,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var head = el('thead');
     var hr = el('tr');
     hr.appendChild(el('th', { scope: 'col' }, 'Length'));
-    M.RULES.forEach(function (rule) { hr.appendChild(el('th', { scope: 'col' }, M.RULE_LABELS[rule])); });
+    M.RULES.forEach(function (rule) { hr.appendChild(el('th', { scope: 'col' }, skillRuleName(rule))); });
     head.appendChild(hr);
     table.appendChild(head);
     var body = el('tbody');
@@ -1322,10 +1341,13 @@ if (typeof module !== 'undefined' && module.exports) {
     table.appendChild(body);
     var year = get(params.rule, 250);
     var month = get(params.rule, 20);
-    var ruleWords = { return: 'return', sharpe: 'Sharpe ratio', drawdown: 'return with a drawdown limit' };
+    var ruleWords = { return: 'return', sharpe: 'Sharpe ratio', drawdown: 'return with a ' + pct(params.drawdownLimit) + ' drawdown limit' };
+    var rc = year.rankCorr;
+    var follow = rc >= 0.8 ? 'After a year, final places follow true skill closely' :
+      'Even after a year, final places follow true skill ' + (rc >= 0.5 ? 'only partly' : 'only loosely');
     $('#skill-note').textContent = 'Ranked on ' + ruleWords[params.rule] +
       ', the most skilled team wins ' + pct(month.pBestWins) + ' of four-week challenges and ' + pct(year.pBestWins) +
-      ' of year-long ones. Even after a year, final places follow true skill only loosely (rank correlation ' + year.rankCorr.toFixed(2) + ', where 1 would be perfect).';
+      ' of year-long ones. ' + follow + ' (rank correlation ' + rc.toFixed(2) + ', where 1 would be perfect).';
   }
 
   /* ---------- settings in the address, so a link reopens them ---------- */
@@ -1405,16 +1427,35 @@ if (typeof module !== 'undefined' && module.exports) {
   function insightText(r) {
     var p = r.params;
     var parts = [];
-    parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field, yet it wins ' + pct(r.you.pWin, 1) +
-      ' of ' + lengthAdjective(p.days) + ' challenges.');
-    if (p.rule === 'sharpe') {
-      parts.push('Ranked on Sharpe ratio, extra risk buys nothing: your chances are the same at any volatility, so the only way up is a better strategy.');
+    var fair = 1 / p.teams;
+    var wins = pct(r.you.pWin, 1) + ' of ' + lengthAdjective(p.days) + ' challenges';
+    if (r.skillPercentile < 0.5) {
+      parts.push('Your team is weaker than ' + pct(1 - r.skillPercentile) + ' of the field and wins ' + wins +
+        ' (a fair share would be ' + pct(fair, 1) + ').');
+    } else if (r.you.pWin < fair) {
+      parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field, yet it wins only ' + wins +
+        ', less than a fair share of ' + pct(fair, 1) + '.');
+    } else {
+      parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field and wins ' + wins +
+        ', against a fair share of ' + pct(fair, 1) + '.');
+    }
+    var chances = r.curve.map(function (c) { return c.pWin; });
+    var flat = Math.max.apply(null, chances) - Math.min.apply(null, chances) < 1e-9;
+    if (flat) {
+      parts.push((p.rule === 'sharpe' ? 'Ranked on Sharpe ratio, extra risk buys nothing: your' : 'Your') +
+        ' chance of winning is the same at any volatility, so the only way up is a better strategy.');
     } else if (r.bestVol > p.yourVol + 0.04 && r.bestPWin > r.you.pWin + 0.005) {
       parts.push('Taking more risk is the quickest way up the table: at ' + pct(r.bestVol) + ' volatility your chance of winning would be ' +
         pct(r.bestPWin, 1) + '.');
-      if (p.rule === 'drawdown') parts.push('Beyond that the drawdown limit starts to knock you out.');
+      if (p.rule === 'drawdown') {
+        var best = r.curve.filter(function (c) { return c.vol === r.bestVol; })[0];
+        parts.push('At that risk the drawdown limit would knock your team out of ' + pct(best.pOut) + ' of challenges' +
+          (r.bestVol < M.VOL_GRID[M.VOL_GRID.length - 1] ? ', and beyond it knockouts cost more than the extra risk gains.' : '.'));
+      }
+    } else if (r.bestVol < p.yourVol - 0.04 && r.bestPWin > r.you.pWin + 0.005) {
+      parts.push('Less risk would help: at ' + pct(r.bestVol) + ' volatility your chance of winning would be ' + pct(r.bestPWin, 1) + '.');
     } else {
-      parts.push('More risk would not help much from here.');
+      parts.push('A different level of risk would not help much from here.');
     }
     if (p.catchUp) {
       parts.push('Going for broke when behind, you switched to ' + pct(p.catchUpVol) + ' risk in ' + pct(r.you.pSwitched) +
