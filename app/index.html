@@ -128,6 +128,9 @@ legend { font-weight: 600; font-size: 0.9375rem; padding: 0; margin-bottom: 6px;
 .seg input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; font-size: 0.9375rem; cursor: pointer; }
 .check input { accent-color: var(--accent); width: 18px; height: 18px; margin-top: 2px; }
+.more-settings { margin-top: 4px; }
+.more-settings summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.9375rem; padding: 6px 0; }
+.more-settings[open] summary { margin-bottom: 10px; }
 .sub { margin-top: 12px; padding: 12px 12px 0; border-left: 3px solid var(--accent-soft); }
 
 /* status */
@@ -174,10 +177,23 @@ table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--
 table.data th:nth-child(-n+2), table.data td:nth-child(-n+2) { text-align: left; }
 table.data thead th { color: var(--muted); font-weight: 600; }
 table.data tr.you td, table.data tr.you th { background: var(--accent-soft); font-weight: 700; }
+#sample-table td:last-child, #sample-table th:last-child { text-align: left; white-space: normal; min-width: 9em; }
+@media (max-width: 600px) {
+  #sample-table .wide-col { display: none; }
+  #sample-table td, #sample-table th { padding: 6px 5px; }
+  #sample-table td:last-child, #sample-table th:last-child { min-width: 0; }
+}
 .kind { display: inline-flex; align-items: center; gap: 6px; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .stale #results, .stale-chart { opacity: 0.55; transition: opacity 0.2s; }
 .prose { max-width: 72ch; }
+details.about { max-width: none; }
+details.about > div { max-width: 72ch; }
+details.about summary { cursor: pointer; list-style: none; }
+details.about summary::-webkit-details-marker { display: none; }
+details.about summary h2 { display: inline; }
+details.about summary::after { content: " \25be"; color: var(--accent); }
+details.about[open] summary::after { content: " \25b4"; }
 .prose h3 { margin-top: 18px; }
 .prose li { margin-bottom: 6px; }
 </style>
@@ -208,6 +224,10 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
     <form class="card" id="field-form" aria-labelledby="field-h">
       <h2 id="field-h">The field</h2>
       <div id="sliders-field"></div>
+      <details class="more-settings" id="field-more">
+        <summary>More about the field</summary>
+        <div id="sliders-field-more"></div>
+      </details>
     </form>
     <form class="card" id="rules-form" aria-labelledby="rules-h">
       <h2 id="rules-h">The rules</h2>
@@ -217,7 +237,10 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
         <div class="seg" id="rule-seg"></div>
       </fieldset>
       <div id="slider-dd"></div>
-      <label class="check"><input type="checkbox" id="fat-tails"> Fat tails: a few days with moves three times the usual size</label>
+      <details class="more-settings" id="rules-more">
+        <summary>More about the markets</summary>
+        <label class="check"><input type="checkbox" id="fat-tails"> Fat tails: a few days with moves three times the usual size</label>
+      </details>
     </form>
   </section>
 
@@ -281,8 +304,8 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
     </details>
   </section>
 
-  <section class="card prose" aria-labelledby="about-h">
-    <h2 id="about-h">How it works</h2>
+  <details class="card prose about" id="about-box" open>
+    <summary><h2 id="about-h">How it works</h2></summary>
     <div id="about">
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
       <p>Your team is then run at your chosen risk and at twenty other levels on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
@@ -293,19 +316,19 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
         <li><strong>For teams:</strong> in a short challenge ranked on return, the leaderboard mostly measures risk and luck. If the goal is to win, more risk is usually the answer; if the goal is to learn, judge yourselves on risk-adjusted results, not the rank.</li>
         <li><strong>For organisers:</strong> ranking on Sharpe ratio removes the reward for leverage, a drawdown limit caps it, and a longer challenge gives skill more time to show. None of them makes a few weeks long enough to pick out the best team reliably.</li>
       </ul>
-      <h3>Sources</h3>
-      <ul>
-        <li>Brown, K. C., Harlow, W. V. and Starks, L. T. (1996) "Of tournaments and temptations: an analysis of managerial incentives in the mutual fund industry", <em>Journal of Finance</em>, 51(1).</li>
-        <li>Chevalier, J. and Ellison, G. (1997) "Risk taking by mutual funds as a response to incentives", <em>Journal of Political Economy</em>, 105(6).</li>
-      </ul>
       <h3>Limits</h3>
       <ul>
         <li>Everything is simulated. Real returns have more structure than a normal distribution with an optional fat tail, and real strategies are not equally good every day.</li>
         <li>Apart from one go-for-broke checkpoint, teams keep the same risk all challenge. Real teams adjust all the time.</li>
         <li>The shared market move is a single factor. Real teams overlap in more complicated ways.</li>
       </ul>
+      <h3>Sources</h3>
+      <ul>
+        <li>Brown, K. C., Harlow, W. V. and Starks, L. T. (1996) "Of tournaments and temptations: an analysis of managerial incentives in the mutual fund industry", <em>Journal of Finance</em>, 51(1).</li>
+        <li>Chevalier, J. and Ellison, G. (1997) "Risk taking by mutual funds as a response to incentives", <em>Journal of Political Economy</em>, 105(6).</li>
+      </ul>
     </div>
-  </section>
+  </details>
 </main>
 
 <footer>
@@ -1005,6 +1028,8 @@ if (typeof module !== 'undefined' && module.exports) {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
+  var SHORT_RULE = { return: 'Highest return', sharpe: 'Highest Sharpe ratio', drawdown: 'Return, with a drawdown limit' };
+
   var params = Object.assign({}, M.DEFAULTS);
   var lastResult = null;
   var sampleIndex = 0;
@@ -1027,10 +1052,10 @@ if (typeof module !== 'undefined' && module.exports) {
     { key: 'teams', group: 'field', label: 'Teams in the challenge', min: 3, max: 100, step: 1,
       fmt: function (v) { return String(v); },
       hint: function () { return 'Including yours.'; } },
-    { key: 'skillSpread', group: 'field', label: 'How much rivals’ skill varies', min: 0, max: 2, step: 0.05,
+    { key: 'skillSpread', group: 'field-more', label: 'How much rivals’ skill varies', min: 0, max: 2, step: 0.05,
       fmt: function (v) { return v.toFixed(2); },
       hint: function () { return 'Spread of rivals’ true Sharpe ratios around zero. At 0.75, one rival in six has a Sharpe above 0.75.'; } },
-    { key: 'fieldVol', group: 'field', label: 'Typical rival risk', min: 0.05, max: 0.5, step: 0.01,
+    { key: 'fieldVol', group: 'field-more', label: 'Typical rival risk', min: 0.05, max: 0.5, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'Annualised volatility of a steady team; each varies a little around this.'; } },
     { key: 'gamblers', group: 'field', label: 'Share of gamblers', min: 0, max: 0.8, step: 0.05,
@@ -1039,13 +1064,13 @@ if (typeof module !== 'undefined' && module.exports) {
         var n = Math.floor(params.gamblers * (params.teams - 1) + 0.5);
         return n + ' of the ' + (params.teams - 1) + ' rivals swing for the fences. Their skill is no better than anyone else’s.';
       } },
-    { key: 'gamblerMultiple', group: 'field', label: 'How much more risk gamblers run', min: 1, max: 4, step: 0.5,
+    { key: 'gamblerMultiple', group: 'field-more', label: 'How much more risk gamblers run', min: 1, max: 4, step: 0.5,
       fmt: function (v) { return v.toFixed(1) + '×'; },
       hint: function () { return 'About ' + pct(params.fieldVol * params.gamblerMultiple) + ' volatility.'; } },
-    { key: 'correlation', group: 'field', label: 'How much everyone rides the same market', min: 0, max: 0.9, step: 0.05,
+    { key: 'correlation', group: 'field-more', label: 'How much everyone rides the same market', min: 0, max: 0.9, step: 0.05,
       fmt: function (v) { return v.toFixed(2); },
       hint: function () { return 'Correlation of daily returns between teams. High when most teams hold the same kind of positions.'; } },
-    { key: 'rivalsCatchUp', group: 'field', label: 'Rivals who go for broke when behind', min: 0, max: 1, step: 0.1,
+    { key: 'rivalsCatchUp', group: 'field-more', label: 'Rivals who go for broke when behind', min: 0, max: 1, step: 0.1,
       fmt: function (v) { return pct(v); },
       hint: function () {
         var nRivals = params.teams - 1;
@@ -1093,7 +1118,7 @@ if (typeof module !== 'undefined' && module.exports) {
         }
       });
       lab.appendChild(input);
-      lab.appendChild(el('span', {}, M.RULE_LABELS[r]));
+      lab.appendChild(el('span', {}, SHORT_RULE[r]));
       seg.appendChild(lab);
     });
     $('#fat-tails').addEventListener('change', function (e) {
@@ -1203,6 +1228,7 @@ if (typeof module !== 'undefined' && module.exports) {
   var SKILL_SIMS = 300;
   var lastSkill = null;
   var LENGTH_LABELS = { 5: '1 week', 10: '2 weeks', 20: '4 weeks', 40: '8 weeks', 60: '12 weeks', 120: '6 months', 250: '1 year' };
+  var SHORT_LENGTHS = { 5: '1 wk', 10: '2 wk', 20: '4 wk', 40: '8 wk', 60: '12 wk', 120: '6 mo', 250: '1 yr' };
   var RULE_COLOUR = { return: 'var(--rule-return)', sharpe: 'var(--rule-sharpe)', drawdown: 'var(--rule-drawdown)' };
 
   function startSkillRun(token) {
@@ -1232,7 +1258,8 @@ if (typeof module !== 'undefined' && module.exports) {
     var W = Math.max(280, box.clientWidth || 600);
     var H = 240;
     var m = { l: 44, r: 16, t: 12, b: 34 };
-    var yMax = niceMax(Math.max.apply(null, rows.map(function (r) { return r.pBestWins; }).concat([0.05])) * 1.1);
+    var axis = niceAxis(Math.max.apply(null, rows.map(function (r) { return r.pBestWins; }).concat([0.05])) * 1.1);
+    var yMax = axis.max;
     var D = M.DURATIONS;
     var sx = function (i) { return m.l + (W - m.l - m.r) * i / (D.length - 1); };
     var sy = function (v) { return H - m.b - (H - m.t - m.b) * v / yMax; };
@@ -1241,16 +1268,15 @@ if (typeof module !== 'undefined' && module.exports) {
       'aria-label': 'Chance the most skilled team wins by challenge length. ' + M.RULES.map(function (rule) {
         return M.RULE_LABELS[rule] + ': ' + D.map(function (d) { return LENGTH_LABELS[d] + ' ' + pct(get(rule, d).pBestWins); }).join(', ');
       }).join('. ') });
-    var ticks = yMax <= 0.1 ? 5 : 4;
-    for (var i = 0; i <= ticks; i++) {
-      var v = yMax * i / ticks;
+    for (var i = 0; i <= axis.ticks; i++) {
+      var v = yMax * i / axis.ticks;
       svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: i === 0 ? 'axis' : 'grid' }, s);
       svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
     }
-    var narrow = W < 520;
+    var narrow = W < 560;
     D.forEach(function (d, k) {
-      if (narrow && (k === 1 || k === 3)) return;
-      svgText(s, sx(k), H - m.b + 18, LENGTH_LABELS[d], { 'text-anchor': k === 0 ? 'start' : (k === D.length - 1 ? 'end' : 'middle') });
+      svgText(s, sx(k), H - m.b + 18, narrow ? SHORT_LENGTHS[d] : LENGTH_LABELS[d],
+        { 'text-anchor': k === 0 ? 'start' : (k === D.length - 1 ? 'end' : 'middle') });
     });
     var current = D.indexOf(params.days);
     if (current >= 0) {
@@ -1409,10 +1435,12 @@ if (typeof module !== 'undefined' && module.exports) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
-  function niceMax(v) {
-    var steps = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1];
-    for (var i = 0; i < steps.length; i++) if (v <= steps[i]) return steps[i];
-    return 1;
+  // Axis tops and how many gridlines they split into, chosen so every tick is a round number.
+  var AXES = [[0.05, 5], [0.1, 5], [0.2, 4], [0.25, 5], [0.4, 4], [0.5, 5], [0.6, 6], [0.8, 4], [1, 5]];
+
+  function niceAxis(v) {
+    for (var i = 0; i < AXES.length; i++) if (v <= AXES[i][0]) return { max: AXES[i][0], ticks: AXES[i][1] };
+    return { max: 1, ticks: 5 };
   }
 
   function drawRiskChart(r) {
@@ -1423,15 +1451,15 @@ if (typeof module !== 'undefined' && module.exports) {
     var H = 260;
     var m = { l: 44, r: 16, t: 14, b: 38 };
     var showOut = r.curve.some(function (c) { return c.pOut > 0; });
-    var yMax = niceMax(Math.max.apply(null, r.curve.map(function (c) { return Math.max(c.pTop3, showOut ? c.pOut : 0); }).concat([r.you.pTop3, 0.04])) * 1.1);
+    var axis = niceAxis(Math.max.apply(null, r.curve.map(function (c) { return Math.max(c.pTop3, showOut ? c.pOut : 0); }).concat([r.you.pTop3, 0.04])) * 1.1);
+    var yMax = axis.max;
     var sx = function (v) { return m.l + (W - m.l - m.r) * v; };
     var sy = function (v) { return H - m.b - (H - m.t - m.b) * v / yMax; };
     var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
       'aria-label': 'Chance of winning and of a top-3 finish as your volatility rises from 5% to 100%. Best: ' +
         pct(r.bestPWin, 1) + ' at ' + pct(r.bestVol) + '. At your current ' + pct(p.yourVol) + ': ' + pct(r.you.pWin, 1) + '.' });
-    var ticks = yMax <= 0.1 ? 5 : 4;
-    for (var i = 0; i <= ticks; i++) {
-      var v = yMax * i / ticks;
+    for (var i = 0; i <= axis.ticks; i++) {
+      var v = yMax * i / axis.ticks;
       svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: i === 0 ? 'axis' : 'grid' }, s);
       svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
     }
@@ -1582,8 +1610,8 @@ if (typeof module !== 'undefined' && module.exports) {
     t.innerHTML = '';
     var head = el('thead');
     var hr = el('tr');
-    ['Place', 'Team', 'Type', 'True skill', 'Risk', 'Return', 'Worst drawdown', 'Status'].forEach(function (h) {
-      hr.appendChild(el('th', { scope: 'col' }, h));
+    ['Place', 'Team', 'Type', 'True skill', 'Risk', 'Return', 'Worst drawdown', 'Status'].forEach(function (h, i) {
+      hr.appendChild(el('th', (i === 2 || i === 4 || i === 6) ? { scope: 'col', class: 'wide-col' } : { scope: 'col' }, h));
     });
     head.appendChild(hr);
     t.appendChild(head);
@@ -1599,19 +1627,21 @@ if (typeof module !== 'undefined' && module.exports) {
       }
       var tr = el('tr', x.you ? { class: 'you' } : {});
       tr.appendChild(el('th', { scope: 'row' }, x.out ? '–' : ordinal(x.rank)));
-      tr.appendChild(el('td', {}, x.name));
-      var kind = el('td');
-      var span = el('span', { class: 'kind' });
-      var sw = el('i', { class: 'sw', 'aria-hidden': 'true' });
-      sw.style.background = KIND_COLOUR[kindOf(x)];
-      span.appendChild(sw);
-      span.appendChild(document.createTextNode(x.you ? 'You' : (x.gambler ? 'Gambler' : 'Steady')));
-      kind.appendChild(span);
+      var nameCell = el('td');
+      var nameSpan = el('span', { class: 'kind' });
+      var dot = el('i', { class: 'sw', 'aria-hidden': 'true' });
+      dot.style.background = KIND_COLOUR[kindOf(x)];
+      nameSpan.appendChild(dot);
+      nameSpan.appendChild(document.createTextNode(x.name));
+      nameCell.appendChild(nameSpan);
+      tr.appendChild(nameCell);
+      var kind = el('td', { class: 'wide-col' });
+      kind.textContent = x.you ? 'You' : (x.gambler ? 'Gambler' : 'Steady');
       tr.appendChild(kind);
       tr.appendChild(el('td', {}, x.sharpe.toFixed(2)));
-      tr.appendChild(el('td', {}, pct(x.vol)));
+      tr.appendChild(el('td', { class: 'wide-col' }, pct(x.vol)));
       tr.appendChild(el('td', {}, signed(x.ret)));
-      tr.appendChild(el('td', {}, pct(x.maxDD, 1)));
+      tr.appendChild(el('td', { class: 'wide-col' }, pct(x.maxDD, 1)));
       var status = x.bust ? 'Blown up' : (x.out ? 'Out: drawdown' : '');
       if (x.switchDay !== null) status = (status ? status + '; ' : '') + 'went for broke on day ' + x.switchDay;
       tr.appendChild(el('td', {}, status));
@@ -1639,6 +1669,9 @@ if (typeof module !== 'undefined' && module.exports) {
     }, 150);
   });
 
+  if (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) {
+    $('#about-box').open = false;
+  }
   readHash();
   buildControls();
   buildPresets();

@@ -100,13 +100,23 @@ li { margin-bottom: 6px; }
 """
 
 
+# Axis tops and how many gridlines they split into, chosen so every tick is a round number.
+AXES = [(0.05, 5), (0.1, 5), (0.2, 4), (0.25, 5), (0.4, 4), (0.5, 5), (0.6, 6), (0.8, 4), (1.0, 5)]
+
+
+def nice_axis(v: float) -> tuple:
+    for top, ticks in AXES:
+        if v <= top:
+            return top, ticks
+    return 1.0, 5
+
+
 def _chart(rows: list[dict], key: str, label: str) -> str:
     by = _by(rows)
     w, h = 460, 240
-    m = {"l": 46, "r": 12, "t": 12, "b": 36}
+    m = {"l": 46, "r": 22, "t": 12, "b": 36}
     pw, ph = w - m["l"] - m["r"], h - m["t"] - m["b"]
-    y_max = max(0.1, max(r[key] for r in rows))
-    y_max = min(1.0, (int(y_max * 10) + 1) / 10)
+    y_max, ticks = nice_axis(max(0.05, max(r[key] for r in rows)) * 1.05)
 
     def sx(i):
         return m["l"] + pw * i / (len(DURATIONS) - 1)
@@ -117,13 +127,14 @@ def _chart(rows: list[dict], key: str, label: str) -> str:
     desc = "; ".join(f"{SHORT_NAMES[r]}: " + ", ".join(f"{length_label(d)} {by[(r, d)][key]:.2f}" for d in DURATIONS)
                      for r in RULES)
     parts = [f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" aria-label="{html.escape(label + ". " + desc)}">']
-    for k in range(6):
-        v = y_max * k / 5
+    for k in range(ticks + 1):
+        v = y_max * k / ticks
         parts.append(f'<line x1="{m["l"]}" x2="{w - m["r"]}" y1="{sy(v):.1f}" y2="{sy(v):.1f}" stroke="var(--line)"/>')
-        text = pct(v, 0) if key != "rankCorr" else f"{v:.1f}"
+        text = pct(v, 0) if key != "rankCorr" else f"{v:.2f}".rstrip("0").rstrip(".")
         parts.append(f'<text x="{m["l"] - 6}" y="{sy(v) + 4:.1f}" text-anchor="end">{text}</text>')
     for i, d in enumerate(DURATIONS):
-        parts.append(f'<text x="{sx(i):.1f}" y="{h - 18}" text-anchor="middle">{html.escape(length_label(d))}</text>')
+        anchor = "start" if i == 0 else ("end" if i == len(DURATIONS) - 1 else "middle")
+        parts.append(f'<text x="{sx(i):.1f}" y="{h - 18}" text-anchor="{anchor}">{html.escape(length_label(d))}</text>')
     for rule in RULES:
         pts = " ".join(f"{'M' if i == 0 else 'L'}{sx(i):.1f} {sy(by[(rule, d)][key]):.1f}" for i, d in enumerate(DURATIONS))
         parts.append(f'<path d="{pts}" fill="none" stroke="{RULE_COLOURS[rule]}" stroke-width="2.5"/>')
@@ -161,6 +172,6 @@ measures how closely the whole final table follows true skill: 0 is pure luck, 1
 <thead><tr><th>Length</th>{head}</tr></thead><tbody>{body}</tbody></table></div>
 <p class="note">Each cell: chance the most skilled team wins (rank correlation in brackets).</p></div>
 <div class="card"><h2>The field simulated</h2><ul>{setting_lines}</ul>
-<p class="note">Rule names: {html.escape("; ".join(f"{SHORT_NAMES[r]} = {RULE_LABELS[r].lower()}" for r in RULES))}.</p></div>
+<p class="note">Rule names: {html.escape("; ".join(f"{SHORT_NAMES[r]}: {RULE_LABELS[r]}" for r in RULES))}.</p></div>
 </main></body></html>
 """
