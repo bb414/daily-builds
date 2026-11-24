@@ -10,6 +10,7 @@ from typing import List, Optional
 from .analysis import lever_effects
 from .model import simulate
 from .report import html_report, text_report
+from .robustness import run_robustness
 from .strategies import GOVERNANCE, MOMENTUM
 
 
@@ -23,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=42, help="random seed for reproducible results (default 42)")
     p.add_argument("--html", metavar="PATH", help="also write a self-contained HTML report to PATH")
     p.add_argument("--no-levers", action="store_true", help="skip the single-fix analysis (faster)")
+    p.add_argument(
+        "--robustness",
+        action="store_true",
+        help="also re-run everything under 10 alternative sets of assumptions (takes a few seconds)",
+    )
     return p
 
 
@@ -35,10 +41,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     summaries = [simulate(s, args.runs, args.quarters, args.seed) for s in (MOMENTUM, GOVERNANCE)]
     effects = [] if args.no_levers else lever_effects(MOMENTUM, args.runs, args.quarters, args.seed)[1]
 
-    print(text_report(summaries, effects, args.seed))
+    robustness = run_robustness(min(args.runs, 200), args.seed) if args.robustness else None
+
+    print(text_report(summaries, effects, args.seed, robustness))
     if args.html:
         path = Path(args.html)
-        path.write_text(html_report(summaries, effects, args.seed), encoding="utf-8")
+        path.write_text(html_report(summaries, effects, args.seed, robustness), encoding="utf-8")
         print(f"\nHTML report written to {path}")
     return 0
 

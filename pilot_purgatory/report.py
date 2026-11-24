@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import html
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 from .analysis import LeverEffect
+from .robustness import RobustnessReport
 from .model import BARRIERS, IN_PROGRESS, KILLED, OUTCOMES, PURGATORY, SCALED, Summary
 
 OUTCOME_COLOURS = {SCALED: "#2e7d4f", KILLED: "#8a8f98", PURGATORY: "#d9822b", IN_PROGRESS: "#7fa7d9"}
@@ -34,6 +35,11 @@ def points(change: float) -> str:
     return f"{'up' if change > 0 else 'down'} {n} point{'s' if n != 1 else ''}"
 
 
+def payback(summary: Summary) -> str:
+    q = summary.payback_quarter
+    return f"Q{q}" if q is not None else "Not within horizon"
+
+
 def _short(name: str) -> str:
     return name.split(" (")[0]
 
@@ -41,11 +47,17 @@ def _short(name: str) -> str:
 # ---------------------------------------------------------------- text report
 
 
-def text_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: int) -> str:
+def text_report(
+    summaries: Sequence[Summary],
+    effects: List[LeverEffect],
+    seed: int,
+    robustness: Optional[RobustnessReport] = None,
+) -> str:
     first = summaries[0]
     names = [_short(s.strategy.name) for s in summaries]
     spreads = [f"{money(s.net_value.p10)} to {money(s.net_value.p90)}" for s in summaries]
-    w = max(16, *(len(n) + 3 for n in names), *(len(x) + 3 for x in spreads))
+    paybacks = [payback(s) for s in summaries]
+    w = max(16, *(len(n) + 3 for n in names), *(len(x) + 3 for x in spreads + paybacks))
     label_w = 36
 
     def row(label: str, values: Sequence[str]) -> str:
@@ -65,6 +77,7 @@ def text_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: 
         row("Spend on pilots that never scaled", [money(s.wasted_spend) for s in summaries]),
         row("Net value (mean)", [money(s.net_value.mean) for s in summaries]),
         row("  10th to 90th percentile", spreads),
+        row("Payback quarter", paybacks),
         row("Good pilots that never scaled", [f"{s.missed_opportunities:.1f}" for s in summaries]),
         row(
             "Median quarter of scaling",
@@ -83,6 +96,20 @@ def text_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: 
                 f"  {i}. {e.lever.ljust(38)}{signed_money(e.net_value_change).rjust(9)} net value, "
                 f"{e.scaled_change:+.0f} pts scaled, {e.purgatory_change:+.0f} pts in purgatory"
             )
+    if robustness is not None:
+        n = len(robustness.results)
+        lines += [
+            "",
+            f"Robustness: strategy first beats pilots first in {robustness.strategy_first_wins} of {n} scenarios",
+            f"  {'Scenario'.ljust(24)}{'Pilots first'.rjust(14)}{'Strategy first'.rjust(16)}   Best single fix",
+        ]
+        for r in robustness.results:
+            lines.append(
+                f"  {r.scenario.name.ljust(24)}{money(r.pilots_first_net).rjust(14)}"
+                f"{money(r.strategy_first_net).rjust(16)}   {r.top_lever}"
+            )
+        counts = ", ".join(f"{k} ({v})" for k, v in robustness.top_lever_counts.items())
+        lines.append(f"  Best single fix across scenarios: {counts}")
     lines += ["", "Illustrative model with assumed parameters. Change them in pilot_purgatory/strategies.py."]
     return "\n".join(lines)
 
@@ -187,6 +214,61 @@ def _svg_levers(effects: List[LeverEffect]) -> str:
     return "".join(parts)
 
 
+def _svg_timeline(summaries: Sequence[Summary]) -> str:
+    width, height, left, right, top, bottom = 720, 300, 60, 20, 16, 40
+    plot_w, plot_h = width - left - right, height - top - bottom
+    values = [snap.net_value for s in summaries for snap in s.timeline] + [0.0]
+    lo, hi = min(values), max(values)
+    if hi - lo < 1e-9:
+        hi = lo + 1.0
+    quarters = max(len(s.timeline) for s in summaries)
+
+    def x(q: int) -> float:
+        return left + (q - 1) / max(1, quarters - 1) * plot_w
+
+    def y(v: float) -> float:
+        return top + (hi - v) / (hi - lo) * plot_h
+
+    parts = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Cumulative net value by quarter">']
+    for i in range(5):
+        v = lo + (hi - lo) * i / 4
+        parts.append(f'<line x1="{left}" x2="{width - right}" y1="{y(v):.1f}" y2="{y(v):.1f}" stroke="#e3e6eb"/>')
+        parts.append(f'<text x="{left - 8}" y="{y(v) + 4:.1f}" class="val" text-anchor="end">{money(v)}</text>')
+    parts.append(f'<line x1="{left}" x2="{width - right}" y1="{y(0):.1f}" y2="{y(0):.1f}" stroke="#555"/>')
+    for q in range(1, quarters + 1):
+        if quarters <= 12 or q % 2 == 0:
+            parts.append(f'<text x="{x(q):.1f}" y="{height - bottom + 18}" class="val" text-anchor="middle">Q{q}</text>')
+    for si, s in enumerate(summaries):
+        colour = SERIES_COLOURS[si % len(SERIES_COLOURS)]
+        pts = " ".join(f"{x(t.quarter):.1f},{y(t.net_value):.1f}" for t in s.timeline)
+        parts.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="3"/>')
+        last = s.timeline[-1]
+        parts.append(
+            f'<text x="{x(last.quarter) - 4:.1f}" y="{y(last.net_value) - 8:.1f}" class="val" text-anchor="end">'
+            f"{html.escape(_short(s.strategy.name))}: {money(last.net_value)}</text>"
+        )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _robustness_table(robustness: RobustnessReport) -> str:
+    rows = "".join(
+        f"<tr><td>{html.escape(r.scenario.name)}<br><span class=\"muted\">{html.escape(r.scenario.description)}</span></td>"
+        f"<td>{money(r.pilots_first_net)}</td><td>{money(r.strategy_first_net)}</td>"
+        f"<td>{html.escape(r.top_lever)}</td></tr>"
+        for r in robustness.results
+    )
+    n = len(robustness.results)
+    counts = "; ".join(f"{html.escape(k)} in {v}" for k, v in robustness.top_lever_counts.items())
+    return (
+        "<h2>Do the conclusions survive different assumptions?</h2>"
+        f"<p>Strategy first beats pilots first in <strong>{robustness.strategy_first_wins} of {n}</strong> scenarios. "
+        f"The best single fix is less settled: {counts}.</p>"
+        "<table><thead><tr><th>Scenario</th><th>Pilots first</th><th>Strategy first</th><th>Best single fix</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table>"
+    )
+
+
 # ---------------------------------------------------------------- HTML report
 
 _CSS = """
@@ -200,11 +282,17 @@ th:first-child,td:first-child{text-align:left}
 svg{width:100%;height:auto;margin-top:.5rem}
 .lbl{font-size:13px;fill:#1d2430}.val{font-size:12px;fill:#1d2430}
 .inbar{font-size:12px;fill:#fff;font-weight:600}.leg{font-size:12px;fill:#3a4350}
+.muted{color:#5a6372;font-size:.85rem}
 .note{font-size:.85rem;color:#5a6372;margin-top:2.5rem;border-top:1px solid #e3e6eb;padding-top:1rem}
 """
 
 
-def html_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: int) -> str:
+def html_report(
+    summaries: Sequence[Summary],
+    effects: List[LeverEffect],
+    seed: int,
+    robustness: Optional[RobustnessReport] = None,
+) -> str:
     first = summaries[0]
     heads = "".join(f"<th>{html.escape(_short(s.strategy.name))}</th>" for s in summaries)
 
@@ -219,6 +307,7 @@ def html_report(summaries: Sequence[Summary], effects: List[LeverEffect], seed: 
         tr("Spend on pilots that never scaled", [money(s.wasted_spend) for s in summaries]),
         tr("Net value (mean)", [money(s.net_value.mean) for s in summaries]),
         tr("Net value, 10th to 90th percentile", [f"{money(s.net_value.p10)} to {money(s.net_value.p90)}" for s in summaries]),
+        tr("Payback quarter", [payback(s) for s in summaries]),
         tr("Good pilots that never scaled (per portfolio)", [f"{s.missed_opportunities:.1f}" for s in summaries]),
     ]
 
@@ -253,10 +342,14 @@ portfolio and traces every pilot that did not scale back to the main thing that 
 <h2>Where the pilots end up</h2>
 {_svg_outcome_mix(summaries)}
 <table><thead><tr><th></th>{heads}</tr></thead><tbody>{''.join(rows)}</tbody></table>
+<h2>Cumulative net value over time</h2>
+<p>Mean benefit captured minus everything spent so far, quarter by quarter.</p>
+{_svg_timeline(summaries)}
 <h2>Why pilots stall</h2>
 <p>Share of pilots that never scaled, by the main barrier that held each one back.</p>
 {_svg_barriers(summaries)}
 {lever_section}
+{_robustness_table(robustness) if robustness else ""}
 <p class="note">Illustrative model. Every parameter is an assumption chosen to be plausible and easy to change,
 not an estimate from real company data. Use it to reason about mechanisms and trade-offs, not to forecast.</p>
 </body></html>

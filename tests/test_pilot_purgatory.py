@@ -240,6 +240,50 @@ class DepthMechanics(unittest.TestCase):
         )
 
 
+class TimelineAndRobustness(unittest.TestCase):
+    """Loop 2: quarter-by-quarter timeline, payback quarter and the robustness check."""
+
+    def test_timeline_matches_the_final_result(self):
+        for strategy in (MOMENTUM, GOVERNANCE):
+            r = simulate_once(strategy, random.Random(8), quarters=10)
+            self.assertEqual([t.quarter for t in r.timeline], list(range(1, 11)))
+            last = r.timeline[-1]
+            self.assertAlmostEqual(last.net_value, r.net_value)
+            self.assertEqual(last.scaled, r.outcomes[SCALED])
+            self.assertEqual(last.stopped, r.outcomes[KILLED])
+            self.assertEqual(last.piloting, r.outcomes[PURGATORY] + r.outcomes[IN_PROGRESS])
+            scaled = [t.scaled for t in r.timeline]
+            self.assertEqual(scaled, sorted(scaled))
+
+    def test_payback_quarter(self):
+        good = simulate(GOVERNANCE, runs=150)
+        bad = simulate(MOMENTUM, runs=150)
+        self.assertIsNotNone(good.payback_quarter)
+        self.assertIsNone(bad.payback_quarter)
+        q = good.payback_quarter
+        self.assertTrue(all(t.net_value >= 0 for t in good.timeline[q - 1 :]))
+        self.assertLess(good.timeline[q - 2].net_value, 0)
+
+    def test_robustness_runs_every_scenario(self):
+        from pilot_purgatory.robustness import SCENARIOS, Scenario, run_robustness
+
+        self.assertEqual(len(SCENARIOS), 11)
+        self.assertEqual(len({sc.name for sc in SCENARIOS}), 11)
+        picked = [SCENARIOS[0], Scenario("Tiny horizon", "test", quarters=6, roi_hurdle=2.0, abandon_rate=0.1)]
+        report = run_robustness(runs=25, scenarios=picked)
+        self.assertEqual(len(report.results), 2)
+        self.assertEqual(sum(report.top_lever_counts.values()), 2)
+        self.assertTrue(all(r.top_lever in LEVERS for r in report.results))
+
+    def test_scenario_overrides_apply_to_strategies(self):
+        from pilot_purgatory.robustness import Scenario
+
+        sc = Scenario("x", "y", roi_hurdle=2.0, abandon_rate=0.1)
+        self.assertEqual(sc.apply(MOMENTUM).roi_hurdle, 2.0)
+        self.assertEqual(sc.apply(GOVERNANCE).abandon_rate, 0.1)
+        self.assertIs(Scenario("x", "y").apply(MOMENTUM), MOMENTUM)
+
+
 class Reports(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -261,7 +305,7 @@ class Reports(unittest.TestCase):
     def test_html_report_is_self_contained(self):
         page = html_report(self.summaries, self.effects, seed=3)
         self.assertTrue(page.startswith("<!DOCTYPE html>"))
-        self.assertEqual(page.count("<svg"), 3)
+        self.assertEqual(page.count("<svg"), 4)
         self.assertNotRegex(page, r"(src|href)=\"https?://")
         self.assertNotIn("\u2014", page)
 
@@ -274,6 +318,13 @@ class Reports(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue(out.exists())
             self.assertIn("Pilot purgatory simulator", buf.getvalue())
+
+    def test_cli_robustness_flag(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = main(["--runs", "10", "--robustness", "--no-levers"])
+        self.assertEqual(code, 0)
+        self.assertIn("Robustness: strategy first beats pilots first", buf.getvalue())
 
     def test_cli_rejects_bad_arguments(self):
         with contextlib.redirect_stderr(io.StringIO()):

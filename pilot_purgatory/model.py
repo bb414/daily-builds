@@ -223,10 +223,22 @@ class RunResult:
     wasted_spend: float
     missed_opportunities: int
     quarters_to_scale: List[int] = field(default_factory=list)
+    timeline: List["Snapshot"] = field(default_factory=list)
 
     @property
     def net_value(self) -> float:
         return self.value_captured - self.pilot_spend - self.scaling_spend
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    """The state of a portfolio at the end of one quarter."""
+
+    quarter: int
+    piloting: float  # pilots still running
+    scaled: float  # cumulative pilots in production
+    stopped: float  # cumulative pilots stopped
+    net_value: float  # cumulative benefit minus all spend so far, GBP k
 
 
 def simulate_once(
@@ -244,7 +256,10 @@ def simulate_once(
     run_rate = 0.0  # quarterly benefit from pilots already in production
     cost_multiplier = 1.0
     scaled_so_far = 0
+    stopped_so_far = 0
     freed_slots = 0
+    pilot_spend = 0.0
+    timeline: List[Snapshot] = []
 
     for quarter in range(1, quarters + 1):
         value_captured += run_rate
@@ -261,6 +276,7 @@ def simulate_once(
                 continue
             pilot.age += 1
             pilot.spend += pilot.run_cost
+            pilot_spend += pilot.run_cost
             if pilot.age >= pilot.time_to_value:
                 roi = evidenced_roi(pilot, strategy, rng, assumptions, cost_multiplier)
                 if quarter >= strategy.strategy_quarter and roi >= strategy.roi_hurdle:
@@ -270,11 +286,13 @@ def simulate_once(
                     pilot.status = "killed"
                     pilot.end_age = pilot.age
                     freed_slots += 1
+                    stopped_so_far += 1
                     continue
             if not strategy.kill_rule and rng.random() < strategy.abandon_rate:
                 pilot.status = "killed"
                 pilot.end_age = pilot.age
                 freed_slots += 1
+                stopped_so_far += 1
 
         # Limited capacity: the strongest cases go first, the rest wait in the queue.
         eligible.sort(key=lambda t: t[0], reverse=True)
@@ -287,6 +305,16 @@ def simulate_once(
             scaled_so_far += 1
             freed_slots += 1
             cost_multiplier = max(assumptions.platform_floor, (1.0 - strategy.platform_effect) ** scaled_so_far)
+
+        timeline.append(
+            Snapshot(
+                quarter=quarter,
+                piloting=sum(1 for p in portfolio if p.status == "active"),
+                scaled=scaled_so_far,
+                stopped=stopped_so_far,
+                net_value=value_captured - pilot_spend - scaling_spend,
+            )
+        )
 
     outcomes = {o: 0 for o in OUTCOMES}
     barriers = {b: 0 for b in BARRIERS}
@@ -321,6 +349,7 @@ def simulate_once(
         wasted_spend=wasted,
         missed_opportunities=missed,
         quarters_to_scale=to_scale,
+        timeline=timeline,
     )
 
 
@@ -353,6 +382,15 @@ class Summary:
     wasted_spend: float
     missed_opportunities: float
     median_quarters_to_scale: float
+    timeline: List[Snapshot] = field(default_factory=list)
+
+    @property
+    def payback_quarter(self) -> Optional[int]:
+        """First quarter from which mean cumulative net value stays at or above zero."""
+        for i, snap in enumerate(self.timeline):
+            if all(s.net_value >= 0 for s in self.timeline[i:]):
+                return snap.quarter
+        return None
 
 
 def simulate(
@@ -374,6 +412,16 @@ def simulate(
     stalled = sum(r.outcomes[KILLED] + r.outcomes[PURGATORY] for r in results)
     barrier_share = {b: (sum(r.barriers[b] for r in results) / stalled if stalled else 0.0) for b in BARRIERS}
     all_to_scale = [q for r in results for q in r.quarters_to_scale]
+    timeline = [
+        Snapshot(
+            quarter=q + 1,
+            piloting=statistics.fmean(r.timeline[q].piloting for r in results),
+            scaled=statistics.fmean(r.timeline[q].scaled for r in results),
+            stopped=statistics.fmean(r.timeline[q].stopped for r in results),
+            net_value=statistics.fmean(r.timeline[q].net_value for r in results),
+        )
+        for q in range(quarters)
+    ]
 
     return Summary(
         strategy=strategy,
@@ -388,4 +436,5 @@ def simulate(
         wasted_spend=statistics.fmean(r.wasted_spend for r in results),
         missed_opportunities=statistics.fmean(r.missed_opportunities for r in results),
         median_quarters_to_scale=statistics.median(all_to_scale) if all_to_scale else float("nan"),
+        timeline=timeline,
     )
