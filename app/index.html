@@ -71,7 +71,6 @@ select { font: inherit; font-size: 15px; color: var(--ink); background: var(--su
 
 /* Results */
 .verdict { font-size: 17px; }
-.verdict strong { white-space: nowrap; }
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th, table.data td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.data th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
@@ -109,12 +108,14 @@ svg.chart .val { fill: var(--ink-2); font-size: 12px; }
 .tune-lead { font-size: 15px; }
 table.map { border-collapse: separate; border-spacing: 4px; width: 100%; table-layout: fixed; font-size: 13px; }
 table.map th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; padding: 2px 4px; text-align: center; }
-table.map th[scope="row"] { text-align: right; white-space: nowrap; width: 74px; }
+table.map th[scope="row"] { text-align: right; white-space: nowrap; }
+table.map .corner { width: 74px; }
 table.map td { padding: 0; }
 table.map button { appearance: none; width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; font: inherit; font-size: 13px; line-height: 1.25; color: var(--ink); cursor: pointer; text-align: center; background: var(--surface); }
 table.map button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
 table.map button span { display: block; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 table.map button em { font-style: normal; }
+table.map button.r3 span, table.map button.r4 span { color: var(--ink); }
 table.map button:hover { border-color: var(--ink-2); }
 table.map button.r0 { background: var(--surface-2); }
 table.map button.r1 { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); }
@@ -126,7 +127,7 @@ table.map button.here { box-shadow: inset 0 0 0 3px var(--accent); }
 .map-axis { font-size: 12.5px; color: var(--ink-2); margin: 2px 0 4px; }
 .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 8px; align-items: center; }
 .keys i { display: inline-block; width: 16px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1px solid var(--line); }
-.io { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.io { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
 .io .btn { padding: 7px 8px; }
 .io-msg { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; min-height: 1em; overflow-wrap: anywhere; }
 .io-msg.bad { color: var(--bad-ink); }
@@ -141,14 +142,20 @@ details.how summary { cursor: pointer; font-weight: 700; }
 @media (max-width: 560px) {
   .tagline { display: none; }
   table.map { border-spacing: 2px; }
-  table.map th[scope="row"] { width: 52px; white-space: normal; }
+  table.map th[scope="row"] { white-space: normal; }
+  table.map .corner { width: 50px; }
+  #table-card table.data thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  #table-card table.data, #table-card table.data tbody, #table-card table.data tr, #table-card table.data th { display: block; width: 100%; }
+  #table-card table.data tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  #table-card table.data th[scope="row"] { border: 0; padding: 0 0 4px; color: var(--ink); font-size: 14px; }
+  #table-card table.data td { display: flex; justify-content: space-between; gap: 12px; border: 0; padding: 2px 0; white-space: nowrap; }
+  #table-card table.data td::before { content: attr(data-label); color: var(--ink-2); white-space: normal; }
   table.map button { min-height: 50px; padding: 4px 2px; }
   table.map button b { font-size: 12.5px; }
   table.map button span { font-size: 11.5px; }
   table.map button .wide { display: none; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 14px; }
-  table.data td.num { white-space: normal; }
 }
 </style>
 </head>
@@ -885,14 +892,15 @@ if (typeof module !== 'undefined' && module.exports) {
     let h = '<h2>Every rule, side by side</h2><p class="small muted">Typical year (median) unless it says average. All rules face exactly the same ' + YEARS + ' years.</p>' +
       '<div class="table-wrap"><table class="data"><thead><tr><th scope="col">Rule</th><th scope="col">Set aside on 31 August</th><th scope="col">Moved into savings</th>' +
       '<th scope="col">Times you raid it</th><th scope="col">Came back out</th><th scope="col">Past the overdraft limit</th><th scope="col">Better or worse off</th></tr></thead><tbody>';
+    const cell = (label, html) => '<td class="num" data-label="' + label + '">' + html + '</td>';
     RULES.forEach(r => {
       const x = sum[r];
       h += '<tr><th scope="row" style="font-weight:600">' + esc(RULE_NAMES[r]) + '</th>' +
-        '<td class="num">' + nm(x.endPot.p50) + '</td><td class="num">' + nm(x.savedIn.p50) + '</td>' +
-        '<td class="num">' + (r === 'none' ? 'n/a' : Math.round(x.meanRescues) + ' a year') + '</td>' +
-        '<td class="num">' + (r === 'none' ? 'n/a' : pct(x.cameBack)) + '</td>' +
-        '<td class="num"><span class="risk ' + riskClass(x.beyondChance) + '">' + pct(x.beyondChance) + ' of years</span></td>' +
-        '<td class="num">' + (r === 'none' ? 'n/a' : nm(x.net.p50, true)) + '</td></tr>';
+        cell('Set aside on 31 August', nm(x.endPot.p50)) + cell('Moved into savings', nm(x.savedIn.p50)) +
+        cell('Times you raid it', r === 'none' ? 'n/a' : Math.round(x.meanRescues) + ' a year') +
+        cell('Came back out', r === 'none' ? 'n/a' : pct(x.cameBack)) +
+        cell('Past the overdraft limit', '<span class="risk ' + riskClass(x.beyondChance) + '">' + pct(x.beyondChance) + ' of years</span>') +
+        cell('Better or worse off', r === 'none' ? 'n/a' : nm(x.net.p50, true)) + '</tr>';
     });
     h += '</tbody></table></div><p class="note">"Came back out" is the share of everything moved into savings that you later moved back. "Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving: moving your own money between accounts does not make you richer by itself.</p>';
     $('#table-card').innerHTML = h;
@@ -1027,7 +1035,7 @@ if (typeof module !== 'undefined' && module.exports) {
     let h = '<p class="tune-lead">' + lead + '</p>' +
       '<p class="map-axis">Rows: ' + esc(da.label.toLowerCase()) + '. Columns: ' + esc(db.label.toLowerCase()) + '. Each square: set aside on 31 August in a typical year, and ' +
       (flat ? 'how many times a year you raid it.' : 'the share of years past the overdraft limit.') + '</p>' +
-      '<div class="table-wrap"><table class="map"><caption class="sr-only">Tuning map for the ' + esc(shortName(rule).toLowerCase()) + '</caption><thead><tr><td></td>' +
+      '<div class="table-wrap"><table class="map"><caption class="sr-only">Tuning map for the ' + esc(shortName(rule).toLowerCase()) + '</caption><thead><tr><td class="corner"></td>' +
       vb.map(v => '<th scope="col">' + esc(db.fmt(v)) + '</th>').join('') + '</tr></thead><tbody>';
     va.forEach((a, i) => {
       h += '<tr><th scope="row">' + esc(da.fmt(a)) + '</th>';
