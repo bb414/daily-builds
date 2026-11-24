@@ -17,6 +17,11 @@ def pts(x):
     return "%+.1f pts" % (x * 100)
 
 
+def pval(p):
+    """Formats a p-value, e.g. "0.042" or "< 0.001"."""
+    return "< 0.001" if p < 0.001 else "%.3f" % p
+
+
 def speed(saved):
     v = int(round(abs(saved) * 100))
     if v == 0:
@@ -132,8 +137,9 @@ def format_experiment(e):
     lines += ["", "Compared with %s (change in own test score):" % model.WORKFLOW_LABELS[e["control"]]]
     for arm, comp in e["comparisons"].items():
         t = comp["change"]
-        lines.append("  %-12s %s (95%% CI %s to %s), d = %.2f, p = %.3f" % (
-            model.WORKFLOW_LABELS[arm], pts(t["diff"]), pts(t["low"]), pts(t["high"]), t["d"], t["p"]))
+        lines.append("  %-12s %s (95%% CI %s to %s), d = %.2f, p %s" % (
+            model.WORKFLOW_LABELS[arm], pts(t["diff"]), pts(t["low"]), pts(t["high"]), t["d"],
+            pval(t["p"]) if t["p"] < 0.001 else "= " + pval(t["p"])))
     return "\n".join(lines)
 
 
@@ -196,8 +202,8 @@ def markdown_experiment(e):
     for arm, comp in e["comparisons"].items():
         for key, name in (("change", "Change in own test score"), ("withAi", "Accuracy during training")):
             t = comp[key]
-            lines.append("| %s | %s | %s | %s to %s | %.2f | %.3f |" % (
-                model.WORKFLOW_LABELS[arm], name, pts(t["diff"]), pts(t["low"]), pts(t["high"]), t["d"], t["p"]))
+            lines.append("| %s | %s | %s | %s to %s | %.2f | %s |" % (
+                model.WORKFLOW_LABELS[arm], name, pts(t["diff"]), pts(t["low"]), pts(t["high"]), t["d"], pval(t["p"])))
     lines += ["", "Welch's t-test on participant-level scores. \"pts\" means percentage points.", ""]
     return "\n".join(lines)
 

@@ -38,7 +38,13 @@ class UiTest(unittest.TestCase):
         return page
 
     def settle(self, page):
-        page.wait_for_timeout(400)
+        """Waits until the app has finished re-running after the last change."""
+        before = page.get_attribute("body", "data-runs")
+        try:
+            page.wait_for_function("b => document.body.getAttribute('data-runs') !== b", arg=before, timeout=600)
+        except Exception:  # nothing was pending: the run had already finished
+            pass
+        page.wait_for_timeout(200)
 
     def test_loads_without_errors_or_network(self):
         page = self.open()

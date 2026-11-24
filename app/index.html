@@ -6,20 +6,21 @@
 <title>Reliance Lab: helper or crutch?</title>
 <style>
   :root {
-    --bg: #f5f6f8;
+    --bg: #f4f5f7;
     --card: #ffffff;
     --ink: #1b1f24;
-    --muted: #5b6573;
+    --muted: #586270;
     --line: #dde1e7;
     --accent: #0f6e66;
+    --accent-ink: #ffffff;
     --accent-soft: #e3f2f0;
     --team: #2459c9;
     --skill: #b4480f;
-    --control: #8a94a3;
+    --control: #7d8796;
     --trust: #7a3fc4;
     --helper: #1d7a3a;
-    --crutch: #a96500;
-    --nolift: #5b6573;
+    --crutch: #9a5c00;
+    --nolift: #586270;
     --liability: #b3261e;
     --radius: 10px;
   }
@@ -31,6 +32,7 @@
       --muted: #a3adba;
       --line: #333a43;
       --accent: #4fc2b6;
+      --accent-ink: #0d1f1d;
       --accent-soft: #1e3532;
       --team: #79a3ff;
       --skill: #f08b4f;
@@ -50,79 +52,122 @@
     color: var(--ink);
     line-height: 1.45;
   }
-  header { padding: 20px 24px 8px; }
-  header h1 { margin: 0; font-size: 1.6rem; }
-  header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
-  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; padding: 12px 24px 32px; align-items: start; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  header { padding: 22px 24px 6px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+  header h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.01em; }
+  header h1 span { color: var(--accent); }
+  header p { margin: 4px 0 0; color: var(--muted); max-width: 72ch; }
+  .chip { font-size: 0.78rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--card); white-space: nowrap; }
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 18px; padding: 12px 24px 24px; align-items: start; }
   .layout > * { min-width: 0; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-  .controls h2, .results h2 { font-size: 1rem; margin: 0 0 8px; }
+  .controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+  .controls h2, .results h2 { font-size: 1.02rem; margin: 0 0 8px; }
   .control { margin: 12px 0; }
   .control label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; font-weight: 600; }
-  .control output { font-variant-numeric: tabular-nums; color: var(--accent); }
-  .control input[type=range] { width: 100%; accent-color: var(--accent); }
+  .control label.check { justify-content: flex-start; align-items: center; font-weight: 600; cursor: pointer; }
+  .control output { font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
+  .control input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 2px; }
+  .control input[type=checkbox] { accent-color: var(--accent); width: 18px; height: 18px; margin: 0 6px 0 0; }
   .help { font-size: 0.8rem; color: var(--muted); margin: 2px 0 0; }
-  select { width: 100%; padding: 6px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
-  fieldset { border: 0; padding: 0; margin: 12px 0; }
-  legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+  select { width: 100%; max-width: 100%; padding: 7px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  fieldset { border: 0; padding: 0; margin: 14px 0 6px; min-width: 0; }
+  legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; padding: 0; }
   .wf { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .wf label { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; cursor: pointer; display: block; }
-  .wf input { margin-right: 4px; }
+  .wf label { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.8rem; color: var(--muted); cursor: pointer; display: block; }
+  .wf input { margin: 0 4px 0 0; accent-color: var(--accent); }
+  .wf strong { font-size: 0.88rem; color: var(--ink); }
   .wf label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-  .wf strong { font-size: 0.88rem; }
-  details { margin-top: 12px; }
-  summary { cursor: pointer; font-weight: 600; }
-  .verdict { border-left: 6px solid var(--nolift); }
-  .verdict h2 { font-size: 1.3rem; margin: 0 0 4px; }
+  .wf label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 1px; }
+  details.group { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  details.group > summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; list-style-position: outside; padding: 2px 0; }
+  .group-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .verdict { border-left: 6px solid var(--nolift); display: flex; gap: 18px; align-items: flex-start; }
+  .verdict-text { flex: 1; min-width: 0; }
+  .verdict .kicker { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0; }
+  .verdict h2 { font-size: 1.5rem; margin: 0 0 4px; }
   .verdict p { margin: 4px 0; }
+  .verdict-map { flex: 0 0 170px; }
+  .verdict-map svg { width: 170px; height: 170px; display: block; }
+  .why { margin: 10px 0 0; padding-left: 20px; font-size: 0.9rem; }
+  .why li { margin: 4px 0; }
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
   .kpi .label { font-size: 0.82rem; color: var(--muted); }
-  .kpi .value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .value { font-size: 1.65rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
   .kpi .sub { font-size: 0.8rem; color: var(--muted); }
   .chart-card { margin-bottom: 16px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
-  .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 5px; vertical-align: middle; background: currentColor; }
-  .chart { width: 100%; height: 260px; display: block; }
-  .matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 0.85rem; }
-  .matrix .cell { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
-  .matrix .head { font-weight: 600; color: var(--muted); padding: 8px 4px; }
-  .matrix .big { font-size: 1.2rem; font-weight: 700; }
-  .group-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 18px 0 0; }
-  .shock-note { margin-top: 10px; font-size: 0.88rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { width: 22px; height: 8px; flex: none; }
+  .chart { width: 100%; height: 270px; display: block; }
+  .shock-note { margin: 10px 0 0; font-size: 0.88rem; border-left: 3px solid var(--liability); padding: 4px 0 4px 10px; }
   table.compare { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  table.compare th, table.compare td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
-  table.compare td.num, table.compare th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.compare th, table.compare td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+  table.compare thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  table.compare .num { text-align: right; font-variant-numeric: tabular-nums; }
   table.compare tr.current { background: var(--accent-soft); }
-  table.compare button { font: inherit; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
-  .table-wrap { overflow-x: auto; }
-  .btn { font: inherit; font-size: 0.88rem; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
-  .btn.primary { background: var(--accent); color: var(--card); }
+  table.compare button { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .btn { font: inherit; font-size: 0.88rem; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; display: inline-block; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: 0.6; cursor: progress; }
   .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .measure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.85rem; }
+  .measure select { width: auto; }
   .status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 4px 0 0; }
-  .why { margin: 10px 0 0; padding-left: 20px; font-size: 0.9rem; }
-  .why li { margin: 3px 0; }
-  .tornado-row { margin: 10px 0; }
-  .tornado-label { font-size: 0.85rem; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-  .tornado-track { position: relative; height: 18px; background: var(--bg); border-radius: 4px; margin-top: 3px; }
+  .tornado-row { margin: 12px 0; }
+  .tornado-label { font-size: 0.86rem; display: flex; justify-content: space-between; gap: 2px 10px; flex-wrap: wrap; }
+  .tornado-label .help { font-variant-numeric: tabular-nums; }
+  .tornado-track { position: relative; height: 18px; background: var(--bg); border-radius: 4px; margin-top: 4px; }
   .tornado-bar { position: absolute; top: 3px; height: 12px; border-radius: 3px; }
   .tornado-bar.low { background: var(--control); }
   .tornado-bar.high { background: var(--accent); }
-  .tornado-zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); opacity: 0.5; }
-  .tornado-base { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--skill); }
+  .tornado-zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); opacity: 0.55; }
+  .tornado-base { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--skill); }
   .flip { color: var(--liability); font-weight: 600; }
+  .matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 0.85rem; }
+  .matrix .cell { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .matrix .cell.warn { border-color: var(--crutch); }
+  .matrix .cell.good { border-color: var(--helper); }
+  .matrix .head { font-weight: 600; color: var(--muted); padding: 8px 4px; font-size: 0.8rem; }
+  .matrix .big { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .matrix .cap { display: none; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .error { border-left: 6px solid var(--liability); }
+  .how { font-size: 0.9rem; }
+  .how summary { cursor: pointer; font-weight: 650; }
+  .how li { margin: 4px 0; }
   footer { padding: 0 24px 32px; color: var(--muted); font-size: 0.85rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   @media (max-width: 860px) {
     .layout { grid-template-columns: 1fr; padding: 8px 12px 24px; }
+    .controls { position: static; max-height: none; overflow: visible; }
     header { padding: 16px 12px 4px; }
-    .kpis { grid-template-columns: 1fr 1fr; }
+    footer { padding: 0 12px 24px; }
+    .kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kpi { padding: 12px; }
+    .kpi .value { font-size: 1.4rem; }
+  }
+  @media (max-width: 600px) {
+    .verdict { flex-direction: column; }
+    .verdict-map { align-self: center; }
+    table.compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+    table.compare tr { display: block; border-bottom: 1px solid var(--line); padding: 6px 0; }
+    table.compare th, table.compare td { display: flex; justify-content: space-between; border: 0; padding: 3px 8px; }
+    table.compare td::before { content: attr(data-label); color: var(--muted); }
+    .matrix { grid-template-columns: 1fr 1fr; }
+    .tornado-label { flex-direction: column; }
+    .matrix .head { display: none; }
+    .matrix .cap { display: block; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>Reliance Lab</h1>
-  <p>Helper or crutch? Simulate people making decisions with AI advice, and see what it does to their accuracy, their trust and their own judgement once the AI is gone.</p>
+  <div>
+    <h1>Reliance <span>Lab</span></h1>
+    <p>Helper or crutch? Simulate people making decisions with AI advice, and see what it does to their accuracy, their trust and their own judgement once the AI is gone.</p>
+  </div>
+  <span class="chip">Synthetic data. Runs offline. Nothing leaves your browser.</span>
 </header>
 
 <main class="layout">
@@ -130,22 +175,34 @@
     <h2 id="controls-title">Set up the situation</h2>
     <div class="control">
       <label for="preset">Scenario</label>
-      <select id="preset"></select>
+      <select id="preset" aria-describedby="preset-help"></select>
       <p class="help" id="preset-help"></p>
     </div>
     <fieldset>
       <legend>How the AI is used</legend>
       <div class="wf" id="workflow"></div>
     </fieldset>
-    <div id="group-people"></div>
-    <div id="group-ai"></div>
-    <div class="control">
-      <label for="showConfidence"><span><input type="checkbox" id="showConfidence"> Show the AI's confidence</span></label>
-    </div>
-    <div id="group-setting"></div>
-    <h3 class="group-title">Stress test</h3>
-    <div id="group-stress"></div>
-    <details>
+    <details class="group" open>
+      <summary>The people</summary>
+      <div id="group-people"></div>
+    </details>
+    <details class="group" open>
+      <summary>The AI</summary>
+      <div id="group-ai"></div>
+      <div class="control">
+        <label for="showConfidence" class="check"><input type="checkbox" id="showConfidence" aria-describedby="h-showConfidence">Show people the AI's confidence</label>
+        <p class="help" id="h-showConfidence">When shown, people weigh how sure the AI sounds as well as how far they trust it.</p>
+      </div>
+    </details>
+    <details class="group" open>
+      <summary>Feedback and practice</summary>
+      <div id="group-setting"></div>
+    </details>
+    <details class="group" open>
+      <summary>Stress test: the AI gets worse</summary>
+      <div id="group-stress"></div>
+    </details>
+    <details class="group">
       <summary>Advanced assumptions</summary>
       <div id="group-advanced"></div>
     </details>
@@ -159,43 +216,57 @@
     <p class="status" id="save-status" role="status"></p>
   </section>
 
-  <section class="results" aria-live="polite">
-    <div class="card verdict" id="verdict"></div>
+  <section class="results" aria-label="Results">
+    <div class="card verdict" id="verdict" aria-live="polite"></div>
     <div class="kpis" id="kpis"></div>
     <div class="card chart-card">
       <h2>Over the run</h2>
+      <p class="help">Accuracy with the AI is smoothed over 10 cases. Own judgement is how accurate the same people would be with the AI taken away.</p>
       <div class="legend" id="legend-time"></div>
       <svg class="chart" id="chart-time" role="img"></svg>
       <p class="shock-note" id="shock-note" hidden></p>
     </div>
     <div class="card chart-card">
       <h2>Compare the four ways of using the AI</h2>
-      <p class="help">Same people, same cases, same AI. Only the workflow changes.</p>
-      <div class="table-wrap"><table class="compare" id="compare"></table></div>
+      <p class="help">Same people, same cases, same AI. Only the workflow changes. Choose a name to switch to it.</p>
+      <table class="compare" id="compare"></table>
     </div>
     <div class="card chart-card">
       <h2>How robust is this verdict?</h2>
       <p class="help">Moves each key assumption down and up, one at a time, and re-runs the comparison with the same people and cases.</p>
       <div class="btn-row">
         <button type="button" class="btn primary" id="robust-run">Run the robustness check</button>
-        <label for="robust-measure" class="help">Show</label>
-        <select id="robust-measure" style="width:auto">
-          <option value="skillGap">Own judgement versus practising alone</option>
-          <option value="lift">Accuracy with the AI versus working alone</option>
-        </select>
+        <span class="measure"><label for="robust-measure">Show</label>
+          <select id="robust-measure">
+            <option value="skillGap">Own judgement versus practising alone</option>
+            <option value="lift">Accuracy with the AI versus working alone</option>
+          </select></span>
       </div>
       <p id="robust-summary" role="status"></p>
       <div id="robust-chart"></div>
     </div>
     <div class="card chart-card">
       <h2>When people and the AI disagree</h2>
+      <p class="help">Each case sorted by whether the person's own first answer and the AI's answer were right. Only the two disagreement boxes depend on how the AI is used.</p>
       <div class="matrix" id="matrix"></div>
     </div>
+    <details class="card how">
+      <summary>How the model works</summary>
+      <ul>
+        <li><strong>Cases and skill.</strong> Each simulated person answers yes-or-no cases of varying difficulty. Their chance of being right depends on their skill against the case's difficulty. The AI works the same way, and "shared blind spots" sets how far it finds the same cases hard.</li>
+        <li><strong>Workflows.</strong> With <em>AI first</em>, people see the answer straight away and, the more they trust it, the more often they accept it without thinking. With <em>human first</em>, they always answer first, then may switch. With <em>on request</em>, they only ask when they feel unsure.</li>
+        <li><strong>Switching.</strong> When they disagree with the AI, people weigh their own confidence against their trust in the AI and (if shown) how sure the AI sounds.</li>
+        <li><strong>Trust.</strong> When people find out the right answer, trust rises after the AI is right and falls faster after it is wrong.</li>
+        <li><strong>Own judgement.</strong> Thinking for yourself and getting feedback builds skill, more so after a visible disagreement. Accepting the AI without thinking lets skill fade.</li>
+        <li><strong>The verdict.</strong> Every run is compared with the same people working without the AI. More than 1 point more accurate counts as a lift; ending more than 1 point worse on their own counts as eroded judgement.</li>
+      </ul>
+      <p class="help">All numbers are illustrative. The model shows how the mechanisms interact; it is not calibrated to any real organisation or study.</p>
+    </details>
   </section>
 </main>
 
 <footer>
-  <p>All data is synthetic and generated in your browser. Nothing is sent anywhere. The model is a thinking tool built on stated assumptions, not a forecast.</p>
+  <p>Reliance Lab is a thinking tool built on stated assumptions, not a forecast. All data is synthetic and generated in your browser.</p>
 </footer>
 
 <script>
@@ -733,7 +804,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   var timer = null;
 
   function pct(x, dp) { return x === null || x === undefined ? 'n/a' : (x * 100).toFixed(dp === undefined ? 0 : dp) + '%'; }
-  function pp(x) { var v = x * 100; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' pts'; }
+  function pp(x) {
+    var v = Math.round(x * 1000) / 10;
+    return (v > 0 ? '+' : (v < 0 ? '\u2212' : '')) + Math.abs(v).toFixed(1) + ' pts';
+  }
   function speed(saved) {
     var v = Math.round(Math.abs(saved) * 100);
     return v === 0 ? 'the same as working alone' : v + '% ' + (saved > 0 ? 'faster' : 'slower') + ' than working alone';
@@ -741,7 +815,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   function fmtValue(spec, v) {
     if (spec.fmt === 'pct') return Math.round(v * 100) + '%';
     if (spec.fmt === 'int') return String(Math.round(v));
-    if (spec.fmt === 'rate') return v.toFixed(4);
+    if (spec.fmt === 'rate') return String(Number(v.toPrecision(2)));
     if (spec.fmt === 'times') return v.toFixed(1) + '×';
     if (spec.fmt === 'case') return v === 0 ? 'Never' : (v >= state.params.rounds ? 'After the last case' : 'Case ' + v);
     return v.toFixed(2);
@@ -826,15 +900,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     timer = setTimeout(run, 120);
   }
 
+  var runCount = 0;
+
+  var last = null;
+
   function run() {
-    var rows = M.compareWorkflows(state.params);
+    var rows;
+    try {
+      rows = M.compareWorkflows(state.params);
+    } catch (e) {
+      var box = document.getElementById('verdict');
+      box.className = 'card verdict error';
+      box.textContent = 'Something went wrong while running the simulation: ' + e.message + '. Try another scenario, or reload the page.';
+      return;
+    }
     var a = rows[M.WORKFLOW_KEYS.indexOf(state.params.workflow)];
+    last = a;
     renderVerdict(a);
     renderKpis(a);
     renderTimeChart(a);
     renderShock(a);
     renderMatrix(a);
     renderCompare(rows);
+    document.body.setAttribute('data-runs', String(++runCount));
     var code = M.encodeParams(state.params);
     try { history.replaceState(null, '', '#' + code); } catch (e) { /* some browsers block this for local files */ }
     if (robust && robust.code !== code) {
@@ -882,10 +970,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     var pos = function (v) { return ((v - lo) / (hi - lo) * 100).toFixed(2) + '%'; };
     var base = data.base[measure];
     var legend = el('div', { 'class': 'legend' });
-    var l1 = el('span', null, 'Assumption lower'); l1.style.color = 'var(--control)';
-    var l2 = el('span', null, 'Assumption higher'); l2.style.color = 'var(--accent)';
-    var l3 = el('span', null, 'Current result: ' + pp(base)); l3.style.color = 'var(--skill)';
-    legend.appendChild(l1); legend.appendChild(l2); legend.appendChild(l3);
+    legend.appendChild(legendKey('Assumption lower', 'var(--control)'));
+    legend.appendChild(legendKey('Assumption higher', 'var(--accent)'));
+    legend.appendChild(legendKey('Current result: ' + pp(base), 'var(--skill)'));
     box.appendChild(legend);
     rows.forEach(function (r) {
       var spec = specFor(r.key);
@@ -980,14 +1067,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   var VERDICT_COLOURS = { baseline: '--nolift', helper: '--helper', crutch: '--crutch', no_lift: '--nolift', liability: '--liability' };
 
   function renderVerdict(a) {
-    var box = document.getElementById('verdict');
-    box.style.borderLeftColor = 'var(' + VERDICT_COLOURS[a.verdict.key] + ')';
-    box.innerHTML = '';
+    var outer = document.getElementById('verdict');
+    outer.className = 'card verdict';
+    outer.style.borderLeftColor = 'var(' + VERDICT_COLOURS[a.verdict.key] + ')';
+    outer.innerHTML = '';
+    var box = el('div', { 'class': 'verdict-text' });
+    outer.appendChild(box);
+    box.appendChild(el('p', { 'class': 'kicker' }, 'Verdict for ' + M.WORKFLOWS[a.result.params.workflow].label));
     var h = el('h2', null, a.verdict.label);
     h.style.color = 'var(' + VERDICT_COLOURS[a.verdict.key] + ')';
     box.appendChild(h);
     box.appendChild(el('p', null, a.verdict.text));
     if (a.verdict.key !== 'baseline') {
+      outer.appendChild(verdictMap(a.verdict));
       box.appendChild(el('p', { 'class': 'help' },
         'Accuracy with the AI: ' + pp(a.verdict.lift) + ' versus working alone. Own judgement afterwards: ' +
         pp(a.verdict.skillGap) + ' versus practising without the AI. Time per case: ' + speed(a.verdict.timeSaved) + '.'));
@@ -998,6 +1090,36 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       reasons.forEach(function (t) { ul.appendChild(el('li', null, t)); });
       box.appendChild(ul);
     }
+  }
+
+  // A small 2 by 2 map showing where the result lands among the four verdicts.
+  function verdictMap(v) {
+    var NS = 'http://www.w3.org/2000/svg', S = 170, pad = 4, mid = S / 2;
+    var wrap = el('div', { 'class': 'verdict-map' });
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + S + ' ' + S);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Verdict map: ' + v.label + '. Accuracy ' + pp(v.lift) + ' versus working alone, own judgement ' + pp(v.skillGap) + ' versus practising alone.');
+    function add(tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    }
+    var quads = [['no_lift', pad, pad], ['helper', mid, pad], ['liability', pad, mid], ['crutch', mid, mid]];
+    quads.forEach(function (q) {
+      add('rect', { x: q[1], y: q[2], width: mid - pad, height: mid - pad, rx: 6, fill: 'var(' + VERDICT_COLOURS[q[0]] + ')', 'fill-opacity': q[0] === v.key ? 0.22 : 0.07 });
+      add('text', { x: q[1] + (mid - pad) / 2, y: q[2] === pad ? pad + 16 : S - pad - 8, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: 'var(' + VERDICT_COLOURS[q[0]] + ')' }, M.VERDICTS[q[0]].label);
+    });
+    var tol = M.TOLERANCE;
+    // Piecewise scales: the verdict boundary sits in the middle of each axis.
+    var sx = v.lift >= tol ? mid + Math.min(1, (v.lift - tol) / 0.25) * (mid - 2 * pad - 8) : mid - Math.min(1, (tol - v.lift) / 0.2) * (mid - 2 * pad - 8);
+    var sy = v.skillGap >= -tol ? mid - Math.min(1, (v.skillGap + tol) / 0.08) * (mid - 2 * pad - 22) - 6 : mid + Math.min(1, (-tol - v.skillGap) / 0.08) * (mid - 2 * pad - 22) + 6;
+    add('circle', { cx: sx.toFixed(1), cy: sy.toFixed(1), r: 7, fill: 'var(' + VERDICT_COLOURS[v.key] + ')', stroke: 'var(--card)', 'stroke-width': 2 });
+    wrap.appendChild(svg);
+    wrap.appendChild(el('p', { 'class': 'help', 'aria-hidden': 'true' }, 'Right: more accurate. Up: own judgement kept.'));
+    return wrap;
   }
 
   function kpi(label, value, sub) {
@@ -1012,7 +1134,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     var r = a.result, c = a.control, box = document.getElementById('kpis');
     box.innerHTML = '';
     box.appendChild(kpi('Accuracy with the AI', pct(r.teamAccuracy), 'Working alone: ' + pct(c.teamAccuracy)));
-    box.appendChild(kpi('Own judgement afterwards', pct(r.skillAfter), 'Started at ' + pct(r.skillBefore) + '; without AI: ' + pct(c.skillAfter)));
+    box.appendChild(kpi('Own judgement afterwards', pct(r.skillAfter), 'Started at ' + pct(r.skillBefore) + '. Practising without the AI: ' + pct(c.skillAfter)));
     box.appendChild(kpi('Misled by the AI', pct(r.misledRate), 'Of cases where the AI was wrong and they were right'));
     box.appendChild(kpi('Rescued by the AI', pct(r.rescueRate), 'Of cases where the AI was right and they were wrong'));
     box.appendChild(kpi('Trust in the AI', pct(r.trustEnd), 'Started at ' + pct(r.trustStart)));
@@ -1030,14 +1152,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     if (r.params.workflow === 'none') series = [series[0], series[2]];
     var legend = document.getElementById('legend-time');
     legend.innerHTML = '';
-    series.forEach(function (s) { var sp = el('span', null, s.name); sp.style.color = s.colour; legend.appendChild(sp); });
+    series.forEach(function (s) { legend.appendChild(legendKey(s.name, s.colour, s.dash)); });
     lineChart(document.getElementById('chart-time'), series, r.params.rounds, r.shock ? r.shock.at : 0);
+  }
+
+  function legendKey(name, colour, dash) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var key = el('span', { 'class': 'key' });
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 22 8');
+    svg.setAttribute('aria-hidden', 'true');
+    var line = document.createElementNS(NS, 'line');
+    [['x1', 1], ['x2', 21], ['y1', 4], ['y2', 4], ['stroke', colour], ['stroke-width', 2.5]].forEach(function (a) { line.setAttribute(a[0], a[1]); });
+    if (dash) line.setAttribute('stroke-dasharray', dash);
+    svg.appendChild(line);
+    key.appendChild(svg);
+    key.appendChild(document.createTextNode(name));
+    return key;
   }
 
   function lineChart(svg, series, xMax, marker) {
     var NS = 'http://www.w3.org/2000/svg';
     var W = svg.clientWidth || 640, H = svg.clientHeight || 260;
-    var m = { l: 42, r: 10, t: 10, b: 30 };
+    var m = { l: 40, r: 14, t: 10, b: 34 };
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     var lo = 1, hi = 0;
@@ -1057,14 +1194,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       add('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: 'var(--line)' });
       add('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }, Math.round(t * 100) + '%');
     }
-    var step = xMax <= 100 ? 20 : (xMax <= 250 ? 50 : 100);
+    var steps = [10, 20, 25, 50, 100, 200];
+    var step = steps[steps.length - 1];
+    for (var si = 0; si < steps.length; si++) { if (xMax / steps[si] <= Math.max(3, Math.floor((W - m.l - m.r) / 70))) { step = steps[si]; break; } }
     for (var xv = 0; xv <= xMax; xv += step) {
+      if (xMax - xv < step * 0.5 && xv !== 0) continue;
+      add('line', { x1: x(xv), x2: x(xv), y1: H - m.b, y2: H - m.b + 4, stroke: 'var(--muted)' });
       add('text', { x: x(xv), y: H - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }, String(xv));
     }
-    add('text', { x: W - m.r, y: H - 2, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }, 'Cases');
+    add('line', { x1: x(xMax), x2: x(xMax), y1: H - m.b, y2: H - m.b + 4, stroke: 'var(--muted)' });
+    add('text', { x: x(xMax), y: H - m.b + 16, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }, String(xMax));
+    add('text', { x: m.l, y: H - 2, 'text-anchor': 'start', 'font-size': 11, fill: 'var(--muted)' }, 'Cases worked through');
     if (marker) {
       add('line', { x1: x(marker), x2: x(marker), y1: m.t, y2: H - m.b, stroke: 'var(--liability)', 'stroke-dasharray': '4 3' });
-      add('text', { x: x(marker) + 4, y: m.t + 12, 'font-size': 11, fill: 'var(--liability)' }, 'AI gets worse');
+      var right = x(marker) > W - 100;
+      add('text', { x: x(marker) + (right ? -4 : 4), y: m.t + 12, 'text-anchor': right ? 'end' : 'start', 'font-size': 11, fill: 'var(--liability)' }, 'AI gets worse');
     }
     series.forEach(function (s) {
       var d = s.points.map(function (p) { return x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1); }).join(' ');
@@ -1114,11 +1258,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       });
       th.appendChild(b);
       tr.appendChild(th);
-      tr.appendChild(el('td', { 'class': 'num' }, pct(r.teamAccuracy, 1)));
-      tr.appendChild(el('td', { 'class': 'num' }, pct(r.skillAfter, 1)));
-      tr.appendChild(el('td', { 'class': 'num' }, pct(r.misledRate)));
-      tr.appendChild(el('td', { 'class': 'num' }, r.minutesPerCase.toFixed(2) + ' min'));
-      var vt = el('td', null, row.verdict.label);
+      tr.appendChild(el('td', { 'class': 'num', 'data-label': 'Accuracy with the AI' }, pct(r.teamAccuracy, 1)));
+      tr.appendChild(el('td', { 'class': 'num', 'data-label': 'Own judgement after' }, pct(r.skillAfter, 1)));
+      tr.appendChild(el('td', { 'class': 'num', 'data-label': 'Misled' }, pct(r.misledRate)));
+      tr.appendChild(el('td', { 'class': 'num', 'data-label': 'Time per case' }, r.minutesPerCase.toFixed(2) + ' min'));
+      var vt = el('td', { 'data-label': 'Verdict' }, row.verdict.label);
       vt.style.color = 'var(' + VERDICT_COLOURS[row.verdict.key] + ')';
       vt.style.fontWeight = '600';
       tr.appendChild(vt);
@@ -1130,22 +1274,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
   function renderMatrix(a) {
     var r = a.result, k = r.counts, n = r.cases, box = document.getElementById('matrix');
     box.innerHTML = '';
-    box.appendChild(el('div', { 'class': 'head' }, ''));
-    box.appendChild(el('div', { 'class': 'head' }, 'AI right'));
-    box.appendChild(el('div', { 'class': 'head' }, 'AI wrong'));
-    function cell(big, text) {
-      var d = el('div', { 'class': 'cell' });
+    box.appendChild(el('div', { 'class': 'head', 'aria-hidden': 'true' }, ''));
+    box.appendChild(el('div', { 'class': 'head', 'aria-hidden': 'true' }, 'AI right'));
+    box.appendChild(el('div', { 'class': 'head', 'aria-hidden': 'true' }, 'AI wrong'));
+    function cell(cap, big, text, tone) {
+      var d = el('div', { 'class': 'cell' + (tone ? ' ' + tone : '') });
+      d.appendChild(el('div', { 'class': 'cap' }, cap));
       d.appendChild(el('div', { 'class': 'big' }, big));
       d.appendChild(el('div', null, text));
+      d.appendChild(el('span', { 'class': 'sr-only' }, '(' + cap + ')'));
       return d;
     }
     var none = r.params.workflow === 'none';
-    box.appendChild(el('div', { 'class': 'head' }, 'Person right'));
-    box.appendChild(cell(pct(k.bothRight / n), 'of cases: both right'));
-    box.appendChild(cell(pct(k.misleadChances / n), none ? 'of cases: the AI would have been wrong' : 'of cases: the AI could mislead. Misled ' + pct(r.misledRate) + ' of the time.'));
-    box.appendChild(el('div', { 'class': 'head' }, 'Person wrong'));
-    box.appendChild(cell(pct(k.rescueChances / n), none ? 'of cases: the AI would have been right' : 'of cases: the AI could rescue. Rescued ' + pct(r.rescueRate) + ' of the time.'));
-    box.appendChild(cell(pct(k.bothWrong / n), 'of cases: both wrong, so nobody catches it'));
+    box.appendChild(el('div', { 'class': 'head', 'aria-hidden': 'true' }, 'Own answer right'));
+    box.appendChild(cell('Both right', pct(k.bothRight / n), 'of cases: nothing to decide'));
+    box.appendChild(cell('Own answer right, AI wrong', pct(k.misleadChances / n), none ? 'of cases: the AI would have been wrong' : 'of cases: the AI could mislead. Misled ' + pct(r.misledRate) + ' of the time.', none ? '' : 'warn'));
+    box.appendChild(el('div', { 'class': 'head', 'aria-hidden': 'true' }, 'Own answer wrong'));
+    box.appendChild(cell('Own answer wrong, AI right', pct(k.rescueChances / n), none ? 'of cases: the AI would have been right' : 'of cases: the AI could rescue. Rescued ' + pct(r.rescueRate) + ' of the time.', none ? '' : 'good'));
+    box.appendChild(cell('Both wrong', pct(k.bothWrong / n), 'of cases: nobody catches the mistake'));
   }
 
   buildControls();
@@ -1154,9 +1300,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
     state.params = M.decodeParams(location.hash);
     state.preset = matchPreset(state.params);
   }
+  if (window.matchMedia && window.matchMedia('(max-width: 860px)').matches) {
+    document.querySelectorAll('details.group').forEach(function (d) { d.open = false; });
+  }
   syncControls();
   run();
-  window.addEventListener('resize', schedule);
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (last) renderTimeChart(last); }, 150);
+  });
 })();
 </script>
 </body>
