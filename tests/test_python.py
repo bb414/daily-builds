@@ -80,6 +80,10 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("50% off with 1 day left", out)
 
     def test_adjusted_arguments_are_explained(self):
+        code, out, err = run_cli("plan", "--days", "1", "--demand", "nan", "--rule-days", "3")
+        self.assertIn("Note: demand nan changed to 6.0", err)
+        self.assertIn("Note: --rule-days 3 changed to 1", err)
+        self.assertIn("30% off with 1 day left", out)
         code, out, err = run_cli("plan", "--days", "0", "--demand", "500")
         self.assertEqual(code, 0)
         self.assertIn("Note: days 0 changed to 1 (allowed 1 to 21, whole numbers).", err)
@@ -119,7 +123,7 @@ class RangeTests(unittest.TestCase):
 
     def test_odd_values_are_adjusted_and_reported(self):
         (self.dir / "c.csv").write_text("name,stock,days,price,demand,pattern\nOdd,999,abc,4,5,weekly\n", encoding="utf-8")
-        products = report.load_range(self.dir / "c.csv")
+        products, warnings = report.load_range(self.dir / "c.csv")
         self.assertEqual(products[0]["cfg"]["stock"], 300)
         self.assertEqual(products[0]["cfg"]["days"], 7)
         self.assertEqual(len(products[0]["notes"]), 3)
@@ -128,8 +132,18 @@ class RangeTests(unittest.TestCase):
 
     def test_rows_with_extra_cells_are_read(self):
         (self.dir / "d.csv").write_text("name,stock,days,price,demand\nA,10,3,5,4,extra\n\n", encoding="utf-8")
-        products = report.load_range(self.dir / "d.csv")
+        products, warnings = report.load_range(self.dir / "d.csv")
         self.assertEqual([p["name"] for p in products], ["A"])
+
+    def test_blank_cells_and_unknown_columns_are_reported(self):
+        (self.dir / "e.csv").write_text("name,stock,days,price,demand,wastecost\nX,,3,5,4,1\nOnly a name,,,,,\n", encoding="utf-8")
+        products, warnings = report.load_range(self.dir / "e.csv")
+        self.assertIn("ignored unknown column(s): wastecost", warnings[0])
+        self.assertEqual(products[0]["notes"], ["stock is blank, used 60"])
+        self.assertEqual(len(products[1]["notes"]), 4)
+        code, out, _ = run_cli("range", str(self.dir / "e.csv"))
+        self.assertIn("File: ignored unknown column(s): wastecost", out)
+        self.assertIn("X: stock is blank, used 60", out)
 
     def test_robustness_is_not_capped_by_input_limits(self):
         cfg = {"stock": 300, "days": 1, "price": 5, "demand": 100, "elasticity": 1, "wasteCost": 0.5}
@@ -140,8 +154,8 @@ class RangeTests(unittest.TestCase):
     def test_robust_command(self):
         code, out, _ = run_cli("robust", "--preset", "truffles")
         self.assertEqual(code, 0)
-        self.assertIn("as planned         90%         98%         100%", out)
-        self.assertIn("93% *", out)
+        self.assertIn("as planned         -\u00a338.01     -\u00a311.61     \u00a30", out)
+        self.assertIn("-\u00a348.29 *", out)
 
     def test_shelf_card_and_robustness_in_python(self):
         sol = model.solve(model.PRESETS["mochi"])

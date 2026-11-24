@@ -97,7 +97,7 @@ th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--lin
 th:first-child, td:first-child { text-align: left; }
 th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
 tr.best td { font-weight: 700; }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; position: relative; }
 .bars { display: grid; gap: 6px; margin-top: 8px; }
 .bar-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 86px; gap: 10px; align-items: center; font-size: .92rem; }
 .bar-track { height: 18px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
@@ -134,6 +134,8 @@ tr.best td { font-weight: 700; }
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 520px) {
+  .robust { font-size: .8rem; }
+  .robust td, .robust th { padding: 6px 2px; }
   .headline { grid-template-columns: 1fr; }
   .card { padding: 16px; }
   .bar-row { grid-template-columns: 74px minmax(0, 1fr) 76px; }
@@ -166,7 +168,8 @@ tr.best td { font-weight: 700; }
     <div id="fields"></div>
   </section>
 
-  <div class="stack" id="results" aria-live="polite">
+  <p id="sr-status" class="sr-only" role="status" aria-live="polite"></p>
+  <div class="stack" id="results">
     <section class="card" aria-labelledby="summary-title">
       <h2 id="summary-title">The best plan</h2>
       <div class="headline" id="headline"></div>
@@ -230,7 +233,7 @@ tr.best td { font-weight: 700; }
       </section>
       <section class="card" aria-labelledby="robust-title">
         <h2 id="robust-title">What if the forecast is wrong?</h2>
-        <p class="small muted">The plan is made with the demand and price sensitivity you entered. Each cell scores that plan when the truth is different, as a share of the profit you would make if you had known the truth.</p>
+        <p class="small muted">The plan is made with the demand and price sensitivity you entered. Each cell shows how much profit that plan loses when the truth is different, against the plan you would make if you had known the truth.</p>
         <div class="table-wrap" id="robust"></div>
         <p class="small" id="robust-note"></p>
       </section>
@@ -469,25 +472,36 @@ var MarkdownLadder = (function () {
     };
   }
 
-  // Follow the shelf card: the day's stock thresholds, never moving back up the ladder.
-  POLICIES.card = function (sol) { return function (t, s, i) { return Math.max(i, sol.policy[t][0][s]); }; };
-
-  // A printable shelf card: for each day, the smallest stock at which each discount starts
-  // (before any markdown). `exact` is true when more stock never means a smaller discount,
-  // so the thresholds describe the plan completely.
-  function shelfCard(sol) {
-    var T = sol.cfg.days, S = sol.cfg.stock, J = LADDER.length;
-    var rows = [], exact = true;
+  // A shelf card: for each day, the smallest stock at which each discount starts
+  // (taken from the plan before any markdown). Staff take the deepest discount whose
+  // threshold the morning's stock count reaches, and never move back up the ladder.
+  function cardThresholds(sol) {
+    var T = sol.cfg.days, S = sol.cfg.stock, J = LADDER.length, rows = [];
     for (var t = 0; t < T; t++) {
       var pol = sol.policy[t][0], from = new Array(J).fill(null);
       for (var s = 1; s <= S; s++) {
-        if (s > 1 && pol[s] < pol[s - 1]) exact = false;
         for (var j = 1; j <= pol[s]; j++) if (from[j] === null) from[j] = s;
       }
       rows.push({ day: t, from: from });
     }
-    var card = evaluate(sol.cfg, POLICIES.card(sol));
-    return { rows: rows, exact: exact, profit: card.profit, gap: sol.value - card.profit };
+    return rows;
+  }
+
+  // Follow the card exactly as printed.
+  POLICIES.card = function (sol, rows) {
+    rows = rows || cardThresholds(sol);
+    return function (t, s, i) {
+      var step = 0;
+      rows[t].from.forEach(function (start, j) { if (start !== null && s >= start) step = j; });
+      return Math.max(i, step);
+    };
+  };
+
+  // The card, and what following it exactly would earn against the full plan.
+  function shelfCard(sol) {
+    var rows = cardThresholds(sol);
+    var card = evaluate(sol.cfg, POLICIES.card(sol, rows));
+    return { rows: rows, profit: card.profit, gap: sol.value - card.profit };
   }
 
   // What if the forecast is wrong? Plan with the numbers given, then score that plan when true
@@ -533,7 +547,7 @@ var MarkdownLadder = (function () {
     LADDER: LADDER, DAY_NAMES: DAY_NAMES, WEEK_PATTERNS: WEEK_PATTERNS, FIELDS: FIELDS, PRESETS: PRESETS,
     normalise: normalise, demandRate: demandRate, quantile: quantile, poissonWindow: poissonWindow, expectedValues: expectedValues,
     solve: solve, evaluate: evaluate, POLICIES: POLICIES, comparePolicies: comparePolicies,
-    shelfCard: shelfCard, robustness: robustness, ROBUST_DEMAND: ROBUST_DEMAND, ROBUST_ELASTICITY: ROBUST_ELASTICITY
+    cardThresholds: cardThresholds, shelfCard: shelfCard, robustness: robustness, ROBUST_DEMAND: ROBUST_DEMAND, ROBUST_ELASTICITY: ROBUST_ELASTICITY
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -594,7 +608,7 @@ var MarkdownLadder = (function () {
     box.appendChild(el('div', { className: 'field' }, [el('label', { for: 'f-pattern', text: 'Weekly pattern' }), pat]));
     var rise = el('input', { type: 'checkbox', id: 'f-rises' });
     box.appendChild(el('div', { className: 'field' }, [el('label', { className: 'check', for: 'f-rises' }, [rise, 'Prices can go back up after a markdown']),
-      el('p', { className: 'hint', text: 'Most shops never raise a price once it is cut. Ticking this shows what that rule costs.' })]));
+      el('p', { className: 'hint', text: 'Most shops never raise a price once it is cut. The comparison shows what that rule costs either way.' })]));
     $('preset').addEventListener('change', function () { if (this.value) loadPreset(this.value); });
     $('rule-pct').addEventListener('change', render);
     $('rule-days').addEventListener('change', render);
@@ -669,10 +683,13 @@ var MarkdownLadder = (function () {
     var bestBase = baselines.reduce(function (a, b) { return b.result.profit > a.result.profit ? b : a; });
     var head = $('headline');
     head.innerHTML = '';
-    head.appendChild(tile('Expected takings', money(best.revenue), 'less ' + money(cfg.wasteCost * best.waste) + ' disposal'));
+    var disposal = cfg.wasteCost * best.waste;
+    head.appendChild(tile('Expected takings', money(best.revenue), disposal > 0.005 ? 'less ' + money(disposal) + ' disposal' :
+      disposal < -0.005 ? 'plus ' + money(-disposal) + ' from leftovers sold on' : 'no disposal cost'));
     head.appendChild(tile('Expected leftovers', num(best.waste) + ' units', pct(best.sellOut) + ' chance of selling out'));
     head.appendChild(tile('Better than the best simple rule', money(best.profit - bestBase.result.profit), 'against "' + bestBase.name + '"'));
     $('lead').textContent = 'Plan: ' + firstMove(sol) + ' Expected profit after the cost of the stock: ' + money(best.profitAfterStock) + '.';
+    $('sr-status').textContent = 'Updated. ' + $('lead').textContent;
     renderToday(sol);
     renderCompare(cmp);
     renderMap(sol);
@@ -707,9 +724,10 @@ var MarkdownLadder = (function () {
       var track = el('div', { className: 'bar-track', 'aria-hidden': 'true' }, [el('i')]);
       track.firstChild.style.width = Math.max(2, w * 100) + '%';
       box.appendChild(el('div', { className: 'bar-row' + (j === pick ? ' pick' : '') }, [
-        el('span', { text: (M.LADDER[j] ? M.LADDER[j] + '% off' : 'Full price') }),
+        el('span', { 'aria-hidden': 'true', text: (M.LADDER[j] ? M.LADDER[j] + '% off' : 'Full price') }),
         track,
-        el('span', { className: 'val', text: money(v), 'aria-label': (M.LADDER[j] ? M.LADDER[j] + '% off, ' : 'Full price, ') + money(price) + ' each: expected ' + money(v) + (j === pick ? ', best' : '') })
+        el('span', { className: 'val', 'aria-hidden': 'true', text: money(v) }),
+        el('span', { className: 'sr-only', text: (M.LADDER[j] ? M.LADDER[j] + '% off, ' : 'Full price, ') + money(price) + ' each: expected ' + money(v) + (j === pick ? ', the best option.' : '.') })
       ]));
     });
     var why = j0Why(sol, values, soldToday, pick);
@@ -730,7 +748,7 @@ var MarkdownLadder = (function () {
     }
     var others = values.filter(function (v, j) { return j !== pick; });
     var gap = values[pick] - Math.max.apply(null, others);
-    var close = others.length && gap < 0.01 * Math.abs(values[pick]);
+    var close = sol.cfg.days > 1 && others.length && gap < 0.01 * Math.abs(values[pick]);
     return parts.join('; ') + (close ? ' The next-best price is within ' + money(Math.max(gap, 0)) + ' (under 1%), so today\'s choice matters less than the days ahead.' : '');
   }
 
@@ -749,6 +767,13 @@ var MarkdownLadder = (function () {
     box.innerHTML = '';
     box.appendChild(tb);
     box.appendChild(el('p', { className: 'small muted', text: 'Profit here is expected takings less disposal; the cost of the stock is the same for every plan. All figures are exact expectations under the demand model, not simulations.' }));
+    var cfg = cmp.solution.cfg, flip = {};
+    Object.keys(cfg).forEach(function (k) { flip[k] = cfg[k]; });
+    flip.monotone = !cfg.monotone;
+    var other = M.solve(flip).value, diff = cfg.monotone ? other - cmp.solution.value : cmp.solution.value - other;
+    box.appendChild(el('p', { className: 'small', id: 'rise-note', text: diff < 0.005
+      ? 'Never raising a price after a cut costs nothing here.'
+      : 'Never raising a price after a cut costs ' + money(diff) + (cfg.monotone ? ' against a plan that may raise it again.' : '; this plan is allowed to raise prices.') }));
   }
 
   function renderMap(sol) {
@@ -909,9 +934,8 @@ var MarkdownLadder = (function () {
     $('card').appendChild(tb);
     var note = 'Units in stock that morning. "-" means that discount is never worth it on that day. ';
     note += Math.abs(card.gap) < 0.005
-      ? 'Following the card earns exactly what the full plan earns (' + money(card.profit) + ').'
-      : 'Following the card earns ' + money(card.profit) + ', ' + money(card.gap) + ' less than the full plan, because the best move after a markdown can differ.';
-    if (!card.exact) note += ' For these numbers, more stock does not always mean a deeper discount, so the card simplifies the plan.';
+      ? 'Following the card earns the same as the full plan (' + money(card.profit) + ').'
+      : 'Following the card earns ' + money(card.profit) + ', ' + money(card.gap) + ' less than the full plan: for these numbers the best discount does not always rise with the stock count, so the card simplifies it.';
     $('card-note').textContent = note;
   }
 
@@ -932,7 +956,7 @@ var MarkdownLadder = (function () {
   function renderRobust(cfg) {
     var cells = M.robustness(cfg);
     var tb = el('table', { className: 'robust' });
-    tb.appendChild(el('caption', { className: 'small muted', text: 'Columns: true demand as a share of your forecast. Rows: true price sensitivity as a share of yours.' }));
+    tb.appendChild(el('caption', { className: 'small muted', text: 'Columns: true demand as a share of your forecast. Rows: true price sensitivity as a share of yours. Green: under 1% of the stock\'s full-price value lost; red: over 5%.' }));
     tb.appendChild(el('thead', {}, [el('tr', {}, [el('th', { scope: 'col', text: '' })].concat(M.ROBUST_DEMAND.map(function (f) {
       return el('th', { scope: 'col', text: Math.round(f * 100) + '%' });
     })))]));
@@ -941,10 +965,11 @@ var MarkdownLadder = (function () {
       var tr = el('tr', {}, [el('th', { scope: 'row', text: Math.round(g * 100) + '%' })]);
       M.ROBUST_DEMAND.forEach(function (f) {
         var c = cells.filter(function (x) { return x.demandFactor === f && x.elasticityFactor === g; })[0];
-        var share = c.ideal > 0 ? c.planned / c.ideal : (c.planned >= c.ideal - 1e-9 ? 1 : 0);
-        var cls = share >= 0.98 ? 'r-good' : share >= 0.9 ? 'r-ok' : 'r-bad';
+        var lost = Math.max(0, c.ideal - c.planned), scale = cfg.price * cfg.stock;
+        var cls = lost <= 0.01 * scale ? 'r-good' : lost <= 0.05 * scale ? 'r-ok' : 'r-bad';
         var worse = c.planned < c.never - 0.005;
-        var td = el('td', { className: cls, 'aria-label': 'Demand ' + Math.round(f * 100) + '%, price sensitivity ' + Math.round(g * 100) + '%: ' + Math.round(share * 100) + '% of the best possible' + (worse ? ', worse than never discounting' : '') }, [Math.round(share * 100) + '%' + (worse ? '*' : '')]);
+        var td = el('td', { className: cls }, [lost < 0.005 ? '\u00a30' : '-' + money(lost), worse ? '*' : null,
+          el('span', { className: 'sr-only', text: ' when demand is ' + Math.round(f * 100) + '% and price sensitivity ' + Math.round(g * 100) + '% of your figures' + (worse ? ', worse than never discounting' : '') })]);
         tr.appendChild(td);
       });
       body.appendChild(tr);
@@ -954,11 +979,13 @@ var MarkdownLadder = (function () {
     $('robust').appendChild(tb);
     var worst = cells.reduce(function (a, b) { return (b.ideal - b.planned) > (a.ideal - a.planned) ? b : a; });
     var beaten = cells.filter(function (c) { return c.planned < c.never - 0.005; });
-    var note = 'The costliest mistake here is demand at ' + Math.round(worst.demandFactor * 100) + '% and price sensitivity at ' + Math.round(worst.elasticityFactor * 100) +
+    var note;
+    if (worst.ideal - worst.planned < 0.005) note = 'Across this range of forecast errors the plan loses nothing against perfect knowledge. ';
+    else note = 'The costliest mistake here is demand at ' + Math.round(worst.demandFactor * 100) + '% and price sensitivity at ' + Math.round(worst.elasticityFactor * 100) +
       '% of your figures: the plan then earns ' + money(worst.planned) + ' against ' + money(worst.ideal) + ' with perfect knowledge. ';
     note += beaten.length
       ? 'In ' + beaten.length + ' of 15 cases (marked *) the plan does worse than never discounting' + (beaten.every(function (c) { return c.demandFactor > 1; }) ? ', all when demand is higher than you think: discounts then give away margin on stock that would have sold anyway.' : '.')
-      : 'In every case the plan still beats never discounting, because it reacts to the stock you actually have each morning.';
+      : 'In every case the plan does at least as well as never discounting, because it reacts to the stock you actually have each morning.';
     $('robust-note').textContent = note;
   }
 
@@ -976,14 +1003,16 @@ var MarkdownLadder = (function () {
     var vals = {};
     hash.split('&').forEach(function (pair) {
       var kv = pair.split('=');
-      if (KEYS.indexOf(kv[0]) >= 0) vals[kv[0]] = decodeURIComponent(kv[1] || '');
+      if (KEYS.indexOf(kv[0]) < 0) return;
+      try { vals[kv[0]] = decodeURIComponent(kv[1] || ''); } catch (e) { vals[kv[0]] = ''; }
     });
     if (!Object.keys(vals).length) return false;
     var cfg = M.normalise({});
     Object.keys(M.FIELDS).forEach(function (k) { if (k in vals) cfg[k] = vals[k]; });
     cfg.pattern = vals.pattern;
     cfg = M.normalise(cfg);
-    Object.keys(M.FIELDS).forEach(function (k) { $('f-' + k).value = cfg[k]; });
+    // Put the values from the link into the boxes as they were, so any adjustment is explained.
+    Object.keys(M.FIELDS).forEach(function (k) { $('f-' + k).value = k in vals && k !== 'startDay' ? vals[k] : cfg[k]; });
     $('f-pattern').value = cfg.pattern;
     $('f-rises').checked = vals.rises === '1';
     if (['10', '20', '30', '50'].indexOf(vals.rulePct) >= 0) $('rule-pct').value = vals.rulePct;

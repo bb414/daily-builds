@@ -31,43 +31,48 @@ def card_rows(cfg, card):
 
 def card_note(card):
     if abs(card["gap"]) < 0.005:
-        note = "Following the card earns exactly what the full plan earns (%s)." % money(card["profit"])
-    else:
-        note = "Following the card earns %s, %s less than the full plan." % (money(card["profit"]), money(card["gap"]))
-    if not card["exact"]:
-        note += " For these numbers more stock does not always mean a deeper discount, so the card simplifies the plan."
-    return note
+        return "Following the card earns the same as the full plan (%s)." % money(card["profit"])
+    return ("Following the card earns %s, %s less than the full plan: for these numbers the best discount does not "
+            "always rise with the stock count, so the card simplifies it." % (money(card["profit"]), money(card["gap"])))
 
 
 def robust_table(cells):
+    """Profit lost against perfect knowledge, for each combination of forecast errors."""
     headers = ["Price sensitivity"] + ["demand " + ("as planned" if f == 1 else "%d%%" % model.js_round(f * 100)) for f in model.ROBUST_DEMAND]
     rows = []
     for g in model.ROBUST_ELASTICITY:
         row = ["as planned" if g == 1 else "%d%%" % model.js_round(g * 100)]
         for f in model.ROBUST_DEMAND:
             c = next(x for x in cells if x["demandFactor"] == f and x["elasticityFactor"] == g)
-            share = c["planned"] / c["ideal"] if c["ideal"] > 0 else (1.0 if c["planned"] >= c["ideal"] - 1e-9 else 0.0)
-            row.append("%d%%%s" % (model.js_round(share * 100), " *" if c["planned"] < c["never"] - 0.005 else ""))
+            lost = max(0.0, c["ideal"] - c["planned"])
+            row.append(("\u00a30" if lost < 0.005 else "-" + money(lost)) + (" *" if c["planned"] < c["never"] - 0.005 else ""))
         rows.append(row)
     return headers, rows
 
 
 def load_range(path):
-    """Read a product range. Each row is one product; missing optional columns use the defaults."""
+    """Read a product range. Each row is one product; optional columns left out use the defaults.
+
+    Returns (products, warnings). Every value that had to be filled in or adjusted is noted.
+    """
     with open(path, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         if not reader.fieldnames:
             raise ValueError("%s is empty" % path)
-        missing = [c for c in REQUIRED if c not in reader.fieldnames]
+        headers = [h.strip() for h in reader.fieldnames if h is not None]
+        reader.fieldnames = headers
+        missing = [c for c in REQUIRED if c not in headers]
         if missing:
             raise ValueError("%s is missing the column(s): %s" % (path, ", ".join(missing)))
+        unknown = [h for h in headers if h not in RANGE_COLUMNS]
+        warnings = ["ignored unknown column(s): %s (expected some of: %s)" % (", ".join(unknown), ", ".join(RANGE_COLUMNS))] if unknown else []
         products = []
         for n, row in enumerate(reader, 2):
             cells = {k: v.strip() for k, v in row.items() if isinstance(k, str) and isinstance(v, str)}
             if not any(cells.values()):
                 continue
             raw = {k: cells[k] for k in RANGE_COLUMNS if cells.get(k)}
-            notes = []
+            notes = ["%s is blank, used %s" % (k, model.FIELDS[k]["value"]) for k in REQUIRED[1:] if k not in raw]
             cfg = model.normalise(raw)
             for k in model.FIELDS:
                 if k in raw:
@@ -83,7 +88,7 @@ def load_range(path):
             products.append({"name": raw.get("name") or "row %d" % n, "cfg": cfg, "notes": notes})
         if not products:
             raise ValueError("%s has no products" % path)
-        return products
+        return products, warnings
 
 
 def plan_product(product):
@@ -120,14 +125,14 @@ def _totals(results):
     return uplift, rule_uplift, saved, wasted
 
 
-def range_text(results):
+def range_text(results, warnings=()):
     uplift, rule_uplift, saved, wasted = _totals(results)
     out = [text_table(SUMMARY_HEADERS, _summary_rows(results)), ""]
     out.append("Across the range, the plans add %s of expected profit over never discounting and %s over the best simple rule for each product." % (
         money(uplift), money(rule_uplift)))
     if wasted > 0:
         out.append("They cut expected leftovers from %.1f to %.1f units (%d%% fewer)." % (wasted, wasted - saved, model.js_round(saved / wasted * 100)))
-    notes = [(r["name"], n) for r in results for n in r["notes"]]
+    notes = [("File", w) for w in warnings] + [(r["name"], n) for r in results for n in r["notes"]]
     if notes:
         out.append("")
         out.append("Adjusted inputs:")

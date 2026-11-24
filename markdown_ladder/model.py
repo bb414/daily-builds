@@ -49,7 +49,7 @@ def js_round(x):
 
 
 _MISSING = object()
-_JS_DECIMAL = re.compile(r"[+-]?(Infinity|(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?)")
+_JS_DECIMAL = re.compile(r"[+-]?(Infinity|([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?)")
 _JS_PREFIXED = re.compile(r"0([xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)")
 
 
@@ -278,26 +278,38 @@ def evaluate_exact(cfg, policy_fn):
     }
 
 
-def policy_card(sol):
-    """Follow the shelf card: the day's stock thresholds, never moving back up the ladder."""
-    return lambda t, s, i: max(i, sol["policy"][t][0][s])
-
-
-def shelf_card(sol):
-    """For each day, the smallest stock at which each discount starts (before any markdown)."""
+def card_thresholds(sol):
+    """For each day, the smallest stock at which each discount starts (from the plan before any markdown)."""
     T, S, J = sol["cfg"]["days"], sol["cfg"]["stock"], len(LADDER)
-    rows, exact = [], True
+    rows = []
     for t in range(T):
         pol, start = sol["policy"][t][0], [None] * J
         for s in range(1, S + 1):
-            if s > 1 and pol[s] < pol[s - 1]:
-                exact = False
             for j in range(1, pol[s] + 1):
                 if start[j] is None:
                     start[j] = s
         rows.append({"day": t, "from": start})
-    card = evaluate(sol["cfg"], policy_card(sol))
-    return {"rows": rows, "exact": exact, "profit": card["profit"], "gap": sol["value"] - card["profit"]}
+    return rows
+
+
+def policy_card(sol, rows=None):
+    """Follow the shelf card exactly as printed, never moving back up the ladder."""
+    rows = rows or card_thresholds(sol)
+
+    def step(t, s, i):
+        j = 0
+        for k, start in enumerate(rows[t]["from"]):
+            if start is not None and s >= start:
+                j = k
+        return max(i, j)
+    return step
+
+
+def shelf_card(sol):
+    """The card, and what following it exactly would earn against the full plan."""
+    rows = card_thresholds(sol)
+    card = evaluate(sol["cfg"], policy_card(sol, rows))
+    return {"rows": rows, "profit": card["profit"], "gap": sol["value"] - card["profit"]}
 
 
 ROBUST_DEMAND = [0.6, 0.8, 1, 1.25, 1.5]

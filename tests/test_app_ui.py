@@ -65,9 +65,10 @@ class AppTests(unittest.TestCase):
     def test_card_robustness_and_saved_address(self):
         page = self.open()
         self.assertIn("52+", page.inner_text("#card"))
-        self.assertIn("exactly what the full plan earns", page.inner_text("#card-note"))
+        self.assertIn("earns the same as the full plan", page.inner_text("#card-note"))
+        self.assertIn("Never raising a price after a cut costs", page.inner_text("#rise-note"))
         self.assertEqual(page.locator("#robust td").count(), 15)
-        self.assertIn("93%*", page.inner_text("#robust"))
+        self.assertIn("-\u00a348.29*", page.inner_text("#robust"))
         self.assertIn("marked *", page.inner_text("#robust-note"))
         page.select_option("#preset", "tins")
         url = page.url
@@ -95,6 +96,17 @@ class AppTests(unittest.TestCase):
         page.fill("#f-stock", "45")
         page.dispatch_event("#f-stock", "change")
         self.assertEqual(page.inner_text("#h-stock"), "How many you have to sell.")
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_links_with_odd_values(self):
+        page = self.open()
+        page.goto(APP_URL + "#stock=5000&days=%&pattern=%E0%A4%A&price=abc")
+        page.reload()
+        self.assertIn("Using 300", page.inner_text("#h-stock"))
+        self.assertIn("Using 7", page.inner_text("#h-days"))
+        self.assertIn("Using 12", page.inner_text("#h-price"))
+        self.assertIn("Best plan", page.inner_text("#compare"))
         self.assertEqual(self.errors, [])
         page.close()
 

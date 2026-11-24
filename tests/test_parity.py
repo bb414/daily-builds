@@ -32,7 +32,8 @@ def random_configs(n, seed):
             "stock": rng.randint(1, 90), "days": rng.randint(1, 10), "price": round(rng.uniform(1, 30), 2),
             "unitCost": round(rng.uniform(0, 8), 2), "wasteCost": round(rng.uniform(-2, 4), 2),
             "demand": round(rng.uniform(0.2, 30), 1), "elasticity": round(rng.uniform(0, 5), 1),
-            "startDay": rng.randint(0, 6), "pattern": rng.choice(list(model.WEEK_PATTERNS)), "monotone": rng.random() < 0.75,
+            "freshness": rng.randint(0, 40), "startDay": rng.randint(0, 6), "pattern": rng.choice(list(model.WEEK_PATTERNS)),
+            "monotone": rng.random() < 0.75,
         })
     return out
 
@@ -62,7 +63,8 @@ class ParityTests(unittest.TestCase):
         odd = [{}, None, "text", [], {"stock": "45", "days": " 3 ", "price": "1e3", "demand": None, "elasticity": [2]},
                {"stock": 12.5, "days": 2.5, "startDay": -1, "pattern": "office", "monotone": 0},
                {"stock": "0x10", "wasteCost": "-Infinity", "price": True, "pattern": "constructor", "monotone": False},
-               {"stock": [], "days": [[4]], "price": "", "unitCost": {}, "elasticity": "7_0"}]
+               {"stock": [], "days": [[4]], "price": "", "unitCost": {}, "elasticity": "7_0"},
+               {"stock": "\uff13\uff10", "days": "\u0663", "freshness": "1e1", "demand": " .5 "}]
         js = call_js([{"fn": "normalise", "args": [c]} for c in odd])
         for c, j in zip(odd, js):
             self.assertEqual(j, model.normalise(c), repr(c))
@@ -89,8 +91,6 @@ class ParityTests(unittest.TestCase):
 
     def test_shelf_cards_and_robustness_match(self):
         cfgs = list(model.PRESETS.values()) + random_configs(8, 3)
-        js = call_js([{"fn": "shelfCard", "args": [call]} for call in []])  # warm-up call shape check
-        self.assertEqual(js, [])
         solves = call_js([{"fn": "solve", "args": [c]} for c in cfgs])
         cards = call_js([{"fn": "shelfCard", "args": [sol]} for sol in solves])
         robust = call_js([{"fn": "robustness", "args": [c]} for c in cfgs])

@@ -17,7 +17,7 @@ function randomConfigs(n, seed) {
     out.push({
       stock: 1 + Math.floor(rnd() * 80), days: 1 + Math.floor(rnd() * 9), price: 1 + rnd() * 20,
       unitCost: rnd() * 5, wasteCost: -1 + rnd() * 4, demand: 0.5 + rnd() * 20, elasticity: rnd() * 4,
-      startDay: Math.floor(rnd() * 7), pattern: ['flat', 'highStreet', 'office'][k % 3], monotone: k % 4 !== 0
+      freshness: Math.floor(rnd() * 41), startDay: Math.floor(rnd() * 7), pattern: ['flat', 'highStreet', 'office'][k % 3], monotone: k % 4 !== 0
     });
   }
   return out;
@@ -136,23 +136,26 @@ test('outcome distributions are consistent with the expectations', function () {
   assert.equal(M.quantile([0.05, 0.05, 0.4, 0.5], 0.9), 3);
 });
 
-test('the shelf card matches the plan it summarises', function () {
-  Object.values(M.PRESETS).concat(randomConfigs(15, 11)).forEach(function (cfg) {
+test('the shelf card is scored exactly as printed', function () {
+  const odd = { stock: 43, days: 2, price: 4.16, wasteCost: 4.2, demand: 9.6, elasticity: 2.7, freshness: 37, startDay: 6, pattern: 'office' };
+  Object.values(M.PRESETS).concat(randomConfigs(15, 11), [odd]).forEach(function (cfg) {
     const sol = M.solve(cfg);
     const card = M.shelfCard(sol);
+    const follow = M.POLICIES.card(sol);
     assert.equal(card.rows.length, sol.cfg.days);
-    if (card.exact) {
-      card.rows.forEach(function (r) {
-        for (let s = 1; s <= sol.cfg.stock; s++) {
-          let j = 0;
-          r.from.forEach(function (start, step) { if (start !== null && s >= start) j = step; });
-          assert.equal(j, sol.policy[r.day][0][s], 'day ' + r.day + ' stock ' + s);
-        }
-      });
-    }
+    card.rows.forEach(function (r) {
+      for (let s = 1; s <= sol.cfg.stock; s++) {
+        let j = 0;
+        r.from.forEach(function (start, step) { if (start !== null && s >= start) j = step; });
+        assert.equal(follow(r.day, s, 0), j, 'the scored card reads the printed thresholds');
+        assert.ok(sol.policy[r.day][0][s] >= 1 ? r.from[1] !== null && r.from[1] <= s : true);
+      }
+    });
     assert.ok(card.gap >= -1e-7, 'the card can never beat the full plan');
-    near(card.profit, M.evaluate(sol.cfg, M.POLICIES.card(sol)).profit, 1e-9);
+    near(card.profit, M.evaluate(sol.cfg, follow).profit, 1e-9);
   });
+  const oddCard = M.shelfCard(M.solve(odd));
+  assert.ok(oddCard.gap > 0.05, 'a plan that is not monotone in stock loses a little on the card');
 });
 
 test('robustness: perfect knowledge is never beaten, and the planned case scores 100%', function () {

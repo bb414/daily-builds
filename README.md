@@ -33,13 +33,13 @@ start app\index.html       # Windows
 
 What you can do in it:
 
-- **Describe the product.** Start from one of four examples or enter your own: units in stock, days until the sell-by date, price, cost, the cost of throwing one away, demand at full price, price sensitivity, how much appeal it loses each day as it ages, today's weekday and the weekly pattern of trade. Results update as you type, and any value outside the allowed range is explained rather than silently changed.
-- **See the best plan.** Expected takings, leftovers and the chance of selling out, and how much the plan beats the best of three simple rules: never discount, half price on the last day, and a rule you choose (for example 30% off with 2 days left).
+- **Describe the product.** Start from one of four examples or enter your own: units in stock, days until the sell-by date, price, cost, the cost of throwing one away, demand at full price, price sensitivity, how much appeal it loses each day as it ages, today's weekday and the weekly pattern of trade. Results update as you type, and any value outside the allowed range, whether typed or arriving in a link, is explained rather than silently changed.
+- **See the best plan.** Expected takings, leftovers and the chance of selling out, and how much the plan beats the best of three simple rules: never discount, half price on the last day, and a rule you choose (for example 30% off with 2 days left). It also shows what the usual "never raise a price after a cut" rule costs.
 - **Understand today's decision.** What each price is worth today, how many units it would sell today, and why the best one wins.
 - **Read the ladder.** A map of the best discount for every day and every stock level.
 - **See what to expect.** Exact probabilities for how much stock is left each morning, which price you are likely to be charging each day, and how much is left at the sell-by date.
-- **Print the shelf card.** The plan as stock thresholds: "on Friday, take 20% off if 31 or more are left". The app checks how much profit, if any, the simple card loses against the full plan, and lets you download it as a CSV file.
-- **Test the forecast.** A grid scoring the plan when true demand is 60% to 150% of your forecast and price sensitivity is 60% to 140% of yours.
+- **Download the shelf card.** The plan as stock thresholds: "on Friday, take 20% off if 31 or more are left". The app scores the card exactly as printed, shows how much profit, if any, it loses against the full plan, and lets you download it as a CSV file.
+- **Test the forecast.** A grid showing how much profit the plan loses when true demand is 60% to 150% of your forecast and price sensitivity is 60% to 140% of yours, against the plan you would make knowing the truth, with the cases where it does worse than never discounting marked.
 - **Keep or share a plan.** The page address always holds the current settings, so a bookmark or a copied link opens exactly the same plan.
 
 It works on a phone and in dark mode, and every control can be used with a keyboard and has a label for screen readers.

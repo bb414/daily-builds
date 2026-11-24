@@ -7,6 +7,7 @@
 """
 
 import argparse
+import math
 import sys
 
 from . import model, report
@@ -40,7 +41,7 @@ def config_from_args(args):
         cfg["monotone"] = False
     used = model.normalise(cfg)
     for name, value in given.items():
-        if abs(value - used[name]) > 1e-9:
+        if not math.isfinite(value) or abs(value - used[name]) > 1e-9:
             f = model.FIELDS[name]
             print("Note: %s %s changed to %s (allowed %s to %s%s)." % (
                 name, value, used[name], f["min"], f["max"], ", whole numbers" if f["step"] == 1 else ""), file=sys.stderr)
@@ -59,7 +60,10 @@ def ladder_rows(sol, bands=8):
 
 def cmd_plan(args):
     cfg = model.normalise(config_from_args(args))
-    cmp = model.compare_policies(cfg, {"pct": args.rule_pct, "daysLeft": args.rule_days})
+    rule_days = min(max(1, args.rule_days), cfg["days"])
+    if rule_days != args.rule_days:
+        print("Note: --rule-days %d changed to %d (between 1 and the days until the sell-by date)." % (args.rule_days, rule_days), file=sys.stderr)
+    cmp = model.compare_policies(cfg, {"pct": args.rule_pct, "daysLeft": rule_days})
     sol = cmp["solution"]
     pattern_names = {"flat": "same every day", "highStreet": "busy weekends", "office": "quiet weekends"}
     print("%d %s, %d selling %s from %s, full price %s, demand %.1f a day at full price (%s)" % (
@@ -102,7 +106,7 @@ def cmd_robust(args):
     cfg = model.normalise(config_from_args(args))
     cells = model.robustness(cfg)
     print("The plan is made with demand %.1f a day and price sensitivity %.1f." % (cfg["demand"], cfg["elasticity"]))
-    print("Each cell: the plan's profit when the truth is different, as a share of the best possible with perfect knowledge.")
+    print("Each cell: profit the plan loses when the truth is different, against the best plan with perfect knowledge.")
     print("'*' marks cases where the plan does worse than never discounting.")
     print()
     print(text_table(*report.robust_table(cells)))
@@ -111,12 +115,12 @@ def cmd_robust(args):
 
 def cmd_range(args):
     try:
-        products = report.load_range(args.file)
-    except (OSError, ValueError) as exc:
+        products, warnings = report.load_range(args.file)
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
         print("Could not read the range: %s" % exc, file=sys.stderr)
         return 2
     results = [report.plan_product(p) for p in products]
-    print(report.range_text(results))
+    print(report.range_text(results, warnings))
     try:
         if args.markdown:
             with open(args.markdown, "w", encoding="utf-8") as f:
