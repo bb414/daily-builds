@@ -75,7 +75,7 @@ python -m stairstep run --data sales.csv
 python -m stairstep sweep --worlds 30 --csv worlds.csv
 ```
 
-Pre-generated outputs: [`examples/report.html`](examples/report.html) (the default world) and [`examples/sweep-30-worlds.txt`](examples/sweep-30-worlds.txt) with [`examples/sweep-30-worlds.csv`](examples/sweep-30-worlds.csv).
+Pre-generated outputs: [`examples/report.html`](examples/report.html) (the default world), and [`examples/sweep-30-worlds.txt`](examples/sweep-30-worlds.txt) with one row per world in [`examples/sweep-30-worlds.csv`](examples/sweep-30-worlds.csv) (from the last command above).
 
 **Your own data.** A CSV with one row per product, store and week: `week,store,product,units`, plus an optional `promo` column (1 in promotion weeks) and any number of `event_<name>` columns (1 in weeks affected by that festival or event), each of which becomes a feature of the AI model. Weeks run from 1 with no gaps, and at least 120 are needed; the last 52 are the test year. Details are at the top of [`stairstep/data.py`](stairstep/data.py). A synthetic chain written out with `simulate` and read back with `--data` gives exactly the same numbers.
 

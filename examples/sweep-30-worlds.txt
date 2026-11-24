@@ -17,4 +17,3 @@ How often each conclusion holds:
   Choosing in advance does worse than the AI everywhere: 30 of 30 worlds
   Some 13-week pilot would measure under half the full-year gain: 29 of 30 worlds
   Some 13-week pilot would measure over 1.5 times the full-year gain: 29 of 30 worlds
-One row per world written to examples/sweep-30-worlds.csv
