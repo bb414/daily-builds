@@ -72,13 +72,14 @@ h3 { font-size: 1rem; margin: 0 0 8px; }
 .small { font-size: .88rem; }
 
 /* Inputs */
-.inputs { position: sticky; top: 16px; }
+.inputs { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
 .field { margin-top: 14px; }
 .field label, .field .label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: .92rem; }
 .field output { font-variant-numeric: tabular-nums; color: var(--accent); }
 .field input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
 .field select, .field input[type="number"] { width: 100%; margin-top: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
 .field .hint { font-size: .8rem; color: var(--ink-3); margin: 2px 0 0; }
+.field .hint.warn { color: var(--bad); font-weight: 600; }
 .check { display: flex !important; justify-content: flex-start !important; align-items: flex-start; gap: 8px; font-weight: 600; cursor: pointer; }
 .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
 .rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; font-size: .92rem; }
@@ -105,6 +106,7 @@ tr.best td { font-weight: 700; }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; }
 .bar-row.pick { font-weight: 700; }
 .chart svg { width: 100%; height: auto; display: block; }
+#map svg { max-width: 760px; }
 .chart text { fill: var(--ink-2); font-size: 11px; font-family: var(--font); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: .85rem; list-style: none; padding: 0; }
 .legend li { display: flex; align-items: center; gap: 6px; }
@@ -121,7 +123,8 @@ tr.best td { font-weight: 700; }
 .r-good { background: #d8eedf; background: color-mix(in srgb, var(--good) 22%, var(--surface)); }
 .r-ok { background: #f6e1cc; background: color-mix(in srgb, var(--d2) 35%, var(--surface)); }
 .r-bad { background: #f5d6d3; background: color-mix(in srgb, var(--bad) 25%, var(--surface)); }
-.robust .worse { display: block; font-size: .72rem; font-weight: 600; color: var(--bad); }
+.robust caption { caption-side: bottom; text-align: left; padding-top: 6px; }
+.robust td, .robust th { padding: 8px 4px; }
 .card-table td, .card-table th { text-align: center; }
 .card-table td:first-child, .card-table th:first-child { text-align: left; }
 
@@ -593,12 +596,23 @@ var MarkdownLadder = (function () {
     $('preset').addEventListener('change', function () { if (this.value) loadPreset(this.value); });
     $('rule-pct').addEventListener('change', render);
     $('rule-days').addEventListener('change', render);
+    var timer = null;
     box.addEventListener('change', render);
-    box.addEventListener('input', function (e) { if (e.target.tagName === 'SELECT') render(); });
+    box.addEventListener('input', function (e) {
+      clearTimeout(timer);
+      timer = setTimeout(render, e.target.tagName === 'SELECT' ? 0 : 350);
+    });
     var custom = el('option', { value: '', text: 'Your own numbers' });
     $('preset').insertBefore(custom, $('preset').firstChild);
     box.addEventListener('change', function () { $('preset').value = ''; });
     if (loadFromAddress()) render(); else { $('preset').value = 'truffles'; loadPreset('truffles'); }
+    var resizeTimer = null, lastWidth = window.innerWidth;
+    window.addEventListener('resize', function () {
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(render, 200);
+    });
   }
 
   function loadPreset(key) {
@@ -611,10 +625,25 @@ var MarkdownLadder = (function () {
 
   function readConfig() {
     var cfg = {};
-    Object.keys(M.FIELDS).forEach(function (name) { cfg[name] = $('f-' + name).value; });
+    var raws = {};
+    Object.keys(M.FIELDS).forEach(function (name) {
+      raws[name] = String($('f-' + name).value);
+      // An empty box means "use the usual value", not zero.
+      if (raws[name].trim() !== '') cfg[name] = raws[name];
+    });
     cfg.pattern = $('f-pattern').value;
     cfg.monotone = !$('f-rises').checked;
-    return M.normalise(cfg);
+    var out = M.normalise(cfg);
+    // Explain any value that had to be adjusted, instead of changing it silently.
+    Object.keys(M.FIELDS).forEach(function (name) {
+      if (name === 'startDay') return;
+      var hint = $('h-' + name), raw = raws[name], f = M.FIELDS[name];
+      var used = String(Math.round(out[name] * 100) / 100);
+      var bad = raw.trim() === '' || !isFinite(Number(raw)) || Math.abs(Number(raw) - out[name]) > 1e-9;
+      hint.textContent = bad ? 'Using ' + used + ': allowed from ' + f.min + ' to ' + f.max + (f.step === 1 ? ', whole numbers.' : '.') : LABELS[name][1];
+      hint.className = bad ? 'hint warn' : 'hint';
+    });
+    return out;
   }
 
   // ---------- Results ----------
@@ -662,6 +691,11 @@ var MarkdownLadder = (function () {
     var pick = sol.policy[0][0][S];
     var max = Math.max.apply(null, values), min = Math.min.apply(null, values.concat([0]));
     $('today-sub').textContent = 'Expected takings from now to the sell-by date, less disposal, for each price you could charge today with ' + S + ' units. Every option assumes you play the remaining days as well as possible.';
+    var soldToday = M.LADDER.map(function (d, j) {
+      var win = M.poissonWindow(M.demandRate(sol.cfg, 0, j), S), total = 0, mass = 0;
+      for (var c = win.lo; c <= Math.min(win.hi, S - 1); c++) { total += win.p[c - win.lo] * c; mass += win.p[c - win.lo]; }
+      return total + Math.max(0, 1 - mass) * S;
+    });
     var box = $('today-bars');
     box.innerHTML = '';
     values.forEach(function (v, j) {
@@ -675,6 +709,22 @@ var MarkdownLadder = (function () {
         el('span', { className: 'val', text: money(v), 'aria-label': (M.LADDER[j] ? M.LADDER[j] + '% off, ' : 'Full price, ') + money(price) + ' each: expected ' + money(v) + (j === pick ? ', best' : '') })
       ]));
     });
+    var why = j0Why(sol, values, soldToday, pick);
+    box.appendChild(el('p', { className: 'small', text: why }));
+  }
+
+  function j0Why(sol, values, soldToday, pick) {
+    var full = sol.cfg.price;
+    var priceOf = function (j) { return money(full * (1 - M.LADDER[j] / 100)); };
+    var parts = ['At ' + priceOf(0) + ' you would expect to sell ' + num(soldToday[0]) + ' today'];
+    if (pick > 0) {
+      parts.push('at ' + priceOf(pick) + ', ' + num(soldToday[pick]) + '. The extra sales now are worth more than the margin given away, because otherwise too much is left near the sell-by date.');
+    } else {
+      var next = 1;
+      parts.push('at ' + priceOf(next) + ', ' + num(soldToday[next]) + '. That lift is not worth the margin yet: there is still time to sell at full price, and you can cut tomorrow if sales are slow.');
+    }
+    var gap = values[pick] - Math.max.apply(null, values.filter(function (v, j) { return j !== pick; }));
+    return parts.join('; ') + (gap < 1 ? ' The top options are within ' + money(Math.max(gap, 0)) + ' of each other, so this choice matters less than the days ahead.' : '');
   }
 
   function renderCompare(cmp) {
@@ -697,8 +747,9 @@ var MarkdownLadder = (function () {
   function renderMap(sol) {
     var T = sol.cfg.days, S = sol.cfg.stock;
     var rows = Math.min(S, 30), bin = S / rows;
-    var cellW = Math.max(18, Math.min(48, 560 / T)), cellH = 12, left = 46, top = 8;
-    var width = left + T * cellW + 8, height = top + rows * cellH + 44;
+    // Draw at roughly the size it will be shown, so labels stay readable on a phone.
+    var left = 46, top = 8, width = chartWidth($('map'), 720), cellW = (width - left - 8) / T, cellH = Math.max(7, Math.min(12, 300 / rows));
+    var height = top + rows * cellH + 44;
     var svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
     svg.setAttribute('role', 'img');
@@ -736,6 +787,11 @@ var MarkdownLadder = (function () {
     }
   }
 
+
+  function chartWidth(box, preferred) {
+    var w = box.clientWidth || preferred;
+    return Math.max(340, Math.min(preferred, w));
+  }
 
   function svgBox(width, height, label) {
     var svg = document.createElementNS(NS, 'svg');
@@ -809,7 +865,7 @@ var MarkdownLadder = (function () {
     var bins = binOf(S) + 1, probs = new Array(bins).fill(0);
     best.leftover.forEach(function (p, s) { probs[binOf(s)] += p; });
     var top = Math.max.apply(null, probs);
-    var W3 = 720, H3 = 150, L3 = 38, bw = (W3 - L3 - 10) / bins;
+    var W3 = chartWidth($('leftover'), 720), H3 = 150, L3 = 38, bw = (W3 - L3 - 10) / bins;
     var svg3 = svgBox(W3, H3, 'Units left at the sell-by date under the best plan: ' + pct(best.sellOut) + ' chance of none, middle outcome ' + best.leftoverP50 + ', 9 times in 10 at most ' + best.leftoverP90 + '.');
     probs.forEach(function (p, b) {
       var h = top > 0 ? (H3 - 40) * p / top : 0;
@@ -869,18 +925,19 @@ var MarkdownLadder = (function () {
   function renderRobust(cfg) {
     var cells = M.robustness(cfg);
     var tb = el('table', { className: 'robust' });
-    tb.appendChild(el('thead', {}, [el('tr', {}, [el('th', { scope: 'col', text: 'Price sensitivity' })].concat(M.ROBUST_DEMAND.map(function (f) {
-      return el('th', { scope: 'col', text: 'Demand ' + (f === 1 ? 'as planned' : Math.round(f * 100) + '%') });
+    tb.appendChild(el('caption', { className: 'small muted', text: 'Columns: true demand as a share of your forecast. Rows: true price sensitivity as a share of yours.' }));
+    tb.appendChild(el('thead', {}, [el('tr', {}, [el('th', { scope: 'col', text: '' })].concat(M.ROBUST_DEMAND.map(function (f) {
+      return el('th', { scope: 'col', text: Math.round(f * 100) + '%' });
     })))]));
     var body = el('tbody');
     M.ROBUST_ELASTICITY.forEach(function (g) {
-      var tr = el('tr', {}, [el('th', { scope: 'row', text: g === 1 ? 'As planned' : Math.round(g * 100) + '%' })]);
+      var tr = el('tr', {}, [el('th', { scope: 'row', text: Math.round(g * 100) + '%' })]);
       M.ROBUST_DEMAND.forEach(function (f) {
         var c = cells.filter(function (x) { return x.demandFactor === f && x.elasticityFactor === g; })[0];
         var share = c.ideal > 0 ? c.planned / c.ideal : (c.planned >= c.ideal - 1e-9 ? 1 : 0);
         var cls = share >= 0.98 ? 'r-good' : share >= 0.9 ? 'r-ok' : 'r-bad';
-        var td = el('td', { className: cls }, [Math.round(share * 100) + '%']);
-        if (c.planned < c.never - 0.005) td.appendChild(el('span', { className: 'worse', text: 'worse than no discount' }));
+        var worse = c.planned < c.never - 0.005;
+        var td = el('td', { className: cls, 'aria-label': 'Demand ' + Math.round(f * 100) + '%, price sensitivity ' + Math.round(g * 100) + '%: ' + Math.round(share * 100) + '% of the best possible' + (worse ? ', worse than never discounting' : '') }, [Math.round(share * 100) + '%' + (worse ? '*' : '')]);
         tr.appendChild(td);
       });
       body.appendChild(tr);
@@ -893,7 +950,7 @@ var MarkdownLadder = (function () {
     var note = 'The costliest mistake here is demand at ' + Math.round(worst.demandFactor * 100) + '% and price sensitivity at ' + Math.round(worst.elasticityFactor * 100) +
       '% of your figures: the plan then earns ' + money(worst.planned) + ' against ' + money(worst.ideal) + ' with perfect knowledge. ';
     note += beaten.length
-      ? 'In ' + beaten.length + ' of 15 cases the plan does worse than never discounting, all when demand is higher than you think: discounts then give away margin on stock that would have sold anyway.'
+      ? 'In ' + beaten.length + ' of 15 cases (marked *) the plan does worse than never discounting' + (beaten.every(function (c) { return c.demandFactor > 1; }) ? ', all when demand is higher than you think: discounts then give away margin on stock that would have sold anyway.' : '.')
       : 'In every case the plan still beats never discounting, because it reacts to the stock you actually have each morning.';
     $('robust-note').textContent = note;
   }

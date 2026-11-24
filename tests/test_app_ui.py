@@ -67,7 +67,8 @@ class AppTests(unittest.TestCase):
         self.assertIn("52+", page.inner_text("#card"))
         self.assertIn("exactly what the full plan earns", page.inner_text("#card-note"))
         self.assertEqual(page.locator("#robust td").count(), 15)
-        self.assertIn("worse than no discount", page.inner_text("#robust"))
+        self.assertIn("93%*", page.inner_text("#robust"))
+        self.assertIn("marked *", page.inner_text("#robust-note"))
         page.select_option("#preset", "tins")
         url = page.url
         self.assertIn("stock=120", url)
@@ -80,6 +81,20 @@ class AppTests(unittest.TestCase):
         with page.expect_download() as dl:
             page.click("#card-download")
         self.assertTrue(dl.value.suggested_filename.endswith(".csv"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_out_of_range_values_are_explained(self):
+        page = self.open()
+        page.fill("#f-stock", "5000")
+        page.dispatch_event("#f-stock", "change")
+        self.assertIn("Using 300", page.inner_text("#h-stock"))
+        page.fill("#f-stock", "")
+        page.dispatch_event("#f-stock", "change")
+        self.assertIn("Using 60", page.inner_text("#h-stock"))
+        page.fill("#f-stock", "45")
+        page.dispatch_event("#f-stock", "change")
+        self.assertEqual(page.inner_text("#h-stock"), "How many you have to sell.")
         self.assertEqual(self.errors, [])
         page.close()
 
