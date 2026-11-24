@@ -48,6 +48,8 @@ What you can do in it:
 
 It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard.
 
+<img src="docs/phone-intro.png" alt="The start screen on a phone" width="300">
+
 ![The results page for a simulated person who leans on the checker](docs/results.png)
 
 ## Run the Python version

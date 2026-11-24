@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 from .cohort import SCENARIOS, simulate_cohort
@@ -124,6 +125,10 @@ def main(argv=None):
     args = p.parse_args(argv)
     try:
         return args.func(args)
+    except BrokenPipeError:
+        # Output piped into something like `head` that stopped reading: not an error.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
     except (OSError, ValueError) as exc:
         print("Error: %s" % exc, file=sys.stderr)
         return 2

@@ -198,15 +198,15 @@ def study_report(an, top_items=8):
         "Sessions: %d complete (%d with the checker, %d without). Left out: %d incomplete, %d duplicate."
         % (an["complete"], a["n"], c["n"], an["incomplete"], an["duplicates"]),
         "",
-        "  %-34s %14s %10s" % ("Share judged correctly", "With checker", "Without"),
+        "  %-34s %16s %16s" % ("Share judged correctly", "With checker", "Without"),
     ]
     for key, label in (("pre", "Round 1 (before)"), ("during", "Round 2"), ("post", "Round 3 (after)")):
-        lines.append("  %-34s %14s %10s" % (label, _p(a[key]["mean"]), _p(c[key]["mean"])))
-    lines.append("  %-34s %14s %10s" % ("Change, round 1 to round 3", _pts(a["gain"]["mean"]),
+        lines.append("  %-34s %16s %16s" % (label, _p(a[key]["mean"]), _p(c[key]["mean"])))
+    lines.append("  %-34s %16s %16s" % ("Change, round 1 to round 3", _pts(a["gain"]["mean"]),
                                          _pts(c["gain"]["mean"])))
-    lines.append("  %-34s %14s %10s" % ("Sensitivity d', round 1 then 3", _pair(a, "dPre", "dPost"),
+    lines.append("  %-34s %16s %16s" % ("Sensitivity d', round 1 to 3", _pair(a, "dPre", "dPost"),
                                          _pair(c, "dPre", "dPost")))
-    lines.append("  %-34s %14s %10s" % ("Leaning c, round 1 then 3", _pair(a, "cPre", "cPost"),
+    lines.append("  %-34s %16s %16s" % ("Leaning c, round 1 to 3", _pair(a, "cPre", "cPost"),
                                          _pair(c, "cPre", "cPost")))
     lines += [
         "",
