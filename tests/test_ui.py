@@ -144,6 +144,11 @@ class BrowserTests(unittest.TestCase):
         page.wait_for_selector("#table-card table")
         self.assertEqual(page.input_value("#c-rent"), "333")
         self.assertEqual(page.input_value("#preset"), "tight")
+        page.goto(APP_URL + "#" + M.encode_link(dict(M.default_settings("tight"), rent=333, preset="mine")))
+        page.wait_for_timeout(500)
+        self.assertEqual(page.input_value("#preset"), "custom")
+        page.goto(APP_URL + "#" + M.encode_link(dict(M.default_settings("tight"), rent=333)))
+        page.wait_for_timeout(500)
         self.assertIn("Opened the settings in the link", page.inner_text("#io-msg"))
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "other.json"
@@ -187,6 +192,20 @@ class BrowserTests(unittest.TestCase):
             if "leaves the most set aside" in line:
                 rule = line.split(", ", 1)[1].split(" leaves")[0]
                 self.assertNotIn(rule + " leave", text.split(line, 1)[1])
+        page.close()
+
+    def test_map_shows_days_when_every_year_goes_past_the_limit(self):
+        page = self.open()
+        page.select_option("#c-rescue", "never")
+        page.locator("#c-overdraftLimit").fill("0")
+        page.wait_for_timeout(1500)
+        self.assertIn("for how long", page.inner_text(".tune-lead"))
+        self.assertIn("days past", page.inner_text("#tune-out table.map"))
+        label = page.get_attribute("#tune-out button.front", "aria-label")
+        self.assertIn("days a year on average", label)
+        page.locator("#c-startBalance").fill("-1000")
+        self.assertEqual(page.inner_text("#c-startBalance-out"), "-£1,000")
+        self.assertEqual(self.errors, [])
         page.close()
 
     def test_phone_layout_fits(self):

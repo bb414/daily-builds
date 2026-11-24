@@ -28,7 +28,6 @@ for _name, _len in MONTHS:
 DAYS = _d                      # 365
 LOAN_DAYS = [21, 126, 231]     # 22 September, 5 January, 20 April
 BILL_DAY = 9                   # the 10th of each month
-WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 RULES = ["none", "roundup", "weekly", "payday", "smart", "planner"]
 RULE_NAMES = {
     "none": "No automatic saving",
@@ -528,10 +527,12 @@ def sweep(s, rule="smart", dials=None, years=200):
         trial.append(t)
     runs = [[] for _ in combos]
     beyond_without = 0
+    days_without = []
     for k in range(years):
         days = generate_year(s, year_seed(s["seed"], k))
         base = simulate(s, days, "none")
         beyond_without += 1 if base["daysBeyond"] > 0 else 0
+        days_without.append(base["daysBeyond"])
         for i, t in enumerate(trial):
             res = simulate(t, days, rule)
             res["net"] = (res["endBalance"] + res["endPot"]) - (base["endBalance"] + base["endPot"])
@@ -545,12 +546,14 @@ def sweep(s, rule="smart", dials=None, years=200):
             "savedIn": percentile(sorted(x["savedIn"] for x in rs), 0.5),
             "net": percentile(sorted(x["net"] for x in rs), 0.5),
             "beyondChance": sum(1 for x in rs if x["daysBeyond"] > 0) / years,
+            "meanDaysBeyond": _mean([x["daysBeyond"] for x in rs]),
             "meanRescues": _mean([x["rescues"] for x in rs]),
             "cameBack": came_back(rs),
         })
     for r in rows:
         r["frontier"] = not any(_beats(o, r) for o in rows)
     return {"rule": rule, "dials": [ka, kb], "years": years, "beyondWithoutSaving": beyond_without / years,
+            "daysBeyondWithoutSaving": _mean(days_without),
             "rows": rows}
 
 

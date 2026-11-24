@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+# Files the README examples write in the repository folder
+/*.csv
+/*.json

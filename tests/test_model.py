@@ -364,6 +364,25 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Tight budget", out)
 
+    def test_wording(self):
+        code, out = self.run_cli("run", "--years", "1", "--preset", "tight", "--rescue", "near-limit")
+        self.assertIn("1 simulated year\n", out)
+        s = M.default_settings("tight")
+        s.update(overdraftLimit=50, rescue="near-limit")
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "s.json"
+            path.write_text(json.dumps(s))
+            code, out = self.run_cli("run", "--years", "2", "--settings", str(path))
+            self.assertIn("as soon as they are overdrawn (the limit is under £100)", out)
+            s["overdraftLimit"] = 0
+            path.write_text(json.dumps(s))
+            code, out = self.run_cli("sweep", "--years", "1", "--settings", str(path), "--dial", "horizon=1",
+                                     "--dial", "buffer=0", "--csv", str(Path(d) / "w.csv"))
+            self.assertIn("No interest-free overdraft", out)
+            self.assertIn("1 day ", out)
+            self.assertIn("The one setting is on the frontier", out)
+            self.assertIn("Wrote 1 row to", out)
+
     def test_errors(self):
         for argv in (("run", "--years", "0"), ("run", "--settings", "missing.json"), ("year", "--rule", "magic"),
                      ("year", "--year", "0"), ("sweep", "--dial", "horizon"), ("sweep", "--dial", "horizon=a,b"),

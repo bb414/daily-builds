@@ -102,7 +102,7 @@ def cmd_sweep(args):
                 w.writerow([r[ka], r[kb], "%.2f" % (r["endPot"] / 100), "%.2f" % (r["savedIn"] / 100),
                             "%.2f" % (r["net"] / 100), "%.4f" % r["beyondChance"], "%.2f" % r["meanRescues"],
                             "%.4f" % r["cameBack"], "yes" if r["frontier"] else "no"])
-        print("\nWrote %d rows to %s" % (len(result["rows"]), args.csv))
+        print("\nWrote %s to %s" % ("1 row" if len(result["rows"]) == 1 else "%d rows" % len(result["rows"]), args.csv))
     return 0
 
 
@@ -132,7 +132,8 @@ def main(argv=None):
     sub = p.add_subparsers(dest="command", required=True)
 
     def common(sp):
-        sp.add_argument("--preset", choices=sorted(PRESETS), default="steady", help="a built-in situation")
+        sp.add_argument("--preset", choices=sorted(PRESETS), default="steady",
+                        help="a built-in situation (ignored when --settings or --link is given)")
         src = sp.add_mutually_exclusive_group()
         src.add_argument("--settings", help="a settings JSON file (saved from the app or written by 'settings')")
         src.add_argument("--link", help="a link copied from the app (quote it in the shell)")
@@ -141,13 +142,13 @@ def main(argv=None):
 
     r = sub.add_parser("run", help="compare every rule over many simulated years")
     common(r)
-    r.add_argument("--years", type=int, default=1000)
+    r.add_argument("--years", type=int, default=1000, help="how many simulated years (1 to 20000, default 1000)")
     r.add_argument("--json", help="also write the full summary to a JSON file")
     r.set_defaults(func=cmd_run)
 
     y = sub.add_parser("year", help="one simulated year, month by month, under one rule")
     common(y)
-    y.add_argument("--rule", default="smart")
+    y.add_argument("--rule", default="smart", help="one of: %s (default smart)" % ", ".join(RULES))
     y.add_argument("--year", type=int, default=1, help="which simulated year (1 is the app's first)")
     y.add_argument("--csv", help="also write every day to a CSV file")
     y.set_defaults(func=cmd_year)
@@ -158,13 +159,13 @@ def main(argv=None):
     w.add_argument("--dial", action="append", metavar="NAME=V1,V2,...",
                    help="a setting to vary and the values to try; give two (default: smart horizon and buffer, "
                         "planner buffer and aggressiveness)")
-    w.add_argument("--years", type=int, default=200)
+    w.add_argument("--years", type=int, default=200, help="simulated years for each setting (default 200)")
     w.add_argument("--csv", help="also write every row to a CSV file")
     w.set_defaults(func=cmd_sweep)
 
     t = sub.add_parser("settings", help="write a preset's settings to a file you can edit")
-    t.add_argument("preset", choices=sorted(PRESETS))
-    t.add_argument("-o", "--out")
+    t.add_argument("preset", choices=sorted(PRESETS), help="the built-in situation to start from")
+    t.add_argument("-o", "--out", help="write to this file instead of printing")
     t.add_argument("--link", action="store_true", help="print a link fragment for the app instead of JSON")
     t.set_defaults(func=cmd_settings)
 
