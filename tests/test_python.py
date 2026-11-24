@@ -8,7 +8,7 @@ import os
 import tempfile
 import unittest
 
-from reliance_lab import cli, experiment, model, stats
+from skill_fade import cli, experiment, model, stats
 
 
 def run_cli(*args):
@@ -224,7 +224,7 @@ class CliTest(unittest.TestCase):
         self.assertIn("no verdict to test", out)
 
     def test_config_file_from_the_browser(self):
-        settings = {"app": "reliance-lab", "version": 1,
+        settings = {"app": "skill-fade", "version": 1,
                     "params": dict(model.preset_params("invoice_fraud"), people=60, rounds=30)}
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "s.json")

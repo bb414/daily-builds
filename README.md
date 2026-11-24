@@ -1,15 +1,15 @@
-# Reliance Lab
+# Skill Fade
 
-**Helper or crutch? What does AI advice do to people's own judgement?**
+**Helper or crutch? Does leaning on AI advice wear away people's own judgement over time?**
 
-Reliance Lab simulates people making yes-or-no decisions (is this message a scam? is this invoice fraudulent?) with an AI adviser on hand. You choose how the AI is built into the work, how good the people and the AI are, and how often anyone finds out the right answer. Then you watch accuracy, trust and each person's unaided judgement change case by case. Every run is compared with the same people practising without the AI, so the app can say whether the AI was a **helper** (more accurate, judgement intact) or a **crutch** (more accurate, but worse on their own afterwards).
+Skill Fade simulates people making yes-or-no decisions (is this message a scam? is this invoice fraudulent?) with an AI adviser on hand. You choose how the AI is built into the work, how good the people and the AI are, and how often anyone finds out the right answer. Then you watch accuracy, trust and each person's unaided judgement change case by case. Every run is compared with the same people practising without the AI, so the app can say whether the AI was a **helper** (more accurate, judgement intact) or a **crutch** (more accurate, but worse on their own afterwards).
 
 It comes in two parts built on the same model:
 
 - **The browser app** (`app/index.html`). Double-click it and it works: no installs, no internet connection, nothing sent anywhere.
-- **The Python companion** (`reliance_lab/`). The same model on the command line, plus a virtual randomised experiment with noisy tests and a power analysis: how many participants a real study would need to detect the effects. Standard library only.
+- **The Python companion** (`skill_fade/`). The same model on the command line, plus a virtual randomised experiment with noisy tests and a power analysis: how many participants a real study would need to detect the effects. Standard library only.
 
-![Reliance Lab on a desktop: the verdict, the reasons behind it and the headline numbers](docs/desktop.png)
+![Skill Fade on a desktop: the verdict, the reasons behind it and the headline numbers](docs/desktop.png)
 
 ## Why it matters
 
@@ -21,6 +21,13 @@ The project sits on two of the brief's priority themes:
 - **AI adoption beyond the pilot.** The fastest workflow (show the AI's answer first) is the one that looks best in a pilot dashboard and does the most hidden damage, which is a plausible reason organisations choose it.
 
 It grew out of a research question about young people and an AI scam checker: does the checker sharpen their judgement or replace it? The first preset ("Scam checks: 16 to 18-year-olds") is a stylised version of that setting, and the Python power analysis asks how large a study would need to be to tell the difference.
+
+## Related builds
+
+Two other builds from the same day look at people working with AI advice from different angles. Skill Fade is the only one about change over time: how trust and people's own skill move case by case, and whether the way the AI is built into the work leaves them better or worse on their own.
+
+- [Reliance lab](https://github.com/bb414/daily-builds/tree/build/2026-11-24-reliance-calibration-lab) is a closed-form model of a single decision: given both sides' accuracy and confidence, how accurate is the pair under four rules for settling disagreements? It has no learning, trust or time.
+- [Second opinion](https://github.com/bb414/daily-builds/tree/build/2026-11-24-second-opinion) is a test you take yourself, measuring how well one real person uses an AI checker's advice, with tools for analysing a real study. Skill Fade instead simulates whole groups, and its power analysis sizes a study of long-run effects on people's own judgement.
 
 ## Open the app
 
@@ -48,13 +55,13 @@ What you can do in it:
 
 It works on a phone as well as a desktop, every control can be used with a keyboard, and it supports dark mode. On a phone the settings fold away into sections so the verdict is never far down the page.
 
-<img src="docs/phone.png" alt="Reliance Lab on a phone" width="260">
+<img src="docs/phone.png" alt="Skill Fade on a phone" width="260">
 
 ![The stress test, the workflow comparison and the robustness check](docs/stress-test.png)
 
 ## What it shows
 
-All figures below come from the default "Scam checks" scenario (300 simulated people, 120 cases each, seed 42), produced by `python -m reliance_lab compare`. The browser app shows the same numbers.
+All figures below come from the default "Scam checks" scenario (300 simulated people, 120 cases each, seed 42), produced by `python -m skill_fade compare`. The browser app shows the same numbers.
 
 | Workflow | Accuracy with the AI | Own judgement afterwards | Followed wrong AI advice | Minutes per case | Verdict |
 |---|---|---|---|---|---|
@@ -76,18 +83,18 @@ The same pattern (AI first is a crutch, the other two are helpers) holds in the 
 Requires Python 3.9 or later. No packages to install. Run these from the project folder.
 
 ```bash
-python -m reliance_lab run                      # one workflow against the comparison group, with reasons
-python -m reliance_lab compare                  # all four workflows side by side
-python -m reliance_lab compare --set driftAt=80 # with the AI getting worse after case 80
-python -m reliance_lab robustness               # which assumptions could change the verdict?
-python -m reliance_lab experiment               # a virtual randomised experiment with noisy tests
-python -m reliance_lab power                    # how many participants a study would need
+python -m skill_fade run                      # one workflow against the comparison group, with reasons
+python -m skill_fade compare                  # all four workflows side by side
+python -m skill_fade compare --set driftAt=80 # with the AI getting worse after case 80
+python -m skill_fade robustness               # which assumptions could change the verdict?
+python -m skill_fade experiment               # a virtual randomised experiment with noisy tests
+python -m skill_fade power                    # how many participants a study would need
 
 # Options shared by every command
-python -m reliance_lab run --preset invoice_fraud --workflow human_first
-python -m reliance_lab run --set feedbackRate=0.5 --set aiAccuracy=0.9
-python -m reliance_lab run --config reliance-lab-settings.json   # settings downloaded from the app
-python -m reliance_lab experiment --csv participants.csv --markdown report.md
+python -m skill_fade run --preset invoice_fraud --workflow human_first
+python -m skill_fade run --set feedbackRate=0.5 --set aiAccuracy=0.9
+python -m skill_fade run --config skill-fade-settings.json   # settings downloaded from the app
+python -m skill_fade experiment --csv participants.csv --markdown report.md
 ```
 
 The **virtual experiment** is the part the browser app cannot do. Each simulated participant takes a 20-item test on their own, works through the cases with the AI, then takes a second test on their own, so the results include the measurement noise a real study would have. With 60 participants per arm (seed 42):
@@ -112,8 +119,8 @@ The accuracy gain during training is obvious (about +17 points, p < 0.001), but 
 | `app/index.html` | HTML and CSS | 270 | Layout, styling, light and dark themes, phone layout |
 | `app/index.html` (model block) | JavaScript | 550 | The simulation, verdicts, explanations, robustness check, settings links and files |
 | `app/index.html` (interface) | JavaScript | 600 | Controls, charts, tables, chunked running so large simulations never freeze the page |
-| `reliance_lab/model.py` | Python | 640 | A line-for-line port of the model block |
-| `reliance_lab/experiment.py`, `stats.py`, `cli.py` | Python | 600 | Virtual experiment, power analysis, Welch's t-test, command-line tool and exports |
+| `skill_fade/model.py` | Python | 640 | A line-for-line port of the model block |
+| `skill_fade/experiment.py`, `stats.py`, `cli.py` | Python | 600 | Virtual experiment, power analysis, Welch's t-test, command-line tool and exports |
 | `tests/` | JavaScript and Python | 960 | Model tests in Node.js, Python tests, a parity test and browser tests |
 
 The browser app is the version anyone can open and use. Python adds the heavier, batch-style work: many participants, repeated studies for the power analysis, CSV and Markdown exports.
@@ -136,7 +143,7 @@ Each simulated person works through a series of yes-or-no cases.
 7. **Stress test.** After a chosen case the AI's real accuracy drops (it can only get worse), but its stated confidence does not change, so nobody is warned.
 8. **Verdict.** The same people and cases are run without the AI. More than 1 point more accurate with the AI counts as a lift; ending more than 1 point worse on their own than the comparison group counts as eroded judgement. The four combinations give Helper, Crutch, No lift and Liability.
 
-The fixed behavioural constants (how decisive people are, how noisy confidence is, how much the AI's answer anchors people, minutes per case) are listed at the top of the model block in `app/index.html` and in `reliance_lab/model.py`.
+The fixed behavioural constants (how decisive people are, how noisy confidence is, how much the AI's answer anchors people, minutes per case) are listed at the top of the model block in `app/index.html` and in `skill_fade/model.py`.
 
 ## Tests
 

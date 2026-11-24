@@ -244,7 +244,7 @@ test('settings survive a round trip through the link and the file', () => {
   const p = Object.assign(M.presetParams('lead_triage'), { driftAt: 70, showConfidence: false, seed: 1234 });
   assert.deepEqual(Object.assign({}, M.decodeParams('#' + M.encodeParams(p))), Object.assign({}, M.normaliseParams(p)));
   const file = JSON.parse(JSON.stringify(M.settingsFile(p)));
-  assert.equal(file.app, 'reliance-lab');
+  assert.equal(file.app, 'skill-fade');
   assert.deepEqual(Object.assign({}, M.readSettingsFile(file)), Object.assign({}, M.normaliseParams(p)));
   assert.equal(M.readSettingsFile({ aiAccuracy: 0.7 }).aiAccuracy, 0.7);
 });

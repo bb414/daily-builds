@@ -134,7 +134,7 @@ class UiTest(unittest.TestCase):
         path = info.value.path()
         with open(path, encoding="utf-8") as fh:
             saved = json.load(fh)
-        self.assertEqual(saved["app"], "reliance-lab")
+        self.assertEqual(saved["app"], "skill-fade")
         self.assertEqual(saved["params"]["workflow"], "human_first")
         page.select_option("#preset", "scam_teens")
         self.settle(page)

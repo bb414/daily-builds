@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reliance Lab: helper or crutch?</title>
+<title>Skill Fade: helper or crutch?</title>
 <style>
   :root {
     --bg: #f4f5f7;
@@ -80,7 +80,7 @@
   .wf label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   .wf label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 1px; }
   details.group { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
-  details.group > summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; list-style-position: outside; padding: 2px 0; }
+  details.group > summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; padding: 2px 0; }
   .group-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
   .verdict { border-left: 6px solid var(--nolift); display: flex; gap: 18px; align-items: flex-start; }
   .verdict-text { flex: 1; min-width: 0; }
@@ -166,7 +166,7 @@
 <body>
 <header>
   <div>
-    <h1>Reliance <span>Lab</span></h1>
+    <h1>Skill <span>Fade</span></h1>
     <p>Helper or crutch? Simulate people making decisions with AI advice, and see what it does to their accuracy, their trust and their own judgement once the AI is gone.</p>
   </div>
   <span class="chip">Synthetic data. Runs offline. Nothing leaves your browser.</span>
@@ -269,12 +269,12 @@
 </main>
 
 <footer>
-  <p>Reliance Lab is a thinking tool built on stated assumptions, not a forecast. All data is synthetic and generated in your browser.</p>
+  <p>Skill Fade is a thinking tool built on stated assumptions, not a forecast. All data is synthetic and generated in your browser.</p>
 </footer>
 
 <script>
 /* MODEL START */
-var RelianceModel = (function () {
+var SkillFadeModel = (function () {
   'use strict';
 
   // Fixed behavioural constants. They are documented in the README.
@@ -785,14 +785,14 @@ var RelianceModel = (function () {
   }
 
   function settingsFile(input) {
-    return { app: 'reliance-lab', version: 1, params: normaliseParams(input) };
+    return { app: 'skill-fade', version: 1, params: normaliseParams(input) };
   }
 
   function readSettingsFile(obj) {
-    if (!obj || typeof obj !== 'object') throw new Error('The file does not contain Reliance Lab settings.');
+    if (!obj || typeof obj !== 'object') throw new Error('The file does not contain Skill Fade settings.');
     var params = obj.params && typeof obj.params === 'object' ? obj.params : obj;
     var known = PARAMS.some(function (s) { return params[s.key] !== undefined; }) || params.workflow !== undefined;
-    if (!known) throw new Error('The file does not contain Reliance Lab settings.');
+    if (!known) throw new Error('The file does not contain Skill Fade settings.');
     return normaliseParams(params);
   }
 
@@ -819,14 +819,14 @@ var RelianceModel = (function () {
     encodeParams: encodeParams, decodeParams: decodeParams, settingsFile: settingsFile, readSettingsFile: readSettingsFile
   };
 })();
-if (typeof module !== 'undefined' && module.exports) module.exports = RelianceModel;
+if (typeof module !== 'undefined' && module.exports) module.exports = SkillFadeModel;
 /* MODEL END */
 </script>
 
 <script>
 (function () {
   'use strict';
-  var M = RelianceModel;
+  var M = SkillFadeModel;
   var state = { preset: 'scam_teens', params: M.presetParams('scam_teens') };
   var timer = null;
 
@@ -1140,11 +1140,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RelianceMo
       var blob = new Blob([JSON.stringify(M.settingsFile(state.params), null, 2)], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'reliance-lab-settings.json';
+      a.download = 'skill-fade-settings.json';
       document.body.appendChild(a);
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
-      setStatus('Saved reliance-lab-settings.json. The Python version can read it with --config.');
+      setStatus('Saved skill-fade-settings.json. The Python version can read it with --config.');
     });
     var upload = document.getElementById('upload');
     document.getElementById('upload-label').addEventListener('keydown', function (e) {

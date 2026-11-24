@@ -1,4 +1,4 @@
-"""The Reliance Lab model, ported line for line from the browser app.
+"""The Skill Fade model, ported line for line from the browser app.
 
 Every random draw happens in the same order as in ``app/index.html`` and the
 random number generator is the same (Mulberry32), so for the same settings both
@@ -618,10 +618,10 @@ def explain(a):
 def read_settings_file(obj):
     """Accepts the JSON file the browser app downloads (or a flat dict of settings)."""
     if not isinstance(obj, dict):
-        raise ValueError("The file does not contain Reliance Lab settings.")
+        raise ValueError("The file does not contain Skill Fade settings.")
     params = obj["params"] if isinstance(obj.get("params"), dict) else obj
     if not any(key in params for key, *_rest in PARAMS) and "workflow" not in params:
-        raise ValueError("The file does not contain Reliance Lab settings.")
+        raise ValueError("The file does not contain Skill Fade settings.")
     return normalise_params(params)
 
 
