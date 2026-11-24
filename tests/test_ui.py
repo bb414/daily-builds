@@ -108,6 +108,22 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_what_to_check_first(self):
+        page = self.open()
+        text = page.inner_text("#voi-card")
+        self.assertIn("What to check before deciding", text)
+        self.assertIn("go ahead", text)
+        self.assertIn("Share who would try a meal kit", page.inner_text("#voi-card tbody tr:first-child"))
+        page.fill("#f-threshold", "")
+        self.settle(page)
+        self.assertIn("Add a threshold", page.inner_text("#voi-card"))
+        self.assertNotIn("chance of clearing", page.inner_text("#summary"))
+        page.fill("#f-threshold", "5")
+        self.settle(page)
+        self.assertIn("nothing worth checking first", page.inner_text("#voi-card"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_phone_layout_fits(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)

@@ -368,12 +368,14 @@ def analyse(model, samples=None, seed=None):
         share_total += r["varShare"]
     threshold = model.get("threshold")
     above = None
+    voi = None
     if threshold is not None:
         count = 0
         for v in values:
             if v >= threshold:
                 count += 1
         above = count / len(values)
+        voi = value_of_information(model, values, columns, means, rows, m, threshold)
     return {
         "n": len(values),
         "mean": m,
@@ -394,7 +396,48 @@ def analyse(model, samples=None, seed=None):
         "drivers": rows,
         "tornado": order,
         "interaction": max(0.0, 1 - share_total),
+        "voi": voi,
     }
+
+
+def value_of_information(model, values, columns, means, rows, m, threshold):
+    """How much pinning down each driver would be worth before a go/hold decision.
+
+    Going ahead pays (estimate - threshold); holding off pays 0. Today's call is
+    whichever has the higher expected payoff. Because the estimate is linear in
+    each driver, the expected estimate given driver i is base + slope_i x (x_i - mean_i),
+    which makes the expected value of partial perfect information (EVPPI) a
+    one-dimensional average over that driver's samples.
+
+    Both are written as the average loss from the cases where today's call
+    turns out wrong (rather than as a difference of two large averages), which
+    is the same quantity without the rounding error of a subtraction.
+    """
+    n = len(values)
+    go = m >= threshold
+    total = 0.0
+    wrong = 0
+    for v in values:
+        total += max(threshold - v, 0.0) if go else max(v - threshold, 0.0)
+        if (v >= threshold) != go:
+            wrong += 1
+    evpi = total / n
+    base = evaluate(model, means)
+    base_go = base >= threshold
+    out = []
+    for i, r in enumerate(rows):
+        acc = 0.0
+        flips = 0
+        col = columns[i]
+        for k in range(n):
+            cond = base + r["slope"] * (col[k] - means[i])
+            acc += max(threshold - cond, 0.0) if base_go else max(cond - threshold, 0.0)
+            if (cond >= threshold) != base_go:
+                flips += 1
+        out.append({"evppi": acc / n, "flip": flips / n})
+    order = sorted(range(len(out)), key=lambda i: (-out[i]["evppi"], -out[i]["flip"], i))
+    return {"decision": "go" if go else "hold", "expected": m, "wrongChance": wrong / n, "evpi": evpi,
+            "drivers": out, "order": order}
 
 
 # ---------------------------------------------------------------------------

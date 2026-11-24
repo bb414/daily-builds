@@ -138,6 +138,86 @@ class AnalysisTests(unittest.TestCase):
             M.analyse(one_driver("lognormal", 0, 10))
 
 
+class ValueOfInformationTests(unittest.TestCase):
+    def test_properties(self):
+        for t in M.TEMPLATES:
+            r = M.analyse(t)
+            v = r["voi"]
+            self.assertEqual(v["decision"], "go" if r["mean"] >= t["threshold"] else "hold")
+            expected_wrong = (1 - r["probAbove"]) if v["decision"] == "go" else r["probAbove"]
+            self.assertAlmostEqual(v["wrongChance"], expected_wrong)
+            for x in v["drivers"]:
+                self.assertGreaterEqual(x["evppi"], 0)
+                self.assertLessEqual(x["evppi"], v["evpi"] * 1.02 + 1e-9)
+                self.assertTrue(0 <= x["flip"] <= 1)
+            evppis = [v["drivers"][i]["evppi"] for i in v["order"]]
+            self.assertEqual(evppis, sorted(evppis, reverse=True))
+            for i, d in enumerate(r["drivers"]):
+                if d["dist"] == "fixed":
+                    self.assertEqual(v["drivers"][i]["evppi"], 0)
+                    self.assertEqual(v["drivers"][i]["flip"], 0)
+
+    def test_evpi_matches_its_definition(self):
+        t = M.TEMPLATES[1]
+        r = M.analyse(t)
+        values, _ = M.simulate(t)
+        thr = t["threshold"]
+        direct = M.mean([max(v - thr, 0) for v in values]) - max(M.mean(values) - thr, 0)
+        self.assertAlmostEqual(r["voi"]["evpi"], direct, delta=1e-6 * abs(direct))
+
+    def test_evppi_matches_a_brute_force_check(self):
+        # Bin the samples by one driver and use the bin averages as E[V | driver].
+        t = M.TEMPLATES[0]
+        r = M.analyse(t, 40000, 3)
+        values, cols = M.simulate(t, 40000, 3)
+        i = r["voi"]["order"][0]
+        thr = t["threshold"]
+        pairs = sorted(zip(cols[i], values))
+        bins = 400
+        size = len(pairs) // bins
+        cond = [M.mean([v for _, v in pairs[b * size:(b + 1) * size]]) for b in range(bins)]
+        brute = M.mean([max(c - thr, 0) for c in cond]) - max(M.mean(values) - thr, 0)
+        self.assertAlmostEqual(r["voi"]["drivers"][i]["evppi"], brute, delta=abs(brute) * 0.1)
+
+    def test_no_decision_no_value(self):
+        m = copy.deepcopy(M.TEMPLATES[0])
+        m["threshold"] = 1
+        v = M.analyse(m)["voi"]
+        self.assertEqual(v["decision"], "go")
+        self.assertEqual(v["evpi"], 0)
+        self.assertTrue(all(x["evppi"] == 0 and x["flip"] == 0 for x in v["drivers"]))
+        m["threshold"] = None
+        self.assertIsNone(M.analyse(m)["voi"])
+
+
+class DeepTests(unittest.TestCase):
+    def test_sobol_first_order_matches_the_app(self):
+        from rangefinder.deep import sobol
+        t = M.TEMPLATES[0]
+        r = M.analyse(t)
+        s = sobol(t, 8000, 5)
+        for app, chk in zip(r["drivers"], s):
+            self.assertAlmostEqual(app["varShare"], chk["first"], delta=0.04, msg=app["name"])
+            self.assertGreaterEqual(chk["total"], chk["first"] - 0.03)
+        self.assertGreater(sum(x["total"] for x in s), 1.0)  # a product has interactions
+
+    def test_additive_model_has_equal_first_and_total(self):
+        from rangefinder.deep import sobol
+        m = one_driver("normal", 0, 10)
+        m["terms"].append({"name": "b", "sign": 1, "drivers": [{"name": "e", "dist": "uniform", "low": 0, "high": 20, "unit": ""}]})
+        for x in sobol(m, 8000, 2):
+            self.assertAlmostEqual(x["first"], x["total"], delta=0.03)
+
+    def test_stability(self):
+        from rangefinder.deep import stability
+        st = stability(M.TEMPLATES[2], seeds=5, n=2000)
+        self.assertLess(st["p50"]["sd"], abs(st["p50"]["mean"]) * 0.2 + 5000)
+        self.assertTrue(0 <= st["probAbove"]["min"] <= st["probAbove"]["max"] <= 1)
+        m = copy.deepcopy(M.TEMPLATES[2])
+        m["threshold"] = None
+        self.assertNotIn("probAbove", stability(m, seeds=2, n=1000))
+
+
 class ValidationTests(unittest.TestCase):
     def problems(self, **changes):
         m = copy.deepcopy(M.TEMPLATES[0])
@@ -224,6 +304,15 @@ class CliTests(unittest.TestCase):
             self.assertEqual(len(rows), 2001)
             self.assertEqual(len(rows[0]), 8)
             self.assertEqual(rows[0][1], "Rides per bike per day")
+
+    def test_deep_command(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = str(Path(d) / "m.json")
+            self.run_cli("template", "ai-assistant", "-o", path)
+            code, out = self.run_cli("deep", path, "--samples", "1500", "--seeds", "3")
+            self.assertEqual(code, 0)
+            self.assertIn("Total-effect", out)
+            self.assertIn("Chance of clearing", out)
 
     def test_errors_are_clean(self):
         code, out = self.run_cli("run", "missing.json")

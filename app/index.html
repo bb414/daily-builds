@@ -201,6 +201,7 @@ table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <div id="problems" class="problems" role="alert" hidden></div>
       <div class="card" id="summary"></div>
       <div class="card" id="dist-card"></div>
+      <div class="card" id="voi-card"></div>
       <div class="card" id="tornado-card"></div>
       <div class="card" id="drivers-card"></div>
     </section>
@@ -684,11 +685,12 @@ function analyse(model, samples, seed, keepValues) {
   let shareTotal = 0;
   rows.forEach(r => { shareTotal += r.varShare; });
   const threshold = model.threshold === undefined ? null : model.threshold;
-  let above = null;
+  let above = null, voi = null;
   if (threshold !== null) {
     let count = 0;
     for (let k = 0; k < values.length; k++) if (values[k] >= threshold) count += 1;
     above = count / values.length;
+    voi = valueOfInformation(model, values, columns, means, rows, m, threshold);
   }
   const out = {
     n: values.length, mean: m, sd: Math.sqrt(v), min: srt[0], max: srt[srt.length - 1],
@@ -696,10 +698,37 @@ function analyse(model, samples, seed, keepValues) {
     p50: percentile(srt, 0.50), p75: percentile(srt, 0.75), p90: percentile(srt, 0.90), p95: percentile(srt, 0.95),
     atMedians: base, atMidpoints: evaluate(model, drv.map(([, , d]) => midpoint(d))),
     threshold: threshold, probAbove: above, drivers: rows, tornado: order,
-    interaction: Math.max(0, 1 - shareTotal)
+    interaction: Math.max(0, 1 - shareTotal), voi: voi
   };
   if (keepValues) out.values = values;
   return out;
+}
+
+// How much pinning down each driver would be worth before a go/hold decision
+// (the same as value_of_information in the Python package).
+function valueOfInformation(model, values, columns, means, rows, m, threshold) {
+  const n = values.length;
+  const go = m >= threshold;
+  let total = 0, wrong = 0;
+  for (let k = 0; k < n; k++) {
+    total += go ? Math.max(threshold - values[k], 0) : Math.max(values[k] - threshold, 0);
+    if ((values[k] >= threshold) !== go) wrong += 1;
+  }
+  const evpi = total / n;
+  const base = evaluate(model, means);
+  const baseGo = base >= threshold;
+  const out = rows.map((r, i) => {
+    let acc = 0, flips = 0;
+    const col = columns[i];
+    for (let k = 0; k < n; k++) {
+      const cond = base + r.slope * (col[k] - means[i]);
+      acc += baseGo ? Math.max(threshold - cond, 0) : Math.max(cond - threshold, 0);
+      if ((cond >= threshold) !== baseGo) flips += 1;
+    }
+    return {evppi: acc / n, flip: flips / n};
+  });
+  const order = out.map((x, i) => i).sort((a, b) => (out[b].evppi - out[a].evppi) || (out[b].flip - out[a].flip) || (a - b));
+  return {decision: go ? 'go' : 'hold', expected: m, wrongChance: wrong / n, evpi: evpi, drivers: out, order: order};
 }
 
 function decimals(v) {
@@ -758,7 +787,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TEMPLATES, FORMAT, VERSION, DISTS, DIST_LABELS, Z95, Z90, MAX_TERMS, MAX_DRIVERS_PER_TERM, MAX_DRIVERS,
     MIN_SAMPLES, MAX_SAMPLES, DEFAULT_SAMPLES, DEFAULT_SEED, mulberry32, shuffle, invNorm, validateModel,
-    distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse,
+    distParams, transform, quantile, midpoint, evaluate, simulate, percentile, mean, variance, analyse, valueOfInformation,
     formatNumber, formatValue, formatDriver
   };
 }
@@ -926,15 +955,16 @@ if (typeof module !== 'undefined' && module.exports) {
     if (problems.length) {
       box.innerHTML = '<strong>Fix ' + (problems.length === 1 ? 'this' : 'these') + ' to see results:</strong><ul>' + problems.slice(0, 6).map(p => '<li>' + esc(p) + '</li>').join('') + '</ul>';
       box.hidden = false;
-      ['#summary', '#dist-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = '0.35'; });
+      ['#summary', '#dist-card', '#voi-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = '0.35'; });
       return;
     }
     box.hidden = true;
-    ['#summary', '#dist-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = ''; });
+    ['#summary', '#dist-card', '#voi-card', '#tornado-card', '#drivers-card'].forEach(id => { $(id).style.opacity = ''; });
     const r = analyse(m, null, null, true);
     state.result = r;
     renderSummary(r);
     renderDistribution(r);
+    renderVoi(r);
     renderTornado(r);
     renderDrivers(r);
   }
@@ -1023,6 +1053,38 @@ if (typeof module !== 'undefined' && module.exports) {
       '<div class="legend"><span><i style="background:var(--accent)"></i>Middle 80% of outcomes</span><span><i style="background:var(--accent-faint)"></i>Outer 20%</span><span><i style="background:var(--ink-2);width:2px"></i>Median</span>' +
       (r.threshold !== null ? '<span><i style="background:var(--mark);width:3px"></i>Threshold</span>' : '') + '</div>' + svg +
       '<p class="note">' + r.n.toLocaleString('en-GB') + ' simulated outcomes' + (shown < vals.length ? '; the most extreme ' + (100 * (vals.length - shown) / vals.length).toFixed(1) + '% are off the chart' : '') + '.</p>';
+  }
+
+  function renderVoi(r) {
+    const card = $('#voi-card');
+    const m = state.model;
+    if (!r.voi) {
+      card.innerHTML = '<h2>What to check before deciding</h2><p class="empty">Add a threshold under "The decision" to see which assumption is worth checking first.</p>';
+      return;
+    }
+    const v = r.voi;
+    const go = v.decision === 'go';
+    let h = '<h2>What to check before deciding</h2>' +
+      '<p>On today\'s ranges the expected ' + esc((m.outputName || 'estimate').toLowerCase()) + ' is <strong>' + esc(fv(v.expected)) + '</strong>, ' +
+      (go ? 'above' : 'below') + ' the threshold of ' + esc(fv(r.threshold)) + ', so the call is to <strong>' + (go ? 'go ahead' : 'hold off') + '</strong>. ' +
+      'There is a <strong>' + Math.round(v.wrongChance * 100) + '%</strong> chance that is the wrong call.</p>';
+    if (v.evpi <= 0) {
+      h += '<p>Whatever the true values turn out to be, the call would not change, so there is nothing worth checking first.</p>';
+      card.innerHTML = h;
+      return;
+    }
+    h += '<p class="small">Knowing every driver exactly would be worth up to <strong>' + esc(fv(v.evpi)) + '</strong> on average, the most worth spending on research or a pilot before deciding.</p>';
+    h += '<div style="overflow-x:auto"><table class="data"><thead><tr><th scope="col">Check first</th><th scope="col">Could change the call</th><th scope="col">Worth up to</th></tr></thead><tbody>';
+    const maxV = Math.max(...v.drivers.map(x => x.evppi)) || 1;
+    v.order.filter(i => r.drivers[i].dist !== 'fixed').slice(0, 6).forEach((i, k) => {
+      const x = v.drivers[i];
+      h += '<tr><td>' + (k === 0 && x.evppi > 0 ? '<strong>' + esc(r.drivers[i].name) + '</strong>' : esc(r.drivers[i].name)) + '</td>' +
+        '<td class="num">' + (x.flip > 0 && x.flip < 0.005 ? 'under 1%' : Math.round(x.flip * 100) + '% of the time') + '</td>' +
+        '<td class="num"><span class="share-bar" style="width:' + (60 * x.evppi / maxV).toFixed(1) + 'px;background:var(--mark)"></span>' + esc(fv(x.evppi)) + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<p class="note">"Worth up to" is the expected value of perfect information about that driver alone, in the same units as the estimate. It assumes going ahead pays the estimate minus the threshold and holding off pays nothing. A driver that matters a lot for the range can still be worth little to check if no likely value would change the call.</p>';
+    card.innerHTML = h;
   }
 
   function renderTornado(r) {
