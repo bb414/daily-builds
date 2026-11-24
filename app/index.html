@@ -919,12 +919,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       label.appendChild(el('output', { id: 'o-' + spec.key, 'for': 'p-' + spec.key }));
       var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
       input.addEventListener('input', function () {
+        // The raw value is kept, so passing through a low value never throws other settings away.
+        // The model's limits (teams of three or more, picks within the champions) apply to what is
+        // shown in the outputs and to what is run.
         state.params[spec.key] = Number(input.value);
-        // Apply the same limits as the model (teams of three or more, picks within the organisation),
-        // so the controls always show what is actually being run.
-        state.params = M.normaliseParams(state.params);
         markCustom();
-        syncControls();
+        refreshOutputs();
+        syncStrategies();
+        syncPicks();
         schedule();
       });
       wrap.appendChild(label);
@@ -956,12 +958,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     document.getElementById('preset-help').textContent = 'Your own settings.';
   }
 
+  // The settings the model will actually run with.
+  function effective() { return M.normaliseParams(state.params); }
+
   function refreshOutputs() {
+    var e = effective();
     M.PARAMS.forEach(function (spec) {
-      var text = fmtValue(spec, state.params[spec.key]);
+      var raw = Number(state.params[spec.key]);
+      var text = fmtValue(spec, e[spec.key]) + (Math.abs(raw - e[spec.key]) > 1e-9 ? ' (limited)' : '');
       document.getElementById('o-' + spec.key).textContent = text;
       document.getElementById('p-' + spec.key).setAttribute('aria-valuetext', text);
     });
+  }
+
+  function syncStrategies() {
+    var key = effective().strategy;
+    document.querySelectorAll('input[name=strategy]').forEach(function (r) { r.checked = r.value === key; });
   }
 
   function syncControls() {
@@ -969,38 +981,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     document.getElementById('preset-help').textContent = state.preset === 'custom' ? 'Your own settings.' : M.PRESETS[state.preset].help;
     M.PARAMS.forEach(function (spec) { document.getElementById('p-' + spec.key).value = state.params[spec.key]; });
     refreshOutputs();
-    document.querySelectorAll('input[name=strategy]').forEach(function (r) { r.checked = r.value === state.params.strategy; });
+    syncStrategies();
     syncPicks();
   }
 
   // ---- Your own picks ----
 
+  // The picks box shows everything you picked; the status says how many are actually used.
   function syncPicks() {
-    var picks = state.params.custom || [];
-    document.getElementById('picks').value = picks.map(function (v) { return v + 1; }).join(', ');
+    var raw = M.readPicks(state.params.custom, 1e9, 1e9), e = effective();
+    document.getElementById('picks').value = raw.map(function (v) { return v + 1; }).join(', ');
     var custom = document.querySelector('input[name=strategy][value=custom]');
-    custom.disabled = picks.length === 0;
-    document.getElementById('strategy-custom').classList.toggle('disabled', picks.length === 0);
+    custom.disabled = e.custom.length === 0;
+    document.getElementById('strategy-custom').classList.toggle('disabled', e.custom.length === 0);
+    var status;
+    if (!raw.length) status = '';
+    else if (e.custom.length < raw.length) status = raw.length + ' picked, but only ' + e.custom.length + ' can be used with ' + e.champions + ' champions and ' + e.people + ' people.';
+    else status = e.custom.length + ' of ' + e.champions + ' champions picked.';
+    document.getElementById('picks-status').textContent = status;
   }
 
   function setPicks(list, message) {
-    var before = state.params.custom.length;
+    var before = effective().custom.length;
     state.params.custom = list;
-    state.params = M.normaliseParams(state.params);
-    if (state.params.custom.length && !before) state.params.strategy = 'custom';
-    if (!state.params.custom.length && state.params.strategy === 'custom') state.params.strategy = M.DEFAULTS.strategy;
+    var after = effective().custom.length;
+    if (after && !before) state.params.strategy = 'custom';
+    if (!after && state.params.strategy === 'custom') state.params.strategy = M.DEFAULTS.strategy;
     markCustom();
     syncControls();
-    document.getElementById('picks-status').textContent = message || (state.params.custom.length ?
-      state.params.custom.length + ' of ' + state.params.champions + ' champions picked.' : 'No picks.');
+    if (message) document.getElementById('picks-status').textContent = message;
     schedule();
   }
 
   function togglePick(i) {
-    var picks = state.params.custom.slice(), at = picks.indexOf(i);
+    var picks = M.readPicks(state.params.custom, 1e9, 1e9), at = picks.indexOf(i), e = effective();
     if (at >= 0) { picks.splice(at, 1); setPicks(picks); return; }
-    if (picks.length >= state.params.champions) {
-      document.getElementById('picks-status').textContent = 'You have ' + state.params.champions + ' champions. Remove one, or raise the number of champions, to pick more.';
+    if (e.custom.length >= e.champions) {
+      document.getElementById('picks-status').textContent = 'You have ' + e.champions + ' champions. Remove one, or raise the number of champions, to pick more.';
       return;
     }
     picks.push(i);
@@ -1013,12 +1030,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       var t = part.trim();
       if (!t) return;
       var n = M.toNumber(t);
-      if (isFinite(n) && n === Math.floor(n) && n >= 1 && n <= state.params.people) nums.push(n - 1); else bad.push(t);
+      var people = effective().people;
+      if (isFinite(n) && n === Math.floor(n) && n >= 1 && n <= people) nums.push(n - 1); else bad.push(t);
     });
-    var message = null;
-    if (bad.length) message = 'Ignored ' + bad.join(', ') + ': people are numbered 1 to ' + state.params.people + '.';
-    else if (nums.length > state.params.champions) message = 'Only the first ' + state.params.champions + ' (by number) are used: there are ' + state.params.champions + ' champions.';
-    setPicks(nums, message);
+    setPicks(nums, bad.length ? 'Ignored ' + bad.join(', ') + ': people are numbered 1 to ' + effective().people + '.' : null);
   }
 
   function schedule() { clearTimeout(timer); timer = setTimeout(run, 150); }
@@ -1072,7 +1087,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   }
 
   // The strategy shown in detail; falls back to the best one if it is not in the latest results.
-  function selected() { return resultFor(state.params.strategy) || resultFor(current.cmp.ranking[0]); }
+  function selected() { return resultFor(effective().strategy) || resultFor(current.cmp.ranking[0]); }
 
   function renderAll() {
     if (!current) return;
@@ -1120,7 +1135,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     box.appendChild(kpi('Teams where it took hold', r.holdsMean.toFixed(1) + ' of ' + current.net.teams, 'At least half the team using it at the end'));
   }
 
-  // Departments round a large circle, teams round each department, people round each team.
+  // Radius of the ring a team's people sit on: big enough that neighbouring dots never touch.
+  function ringRadius(n) { return Math.max(5 + 4.4 * Math.sqrt(n), n * 13 / (2 * Math.PI)); }
+
   // Departments round a large circle, teams round each department, people round each team.
   // Radii are worked out so that no two team outlines overlap, however many teams there are.
   function layout(net, p) {
@@ -1130,7 +1147,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     for (t = 0; t < T; t++) teamsByDept[t % D].push(t);
     var biggest = 0;
     for (t = 0; t < T; t++) biggest = Math.max(biggest, net.teamSize[t]);
-    var rt = 5 + 4.4 * Math.sqrt(biggest) + 8;          // radius of the largest team outline
+    var rt = ringRadius(biggest) + 8;                    // radius of the largest team outline
     var ringR = teamsByDept.map(function (list) {        // how far each department's teams sit from its centre
       return list.length > 1 ? Math.max(rt + 4, (rt + 4) / Math.sin(Math.PI / list.length)) : 0;
     });
@@ -1143,17 +1160,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       var dx = deptR * Math.cos(da), dy = deptR * Math.sin(da);
       var list = teamsByDept[d];
       list.forEach(function (tt, j) {
-        var ta = 2 * Math.PI * j / list.length - Math.PI / 2 + (D > 1 ? da + Math.PI / 2 : 0);
+        // A single department with two teams puts them side by side rather than one above the other.
+        var turn = D > 1 ? da + Math.PI / 2 : (list.length === 2 ? 3 * Math.PI / 2 : 0);
+        var ta = 2 * Math.PI * j / list.length - Math.PI / 2 + turn;
         centres[tt] = [dx + ringR[d] * Math.cos(ta), dy + ringR[d] * Math.sin(ta)];
       });
     }
     var seen = [];
     for (t = 0; t < T; t++) seen.push(0);
     var circles = [];
-    for (t = 0; t < T; t++) circles.push([centres[t][0], centres[t][1], 5 + 4.4 * Math.sqrt(net.teamSize[t]) + 8]);
+    for (t = 0; t < T; t++) circles.push([centres[t][0], centres[t][1], ringRadius(net.teamSize[t]) + 8]);
     for (i = 0; i < net.size; i++) {
       var tm = net.team[i], n = net.teamSize[tm], k = seen[tm]++;
-      var r = 5 + 4.4 * Math.sqrt(n);
+      var r = ringRadius(n);
       var a = 2 * Math.PI * k / n;
       pos.push([centres[tm][0] + r * Math.cos(a), centres[tm][1] + r * Math.sin(a)]);
     }
@@ -1525,7 +1544,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     var body = el('tbody');
     current.cmp.ranking.forEach(function (key) {
       var r = resultFor(key);
-      var tr = el('tr', { 'class': key === state.params.strategy ? 'current' : '' });
+      var tr = el('tr', { 'class': key === selected().strategy ? 'current' : '' });
       tr.appendChild(el('th', { scope: 'row' }, M.STRATEGIES[key].label));
       var cells = [pct(r.finalMean), pct(r.everMean), pct(r.reachShare), r.weeksToHalf === null ? 'n/a' : String(r.weeksToHalf), r.holdsMean.toFixed(1)];
       cells.forEach(function (text, i) { tr.appendChild(el('td', { 'class': 'num', 'data-label': COLUMNS[i + 1] }, text)); });

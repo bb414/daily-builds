@@ -153,6 +153,14 @@ class CliTest(unittest.TestCase):
         self.assertIn("organisations", out)
         self.assertIn("was best in", out)
 
+    def test_piping_into_a_closed_reader_is_quiet(self):
+        import subprocess
+        import sys
+        proc = subprocess.run("%s -m champion_seeding compare --set runs=10 --set weeks=8 | head -1" % sys.executable,
+                              shell=True, capture_output=True, text=True, cwd=ROOT)
+        self.assertNotIn("Broken pipe", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
     def test_table_rounds_like_the_explanations(self):
         self.assertEqual(cli.pct(0.845), model.whole_pct(0.845))
         self.assertEqual(cli.pct(0.125), "13%")

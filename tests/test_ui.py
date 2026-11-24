@@ -187,6 +187,14 @@ class UiTest(unittest.TestCase):
                     if ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 < a[2] + b[2] - 0.5]
         self.assertEqual(overlaps, [], "team outlines never overlap")
         page.close()
+        for url in (APP, APP + "#people=300&teams=2&departments=1&runs=10", APP + "#people=40&teams=13&departments=6&runs=10"):
+            page = self.open(url)
+            dots = page.evaluate("""() => Array.from(document.querySelectorAll('#net circle[data-i]'))
+                .map(c => [+c.getAttribute('cx'), +c.getAttribute('cy'), +c.getAttribute('r')])""")
+            touching = sum(1 for i, a in enumerate(dots) for b in dots[i + 1:]
+                           if ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 < a[2] + b[2])
+            self.assertEqual(touching, 0, "people never overlap: " + url)
+            page.close()
         page = self.open()
         # Sliders show the value the model actually uses.
         page.fill("#p-teams", "30")
@@ -195,17 +203,29 @@ class UiTest(unittest.TestCase):
         page.fill("#p-people", "40")
         page.dispatch_event("#p-people", "input")
         self.settle(page)
-        self.assertEqual(page.input_value("#p-teams"), "13")
-        self.assertEqual(page.inner_text("#o-teams"), "13")
+        self.assertEqual(page.input_value("#p-teams"), "30")
+        self.assertEqual(page.inner_text("#o-teams"), "13 (limited)")
         self.assertIn("of 13", page.inner_text("#kpis"))
-        # Picks are trimmed when the number of champions falls.
+        # Moving back up restores the earlier setting: nothing is thrown away on the way.
+        page.fill("#p-people", "180")
+        page.dispatch_event("#p-people", "input")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#o-teams"), "30")
+        # Fewer champions than picks: the picks are kept, only the first ones are used, and it says so.
         page.fill("#picks", "1, 2, 3, 4, 5, 6")
         page.dispatch_event("#picks", "change")
         self.settle(page)
+        self.assertEqual(page.inner_text("#picks-status"), "6 of 8 champions picked.")
         page.fill("#p-champions", "3")
         page.dispatch_event("#p-champions", "input")
         self.settle(page)
-        self.assertEqual(page.input_value("#picks"), "1, 2, 3")
+        self.assertEqual(page.input_value("#picks"), "1, 2, 3, 4, 5, 6")
+        self.assertIn("6 picked, but only 3 can be used", page.inner_text("#picks-status"))
+        self.assertIn("custom=0,1,2&", page.url + "&")
+        page.fill("#p-champions", "8")
+        page.dispatch_event("#p-champions", "input")
+        self.settle(page)
+        self.assertEqual(page.inner_text("#picks-status"), "6 of 8 champions picked.")
         self.assertEqual(self.errors, [])
         page.close()
 

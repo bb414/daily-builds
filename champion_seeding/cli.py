@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import re
 import sys
 
@@ -248,6 +249,11 @@ def main(argv=None):
             print("\nWrote %s" % args.csv)
     except ValueError as err:
         raise SystemExit("Error: %s" % err)
+    except BrokenPipeError:
+        # Output piped into something like head, which stopped reading: finish quietly.
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        return 0
     except OSError as err:
         raise SystemExit("Could not write %s: %s" % (err.filename, err.strerror))
     return 0
