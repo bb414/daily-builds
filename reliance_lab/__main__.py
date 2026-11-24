@@ -10,7 +10,8 @@ from pathlib import Path
 from .model import DEFAULTS, analyse
 from .report import class_csv, class_report, model_report, session_report
 from .sessions import SessionError, load_session
-from .synthetic import write_class
+from .sweep import run_sweep, summarise, sweep_csv, sweep_report
+from .synthetic import MISTAKES, write_class
 
 PARAM_FLAGS = {
     "human": "--human", "ai": "--ai", "overlap": "--overlap", "aiSignal": "--ai-signal",
@@ -37,11 +38,18 @@ def build_parser() -> argparse.ArgumentParser:
                    help="confidence bar for the 'follow when sure' replay (default 0.8)")
     s.add_argument("--csv", metavar="PATH", help="also write one row per session to a CSV file")
 
+    w = sub.add_parser("sweep", help="run the model over a grid of assumptions and summarise where pairing pays")
+    w.add_argument("--margin", type=float, default=0.5,
+                   help="points above the better solo that count as beating both (default 0.5)")
+    w.add_argument("--csv", metavar="PATH", help="also write every combination to a CSV file")
+
     d = sub.add_parser("demo-class", help="write a synthetic class of session files")
     d.add_argument("--out", default="examples/sessions", help="folder to write to")
     d.add_argument("--participants", type=int, default=24)
     d.add_argument("--cases", type=int, default=20)
     d.add_argument("--seed", type=int, default=7)
+    d.add_argument("--mistakes", choices=MISTAKES, default="random",
+                   help="where the advisor's mistakes fall (default random)")
     return parser
 
 
@@ -73,11 +81,18 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.csv).write_text(class_csv(sessions), encoding="utf-8")
             print(f"\nWrote {args.csv}")
         return 0
+    if args.command == "sweep":
+        rows = run_sweep()
+        print(sweep_report(summarise(rows, args.margin / 100)))
+        if args.csv:
+            Path(args.csv).write_text(sweep_csv(rows), encoding="utf-8")
+            print(f"\nWrote {len(rows)} rows to {args.csv}")
+        return 0
     if args.command == "demo-class":
         if args.participants < 1 or args.cases < 2:
             print("error: need at least 1 participant and 2 cases", file=sys.stderr)
             return 2
-        paths = write_class(args.out, args.participants, args.seed, args.cases)
+        paths = write_class(args.out, args.participants, args.seed, args.cases, args.mistakes)
         print(f"Wrote {len(paths)} synthetic sessions to {args.out}")
         return 0
     return 1

@@ -133,6 +133,13 @@ class AgreementTests(unittest.TestCase):
                 self.assertEqual(js[i], sessions.classify_trial(t))
                 i += 1
 
+    def test_gain_grids_agree(self):
+        calls = [{"fn": "gainGrid", "args": [p, rule, 15]} for p in EDGE_PARAMS[:4] for rule in model.POLICIES]
+        js = run_js(calls)
+        for call, j in zip(calls, js):
+            p, rule, steps = call["args"]
+            self.assert_same(j, model.gain_grid(p, rule, steps), f"grid {rule} {json.dumps(p)}")
+
     def test_labels_and_defaults_agree(self):
         js = run_js([{"fn": "normalise", "args": [{}]}])[0]
         self.assert_same(js, model.normalise({}), "defaults")

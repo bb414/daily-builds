@@ -159,3 +159,27 @@ class ModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SweepTests(unittest.TestCase):
+    def test_gain_grid_matches_single_evaluations(self):
+        from reliance_lab.model import gain_grid
+        g = gain_grid({"aiSignal": 2}, "surer", 9)
+        self.assertEqual(len(g["values"]), 9)
+        self.assertAlmostEqual(g["values"][-1], 0.99, places=12)
+        self.assertEqual(g["gains"][2][5], evaluate({"aiSignal": 2, "human": g["values"][2], "ai": g["values"][5]}, "surer")["gain"])
+
+    def test_sweep_summary(self):
+        from reliance_lab.sweep import GRID, run_sweep, summarise, sweep_csv, sweep_report
+        small = {"human": (0.7, 0.8), "ai": (0.7, 0.8), "aiSignal": (0.0, 2.0), "aiBias": (0.0, 1.0)}
+        rows = run_sweep(small)
+        self.assertEqual(len(rows), 16)
+        summary = summarise(rows, grid=small)
+        self.assertEqual(summary["rules"]["fixed"]["shareBeatsBoth"], 0)
+        self.assertEqual(summary["rules"]["optimal"]["shareWorse"], 0)
+        effects = {e["level"]: e["meanBestGain"] for e in summary["effects"]["aiSignal"]}
+        self.assertGreater(effects[2.0], effects[0.0])
+        self.assertIn("biasGap", summary["effects"])
+        self.assertIn("Overconfidence gap", sweep_report(summary))
+        self.assertEqual(len(sweep_csv(rows).strip().splitlines()), 17)
+        self.assertEqual(len(run_sweep()), math.prod(len(v) for v in GRID.values()))

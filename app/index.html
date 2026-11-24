@@ -24,6 +24,7 @@
   --ai: #2a78d6;
   --team: #1baf7a;
   --shared: #a3a19a;
+  --bad-ramp: #e34948;
   --good-ink: #0a6b1f;
   --bad-ink: #b42323;
   --shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 2px 8px rgba(20, 20, 20, 0.04);
@@ -47,6 +48,7 @@
     --ai: #3987e5;
     --team: #199e70;
     --shared: #77756f;
+    --bad-ramp: #e66767;
     --good-ink: #5fd07a;
     --bad-ink: #ff8a80;
     --shadow: none;
@@ -70,6 +72,7 @@
   --ai: #3987e5;
   --team: #199e70;
   --shared: #77756f;
+  --bad-ramp: #e66767;
   --good-ink: #5fd07a;
   --bad-ink: #ff8a80;
   --shadow: none;
@@ -237,6 +240,19 @@ table.data th:first-child, table.data td:first-child { text-align: left; white-s
 table.data thead th { color: var(--muted); font-weight: 600; }
 .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.8125rem; background: var(--surface-2); }
 
+.seg-wrap { margin: 8px 0 10px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 8px 12px; font-size: 0.875rem; font-weight: 600; color: var(--ink-2); border-right: 1px solid var(--line); min-height: 36px; }
+.seg label:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: -3px; }
+.map-legend { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--ink-2); margin-bottom: 6px; }
+.map-ramp { display: inline-block; width: 160px; height: 10px; border-radius: 5px;
+  background: linear-gradient(90deg, var(--bad-ramp), var(--surface-2), var(--team)); }
+.chart canvas { position: absolute; display: block; }
+
 /* about tab */
 .prose { max-width: 72ch; }
 .prose h2 { margin-top: 28px; }
@@ -292,6 +308,15 @@ table.data thead th { color: var(--muted); font-weight: 600; }
             <label class="choice"><input type="radio" name="aiStyle" value="hidden"> No confidence shown</label>
           </div>
           <p class="hint">"Honest" means a shown 80% is right about 80% of the time. "Always sounds sure" shows 90 to 99% whether it is right or not.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Where the advisor's mistakes fall</legend>
+          <div class="choice-group">
+            <label class="choice"><input type="radio" name="mistakes" value="random" checked> Anywhere</label>
+            <label class="choice"><input type="radio" name="mistakes" value="hard"> On the tricky payments</label>
+            <label class="choice"><input type="radio" name="mistakes" value="easy"> On the obvious payments</label>
+          </div>
+          <p class="hint">Tricky payments are ones whose clues point the wrong way, so you are likely to miss them too. That is where a reviewer helps least.</p>
         </fieldset>
         <fieldset>
           <legend>Session code</legend>
@@ -419,6 +444,23 @@ table.data thead th { color: var(--muted); font-weight: 600; }
             <summary>Show the numbers</summary>
             <div class="table-wrap"><table class="data" id="error-table"></table></div>
           </details>
+        </div>
+        <div class="card">
+          <div class="chart-head"><h3>Where can the pair beat both?</h3><span class="hint">Every combination of the two accuracies, other settings as chosen</span></div>
+          <fieldset class="seg-wrap">
+            <legend class="visually-hidden">Rule shown on the map</legend>
+            <div class="seg" id="map-rule">
+              <label><input type="radio" name="mapRule" value="surer" checked><span>Whoever is surer</span></label>
+              <label><input type="radio" name="mapRule" value="threshold"><span>Follow when sure</span></label>
+              <label><input type="radio" name="mapRule" value="fixed"><span>Fixed rate</span></label>
+              <label><input type="radio" name="mapRule" value="optimal"><span>Best possible</span></label>
+            </div>
+          </fieldset>
+          <div class="map-legend" aria-hidden="true">
+            <span id="map-min"></span><i class="map-ramp"></i><span id="map-max"></span>
+          </div>
+          <div class="chart" id="map-chart"></div>
+          <p class="hint" id="map-note" aria-live="polite"></p>
         </div>
         <div class="card">
           <div class="chart-head"><h3>Raising the bar for following the AI</h3><span class="hint">Rule: follow the AI when it sounds at least this sure</span></div>
@@ -743,6 +785,23 @@ var RelianceModel = (function () {
     return out;
   }
 
+  // Gain over the better solo for every pair of accuracies, holding everything else fixed.
+  // gains[i][j] is for person accuracy values[i] and AI accuracy values[j].
+  function gainGrid(params, policy, steps) {
+    var n = Math.max(2, steps || 50);
+    var p = normalise(params);
+    var lo = RANGES.human[0];
+    var hi = RANGES.human[1];
+    var values = [];
+    for (var i = 0; i < n; i++) values.push(lo + (hi - lo) * i / (n - 1));
+    var gains = values.map(function (h) {
+      return values.map(function (a) {
+        return evaluate(Object.assign({}, p, { human: h, ai: a }), policy).gain;
+      });
+    });
+    return { values: values, gains: gains };
+  }
+
   /* ---------- synthetic payment cases for the hands-on exercise ---------- */
 
   function hashCode(str) {
@@ -827,53 +886,64 @@ var RelianceModel = (function () {
     return (n < 10 ? '0' : '') + n;
   }
 
+  var MISTAKES = ['random', 'hard', 'easy'];
+
   function generateCases(options) {
     var o = options || {};
     var n = Math.round(clamp(o.n || 20, 4, 60));
     var aiAccuracy = clamp(typeof o.aiAccuracy === 'number' ? o.aiAccuracy : 0.8, 0.5, 0.99);
     var aiSignal = clamp(typeof o.aiSignal === 'number' ? o.aiSignal : 1.5, 0, 4);
     var style = AI_STYLES.indexOf(o.aiStyle) >= 0 ? o.aiStyle : 'calibrated';
+    var mistakes = MISTAKES.indexOf(o.mistakes) >= 0 ? o.mistakes : 'random';
     var rand = mulberry32(hashCode(String(o.code || 'reliance')));
 
+    // 1. The payments. They depend only on the code and the number of payments.
     var truths = [];
     for (var i = 0; i < n; i++) truths.push(i < Math.floor(n / 2) ? 'fraud' : 'genuine');
     shuffle(rand, truths);
-
-    var nRight = Math.round(n * aiAccuracy);
-    var order = shuffle(rand, truths.map(function (_, k) { return k; }));
-    var aiRight = truths.map(function () { return false; });
-    order.slice(0, nRight).forEach(function (k) { aiRight[k] = true; });
-
-    return truths.map(function (truth, k) {
+    var cases = truths.map(function (truth, k) {
       var levels = FEATURES.map(function (f) {
         return pick(rand, truth === 'fraud' ? f.fraud : f.genuine);
       });
       var usual = 18 + Math.round(rand() * 122);
       var mult = [0.5 + rand() * 1.1, 2.5 + rand() * 2, 9 + rand() * 16][levels[0]];
-      var amount = Math.round(usual * mult * 100) / 100;
       var hour = levels[3] === 0 ? 7 + Math.floor(rand() * 16) : Math.floor(rand() * 6);
       var minute = Math.floor(rand() * 60);
-      var correct = aiRight[k];
+      return {
+        id: k + 1,
+        truth: truth,
+        levels: levels,
+        details: { amount: Math.round(usual * mult * 100) / 100, usual: usual, time: pad2(hour) + ':' + pad2(minute) },
+        idealFraudProbability: idealFraudProbability(levels)
+      };
+    });
+
+    // 2. Which payments the advisor gets wrong: exactly n - round(n * accuracy) of them, drawn by
+    // weighted sampling without replacement (Efraimidis and Spirakis). "hard" favours payments whose
+    // cues point the wrong way, which a person is also likely to miss; "easy" favours obvious ones.
+    var keyed = cases.map(function (c) {
+      var pTruth = c.truth === 'fraud' ? c.idealFraudProbability : 1 - c.idealFraudProbability;
+      var w = mistakes === 'hard' ? Math.pow(1 - pTruth, 2) : (mistakes === 'easy' ? Math.pow(pTruth, 2) : 1);
+      return { index: c.id - 1, key: Math.pow(rand(), 1 / Math.max(w, 1e-9)) };
+    });
+    keyed.sort(function (x, y) { return y.key - x.key || x.index - y.index; });
+    var nWrong = n - Math.round(n * aiAccuracy);
+    var wrong = {};
+    keyed.slice(0, nWrong).forEach(function (x) { wrong[x.index] = true; });
+
+    // 3. The advice and its confidence.
+    return cases.map(function (c, k) {
+      var correct = !wrong[k];
       var signal = gaussian(rand) + (correct ? aiSignal / 2 : -aiSignal / 2);
       var calibrated = sigmoid(logit(aiAccuracy) + aiSignal * signal);
       var shown = rand();
       var confidence = null;
       if (style === 'calibrated') confidence = Math.round(Math.max(0.5, calibrated) * 100) / 100;
       if (style === 'confident') confidence = Math.round((0.9 + 0.09 * shown) * 100) / 100;
-      return {
-        id: k + 1,
-        truth: truth,
-        levels: levels,
-        details: {
-          amount: amount,
-          usual: usual,
-          time: pad2(hour) + ':' + pad2(minute)
-        },
-        idealFraudProbability: idealFraudProbability(levels),
-        ai: correct ? truth : (truth === 'fraud' ? 'genuine' : 'fraud'),
-        aiCorrect: correct,
-        aiConfidence: confidence
-      };
+      c.ai = correct ? c.truth : (c.truth === 'fraud' ? 'genuine' : 'fraud');
+      c.aiCorrect = correct;
+      c.aiConfidence = confidence;
+      return c;
     });
   }
 
@@ -1055,6 +1125,7 @@ var RelianceModel = (function () {
     RANGES: RANGES,
     FEATURES: FEATURES,
     AI_STYLES: AI_STYLES,
+    MISTAKES: MISTAKES,
     OUTCOMES: OUTCOMES,
     normCdf: normCdf,
     normInv: normInv,
@@ -1065,6 +1136,7 @@ var RelianceModel = (function () {
     evaluate: evaluate,
     analyse: analyse,
     thresholdCurve: thresholdCurve,
+    gainGrid: gainGrid,
     hashCode: hashCode,
     mulberry32: mulberry32,
     idealFraudProbability: idealFraudProbability,
@@ -1317,6 +1389,7 @@ if (typeof module !== 'undefined' && module.exports) {
     if (panel.hidden) return;
     drawErrorChart(a);
     drawErrorTable(a);
+    drawMap(a);
     drawCurve(a);
   }
 
@@ -1488,6 +1561,111 @@ if (typeof module !== 'undefined' && module.exports) {
     box.insertBefore(s, box.firstChild);
   }
 
+  function cssColour(name) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    var m = /^#([0-9a-f]{6})$/i.exec(v);
+    if (!m) return [128, 128, 128];
+    var n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function mixColour(c1, c2, t) {
+    return c1.map(function (v, i) { return Math.round(v + (c2[i] - v) * t); });
+  }
+
+  function mapRule() {
+    var r = document.querySelector('input[name="mapRule"]:checked');
+    return r ? r.value : 'surer';
+  }
+
+  function drawMap(a) {
+    var box = $('#map-chart');
+    box.innerHTML = '';
+    var p = a.params;
+    var rule = mapRule();
+    var steps = 50;
+    var grid = M.gainGrid(p, rule, steps);
+    var W = Math.min(Math.max(280, box.clientWidth || 600), 620);
+    var m = { l: 56, r: 12, t: 8, b: 46 };
+    var plotW = W - m.l - m.r;
+    var plotH = Math.round(Math.min(plotW * 0.8, 340));
+    var H = plotH + m.t + m.b;
+    box.style.height = H + 'px';
+    var maxAbs = 0.02;
+    var beat = 0;
+    grid.gains.forEach(function (row) {
+      row.forEach(function (v) {
+        maxAbs = Math.max(maxAbs, Math.abs(v));
+        if (v > 0.005) beat += 1;
+      });
+    });
+    $('#map-note').textContent = 'With the other settings as they are, "' + M.POLICY_LABELS[rule].toLowerCase() +
+      '" beats the better of the two by more than half a point on ' + pct(beat / (steps * steps)) +
+      ' of this map. The ring marks the current accuracies; the dashed line is where the two are equally good.';
+    var neutral = cssColour('--surface-2');
+    var good = cssColour('--team');
+    var bad = cssColour('--bad-ramp');
+    var canvas = el('canvas', { 'aria-hidden': 'true' });
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(plotW * dpr);
+    canvas.height = Math.round(plotH * dpr);
+    canvas.style.left = m.l + 'px';
+    canvas.style.top = m.t + 'px';
+    canvas.style.width = plotW + 'px';
+    canvas.style.height = plotH + 'px';
+    var ctx = canvas.getContext('2d');
+    var cw = canvas.width / steps;
+    var ch = canvas.height / steps;
+    for (var i = 0; i < steps; i++) {
+      for (var j = 0; j < steps; j++) {
+        var v = grid.gains[i][j];
+        var t = Math.abs(v) < 0.0005 ? 0 : Math.pow(Math.min(1, Math.abs(v) / maxAbs), 0.75);
+        var c = mixColour(neutral, v >= 0 ? good : bad, t);
+        ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+        ctx.fillRect(Math.floor(j * cw), Math.floor(canvas.height - (i + 1) * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+      }
+    }
+    box.appendChild(canvas);
+    var sx = function (v) { return m.l + plotW * (v - 0.5) / 0.49; };
+    var sy = function (v) { return m.t + plotH - plotH * (v - 0.5) / 0.49; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Map of the gain over the better solo for every pair of accuracies. ' + $('#map-note').textContent });
+    s.style.position = 'absolute';
+    s.style.left = '0';
+    s.style.top = '0';
+    s.style.width = W + 'px';
+    s.style.height = H + 'px';
+    [0.5, 0.6, 0.7, 0.8, 0.9].forEach(function (v) {
+      svgText(s, sx(v), m.t + plotH + 16, pct(v), { 'text-anchor': 'middle' });
+      svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
+    });
+    svgText(s, m.l + plotW / 2, H - 6, 'AI’s accuracy alone', { 'text-anchor': 'middle', style: 'font-weight:600' });
+    var yTitle = svgText(s, 0, 0, 'Person’s accuracy alone', { 'text-anchor': 'middle', style: 'font-weight:600',
+      transform: 'translate(14 ' + (m.t + plotH / 2) + ') rotate(-90)' });
+    yTitle.setAttribute('x', 0);
+    svgEl('line', { x1: sx(0.5), y1: sy(0.5), x2: sx(0.99), y2: sy(0.99), stroke: 'var(--ink-2)', 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.6 }, s);
+    svgEl('rect', { x: m.l, y: m.t, width: plotW, height: plotH, fill: 'none', stroke: 'var(--line-strong)' }, s);
+    svgEl('circle', { cx: sx(p.ai), cy: sy(p.human), r: 7, fill: 'none', stroke: 'var(--surface)', 'stroke-width': 4 }, s);
+    svgEl('circle', { cx: sx(p.ai), cy: sy(p.human), r: 7, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2 }, s);
+    var hit = svgEl('rect', { x: m.l, y: m.t, width: plotW, height: plotH, fill: 'transparent' }, s);
+    box.appendChild(s);
+    var tip = makeTooltip(box);
+    hit.addEventListener('mousemove', function (e) {
+      var pt = localPoint(e, box);
+      var jj = clamp(Math.floor((pt.x - m.l) / plotW * steps), 0, steps - 1);
+      var ii = clamp(Math.floor((m.t + plotH - pt.y) / plotH * steps), 0, steps - 1);
+      var g = grid.gains[ii][jj];
+      tip.show('Person ' + pct(grid.values[ii]) + ', AI ' + pct(grid.values[jj]) + '<br>' +
+        (g > 0.0005 ? 'Pair beats both by ' + pts(g) : (g < -0.0005 ? 'Pair falls ' + pts(-g).replace('+', '') + ' short of the better one' : 'No gain over the better one')),
+        pt.x, pt.y);
+    });
+    hit.addEventListener('mouseleave', tip.hide);
+    $('#map-min').textContent = pts(-maxAbs);
+    $('#map-max').textContent = pts(maxAbs);
+  }
+
+  $$('input[name="mapRule"]').forEach(function (r) { r.addEventListener('change', renderModel); });
+
   $('#reset-model').addEventListener('click', function () {
     modelParams = Object.assign({}, M.DEFAULTS);
     modelSource = null;
@@ -1536,12 +1714,14 @@ if (typeof module !== 'undefined' && module.exports) {
       cases: parseInt(f.elements.cases.value, 10),
       aiAccuracy: parseFloat(f.elements.aiAccuracy.value),
       aiStyle: f.elements.aiStyle.value,
+      mistakes: f.elements.mistakes.value,
       feedback: $('#feedback').checked,
       code: code
     };
     session = {
       settings: settings,
-      cases: M.generateCases({ n: settings.cases, code: code, aiAccuracy: settings.aiAccuracy, aiStyle: settings.aiStyle }),
+      cases: M.generateCases({ n: settings.cases, code: code, aiAccuracy: settings.aiAccuracy,
+        aiStyle: settings.aiStyle, mistakes: settings.mistakes }),
       trials: [],
       index: 0,
       current: null
@@ -1729,8 +1909,11 @@ if (typeof module !== 'undefined' && module.exports) {
     else if (sc.finalAccuracy === sc.aiAccuracy && sc.aiAccuracy >= sc.initialAccuracy) verdict = 'You ended up level with the advisor, so checking its work added nothing on these payments.';
     else if (sc.complementarity === 0) verdict = 'You ended up level with the better of the two, so the pairing added nothing on these payments.';
     else verdict = 'Your final calls were worse than ' + (sc.aiAccuracy >= sc.initialAccuracy ? 'the advisor' : 'your own first calls') + ' alone.';
+    var shared = sc.outcomes.sharedMiss;
+    var blind = shared ? ' ' + (shared === 1 ? 'One payment' : shared + ' payments') + ' fooled you both, and no way of using the advice could have saved ' +
+      (shared === 1 ? 'it.' : 'those.') : '';
     $('#debrief-lede').textContent = 'You got ' + you + ' of ' + n + ' right on your own, the advisor got ' + ai +
-      ', and your final calls got ' + fin + '. ' + verdict;
+      ', and your final calls got ' + fin + '. ' + verdict + blind;
     var tiles = $('#debrief-tiles');
     tiles.innerHTML = '';
     tiles.appendChild(tile('you', 'Your first calls', pct(sc.initialAccuracy), you + ' of ' + n));

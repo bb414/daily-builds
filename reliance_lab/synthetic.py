@@ -16,6 +16,8 @@ from .sessions import FORMAT
 
 CONFIDENCE_LEVELS = (0.55, 0.7, 0.85, 0.95)
 
+MISTAKES = ("random", "hard", "easy")
+
 HABITS = {
     "rubber-stamper": "Switches to the AI in 90% of disagreements, whatever it says",
     "sceptic": "Switches to the AI in only 15% of disagreements",
@@ -31,18 +33,35 @@ def _nearest_level(c: float) -> float:
 def simulate_session(rng: random.Random, *, habit: str, n: int = 20, ai_accuracy: float = 0.8,
                      ai_style: str = "calibrated", ai_signal: float = 1.5,
                      human_accuracy: float = 0.7, human_signal: float = 1.0,
-                     label: str = "synthetic") -> dict:
+                     mistakes: str = "random", label: str = "synthetic") -> dict:
+    """One virtual participant's session.
+
+    ``mistakes`` mirrors the browser app's setting: "hard" makes the advisor's mistakes three
+    times as likely to land on payments this participant also gets wrong, "easy" on payments
+    they get right.
+    """
     if habit not in HABITS:
         raise ValueError(f"Unknown habit: {habit}")
+    if mistakes not in MISTAKES:
+        raise ValueError(f"Unknown mistakes setting: {mistakes}")
     truths = ["fraud" if i < n // 2 else "genuine" for i in range(n)]
     rng.shuffle(truths)
-    ai_right = [False] * n
-    for k in rng.sample(range(n), round(n * ai_accuracy)):
-        ai_right[k] = True
+    you_right_all = [rng.random() < human_accuracy for _ in range(n)]
+
+    def weight(k: int) -> float:
+        if mistakes == "hard":
+            return 3.0 if not you_right_all[k] else 1.0
+        if mistakes == "easy":
+            return 3.0 if you_right_all[k] else 1.0
+        return 1.0
+
+    keys = sorted(range(n), key=lambda k: -(rng.random() ** (1 / weight(k))))
+    wrong = set(keys[:n - round(n * ai_accuracy)])
+    ai_right = [k not in wrong for k in range(n)]
     trials = []
     for k, truth in enumerate(truths):
         other = "genuine" if truth == "fraud" else "fraud"
-        you_right = rng.random() < human_accuracy
+        you_right = you_right_all[k]
         initial = truth if you_right else other
         t = rng.gauss(human_signal / 2 if you_right else -human_signal / 2, 1)
         conf = _nearest_level(max(0.5, sigmoid(logit(human_accuracy) + human_signal * t)))
@@ -76,12 +95,12 @@ def simulate_session(rng: random.Random, *, habit: str, n: int = 20, ai_accuracy
         "label": label,
         "habit": habit,
         "settings": {"cases": n, "aiAccuracy": ai_accuracy, "aiStyle": ai_style,
-                     "feedback": False, "code": "synthetic"},
+                     "mistakes": mistakes, "feedback": False, "code": "synthetic"},
         "trials": trials,
     }
 
 
-def make_class(participants: int = 24, seed: int = 7, n: int = 20) -> list[dict]:
+def make_class(participants: int = 24, seed: int = 7, n: int = 20, mistakes: str = "random") -> list[dict]:
     """A synthetic class: habits rotate, half see an honest AI and half an always-sure one."""
     rng = random.Random(seed)
     habits = list(HABITS)
@@ -93,16 +112,17 @@ def make_class(participants: int = 24, seed: int = 7, n: int = 20) -> list[dict]
             rng, habit=habit, n=n, ai_accuracy=0.8, ai_style=style,
             human_accuracy=round(rng.uniform(0.62, 0.82), 2),
             human_signal=round(rng.uniform(0.4, 1.6), 2),
-            label=f"P{i + 1:02d}",
+            mistakes=mistakes, label=f"P{i + 1:02d}",
         ))
     return sessions
 
 
-def write_class(out_dir: str | Path, participants: int = 24, seed: int = 7, n: int = 20) -> list[Path]:
+def write_class(out_dir: str | Path, participants: int = 24, seed: int = 7, n: int = 20,
+                mistakes: str = "random") -> list[Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     paths = []
-    for session in make_class(participants, seed, n):
+    for session in make_class(participants, seed, n, mistakes):
         path = out / f"{session['label']}.json"
         path.write_text(json.dumps(session, indent=1) + "\n", encoding="utf-8")
         paths.append(path)

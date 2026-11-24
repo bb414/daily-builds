@@ -272,3 +272,16 @@ def threshold_curve(params: dict | None = None, steps: int = 50) -> list[dict]:
         out.append({"threshold": t, "team": r["team"], "over": r["overRelianceRate"],
                     "under": r["underRelianceRate"]})
     return out
+
+
+def gain_grid(params: dict | None = None, policy: str = "optimal", steps: int = 50) -> dict:
+    """Gain over the better solo for every pair of accuracies, holding everything else fixed.
+
+    ``gains[i][j]`` is for person accuracy ``values[i]`` and AI accuracy ``values[j]``.
+    """
+    n = max(2, steps)
+    p = normalise(params)
+    lo, hi = RANGES["human"]
+    values = [lo + (hi - lo) * i / (n - 1) for i in range(n)]
+    gains = [[evaluate({**p, "human": h, "ai": a}, policy)["gain"] for a in values] for h in values]
+    return {"values": values, "gains": gains}

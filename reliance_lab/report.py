@@ -8,6 +8,12 @@ import io
 from .model import POLICIES, analyse
 from .sessions import counterfactuals, score_session
 
+MISTAKE_NAMES = {
+    "random": "mistakes anywhere",
+    "hard": "mistakes on tricky payments",
+    "easy": "mistakes on obvious payments",
+}
+
 STYLE_NAMES = {
     "calibrated": "honest confidence",
     "confident": "always sounds sure",
@@ -61,6 +67,8 @@ def session_report(session: dict, threshold: float = 0.8) -> str:
     m = score_session(trials)
     s = session.get("settings", {})
     style = STYLE_NAMES.get(s.get("aiStyle"), "unknown advisor")
+    if s.get("mistakes") in MISTAKE_NAMES:
+        style += ", " + MISTAKE_NAMES[s["mistakes"]]
     tag = " (synthetic)" if session.get("synthetic") else ""
     lines = [
         f"{session.get('label', 'session')}{tag}: {m['n']} cases, advisor {style}",

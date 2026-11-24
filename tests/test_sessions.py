@@ -126,6 +126,20 @@ class FileAndReportTests(unittest.TestCase):
         self.assertGreater(mean["rubber-stamper"], 0.8)
         self.assertLess(mean["sceptic"], 0.3)
 
+    def test_mistakes_on_tricky_payments_overlap_with_the_person(self):
+        shared = {}
+        for mistakes in ("hard", "random", "easy"):
+            rng = random.Random(8)
+            total = 0
+            for _ in range(60):
+                trials = simulate_session(rng, habit="weigher", mistakes=mistakes)["trials"]
+                total += sum(t["initial"] != t["truth"] and t["ai"] != t["truth"] for t in trials)
+            shared[mistakes] = total
+        self.assertGreater(shared["hard"], shared["random"])
+        self.assertGreater(shared["random"], shared["easy"])
+        with self.assertRaises(ValueError):
+            simulate_session(random.Random(1), habit="weigher", mistakes="sometimes")
+
     def test_reports(self):
         sessions = make_class(8, seed=1)
         text = session_report(sessions[0])
@@ -164,6 +178,11 @@ class FileAndReportTests(unittest.TestCase):
             self.assertEqual(main(["score", str(self.dir / "missing.json")]), 2)
             self.assertEqual(main(["model", "--human", "nan"]), 2)
         self.assertIn("error:", err.getvalue())
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(main(["sweep", "--csv", str(self.dir / "sweep.csv")]), 0)
+        self.assertIn("Sweep: 3888 combinations", out.getvalue())
+        self.assertTrue((self.dir / "sweep.csv").exists())
 
 
 if __name__ == "__main__":

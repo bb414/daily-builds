@@ -112,3 +112,36 @@ test('scoring a small hand-made session', () => {
   assert.throws(() => M.scoreSession([]), /at least one trial/);
   assert.throws(() => M.scoreSession([{ truth: 'maybe' }]), /truth/);
 });
+
+test('mistakes on the tricky payments fall where the cues mislead', () => {
+  const pTruth = (c) => (c.truth === 'fraud' ? c.idealFraudProbability : 1 - c.idealFraudProbability);
+  const meanWrong = (mistakes) => {
+    let total = 0;
+    let count = 0;
+    for (let i = 0; i < 40; i++) {
+      M.generateCases({ n: 30, code: 'm' + i, aiAccuracy: 0.8, mistakes }).forEach((c) => {
+        if (!c.aiCorrect) { total += pTruth(c); count += 1; }
+      });
+    }
+    return total / count;
+  };
+  const hard = meanWrong('hard');
+  const random = meanWrong('random');
+  const easy = meanWrong('easy');
+  assert.ok(hard < random - 0.1 && random < easy - 0.05, [hard, random, easy].join(', '));
+  const a = M.generateCases({ n: 20, code: 'same', mistakes: 'hard' });
+  const b = M.generateCases({ n: 20, code: 'same', mistakes: 'easy' });
+  assert.deepEqual(a.map((c) => c.details), b.map((c) => c.details));
+});
+
+test('the gain map has the right shape and matches single evaluations', () => {
+  const g = M.gainGrid({ aiSignal: 2 }, 'optimal', 12);
+  assert.equal(g.values.length, 12);
+  assert.equal(g.gains.length, 12);
+  g.gains.forEach((row) => assert.equal(row.length, 12));
+  assert.equal(g.values[0], 0.5);
+  assert.ok(Math.abs(g.values[11] - 0.99) < 1e-12);
+  const one = M.evaluate({ aiSignal: 2, human: g.values[3], ai: g.values[7] }, 'optimal');
+  assert.equal(g.gains[3][7], one.gain);
+  M.gainGrid({}, 'fixed', 10).gains.forEach((row) => row.forEach((v) => assert.ok(v <= 1e-12)));
+});
