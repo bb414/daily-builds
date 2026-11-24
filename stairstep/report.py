@@ -1,7 +1,6 @@
 """Text, CSV and HTML reports of a forecast value added run."""
 
 import html
-import math
 
 from .model import METHOD_IDS, METHODS
 
@@ -10,11 +9,6 @@ SHORT = {"naive": "Naive", "average": "Mov avg", "seasonal": "Last yr", "smoothi
 COLOURS = {"naive": "#8d939c", "average": "#5f7590", "seasonal": "#b08a4f",
            "smoothing": "#2f8f86", "ai": "#4b46c8", "planner": "#d0662a"}
 MINUS = "−"
-
-
-def half_up(x):
-    """Round halves upwards, like JavaScript's Math.round."""
-    return math.floor(x + 0.5)
 
 
 def pct1(x):
@@ -30,10 +24,15 @@ def signed(x, digits=1, unit=""):
     return "+" + text if x > 0 else (MINUS + text if x < 0 else text)
 
 
+def times100(x):
+    return None if x is None else x * 100
+
+
 def best_simple(methods):
+    """The simple method with the lowest error (the first wins a tie), as in the app."""
     best = methods[0]
     for m in methods[:4]:
-        if m["wape"] < best["wape"]:
+        if m["wape"] is not None and (best["wape"] is None or m["wape"] < best["wape"]):
             best = m
     return best
 
@@ -41,13 +40,15 @@ def best_simple(methods):
 def headline(results):
     m = results["methods"]
     simple, ai, planner = best_simple(m), m[4], m[5]
+    if ai["wape"] is None or simple["wape"] is None:
+        return "There are no sales in the test year to compare the forecasts with."
     if ai["wape"] < simple["wape"]:
         text = "The AI model cuts forecast error from %s with the best simple method (%s) to %s." % (
             pct1(simple["wape"]), simple["name"].lower(), pct1(ai["wape"]))
     else:
         text = "The AI model does not beat the best simple method: %s error against %s for %s." % (
             pct1(ai["wape"]), pct1(simple["wape"]), simple["name"].lower())
-    change = planner["fvaPrevious"]
+    change = planner["fvaPrevious"] or 0
     if change < -0.0005:
         text += " Planners' overrides then give back %.1f points." % (-change * 100)
     elif change > 0.0005:
@@ -65,8 +66,7 @@ def text_report(results, source="synthetic chain"):
              "  %-20s %7s %7s %10s %10s %10s %8s" % ("Step", "Error", "Bias", "vs naive", "Unsold", "Lost", "Met")]
     for m in results["methods"]:
         lines.append("  %-20s %7s %7s %10s %10s %10s %8s" % (
-            m["name"], pct1(m["wape"]), signed(m["bias"] * 100, 1, "%") if m["bias"] is not None else "n/a",
-            signed(m["fvaNaive"] * 100) if m["fvaNaive"] is not None else "n/a",
+            m["name"], pct1(m["wape"]), signed(times100(m["bias"]), 1, "%"), signed(times100(m["fvaNaive"])),
             "{:,}".format(m["waste"]), "{:,}".format(m["lost"]), pct1(m["fillRate"])))
     lines += ["", "By product (error; * marks the best simple method)",
               "  Columns: naive, moving average, same week last year, seasonal smoothing, AI model, AI plus planners."]
@@ -98,7 +98,8 @@ def text_report(results, source="synthetic chain"):
         g = results["overrides"][k]
         if g["n"]:
             lines.append("  %-20s %6s overrides  %s points  (%s before, %s after)" % (
-                labels[k], "{:,}".format(g["n"]), signed(-g["improved"] * 100), pct1(g["wapeBefore"]), pct1(g["wapeAfter"])))
+                labels[k], "{:,}".format(g["n"]), signed(None if g["improved"] is None else -g["improved"] * 100),
+                pct1(g["wapeBefore"]), pct1(g["wapeAfter"])))
         else:
             lines.append("  %-20s none" % labels[k])
     lines.append("  Keeping only downward overrides: %s (AI alone %s, every override %s)" % (
@@ -122,17 +123,17 @@ def _stairs_svg(methods):
     width, height, left, bottom, top = 640, 300, 10, 46, 30
     n = len(methods)
     slot = (width - 2 * left) / n
-    top_value = max(m["wape"] for m in methods) * 1.1 or 1
+    top_value = max(m["wape"] or 0 for m in methods) * 1.1 or 1
     parts = ['<svg viewBox="0 0 %d %d" role="img" aria-label="%s">' % (
         width, height, html.escape(", ".join("%s %s" % (m["name"], pct1(m["wape"])) for m in methods)))]
     for i, m in enumerate(methods):
-        h = (height - top - bottom) * m["wape"] / top_value
+        h = (height - top - bottom) * (m["wape"] or 0) / top_value
         x = left + i * slot + 8
         y = height - bottom - h
         parts.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="6" fill="%s"/>' % (
             x, y, slot - 16, h, COLOURS[m["id"]]))
         parts.append('<text x="%.1f" y="%.1f" text-anchor="middle" class="v">%s</text>' % (x + (slot - 16) / 2, y - 8, pct1(m["wape"])))
-        if i:
+        if i and m["fvaPrevious"] is not None:
             delta = -m["fvaPrevious"] * 100
             cls = "good" if delta < -0.05 else ("bad" if delta > 0.05 else "flat")
             parts.append('<text x="%.1f" y="%.1f" text-anchor="middle" class="%s">%s</text>' % (
@@ -152,8 +153,8 @@ def html_report(results, source="synthetic chain"):
     rows = "".join(
         "<tr><th scope='row'><span class='sw' style='background:%s'></span>%s</th><td>%s</td><td>%s</td><td>%s</td>"
         "<td>%s</td><td>%s</td><td>%s</td></tr>" % (
-            COLOURS[m["id"]], html.escape(m["name"]), pct1(m["wape"]), signed(m["bias"] * 100, 1, "%"),
-            signed(m["fvaNaive"] * 100), "{:,}".format(m["waste"]), "{:,}".format(m["lost"]), pct1(m["fillRate"]))
+            COLOURS[m["id"]], html.escape(m["name"]), pct1(m["wape"]), signed(times100(m["bias"]), 1, "%"),
+            signed(times100(m["fvaNaive"])), "{:,}".format(m["waste"]), "{:,}".format(m["lost"]), pct1(m["fillRate"]))
         for m in methods)
     sku_rows = []
     for sku in sorted(results["bySku"], key=lambda x: -(x["aiGain"] if x["aiGain"] is not None else -1)):
@@ -170,7 +171,7 @@ def html_report(results, source="synthetic chain"):
     ov_rows = "".join(
         "<tr><th scope='row'>%s</th><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
             labels[k], "{:,}".format(g["n"]), pct1(g["wapeBefore"]), pct1(g["wapeAfter"]),
-            signed(-g["improved"] * 100) if g["n"] else "")
+            signed(None if g["improved"] is None else -g["improved"] * 100) if g["n"] else "")
         for k, g in ((k, results["overrides"][k]) for k in ("up", "down", "small", "large")))
     s = results["settings"]
     settings_text = ", ".join("%s %s" % (k, v) for k, v in s.items())

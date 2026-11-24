@@ -927,7 +927,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     { group: 'The world', key: 'promoLift', label: 'Promotion lift', min: 0, max: 1.5, step: 0.05,
       fmt: function (v) { return '+' + pct0(v); }, help: 'Extra sales in a chain-wide promotion week, before each product\'s own response.' },
     { group: 'The world', key: 'noise', label: 'Random noise', min: 0, max: 0.6, step: 0.05,
-      fmt: function (v) { return pct0(v); }, help: 'Week-to-week randomness that no method can predict.' },
+      fmt: function (v) { return pct0(v); }, help: 'Week-to-week randomness that no method can predict, on top of the randomness that small sales numbers always have.' },
     { group: 'The world', key: 'growth', label: 'Growth per year', min: -0.2, max: 0.3, step: 0.01,
       fmt: function (v) { return signed(v * 100, 0, '%'); }, help: '' },
     { group: 'Forecasting', key: 'horizon', label: 'Weeks ahead', min: 1, max: 4, step: 1,

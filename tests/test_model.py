@@ -57,3 +57,19 @@ class ModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReportEdgeTests(unittest.TestCase):
+    def test_reports_survive_a_dataset_with_no_sales(self):
+        from stairstep import report
+        data = model.simulate({})
+        data["sales"] = [[[0] * 156 for _ in rows] for rows in data["sales"]]
+        results = model.evaluate(data, model.forecast_all(data, {"overrideRate": 1}))
+        self.assertIsNone(results["methods"][0]["wape"])
+        self.assertIn("no sales in the test year", report.text_report(results))
+        self.assertIn("<svg", report.html_report(results))
+
+    def test_best_simple_ignores_missing_values_and_keeps_the_first_of_a_tie(self):
+        from stairstep import report
+        methods = [{"wape": None}, {"wape": 0.3, "id": "average"}, {"wape": 0.3, "id": "seasonal"}, {"wape": 0.4}]
+        self.assertEqual(report.best_simple(methods)["id"], "average")

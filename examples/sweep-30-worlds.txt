@@ -1,0 +1,20 @@
+Stairstep robustness check: 30 worlds (seeds 1 to 30)
+
+  Measure                                                                        Lowest   Median  Highest
+  AI's gain over the best simple method (points)                                    6.8      7.4      9.3
+  Change from planners' overrides (points, negative is worse)                      -0.7     -0.5     -0.1
+  Gain from keeping only downward overrides, against the AI alone (points)          0.1      0.2      0.3
+  Choosing in advance, against the AI everywhere (points, negative is worse)       -8.0     -5.6     -3.4
+  Products where the AI is worth it, with hindsight                                   9       11       11
+  Products where it is chosen in advance                                              0        2        4
+  Lowest gain a 13-week pilot in all stores would measure (points)                  0.8      2.0      4.0
+  Highest gain a 13-week pilot in all stores would measure (points)                10.7     13.8     15.6
+
+How often each conclusion holds:
+  The AI beats the best simple method by at least 3.0 points: 30 of 30 worlds
+  Planners' overrides make the AI worse: 30 of 30 worlds
+  Keeping only downward overrides beats the AI alone: 30 of 30 worlds
+  Choosing in advance does worse than the AI everywhere: 30 of 30 worlds
+  Some 13-week pilot would measure under half the full-year gain: 29 of 30 worlds
+  Some 13-week pilot would measure over 1.5 times the full-year gain: 29 of 30 worlds
+One row per world written to examples/sweep-30-worlds.csv
