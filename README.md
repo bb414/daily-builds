@@ -63,7 +63,7 @@ A pre-generated report is in [`examples/report.html`](examples/report.html).
 
 ## What it shows
 
-Under the default assumptions (500 portfolios per organisation, three years, seed 42):
+Under the default assumptions (500 portfolios per organisation, three years, seed 42). These are the Python figures; the app shows very similar ones, a few tenths of a percentage point or £0.1m to £0.2m apart, because it uses a different random number generator.
 
 | | Pilots first | Strategy first |
 |---|---|---|

@@ -76,7 +76,7 @@ class AppIsSelfContained(unittest.TestCase):
         self.assertNotRegex(html, r"@import|fetch\(|XMLHttpRequest|WebSocket|navigator\.sendBeacon")
 
     def test_no_em_dashes(self):
-        self.assertNotIn("—", APP.read_text(encoding="utf-8"))
+        self.assertNotIn("\u2014", APP.read_text(encoding="utf-8"))
 
     def test_every_setting_has_a_visible_label(self):
         html = APP.read_text(encoding="utf-8")
