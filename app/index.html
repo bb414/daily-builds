@@ -9,7 +9,7 @@
     --bg: #f4f5f7; --card: #ffffff; --ink: #1b1f24; --muted: #586270; --line: #dde1e7;
     --accent: #1f5fbf; --accent-ink: #ffffff; --accent-soft: #e6eefb;
     --user: #1f5fbf; --champion: #c2410c; --lapsed: #b7791f; --never: #c4cad3; --edge: #d5dae1;
-    --s-random: #7d8796; --s-hubs: #1f5fbf; --s-bridges: #7a3fc4; --s-cluster: #c2410c; --s-spread: #1d7a3a;
+    --s-random: #7d8796; --s-hubs: #1f5fbf; --s-bridges: #7a3fc4; --s-cluster: #c2410c; --s-spread: #1d7a3a; --s-custom: #1b1f24;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
@@ -17,7 +17,7 @@
       --bg: #14171b; --card: #1d2127; --ink: #e8ebef; --muted: #a3adba; --line: #333a43;
       --accent: #7aa7ff; --accent-ink: #0d1626; --accent-soft: #1d2a40;
       --user: #7aa7ff; --champion: #f08b4f; --lapsed: #e0b252; --never: #4a525d; --edge: #2c333c;
-      --s-random: #8f99a8; --s-hubs: #7aa7ff; --s-bridges: #bb92f2; --s-cluster: #f08b4f; --s-spread: #5cc77d;
+      --s-random: #8f99a8; --s-hubs: #7aa7ff; --s-bridges: #bb92f2; --s-cluster: #f08b4f; --s-spread: #5cc77d; --s-custom: #e8ebef;
     }
   }
   * { box-sizing: border-box; }
@@ -67,6 +67,14 @@
   .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
   .measure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.85rem; }
   .measure select { width: auto; max-width: 100%; }
+  .picker { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+  .check { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; }
+  input[type=text] { width: 100%; padding: 7px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .status { font-size: 0.82rem; color: var(--muted); min-height: 1.2em; margin: 4px 0 0; }
+  .group-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .net.picking circle { cursor: pointer; }
+  .strategies label.disabled { opacity: 0.55; cursor: not-allowed; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   .results { transition: opacity 0.15s; }
   .results.busy { opacity: 0.55; }
@@ -107,6 +115,14 @@
     <details class="group" open><summary>The tool</summary><div id="group-tool"></div></details>
     <details class="group" open><summary>The organisation</summary><div id="group-org"></div></details>
     <details class="group"><summary>Simulation</summary><div id="group-run"></div></details>
+    <h3 class="group-title">Save and share</h3>
+    <div class="btn-row">
+      <button type="button" class="btn" id="copy-link">Copy link</button>
+      <button type="button" class="btn" id="download">Download settings</button>
+      <label class="btn" for="upload" id="upload-label">Load settings</label>
+      <input type="file" id="upload" accept=".json,application/json" hidden>
+    </div>
+    <p class="status" id="save-status" role="status"></p>
   </section>
 
   <section class="results" aria-label="Results">
@@ -127,6 +143,16 @@
           </div>
           <div class="btn-row"><button type="button" class="btn" id="play">Play</button></div>
           <p class="help" id="net-note"></p>
+          <div class="picker">
+            <label class="check" for="pick-mode"><input type="checkbox" id="pick-mode"> Pick champions by clicking people</label>
+            <div class="control">
+              <label for="picks">Your picks</label>
+              <input type="text" id="picks" inputmode="numeric" autocomplete="off" aria-describedby="picks-help">
+              <p class="help" id="picks-help">Person numbers separated by commas. Hover over a person to see their number.</p>
+            </div>
+            <div class="btn-row"><button type="button" class="btn" id="picks-clear">Clear picks</button></div>
+            <p class="status" id="picks-status" role="status"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -146,6 +172,13 @@
       <p id="sweep-summary" role="status"></p>
       <div class="legend" id="sweep-legend"></div>
       <svg class="chart" id="sweep-chart" role="img" aria-label="What-if chart, not run yet"></svg>
+    </div>
+    <div class="card chart-card">
+      <h2>Does it hold in other organisations?</h2>
+      <p class="help">Draws 10 more organisations of exactly the same shape (only the seed changes) and compares the five strategies in each, with up to 20 rollouts per strategy.</p>
+      <div class="btn-row"><button type="button" class="btn primary" id="robust-run">Test 10 other organisations</button></div>
+      <p id="robust-summary" role="status"></p>
+      <table class="compare" id="robust-table"></table>
     </div>
     <div class="card chart-card">
       <h2>Compare the five strategies</h2>
@@ -199,7 +232,8 @@ var SeedingModel = (function () {
     hubs: { label: 'Best connected', help: 'The people with the most contacts.' },
     bridges: { label: 'Bridge builders', help: 'The people who link otherwise separate groups (most shortest paths run through them).' },
     cluster: { label: 'One team first', help: 'Like a pilot team: all champions in the most tightly knit team, so it takes hold there first.' },
-    spread: { label: 'One per team', help: 'A champion in as many teams as possible: the best-connected member of each.' }
+    spread: { label: 'One per team', help: 'A champion in as many teams as possible: the best-connected member of each.' },
+    custom: { label: 'Your picks', help: 'People you choose yourself, by clicking them in the network or typing their numbers.' }
   };
 
   var PRESETS = {
@@ -221,7 +255,7 @@ var SeedingModel = (function () {
   };
 
   var DEFAULTS = (function () {
-    var d = { strategy: 'hubs' };
+    var d = { strategy: 'hubs', custom: [] };
     PARAMS.forEach(function (s) { d[s.key] = s.def; });
     return d;
   })();
@@ -270,8 +304,25 @@ var SeedingModel = (function () {
     // Every team needs at least three people, and every department at least one team.
     out.teams = Math.min(out.teams, Math.floor(out.people / 3));
     out.departments = Math.min(out.departments, out.teams);
-    out.strategy = STRATEGY_KEYS.indexOf(src.strategy) >= 0 ? src.strategy : DEFAULTS.strategy;
+    out.custom = readPicks(src.custom, out.people, out.champions);
+    var allowed = STRATEGY_KEYS.indexOf(src.strategy) >= 0 || (src.strategy === 'custom' && out.custom.length > 0);
+    out.strategy = allowed ? src.strategy : DEFAULTS.strategy;
     return out;
+  }
+
+  // Your own champions: person numbers (counting from 0), as a list or a comma-separated string.
+  // Duplicates and numbers outside the organisation are dropped; at most the number of champions is kept.
+  function readPicks(raw, people, limit) {
+    var items = typeof raw === 'string' ? raw.split(',') : (Array.isArray(raw) ? raw : []);
+    var seen = {}, out = [];
+    for (var i = 0; i < items.length; i++) {
+      var v = toNumber(typeof items[i] === 'string' ? items[i] : (typeof items[i] === 'number' ? items[i] : NaN));
+      if (!isFinite(v) || v !== Math.floor(v) || v < 0 || v >= people || seen[v]) continue;
+      seen[v] = true;
+      out.push(v);
+    }
+    out.sort(function (a, b) { return a - b; });
+    return out.slice(0, limit);
   }
 
   function presetParams(key) {
@@ -440,6 +491,11 @@ var SeedingModel = (function () {
     return out.slice().sort(function (a, b) { return a - b; });
   }
 
+  function championsFor(net, p, strategy, rng) {
+    if (strategy === 'custom') return p.custom.filter(function (v) { return v < net.size; }).slice(0, p.champions);
+    return pickChampions(net, p.champions, strategy, rng);
+  }
+
   // ---- One rollout ----
 
   // Runs one rollout week by week. Everyone draws one random number per week, whatever their state,
@@ -506,11 +562,12 @@ var SeedingModel = (function () {
   // Runs every rollout for one strategy and summarises them.
   function runStrategy(net, input, strategy) {
     var p = normaliseParams(input);
+    p.custom = readPicks((input || {}).custom, net.size, p.champions);
     var finals = [], evers = [], holds = [], reachedWeeks = [], byWeek = [], r, k;
     for (k = 0; k <= p.weeks; k++) byWeek.push([]);
     var firstChampions = null;
     for (r = 0; r < p.runs; r++) {
-      var champs = pickChampions(net, p.champions, strategy, makeRng(mixSeed(p.seed ^ C.pickSalt, r)));
+      var champs = championsFor(net, p, strategy, makeRng(mixSeed(p.seed ^ C.pickSalt, r)));
       if (r === 0) firstChampions = champs;
       var res = simulateRollout(net, p, champs, makeRng(mixSeed(p.seed, 1000 + r)), false);
       finals.push(res.final); evers.push(res.ever); holds.push(res.holds);
@@ -540,16 +597,20 @@ var SeedingModel = (function () {
   }
 
   function rankStrategies(results) {
+    var order = STRATEGY_KEYS.concat(['custom']);
     return results.slice().sort(function (a, b) {
       if (b.finalMean !== a.finalMean) return b.finalMean - a.finalMean;
-      return STRATEGY_KEYS.indexOf(a.strategy) - STRATEGY_KEYS.indexOf(b.strategy);
+      return order.indexOf(a.strategy) - order.indexOf(b.strategy);
     });
   }
+
+  // The five strategies, plus your own picks when there are any.
+  function strategiesFor(p) { return p.custom.length ? STRATEGY_KEYS.concat(['custom']) : STRATEGY_KEYS.slice(); }
 
   function compareStrategies(input) {
     var p = normaliseParams(input);
     var net = buildNetwork(p);
-    var results = STRATEGY_KEYS.map(function (s) { return runStrategy(net, p, s); });
+    var results = strategiesFor(p).map(function (s) { return runStrategy(net, p, s); });
     return { params: p, network: summariseNetwork(net), results: results, ranking: rankStrategies(results).map(function (r) { return r.strategy; }) };
   }
 
@@ -594,6 +655,69 @@ var SeedingModel = (function () {
     return spans;
   }
 
+  // ---- Other organisations of the same shape ----
+
+  var ROBUST_COUNT = 10, ROBUST_RUNS = 20;
+
+  function robustSeed(seed, i) { return ((seed - 1 + 7919 * (i + 1)) % 9999) + 1; }
+
+  // One organisation drawn with a different seed (your own picks are left out: they name people in this one).
+  function robustnessPoint(input, i) {
+    var p = normaliseParams(input), q = {}, k;
+    for (k in p) q[k] = p[k];
+    q.seed = robustSeed(p.seed, i);
+    q.runs = Math.min(p.runs, ROBUST_RUNS);
+    q.custom = [];
+    var cmp = compareStrategies(q);
+    return { seed: q.seed, ranking: cmp.ranking, finals: cmp.results.map(function (r) { return r.finalMean; }) };
+  }
+
+  function summariseRobustness(points) {
+    return STRATEGY_KEYS.map(function (s, si) {
+      var vals = points.map(function (pt) { return pt.finals[si]; });
+      var total = 0;
+      vals.forEach(function (v) { total += v; });
+      return { strategy: s, wins: points.filter(function (pt) { return pt.ranking[0] === s; }).length,
+        mean: total / vals.length, low: Math.min.apply(null, vals), high: Math.max.apply(null, vals) };
+    });
+  }
+
+  function robustness(input) {
+    var points = [];
+    for (var i = 0; i < ROBUST_COUNT; i++) points.push(robustnessPoint(input, i));
+    return { points: points, summary: summariseRobustness(points) };
+  }
+
+  // ---- Settings in a link or a file ----
+
+  function encodeParams(input) {
+    var p = normaliseParams(input), parts = [];
+    PARAMS.forEach(function (s) { parts.push(s.key + '=' + p[s.key]); });
+    parts.push('strategy=' + p.strategy);
+    if (p.custom.length) parts.push('custom=' + p.custom.join(','));
+    return parts.join('&');
+  }
+
+  function decodeParams(text) {
+    var out = {};
+    String(text || '').replace(/^#/, '').split('&').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i <= 0) return;
+      try { out[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1)); } catch (e) { /* skip a malformed pair */ }
+    });
+    return normaliseParams(out);
+  }
+
+  function settingsFile(input) { return { app: 'champion-seeding', version: 1, params: normaliseParams(input) }; }
+
+  function readSettingsFile(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('The file does not contain Champion Seeding settings.');
+    var params = obj.params && typeof obj.params === 'object' ? obj.params : obj;
+    var known = PARAMS.some(function (s) { return params[s.key] !== undefined; }) || params.strategy !== undefined;
+    if (!known) throw new Error('The file does not contain Champion Seeding settings.');
+    return normaliseParams(params);
+  }
+
   function summariseNetwork(net) {
     return { size: net.size, teams: net.teams, edges: net.edges, meanDegree: net.meanDegree, outsideShare: net.outsideShare };
   }
@@ -604,7 +728,9 @@ var SeedingModel = (function () {
   function explain(cmp) {
     var p = cmp.params, by = {}, out = [];
     cmp.results.forEach(function (r) { by[r.strategy] = r; });
-    var best = by[cmp.ranking[0]], second = by[cmp.ranking[1]], worst = by[cmp.ranking[cmp.ranking.length - 1]];
+    // The standard strategies are compared with each other; your own picks get a sentence of their own.
+    var ranking = cmp.ranking.filter(function (k) { return k !== 'custom'; });
+    var best = by[ranking[0]], second = by[ranking[1]], worst = by[ranking[ranking.length - 1]];
     var ties = cmp.network.outsideShare;
     if (best.finalMean - second.finalMean < 0.03) {
       out.push('It is close: ' + STRATEGIES[best.strategy].label.toLowerCase() + ' ends at ' + wholePct(best.finalMean) + ' and ' +
@@ -629,6 +755,12 @@ var SeedingModel = (function () {
         out.push('Champions chosen at random do as well as any plan here.');
       }
     }
+    if (by.custom) {
+      var mine = by.custom, gap = mine.finalMean - best.finalMean;
+      out.push('Your picks' + (mine.champions.length < p.champions ? ' (' + mine.champions.length + ' of ' + p.champions + ' champions)' : '') +
+        ' reach ' + wholePct(mine.finalMean) + ', ' + (gap > 0.005 ? 'beating every standard strategy.' :
+        (gap < -0.005 ? 'against ' + wholePct(best.finalMean) + ' for ' + STRATEGIES[best.strategy].label.toLowerCase() + '.' : 'level with ' + STRATEGIES[best.strategy].label.toLowerCase() + '.')));
+    }
     if (p.socialProof >= 0.15) {
       out.push('People need about ' + wholePct(p.socialProof) + ' of their contacts using it before they are open to it, so a lone user rarely persuades anyone.');
     } else if (p.socialProof < 0.1) {
@@ -652,7 +784,11 @@ var SeedingModel = (function () {
     buildNetwork: buildNetwork, finishNetwork: finishNetwork, betweenness: betweenness, pickChampions: pickChampions,
     simulateRollout: simulateRollout, runStrategy: runStrategy, rankStrategies: rankStrategies,
     compareStrategies: compareStrategies, summariseNetwork: summariseNetwork, explain: explain,
-    SWEEPS: SWEEPS, SWEEP_KEYS: SWEEP_KEYS, sweepPoint: sweepPoint, sweep: sweep, winnerSpans: winnerSpans
+    SWEEPS: SWEEPS, SWEEP_KEYS: SWEEP_KEYS, sweepPoint: sweepPoint, sweep: sweep, winnerSpans: winnerSpans,
+    readPicks: readPicks, championsFor: championsFor, strategiesFor: strategiesFor,
+    ROBUST_COUNT: ROBUST_COUNT, ROBUST_RUNS: ROBUST_RUNS, robustSeed: robustSeed, robustnessPoint: robustnessPoint,
+    summariseRobustness: summariseRobustness, robustness: robustness,
+    encodeParams: encodeParams, decodeParams: decodeParams, settingsFile: settingsFile, readSettingsFile: readSettingsFile
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SeedingModel;
@@ -698,10 +834,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       schedule();
     });
     var box = document.getElementById('strategy');
-    M.STRATEGY_KEYS.forEach(function (key) {
-      var lab = el('label');
+    M.STRATEGY_KEYS.concat(['custom']).forEach(function (key) {
+      var lab = el('label', { id: 'strategy-' + key });
       var input = el('input', { type: 'radio', name: 'strategy', value: key });
-      input.addEventListener('change', function () { state.params.strategy = key; markCustom(); renderAll(); });
+      input.addEventListener('change', function () {
+        state.params.strategy = key;
+        markCustom();
+        renderAll();
+        lastCode = M.encodeParams(state.params);
+        try { history.replaceState(null, '', '#' + lastCode); } catch (e) { /* ignore */ }
+      });
       lab.appendChild(input);
       lab.appendChild(el('strong', null, ' ' + M.STRATEGIES[key].label));
       lab.appendChild(el('div', null, M.STRATEGIES[key].help));
@@ -730,6 +872,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     sweepSel.addEventListener('change', function () { if (sweepState && sweepState.sweep.key !== sweepSel.value) clearSweep('Choose Run to try the new setting.'); });
     document.getElementById('sweep-run').addEventListener('click', runSweep);
     document.getElementById('play').addEventListener('click', togglePlay);
+    document.getElementById('picks').addEventListener('change', readTypedPicks);
+    document.getElementById('picks-clear').addEventListener('click', function () { setPicks([]); });
+    document.getElementById('pick-mode').addEventListener('change', function (e) {
+      document.getElementById('net').classList.toggle('picking', e.target.checked);
+    });
+    document.getElementById('net').addEventListener('click', function (e) {
+      if (!document.getElementById('pick-mode').checked) return;
+      var i = e.target.getAttribute && e.target.getAttribute('data-i');
+      if (i !== null && i !== undefined) togglePick(Number(i));
+    });
   }
 
   function markCustom() {
@@ -752,6 +904,55 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     M.PARAMS.forEach(function (spec) { document.getElementById('p-' + spec.key).value = state.params[spec.key]; });
     refreshOutputs();
     document.querySelectorAll('input[name=strategy]').forEach(function (r) { r.checked = r.value === state.params.strategy; });
+    syncPicks();
+  }
+
+  // ---- Your own picks ----
+
+  function syncPicks() {
+    var picks = state.params.custom || [];
+    document.getElementById('picks').value = picks.map(function (v) { return v + 1; }).join(', ');
+    var custom = document.querySelector('input[name=strategy][value=custom]');
+    custom.disabled = picks.length === 0;
+    document.getElementById('strategy-custom').classList.toggle('disabled', picks.length === 0);
+  }
+
+  function setPicks(list, message) {
+    var before = state.params.custom.length;
+    state.params.custom = list;
+    state.params = M.normaliseParams(state.params);
+    if (state.params.custom.length && !before) state.params.strategy = 'custom';
+    if (!state.params.custom.length && state.params.strategy === 'custom') state.params.strategy = M.DEFAULTS.strategy;
+    markCustom();
+    syncControls();
+    document.getElementById('picks-status').textContent = message || (state.params.custom.length ?
+      state.params.custom.length + ' of ' + state.params.champions + ' champions picked.' : 'No picks.');
+    schedule();
+  }
+
+  function togglePick(i) {
+    var picks = state.params.custom.slice(), at = picks.indexOf(i);
+    if (at >= 0) { picks.splice(at, 1); setPicks(picks); return; }
+    if (picks.length >= state.params.champions) {
+      document.getElementById('picks-status').textContent = 'You have ' + state.params.champions + ' champions. Remove one, or raise the number of champions, to pick more.';
+      return;
+    }
+    picks.push(i);
+    setPicks(picks);
+  }
+
+  function readTypedPicks() {
+    var text = document.getElementById('picks').value, nums = [], bad = [];
+    text.split(',').forEach(function (part) {
+      var t = part.trim();
+      if (!t) return;
+      var n = M.toNumber(t);
+      if (isFinite(n) && n === Math.floor(n) && n >= 1 && n <= state.params.people) nums.push(n - 1); else bad.push(t);
+    });
+    var message = null;
+    if (bad.length) message = 'Ignored ' + bad.join(', ') + ': people are numbered 1 to ' + state.params.people + '.';
+    else if (nums.length > state.params.champions) message = 'Only the first ' + state.params.champions + ' (by number) are used: there are ' + state.params.champions + ' champions.';
+    setPicks(nums, message);
   }
 
   function schedule() { clearTimeout(timer); timer = setTimeout(run, 150); }
@@ -760,19 +961,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   function run() {
     var my = ++token;
     var p = M.normaliseParams(state.params);
-    var results = [], i = 0, net = null;
+    var results = [], i = 0, net = null, keys = M.strategiesFor(p);
     var box = document.querySelector('.results');
     var busy = setTimeout(function () { if (my === token) box.classList.add('busy'); }, 150);
     function step() {
       if (my !== token) { clearTimeout(busy); return; }
       if (!net) net = M.buildNetwork(p);
-      else { results.push(M.runStrategy(net, p, M.STRATEGY_KEYS[i])); i++; }
-      if (i < M.STRATEGY_KEYS.length) { setTimeout(step, 0); return; }
+      else { results.push(M.runStrategy(net, p, keys[i])); i++; }
+      if (i < keys.length) { setTimeout(step, 0); return; }
       clearTimeout(busy);
       box.classList.remove('busy');
       if ((sweepState && sweepState.code !== sweepCode(p)) || (sweepJob && sweepJob.code !== sweepCode(p))) {
         clearSweep('Settings changed. Run the what-if again to see the new picture.');
       }
+      if ((robustState && robustState.code !== sweepCode(p)) || (robustJob && robustJob.code !== sweepCode(p))) {
+        clearRobustness('Settings changed. Run the test again for the new settings.');
+      }
+      lastCode = M.encodeParams(p);
+      try { history.replaceState(null, '', '#' + lastCode); } catch (e) { /* some browsers block this for local files */ }
       current = { p: p, net: net, layout: layout(net, p), cmp: { params: p, network: M.summariseNetwork(net), results: results,
         ranking: M.rankStrategies(results).map(function (r) { return r.strategy; }) } };
       var week = document.getElementById('week');
@@ -783,11 +989,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     setTimeout(step, 0);
   }
 
-  function selected() {
-    var key = state.params.strategy;
+  function resultFor(key) {
     for (var i = 0; i < current.cmp.results.length; i++) if (current.cmp.results[i].strategy === key) return current.cmp.results[i];
     return null;
   }
+
+  // The strategy shown in detail; falls back to the best one if it is not in the latest results.
+  function selected() { return resultFor(state.params.strategy) || resultFor(current.cmp.ranking[0]); }
 
   function renderAll() {
     if (!current) return;
@@ -805,9 +1013,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   function renderHeadline(r) {
     var box = document.getElementById('headline'), cmp = current.cmp;
     box.innerHTML = '';
-    var best = cmp.ranking[0];
-    box.appendChild(el('h2', null, best === r.strategy ? M.STRATEGIES[r.strategy].label + ' is the best strategy here' :
-      M.STRATEGIES[best].label + ' beats ' + M.STRATEGIES[r.strategy].label.toLowerCase() + ' here'));
+    var best = cmp.ranking[0], bestR = resultFor(best), mine = M.STRATEGIES[r.strategy].label, isCustom = r.strategy === 'custom';
+    var title;
+    if (best === r.strategy) title = isCustom ? 'Your picks are the best choice here' : mine + ' is the best strategy here';
+    else if (bestR.finalMean - r.finalMean < 0.005) title = mine + (isCustom ? ' match' : ' matches') + ' the best strategy here';
+    else title = M.STRATEGIES[best].label + ' beats ' + mine.toLowerCase() + ' here';
+    box.appendChild(el('h2', null, title));
     var ul = el('ul', { 'class': 'why' });
     M.explain(cmp).forEach(function (t) { ul.appendChild(el('li', null, t)); });
     box.appendChild(ul);
@@ -876,10 +1087,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       });
     }
     var using = 0;
+    var picked = {};
+    (current.p.custom || []).forEach(function (v) { picked[v] = true; });
     for (i = 0; i < net.size; i++) {
       var fill = champs[i] ? 'var(--champion)' : (users[i] ? 'var(--user)' : (everSoFar[i] ? 'var(--lapsed)' : 'var(--never)'));
       using += users[i];
-      svg.appendChild(svgEl('circle', { cx: pos[i][0].toFixed(1), cy: pos[i][1].toFixed(1), r: champs[i] ? 6.5 : 4.5, fill: fill, stroke: 'var(--card)', 'stroke-width': 1 }));
+      var dot = svgEl('circle', { cx: pos[i][0].toFixed(1), cy: pos[i][1].toFixed(1), r: champs[i] ? 6.5 : 4.5, fill: fill,
+        stroke: picked[i] ? 'var(--ink)' : 'var(--card)', 'stroke-width': picked[i] ? 2 : 1, 'data-i': i });
+      var tip = svgEl('title', {});
+      tip.textContent = 'Person ' + (i + 1) + ', team ' + (net.team[i] + 1) + ', ' + net.degree[i] + ' contacts' + (picked[i] ? ' (your pick)' : '');
+      dot.appendChild(tip);
+      svg.appendChild(dot);
     }
     svg.setAttribute('aria-label', 'Network of ' + net.size + ' people in ' + net.teams + ' teams at week ' + week + ': ' + using + ' using the tool, including ' + Object.keys(champs).length + ' champions.');
     document.getElementById('net-note').textContent = 'Week ' + week + ': ' + using + ' of ' + net.size + ' people using it. This is one sample rollout; the numbers above average ' + current.p.runs + '.';
@@ -962,6 +1180,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   function sweepCode(params) {
     var q = M.normaliseParams(params);
     delete q.strategy;
+    delete q.custom;
     return JSON.stringify(q);
   }
 
@@ -1049,6 +1268,130 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     svg.setAttribute('aria-label', 'Share using the tool at the end for each strategy as ' + spec.label.toLowerCase() + ' changes. ' + summary.textContent);
   }
 
+  // ---- Other organisations ----
+  var robustState = null, robustJob = null;
+
+  function runRobustness() {
+    if (robustJob) return;
+    var job = robustJob = { code: sweepCode(state.params), points: [] };
+    var btn = document.getElementById('robust-run'), summary = document.getElementById('robust-summary');
+    btn.setAttribute('aria-disabled', 'true');
+    btn.textContent = 'Running...';
+    document.getElementById('robust-table').innerHTML = '';
+    function step() {
+      if (robustJob !== job) return;
+      job.points.push(M.robustnessPoint(state.params, job.points.length));
+      summary.textContent = 'Running: ' + job.points.length + ' of ' + M.ROBUST_COUNT + ' organisations done.';
+      if (job.points.length < M.ROBUST_COUNT) { setTimeout(step, 0); return; }
+      robustJob = null;
+      btn.setAttribute('aria-disabled', 'false');
+      btn.textContent = 'Test 10 other organisations';
+      robustState = { code: job.code, summary: M.summariseRobustness(job.points) };
+      renderRobustness();
+    }
+    setTimeout(step, 0);
+  }
+
+  function clearRobustness(message) {
+    robustState = null;
+    robustJob = null;
+    var btn = document.getElementById('robust-run');
+    btn.setAttribute('aria-disabled', 'false');
+    btn.textContent = 'Test 10 other organisations';
+    document.getElementById('robust-table').innerHTML = '';
+    document.getElementById('robust-summary').textContent = message;
+  }
+
+  function renderRobustness() {
+    var table = document.getElementById('robust-table'), rows = robustState.summary.slice();
+    rows.sort(function (a, b) { return (b.wins - a.wins) || (b.mean - a.mean); });
+    var top = rows[0];
+    document.getElementById('robust-summary').textContent = M.STRATEGIES[top.strategy].label + ' was best in ' + top.wins + ' of ' + M.ROBUST_COUNT +
+      ' organisations of this shape' + (top.wins === M.ROBUST_COUNT ? ', every time.' : '.');
+    table.innerHTML = '';
+    var cols = ['Strategy', 'Best in', 'Average using it', 'Lowest to highest'];
+    var head = el('tr');
+    cols.forEach(function (h, i) { head.appendChild(el('th', { scope: 'col', 'class': i ? 'num' : '' }, h)); });
+    var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
+    var body = el('tbody');
+    rows.forEach(function (r) {
+      var tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, M.STRATEGIES[r.strategy].label));
+      [r.wins + ' of ' + M.ROBUST_COUNT, pct(r.mean), pct(r.low) + ' to ' + pct(r.high)].forEach(function (text, i) {
+        tr.appendChild(el('td', { 'class': 'num', 'data-label': cols[i + 1] }, text));
+      });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+  }
+
+  // ---- Save and share ----
+  var lastCode = '';
+
+  function setStatus(text) { document.getElementById('save-status').textContent = text; }
+
+  function matchPreset(params) {
+    var code = M.encodeParams(params);
+    for (var k in M.PRESETS) if (M.encodeParams(M.presetParams(k)) === code) return k;
+    return 'custom';
+  }
+
+  function applyParams(params) {
+    state.params = params;
+    state.preset = matchPreset(params);
+    syncControls();
+    run();
+  }
+
+  function buildSaveControls() {
+    document.getElementById('copy-link').addEventListener('click', function () {
+      var link = location.href.split('#')[0] + '#' + M.encodeParams(state.params);
+      var done = function () { setStatus('Link copied. Anyone opening the app with it sees these settings.'); };
+      var fail = function () { setStatus('Could not copy automatically. The address bar now holds the link.'); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fail);
+        else fail();
+      } catch (e) { fail(); }
+    });
+    document.getElementById('download').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify(M.settingsFile(state.params), null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'champion-seeding-settings.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      setStatus('Saved champion-seeding-settings.json. The Python version can read it with --config.');
+    });
+    var upload = document.getElementById('upload'), label = document.getElementById('upload-label');
+    label.setAttribute('tabindex', '0');
+    label.setAttribute('role', 'button');
+    label.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); upload.click(); }
+    });
+    upload.addEventListener('change', function () {
+      var file = upload.files && upload.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          applyParams(M.readSettingsFile(JSON.parse(reader.result)));
+          setStatus('Loaded ' + file.name + '.');
+        } catch (e) {
+          setStatus('Could not load ' + file.name + ': ' + (e instanceof SyntaxError ? 'it is not valid JSON.' : e.message));
+        }
+        upload.value = '';
+      };
+      reader.onerror = function () { setStatus('Could not read ' + file.name + '.'); };
+      reader.readAsText(file);
+    });
+    document.getElementById('robust-run').addEventListener('click', runRobustness);
+    window.addEventListener('hashchange', function () {
+      var code = location.hash.replace(/^#/, '');
+      if (code && code !== lastCode) applyParams(M.decodeParams(code));
+    });
+  }
+
   var COLUMNS = ['Strategy', 'Using it at the end', 'Tried it', 'Reached half', 'Weeks to half', 'Teams taken hold'];
 
   function renderCompare() {
@@ -1061,7 +1404,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
     var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
     var body = el('tbody');
     current.cmp.ranking.forEach(function (key) {
-      var r = current.cmp.results[M.STRATEGY_KEYS.indexOf(key)];
+      var r = resultFor(key);
       var tr = el('tr', { 'class': key === state.params.strategy ? 'current' : '' });
       tr.appendChild(el('th', { scope: 'row' }, M.STRATEGIES[key].label));
       var cells = [pct(r.finalMean), pct(r.everMean), pct(r.reachShare), r.weeksToHalf === null ? 'n/a' : String(r.weeksToHalf), r.holdsMean.toFixed(1)];
@@ -1072,6 +1415,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
   }
 
   buildControls();
+  buildSaveControls();
+  if (location.hash.length > 1) {
+    state.params = M.decodeParams(location.hash);
+    state.preset = matchPreset(state.params);
+  }
   syncControls();
   run();
 })();

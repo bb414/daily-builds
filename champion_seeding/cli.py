@@ -33,12 +33,48 @@ def parse_sets(pairs):
     return out
 
 
+def load_config(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return model.read_settings_file(json.load(fh))
+    except OSError as err:
+        raise SystemExit("Could not read %s: %s" % (path, err.strerror))
+    except json.JSONDecodeError:
+        raise SystemExit("%s is not valid JSON" % path)
+    except ValueError as err:
+        raise SystemExit("%s: %s" % (path, err))
+
+
 def build_params(args):
-    if args.preset not in model.PRESETS:
+    if getattr(args, "config", None):
+        params = load_config(args.config)
+    elif args.preset not in model.PRESETS:
         raise SystemExit("Unknown preset %r. Choose from: %s" % (args.preset, ", ".join(model.PRESETS)))
-    params = model.preset_params(args.preset)
+    else:
+        params = model.preset_params(args.preset)
     params.update(parse_sets(args.set))
     return model.normalise_params(params)
+
+
+def apply_picks(params, picks, ids):
+    """Turns --picks (person ids such as P007, or numbers counting from 1) into your own champions."""
+    if not picks:
+        return params
+    index = {pid: i for i, pid in enumerate(ids)}
+    chosen = []
+    for item in (x.strip() for x in picks.split(",")):
+        if not item:
+            continue
+        if item in index:
+            chosen.append(index[item])
+        elif item.isdigit() and 1 <= int(item) <= len(ids):
+            chosen.append(int(item) - 1)
+        else:
+            raise SystemExit("--picks: no person called %r" % item)
+    if len(set(chosen)) > params["champions"]:
+        raise SystemExit("--picks names %d people but there are only %d champions (use --set champions=%d)"
+                         % (len(set(chosen)), params["champions"], len(set(chosen))))
+    return dict(params, custom=chosen, strategy="custom")
 
 
 def format_comparison(cmp, ids=None, team_names=None, show_champions=False):
@@ -62,7 +98,7 @@ def format_comparison(cmp, ids=None, team_names=None, show_champions=False):
     lines += ["  - " + text for text in model.explain(cmp)]
     if show_champions:
         lines += ["", "Champions each strategy would pick (the random pick shown is the first rollout's):"]
-        for key in model.STRATEGY_KEYS:
+        for key in [r["strategy"] for r in cmp["results"]]:
             names = [ids[v] if ids else "P%03d" % (v + 1) for v in by[key]["champions"]]
             lines.append("  %-16s %s" % (model.STRATEGY_LABELS[key], ", ".join(names)))
     return "\n".join(lines)
@@ -102,6 +138,18 @@ def write_sweep_csv(sw, path):
                             "%.4f" % r["reachShare"], int(r["strategy"] == pt["best"])])
 
 
+def format_robustness(rb, params):
+    lines = ["Does the ranking hold in other organisations of the same shape? (%d organisations, %d rollouts each)"
+             % (model.ROBUST_COUNT, min(params["runs"], model.ROBUST_RUNS)), "",
+             "  %-16s %6s %10s %16s" % ("Strategy", "Wins", "Average", "Lowest-highest")]
+    for row in sorted(rb["summary"], key=lambda r: (-r["wins"], -r["mean"])):
+        lines.append("  %-16s %6d %10s %16s" % (model.STRATEGY_LABELS[row["strategy"]], row["wins"], pct(row["mean"]),
+                                                "%s-%s" % (pct(row["low"]), pct(row["high"]))))
+    top = max(rb["summary"], key=lambda r: (r["wins"], r["mean"]))
+    lines += ["", "  %s was best in %d of %d organisations." % (model.STRATEGY_LABELS[top["strategy"]], top["wins"], model.ROBUST_COUNT)]
+    return "\n".join(lines)
+
+
 def write_csv(cmp, path):
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -125,6 +173,8 @@ def make_parser():
     def common(sp):
         sp.add_argument("--preset", default="assistant", help="Starting scenario: " + ", ".join(model.PRESETS))
         sp.add_argument("--set", action="append", metavar="KEY=VALUE", help="Override one setting (repeatable)")
+        sp.add_argument("--config", help="Settings file downloaded from the browser app (replaces --preset)")
+        sp.add_argument("--picks", help="Your own champions: ids such as P007,P019 or numbers counting from 1")
         sp.add_argument("--json", action="store_true", help="Print a JSON summary instead of text")
         sp.add_argument("--csv", help="Write the weekly adoption curves to this CSV file")
         sp.add_argument("--champions-list", action="store_true", help="List who each strategy would pick")
@@ -137,9 +187,15 @@ def make_parser():
     sp.add_argument("--edges", required=True, help="CSV file with source,target columns")
     sp.add_argument("--teams", help="CSV file with id,team columns (needed for the team-based strategies)")
 
+    sp = sub.add_parser("robustness", help="Does the ranking hold in other organisations of the same shape?")
+    sp.add_argument("--preset", default="assistant")
+    sp.add_argument("--set", action="append", metavar="KEY=VALUE")
+    sp.add_argument("--config")
+
     sp = sub.add_parser("sweep", help="Which strategy wins as one setting changes?")
     sp.add_argument("--preset", default="assistant")
     sp.add_argument("--set", action="append", metavar="KEY=VALUE")
+    sp.add_argument("--config")
     sp.add_argument("--param", default="socialProof", choices=model.SWEEP_KEYS)
     sp.add_argument("--csv", help="Write the results to this CSV file")
 
@@ -160,6 +216,9 @@ def main(argv=None):
             export_network(net, args.edges, args.teams)
             print("Wrote %s and %s (%d people, %d ties)" % (args.edges, args.teams, net["size"], net["edges"]))
             return 0
+        if args.command == "robustness":
+            print(format_robustness(model.robustness(params), params))
+            return 0
         if args.command == "sweep":
             sw = model.sweep(params, args.param)
             print(format_sweep(sw))
@@ -167,14 +226,17 @@ def main(argv=None):
                 write_sweep_csv(sw, args.csv)
                 print("\nWrote %s" % args.csv)
             return 0
-        ids = None
         if args.command == "load":
             net, ids, team_names = load_network(args.edges, args.teams, params["seed"])
             if not args.teams:
                 print("Note: no teams file, so everyone counts as one team. One team first and one per team need teams.\n")
+            params = apply_picks(dict(params, custom=[]), args.picks, ids)
             cmp = model.compare_strategies(params, net)
         else:
-            cmp = model.compare_strategies(params)
+            net = model.build_network(params)
+            ids = ["P%03d" % (i + 1) for i in range(net["size"])]
+            params = apply_picks(params, args.picks, ids)
+            cmp = model.compare_strategies(params, net)
         if args.json:
             print(json.dumps(summary_json(cmp), indent=2))
         else:

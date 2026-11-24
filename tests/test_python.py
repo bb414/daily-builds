@@ -79,8 +79,9 @@ class CliTest(unittest.TestCase):
         code, out = run_cli("compare", *self.small, "--champions-list")
         self.assertEqual(code, 0)
         self.assertIn("Why:", out)
-        for label in model.STRATEGY_LABELS.values():
-            self.assertIn(label, out)
+        for key in model.STRATEGY_KEYS:
+            self.assertIn(model.STRATEGY_LABELS[key], out)
+        self.assertNotIn("Your picks", out)
         code, out = run_cli("compare", *self.small, "--json")
         data = json.loads(out)
         self.assertEqual(len(data["results"]), 5)
@@ -113,10 +114,34 @@ class CliTest(unittest.TestCase):
         self.assertEqual(len(rows), 5 * len(model.SWEEPS["champions"]))
         self.assertEqual(sum(int(r["best"]) for r in rows), len(model.SWEEPS["champions"]))
 
+    def test_picks_config_and_robustness(self):
+        code, out = run_cli("compare", *self.small, "--picks", "P001,2,P003")
+        self.assertIn("Your picks", out)
+        self.assertIn("(3 of 8 champions)", out)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "s.json")
+            settings = {"app": "champion-seeding", "version": 1,
+                        "params": dict(model.preset_params("silos"), runs=10, weeks=20, people=60, teams=5, custom=[0, 1])}
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(settings, fh)
+            code, out = run_cli("compare", "--config", path, "--json")
+            data = json.loads(out)
+            self.assertEqual(data["params"]["custom"], [0, 1])
+            self.assertEqual(data["params"]["tiesOrg"], 0.1)
+            bad = os.path.join(tmp, "bad.json")
+            write(bad, "{nope")
+            with self.assertRaises(SystemExit):
+                run_cli("compare", "--config", bad)
+        code, out = run_cli("robustness", *self.small)
+        self.assertIn("organisations", out)
+        self.assertIn("was best in", out)
+
     def test_bad_arguments_exit_cleanly(self):
         for args in (["compare", "--set", "nonsense=1"], ["compare", "--set", "runs=lots"], ["compare", "--set", "x"],
                      ["compare", "--set", "strategy=magic"], ["compare", "--preset", "nope"],
-                     ["load", "--edges", "/nonexistent/e.csv"], ["sweep", "--param", "people"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
+                     ["load", "--edges", "/nonexistent/e.csv"], ["sweep", "--param", "people"],
+                     ["compare", "--picks", "P999"], ["compare", "--picks", "1,2,3,4,5,6,7,8,9"],
+                     ["compare", "--config", "/nonexistent/s.json"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
             with self.subTest(args=args), self.assertRaises(SystemExit) as ctx:
                 with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
                     cli.main(list(args))

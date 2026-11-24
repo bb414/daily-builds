@@ -205,3 +205,51 @@ test('more contacts across departments changes the organisation itself', () => {
   const b = M.buildNetwork(Object.assign({}, p, { tiesOrg: 3 }));
   assert.ok(b.outsideShare > a.outsideShare);
 });
+
+test('your own picks are cleaned up and compared alongside the five strategies', () => {
+  assert.deepEqual(Array.from(M.readPicks('5, 3,3, x, 999, -1, 2.5, 7', 180, 8)), [3, 5, 7]);
+  assert.deepEqual(Array.from(M.readPicks([9, '4', 4, true, null, 1e9], 180, 8)), [4, 9]);
+  assert.deepEqual(Array.from(M.readPicks([1, 2, 3, 4], 180, 2)), [1, 2]);
+  assert.deepEqual(Array.from(M.readPicks(undefined, 180, 8)), []);
+  assert.equal(M.normaliseParams({ strategy: 'custom' }).strategy, M.DEFAULTS.strategy, 'no picks, no custom strategy');
+  const p = Object.assign(small(), { custom: [0, 1, 2], strategy: 'custom' });
+  const c = M.compareStrategies(p);
+  assert.equal(c.results.length, 6);
+  const mine = c.results.find((r) => r.strategy === 'custom');
+  assert.deepEqual(Array.from(mine.champions), [0, 1, 2]);
+  assert.match(M.explain(c).join(' '), /Your picks \(3 of 8 champions\) reach/);
+  // Picking exactly what a strategy picks gives exactly its result.
+  const net = M.buildNetwork(small());
+  const spread = M.pickChampions(net, 8, 'spread', M.makeRng(1));
+  const same = M.compareStrategies(Object.assign(small(), { custom: spread }));
+  assert.equal(same.results.find((r) => r.strategy === 'custom').finalMean, same.results.find((r) => r.strategy === 'spread').finalMean);
+  assert.match(M.explain(same).join(' '), /level with one per team/);
+});
+
+test('robustness tries ten other organisations of the same shape', () => {
+  const p = small({ runs: 10, weeks: 12, custom: [1, 2] });
+  const pt = M.robustnessPoint(p, 0);
+  assert.equal(pt.seed, M.robustSeed(p.seed, 0));
+  assert.notEqual(pt.seed, p.seed);
+  assert.equal(pt.finals.length, 5, 'your picks are left out');
+  const direct = M.compareStrategies(Object.assign({}, p, { seed: pt.seed, custom: [] }));
+  assert.deepEqual(Array.from(pt.ranking), Array.from(direct.ranking));
+  const seeds = new Set(Array.from({ length: 10 }, (_, i) => M.robustSeed(9999, i)));
+  assert.equal(seeds.size, 10);
+  for (const s of seeds) assert.ok(s >= 1 && s <= 9999);
+  const sum = M.summariseRobustness([{ ranking: ['spread'], finals: [0.1, 0.2, 0.3, 0.4, 0.5] }, { ranking: ['hubs'], finals: [0.3, 0.4, 0.3, 0.2, 0.1] }]);
+  assert.deepEqual(plain(sum.map((r) => r.wins)), [0, 1, 0, 0, 1]);
+  assert.ok(Math.abs(sum[4].mean - 0.3) < 1e-12);
+  assert.equal(sum[4].low, 0.1);
+  assert.equal(sum[4].high, 0.5);
+});
+
+test('settings survive a round trip through the link and the file', () => {
+  const p = Object.assign(M.presetParams('silos'), { custom: [4, 40], strategy: 'custom', seed: 321 });
+  assert.deepEqual(plain(M.decodeParams('#' + M.encodeParams(p))), plain(M.normaliseParams(p)));
+  assert.deepEqual(plain(M.readSettingsFile(plain(M.settingsFile(p)))), plain(M.normaliseParams(p)));
+  assert.equal(M.decodeParams('#champions=%E0%A4%A&people=60&=3&junk').people, 60);
+  assert.throws(() => M.readSettingsFile({ hello: 1 }), /does not contain/);
+  assert.throws(() => M.readSettingsFile([1]), /does not contain/);
+  assert.throws(() => M.readSettingsFile(null), /does not contain/);
+});

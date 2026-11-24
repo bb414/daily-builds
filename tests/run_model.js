@@ -15,6 +15,8 @@ process.stdin.on('end', () => {
         outsideShare: n.outsideShare, teamTies: n.teamTies };
     }
     if (job.compare) { const c = M.compareStrategies(job.compare); return { compare: c, why: M.explain(c) }; }
+    if (job.robust) return M.robustness(job.robust);
+    if (job.settings) return M.readSettingsFile(job.settings);
     if (job.sweep) { const sw = M.sweep(job.sweep.params, job.sweep.key); return { sweep: sw, spans: M.winnerSpans(sw) }; }
     throw new Error('Unknown job');
   });

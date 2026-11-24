@@ -1,5 +1,8 @@
 """Drives the browser app in headless Chromium. Skipped if Playwright for Python is not installed."""
 
+import json
+import os
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -102,6 +105,75 @@ class UiTest(unittest.TestCase):
         self.settle(page)
         self.assertIn("Settings changed", page.inner_text("#sweep-summary"))
         self.assertEqual(len(page.query_selector_all("#sweep-chart polyline")), 0)
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_picking_champions(self):
+        page = self.open()
+        self.assertTrue(page.is_disabled("input[name=strategy][value=custom]"))
+        page.check("#pick-mode")
+        page.click("#net circle[data-i='0']")
+        self.settle(page)
+        self.assertEqual(page.input_value("#picks"), "1")
+        self.assertTrue(page.is_checked("input[name=strategy][value=custom]"))
+        self.assertIn("Your picks", page.inner_text("#compare"))
+        page.fill("#picks", "1, 19, 999, abc")
+        page.dispatch_event("#picks", "change")
+        self.settle(page)
+        self.assertIn("Ignored 999, abc", page.inner_text("#picks-status"))
+        self.assertEqual(page.input_value("#picks"), "1, 19")
+        page.click("#picks-clear")
+        self.settle(page)
+        self.assertNotIn("Your picks", page.inner_text("#compare"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_other_organisations(self):
+        page = self.open()
+        page.click("#robust-run")
+        page.wait_for_function("document.getElementById('robust-summary').textContent.includes('was best in')", timeout=60000)
+        self.assertEqual(len(page.query_selector_all("#robust-table tbody tr")), 5)
+        page.fill("#p-lapse", "0.2")
+        page.dispatch_event("#p-lapse", "input")
+        self.settle(page)
+        self.assertIn("Settings changed", page.inner_text("#robust-summary"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_link_and_file_restore_settings(self):
+        page = self.open()
+        page.select_option("#preset", "silos")
+        self.settle(page)
+        page.fill("#picks", "3, 30")
+        page.dispatch_event("#picks", "change")
+        self.settle(page)
+        self.assertIn("custom=2,29", page.url)
+        other = self.open(page.url)
+        self.assertEqual(other.input_value("#preset"), "custom")
+        self.assertEqual(other.input_value("#picks"), "3, 30")
+        self.assertEqual(other.inner_text("#o-tiesOrg"), "0.1")
+        other.evaluate("location.hash = 'people=60&teams=5&strategy=spread'")
+        self.settle(other)
+        self.assertIn("of 60 people", other.inner_text("#net-note"))
+        other.close()
+        with page.expect_download() as info:
+            page.click("#download")
+        with open(info.value.path(), encoding="utf-8") as fh:
+            saved = json.load(fh)
+        self.assertEqual(saved["params"]["custom"], [2, 29])
+        page.select_option("#preset", "plugin")
+        self.settle(page)
+        page.set_input_files("#upload", info.value.path())
+        self.settle(page)
+        self.assertEqual(page.input_value("#picks"), "3, 30")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            fh.write("{broken")
+        try:
+            page.set_input_files("#upload", fh.name)
+            page.wait_for_timeout(300)
+        finally:
+            os.unlink(fh.name)
+        self.assertIn("not valid JSON", page.inner_text("#save-status"))
         self.assertEqual(self.errors, [])
         page.close()
 

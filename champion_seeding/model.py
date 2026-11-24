@@ -64,6 +64,7 @@ STRATEGY_LABELS = {
     "bridges": "Bridge builders",
     "cluster": "One team first",
     "spread": "One per team",
+    "custom": "Your picks",
 }
 
 PRESETS = {
@@ -82,7 +83,7 @@ PRESETS = {
     },
 }
 
-DEFAULTS = {"strategy": "hubs"}
+DEFAULTS = {"strategy": "hubs", "custom": []}
 DEFAULTS.update({key: default for key, _g, _lo, _hi, default, _i in PARAMS})
 
 MASK = 0xFFFFFFFF
@@ -148,9 +149,30 @@ def normalise_params(src=None):
     # Every team needs at least three people, and every department at least one team.
     out["teams"] = min(out["teams"], out["people"] // 3)
     out["departments"] = min(out["departments"], out["teams"])
+    out["custom"] = read_picks(src.get("custom"), out["people"], out["champions"])
     strategy = src.get("strategy")
-    out["strategy"] = strategy if strategy in STRATEGY_KEYS else DEFAULTS["strategy"]
+    allowed = strategy in STRATEGY_KEYS or (strategy == "custom" and len(out["custom"]) > 0)
+    out["strategy"] = strategy if allowed else DEFAULTS["strategy"]
     return out
+
+
+def read_picks(raw, people, limit):
+    """Your own champions: person numbers (counting from 0), as a list or a comma-separated string."""
+    if isinstance(raw, str):
+        items = raw.split(",")
+    elif isinstance(raw, list):
+        items = raw
+    else:
+        items = []
+    seen, out = set(), []
+    for item in items:
+        v = to_number(item) if isinstance(item, (str, int, float)) and not isinstance(item, bool) else math.nan
+        if not math.isfinite(v) or v != math.floor(v) or v < 0 or v >= people or v in seen:
+            continue
+        seen.add(v)
+        out.append(int(v))
+    out.sort()
+    return out[:limit]
 
 
 def preset_params(key):
@@ -326,6 +348,12 @@ def pick_champions(net, k, strategy, rng):
     return sorted(out)
 
 
+def champions_for(net, p, strategy, rng):
+    if strategy == "custom":
+        return [v for v in p["custom"] if v < net["size"]][:p["champions"]]
+    return pick_champions(net, p["champions"], strategy, rng)
+
+
 # ---- One rollout ----
 
 def simulate_rollout(net, p, champions, rng, record=False):
@@ -415,11 +443,12 @@ def _percentile(sorted_values, q):
 def run_strategy(net, src, strategy):
     """Runs every rollout for one strategy and summarises them."""
     p = normalise_params(src)
+    p["custom"] = read_picks((src or {}).get("custom"), net["size"], p["champions"])
     finals, evers, holds, reached_weeks = [], [], [], []
     by_week = [[] for _ in range(p["weeks"] + 1)]
     first = None
     for r in range(p["runs"]):
-        champs = pick_champions(net, p["champions"], strategy, Rng(mix_seed(p["seed"] ^ CONSTANTS["pickSalt"], r)))
+        champs = champions_for(net, p, strategy, Rng(mix_seed(p["seed"] ^ CONSTANTS["pickSalt"], r)))
         if r == 0:
             first = champs
         res = simulate_rollout(net, p, champs, Rng(mix_seed(p["seed"], 1000 + r)))
@@ -452,7 +481,13 @@ def run_strategy(net, src, strategy):
 
 
 def rank_strategies(results):
-    return sorted(results, key=lambda r: (-r["finalMean"], STRATEGY_KEYS.index(r["strategy"])))
+    order = STRATEGY_KEYS + ["custom"]
+    return sorted(results, key=lambda r: (-r["finalMean"], order.index(r["strategy"])))
+
+
+def strategies_for(p):
+    """The five strategies, plus your own picks when there are any."""
+    return STRATEGY_KEYS + ["custom"] if p["custom"] else list(STRATEGY_KEYS)
 
 
 # Values each "what if" sweep tries.
@@ -493,6 +528,50 @@ def winner_spans(sw):
     return spans
 
 
+# ---- Other organisations of the same shape ----
+
+ROBUST_COUNT, ROBUST_RUNS = 10, 20
+
+
+def robust_seed(seed, i):
+    return ((seed - 1 + 7919 * (i + 1)) % 9999) + 1
+
+
+def robustness_point(src, i):
+    """One organisation drawn with a different seed (your own picks are left out: they name people in this one)."""
+    p = normalise_params(src)
+    q = dict(p, seed=robust_seed(p["seed"], i), runs=min(p["runs"], ROBUST_RUNS), custom=[])
+    cmp = compare_strategies(q)
+    return {"seed": q["seed"], "ranking": cmp["ranking"], "finals": [r["finalMean"] for r in cmp["results"]]}
+
+
+def summarise_robustness(points):
+    out = []
+    for si, s in enumerate(STRATEGY_KEYS):
+        vals = [pt["finals"][si] for pt in points]
+        total = 0.0
+        for v in vals:
+            total += v
+        out.append({"strategy": s, "wins": sum(1 for pt in points if pt["ranking"][0] == s),
+                    "mean": total / len(vals), "low": min(vals), "high": max(vals)})
+    return out
+
+
+def robustness(src):
+    points = [robustness_point(src, i) for i in range(ROBUST_COUNT)]
+    return {"points": points, "summary": summarise_robustness(points)}
+
+
+def read_settings_file(obj):
+    """Accepts the JSON file the browser app downloads (or a flat dict of settings)."""
+    if not isinstance(obj, dict):
+        raise ValueError("The file does not contain Champion Seeding settings.")
+    params = obj["params"] if isinstance(obj.get("params"), dict) else obj
+    if not any(key in params for key, *_rest in PARAMS) and "strategy" not in params:
+        raise ValueError("The file does not contain Champion Seeding settings.")
+    return normalise_params(params)
+
+
 def summarise_network(net):
     return {"size": net["size"], "teams": net["teams"], "edges": net["edges"], "meanDegree": net["meanDegree"],
             "outsideShare": net["outsideShare"]}
@@ -503,7 +582,12 @@ def compare_strategies(src=None, net=None):
     p = normalise_params(src)
     if net is None:
         net = build_network(p)
-    results = [run_strategy(net, p, s) for s in STRATEGY_KEYS]
+    else:
+        # A loaded network can be a different size from the synthetic one: check your picks against it.
+        p["custom"] = read_picks((src or {}).get("custom"), net["size"], p["champions"])
+        if p["strategy"] == "custom" and not p["custom"]:
+            p["strategy"] = DEFAULTS["strategy"]
+    results = [run_strategy(net, p, s) for s in strategies_for(p)]
     return {"params": p, "network": summarise_network(net), "results": results,
             "ranking": [r["strategy"] for r in rank_strategies(results)]}
 
@@ -516,7 +600,9 @@ def explain(cmp):
     """Plain-English reasons, built from the numbers (matches the browser app word for word)."""
     p = cmp["params"]
     by = {r["strategy"]: r for r in cmp["results"]}
-    best, second, worst = by[cmp["ranking"][0]], by[cmp["ranking"][1]], by[cmp["ranking"][-1]]
+    # The standard strategies are compared with each other; your own picks get a sentence of their own.
+    ranking = [k for k in cmp["ranking"] if k != "custom"]
+    best, second, worst = by[ranking[0]], by[ranking[1]], by[ranking[-1]]
     ties = cmp["network"]["outsideShare"]
     label = STRATEGY_LABELS
     out = []
@@ -543,6 +629,17 @@ def explain(cmp):
             out.append("Bridge builders sit between groups, so their use is seen on both sides of the gaps that otherwise stop it spreading.")
         else:
             out.append("Champions chosen at random do as well as any plan here.")
+    if "custom" in by:
+        mine = by["custom"]
+        gap = mine["finalMean"] - best["finalMean"]
+        size = " (%d of %d champions)" % (len(mine["champions"]), p["champions"]) if len(mine["champions"]) < p["champions"] else ""
+        if gap > 0.005:
+            tail = "beating every standard strategy."
+        elif gap < -0.005:
+            tail = "against %s for %s." % (whole_pct(best["finalMean"]), label[best["strategy"]].lower())
+        else:
+            tail = "level with %s." % label[best["strategy"]].lower()
+        out.append("Your picks%s reach %s, %s" % (size, whole_pct(mine["finalMean"]), tail))
     if p["socialProof"] >= 0.15:
         out.append("People need about %s of their contacts using it before they are open to it, so a lone user rarely persuades anyone."
                    % whole_pct(p["socialProof"]))

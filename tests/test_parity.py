@@ -42,6 +42,8 @@ SETTINGS = [
     {"people": 300, "teams": 2, "departments": 1, "champions": 1, "socialProof": 0.6, "tiesTeam": 12, "tiesOrg": 4,
      "runs": 10, "weeks": 20, "lapse": 0.3, "fit": 0.3},
     {"socialProof": "0.2", "peerPull": ".3", "runs": "10", "weeks": "16", "strategy": "bogus", "spontaneous": 0.03},
+    dict(model.preset_params("assistant"), runs=10, weeks=20, custom=[0, 5, 9, 44], strategy="custom"),
+    dict(model.preset_params("assistant"), runs=10, weeks=20, custom="3, 3, 170, 400, x", strategy="custom"),
 ]
 
 
@@ -71,10 +73,21 @@ class ParityTest(unittest.TestCase):
             assert_same(self, out["sweep"], sw, job["sweep"]["key"])
             assert_same(self, out["spans"], model.winner_spans(sw))
 
+    def test_robustness_and_settings_files_match(self):
+        params = {"people": 60, "teams": 5, "runs": 10, "weeks": 12, "custom": [1, 2]}
+        js = run_js([{"robust": params}])[0]
+        assert_same(self, js, model.robustness(params))
+        files = [{"app": "champion-seeding", "params": dict(model.preset_params("silos"), custom=[4, 40])},
+                 {"champions": "12", "custom": "1,2,3"}]
+        for f, out in zip(files, run_js([{"settings": f} for f in files])):
+            self.assertEqual(out, model.read_settings_file(f))
+
     def test_settings_are_read_the_same_way(self):
         odd = [{"champions": v} for v in (" ", "0x10", [9], True, "1e999", "12abc", " 12 ", "1e1", None, 2.5, 0.49999999999999994)]
         odd += [{"people": 40, "teams": 30, "departments": 6}, {"teams": 2, "departments": 5}, {"strategy": "spread"},
-                {"strategy": 3}, {"socialProof": -1}, {"seed": 10 ** 400}]
+                {"strategy": 3}, {"socialProof": -1}, {"seed": 10 ** 400}, {"custom": "5, 3,3, x, 999, -1, 2.5, 7"},
+                {"custom": [9, "4", 4, True, None, 1e9]}, {"custom": [1, 2, 3], "champions": 2}, {"strategy": "custom"},
+                {"strategy": "custom", "custom": [7]}, {"custom": 12}]
         js = run_js([{"normalise": o} for o in odd])
         for o, out in zip(odd, js):
             self.assertEqual(out, model.normalise_params(o), repr(o))
