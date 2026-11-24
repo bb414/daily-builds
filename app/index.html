@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Save or sink</title>
+<meta name="description" content="Stress-test automatic saving rules against a student's year of money in and out.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #ffffff; --surface-2: #f2f1ed; --ink: #0b0b0b; --ink-2: #52514e; --muted: #6b6964;
+  --line: #e1e0d9; --line-2: #c3c2b7; --accent: #2a78d6; --pot: #1baf7a; --pot-ink: #0d7a53; --warn: #eb6834; --warn-ink: #a8431b;
+  --warn-soft: #fdf0e9; --good-ink: #006300; --good-soft: #e7f5e7; --bad: #d03b3b; --bad-ink: #a82828; --bad-soft: #fbeaea;
+  --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05); --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a3a29b;
+    --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --pot: #199e70; --pot-ink: #4fd0a0; --warn: #d95926; --warn-ink: #f2a27f;
+    --warn-soft: #36211a; --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a3a29b;
+  --line: #2c2c2a; --line-2: #44443f; --accent: #3987e5; --pot: #199e70; --pot-ink: #4fd0a0; --warn: #d95926; --warn-ink: #f2a27f;
+  --warn-soft: #36211a; --good-ink: #5fd35f; --good-soft: #142a16; --bad: #e66767; --bad-ink: #f29a9a; --bad-soft: #391c1c; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.logo { width: 30px; height: 30px; flex: none; }
+.brand { font-weight: 700; font-size: 18px; }
+.tagline { color: var(--ink-2); font-size: 14px; margin: 0; }
+main.wrap { padding-top: 20px; padding-bottom: 48px; }
+footer { color: var(--muted); font-size: 13px; padding: 20px 0 36px; border-top: 1px solid var(--line); }
+h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; margin: 0 0 8px; }
+h1 { font-size: 24px; }
+h2 { font-size: 19px; }
+h3 { font-size: 15px; margin-top: 14px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.nw { white-space: nowrap; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+.btn { appearance: none; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; font-size: 14px; padding: 7px 12px; border-radius: 10px; cursor: pointer; min-height: 38px; }
+.btn:hover { background: var(--surface-2); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+select { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; min-height: 38px; width: 100%; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+
+/* Settings */
+.settings h2 { margin-bottom: 4px; }
+.group { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+.group > summary { cursor: pointer; font-weight: 700; padding: 8px 0; list-style-position: outside; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; margin: 8px 0 10px; }
+.row label { font-size: 14px; color: var(--ink-2); }
+.row output { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.row input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 2px 0 0; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-2); margin: 8px 0; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.presets { display: grid; gap: 6px; margin-top: 8px; }
+
+/* Results */
+.verdict { font-size: 17px; }
+.verdict strong { white-space: nowrap; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th, table.data td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.data th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+table.data td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.data tr.best td:first-child { font-weight: 700; }
+.risk { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 13px; font-weight: 600; }
+.risk.low { background: var(--good-soft); color: var(--good-ink); }
+.risk.mid { background: var(--warn-soft); color: var(--warn-ink); }
+.risk.high { background: var(--bad-soft); color: var(--bad-ink); }
+.table-wrap { overflow-x: auto; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+svg.chart .lbl { fill: var(--ink); font-size: 12.5px; }
+svg.chart .grid { stroke: var(--line); stroke-width: 1; }
+svg.chart .zero { stroke: var(--line-2); stroke-width: 1.5; }
+svg.chart .limit { stroke: var(--bad); stroke-width: 1.5; }
+svg.chart .bal { fill: none; stroke: var(--accent); stroke-width: 2; }
+svg.chart .potline { fill: none; stroke: var(--pot); stroke-width: 2; }
+svg.chart .rescue { fill: var(--warn); }
+svg.chart .rng { stroke: var(--accent); stroke-width: 6; stroke-linecap: round; opacity: 0.35; }
+svg.chart .med { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+svg.chart .lbl, svg.chart .val { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+svg.chart .val { fill: var(--ink-2); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin: 4px 0 8px; }
+.legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: 3px; border-radius: 2px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.seg button { appearance: none; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.fact { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+.fact span { display: block; font-size: 12px; color: var(--muted); }
+.fact b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.callout { background: var(--warn-soft); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; padding: 10px 12px; font-size: 15px; margin-top: 10px; }
+details.how p { font-size: 14px; color: var(--ink-2); }
+details.how summary { cursor: pointer; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .settings { order: 2; }
+  .results { order: 1; }
+}
+@media (max-width: 560px) {
+  .tagline { display: none; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { padding: 14px; }
+  table.data td.num { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1baf7a"/><path d="M6 20c3-1 5-6 8-6s4 5 7 5 4-3 5-4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M6 25h20" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="23" cy="9" r="3" fill="none" stroke="#fff" stroke-width="2"/></svg>
+    <div>
+      <div class="brand">Save or sink</div>
+      <p class="tagline">Does automatic saving leave a student better off, or just push them into their overdraft?</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <section class="card settings" aria-labelledby="settings-title">
+      <h2 id="settings-title">The student and their bank</h2>
+      <p class="small muted">Start from a situation, then adjust anything. Every number is invented for illustration.</p>
+      <label class="small" for="preset">Situation</label>
+      <select id="preset"></select>
+      <div id="controls"></div>
+    </section>
+
+    <section class="results" aria-labelledby="results-title">
+      <h1 class="sr-only" id="results-title">Results</h1>
+      <p class="sr-only" id="announce" aria-live="polite"></p>
+      <div class="card" id="verdict-card"></div>
+      <div class="card" id="table-card"></div>
+      <div class="card" id="year-card"></div>
+      <div class="card">
+        <details class="how">
+          <summary>How Save or sink works</summary>
+          <p>Each simulated year runs from Monday 1 September to 31 August. Student loan payments arrive at the start of each term, wages arrive on Fridays for the hours worked that week, rent leaves on the 1st and bills on the 10th of each month, and everyday spending, nights out and the odd unexpected cost are drawn at random around the amounts you set. Every saving rule runs through exactly the same years, so differences come from the rules alone.</p>
+          <p>Each rule moves money from the current account into a savings pot at the end of the day. If the current account then falls below your comfort point, you move money back from the pot (a "raid"). Overdraft interest is charged only beyond the interest-free limit, and savings interest is paid on the pot. Both are simple annual rates, charged or paid monthly.</p>
+          <p>The smart saver looks at the last 28 days of card spending, projects it forward over its forecast window, adds rent and bills it knows are coming, keeps a safety buffer, and saves a share of whatever is left. Its blind spot is anything outside that window.</p>
+        </details>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Everything is calculated in this page and nothing is sent anywhere. The students, banks and amounts are invented, and this is a teaching tool, not financial advice. The same settings always give the same answer.</div>
+</footer>
+
+<script>
+/* MODEL START */
+const FORMAT = 'save-or-sink-settings';
+const VERSION = 1;
+const MONTHS = [['Sep', 30], ['Oct', 31], ['Nov', 30], ['Dec', 31], ['Jan', 31], ['Feb', 28],
+  ['Mar', 31], ['Apr', 30], ['May', 31], ['Jun', 30], ['Jul', 31], ['Aug', 31]];
+const MONTH_STARTS = [];
+let DAYS = 0;
+MONTHS.forEach(([, len]) => { MONTH_STARTS.push(DAYS); DAYS += len; });
+const LOAN_DAYS = [21, 126, 231];
+const BILL_DAY = 9;
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const RULES = ['none', 'roundup', 'weekly', 'payday', 'smart'];
+const RULE_NAMES = {
+  none: 'No automatic saving',
+  roundup: 'Round-ups',
+  weekly: 'Fixed amount every Monday',
+  payday: 'Share of every payment in',
+  smart: 'Smart saver (forecasts what is safe to save)'
+};
+const RESCUE_MODES = ['overdrawn', 'near-limit', 'never'];
+const SHOCK_SPREAD = 0.6;
+const LEARNING_DAYS = 7;
+
+const PRESETS = {
+  steady: {
+    label: 'Steady part-time job',
+    startBalance: 400, loanPerTerm: 3000, hourlyPay: 11.5, hoursPerWeek: 10, hoursVariability: 0.2,
+    rent: 520, bills: 30, everydayPerWeek: 90, socialPerWeek: 40, spendVariability: 0.35,
+    shockChance: 0.35, shockSize: 180
+  },
+  shifts: {
+    label: 'Zero-hours shifts',
+    startBalance: 250, loanPerTerm: 2800, hourlyPay: 11.5, hoursPerWeek: 12, hoursVariability: 0.8,
+    rent: 500, bills: 35, everydayPerWeek: 95, socialPerWeek: 50, spendVariability: 0.45,
+    shockChance: 0.4, shockSize: 200
+  },
+  tight: {
+    label: 'Tight budget, no job',
+    startBalance: 150, loanPerTerm: 3600, hourlyPay: 11.5, hoursPerWeek: 0, hoursVariability: 0,
+    rent: 480, bills: 25, everydayPerWeek: 70, socialPerWeek: 25, spendVariability: 0.3,
+    shockChance: 0.3, shockSize: 160
+  }
+};
+
+function defaultSettings(preset) {
+  preset = preset || 'steady';
+  const s = {format: FORMAT, version: VERSION, preset: preset, seed: 1};
+  Object.keys(PRESETS[preset]).forEach(k => { if (k !== 'label') s[k] = PRESETS[preset][k]; });
+  Object.assign(s, {
+    overdraftLimit: 1000, overdraftRate: 39.9, savingsRate: 4.0, rescue: 'overdrawn',
+    rules: {
+      roundup: {multiplier: 1},
+      weekly: {amount: 15},
+      payday: {percent: 10},
+      smart: {horizon: 14, buffer: 100, aggressiveness: 0.5, cap: 100, knowsBills: true}
+    }
+  });
+  return s;
+}
+
+const LIMITS = {
+  startBalance: [-2000, 20000], loanPerTerm: [0, 10000], hourlyPay: [0, 50], hoursPerWeek: [0, 40],
+  hoursVariability: [0, 2], rent: [0, 3000], bills: [0, 500], everydayPerWeek: [0, 1000],
+  socialPerWeek: [0, 1000], spendVariability: [0, 1.5], shockChance: [0, 1], shockSize: [0, 5000],
+  overdraftLimit: [0, 5000], overdraftRate: [0, 100], savingsRate: [0, 20], seed: [0, 4294967295]
+};
+const RULE_LIMITS = {
+  roundup: {multiplier: [1, 10]},
+  weekly: {amount: [0, 1000]},
+  payday: {percent: [0, 100]},
+  smart: {horizon: [1, 120], buffer: [0, 5000], aggressiveness: [0, 1], cap: [0, 5000]}
+};
+const INTEGER_KEYS = ['seed', 'horizon', 'multiplier'];
+
+function isNum(x) { return typeof x === 'number' && Number.isFinite(x); }
+function isObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
+
+// The Python package applies exactly the same rules, with the same messages.
+function validateSettings(s) {
+  if (!isObj(s) || s.format !== FORMAT) return ['These are not Save or sink settings.'];
+  const problems = [];
+  const bad = (v, lo, hi, isInt) => !isNum(v) || !(v >= lo && v <= hi) || (isInt && !Number.isInteger(v));
+  Object.keys(LIMITS).forEach(key => {
+    const [lo, hi] = LIMITS[key];
+    const isInt = INTEGER_KEYS.indexOf(key) >= 0;
+    if (bad(s[key], lo, hi, isInt)) problems.push(key + ' must be a ' + (isInt ? 'whole ' : '') + 'number from ' + lo + ' to ' + hi + '.');
+  });
+  if (RESCUE_MODES.indexOf(s.rescue) < 0) problems.push('rescue must be one of: overdrawn, near-limit, never.');
+  const rules = s.rules;
+  if (!isObj(rules)) { problems.push('rules must be an object.'); return problems; }
+  Object.keys(RULE_LIMITS).forEach(rule => {
+    const r = rules[rule];
+    if (!isObj(r)) { problems.push('rules.' + rule + ' is missing.'); return; }
+    Object.keys(RULE_LIMITS[rule]).forEach(key => {
+      const [lo, hi] = RULE_LIMITS[rule][key];
+      const isInt = INTEGER_KEYS.indexOf(key) >= 0;
+      if (bad(r[key], lo, hi, isInt)) problems.push('rules.' + rule + '.' + key + ' must be a ' + (isInt ? 'whole ' : '') + 'number from ' + lo + ' to ' + hi + '.');
+    });
+  });
+  if (isObj(rules.smart) && typeof rules.smart.knowsBills !== 'boolean') problems.push('rules.smart.knowsBills must be true or false.');
+  return problems;
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const ACK_A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+  1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+const ACK_B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+  6.680131188771972e+01, -1.328068155288572e+01];
+const ACK_C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+  -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+const ACK_D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+
+function invNorm(p) {
+  const A = ACK_A, B = ACK_B, C = ACK_C, D = ACK_D;
+  if (p < 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  if (p > 1 - 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) /
+      ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1);
+  }
+  const q = p - 0.5, r = q * q;
+  return (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q /
+    (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
+}
+
+function normal(rnd) {
+  const u = rnd();
+  return invNorm(Math.min(Math.max(u, 1e-12), 1 - 1e-12));
+}
+
+function pennies(pounds) { return Math.floor(pounds * 100 + 0.5); }
+
+function generateYear(s, seed) {
+  const rnd = mulberry32(seed >>> 0);
+  const days = [];
+  for (let d = 0; d < DAYS; d++) days.push({in: [], out: []});
+  const loan = pennies(s.loanPerTerm);
+  if (loan > 0) LOAN_DAYS.forEach(d => days[d].in.push(['Student loan', loan]));
+  const rent = pennies(s.rent), bills = pennies(s.bills);
+  MONTH_STARTS.forEach(m0 => {
+    if (rent > 0) days[m0].out.push(['Rent', rent, 'debit']);
+    if (bills > 0) days[m0 + BILL_DAY].out.push(['Phone and subscriptions', bills, 'debit']);
+  });
+  const v = s.spendVariability;
+  for (let d = 0; d < DAYS; d++) {
+    const wd = d % 7;
+    if (wd === 4) {
+      const hours = Math.max(0, s.hoursPerWeek * (1 + s.hoursVariability * normal(rnd)));
+      const pay = pennies(hours * s.hourlyPay);
+      if (pay > 0) days[d].in.push(['Wages', pay]);
+    }
+    const k = 1 + Math.floor(rnd() * 3);
+    const total = s.everydayPerWeek / 7 * Math.exp(v * normal(rnd) - v * v / 2);
+    const weights = [];
+    for (let i = 0; i < k; i++) weights.push(0.2 + rnd());
+    let wsum = 0;
+    weights.forEach(w => { wsum += w; });
+    weights.forEach(w => {
+      const amount = pennies(total * w / wsum);
+      if (amount > 0) days[d].out.push(['Everyday spending', amount, 'card']);
+    });
+    if (wd === 4 || wd === 5) {
+      const social = pennies(s.socialPerWeek / 2 * Math.exp(v * normal(rnd) - v * v / 2));
+      if (social > 0) days[d].out.push(['Going out', social, 'card']);
+    }
+  }
+  MONTHS.forEach(([, length], i) => {
+    if (rnd() < s.shockChance) {
+      const day = MONTH_STARTS[i] + Math.floor(rnd() * length);
+      const amount = pennies(s.shockSize * Math.exp(SHOCK_SPREAD * normal(rnd)));
+      if (amount > 0) days[day].out.push(['Unexpected cost', amount, 'card']);
+    }
+  });
+  return days;
+}
+
+function scheduledOut(s, d) {
+  let total = 0;
+  if (MONTH_STARTS.indexOf(d) >= 0) total += pennies(s.rent);
+  if (MONTH_STARTS.indexOf(d - BILL_DAY) >= 0) total += pennies(s.bills);
+  return total;
+}
+
+function rescuePoint(s) {
+  if (s.rescue === 'overdrawn') return 0;
+  if (s.rescue === 'near-limit') return -Math.max(0, pennies(s.overdraftLimit) - 10000);
+  return null;
+}
+
+function simulate(s, days, rule, trace) {
+  const limit = pennies(s.overdraftLimit);
+  const odRate = s.overdraftRate / 100 / 365;
+  const saveRate = s.savingsRate / 100 / 365;
+  const rescueAt = rescuePoint(s);
+  const p = s.rules[rule] || {};
+  let bal = pennies(s.startBalance);
+  let pot = 0, accOd = 0, accSave = 0, potDays = 0;
+  const out = {savedIn: 0, rescued: 0, rescues: 0, daysOverdrawn: 0, daysBeyond: 0,
+    overdraftCost: 0, interestEarned: 0, lowest: bal, potPeak: 0};
+  const history = [];
+  const daily = trace ? [] : null;
+  const sched = rule === 'smart' ? Array.from({length: DAYS}, (_, d) => scheduledOut(s, d)) : null;
+  const monthEnd = new Set(MONTH_STARTS.map((st, i) => st + MONTHS[i][1] - 1));
+  for (let d = 0; d < DAYS; d++) {
+    const day = days[d];
+    let income = 0;
+    day.in.forEach(([, amount]) => { income += amount; });
+    bal += income;
+    let card = 0, roundups = 0;
+    day.out.forEach(([, amount, kind]) => {
+      bal -= amount;
+      if (kind === 'card') {
+        card += amount;
+        roundups += (100 - amount % 100) % 100;
+      }
+    });
+    history.push(card);
+
+    let move = 0;
+    if (rule === 'roundup') {
+      move = roundups * Math.trunc(p.multiplier);
+    } else if (rule === 'weekly') {
+      if (d % 7 === 0) move = pennies(p.amount);
+    } else if (rule === 'payday') {
+      move = Math.floor(income * p.percent / 100 + 0.5);
+    } else if (rule === 'smart' && d >= LEARNING_DAYS) {
+      const from = Math.max(0, d - 27);
+      let spent = 0;
+      for (let k = from; k <= d; k++) spent += history[k];
+      let expected = spent / (d + 1 - from) * p.horizon;
+      if (p.knowsBills) {
+        const to = Math.min(DAYS, d + 1 + Math.trunc(p.horizon));
+        for (let k = d + 1; k < to; k++) expected += sched[k];
+      }
+      const safe = bal - expected - pennies(p.buffer);
+      if (safe > 0) move = Math.min(Math.floor(safe * p.aggressiveness), pennies(p.cap));
+    }
+    if (move > 0) {
+      bal -= move;
+      pot += move;
+      out.savedIn += move;
+    }
+
+    let rescuedToday = 0;
+    if (rescueAt !== null && bal < rescueAt && pot > 0) {
+      const back = Math.min(pot, -bal);
+      pot -= back;
+      bal += back;
+      rescuedToday = back;
+      out.rescued += back;
+      out.rescues += 1;
+    }
+
+    if (bal < -limit) {
+      accOd += (-limit - bal) * odRate;
+      out.daysBeyond += 1;
+    }
+    if (bal < 0) out.daysOverdrawn += 1;
+    accSave += pot * saveRate;
+    if (monthEnd.has(d)) {
+      const charge = Math.floor(accOd + 0.5);
+      const earned = Math.floor(accSave + 0.5);
+      bal -= charge;
+      pot += earned;
+      out.overdraftCost += charge;
+      out.interestEarned += earned;
+      accOd = 0;
+      accSave = 0;
+    }
+    out.lowest = Math.min(out.lowest, bal);
+    out.potPeak = Math.max(out.potPeak, pot);
+    potDays += pot;
+    if (trace) daily.push({balance: bal, pot: pot, moved: move, rescued: rescuedToday});
+  }
+  out.endBalance = bal;
+  out.endPot = pot;
+  out.averagePot = potDays / DAYS;
+  if (trace) out.daily = daily;
+  return out;
+}
+
+function yearSeed(seed, k) { return (Math.imul(seed >>> 0, 7919) + k) >>> 0; }
+
+function percentile(sorted, q) {
+  const n = sorted.length;
+  const h = (n - 1) * q;
+  const lo = Math.floor(h);
+  if (lo + 1 >= n) return sorted[n - 1];
+  return sorted[lo] + (h - lo) * (sorted[lo + 1] - sorted[lo]);
+}
+
+function meanOf(xs) {
+  let total = 0;
+  for (let i = 0; i < xs.length; i++) total += xs[i];
+  return total / xs.length;
+}
+
+function stressTest(s, years, rules) {
+  const problems = validateSettings(s);
+  if (problems.length) throw new Error(problems[0]);
+  years = years === undefined ? 200 : years;
+  if (!(years >= 1 && years <= 20000)) throw new Error('years must be from 1 to 20000');
+  rules = rules || RULES;
+  const runs = {};
+  rules.forEach(r => { runs[r] = []; });
+  for (let k = 0; k < years; k++) {
+    const days = generateYear(s, yearSeed(s.seed, k));
+    let base = null;
+    rules.forEach(r => {
+      const res = simulate(s, days, r);
+      if (r === 'none') base = res;
+      runs[r].push(res);
+    });
+    if (base === null) base = simulate(s, days, 'none');
+    rules.forEach(r => {
+      const res = runs[r][runs[r].length - 1];
+      res.net = (res.endBalance + res.endPot) - (base.endBalance + base.endPot);
+    });
+  }
+  const out = {};
+  const num = (a, b) => a - b;
+  rules.forEach(r => {
+    const rs = runs[r];
+    const pots = rs.map(x => x.endPot).sort(num);
+    const nets = rs.map(x => x.net).sort(num);
+    const saved = rs.map(x => x.savedIn).sort(num);
+    out[r] = {
+      years: years,
+      savedIn: {p10: percentile(saved, 0.1), p50: percentile(saved, 0.5), p90: percentile(saved, 0.9)},
+      endPot: {p10: percentile(pots, 0.1), p50: percentile(pots, 0.5), p90: percentile(pots, 0.9)},
+      net: {p10: percentile(nets, 0.1), p50: percentile(nets, 0.5), p90: percentile(nets, 0.9), mean: meanOf(nets)},
+      beyondChance: rs.filter(x => x.daysBeyond > 0).length / years,
+      meanDaysBeyond: meanOf(rs.map(x => x.daysBeyond)),
+      meanDaysOverdrawn: meanOf(rs.map(x => x.daysOverdrawn)),
+      meanRescues: meanOf(rs.map(x => x.rescues)),
+      meanRescued: meanOf(rs.map(x => x.rescued)),
+      meanOverdraftCost: meanOf(rs.map(x => x.overdraftCost)),
+      meanInterest: meanOf(rs.map(x => x.interestEarned)),
+      meanLowest: meanOf(rs.map(x => x.lowest)),
+      meanAveragePot: meanOf(rs.map(x => x.averagePot))
+    };
+  });
+  return out;
+}
+
+function money(p, signed) {
+  if (p === null || p === undefined || !isNum(p)) return 'n/a';
+  const v = Math.floor(Math.abs(p) + 0.5);
+  const sign = p < 0 && v !== 0 ? '-' : (signed && v !== 0 ? '+' : '');
+  let pounds = Math.floor(v / 100);
+  const pence = v % 100;
+  if (pounds >= 1000) {
+    pounds = Math.floor(Math.abs(p) / 100 + 0.5);
+    return sign + '£' + String(pounds).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  return sign + '£' + pounds + '.' + (pence < 10 ? '0' : '') + pence;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    FORMAT, VERSION, MONTHS, MONTH_STARTS, DAYS, LOAN_DAYS, BILL_DAY, RULES, RULE_NAMES, RESCUE_MODES, PRESETS,
+    LIMITS, RULE_LIMITS, defaultSettings, validateSettings, mulberry32, invNorm, pennies, generateYear,
+    scheduledOut, rescuePoint, simulate, yearSeed, percentile, stressTest, money
+  };
+}
+/* MODEL END */
+
+/* ------------------------------------------------------------------ */
+/* Interface                                                          */
+/* ------------------------------------------------------------------ */
+(function () {
+  if (typeof document === 'undefined') return;
+  const $ = sel => document.querySelector(sel);
+  const YEARS = 300;
+  const state = {s: defaultSettings('steady'), view: 'smart', yearIndex: 0, timer: null, summary: null};
+
+  function esc(t) {
+    return String(t).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  }
+  function nm(p, signed) { return '<span class="nw">' + esc(money(p, signed)) + '</span>'; }
+  function pct(x) { return Math.round(x * 100) + '%'; }
+
+  /* ---------- Controls ---------- */
+  const GBP = v => '£' + Number(v).toLocaleString('en-GB');
+  const CONTROLS = [
+    {group: 'Money in', open: true, items: [
+      {key: 'startBalance', label: 'Balance on 1 September', min: -1000, max: 3000, step: 50, fmt: GBP},
+      {key: 'loanPerTerm', label: 'Student loan each term', min: 0, max: 6000, step: 100, fmt: GBP},
+      {key: 'hoursPerWeek', label: 'Paid hours a week', min: 0, max: 30, step: 1, fmt: v => v + ' h'},
+      {key: 'hoursVariability', label: 'How much the hours vary', min: 0, max: 1.2, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
+      {key: 'hourlyPay', label: 'Pay per hour', min: 5, max: 25, step: 0.25, fmt: v => '£' + Number(v).toFixed(2)}
+    ]},
+    {group: 'Money out', open: true, items: [
+      {key: 'rent', label: 'Rent each month', min: 0, max: 1200, step: 10, fmt: GBP},
+      {key: 'bills', label: 'Phone and subscriptions each month', min: 0, max: 150, step: 5, fmt: GBP},
+      {key: 'everydayPerWeek', label: 'Everyday spending a week', min: 0, max: 250, step: 5, fmt: GBP},
+      {key: 'socialPerWeek', label: 'Going out a week', min: 0, max: 200, step: 5, fmt: GBP},
+      {key: 'spendVariability', label: 'How much spending varies', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
+      {key: 'shockChance', label: 'Chance of an unexpected cost each month', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
+      {key: 'shockSize', label: 'Typical unexpected cost', min: 0, max: 800, step: 10, fmt: GBP}
+    ]},
+    {group: 'Bank and habits', open: true, items: [
+      {key: 'overdraftLimit', label: 'Interest-free overdraft', min: 0, max: 3000, step: 50, fmt: GBP},
+      {key: 'overdraftRate', label: 'Interest beyond it (a year)', min: 0, max: 60, step: 0.1, fmt: v => Number(v).toFixed(1) + '%'},
+      {key: 'savingsRate', label: 'Savings interest (a year)', min: 0, max: 8, step: 0.1, fmt: v => Number(v).toFixed(1) + '%'}
+    ]},
+    {group: 'Saving rules', open: false, items: [
+      {rule: 'roundup', key: 'multiplier', label: 'Round-ups: multiply by', min: 1, max: 5, step: 1, fmt: v => v + '×'},
+      {rule: 'weekly', key: 'amount', label: 'Fixed amount every Monday', min: 0, max: 100, step: 5, fmt: GBP},
+      {rule: 'payday', key: 'percent', label: 'Share of every payment in', min: 0, max: 50, step: 1, fmt: v => v + '%'},
+      {rule: 'smart', key: 'horizon', label: 'Smart saver: forecast window', min: 3, max: 60, step: 1, fmt: v => v + ' days'},
+      {rule: 'smart', key: 'buffer', label: 'Smart saver: safety buffer', min: 0, max: 1000, step: 25, fmt: GBP},
+      {rule: 'smart', key: 'aggressiveness', label: 'Smart saver: share of the spare money it saves', min: 0.05, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%'},
+      {rule: 'smart', key: 'cap', label: 'Smart saver: most it saves in a day', min: 5, max: 500, step: 5, fmt: GBP}
+    ]}
+  ];
+
+  function controlId(c) { return 'c-' + (c.rule ? c.rule + '-' : '') + c.key; }
+  function getVal(c) { return c.rule ? state.s.rules[c.rule][c.key] : state.s[c.key]; }
+
+  function renderControls() {
+    let h = '';
+    CONTROLS.forEach(g => {
+      h += '<details class="group"' + (g.open ? ' open' : '') + '><summary>' + esc(g.group) + '</summary>';
+      g.items.forEach(c => {
+        const id = controlId(c);
+        h += '<div class="row"><label for="' + id + '">' + esc(c.label) + '</label><output for="' + id + '" id="' + id + '-out">' + esc(c.fmt(getVal(c))) + '</output>' +
+          '<input type="range" id="' + id + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + getVal(c) + '"></div>';
+      });
+      if (g.group === 'Saving rules') {
+        h += '<label class="check"><input type="checkbox" id="c-knows"' + (state.s.rules.smart.knowsBills ? ' checked' : '') + '> Smart saver knows when rent and bills are due</label>';
+      }
+      if (g.group === 'Bank and habits') {
+        h += '<label class="small" for="c-rescue">When do you move money back from savings?</label><select id="c-rescue">' +
+          [['overdrawn', 'As soon as I am overdrawn'], ['near-limit', 'Only when I get within £100 of my limit'], ['never', 'Never']].map(([v, l]) =>
+            '<option value="' + v + '"' + (state.s.rescue === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+      }
+      h += '</details>';
+    });
+    h += '<div class="presets"><button class="btn" type="button" id="new-years">Try a different set of years</button></div>';
+    $('#controls').innerHTML = h;
+  }
+
+  function onControl(e) {
+    const el = e.target;
+    if (el.id === 'c-knows') { state.s.rules.smart.knowsBills = el.checked; schedule(); return; }
+    if (el.id === 'c-rescue') { state.s.rescue = el.value; schedule(); return; }
+    const c = CONTROLS.flatMap(g => g.items).find(x => controlId(x) === el.id);
+    if (!c) return;
+    const v = Number(el.value);
+    if (c.rule) state.s.rules[c.rule][c.key] = v; else state.s[c.key] = v;
+    $('#' + el.id + '-out').textContent = c.fmt(v);
+    schedule();
+  }
+
+  function schedule() {
+    clearTimeout(state.timer);
+    state.timer = setTimeout(run, 120);
+  }
+
+  /* ---------- Running ---------- */
+  function run() {
+    const summary = stressTest(state.s, YEARS);
+    state.summary = summary;
+    renderVerdict(summary);
+    renderTable(summary);
+    renderYear();
+  }
+
+  function riskClass(x) { return x <= 0.02 ? 'low' : x <= 0.2 ? 'mid' : 'high'; }
+
+  function shortName(r) { return RULE_NAMES[r].replace(/ \(.*\)$/, ''); }
+
+  function renderVerdict(sum) {
+    const savers = RULES.filter(r => r !== 'none');
+    const base = sum.none.beyondChance;
+    const safe = savers.filter(r => sum[r].beyondChance <= base + 0.02);
+    let h = '<h2>The verdict</h2>';
+    if (safe.length) {
+      const best = safe.reduce((a, b) => (sum[b].endPot.p50 > sum[a].endPot.p50 ? b : a));
+      h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>' + esc(shortName(best)) + '</strong> leaves the most set aside on 31 August (' +
+        nm(sum[best].endPot.p50) + ' in a typical year) without adding to the risk of going past the interest-free overdraft.</p>';
+    } else {
+      const least = savers.reduce((a, b) => (sum[b].beyondChance < sum[a].beyondChance ? b : a));
+      h += '<p class="verdict">Across ' + YEARS + ' simulated years, <strong>every saving rule adds to the risk</strong> of going past the interest-free overdraft. The gentlest is ' +
+        esc(shortName(least)) + ' (' + pct(sum[least].beyondChance) + ' of years, against ' + pct(base) + ' with no automatic saving). Saving here mostly means borrowing to save.</p>';
+    }
+    const notes = [];
+    const most = savers.reduce((a, b) => (sum[b].meanRescues > sum[a].meanRescues ? b : a));
+    if (sum[most].meanRescues >= 12) {
+      notes.push(esc(shortName(most)) + ' moves the most money in and out: you would raid the pot about <strong>' + Math.round(sum[most].meanRescues) + ' times a year</strong>, so much of what it saves just goes round in circles.');
+    }
+    const riskiest = savers.reduce((a, b) => (sum[b].beyondChance > sum[a].beyondChance ? b : a));
+    if (sum[riskiest].beyondChance > base + 0.05) {
+      notes.push(esc(shortName(riskiest)) + ' pushes you past the interest-free overdraft in <strong>' + pct(sum[riskiest].beyondChance) + '</strong> of years, against ' + pct(base) + ' with no automatic saving.');
+    }
+    const losers = savers.filter(r => sum[r].net.p50 < 0);
+    if (losers.length) notes.push(losers.map(r => esc(shortName(r))).join(' and ') + ' leave' + (losers.length === 1 ? 's' : '') + ' you <strong>worse off</strong> in a typical year: the extra overdraft interest outweighs the savings interest.');
+    if (notes.length) h += '<div class="callout">' + notes.map(n => '<p style="margin:0 0 6px">' + n + '</p>').join('') + '</div>';
+    $('#verdict-card').innerHTML = h;
+    $('#announce').textContent = 'Results updated for ' + YEARS + ' simulated years.';
+  }
+
+  function renderTable(sum) {
+    let h = '<h2>Every rule, side by side</h2><p class="small muted">Typical year (median) unless it says average. All rules face exactly the same ' + YEARS + ' years.</p>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th scope="col">Rule</th><th scope="col">Set aside on 31 August</th><th scope="col">Moved into savings</th>' +
+      '<th scope="col">Times you raid it</th><th scope="col">Past the overdraft limit</th><th scope="col">Better or worse off</th></tr></thead><tbody>';
+    RULES.forEach(r => {
+      const x = sum[r];
+      h += '<tr><th scope="row" style="font-weight:600">' + esc(RULE_NAMES[r]) + '</th>' +
+        '<td class="num">' + nm(x.endPot.p50) + '</td><td class="num">' + nm(x.savedIn.p50) + '</td>' +
+        '<td class="num">' + (r === 'none' ? 'n/a' : Math.round(x.meanRescues) + ' a year') + '</td>' +
+        '<td class="num"><span class="risk ' + riskClass(x.beyondChance) + '">' + pct(x.beyondChance) + ' of years</span></td>' +
+        '<td class="num">' + (r === 'none' ? 'n/a' : nm(x.net.p50, true)) + '</td></tr>';
+    });
+    h += '</tbody></table></div><p class="note">"Better or worse off" is savings interest earned minus any extra overdraft interest, compared with no automatic saving. Moving your own money between accounts does not make you richer by itself.</p>';
+    $('#table-card').innerHTML = h;
+  }
+
+  function chartWidth(sel) {
+    const el = $(sel);
+    const w = el ? el.clientWidth - 36 : 700;
+    return Math.max(280, Math.min(860, Math.round(w || 700)));
+  }
+
+  function renderYear() {
+    const s = state.s;
+    const days = generateYear(s, yearSeed(s.seed, state.yearIndex));
+    const res = simulate(s, days, state.view, true);
+    const base = state.view === 'none' ? res : simulate(s, days, 'none');
+    const W = chartWidth('#year-card'), H = W < 480 ? 230 : 280, L = 56, R = 12, T = 14, B = 28;
+    const pw = W - L - R, ph = H - T - B;
+    let lo = Math.min(0, -pennies(s.overdraftLimit), ...res.daily.map(d => d.balance));
+    let hi = Math.max(0, ...res.daily.map(d => Math.max(d.balance, d.pot)));
+    const pad = (hi - lo) * 0.06 || 10000;
+    lo -= pad; hi += pad;
+    const x = d => L + pw * d / (DAYS - 1);
+    const y = v => T + ph * (hi - v) / (hi - lo);
+    let svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="year-title year-desc">';
+    const step = niceStep((hi - lo) / 100, W < 480 ? 4 : 6);
+    for (let v = Math.ceil(lo / 100 / step) * step; v <= hi / 100; v += step) {
+      svg += '<line class="grid" x1="' + L + '" x2="' + (L + pw) + '" y1="' + y(v * 100).toFixed(1) + '" y2="' + y(v * 100).toFixed(1) + '"/>' +
+        '<text x="' + (L - 6) + '" y="' + (y(v * 100) + 4).toFixed(1) + '" text-anchor="end">' + esc(money(v * 100).replace(/\.00$/, '')) + '</text>';
+    }
+    MONTH_STARTS.forEach((m0, i) => {
+      if (W < 480 && i % 2) return;
+      svg += '<text x="' + x(m0).toFixed(1) + '" y="' + (H - 8) + '">' + MONTHS[i][0] + '</text>';
+    });
+    svg += '<line class="zero" x1="' + L + '" x2="' + (L + pw) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>';
+    const lim = -pennies(s.overdraftLimit);
+    svg += '<line class="limit" x1="' + L + '" x2="' + (L + pw) + '" y1="' + y(lim).toFixed(1) + '" y2="' + y(lim).toFixed(1) + '"/>' +
+      '<text class="val" x="' + (L + pw - 4) + '" y="' + (y(lim) - 5).toFixed(1) + '" text-anchor="end">Overdraft limit</text>';
+    const path = key => res.daily.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d[key]).toFixed(1)).join('');
+    if (state.view !== 'none') svg += '<path class="potline" d="' + path('pot') + '"/>';
+    svg += '<path class="bal" d="' + path('balance') + '"/>';
+    res.daily.forEach((d, i) => {
+      if (d.rescued > 0) svg += '<circle class="rescue" cx="' + x(i).toFixed(1) + '" cy="' + y(d.balance).toFixed(1) + '" r="3.5"><title>Day ' + (i + 1) + ': moved ' + esc(money(d.rescued)) + ' back from savings</title></circle>';
+    });
+    svg += '</svg>';
+    const tabs = RULES.map(r => '<button type="button" data-view="' + r + '" aria-pressed="' + (r === state.view) + '">' + esc(shortName(r)) + '</button>').join('');
+    const facts = [
+      ['Set aside on 31 August', money(res.endPot)],
+      ['Times you raided it', state.view === 'none' ? 'n/a' : String(res.rescues)],
+      ['Lowest balance', money(res.lowest)],
+      ['Days past the limit', String(res.daysBeyond)]
+    ];
+    $('#year-card').innerHTML = '<h2 id="year-title">One year up close</h2>' +
+      '<p class="small muted" id="year-desc">Year ' + (state.yearIndex + 1) + ' of ' + YEARS + ': the current account and the savings pot, day by day, under one rule.</p>' +
+      '<div class="seg" role="group" aria-label="Choose a rule">' + tabs + '</div>' +
+      '<div class="legend"><span><i style="background:var(--accent)"></i>Current account</span>' + (state.view !== 'none' ? '<span><i style="background:var(--pot)"></i>Savings pot</span><span><i style="background:var(--warn);height:8px;width:8px;border-radius:50%"></i>Money moved back</span>' : '') +
+      '<span><i style="background:var(--bad)"></i>Overdraft limit</span></div>' + svg +
+      '<div class="facts">' + facts.map(([k, v]) => '<div class="fact"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>').join('') + '</div>' +
+      '<div class="btn-row" style="margin-top:10px"><button class="btn" type="button" id="next-year">Show another year</button></div>' +
+      (state.view !== 'none' ? '<p class="note">With no automatic saving the lowest balance that year was ' + esc(money(base.lowest)) + '.</p>' : '');
+  }
+
+  function niceStep(span, count) {
+    const raw = span / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    return [1, 2, 2.5, 5, 10].map(f => f * mag).find(st => span / st <= count) || 10 * mag;
+  }
+
+  /* ---------- Wiring ---------- */
+  function loadPreset(key) {
+    const keepRules = state.s.rules, keepBank = {overdraftLimit: state.s.overdraftLimit, overdraftRate: state.s.overdraftRate, savingsRate: state.s.savingsRate, rescue: state.s.rescue};
+    state.s = defaultSettings(key);
+    if (state.loaded) { state.s.rules = keepRules; Object.assign(state.s, keepBank); }
+    state.loaded = true;
+    renderControls();
+    run();
+  }
+
+  function init() {
+    $('#preset').innerHTML = Object.keys(PRESETS).map(k => '<option value="' + k + '">' + esc(PRESETS[k].label) + '</option>').join('');
+    $('#preset').addEventListener('change', e => loadPreset(e.target.value));
+    $('#controls').addEventListener('input', onControl);
+    $('#controls').addEventListener('change', e => { if (e.target.id === 'c-rescue' || e.target.id === 'c-knows') onControl(e); });
+    $('#controls').addEventListener('click', e => {
+      if (e.target.id === 'new-years') { state.s.seed = (state.s.seed + 1) % 4294967296; run(); }
+    });
+    $('#year-card').addEventListener('click', e => {
+      const b = e.target.closest('[data-view]');
+      if (b) { state.view = b.dataset.view; renderYear(); const nb = document.querySelector('[data-view="' + state.view + '"]'); if (nb) nb.focus(); return; }
+      if (e.target.id === 'next-year') { state.yearIndex = (state.yearIndex + 1) % YEARS; renderYear(); $('#next-year').focus(); }
+    });
+    let lastW = window.innerWidth;
+    window.addEventListener('resize', () => {
+      if (Math.abs(window.innerWidth - lastW) < 40) return;
+      lastW = window.innerWidth;
+      clearTimeout(state.rt);
+      state.rt = setTimeout(renderYear, 150);
+    });
+    loadPreset('steady');
+  }
+  init();
+})();
+</script>
+</body>
+</html>
