@@ -13,3 +13,4 @@ One small, finished project every day, each on its own branch.
 | Date | Project | What it does | Theme | Stack | Branch |
 |------|---------|--------------|-------|-------|--------|
 <!-- NEW ROWS GO DIRECTLY BELOW THIS LINE, NEWEST FIRST -->
+| 2026-11-24 | Pilot purgatory simulator | Monte Carlo model of an AI pilot portfolio that compares pilots-first and strategy-first organisations, attributes each stalled pilot to one of five scaling barriers, and ranks single governance fixes by net value | AI adoption and scaling beyond the pilot | Python (standard library) | [build/2026-11-24-pilot-purgatory-simulator](https://github.com/bb414/daily-builds/tree/build/2026-11-24-pilot-purgatory-simulator) |
