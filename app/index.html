@@ -96,11 +96,13 @@ p { margin: 0 0 0.75rem; }
   clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
 }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+[tabindex="-1"]:focus { outline: none; }
 
 /* header and tabs */
 .top { background: var(--surface); border-bottom: 1px solid var(--line); }
 .top .wrap { padding-top: 20px; }
-.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.mark { flex: none; }
 .brand h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
 .tagline { color: var(--ink-2); margin: 4px 0 14px; max-width: 60ch; }
 .tabs { display: flex; gap: 4px; overflow-x: auto; }
@@ -111,6 +113,7 @@ p { margin: 0 0 0.75rem; }
 }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .tab:hover { color: var(--ink); }
+@media (max-width: 480px) { .tab .wide { display: none; } .tab { padding: 10px 12px; } }
 main.wrap { padding-top: 24px; padding-bottom: 48px; }
 footer { color: var(--muted); font-size: 0.875rem; padding: 24px 0 40px; border-top: 1px solid var(--line); }
 
@@ -157,6 +160,8 @@ legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
 .tile .v { font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
 .tile .s { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
 @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tiles.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 10px 0 0; }
+@media (max-width: 560px) { .tiles.pair { grid-template-columns: minmax(0, 1fr); } }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .dot.you { background: var(--you); }
 .dot.ai { background: var(--ai); }
@@ -171,11 +176,13 @@ legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
 .progress-bar span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
 .case-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 860px) { .case-layout { grid-template-columns: 1fr; } }
-.facts { width: 100%; border-collapse: collapse; }
-.facts th, .facts td { text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-.facts th { font-weight: 500; color: var(--muted); width: 44%; padding-right: 12px; font-size: 0.9375rem; }
-.facts td { font-weight: 600; }
-.facts td small { display: block; font-weight: 400; color: var(--ink-2); }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.fact { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.fact.wide { grid-column: 1 / -1; }
+.fact dt { font-size: 0.8125rem; color: var(--muted); }
+.fact dd { margin: 2px 0 0; font-weight: 650; font-size: 1.05rem; }
+.fact dd small { display: block; font-weight: 400; font-size: 0.875rem; color: var(--ink-2); }
+.fact dd strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
 .step { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
 .step:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .step h3 { display: flex; align-items: center; gap: 8px; }
@@ -203,11 +210,23 @@ kbd {
   font: 0.8125rem ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 6px; border-radius: 4px;
   border: 1px solid var(--line-strong); background: var(--surface-2);
 }
-.locked { opacity: 0.55; }
+.locked h3 { color: var(--muted); }
+.locked .btn:disabled { opacity: 0.4; }
+.locked .btn[aria-pressed="true"]:disabled { opacity: 1; }
 
 /* model tab */
-.model-grid { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 900px) { .model-grid { grid-template-columns: minmax(0, 1fr); } }
+.model-grid {
+  display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 16px; align-items: start;
+  grid-template-areas: "controls summary" "controls charts";
+}
+.model-summary { grid-area: summary; }
+.model-summary .tiles { margin-bottom: 16px; }
+.model-charts { grid-area: charts; }
+.controls { grid-area: controls; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+@media (max-width: 900px) {
+  .model-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "summary" "controls" "charts"; }
+  .controls { position: static; max-height: none; overflow: visible; }
+}
 .controls h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; }
 .controls h3:first-of-type { margin-top: 0; }
 .slider { margin-bottom: 14px; }
@@ -222,7 +241,10 @@ kbd {
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart text { fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+.chart text {
+  fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round;
+}
 .chart .axis { stroke: var(--line-strong); }
 .chart .grid { stroke: var(--line); }
 .tooltip {
@@ -275,12 +297,17 @@ table.data thead th { color: var(--muted); font-weight: 600; }
 <header class="top">
   <div class="wrap">
     <div class="brand">
+      <svg class="mark" width="36" height="28" viewBox="0 0 36 28" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="14" r="10" fill="var(--you)" opacity="0.9"></circle>
+        <circle cx="24" cy="14" r="10" fill="var(--ai)" opacity="0.9"></circle>
+        <path d="M18 6 A10 10 0 0 1 18 22 A10 10 0 0 1 18 6 Z" fill="var(--team)"></path>
+      </svg>
       <h1>Reliance lab</h1>
     </div>
     <p class="tagline">When a person checks an AI's advice, does the pair do better than either alone, or does the person just rubber-stamp it or overrule it?</p>
     <div class="tabs" role="tablist" aria-label="Sections">
-      <button class="tab" role="tab" id="tab-try" aria-controls="panel-try" aria-selected="true">Try it yourself</button>
-      <button class="tab" role="tab" id="tab-model" aria-controls="panel-model" aria-selected="false" tabindex="-1">Explore the model</button>
+      <button class="tab" role="tab" id="tab-try" aria-controls="panel-try" aria-selected="true">Try it<span class="wide"> yourself</span></button>
+      <button class="tab" role="tab" id="tab-model" aria-controls="panel-model" aria-selected="false" tabindex="-1">Explore<span class="wide"> the model</span></button>
       <button class="tab" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">How it works</button>
     </div>
   </div>
@@ -354,7 +381,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
       <div class="case-layout">
         <div class="card">
           <h3>Flagged payment</h3>
-          <table class="facts" id="case-facts"><tbody></tbody></table>
+          <dl class="facts" id="case-facts"></dl>
         </div>
         <div class="card" id="decision-card">
           <div class="step" id="step-1">
@@ -402,7 +429,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
       <div class="tiles" id="debrief-tiles" style="margin-top:16px"></div>
       <div class="card">
         <h3>Your reliance, in two numbers</h3>
-        <div id="reliance-pair" class="tiles" style="grid-template-columns: repeat(2, minmax(0,1fr)); margin:10px 0 0"></div>
+        <div id="reliance-pair" class="tiles pair"></div>
       </div>
       <div class="card">
         <div class="chart-head"><h3>The same payments, other strategies</h3></div>
@@ -433,6 +460,12 @@ table.data thead th { color: var(--muted); font-weight: 600; }
   <!-- EXPLORE THE MODEL -->
   <section id="panel-model" role="tabpanel" aria-labelledby="tab-model" tabindex="-1" hidden>
     <div class="model-grid">
+      <div class="model-summary">
+        <div class="tiles" id="model-tiles"></div>
+        <div class="card">
+          <p class="insight" id="model-insight" aria-live="polite"></p>
+        </div>
+      </div>
       <form class="card controls" id="model-form" aria-label="Model assumptions">
         <div class="preset">
           <label for="preset">Start from a scenario</label>
@@ -451,11 +484,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
         </div>
         <p class="hint" id="link-status" aria-live="polite"></p>
       </form>
-      <div>
-        <div class="tiles" id="model-tiles"></div>
-        <div class="card">
-          <p class="insight" id="model-insight" aria-live="polite"></p>
-        </div>
+      <div class="model-charts">
         <div class="card">
           <div class="chart-head"><h3>Where each rule's errors come from</h3><span class="hint">Shorter bars are better</span></div>
           <div class="legend" aria-hidden="true">
@@ -519,7 +548,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
       <div class="callout"><strong>The key idea.</strong> When a person and an AI disagree, exactly one of them is right. Any reliance habit that treats every disagreement the same way (always defer, never defer, defer 70% of the time) lands somewhere between the two solo accuracies. Beating both needs a signal that tells you <em>which</em> disagreements to give to the AI, and the only places that signal can come from are confidence: the AI's and your own.</div>
 
       <h2>The exercise</h2>
-      <p>The "Try it yourself" tab uses a two-step design common in research on AI advice: you decide first, then see the advice, then decide again. That separates your own judgement from the AI's influence. The payments are generated from six cues with fixed odds of fraud, so an ideal reader of the cues would get about 85% right. The advisor's mistakes are chosen at random in advance, so it is right exactly as often as you set.</p>
+      <p>The "Try it yourself" tab uses a two-step design common in research on AI advice: you decide first, then see the advice, then decide again. That separates your own judgement from the AI's influence. The payments are generated from six cues with fixed odds of fraud, so an ideal reader of the cues would get about 85% right. The advisor's mistakes are chosen in advance, so it is right exactly as often as you set. You can put its mistakes anywhere, on the tricky payments (where the clues point the wrong way, so you are likely to be fooled too) or on the obvious ones (where you should catch them).</p>
       <p>Two measures, from Schemmer and colleagues (2023), summarise how you used the advice:</p>
       <ul>
         <li><strong>Switching when it helped</strong> (relative AI reliance): of the payments where you were wrong and the AI was right, how often you switched to the AI.</li>
@@ -534,7 +563,8 @@ table.data thead th { color: var(--muted); font-weight: 600; }
         <li><strong>error overlap</strong>: how far they tend to get the same cases wrong. Errors they share can never be fixed by any rule;</li>
         <li>how much each side's <strong>confidence</strong> tells you about whether it is right (in signal detection terms, d', from 0 for "no information" to 4 for "almost perfect"), and whether either side is <strong>overconfident</strong>.</li>
       </ul>
-      <p>It then compares four rules for settling disagreements: deferring at a fixed rate, following the AI whenever it shows at least a set confidence, going with whoever is surer, and the best possible rule, which weighs both confidences exactly. Every result is calculated in closed form, not simulated, and each rule's errors are split into the three kinds in the chart.</p>
+      <p>It then compares four rules for settling disagreements: deferring at a fixed rate, following the AI whenever it shows at least a set confidence, going with whoever is surer, and the best possible rule, which weighs both confidences exactly. Every result is calculated exactly, not simulated, and each rule's errors are split into the three kinds in the first chart.</p>
+      <p>The other views answer follow-up questions. The map shows, for every combination of the two accuracies, whether a rule lets the pair beat both. The levers chart nudges each assumption in turn to show what would help most: a more accurate model, more honest confidence, or a reviewer whose mistakes differ from the AI's. The last chart shows what happens as you raise the confidence bar for following the AI.</p>
       <p>One result is worth knowing: if both sides' confidence is honest and their errors are unrelated, "go with whoever is surer" <em>is</em> the best possible rule. Overconfidence on either side, or errors that cluster on the same cases, is what breaks it.</p>
 
       <h2>Limits</h2>
@@ -1488,6 +1518,9 @@ if (typeof module !== 'undefined' && module.exports) {
     var surer = a.policies.surer;
     var fixed = a.policies.fixed;
     var parts = [];
+    if (a.cells.p01 + a.cells.p10 < 0.005) {
+      return 'The person and the AI almost never disagree here, so there is nothing for any rule to decide: the pair is exactly as good as each of them.';
+    }
     if (lift < 0.005) {
       parts.push('Here the pair can barely beat ' + winner + ' alone: even the best possible rule adds only ' +
         pts(lift) + '.');
@@ -1564,16 +1597,25 @@ if (typeof module !== 'undefined' && module.exports) {
       { v: 1 - p.human, name: 'Person alone', color: 'var(--you)' },
       { v: 1 - p.ai, name: 'AI alone', color: 'var(--ai)' }
     ].sort(function (m, n) { return m.v - n.v; });
+    var barTop = function (i) { return top + i * rowH + (narrow ? 18 : (rowH - barH) / 2); };
     refs.forEach(function (r, i) {
       var x = sx(r.v);
-      svgEl('line', { x1: x, x2: x, y1: top - 6, y2: H - 20, stroke: r.color, 'stroke-width': 2, 'stroke-dasharray': '5 4' }, s);
+      var line = function (y1, y2) {
+        svgEl('line', { x1: x, x2: x, y1: y1, y2: y2, stroke: r.color, 'stroke-width': 2, 'stroke-dasharray': '5 4' }, s);
+      };
+      if (narrow) {
+        line(top - 6, barTop(0) - 18);
+        rows.forEach(function (_, k) { line(barTop(k) - 4, barTop(k) + barH + 4); });
+      } else {
+        line(top - 6, H - 20);
+      }
       var close = i === 1 && Math.abs(sx(refs[1].v) - sx(refs[0].v)) < 110;
       var anchor = x > W - 120 ? 'end' : (x < 60 ? 'start' : 'middle');
       svgText(s, x, close ? 26 : 12, r.name + ' ' + pct(r.v, 0), { 'text-anchor': anchor, style: 'font-weight:600' });
     });
     var tip = makeTooltip(box);
     rows.forEach(function (r, i) {
-      var y = top + i * rowH + (narrow ? 18 : (rowH - barH) / 2);
+      var y = barTop(i);
       var g = svgEl('g', {}, s);
       if (narrow) {
         svgText(g, 0, y - 6, ruleLabel(r, p), { style: 'font-weight:600;fill:var(--ink)' });
@@ -1592,7 +1634,7 @@ if (typeof module !== 'undefined' && module.exports) {
         svgEl('rect', { x: x, y: y, width: Math.max(0.5, w - 2), height: barH, rx: 3, fill: sg.c }, g);
         x += w;
       });
-      svgText(g, Math.min(x + 6, W - rightPad + 6), y + barH / 2 + 4, pct(r.team, 1) + ' right', { style: 'fill:var(--ink)' });
+      svgText(g, W, y + barH / 2 + 4, pct(r.team, 1) + ' right', { 'text-anchor': 'end', style: 'fill:var(--ink);font-weight:600' });
       var hit = svgEl('rect', { x: 0, y: y - (narrow ? 18 : 8), width: W, height: barH + (narrow ? 26 : 16), fill: 'transparent' }, g);
       var html = '<strong>' + ruleLabel(r, p) + '</strong><br>' + pct(r.team, 1) + ' right (' + pts(r.gain) + ' on the better solo)<br>' +
         'Both wrong: ' + pct(r.shared, 1) + '<br>Followed a wrong AI: ' + pct(r.overErrors, 1) +
@@ -1963,15 +2005,16 @@ if (typeof module !== 'undefined' && module.exports) {
       ['Merchant type', F[4].levels[L[4]]],
       ['Payment attempts in the last hour', F[5].levels[L[5]]]
     ];
-    var tbody = $('#case-facts tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function (r) {
-      var tr = el('tr');
-      tr.appendChild(el('th', { scope: 'row' }, r[0]));
-      var td = el('td', {}, r[1]);
-      if (r[2]) td.appendChild(el('small', {}, r[2]));
-      tr.appendChild(td);
-      tbody.appendChild(tr);
+    var dl = $('#case-facts');
+    dl.innerHTML = '';
+    rows.forEach(function (r, i) {
+      var box = el('div', { class: 'fact' + (i === 0 ? ' wide' : '') });
+      box.appendChild(el('dt', {}, r[0]));
+      var dd = el('dd');
+      dd.appendChild(i === 0 ? el('strong', {}, r[1]) : document.createTextNode(r[1]));
+      if (r[2]) dd.appendChild(el('small', {}, r[2]));
+      box.appendChild(dd);
+      dl.appendChild(box);
     });
     $$('#step-1 .btn').forEach(function (b) { b.disabled = false; });
     $('#step-1').classList.remove('locked');

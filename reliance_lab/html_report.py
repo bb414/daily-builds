@@ -48,33 +48,46 @@ def _scatter(rows: list[dict]) -> str:
     pw, ph = w - m["l"] - m["r"], h - m["t"] - m["b"]
 
     def sx(v):
-        return m["l"] + pw * v
+        return m["l"] + pw * (0.05 + 0.9 * v)
 
     def sy(v):
-        return m["t"] + ph * (1 - v)
+        return m["t"] + ph * (0.95 - 0.9 * v)
 
     parts = [f'<svg viewBox="0 0 {w} {h}" width="100%" style="max-width:{w}px" role="img" '
              f'aria-label="Each session plotted by how often it switched to a right AI and held firm against a wrong one">']
     for v in (0, 0.25, 0.5, 0.75, 1):
-        parts.append(f'<line x1="{sx(v)}" x2="{sx(v)}" y1="{m["t"]}" y2="{m["t"] + ph}" stroke="var(--line)"/>')
-        parts.append(f'<line x1="{m["l"]}" x2="{m["l"] + pw}" y1="{sy(v)}" y2="{sy(v)}" stroke="var(--line)"/>')
-        parts.append(f'<text x="{sx(v)}" y="{m["t"] + ph + 16}" text-anchor="middle">{v * 100:.0f}%</text>')
-        parts.append(f'<text x="{m["l"] - 6}" y="{sy(v) + 4}" text-anchor="end">{v * 100:.0f}%</text>')
+        parts.append(f'<line x1="{sx(v):.1f}" x2="{sx(v):.1f}" y1="{m["t"]}" y2="{m["t"] + ph}" stroke="var(--line)"/>')
+        parts.append(f'<line x1="{m["l"]}" x2="{m["l"] + pw}" y1="{sy(v):.1f}" y2="{sy(v):.1f}" stroke="var(--line)"/>')
+        parts.append(f'<text x="{sx(v):.1f}" y="{m["t"] + ph + 16}" text-anchor="middle">{v * 100:.0f}%</text>')
+        parts.append(f'<text x="{m["l"] - 6}" y="{sy(v) + 4:.1f}" text-anchor="end">{v * 100:.0f}%</text>')
     parts.append(f'<text x="{m["l"] + pw / 2}" y="{h - 6}" text-anchor="middle" style="font-weight:600">'
                  'Switched to a right AI</text>')
     parts.append(f'<text transform="translate(14 {m["t"] + ph / 2}) rotate(-90)" text-anchor="middle" '
                  'style="font-weight:600">Held firm against a wrong AI</text>')
-    for x, y, anchor, label in [(0.98, 0.97, "end", "Appropriate reliance"), (0.98, 0.03, "end", "Over-reliance"),
-                                (0.02, 0.97, "start", "Under-reliance"), (0.02, 0.03, "start", "Neither")]:
-        parts.append(f'<text x="{sx(x)}" y="{sy(y) + (12 if y > 0.5 else -4)}" text-anchor="{anchor}" '
+    for x, y, anchor, label in [(0.96, 0.9, "end", "Appropriate reliance"), (0.96, 0.1, "end", "Over-reliance"),
+                                (0.04, 0.9, "start", "Under-reliance"), (0.04, 0.1, "start", "Neither")]:
+        parts.append(f'<text x="{sx(x):.1f}" y="{sy(y) + (12 if y > 0.5 else -4):.1f}" text-anchor="{anchor}" '
                      f'style="font-weight:600;fill:var(--muted)">{label}</text>')
+    # Sessions often land on the same spot (with 20 payments, 100% and 0% are common), so dots at
+    # one spot are drawn once, sized by how many sessions share it, and split by advisor style.
+    spots: dict[tuple, list[dict]] = {}
     for r in rows:
-        if r["rair"] is None or r["rsr"] is None:
-            continue
-        colour = STYLE_COLOURS.get(r["aiStyle"], "#898781")
-        parts.append(f'<circle cx="{sx(r["rair"]):.1f}" cy="{sy(r["rsr"]):.1f}" r="6" fill="{colour}" '
-                     f'stroke="var(--surface)" stroke-width="2" fill-opacity="0.85"><title>{_e(r["label"])}: '
-                     f'switched {pct(r["rair"], 0)}, held firm {pct(r["rsr"], 0)}</title></circle>')
+        if r["rair"] is not None and r["rsr"] is not None:
+            spots.setdefault((round(r["rair"], 4), round(r["rsr"], 4)), []).append(r)
+    for (x, y), group in sorted(spots.items(), key=lambda kv: -len(kv[1])):
+        styles = sorted({r["aiStyle"] for r in group})
+        for k, style in enumerate(styles):
+            members = [r for r in group if r["aiStyle"] == style]
+            offset = (k - (len(styles) - 1) / 2) * 9
+            radius = 5 + 2.5 * (len(members) - 1) ** 0.5
+            colour = STYLE_COLOURS.get(style, "#898781")
+            names = ", ".join(r["label"] for r in members)
+            parts.append(f'<circle cx="{sx(x) + offset:.1f}" cy="{sy(y):.1f}" r="{radius:.1f}" fill="{colour}" '
+                         f'stroke="var(--surface)" stroke-width="2" fill-opacity="0.85"><title>{_e(names)}: '
+                         f'switched {pct(x, 0)}, held firm {pct(y, 0)}</title></circle>')
+            if len(members) > 1:
+                parts.append(f'<text x="{sx(x) + offset:.1f}" y="{sy(y) + 4:.1f}" text-anchor="middle" '
+                             f'style="fill:#fff;font-weight:700;font-size:11px">{len(members)}</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -120,7 +133,7 @@ def class_html(sessions: list[dict], title: str = "Reliance lab: class report") 
 <div class="s">Mean gain {pts(sum(comp) / n)}, 95% interval {interval(bootstrap_mean(comp), points=True)}</div></div>
 </div>
 <div class="card"><h2>How each person used the advice</h2>
-<p class="note">Right is better on both axes. Sessions with no disagreement of one kind cannot be placed{f' ({missing} left out)' if missing else ''}.</p>
+<p class="note">Further right and higher is better. Bigger dots with a number are several sessions in the same spot. Sessions with no disagreement of one kind cannot be placed{f' ({missing} left out)' if missing else ''}.</p>
 <div class="legend">{legend}</div>{_scatter(rows)}</div>
 <div class="card"><h2>Every session</h2><div class="wrap"><table>
 <thead><tr><th>Who</th><th>Advisor</th><th>First</th><th>AI</th><th>Final</th><th>Switched to right AI</th>
