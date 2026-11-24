@@ -87,6 +87,12 @@ class AgreementTests(unittest.TestCase):
             p, k = call["args"]
             self.assert_same(j, model.sample_competition(p, k), f"sample {k} {json.dumps(p)}")
 
+    def test_skill_by_length_agrees(self):
+        settings = [{"teams": 10}, {"teams": 8, "catchUp": True, "rivalsCatchUp": 1, "fatTails": True, "seed": 3}]
+        js = run_js([{"fn": "skillByLength", "args": [p, 12]} for p in settings])
+        for p, j in zip(settings, js):
+            self.assert_same(j, model.skill_by_length(p, 12), f"skill {json.dumps(p)}")
+
     def test_defaults_agree(self):
         self.assert_same(run_js([{"fn": "normalise", "args": [{}]}])[0], model.normalise({}), "defaults")
 

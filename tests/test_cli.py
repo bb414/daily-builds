@@ -41,6 +41,20 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("Challenge number 4", out)
         self.assertIn("Your team", out)
 
+    def test_design(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            out_csv = Path(tmp) / "d.csv"
+            out_html = Path(tmp) / "d.html"
+            code, out, _ = run(["design", "--sims-each", "8", "--teams", "8", "--workers", "1",
+                                "--csv", str(out_csv), "--html", str(out_html)])
+            self.assertEqual(code, 0)
+            self.assertIn("Chance the most skilled team wins", out)
+            self.assertTrue(out_csv.exists() and out_html.exists())
+        code, _, err = run(["design", "--sims-each", "0"])
+        self.assertEqual(code, 2)
+
     def test_errors(self):
         code, _, err = run(["sample", "--index", "-1"])
         self.assertEqual(code, 2)

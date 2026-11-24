@@ -151,3 +151,23 @@ test('the checkpoint is always inside the challenge', () => {
     });
   });
 });
+
+test('average ranks share tied places, and correlation behaves', () => {
+  assert.deepEqual(M.averageRanks([3, 1, 3, -Infinity, -Infinity]), [1.5, 3, 1.5, 4.5, 4.5]);
+  assert.equal(M.correlation([1, 2, 3], [3, 2, 1]), -1);
+  assert.equal(M.correlation([1, 2, 3], [2, 4, 6]), 1);
+  assert.equal(M.correlation([1, 1, 1], [1, 2, 3]), 0);
+});
+
+test('skill shows more clearly the longer the challenge runs', () => {
+  const rows = M.skillByLength({ teams: 20 }, 60);
+  assert.equal(rows.length, M.RULES.length * M.DURATIONS.length);
+  M.RULES.forEach((rule) => {
+    const week = rows.find((r) => r.rule === rule && r.days === 5);
+    const year = rows.find((r) => r.rule === rule && r.days === 250);
+    assert.ok(year.rankCorr > week.rankCorr + 0.15, rule);
+  });
+  const run = M.createSkillRun({ teams: 20 }, 60);
+  while (!run.advance(13)) { /* keep going */ }
+  assert.deepEqual(run.result(), rows);
+});

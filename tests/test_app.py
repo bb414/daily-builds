@@ -95,6 +95,22 @@ class AppTests(unittest.TestCase):
         page.mouse.click(box["x"] + box["width"] - 20, box["y"] + box["height"] / 2)
         self.assertEqual(page.get_attribute("#s-yourVol", "aria-valuetext"), "100%")
 
+    def test_skill_card_and_settings_link(self):
+        page = self.open()
+        page.wait_for_function("document.getElementById('skill-note').textContent.length > 0", timeout=30000)
+        self.assertEqual(page.locator("#skill-table tbody tr").count(), 7)
+        self.assertIn("four-week challenges", page.inner_text("#skill-note"))
+        page.select_option("#preset", label="Knocked out at a 10% drawdown")
+        self.wait_for_new_result(page)
+        url = page.url
+        self.assertIn("rule=drawdown", url)
+        self.assertIn("drawdownLimit=0.1", url)
+        other = self.open(url=url)
+        self.assertTrue(other.is_checked("input[name=rule][value=drawdown]"))
+        self.assertEqual(other.input_value("#s-drawdownLimit"), "0.1")
+        other.close()
+        self.assertEqual(self.problems, [])
+
     def test_fits_a_phone(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)

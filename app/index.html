@@ -24,6 +24,9 @@
   --gambler: #eb6834;
   --steady: #1baf7a;
   --other: #a3a19a;
+  --rule-return: #6250d6;
+  --rule-sharpe: #008300;
+  --rule-drawdown: #e87ba4;
   --shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 2px 8px rgba(20, 20, 20, 0.04);
 }
 @media (prefers-color-scheme: dark) {
@@ -45,6 +48,9 @@
     --gambler: #d95926;
     --steady: #199e70;
     --other: #77756f;
+    --rule-return: #9085e9;
+    --rule-sharpe: #0ca30c;
+    --rule-drawdown: #d55181;
     --shadow: none;
   }
 }
@@ -66,6 +72,9 @@
   --gambler: #d95926;
   --steady: #199e70;
   --other: #77756f;
+  --rule-return: #9085e9;
+  --rule-sharpe: #0ca30c;
+  --rule-drawdown: #d55181;
   --shadow: none;
 }
 * { box-sizing: border-box; }
@@ -167,7 +176,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
 table.data tr.you td, table.data tr.you th { background: var(--accent-soft); font-weight: 700; }
 .kind { display: inline-flex; align-items: center; gap: 6px; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
-.stale #results { opacity: 0.55; transition: opacity 0.2s; }
+.stale #results, .stale-chart { opacity: 0.55; transition: opacity 0.2s; }
 .prose { max-width: 72ch; }
 .prose h3 { margin-top: 18px; }
 .prose li { margin-bottom: 6px; }
@@ -217,9 +226,11 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
       <label class="field-label visually-hidden" for="preset">Start from a scenario</label>
       <select id="preset" class="select" style="max-width: 340px"></select>
       <button type="button" class="btn" id="new-luck">New luck</button>
+      <button type="button" class="btn" id="copy-link">Copy link to these settings</button>
       <div class="status" role="status" aria-live="polite"><span id="status-text"></span><span class="bar" aria-hidden="true"><span id="status-bar"></span></span></div>
     </div>
     <p class="hint" id="preset-hint" style="margin-top: 8px"></p>
+    <p class="hint" id="link-status" aria-live="polite"></p>
   </section>
 
   <section aria-label="Results" class="stack" id="results">
@@ -253,6 +264,21 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; 
       <div class="chart" id="sample-chart"></div>
       <div class="table-wrap"><table class="data" id="sample-table"></table></div>
     </div>
+  </section>
+
+  <section class="card" aria-labelledby="skill-h">
+    <div class="chart-head"><h3 id="skill-h">How long before skill shows?</h3><span class="hint" id="skill-status" role="status"></span></div>
+    <p class="hint">How often the most skilled team in the field finishes first, by length of challenge and scoring rule. Each point is 300 simulated challenges with your other settings.</p>
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw line" style="background:var(--rule-return)"></i>Highest return</span>
+      <span><i class="sw line" style="background:var(--rule-sharpe)"></i>Highest Sharpe ratio</span>
+      <span><i class="sw line" style="background:var(--rule-drawdown)"></i>Return with drawdown limit</span>
+    </div>
+    <div class="chart" id="skill-chart"></div>
+    <p id="skill-note"></p>
+    <details class="more"><summary>Show the numbers</summary>
+      <div class="table-wrap"><table class="data" id="skill-table"></table></div>
+    </details>
   </section>
 
   <section class="card prose" aria-labelledby="about-h">
@@ -751,6 +777,115 @@ var LeaderboardModel = (function () {
     return run.result();
   }
 
+  /* ---------- how long before skill shows? ---------- */
+
+  var DURATIONS = [5, 10, 20, 40, 60, 120, 250];
+
+  // Ranks with ties sharing the average place (rank 1 = highest value).
+  function averageRanks(values) {
+    var order = values.map(function (v, i) { return i; });
+    order.sort(function (x, y) {
+      if (values[x] === values[y]) return x - y;
+      return values[y] > values[x] ? 1 : -1;
+    });
+    var ranks = new Array(values.length);
+    var i = 0;
+    while (i < order.length) {
+      var j = i;
+      while (j + 1 < order.length && values[order[j + 1]] === values[order[i]]) j += 1;
+      for (var k = i; k <= j; k++) ranks[order[k]] = (i + j) / 2 + 1;
+      i = j + 1;
+    }
+    return ranks;
+  }
+
+  function correlation(xs, ys) {
+    var n = xs.length;
+    var mx = 0;
+    var my = 0;
+    for (var i = 0; i < n; i++) {
+      mx += xs[i];
+      my += ys[i];
+    }
+    mx /= n;
+    my /= n;
+    var sxy = 0;
+    var sxx = 0;
+    var syy = 0;
+    for (var k = 0; k < n; k++) {
+      sxy += (xs[k] - mx) * (ys[k] - my);
+      sxx += (xs[k] - mx) * (xs[k] - mx);
+      syy += (ys[k] - my) * (ys[k] - my);
+    }
+    return sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0;
+  }
+
+  // For each scoring rule and challenge length: how often the most skilled team wins, and how
+  // closely final places follow true skill (rank correlation, 1 = perfectly). Your team takes
+  // part at your settings. Advance in chunks like createRun; each step is one competition.
+  function createSkillRun(params, simsEach) {
+    var p = normalise(params);
+    var n = Math.max(1, Math.round(simsEach || 300));
+    var jobs = [];
+    RULES.forEach(function (rule) {
+      DURATIONS.forEach(function (days) {
+        jobs.push({ rule: rule, days: days, p: Object.assign({}, p, { rule: rule, days: days }),
+          best: 0, corr: 0, noEdge: 0, gambler: 0 });
+      });
+    });
+    var total = jobs.length * n;
+    var done = 0;
+    return {
+      advance: function (count) {
+        var stop = Math.min(total, done + count);
+        for (var s = done; s < stop; s++) {
+          var job = jobs[Math.floor(s / n)];
+          oneSkillCompetition(job, s % n);
+        }
+        done = stop;
+        return done >= total;
+      },
+      progress: function () { return done / total; },
+      result: function () {
+        return jobs.map(function (job) {
+          return { rule: job.rule, days: job.days, pBestWins: job.best / n, rankCorr: job.corr / n,
+            pNoEdgeWins: job.noEdge / n, pGamblerWins: job.gambler / n };
+        });
+      }
+    };
+  }
+
+  function oneSkillCompetition(job, k) {
+    var p = job.p;
+    var c = runCompetition(p, k, false);
+    var you = runYou(p, c, p.yourVol, false);
+    var skills = [p.yourSharpe];
+    var scores = [you.score];
+    c.rivals.forEach(function (rv) {
+      skills.push(rv.sharpe);
+      scores.push(rv.score);
+    });
+    var places = averageRanks(scores);
+    job.corr += correlation(averageRanks(skills), places);
+    var topSkill = 0;
+    var winner = -1;
+    for (var i = 1; i < skills.length; i++) if (skills[i] > skills[topSkill]) topSkill = i;
+    for (var j = 0; j < scores.length; j++) {
+      if (scores[j] > -Infinity && (winner < 0 || scores[j] > scores[winner])) winner = j;
+    }
+    if (winner >= 0) {
+      if (winner === topSkill) job.best += 1;
+      if (skills[winner] <= 0) job.noEdge += 1;
+      if (winner > 0 && c.rivals[winner - 1].gambler) job.gambler += 1;
+    }
+  }
+
+  function skillByLength(params, simsEach) {
+    var run = createSkillRun(params, simsEach);
+    while (!run.advance(1000)) { /* keep going */ }
+    return run.result();
+  }
+
   // One competition in full, for the leaderboard and equity curves. Competition k here is the
   // same as competition k inside simulate().
   function sampleCompetition(params, k) {
@@ -793,8 +928,13 @@ var LeaderboardModel = (function () {
     competitionSeed: competitionSeed,
     normCdf: normCdf,
     skillPercentile: skillPercentile,
+    DURATIONS: DURATIONS,
     createRun: createRun,
     simulate: simulate,
+    averageRanks: averageRanks,
+    correlation: correlation,
+    createSkillRun: createSkillRun,
+    skillByLength: skillByLength,
     sampleCompetition: sampleCompetition
   };
 })();
@@ -1024,6 +1164,8 @@ if (typeof module !== 'undefined' && module.exports) {
   function changed() {
     params = M.normalise(params);
     syncControls();
+    writeHash();
+    $('#link-status').textContent = '';
     sampleIndex = 0;
     drawSample();
     document.body.classList.add('stale');
@@ -1047,6 +1189,7 @@ if (typeof module !== 'undefined' && module.exports) {
         document.body.classList.remove('stale');
         $('#status-text').textContent = 'Based on ' + lastResult.sims.toLocaleString('en-GB') + ' simulated challenges (luck number ' + params.seed + ').';
         renderResults(lastResult);
+        startSkillRun(token);
       } else {
         $('#status-text').textContent = 'Simulating ' + run.params.sims.toLocaleString('en-GB') + ' challenges… ' + pct(run.progress());
         setTimeout(work, 0);
@@ -1054,6 +1197,145 @@ if (typeof module !== 'undefined' && module.exports) {
     }
     work();
   }
+
+  /* ---------- how long before skill shows? ---------- */
+
+  var SKILL_SIMS = 300;
+  var lastSkill = null;
+  var LENGTH_LABELS = { 5: '1 week', 10: '2 weeks', 20: '4 weeks', 40: '8 weeks', 60: '12 weeks', 120: '6 months', 250: '1 year' };
+  var RULE_COLOUR = { return: 'var(--rule-return)', sharpe: 'var(--rule-sharpe)', drawdown: 'var(--rule-drawdown)' };
+
+  function startSkillRun(token) {
+    var run = M.createSkillRun(params, SKILL_SIMS);
+    function work() {
+      if (token !== runToken) return;
+      var t0 = Date.now();
+      var finished = false;
+      while (!finished && Date.now() - t0 < 30) finished = run.advance(10);
+      if (finished) {
+        lastSkill = run.result();
+        $('#skill-status').textContent = '';
+        drawSkill(lastSkill);
+      } else {
+        $('#skill-status').textContent = 'Working it out\u2026 ' + pct(run.progress());
+        setTimeout(work, 0);
+      }
+    }
+    $('#skill-chart').classList.add('stale-chart');
+    work();
+  }
+
+  function drawSkill(rows) {
+    var box = $('#skill-chart');
+    box.classList.remove('stale-chart');
+    box.innerHTML = '';
+    var W = Math.max(280, box.clientWidth || 600);
+    var H = 240;
+    var m = { l: 44, r: 16, t: 12, b: 34 };
+    var yMax = niceMax(Math.max.apply(null, rows.map(function (r) { return r.pBestWins; }).concat([0.05])) * 1.1);
+    var D = M.DURATIONS;
+    var sx = function (i) { return m.l + (W - m.l - m.r) * i / (D.length - 1); };
+    var sy = function (v) { return H - m.b - (H - m.t - m.b) * v / yMax; };
+    var get = function (rule, days) { return rows.filter(function (r) { return r.rule === rule && r.days === days; })[0]; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Chance the most skilled team wins by challenge length. ' + M.RULES.map(function (rule) {
+        return M.RULE_LABELS[rule] + ': ' + D.map(function (d) { return LENGTH_LABELS[d] + ' ' + pct(get(rule, d).pBestWins); }).join(', ');
+      }).join('. ') });
+    var ticks = yMax <= 0.1 ? 5 : 4;
+    for (var i = 0; i <= ticks; i++) {
+      var v = yMax * i / ticks;
+      svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: i === 0 ? 'axis' : 'grid' }, s);
+      svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
+    }
+    var narrow = W < 520;
+    D.forEach(function (d, k) {
+      if (narrow && (k === 1 || k === 3)) return;
+      svgText(s, sx(k), H - m.b + 18, LENGTH_LABELS[d], { 'text-anchor': k === 0 ? 'start' : (k === D.length - 1 ? 'end' : 'middle') });
+    });
+    var current = D.indexOf(params.days);
+    if (current >= 0) {
+      svgEl('line', { x1: sx(current), x2: sx(current), y1: m.t, y2: H - m.b, stroke: 'var(--ink-2)', 'stroke-dasharray': '3 3' }, s);
+    }
+    M.RULES.forEach(function (rule) {
+      var d = D.map(function (days, k) { return (k ? 'L' : 'M') + sx(k).toFixed(1) + ' ' + sy(get(rule, days).pBestWins).toFixed(1); }).join(' ');
+      svgEl('path', { d: d, fill: 'none', stroke: RULE_COLOUR[rule], 'stroke-width': rule === params.rule ? 3.5 : 2, 'stroke-linejoin': 'round' }, s);
+      D.forEach(function (days, k) {
+        svgEl('circle', { cx: sx(k), cy: sy(get(rule, days).pBestWins), r: 3.5, fill: RULE_COLOUR[rule] }, s);
+      });
+    });
+    box.appendChild(s);
+    var table = $('#skill-table');
+    table.innerHTML = '';
+    var head = el('thead');
+    var hr = el('tr');
+    hr.appendChild(el('th', { scope: 'col' }, 'Length'));
+    M.RULES.forEach(function (rule) { hr.appendChild(el('th', { scope: 'col' }, M.RULE_LABELS[rule])); });
+    head.appendChild(hr);
+    table.appendChild(head);
+    var body = el('tbody');
+    D.forEach(function (days) {
+      var tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, LENGTH_LABELS[days]));
+      M.RULES.forEach(function (rule) {
+        var r = get(rule, days);
+        tr.appendChild(el('td', {}, pct(r.pBestWins, 1) + ' (rank correlation ' + r.rankCorr.toFixed(2) + ')'));
+      });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    var year = get(params.rule, 250);
+    var month = get(params.rule, 20);
+    var ruleWords = { return: 'return', sharpe: 'Sharpe ratio', drawdown: 'return with a drawdown limit' };
+    $('#skill-note').textContent = 'Ranked on ' + ruleWords[params.rule] +
+      ', the most skilled team wins ' + pct(month.pBestWins) + ' of four-week challenges and ' + pct(year.pBestWins) +
+      ' of year-long ones. Even after a year, final places follow true skill only loosely (rank correlation ' + year.rankCorr.toFixed(2) + ', where 1 would be perfect).';
+  }
+
+  /* ---------- settings in the address, so a link reopens them ---------- */
+
+  function settingsHash() {
+    var parts = [];
+    Object.keys(M.DEFAULTS).forEach(function (k) {
+      if (k === 'sims' || params[k] === M.DEFAULTS[k]) return;
+      var v = params[k];
+      parts.push(k + '=' + (typeof v === 'boolean' ? (v ? '1' : '0') : (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)));
+    });
+    return parts.length ? '#' + parts.join('&') : '';
+  }
+
+  function writeHash() {
+    try { history.replaceState(null, '', location.href.split('#')[0] + settingsHash()); } catch (err) { /* some viewers block this */ }
+  }
+
+  function readHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return;
+    var out = Object.assign({}, M.DEFAULTS);
+    h.split('&').forEach(function (pair) {
+      var bits = pair.split('=');
+      var k = bits[0];
+      if (!Object.prototype.hasOwnProperty.call(M.DEFAULTS, k) || k === 'sims') return;
+      var d = M.DEFAULTS[k];
+      if (typeof d === 'boolean') out[k] = bits[1] === '1';
+      else if (typeof d === 'number') { var v = parseFloat(bits[1]); if (isFinite(v)) out[k] = v; }
+      else if (M.RULES.indexOf(bits[1]) >= 0) out[k] = bits[1];
+    });
+    params = M.normalise(out);
+  }
+
+  $('#copy-link').addEventListener('click', function () {
+    writeHash();
+    var link = location.href;
+    var status = $('#link-status');
+    var fallback = function () { status.textContent = 'Copy this link: ' + link; };
+    try {
+      navigator.clipboard.writeText(link).then(function () {
+        status.textContent = 'Link copied. Opening it with this file shows the same settings and luck.';
+      }, fallback);
+    } catch (err) {
+      fallback();
+    }
+  });
 
   $('#new-luck').addEventListener('click', function () {
     params.seed = (params.seed + 1) % 4294967296;
@@ -1352,10 +1634,12 @@ if (typeof module !== 'undefined' && module.exports) {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () {
       if (lastResult) drawRiskChart(lastResult);
+      if (lastSkill) drawSkill(lastSkill);
       drawSample();
     }, 150);
   });
 
+  readHash();
   buildControls();
   buildPresets();
   changed();

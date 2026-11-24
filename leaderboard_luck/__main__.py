@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from pathlib import Path
 
-from .model import DEFAULTS, RULES, simulate
+from .design import design_csv, design_html, design_report
+from .model import DEFAULTS, RULES, simulate, skill_by_length
 from .report import sample_report, simulate_report
 
 FLAGS = {
@@ -47,6 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("sample", help="show one simulated challenge in full")
     add_settings(c)
     c.add_argument("--index", type=int, default=0, help="which challenge, counting from 0 (default 0)")
+    d = sub.add_parser("design", help="compare scoring rules and challenge lengths (the organiser's view)")
+    add_settings(d)
+    d.add_argument("--sims-each", type=int, default=400, help="challenges per rule and length (default 400)")
+    d.add_argument("--workers", type=int, default=os.cpu_count() or 1,
+                   help="parallel processes (default: one per CPU); the answer does not change")
+    d.add_argument("--csv", metavar="PATH", help="also write the table to a CSV file")
+    d.add_argument("--html", metavar="PATH", help="also write a self-contained HTML report")
     return parser
 
 
@@ -61,6 +71,19 @@ def main(argv: list[str] | None = None) -> int:
             if args.index < 0:
                 raise ValueError("--index cannot be negative")
             print(sample_report(p, args.index))
+        elif args.command == "design":
+            if args.sims_each < 1 or args.workers < 1:
+                raise ValueError("--sims-each and --workers must be at least 1")
+            from .model import normalise
+            params = normalise(p)
+            rows = skill_by_length(params, args.sims_each, args.workers)
+            print(design_report(params, rows, args.sims_each))
+            if args.csv:
+                Path(args.csv).write_text(design_csv(rows), encoding="utf-8")
+                print(f"\nWrote {args.csv}")
+            if args.html:
+                Path(args.html).write_text(design_html(params, rows, args.sims_each), encoding="utf-8")
+                print(f"\nWrote {args.html}")
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

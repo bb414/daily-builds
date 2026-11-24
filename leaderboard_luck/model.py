@@ -113,23 +113,24 @@ def normalise(params: dict | None = None) -> dict:
 
 # ---------- random numbers (identical to the browser app) ----------
 
-def _imul(a: int, b: int) -> int:
-    """JavaScript's Math.imul, returned as an unsigned 32-bit integer."""
-    return ((a & MASK) * (b & MASK)) & MASK
-
-
 class Rng:
-    """mulberry32 uniforms and polar-method normals, exactly as in the browser app."""
+    """mulberry32 uniforms and polar-method normals, exactly as in the browser app.
+
+    The 32-bit multiplications are written out inline (each is JavaScript's Math.imul) because
+    this generator is the slowest part of the Python simulation.
+    """
+
+    __slots__ = ("t", "spare")
 
     def __init__(self, seed: int):
         self.t = seed & MASK
         self.spare = None
 
     def uniform(self) -> float:
-        self.t = (self.t + 0x6D2B79F5) & MASK
-        t = self.t
-        r = _imul(t ^ (t >> 15), 1 | t)
-        r = ((r + _imul(r ^ (r >> 7), 61 | r)) & MASK) ^ r
+        t = (self.t + 0x6D2B79F5) & MASK
+        self.t = t
+        r = ((t ^ (t >> 15)) * (1 | t)) & MASK
+        r = ((r + (((r ^ (r >> 7)) * (61 | r)) & MASK)) & MASK) ^ r
         return ((r ^ (r >> 14)) & MASK) / 4294967296
 
     def normal(self) -> float:
@@ -137,12 +138,20 @@ class Rng:
             s0 = self.spare
             self.spare = None
             return s0
+        t = self.t
         while True:
-            u = 2 * self.uniform() - 1
-            v = 2 * self.uniform() - 1
+            t = (t + 0x6D2B79F5) & MASK
+            r = ((t ^ (t >> 15)) * (1 | t)) & MASK
+            r = ((r + (((r ^ (r >> 7)) * (61 | r)) & MASK)) & MASK) ^ r
+            u = 2 * (((r ^ (r >> 14)) & MASK) / 4294967296) - 1
+            t = (t + 0x6D2B79F5) & MASK
+            r = ((t ^ (t >> 15)) * (1 | t)) & MASK
+            r = ((r + (((r ^ (r >> 7)) * (61 | r)) & MASK)) & MASK) ^ r
+            v = 2 * (((r ^ (r >> 14)) & MASK) / 4294967296) - 1
             s = u * u + v * v
             if 0 < s < 1:
                 break
+        self.t = t
         f = math.sqrt(-2 * math.log(s) / s)
         self.spare = v * f
         return u * f
@@ -466,6 +475,87 @@ def simulate(params: dict | None = None) -> dict:
     run = Run(params)
     run.advance(run.params["sims"])
     return run.result()
+
+
+# ---------- how long before skill shows? ----------
+
+DURATIONS = [5, 10, 20, 40, 60, 120, 250]
+
+
+def average_ranks(values: list[float]) -> list[float]:
+    """Ranks with ties sharing the average place (rank 1 = highest value)."""
+    order = sorted(range(len(values)), key=lambda i: (-values[i], i))
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = (i + j) / 2 + 1
+        i = j + 1
+    return ranks
+
+
+def correlation(xs: list[float], ys: list[float]) -> float:
+    n = len(xs)
+    mx = 0.0
+    my = 0.0
+    for i in range(n):
+        mx += xs[i]
+        my += ys[i]
+    mx /= n
+    my /= n
+    sxy = sxx = syy = 0.0
+    for k in range(n):
+        sxy += (xs[k] - mx) * (ys[k] - my)
+        sxx += (xs[k] - mx) * (xs[k] - mx)
+        syy += (ys[k] - my) * (ys[k] - my)
+    return sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else 0.0
+
+
+def skill_job(params: dict | None, rule: str, days: int, sims_each: int = 300) -> dict:
+    """One scoring rule at one challenge length: how often the most skilled team wins, how
+    closely final places follow true skill (rank correlation), and who the winners were."""
+    p = {**normalise(params), "rule": rule, "days": days}
+    n = max(1, round_half_up(sims_each))
+    best = no_edge = gambler = 0
+    corr = 0.0
+    for k in range(n):
+        c = run_competition(p, k)
+        you = run_you(p, c, p["yourVol"])
+        skills = [p["yourSharpe"]] + [rv["sharpe"] for rv in c["rivals"]]
+        scores = [you["score"]] + [rv["score"] for rv in c["rivals"]]
+        corr += correlation(average_ranks(skills), average_ranks(scores))
+        top_skill = 0
+        for i in range(1, len(skills)):
+            if skills[i] > skills[top_skill]:
+                top_skill = i
+        winner = -1
+        for j, sc in enumerate(scores):
+            if sc > -math.inf and (winner < 0 or sc > scores[winner]):
+                winner = j
+        if winner >= 0:
+            if winner == top_skill:
+                best += 1
+            if skills[winner] <= 0:
+                no_edge += 1
+            if winner > 0 and c["rivals"][winner - 1]["gambler"]:
+                gambler += 1
+    return {"rule": rule, "days": days, "pBestWins": best / n, "rankCorr": corr / n,
+            "pNoEdgeWins": no_edge / n, "pGamblerWins": gambler / n}
+
+
+def skill_by_length(params: dict | None = None, sims_each: int = 300, workers: int = 1) -> list[dict]:
+    """skill_job for every rule and length, in the same order as the browser app's
+    createSkillRun. With workers > 1 the jobs run in parallel processes; the answer is the same."""
+    p = normalise(params)
+    jobs = [(p, rule, days, sims_each) for rule in RULES for days in DURATIONS]
+    if workers <= 1:
+        return [skill_job(*job) for job in jobs]
+    from concurrent.futures import ProcessPoolExecutor
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(skill_job, *zip(*jobs)))
 
 
 def sample_competition(params: dict | None, k: int) -> list[dict]:

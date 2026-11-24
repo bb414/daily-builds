@@ -119,6 +119,36 @@ class SampleTests(unittest.TestCase):
             self.assertEqual(t["score"], -math.inf)
 
 
+class SkillByLengthTests(unittest.TestCase):
+    def test_ranks_and_correlation(self):
+        from leaderboard_luck.model import average_ranks, correlation
+        self.assertEqual(average_ranks([3, 1, 3, -math.inf, -math.inf]), [1.5, 3, 1.5, 4.5, 4.5])
+        self.assertEqual(correlation([1, 2, 3], [3, 2, 1]), -1)
+        self.assertEqual(correlation([1, 1, 1], [1, 2, 3]), 0)
+
+    def test_longer_challenges_show_skill_and_workers_do_not_change_the_answer(self):
+        from leaderboard_luck.model import DURATIONS, RULES, skill_by_length
+        rows = skill_by_length({"teams": 12}, 30)
+        self.assertEqual([(r["rule"], r["days"]) for r in rows], [(ru, d) for ru in RULES for d in DURATIONS])
+        by = {(r["rule"], r["days"]): r for r in rows}
+        for rule in RULES:
+            self.assertGreater(by[(rule, 250)]["rankCorr"], by[(rule, 5)]["rankCorr"] + 0.15)
+        self.assertEqual(skill_by_length({"teams": 12}, 30, workers=2), rows)
+
+    def test_design_findings_follow_the_numbers(self):
+        from leaderboard_luck.design import design_csv, design_html, design_report, findings
+        from leaderboard_luck.model import skill_by_length
+        p = normalise({"teams": 12})
+        rows = skill_by_length(p, 20)
+        text = design_report(p, rows, 20)
+        self.assertIn("how long before skill shows", text)
+        self.assertEqual(len(findings(rows)), 3)
+        self.assertEqual(len(design_csv(rows).strip().splitlines()), 22)
+        page = design_html(p, rows, 20)
+        self.assertTrue(page.startswith("<!DOCTYPE html>"))
+        self.assertNotIn("http", page.replace('xmlns="http://www.w3.org/2000/svg"', ""))
+
+
 class NormaliseTests(unittest.TestCase):
     def test_clamps_rounds_and_rejects(self):
         p = normalise({"teams": 2.6, "days": 1000, "yourVol": 0, "sims": 100.5})
