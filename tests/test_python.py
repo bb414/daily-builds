@@ -55,6 +55,12 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("2 December 2027  in 373 days", out)
         self.assertIn("Maximum fine: €15m", out)
 
+    def test_classify_lists_what_would_change_the_result(self):
+        code, out, _ = run_cli("classify", str(ROOT / "examples" / "shortlister.json"))
+        self.assertIn("What would change the result (20 single changes tried, 10 matter):", out)
+        self.assertIn('"Annex III use" from Employment to none: becomes Minimal risk; 8 duties removed, maximum fine none (was €15m).', out)
+        self.assertIn('"SME or start-up" from no to yes: stays High-risk (Annex III use); maximum fine €12m (was €15m).', out)
+
     def test_bad_input(self):
         with tempfile.TemporaryDirectory() as tmp:
             bad = pathlib.Path(tmp) / "bad.json"
@@ -90,6 +96,23 @@ class RegisterTests(unittest.TestCase):
                 duties = list(csv.DictReader(f))
             total = sum(len(model.classify(e)["obligations"]) for e in model.RULES["examples"])
             self.assertEqual(len(duties), total)
+
+    def test_example_register_file_is_what_the_app_writes(self):
+        self.assertEqual(register.to_csv(model.RULES["examples"]), (ROOT / "examples" / "register.csv").read_text(encoding="utf-8"))
+
+    def test_json_register(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "register.json"
+            path.write_text(json.dumps({"systems": model.RULES["examples"][:3] + [7]}), encoding="utf-8")
+            rows, warnings = register.load(path)
+            self.assertEqual(len(rows), 4)
+            self.assertEqual(rows[3]["notes"], ["this entry is not an object, so defaults were used"])
+            code, out, _ = run_cli("register", str(path))
+            self.assertEqual(code, 0)
+            self.assertIn("AI register: 4 systems", out)
+            for bad in ("{}", "[]", "nope"):
+                path.write_text(bad, encoding="utf-8")
+                self.assertEqual(run_cli("register", str(path))[0], 2, bad)
 
     def test_messy_register_is_read_with_notes(self):
         with tempfile.TemporaryDirectory() as tmp:

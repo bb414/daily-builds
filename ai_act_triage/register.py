@@ -4,7 +4,10 @@ Simplified and illustrative, not legal advice.
 """
 
 import csv
+import decimal
 import io
+import json
+import re
 
 from . import model
 
@@ -13,18 +16,63 @@ BOOL_FIELDS = ["takeover", "eu", "annex1", "profiling", "interacts", "generates"
 CHOICE_FIELDS = {
     "role": model.ROLES,
     "excluded": model.EXCLUSIONS,
-    "annex3": [""] + [x["id"] for x in model.RULES["annex3"]],
-    "derogation": [""] + [x["id"] for x in model.RULES["derogations"]],
+    "annex3": [x["id"] for x in model.RULES["annex3"]],
+    "derogation": [x["id"] for x in model.RULES["derogations"]],
     "gpai": model.GPAI,
     "deployerType": model.DEPLOYER_TYPES,
 }
 COLUMNS = ["name"] + list(CHOICE_FIELDS) + BOOL_FIELDS + ["prohibited", "turnover"]
-TRUE, FALSE = {"yes", "y", "true", "1"}, {"no", "n", "false", "0", ""}
+TRUE, FALSE = ("yes", "y", "true", "1"), ("no", "n", "false", "0", "")
+BLANK = {"excluded": "none", "gpai": "none", "deployerType": "private", "annex3": "", "derogation": ""}
 
 
-def parse_row(row):
-    """Turn one CSV row into answers. Returns (answers, notes about anything that was not understood)."""
-    cells = {k.strip(): (v or "").strip() for k, v in row.items() if isinstance(k, str) and isinstance(v, str)}
+def _trim(s):
+    return s.strip(" \t\r\n")
+
+
+def js_number_string(x):
+    """JavaScript's String(x) for a finite, non-negative number."""
+    if x == int(x) and abs(x) < 1e21:
+        return str(int(x))
+    r = repr(float(x))
+    if "e" in r:
+        if abs(x) >= 1e-6:
+            return format(decimal.Decimal(r), "f")
+        mantissa, exponent = r.split("e")
+        return mantissa + "e" + ("-" if exponent.startswith("-") else "+") + exponent.lstrip("+-").lstrip("0")
+    return r
+
+
+def _cell(s):
+    return '"' + s.replace('"', '""') + '"' if re.search(r'[",\r\n]', s) else s
+
+
+def to_csv(answers_list):
+    """A register as CSV text, one system per row: the same text the browser app downloads."""
+    lines = [",".join(COLUMNS)]
+    for raw in answers_list:
+        a = model.normalise(raw)
+        cells = []
+        for k in COLUMNS:
+            v = a[k]
+            if k == "eu":
+                cells.append("" if v else "no")
+            elif v is True or v is False:
+                cells.append("yes" if v else "")
+            elif k == "prohibited":
+                cells.append(";".join(v))
+            elif k == "turnover":
+                cells.append(js_number_string(v) if v else "")
+            elif k in BLANK and v == BLANK[k]:
+                cells.append("")
+            else:
+                cells.append(_cell(v))
+        lines.append(",".join(cells))
+    return "\n".join(lines) + "\n"
+
+
+def parse_row(cells):
+    """Turn one row (cells by column name) into answers. Returns (answers, notes about anything not understood)."""
     answers, notes = {"name": cells.get("name", "")}, []
     for k in BOOL_FIELDS:
         if k not in cells:
@@ -35,60 +83,86 @@ def parse_row(row):
         elif v in FALSE:
             answers[k] = False
         else:
-            notes.append("%s %r is not yes or no, so it was treated as no" % (k, cells[k]))
+            notes.append('%s "%s" is not yes or no, so it was treated as no' % (k, cells[k]))
             answers[k] = False
-    if cells.get("eu", "x").lower() == "":
+    if cells.get("eu") == "":
         answers.pop("eu", None)  # blank means the usual answer: yes, it is used in the EU
     for k, allowed in CHOICE_FIELDS.items():
         if cells.get(k):
             if cells[k] in allowed:
                 answers[k] = cells[k]
             else:
-                notes.append("%s %r is not one of: %s" % (k, cells[k], ", ".join(a for a in allowed if a)))
-    bans = [b for b in cells.get("prohibited", "").replace(",", ";").split(";") if b.strip()]
+                notes.append('%s "%s" is not one of: %s' % (k, cells[k], ", ".join(allowed)))
     known = [x["id"] for x in model.RULES["prohibitions"]]
-    for b in bans:
-        if b.strip() not in known:
-            notes.append("prohibited %r is not a known banned practice" % b.strip())
-    answers["prohibited"] = [b.strip() for b in bans if b.strip() in known]
+    bans = [b for b in (_trim(b) for b in cells.get("prohibited", "").replace(",", ";").split(";")) if b]
+    notes += ['prohibited "%s" is not a known banned practice' % b for b in bans if b not in known]
+    answers["prohibited"] = [b for b in bans if b in known]
     if cells.get("turnover"):
         t = model.js_number(cells["turnover"])
         if t != t or t < 0:
-            notes.append("turnover %r is not a number of euro millions, so 0 was used" % cells["turnover"])
+            notes.append('turnover "%s" is not a number of euro millions, so 0 was used' % cells["turnover"])
         answers["turnover"] = cells["turnover"]
     return answers, notes
 
 
-def load(path):
-    """Read a register. Returns (rows, warnings), each row a dict with answers and notes."""
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        if not reader.fieldnames:
-            raise ValueError("%s is empty" % path)
-        canonical = {c.lower(): c for c in COLUMNS}
-        headers = [canonical.get(h.strip().lower(), h.strip()) for h in reader.fieldnames if h]
-        reader.fieldnames = headers
-        if "name" not in headers:
-            raise ValueError("%s needs a 'name' column" % path)
-        unknown = [h for h in headers if h not in COLUMNS]
-        warnings = ["ignored unknown column(s): %s" % ", ".join(unknown)] if unknown else []
-        rows = []
-        for row in reader:
-            if not any((v or "").strip() for v in row.values() if isinstance(v, str)):
-                continue
-            answers, notes = parse_row(row)
-            rows.append({"answers": answers, "notes": notes})
+def read_csv_text(text):
+    """Read a register CSV. Returns {"rows": [{"answers", "notes"}], "warnings": [...], "error": message or None}."""
+    out = {"rows": [], "warnings": [], "error": None}
+    if text.startswith("\ufeff"):
+        text = text[1:]
+    rows = [r for r in csv.reader(io.StringIO(text, newline="")) if any(_trim(c) for c in r)]
     if not rows:
-        raise ValueError("%s lists no systems" % path)
-    return rows, warnings
+        out["error"] = "it is empty"
+        return out
+    canonical = {c.lower(): c for c in COLUMNS}
+    headers = [canonical.get(_trim(h).lower(), _trim(h)) for h in rows[0]]
+    if "name" not in headers:
+        out["error"] = 'it needs a "name" column'
+        return out
+    unknown = []
+    for h in headers:
+        if h and h not in COLUMNS and h not in unknown:
+            unknown.append(h)
+    if unknown:
+        out["warnings"].append("ignored unknown column(s): %s" % ", ".join(unknown))
+    for r in rows[1:]:
+        cells = {}
+        for j, h in enumerate(headers):
+            if h:
+                cells[h] = _trim(r[j]) if j < len(r) else ""
+        answers, notes = parse_row(cells)
+        out["rows"].append({"answers": answers, "notes": notes})
+    if not out["rows"]:
+        out["error"] = "it lists no systems"
+    return out
 
 
-def euros(x):
-    if x >= 1e9:
-        return "€%sbn" % ("%.2f" % (x / 1e9)).rstrip("0").rstrip(".")
-    if x >= 1e6:
-        return "€%sm" % ("%.1f" % (x / 1e6)).rstrip("0").rstrip(".")
-    return "€{:,}".format(int(x))
+def read_json(data):
+    """A register saved by the browser app as JSON: a list of systems, or {"systems": [...]}."""
+    if isinstance(data, dict) and isinstance(data.get("systems"), list):
+        data = data["systems"]
+    if not isinstance(data, list):
+        raise ValueError("a JSON register must be a list of systems")
+    rows = [{"answers": a, "notes": [] if isinstance(a, dict) else ["this entry is not an object, so defaults were used"]}
+            for a in data]
+    if not rows:
+        raise ValueError("it lists no systems")
+    return rows
+
+
+def load(path):
+    """Read a register from a CSV or JSON file. Returns (rows, warnings); raises ValueError if it cannot be used."""
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    if str(path).lower().endswith(".json"):
+        return read_json(json.loads(text)), []
+    out = read_csv_text(text)
+    if out["error"]:
+        raise ValueError(out["error"])
+    return out["rows"], out["warnings"]
+
+
+euros = model.euros
 
 
 def text_table(headers, rows):

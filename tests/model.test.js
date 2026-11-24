@@ -193,3 +193,63 @@ test('the roadmap groups every duty in a register by start date', function () {
   assert.ok(dec27.systems.length >= 3, 'several Annex III systems meet in December 2027');
   assert.deepEqual(plain(M.roadmap([])), []);
 });
+
+test('pivots: which single answers would change the result', function () {
+  const shortlister = M.RULES.examples[0];
+  const p = plain(M.pivots(shortlister, AS_OF));
+  assert.equal(p.tier, 'highRisk');
+  assert.equal(p.pivots[0].field, 'annex3', 'tier changes come first');
+  assert.equal(p.pivots[0].tier, 'minimal');
+  assert.equal(p.pivots[0].effect, 'lighter');
+  assert.deepEqual(p.pivots[0].fine, { from: 15000000, to: null });
+  assert.ok(p.pivots.every(function (x) { return x.tierChanged || x.added.length || x.removed.length || x.moved.length || x.fine; }), 'only changes that matter');
+  assert.ok(!p.pivots.some(function (x) { return x.field === 'profiling'; }), 'profiling only matters when an exemption is claimed');
+  const tidier = plain(M.pivots({ role: 'provider', annex3: 'employment', derogation: 'improve' }, AS_OF)).pivots;
+  const profiling = tidier.filter(function (x) { return x.field === 'profiling'; })[0];
+  assert.equal(profiling.tier, 'highRisk', 'profiling rules out the exemption');
+  assert.equal(profiling.effect, 'heavier');
+  const outside = plain(M.pivots({ eu: false, annex3: 'employment' }, AS_OF)).pivots;
+  assert.deepEqual(outside.map(function (x) { return x.field; }), ['eu'], 'only coming into scope matters');
+  const banned = plain(M.pivots({ prohibited: ['socialScoring', 'csam'] }, AS_OF)).pivots;
+  const bans = banned.filter(function (x) { return x.field === 'prohibited'; });
+  assert.equal(bans.length, 2);
+  assert.ok(bans.every(function (x) { return !x.tierChanged && x.removed.length === 1; }), 'with two bans, lifting one still leaves a ban');
+  assert.deepEqual(bans[0].value, ['socialScoring'], 'answers keep the order of the rules, so csam is lifted first');
+  const legacy = plain(M.pivots({ role: 'provider', generates: true, generatedBefore: true }, AS_OF)).pivots;
+  const moved = legacy.filter(function (x) { return x.field === 'generatedBefore'; })[0];
+  assert.deepEqual(moved.moved, [{ id: 't_mark', from: '2026-12-02', to: '2026-08-02' }]);
+  assert.equal(moved.effect, 'heavier', 'an earlier date is heavier');
+});
+
+test('a system under two fine regimes shows the larger cap', function () {
+  const model = M.classify({ role: 'provider', gpai: 'gpai', generates: true, sme: true, turnover: 30 }, AS_OF);
+  assert.equal(model.penalty.key, 'gpai');
+  assert.equal(model.penalty.max, 15000000, 'Art 101 has no SME rule, so it is larger than the SME cap under Art 99(4)');
+  const big = M.classify({ role: 'provider', gpai: 'gpai', generates: true, turnover: 1000 }, AS_OF);
+  assert.equal(big.penalty.max, 30000000);
+});
+
+test('euros are rounded the same way everywhere', function () {
+  assert.deepEqual([0, 360000, 1250000, 1255000, 15000000, 999995000, 1.4e9].map(M.euros),
+    ['€0', '€360,000', '€1.25m', '€1.26m', '€15m', '€1bn', '€1.4bn']);
+});
+
+test('register CSV: written, read back, and messy files read with notes', function () {
+  const text = M.registerCsv(M.RULES.examples);
+  const back = M.readRegisterCsv(text);
+  assert.equal(back.error, null);
+  assert.deepEqual(plain(back.rows.map(function (r) { return M.normalise(r.answers); })), plain(M.RULES.examples.map(M.normalise)));
+  const odd = M.registerCsv([{ name: 'A "quoted", name\nwith a new line', eu: false, turnover: 3.5, prohibited: ['csam'] }]);
+  const row = M.readRegisterCsv(odd).rows[0].answers;
+  assert.equal(M.normalise(row).name, 'A "quoted", name\nwith a new line');
+  assert.equal(M.normalise(row).eu, false);
+  assert.equal(M.normalise(row).turnover, 3.5);
+  assert.deepEqual(plain(M.csvRows('a,"b""c",d\r\n\n"x\ny"\r"open')), [['a', 'b"c', 'd'], [], ['x\ny'], ['open']]);
+  const messy = M.readRegisterCsv('﻿ Name ,ROLE,profiling,colour\nA,boss,maybe,blue\n,,,\n');
+  assert.deepEqual(plain(messy.warnings), ['ignored unknown column(s): colour']);
+  assert.equal(messy.rows.length, 1);
+  assert.equal(messy.rows[0].notes.length, 2);
+  assert.equal(M.readRegisterCsv('').error, 'it is empty');
+  assert.equal(M.readRegisterCsv('title\nx\n').error, 'it needs a "name" column');
+  assert.equal(M.readRegisterCsv('name,role\n').error, 'it lists no systems');
+});

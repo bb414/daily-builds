@@ -533,6 +533,90 @@
   ],
   "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
   "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices.",
+  "questions": {
+    "role": "Your role",
+    "eu": "Used in the EU",
+    "excluded": "Exclusion",
+    "takeover": "Rebranded or substantially changed a high-risk system",
+    "prohibited": "Banned practice",
+    "annex1": "Product under Annex I",
+    "annex3": "Annex III use",
+    "derogation": "Art 6(3) exemption",
+    "profiling": "Profiles people",
+    "interacts": "Interacts directly with people",
+    "generates": "Generates audio, images, video or text",
+    "generatedBefore": "Generator on the market before 2 August 2026",
+    "emotionBiocat": "Uses emotion recognition or biometric categorisation",
+    "deepfake": "Publishes deepfakes or generated text on matters of public interest",
+    "gpai": "Provides a general-purpose AI model",
+    "gpaiOpen": "Model released under a free and open-source licence",
+    "gpaiBefore": "Model on the market before 2 August 2025",
+    "deployerType": "Type of deployer",
+    "workplace": "Used at work, affecting staff",
+    "sme": "SME or start-up"
+  },
+  "choices": {
+    "role": [
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "deployer",
+        "label": "Deployer"
+      },
+      {
+        "id": "both",
+        "label": "Both"
+      }
+    ],
+    "excluded": [
+      {
+        "id": "none",
+        "label": "None of these"
+      },
+      {
+        "id": "military",
+        "label": "Only for military, defence or national security"
+      },
+      {
+        "id": "research",
+        "label": "Only for scientific research, or not yet on the market"
+      },
+      {
+        "id": "personal",
+        "label": "Personal, non-professional use by an individual"
+      }
+    ],
+    "gpai": [
+      {
+        "id": "none",
+        "label": "No"
+      },
+      {
+        "id": "gpai",
+        "label": "Yes"
+      },
+      {
+        "id": "systemic",
+        "label": "Yes, with systemic risk (for example over 10^25 FLOP of training compute)"
+      }
+    ],
+    "deployerType": [
+      {
+        "id": "private",
+        "label": "Private business"
+      },
+      {
+        "id": "publicAuthority",
+        "label": "Public authority or body governed by public law"
+      },
+      {
+        "id": "publicService",
+        "label": "Private body providing public services"
+      }
+    ]
+  },
   "examples": [
     {
       "id": "shortlister",

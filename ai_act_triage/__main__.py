@@ -31,7 +31,30 @@ def describe(res):
         out += ["", "Maximum fine: %s (%s of %s and %d%% of worldwide turnover, %s)." % (
             euros(p["max"]), "the lower" if p["sme"] else "the higher", euros(p["amount"]), round(p["share"] * 100), p["article"])]
     out += ["", "The UK view:"] + ["  - " + n for n in res["uk"]]
+    piv = model.pivots(a, res["asOf"])
+    out += ["", "What would change the result (%d single changes tried, %d matter):" % (piv["tested"], len(piv["pivots"]))]
+    for effect, title in (("lighter", "Would lighten the load"), ("heavier", "Would add to it"), ("different", "Would change it")):
+        group = [p for p in piv["pivots"] if p["effect"] == effect]
+        if group:
+            out += ["  %s:" % title] + ["    - " + pivot_sentence(p) for p in group]
     return "\n".join(out)
+
+
+def pivot_sentence(p):
+    """One change and what follows from it, in words."""
+    parts = []
+    if p["added"]:
+        parts.append("%d %s added" % (len(p["added"]), "duty" if len(p["added"]) == 1 else "duties"))
+    if p["removed"]:
+        parts.append("%d removed" % len(p["removed"]) if p["added"] else
+                     "%d %s removed" % (len(p["removed"]), "duty" if len(p["removed"]) == 1 else "duties"))
+    if p["moved"]:
+        parts.append("%d %s" % (len(p["moved"]), "date moves" if len(p["moved"]) == 1 else "dates move"))
+    if p["fine"]:
+        show = lambda x: euros(x) if x is not None else "none"
+        parts.append("maximum fine %s (was %s)" % (show(p["fine"]["to"]), show(p["fine"]["from"])))
+    return '"%s" from %s to %s: %s %s%s.' % (p["question"], p["from"], p["to"], "becomes" if p["tierChanged"] else "stays",
+                                         p["tierLabel"], "; " + ", ".join(parts) if parts else "")
 
 
 def cmd_classify(args):
@@ -58,7 +81,7 @@ def cmd_register(args):
         print("Could not read the register: %s" % exc, file=sys.stderr)
         return 2
     results = [model.classify(r["answers"], args.as_of) for r in rows]
-    notes = ["%s: %s" % (r["answers"]["name"] or "(unnamed)", n) for r in rows for n in r["notes"]]
+    notes = ["%s: %s" % (res["answers"]["name"] or "(unnamed)", n) for r, res in zip(rows, results) for n in r["notes"]]
     print(register.render_text(results, warnings, notes))
     try:
         if args.markdown:

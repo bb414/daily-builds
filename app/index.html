@@ -137,6 +137,13 @@ th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
   main { grid-template-columns: minmax(0, 1fr); padding: 14px 14px 48px; }
   .disclaimer { margin-left: 0; }
 }
+.file-btn { position: relative; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pivots { margin: 6px 0 14px; padding-left: 20px; }
+.pivots li { margin: 6px 0; }
+.pivots .try { margin-left: 6px; font-size: 0.85em; padding: 2px 10px; }
+#pivots h3 { margin: 10px 0 0; font-size: 1rem; }
 @media (max-width: 520px) {
   .kpis { grid-template-columns: minmax(0, 1fr); }
   .card { padding: 16px; }
@@ -185,6 +192,11 @@ th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
       <p class="small muted" id="obl-sub"></p>
       <div class="table-wrap" id="obligations"></div>
     </section>
+    <section class="card" aria-labelledby="piv-title">
+      <h2 id="piv-title" tabindex="-1">What would change the result</h2>
+      <p class="small muted" id="piv-sub"></p>
+      <div id="pivots"></div>
+    </section>
     <section class="card" aria-labelledby="omni-title">
       <h2 id="omni-title">Before and after the Digital Omnibus</h2>
       <p class="small muted">Regulation (EU) 2026/1744 moved several dates in the AI Act. Filled markers show when each of this system's duties starts now; hollow markers show the original 2024 dates.</p>
@@ -202,6 +214,11 @@ th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
         <button type="button" class="btn primary" id="reg-add">Add this system to the register</button>
         <button type="button" class="btn" id="reg-examples">Add all the examples</button>
         <button type="button" class="btn" id="reg-clear">Clear the register</button>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" id="reg-csv">Download as CSV</button>
+        <button type="button" class="btn" id="reg-json">Download as JSON</button>
+        <label class="btn file-btn" for="reg-import">Import a CSV or JSON file<input type="file" id="reg-import" accept=".csv,.json,text/csv,application/json"></label>
       </div>
       <p class="small" id="reg-msg" role="status"></p>
       <div class="table-wrap" id="register"></div>
@@ -299,6 +316,8 @@ var AiActTriage = (function () {
     ],
     "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
     "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices.",
+    "questions": {"role": "Your role", "eu": "Used in the EU", "excluded": "Exclusion", "takeover": "Rebranded or substantially changed a high-risk system", "prohibited": "Banned practice", "annex1": "Product under Annex I", "annex3": "Annex III use", "derogation": "Art 6(3) exemption", "profiling": "Profiles people", "interacts": "Interacts directly with people", "generates": "Generates audio, images, video or text", "generatedBefore": "Generator on the market before 2 August 2026", "emotionBiocat": "Uses emotion recognition or biometric categorisation", "deepfake": "Publishes deepfakes or generated text on matters of public interest", "gpai": "Provides a general-purpose AI model", "gpaiOpen": "Model released under a free and open-source licence", "gpaiBefore": "Model on the market before 2 August 2025", "deployerType": "Type of deployer", "workplace": "Used at work, affecting staff", "sme": "SME or start-up"},
+    "choices": {"role": [{"id": "provider", "label": "Provider"}, {"id": "deployer", "label": "Deployer"}, {"id": "both", "label": "Both"}], "excluded": [{"id": "none", "label": "None of these"}, {"id": "military", "label": "Only for military, defence or national security"}, {"id": "research", "label": "Only for scientific research, or not yet on the market"}, {"id": "personal", "label": "Personal, non-professional use by an individual"}], "gpai": [{"id": "none", "label": "No"}, {"id": "gpai", "label": "Yes"}, {"id": "systemic", "label": "Yes, with systemic risk (for example over 10^25 FLOP of training compute)"}], "deployerType": [{"id": "private", "label": "Private business"}, {"id": "publicAuthority", "label": "Public authority or body governed by public law"}, {"id": "publicService", "label": "Private body providing public services"}]},
     "examples": [
       {"id": "shortlister", "name": "Shortlister: CV screening for a retail chain", "role": "deployer", "annex3": "employment", "profiling": true, "workplace": true, "turnover": 400},
       {"id": "helpdesk", "name": "Helpdesk chatbot on a shop website", "role": "both", "interacts": true, "generates": true, "generatedBefore": true, "turnover": 400},
@@ -569,16 +588,24 @@ var AiActTriage = (function () {
     });
   }
 
-  // The highest fine tier that could apply, in euros, for the company's turnover.
+  // The highest fine that could apply, in euros, for the company's turnover. When a system has duties under
+  // two fine regimes (operator duties under Art 99(4) and model duties under Art 101), the larger cap is shown.
   function penaltyFor(res, a) {
-    var key = res.tier === 'prohibited' ? 'prohibited'
-      : (res.highRisk || res.exempt || res.tags.indexOf('transparency') >= 0) ? 'operator'
-      : (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) ? 'gpai' : null;
-    if (!key) return null;
-    var p = RULES.penalties[key];
-    var share = p.share * a.turnover * 1e6;
-    var smeRule = a.sme && key !== 'gpai';
-    return { key: key, article: p.article, amount: p.amount, share: p.share, sme: smeRule, max: Math.round(smeRule ? Math.min(p.amount, share) : Math.max(p.amount, share)) };
+    var keys = [];
+    if (res.tier === 'prohibited') keys.push('prohibited');
+    else {
+      if (res.highRisk || res.exempt || res.tags.indexOf('transparency') >= 0) keys.push('operator');
+      if (res.tags.indexOf('gpai') >= 0 || res.tags.indexOf('gpaiSystemic') >= 0) keys.push('gpai');
+    }
+    var best = null;
+    keys.forEach(function (key) {
+      var p = RULES.penalties[key];
+      var share = p.share * a.turnover * 1e6;
+      var smeRule = a.sme && key !== 'gpai';
+      var c = { key: key, article: p.article, amount: p.amount, share: p.share, sme: smeRule, max: Math.round(smeRule ? Math.min(p.amount, share) : Math.max(p.amount, share)) };
+      if (!best || c.max > best.max) best = c;
+    });
+    return best;
   }
 
   function ukNotes(res, a) {
@@ -592,10 +619,216 @@ var AiActTriage = (function () {
     return notes;
   }
 
+  // Euros, rounded to the nearest €10,000 above a million: 15000000 -> "€15m", 1250000 -> "€1.25m".
+  function euros(x) {
+    var hundredths = function (n) { var whole = Math.floor(n / 100), frac = n % 100; return String(whole) + (frac ? '.' + String(100 + frac).slice(1).replace(/0$/, '') : ''); };
+    if (x >= 1e9 || Math.round(x / 1e4) >= 100000) return '€' + hundredths(Math.round(x / 1e7)) + 'bn';
+    if (x >= 1e6) return '€' + hundredths(Math.round(x / 1e4)) + 'm';
+    return '€' + String(Math.round(x)).replace(/\B(?=(\d{3})+$)/g, ',');
+  }
+
+  // ---------- What would change the result ----------
+  // The answers worth testing one at a time. Scope answers are only tested when the system is out of scope.
+  var PIVOT_FIELDS = ['role', 'takeover', 'prohibited', 'annex1', 'annex3', 'derogation', 'profiling', 'interacts', 'generates',
+    'generatedBefore', 'emotionBiocat', 'deepfake', 'gpai', 'gpaiOpen', 'gpaiBefore', 'deployerType', 'workplace', 'sme'];
+
+  function choiceLabel(field, id) { var c = byId(RULES.choices[field], id); return c ? c.label : id; }
+
+  // A short, readable version of one answer.
+  function answerLabel(field, value) {
+    if (value === true) return 'yes';
+    if (value === false) return 'no';
+    if (field === 'annex3') return value ? byId(RULES.annex3, value).label.split(':')[0] : 'none';
+    if (field === 'derogation') return value ? byId(RULES.derogations, value).point : 'none';
+    return choiceLabel(field, value);
+  }
+
+  // Every single-answer change worth trying: [field, option or null, new value, label for the new value].
+  function candidates(a, base) {
+    var out = [];
+    var other = function (field, list) { list.forEach(function (v) { if (v !== a[field]) out.push([field, null, v, answerLabel(field, v)]); }); };
+    if (base.tier === 'outOfScope') {
+      if (!a.eu) out.push(['eu', null, true, 'yes']);
+      if (a.excluded !== 'none') out.push(['excluded', null, 'none', choiceLabel('excluded', 'none')]);
+    }
+    PIVOT_FIELDS.forEach(function (field) {
+      var v = a[field];
+      if (field === 'role') other(field, ROLES);
+      else if (field === 'gpai') other(field, GPAI);
+      else if (field === 'deployerType') other(field, DEPLOYER_TYPES);
+      else if (field === 'prohibited') v.forEach(function (id) { out.push([field, id, v.filter(function (x) { return x !== id; }), 'no']); });
+      else if (field === 'annex3') { if (v) out.push([field, null, '', 'none']); }
+      else if (field === 'derogation') {
+        if (v) out.push([field, null, '', 'none']);
+        else if (a.annex3) out.push([field, null, RULES.derogations[0].id, 'any of the four']);
+      }
+      else out.push([field, null, !v, v ? 'no' : 'yes']);
+    });
+    return out;
+  }
+
+  // Is the result after a change lighter or heavier? Judged by tier, then the number of duties, the fine and the dates.
+  var SEVERITY = TIER_ORDER.concat(['outOfScope']);
+  function effectOf(fromTier, toTier, netDuties, fromFine, toFine, moved) {
+    var d = SEVERITY.indexOf(toTier) - SEVERITY.indexOf(fromTier);
+    if (!d) d = -netDuties;
+    if (!d && fromFine !== toFine) d = (toFine || 0) < (fromFine || 0) ? 1 : -1;
+    if (!d) moved.forEach(function (m) { d += m.to > m.from ? 1 : -1; });
+    return d > 0 ? 'lighter' : d < 0 ? 'heavier' : 'different';
+  }
+
+  // Which single answers, if they were different, would change the classification, the duties, their dates or the fine.
+  function pivots(answersIn, asOfIn) {
+    var a = normalise(answersIn);
+    var base = classify(a, asOfIn);
+    var baseDates = {};
+    base.obligations.forEach(function (o) { baseDates[o.id] = o.date; });
+    var baseFine = base.penalty ? base.penalty.max : null;
+    var list = candidates(a, base);
+    var found = [];
+    list.forEach(function (c, k) {
+      var field = c[0], option = c[1];
+      var changed = {};
+      Object.keys(a).forEach(function (key) { changed[key] = a[key]; });
+      changed[field] = c[2];
+      var res = classify(changed, base.asOf);
+      var dates = {};
+      res.obligations.forEach(function (o) { dates[o.id] = o.date; });
+      var added = res.obligations.filter(function (o) { return !(o.id in baseDates); }).map(function (o) { return o.id; });
+      var removed = base.obligations.filter(function (o) { return !(o.id in dates); }).map(function (o) { return o.id; });
+      var moved = res.obligations.filter(function (o) { return o.id in baseDates && baseDates[o.id] !== o.date; })
+        .map(function (o) { return { id: o.id, from: baseDates[o.id], to: o.date }; });
+      var fine = res.penalty ? res.penalty.max : null;
+      var tierChanged = res.tier !== base.tier;
+      if (!tierChanged && !added.length && !removed.length && !moved.length && fine === baseFine) return;
+      var question = RULES.questions[field] + (option ? ' (' + byId(RULES.prohibitions, option).point + ')' : '');
+      found.push({ field: field, option: option, value: c[2], question: question, from: option ? 'yes' : answerLabel(field, a[field]), to: c[3],
+        tier: res.tier, tierLabel: res.tierLabel, tierChanged: tierChanged, added: added, removed: removed, moved: moved,
+        fine: fine === baseFine ? null : { from: baseFine, to: fine },
+        effect: effectOf(base.tier, res.tier, added.length - removed.length, baseFine, fine, moved), order: k });
+    });
+    found.sort(function (x, y) {
+      return (x.tierChanged === y.tierChanged ? 0 : x.tierChanged ? -1 : 1) ||
+        (y.added.length + y.removed.length + y.moved.length) - (x.added.length + x.removed.length + x.moved.length) || x.order - y.order;
+    });
+    found.forEach(function (p) { delete p.order; });
+    return { tier: base.tier, tested: list.length, pivots: found };
+  }
+
+  // ---------- Register files ----------
+  var CSV_BOOLS = ['takeover', 'eu', 'annex1', 'profiling', 'interacts', 'generates', 'generatedBefore', 'emotionBiocat',
+    'deepfake', 'gpaiBefore', 'gpaiOpen', 'workplace', 'sme'];
+  var CSV_CHOICES = ['role', 'excluded', 'annex3', 'derogation', 'gpai', 'deployerType'];
+  var CSV_COLUMNS = ['name'].concat(CSV_CHOICES, CSV_BOOLS, ['prohibited', 'turnover']);
+  var CSV_TRUE = ['yes', 'y', 'true', '1'], CSV_FALSE = ['no', 'n', 'false', '0', ''];
+  var CSV_BLANK = { excluded: 'none', gpai: 'none', deployerType: 'private', annex3: '', derogation: '' };
+
+  function allowedFor(field) {
+    if (field === 'annex3') return ids(RULES.annex3);
+    if (field === 'derogation') return ids(RULES.derogations);
+    return ids(RULES.choices[field]);
+  }
+  function csvCell(s) { return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+  // A register as CSV text, one system per row, in the columns the Python register command reads.
+  function registerCsv(list) {
+    var lines = [CSV_COLUMNS.join(',')];
+    (Array.isArray(list) ? list : []).forEach(function (raw) {
+      var a = normalise(raw);
+      lines.push(CSV_COLUMNS.map(function (k) {
+        var v = a[k];
+        if (k === 'eu') return v ? '' : 'no';
+        if (v === true || v === false) return v ? 'yes' : '';
+        if (k === 'prohibited') return v.join(';');
+        if (k === 'turnover') return v ? String(v) : '';
+        if (k in CSV_BLANK && v === CSV_BLANK[k]) return '';
+        return csvCell(v);
+      }).join(','));
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  // Split CSV text into rows of cells, reading quotes the way Python's csv module does.
+  function csvRows(text) {
+    var rows = [], row = [], field = '', state = 0; // 0 start of a field, 1 in a field, 2 in quotes, 3 a quote inside quotes
+    text = String(text);
+    if (text.charAt(0) === '﻿') text = text.slice(1);
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (state === 2) { if (ch === '"') state = 3; else field += ch; continue; }
+      if (state === 3 && ch === '"') { field += '"'; state = 2; continue; }
+      if (ch === ',') { row.push(field); field = ''; state = 0; continue; }
+      if (ch === '\r' || ch === '\n') {
+        if (ch === '\r' && text.charAt(i + 1) === '\n') i++;
+        if (state !== 0 || row.length) row.push(field);
+        rows.push(row); row = []; field = ''; state = 0;
+        continue;
+      }
+      if (state === 0 && ch === '"') { state = 2; continue; }
+      field += ch; state = 1;
+    }
+    if (state !== 0 || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function trimCell(s) { return s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, ''); }
+
+  // One CSV row (cells by column name) as answers, with notes about anything that was not understood.
+  function registerRow(cells) {
+    var has = function (k) { return Object.prototype.hasOwnProperty.call(cells, k); };
+    var a = { name: has('name') ? cells.name : '' }, notes = [];
+    CSV_BOOLS.forEach(function (k) {
+      if (!has(k)) return;
+      var v = cells[k].toLowerCase();
+      if (CSV_TRUE.indexOf(v) >= 0) a[k] = true;
+      else if (CSV_FALSE.indexOf(v) >= 0) a[k] = false;
+      else { notes.push(k + ' "' + cells[k] + '" is not yes or no, so it was treated as no'); a[k] = false; }
+    });
+    if (has('eu') && cells.eu === '') delete a.eu; // blank means the usual answer: yes, it is used in the EU
+    CSV_CHOICES.forEach(function (k) {
+      if (!has(k) || !cells[k]) return;
+      var allowed = allowedFor(k);
+      if (allowed.indexOf(cells[k]) >= 0) a[k] = cells[k];
+      else notes.push(k + ' "' + cells[k] + '" is not one of: ' + allowed.join(', '));
+    });
+    var known = ids(RULES.prohibitions);
+    var bans = (has('prohibited') ? cells.prohibited : '').replace(/,/g, ';').split(';').map(trimCell).filter(function (b) { return b; });
+    bans.forEach(function (b) { if (known.indexOf(b) < 0) notes.push('prohibited "' + b + '" is not a known banned practice'); });
+    a.prohibited = bans.filter(function (b) { return known.indexOf(b) >= 0; });
+    if (has('turnover') && cells.turnover) {
+      var t = Number(cells.turnover);
+      if (t !== t || t < 0) notes.push('turnover "' + cells.turnover + '" is not a number of euro millions, so 0 was used');
+      a.turnover = cells.turnover;
+    }
+    return { answers: a, notes: notes };
+  }
+
+  // Read a register CSV. Returns { rows: [{ answers, notes }], warnings, error }.
+  function readRegisterCsv(text) {
+    var out = { rows: [], warnings: [], error: null };
+    var rows = csvRows(text).filter(function (r) { return r.some(function (c) { return trimCell(c) !== ''; }); });
+    if (!rows.length) { out.error = 'it is empty'; return out; }
+    var canonical = {};
+    CSV_COLUMNS.forEach(function (c) { canonical[c.toLowerCase()] = c; });
+    var headers = rows[0].map(function (h) { h = trimCell(h); return canonical[h.toLowerCase()] || h; });
+    if (headers.indexOf('name') < 0) { out.error = 'it needs a "name" column'; return out; }
+    var unknown = [];
+    headers.forEach(function (h) { if (h && CSV_COLUMNS.indexOf(h) < 0 && unknown.indexOf(h) < 0) unknown.push(h); });
+    if (unknown.length) out.warnings.push('ignored unknown column(s): ' + unknown.join(', '));
+    rows.slice(1).forEach(function (r) {
+      var cells = {};
+      headers.forEach(function (h, j) { if (h) cells[h] = j < r.length ? trimCell(r[j]) : ''; });
+      out.rows.push(registerRow(cells));
+    });
+    if (!out.rows.length) out.error = 'it lists no systems';
+    return out;
+  }
+
   var api = {
     RULES: RULES, TIERS: TIERS, TIER_ORDER: TIER_ORDER, ROLES: ROLES, EXCLUSIONS: EXCLUSIONS, GPAI: GPAI, DEPLOYER_TYPES: DEPLOYER_TYPES,
     normalise: normalise, classify: classify, daysBetween: daysBetween, validIso: validIso, longDate: longDate,
-    omnibusChanges: omnibusChanges, roadmap: roadmap
+    omnibusChanges: omnibusChanges, roadmap: roadmap, pivots: pivots, answerLabel: answerLabel, euros: euros,
+    CSV_COLUMNS: CSV_COLUMNS, registerCsv: registerCsv, csvRows: csvRows, readRegisterCsv: readRegisterCsv
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -628,11 +861,7 @@ var AiActTriage = (function () {
     var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)));
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
-  function euros(x) {
-    if (x >= 1e9) return '€' + (x / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'bn';
-    if (x >= 1e6) return '€' + (x / 1e6).toFixed(1).replace(/\.0$/, '') + 'm';
-    return '€' + Math.round(x).toLocaleString('en-GB');
-  }
+  var euros = M.euros;
   function todayIso() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -649,6 +878,7 @@ var AiActTriage = (function () {
   function check(id, label, art) {
     return el('label', { className: 'check', for: id }, [el('input', { type: 'checkbox', id: id }), el('span', {}, [label + ' ', art ? el('span', { className: 'art', text: art }) : null])]);
   }
+  function opts(field) { return R.choices[field].map(function (c) { return [c.id, c.label]; }); }
   function select(id, options) {
     var s = el('select', { id: id });
     options.forEach(function (o) { s.appendChild(el('option', { value: o[0], text: o[1] })); });
@@ -666,9 +896,9 @@ var AiActTriage = (function () {
 
     body.appendChild(fs('1. About it', [
       q('Name', el('input', { type: 'text', id: 'a-name', maxlength: '120' }), null, 'a-name'),
-      q('Your role', radios('role', [['provider', 'Provider'], ['deployer', 'Deployer'], ['both', 'Both']], 'Your role'), 'Provider: develops it or has it developed and markets it under its own name. Deployer: uses it professionally.'),
+      q('Your role', radios('role', opts('role'), 'Your role'), 'Provider: develops it or has it developed and markets it under its own name. Deployer: uses it professionally.'),
       check('a-eu', 'Placed on the EU market, used in the EU, or its output is used in the EU', 'Art 2(1)'),
-      q('Exclusions', select('a-excluded', [['none', 'None of these'], ['military', 'Only for military, defence or national security'], ['research', 'Only for scientific research, or not yet on the market'], ['personal', 'Personal, non-professional use by an individual']]), null, 'a-excluded'),
+      q('Exclusions', select('a-excluded', opts('excluded')), null, 'a-excluded'),
       check('a-takeover', 'We put our name on someone else\'s system, changed it substantially, or changed its intended purpose', 'Art 25')
     ]));
 
@@ -691,13 +921,13 @@ var AiActTriage = (function () {
     ]));
 
     body.appendChild(fs('5. General-purpose AI models', [
-      q('Do you provide a general-purpose AI model?', select('a-gpai', [['none', 'No'], ['gpai', 'Yes'], ['systemic', 'Yes, with systemic risk (for example over 10^25 FLOP of training compute)']]), null, 'a-gpai'),
+      q('Do you provide a general-purpose AI model?', select('a-gpai', opts('gpai')), null, 'a-gpai'),
       check('a-gpaiOpen', 'Released under a free and open-source licence', 'Art 53(2)'),
       check('a-gpaiBefore', 'On the market before 2 August 2025', 'Art 111(3)')
     ]));
 
     body.appendChild(fs('6. Your organisation', [
-      q('Type of deployer', select('a-deployerType', [['private', 'Private business'], ['publicAuthority', 'Public authority or body governed by public law'], ['publicService', 'Private body providing public services']]), null, 'a-deployerType'),
+      q('Type of deployer', select('a-deployerType', opts('deployerType')), null, 'a-deployerType'),
       check('a-workplace', 'Used at work, affecting your staff', 'Art 26(7)'),
       q('Worldwide annual turnover (€ million)', el('input', { type: 'number', id: 'a-turnover', min: '0', step: '1', inputmode: 'decimal' }), 'Used only to estimate the maximum fine.', 'a-turnover'),
       check('a-sme', 'An SME or start-up', 'Art 99(6)'),
@@ -780,8 +1010,49 @@ var AiActTriage = (function () {
     var uk = $('uk');
     uk.innerHTML = '';
     res.uk.forEach(function (n) { uk.appendChild(el('li', { text: n })); });
+    renderPivots(res);
     renderTimeline(res);
     if (register.length) renderRegister();
+  }
+
+  // ---------- What would change the result ----------
+  var PIVOT_GROUPS = [['lighter', 'Would lighten the load'], ['heavier', 'Would add to it'], ['different', 'Would change it']];
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function pivotEffect(p) {
+    var parts = [];
+    if (p.added.length) parts.push(plural(p.added.length, 'duty', 'duties') + ' added');
+    if (p.removed.length) parts.push(p.added.length ? p.removed.length + ' removed' : plural(p.removed.length, 'duty', 'duties') + ' removed');
+    if (p.moved.length) parts.push(p.moved.length === 1 ? '1 date moves' : p.moved.length + ' dates move');
+    if (p.fine) {
+      var show = function (x) { return x === null ? 'none' : euros(x); };
+      parts.push('maximum fine ' + show(p.fine.to) + ' (was ' + show(p.fine.from) + ')');
+    }
+    return (p.tierChanged ? 'Becomes ' : 'Stays ') + p.tierLabel + (parts.length ? '; ' + parts.join(', ') : '') + '.';
+  }
+  function renderPivots(res) {
+    var piv = M.pivots(res.answers, res.asOf);
+    $('piv-sub').textContent = 'Each answer was changed on its own and the system classified again: ' + plural(piv.tested, 'change', 'changes') + ' tried, ' + piv.pivots.length + ' made a difference. Use these to see which answers matter most, and which to check most carefully.';
+    var box = $('pivots');
+    box.innerHTML = '';
+    PIVOT_GROUPS.forEach(function (g) {
+      var list = piv.pivots.filter(function (p) { return p.effect === g[0]; });
+      if (!list.length) return;
+      box.appendChild(el('h3', { text: g[1] }));
+      var ul = el('ul', { className: 'pivots' });
+      list.forEach(function (p) {
+        var tryIt = el('button', { type: 'button', className: 'btn try', text: 'Try it', 'aria-label': 'Try it: ' + p.question + ' ' + p.to });
+        tryIt.addEventListener('click', function () {
+          var changed = M.normalise(res.answers);
+          changed[p.field] = p.value;
+          $('preset').value = '';
+          loadAnswers(changed);
+          $('piv-title').focus();
+        });
+        ul.appendChild(el('li', {}, [el('strong', { text: p.question }), ': ' + p.from + ' to ' + p.to + '. ' + pivotEffect(p), tryIt]));
+      });
+      box.appendChild(ul);
+    });
+    if (!piv.pivots.length) box.appendChild(el('p', { className: 'muted small', text: 'No single change to these answers would change the result.' }));
   }
 
 
@@ -852,14 +1123,15 @@ var AiActTriage = (function () {
   }
   function saveRegister() { try { window.localStorage.setItem(STORE, JSON.stringify(register)); } catch (e) { /* storage blocked: keep for this visit */ } }
 
-  function addToRegister(answers) {
+  // Add a system, or replace the one with the same name. Returns the stored answers and whether one was replaced.
+  function addToRegister(answers, quiet) {
     var a = M.normalise(answers);
     if (!a.name) a.name = 'System ' + (register.length + 1);
     var same = register.map(function (r) { return r.name; }).indexOf(a.name);
     if (same >= 0) register[same] = a; else register.push(a);
     saveRegister();
-    renderRegister();
-    return same >= 0;
+    if (!quiet) renderRegister();
+    return { answers: a, replaced: same >= 0 };
   }
 
   function renderRegister() {
@@ -927,16 +1199,69 @@ var AiActTriage = (function () {
   function currentAsOf() { return M.validIso($('a-asof').value) ? $('a-asof').value : todayIso(); }
 
   $('reg-add').addEventListener('click', function () {
-    var replaced = addToRegister(readAnswers());
+    var replaced = addToRegister(readAnswers()).replaced;
     $('reg-msg').textContent = replaced ? 'Updated that system in the register.' : 'Added to the register.';
   });
   $('reg-examples').addEventListener('click', function () {
-    R.examples.forEach(function (e) { addToRegister(e); });
+    R.examples.forEach(function (e) { addToRegister(e, true); });
+    renderRegister();
     $('reg-msg').textContent = 'Added all ' + R.examples.length + ' examples.';
   });
   $('reg-clear').addEventListener('click', function () {
     if (register.length && !window.confirm('Remove every system from the register?')) return;
     register = []; saveRegister(); renderRegister(); $('reg-msg').textContent = 'The register is empty.';
+  });
+
+  function download(name, type, text) {
+    var url = URL.createObjectURL(new Blob([text], { type: type }));
+    var a = el('a', { href: url, download: name });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  $('reg-csv').addEventListener('click', function () {
+    if (!register.length) { $('reg-msg').textContent = 'The register is empty, so there is nothing to download.'; return; }
+    download('ai-register.csv', 'text/csv', M.registerCsv(register));
+    $('reg-msg').textContent = 'Downloaded ' + plural(register.length, 'system', 'systems') + ' as CSV. Run it through the Python register command for a printable plan.';
+  });
+  $('reg-json').addEventListener('click', function () {
+    if (!register.length) { $('reg-msg').textContent = 'The register is empty, so there is nothing to download.'; return; }
+    download('ai-register.json', 'application/json', JSON.stringify({ systems: register }, null, 2) + '\n');
+    $('reg-msg').textContent = 'Downloaded ' + plural(register.length, 'system', 'systems') + ' as JSON.';
+  });
+  // Read a register file the browser app or the Python package wrote, or a hand-made CSV.
+  function importRegister(name, text) {
+    var rows, warnings = [];
+    if (/\.json$/i.test(name)) {
+      var data;
+      try { data = JSON.parse(text); } catch (e) { return 'Could not import ' + name + ': it is not valid JSON.'; }
+      if (data && !Array.isArray(data) && Array.isArray(data.systems)) data = data.systems;
+      if (!Array.isArray(data)) return 'Could not import ' + name + ': a JSON register must be a list of systems.';
+      if (!data.length) return 'Could not import ' + name + ': it lists no systems.';
+      rows = data.map(function (a) { return { answers: a, notes: a && typeof a === 'object' && !Array.isArray(a) ? [] : ['this entry is not an object, so defaults were used'] }; });
+    } else {
+      var out = M.readRegisterCsv(text);
+      if (out.error) return 'Could not import ' + name + ': ' + out.error + '.';
+      rows = out.rows;
+      warnings = out.warnings;
+    }
+    var notes = warnings.slice();
+    rows.forEach(function (r) {
+      var a = addToRegister(r.answers, true).answers;
+      r.notes.forEach(function (n) { notes.push(a.name + ': ' + n); });
+    });
+    renderRegister();
+    return 'Imported ' + plural(rows.length, 'system', 'systems') + ' from ' + name + '.' + (notes.length ? ' Check: ' + notes.slice(0, 5).join('; ') + (notes.length > 5 ? '; and ' + (notes.length - 5) + ' more.' : '.') : '');
+  }
+  $('reg-import').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    var input = this;
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () { $('reg-msg').textContent = importRegister(file.name, String(reader.result)); input.value = ''; };
+    reader.onerror = function () { $('reg-msg').textContent = 'Could not read ' + file.name + '.'; input.value = ''; };
+    reader.readAsText(file);
   });
 
   loadRegister();

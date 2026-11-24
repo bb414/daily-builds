@@ -4,6 +4,8 @@ Runs the MODEL block from app/index.html in Node.js (through tests/model_bridge.
 and compares it with the Python package. Skipped if Node.js is not installed.
 """
 
+import csv
+import io
 import json
 import pathlib
 import random
@@ -11,7 +13,7 @@ import shutil
 import subprocess
 import unittest
 
-from ai_act_triage import model
+from ai_act_triage import model, register
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 NODE = shutil.which("node")
@@ -75,6 +77,31 @@ class ParityTests(unittest.TestCase):
             js = call_js([{"fn": "roadmap", "args": [results]}, {"fn": "roadmap", "args": [results[:1]]},
                           {"fn": "roadmap", "args": [[]]}])
             self.assertEqual(js, [model.roadmap(results), model.roadmap(results[:1]), model.roadmap([])])
+
+    def test_pivots_match(self):
+        answers = random_answers(80, 3) + model.RULES["examples"] + [{"eu": False, "excluded": "military"}]
+        calls = [{"fn": "pivots", "args": [a, "2026-11-24" if k % 2 else "2027-12-02"]} for k, a in enumerate(answers)]
+        for js, call in zip(call_js(calls), calls):
+            self.assertEqual(js, model.pivots(*call["args"]), json.dumps(call["args"]))
+
+    def test_euros_match(self):
+        values = [0, 1, 999.5, 360000, 1234567, 1250000, 1255000, 14999999.5, 999995000, 999994999, 1.4e9, 2.125e9, 7e10]
+        self.assertEqual(call_js([{"fn": "euros", "args": [v]} for v in values]), [model.euros(v) for v in values])
+
+    def test_register_files_match(self):
+        answers = random_answers(40, 4) + [{"name": 'Comma, "quote"\nline', "turnover": 1e-7}, {"name": "x", "turnover": 0.00001}]
+        js_csv = call_js([{"fn": "registerCsv", "args": [answers]}])[0]
+        self.assertEqual(js_csv, register.to_csv(answers))
+        texts = [js_csv, register.to_csv(model.RULES["examples"]), "", "\n\n", "title\nx\n", "name,role\n",
+                 "\ufeff Name ,ROLE,profiling,colour,,name\nA,boss,maybe,blue,zz,B\n,,,\n\"C\",provider,YES\n",
+                 'name,turnover,prohibited,eu\r\n"open quote,12\r\nD,abc,"csam, madeUp;socialScoring",\r\nE,-1,,No\r\nF,0x10,,maybe\n',
+                 'name,annex3,derogation,gpai,deployerType,excluded\nG,credit,improve,systemic,publicService,research\nH,Credit,x,,nope,\n',
+                 'a"b,name\n"x"y,z\n"""q""",w\n']
+        js = call_js([{"fn": "readRegisterCsv", "args": [t]} for t in texts] + [{"fn": "csvRows", "args": [t]} for t in texts])
+        for t, j in zip(texts, js[:len(texts)]):
+            self.assertEqual(j, register.read_csv_text(t), repr(t))
+        for t, j in zip(texts, js[len(texts):]):
+            self.assertEqual(j, list(csv.reader(io.StringIO(t[1:] if t.startswith("\ufeff") else t, newline=""))), repr(t))
 
     def test_dates_match(self):
         isos = ["2026-02-30", "2028-02-29", "2027-13-01", "2026-1-01", "", None, "2026-11-24"]

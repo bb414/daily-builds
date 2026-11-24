@@ -1,5 +1,6 @@
 """Drive the browser app in headless Chromium. Skipped without Playwright for Python."""
 
+import json
 import pathlib
 import unittest
 
@@ -109,6 +110,54 @@ class AppTests(unittest.TestCase):
         page.once("dialog", lambda d: d.accept())
         page.click("#reg-clear")
         self.assertIn("The register is empty", page.inner_text("#register"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_pivots_and_try_it(self):
+        page = self.open()
+        self.assertIn("20 changes tried, 10 made a difference", page.inner_text("#piv-sub"))
+        first = page.locator("#pivots li").first
+        self.assertIn("Annex III use: Employment to none. Becomes Minimal risk", first.inner_text())
+        first.get_by_role("button").click()
+        self.assertIn("Minimal risk", page.inner_text("#tier"))
+        self.assertEqual(page.input_value("#a-annex3"), "")
+        self.assertEqual(page.input_value("#preset"), "")
+        page.select_option("#preset", "transcript")
+        self.assertIn("Profiles people: no to yes. Becomes High-risk", page.inner_text("#pivots"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_register_download_and_import(self):
+        page = self.open()
+        page.evaluate("window.localStorage.clear()")
+        page.reload()
+        page.click("#reg-csv")
+        self.assertIn("nothing to download", page.inner_text("#reg-msg"))
+        page.click("#reg-examples")
+        with page.expect_download() as d:
+            page.click("#reg-csv")
+        self.assertEqual(d.value.suggested_filename, "ai-register.csv")
+        self.assertEqual(pathlib.Path(d.value.path()).read_text(encoding="utf-8"),
+                         (ROOT / "examples" / "register.csv").read_text(encoding="utf-8"))
+        with page.expect_download() as d:
+            page.click("#reg-json")
+        saved = json.loads(pathlib.Path(d.value.path()).read_text(encoding="utf-8"))
+        self.assertEqual(len(saved["systems"]), 9)
+        page.once("dialog", lambda dlg: dlg.accept())
+        page.click("#reg-clear")
+        page.set_input_files("#reg-import", files=[{"name": "mine.json", "mimeType": "application/json",
+                                                    "buffer": json.dumps(saved).encode("utf-8")}])
+        page.wait_for_function("document.querySelectorAll('#register tbody tr').length === 9")
+        self.assertIn("Imported 9 systems from mine.json.", page.inner_text("#reg-msg"))
+        page.set_input_files("#reg-import", files=[{"name": "messy.csv", "mimeType": "text/csv",
+                                                    "buffer": b"Name,role,profiling\nNew one,boss,maybe\n"}])
+        page.wait_for_function("document.querySelectorAll('#register tbody tr').length === 10")
+        msg = page.inner_text("#reg-msg")
+        self.assertIn("Imported 1 system from messy.csv. Check: New one: profiling", msg)
+        page.set_input_files("#reg-import", files=[{"name": "bad.csv", "mimeType": "text/csv", "buffer": b"title\nx\n"}])
+        page.wait_for_function("document.getElementById('reg-msg').textContent.indexOf('Could not import') === 0")
+        self.assertIn('it needs a "name" column', page.inner_text("#reg-msg"))
+        self.assertEqual(page.locator("#register tbody tr").count(), 10)
         self.assertEqual(self.errors, [])
         page.close()
 

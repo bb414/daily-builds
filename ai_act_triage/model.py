@@ -351,19 +351,25 @@ def roadmap(results):
 
 
 def _penalty(res, a):
+    """The highest fine that could apply. With duties under both Art 99(4) and Art 101, the larger cap is shown."""
+    keys = []
     if res["tier"] == "prohibited":
-        key = "prohibited"
-    elif res["highRisk"] or res["exempt"] or "transparency" in res["tags"]:
-        key = "operator"
-    elif "gpai" in res["tags"] or "gpaiSystemic" in res["tags"]:
-        key = "gpai"
+        keys.append("prohibited")
     else:
-        return None
-    p = RULES["penalties"][key]
-    share = p["share"] * a["turnover"] * 1e6
-    sme_rule = a["sme"] and key != "gpai"
-    return {"key": key, "article": p["article"], "amount": p["amount"], "share": p["share"], "sme": sme_rule,
-            "max": js_round(min(p["amount"], share) if sme_rule else max(p["amount"], share))}
+        if res["highRisk"] or res["exempt"] or "transparency" in res["tags"]:
+            keys.append("operator")
+        if "gpai" in res["tags"] or "gpaiSystemic" in res["tags"]:
+            keys.append("gpai")
+    best = None
+    for key in keys:
+        p = RULES["penalties"][key]
+        share = p["share"] * a["turnover"] * 1e6
+        sme_rule = a["sme"] and key != "gpai"
+        c = {"key": key, "article": p["article"], "amount": p["amount"], "share": p["share"], "sme": sme_rule,
+             "max": js_round(min(p["amount"], share) if sme_rule else max(p["amount"], share))}
+        if best is None or c["max"] > best["max"]:
+            best = c
+    return best
 
 
 def _uk_notes(res, a):
@@ -376,3 +382,123 @@ def _uk_notes(res, a):
     if "transparency" in res["tags"]:
         notes.append(RULES["ukTransparency"])
     return notes
+
+
+def euros(x):
+    """Euros, rounded to the nearest €10,000 above a million: 15000000 -> "€15m", 1250000 -> "€1.25m"."""
+    def hundredths(n):
+        whole, frac = n // 100, n % 100
+        return str(whole) + ("." + str(100 + frac)[1:].rstrip("0") if frac else "")
+    if x >= 1e9 or js_round(x / 1e4) >= 100000:
+        return "€%sbn" % hundredths(js_round(x / 1e7))
+    if x >= 1e6:
+        return "€%sm" % hundredths(js_round(x / 1e4))
+    return "€{:,}".format(js_round(x))
+
+
+# ---------- What would change the result ----------
+# The answers worth testing one at a time. Scope answers are only tested when the system is out of scope.
+PIVOT_FIELDS = ["role", "takeover", "prohibited", "annex1", "annex3", "derogation", "profiling", "interacts", "generates",
+                "generatedBefore", "emotionBiocat", "deepfake", "gpai", "gpaiOpen", "gpaiBefore", "deployerType", "workplace", "sme"]
+SEVERITY = TIER_ORDER + ["outOfScope"]
+
+
+def _choice_label(field, item_id):
+    c = _by_id(RULES["choices"][field], item_id)
+    return c["label"] if c else item_id
+
+
+def answer_label(field, value):
+    """A short, readable version of one answer."""
+    if value is True:
+        return "yes"
+    if value is False:
+        return "no"
+    if field == "annex3":
+        return _by_id(RULES["annex3"], value)["label"].split(":")[0] if value else "none"
+    if field == "derogation":
+        return _by_id(RULES["derogations"], value)["point"] if value else "none"
+    return _choice_label(field, value)
+
+
+def _candidates(a, base):
+    """Every single-answer change worth trying: (field, option or None, new value, label for the new value)."""
+    out = []
+
+    def other(field, values):
+        out.extend((field, None, v, answer_label(field, v)) for v in values if v != a[field])
+
+    if base["tier"] == "outOfScope":
+        if not a["eu"]:
+            out.append(("eu", None, True, "yes"))
+        if a["excluded"] != "none":
+            out.append(("excluded", None, "none", _choice_label("excluded", "none")))
+    for field in PIVOT_FIELDS:
+        v = a[field]
+        if field == "role":
+            other(field, ROLES)
+        elif field == "gpai":
+            other(field, GPAI)
+        elif field == "deployerType":
+            other(field, DEPLOYER_TYPES)
+        elif field == "prohibited":
+            out.extend((field, i, [x for x in v if x != i], "no") for i in v)
+        elif field == "annex3":
+            if v:
+                out.append((field, None, "", "none"))
+        elif field == "derogation":
+            if v:
+                out.append((field, None, "", "none"))
+            elif a["annex3"]:
+                out.append((field, None, RULES["derogations"][0]["id"], "any of the four"))
+        else:
+            out.append((field, None, not v, "no" if v else "yes"))
+    return out
+
+
+def _effect(from_tier, to_tier, net_duties, from_fine, to_fine, moved):
+    """Is the result after a change lighter or heavier? By tier, then the number of duties, the fine and the dates."""
+    d = SEVERITY.index(to_tier) - SEVERITY.index(from_tier)
+    if not d:
+        d = -net_duties
+    if not d and from_fine != to_fine:
+        d = 1 if (to_fine or 0) < (from_fine or 0) else -1
+    if not d:
+        for m in moved:
+            d += 1 if m["to"] > m["from"] else -1
+    return "lighter" if d > 0 else "heavier" if d < 0 else "different"
+
+
+def pivots(answers_in, as_of=None):
+    """Which single answers, if they were different, would change the classification, the duties, their dates or the fine."""
+    a = normalise(answers_in)
+    base = classify(a, as_of)
+    base_dates = {o["id"]: o["date"] for o in base["obligations"]}
+    base_fine = base["penalty"]["max"] if base["penalty"] else None
+    cands = _candidates(a, base)
+    found = []
+    for k, (field, option, value, to_label) in enumerate(cands):
+        changed = dict(a)
+        changed[field] = value
+        res = classify(changed, base["asOf"])
+        dates = {o["id"]: o["date"] for o in res["obligations"]}
+        added = [o["id"] for o in res["obligations"] if o["id"] not in base_dates]
+        removed = [o["id"] for o in base["obligations"] if o["id"] not in dates]
+        moved = [{"id": o["id"], "from": base_dates[o["id"]], "to": o["date"]} for o in res["obligations"]
+                 if o["id"] in base_dates and base_dates[o["id"]] != o["date"]]
+        fine = res["penalty"]["max"] if res["penalty"] else None
+        tier_changed = res["tier"] != base["tier"]
+        if not tier_changed and not added and not removed and not moved and fine == base_fine:
+            continue
+        question = RULES["questions"][field] + (" (%s)" % _by_id(RULES["prohibitions"], option)["point"] if option else "")
+        found.append({"field": field, "option": option, "value": value, "question": question,
+                      "from": "yes" if option else answer_label(field, a[field]), "to": to_label,
+                      "tier": res["tier"], "tierLabel": res["tierLabel"], "tierChanged": tier_changed,
+                      "added": added, "removed": removed, "moved": moved,
+                      "fine": None if fine == base_fine else {"from": base_fine, "to": fine},
+                      "effect": _effect(base["tier"], res["tier"], len(added) - len(removed), base_fine, fine, moved),
+                      "order": k})
+    found.sort(key=lambda p: (0 if p["tierChanged"] else 1, -(len(p["added"]) + len(p["removed"]) + len(p["moved"])), p["order"]))
+    for p in found:
+        del p["order"]
+    return {"tier": base["tier"], "tested": len(cands), "pivots": found}
