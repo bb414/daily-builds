@@ -128,7 +128,7 @@ The levers chart turns the same model into a "where should we invest?" question.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .    # everything: 39 tests
+python -m unittest discover -s tests -t .    # everything: 40 tests
 node --test tests/app_model.test.js          # just the browser app's model
 ```
 

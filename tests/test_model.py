@@ -222,3 +222,18 @@ class SweepTests(unittest.TestCase):
         self.assertIn("Overconfidence gap", sweep_report(summary))
         self.assertEqual(len(sweep_csv(rows).strip().splitlines()), 17)
         self.assertEqual(len(run_sweep()), math.prod(len(v) for v in GRID.values()))
+
+
+class CornerTests(unittest.TestCase):
+    def test_every_corner_of_the_input_space_gives_sensible_results(self):
+        import itertools
+        from reliance_lab.model import RANGES
+        for combo in itertools.product(*RANGES.values()):
+            p = dict(zip(RANGES, combo))
+            a = analyse(p)
+            for rule in POLICIES:
+                r = a["policies"][rule]
+                for key in ("team", "shared", "overErrors", "underErrors", "followRate"):
+                    self.assertTrue(math.isfinite(r[key]), (p, rule, key))
+                self.assertLessEqual(r["team"], a["ceiling"] + 1e-12)
+                self.assertEqual(sum(per_100(p, rule)["counts"].values()), 100)
