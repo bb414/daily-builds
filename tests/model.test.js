@@ -135,3 +135,31 @@ test('outcome distributions are consistent with the expectations', function () {
   assert.equal(M.quantile([0.05, 0.05, 0.4, 0.5], 0.1), 1);
   assert.equal(M.quantile([0.05, 0.05, 0.4, 0.5], 0.9), 3);
 });
+
+test('the shelf card matches the plan it summarises', function () {
+  Object.values(M.PRESETS).concat(randomConfigs(15, 11)).forEach(function (cfg) {
+    const sol = M.solve(cfg);
+    const card = M.shelfCard(sol);
+    assert.equal(card.rows.length, sol.cfg.days);
+    if (card.exact) {
+      card.rows.forEach(function (r) {
+        for (let s = 1; s <= sol.cfg.stock; s++) {
+          let j = 0;
+          r.from.forEach(function (start, step) { if (start !== null && s >= start) j = step; });
+          assert.equal(j, sol.policy[r.day][0][s], 'day ' + r.day + ' stock ' + s);
+        }
+      });
+    }
+    assert.ok(card.gap >= -1e-7, 'the card can never beat the full plan');
+    near(card.profit, M.evaluate(sol.cfg, M.POLICIES.card(sol)).profit, 1e-9);
+  });
+});
+
+test('robustness: perfect knowledge is never beaten, and the planned case scores 100%', function () {
+  const cells = M.robustness(M.PRESETS.truffles);
+  assert.equal(cells.length, 15);
+  cells.forEach(function (c) { assert.ok(c.planned <= c.ideal + 1e-7, JSON.stringify(c)); });
+  const asPlanned = cells.filter(function (c) { return c.demandFactor === 1 && c.elasticityFactor === 1; })[0];
+  near(asPlanned.planned, asPlanned.ideal, 1e-7);
+  near(asPlanned.ideal, M.solve(M.PRESETS.truffles).value, 1e-9);
+});

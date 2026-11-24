@@ -62,10 +62,32 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_card_robustness_and_saved_address(self):
+        page = self.open()
+        self.assertIn("52+", page.inner_text("#card"))
+        self.assertIn("exactly what the full plan earns", page.inner_text("#card-note"))
+        self.assertEqual(page.locator("#robust td").count(), 15)
+        self.assertIn("worse than no discount", page.inner_text("#robust"))
+        page.select_option("#preset", "tins")
+        url = page.url
+        self.assertIn("stock=120", url)
+        other = self.browser.new_page()
+        other.goto(url)
+        self.assertEqual(other.input_value("#f-stock"), "120")
+        self.assertEqual(other.input_value("#preset"), "")
+        self.assertEqual(other.inner_text("#compare"), page.inner_text("#compare"))
+        other.close()
+        with page.expect_download() as dl:
+            page.click("#card-download")
+        self.assertTrue(dl.value.suggested_filename.endswith(".csv"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_every_control_has_a_label(self):
         page = self.open()
         unlabelled = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button')).filter(e =>
-            !((e.labels && e.labels.length && e.labels[0].textContent.trim()) || e.getAttribute('aria-label'))).map(e => e.id)""")
+            !((e.labels && e.labels.length && e.labels[0].textContent.trim()) || e.getAttribute('aria-label') ||
+              (e.tagName === 'BUTTON' && e.textContent.trim()))).map(e => e.id)""")
         self.assertEqual(unlabelled, [])
         page.close()
 

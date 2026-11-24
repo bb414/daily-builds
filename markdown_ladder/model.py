@@ -215,6 +215,7 @@ def evaluate(cfg_in, policy_fn):
     for t in range(T):
         nxt = [[0.0] * (S + 1) for _ in range(J)]
         day = {"stockStart": 0.0, "revenue": 0.0, "sold": 0.0, "stepProb": [0.0] * J, "stockDist": [0.0] * (S + 1)}
+        wins = [poisson_window(demand_rate(cfg, t, jj), S) for jj in range(J)]
         for i in range(J):
             for s in range(S + 1):
                 w = dist[i][s]
@@ -227,7 +228,7 @@ def evaluate(cfg_in, policy_fn):
                     j = i
                 day["stepProb"][j] += w
                 price = cfg["price"] * (1 - LADDER[j] / 100)
-                lo, hi, p = poisson_window(demand_rate(cfg, t, j), S)
+                lo, hi, p = wins[j]
                 mass = 0.0
                 for c in range(lo, min(hi, s - 1) + 1):
                     q = w * p[c - lo]
@@ -268,6 +269,50 @@ def evaluate(cfg_in, policy_fn):
         "leftoverP90": quantile(left, 0.9),
         "days": days,
     }
+
+
+def policy_card(sol):
+    """Follow the shelf card: the day's stock thresholds, never moving back up the ladder."""
+    return lambda t, s, i: max(i, sol["policy"][t][0][s])
+
+
+def shelf_card(sol):
+    """For each day, the smallest stock at which each discount starts (before any markdown)."""
+    T, S, J = sol["cfg"]["days"], sol["cfg"]["stock"], len(LADDER)
+    rows, exact = [], True
+    for t in range(T):
+        pol, start = sol["policy"][t][0], [None] * J
+        for s in range(1, S + 1):
+            if s > 1 and pol[s] < pol[s - 1]:
+                exact = False
+            for j in range(1, pol[s] + 1):
+                if start[j] is None:
+                    start[j] = s
+        rows.append({"day": t, "from": start})
+    card = evaluate(sol["cfg"], policy_card(sol))
+    return {"rows": rows, "exact": exact, "profit": card["profit"], "gap": sol["value"] - card["profit"]}
+
+
+ROBUST_DEMAND = [0.6, 0.8, 1, 1.25, 1.5]
+ROBUST_ELASTICITY = [0.6, 1, 1.4]
+
+
+def robustness(cfg_in):
+    """Plan with the numbers given, then score that plan when the truth is different."""
+    cfg = normalise(cfg_in)
+    plan = policy_optimal(solve(cfg))
+    cells = []
+    for g in ROBUST_ELASTICITY:
+        for f in ROBUST_DEMAND:
+            truth = normalise(dict(cfg, demand=cfg["demand"] * f, elasticity=cfg["elasticity"] * g))
+            ideal = solve(truth)["value"]
+            cells.append({
+                "demandFactor": f, "elasticityFactor": g,
+                "planned": evaluate(truth, plan)["profit"],
+                "never": evaluate(truth, policy_never(None))["profit"],
+                "ideal": ideal,
+            })
+    return cells
 
 
 def compare_policies(cfg_in, rule=None):

@@ -1,0 +1,9 @@
+name,stock,days,price,unitCost,wasteCost,demand,elasticity,freshness,startDay,pattern
+Chocolate truffle box,60,7,12,4.8,0.3,6,1.8,3,0,highStreet
+"Fresh mochi, pack of six",40,3,6.5,2.4,0.2,10,2.5,15,3,highStreet
+Coffee eclairs,30,2,3.2,1.1,0.1,11,3,20,3,office
+Festive biscuit tins,120,14,15,6,2,6,2.2,0,0,highStreet
+Pistachio macarons (box of 12),45,5,14,5.2,0.25,7,2,8,2,highStreet
+Strawberry tarts,24,2,4.5,1.6,0.15,9,2.8,25,4,highStreet
+Salted caramel brownies,50,4,2.8,0.9,0.05,10,1.6,10,0,office
+Gingerbread figures,80,10,3.5,1,0.4,6,2.4,2,0,flat

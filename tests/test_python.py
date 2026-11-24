@@ -3,9 +3,13 @@
 import contextlib
 import io
 import math
+import pathlib
+import tempfile
 import unittest
 
-from markdown_ladder import model
+from markdown_ladder import model, report
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 from markdown_ladder.__main__ import main
 
 
@@ -78,6 +82,57 @@ class CommandLineTests(unittest.TestCase):
     def test_bad_arguments_are_rejected(self):
         self.assertEqual(run_cli("plan", "--preset", "nope")[0], 2)
         self.assertEqual(run_cli("plan", "--rule-pct", "25")[0], 2)
+
+
+class RangeTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_example_range(self):
+        md, csv_path = self.dir / "r.md", self.dir / "cards.csv"
+        code, out, _ = run_cli("range", str(ROOT / "examples" / "range.csv"), "--markdown", str(md), "--csv", str(csv_path))
+        self.assertEqual(code, 0)
+        self.assertIn("Chocolate truffle box           60     7     £540.02", out)
+        self.assertIn("### Strawberry tarts", md.read_text(encoding="utf-8"))
+        lines = csv_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "product,day,weekday,pct10_from_units,pct20_from_units,pct30_from_units,pct50_from_units")
+        self.assertEqual(len(lines), 1 + 7 + 3 + 2 + 14 + 5 + 2 + 4 + 10)
+
+    def test_bad_ranges_are_explained(self):
+        (self.dir / "a.csv").write_text("name,stock\nX,5\n", encoding="utf-8")
+        code, _, err = run_cli("range", str(self.dir / "a.csv"))
+        self.assertEqual(code, 2)
+        self.assertIn("missing the column(s): days, price, demand", err)
+        (self.dir / "b.csv").write_text("", encoding="utf-8")
+        self.assertIn("is empty", run_cli("range", str(self.dir / "b.csv"))[2])
+        self.assertEqual(run_cli("range", str(self.dir / "missing.csv"))[0], 2)
+
+    def test_odd_values_are_adjusted_and_reported(self):
+        (self.dir / "c.csv").write_text("name,stock,days,price,demand,pattern\nOdd,999,abc,4,5,weekly\n", encoding="utf-8")
+        products = report.load_range(self.dir / "c.csv")
+        self.assertEqual(products[0]["cfg"]["stock"], 300)
+        self.assertEqual(products[0]["cfg"]["days"], 7)
+        self.assertEqual(len(products[0]["notes"]), 3)
+        code, out, _ = run_cli("range", str(self.dir / "c.csv"))
+        self.assertIn("Adjusted inputs:", out)
+
+    def test_robust_command(self):
+        code, out, _ = run_cli("robust", "--preset", "truffles")
+        self.assertEqual(code, 0)
+        self.assertIn("as planned         90%         98%         100%", out)
+        self.assertIn("93% *", out)
+
+    def test_shelf_card_and_robustness_in_python(self):
+        sol = model.solve(model.PRESETS["mochi"])
+        card = model.shelf_card(sol)
+        self.assertEqual([r["from"][1] for r in card["rows"]], [39, 26, 11])
+        self.assertAlmostEqual(card["gap"], 0, places=7)
+        cells = model.robustness(model.PRESETS["mochi"])
+        self.assertTrue(all(c["planned"] <= c["ideal"] + 1e-7 for c in cells))
 
 
 if __name__ == "__main__":

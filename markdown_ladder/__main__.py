@@ -1,13 +1,15 @@
 """Command-line interface.
 
-    python -m markdown_ladder plan --preset truffles      # best plan for one product
-    python -m markdown_ladder plan --stock 80 --days 5    # ...or your own numbers
+    python -m markdown_ladder plan --preset truffles          # best plan for one product
+    python -m markdown_ladder plan --stock 80 --days 5        # ...or your own numbers
+    python -m markdown_ladder robust --preset truffles        # what if the forecast is wrong?
+    python -m markdown_ladder range examples/range.csv        # plan a whole product range
 """
 
 import argparse
 import sys
 
-from . import model
+from . import model, report
 
 
 def text_table(headers, rows):
@@ -79,6 +81,45 @@ def cmd_plan(args):
     print("The ladder: best discount by units left (rows) and day (columns), before any markdown")
     days = [model.DAY_NAMES[(cfg["startDay"] + t) % 7] for t in range(cfg["days"])]
     print(text_table(["Units"] + days, ladder_rows(sol)))
+    print()
+    card = model.shelf_card(sol)
+    print("Shelf card: each morning, take the deepest discount whose stock threshold you reach")
+    print(text_table(["Day"] + ["%d%% off at" % d for d in model.LADDER[1:]], report.card_rows(cfg, card)))
+    print(report.card_note(card))
+    return 0
+
+
+def cmd_robust(args):
+    cfg = model.normalise(config_from_args(args))
+    cells = model.robustness(cfg)
+    print("The plan is made with demand %.1f a day and price sensitivity %.1f." % (cfg["demand"], cfg["elasticity"]))
+    print("Each cell: the plan's profit when the truth is different, as a share of the best possible with perfect knowledge.")
+    print("'*' marks cases where the plan does worse than never discounting.")
+    print()
+    print(text_table(*report.robust_table(cells)))
+    return 0
+
+
+def cmd_range(args):
+    try:
+        products = report.load_range(args.file)
+    except (OSError, ValueError) as exc:
+        print("Could not read the range: %s" % exc, file=sys.stderr)
+        return 2
+    results = [report.plan_product(p) for p in products]
+    print(report.range_text(results))
+    try:
+        if args.markdown:
+            with open(args.markdown, "w", encoding="utf-8") as f:
+                f.write(report.range_markdown(results))
+            print("\nWrote %s" % args.markdown)
+        if args.csv:
+            with open(args.csv, "w", encoding="utf-8", newline="") as f:
+                f.write(report.cards_csv(results))
+            print("Wrote %s" % args.csv)
+    except OSError as exc:
+        print("Could not write the report: %s" % exc, file=sys.stderr)
+        return 2
     return 0
 
 
@@ -101,6 +142,18 @@ def build_parser():
     plan.add_argument("--rule-pct", type=int, choices=model.LADDER[1:], default=30, help="discount for the simple rule")
     plan.add_argument("--rule-days", type=int, default=2, help="days left when the simple rule kicks in")
     plan.set_defaults(func=cmd_plan)
+
+    robust = sub.add_parser("robust", help="score the plan when demand or price sensitivity differ from the forecast")
+    for action in plan._actions:
+        if action.dest in list(model.FIELDS) + ["preset", "pattern", "allow_price_rises"]:
+            robust._add_action(action)
+    robust.set_defaults(func=cmd_robust)
+
+    rng = sub.add_parser("range", help="plan every product in a CSV file (see examples/range.csv)")
+    rng.add_argument("file")
+    rng.add_argument("--markdown", help="also write a Markdown report to this file")
+    rng.add_argument("--csv", help="also write every product's shelf card to this CSV file")
+    rng.set_defaults(func=cmd_range)
     return p
 
 

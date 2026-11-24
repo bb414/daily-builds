@@ -87,6 +87,18 @@ class ParityTests(unittest.TestCase):
             for jr, pr in zip(j["rows"], py["rows"]):
                 assert_close(self, jr["result"], pr["result"], "%s %r" % (pr["name"], c))
 
+    def test_shelf_cards_and_robustness_match(self):
+        cfgs = list(model.PRESETS.values()) + random_configs(8, 3)
+        js = call_js([{"fn": "shelfCard", "args": [call]} for call in []])  # warm-up call shape check
+        self.assertEqual(js, [])
+        solves = call_js([{"fn": "solve", "args": [c]} for c in cfgs])
+        cards = call_js([{"fn": "shelfCard", "args": [sol]} for sol in solves])
+        robust = call_js([{"fn": "robustness", "args": [c]} for c in cfgs])
+        for c, card, rb in zip(cfgs, cards, robust):
+            sol = model.solve(c)
+            assert_close(self, card, model.shelf_card(sol), "card %r" % c)
+            assert_close(self, rb, model.robustness(c), "robustness %r" % c)
+
 
 if __name__ == "__main__":
     unittest.main()
