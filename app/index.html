@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaderboard luck</title>
+<meta name="description" content="Simulate a trading challenge thousands of times: how much of the leaderboard is skill, and how much risk should your team take?">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f5f5f2;
+  --surface: #fcfcfb;
+  --surface-2: #efeee9;
+  --ink: #15171c;
+  --ink-2: #4a4945;
+  --muted: #6b6963;
+  --line: #e1e0d9;
+  --line-strong: #c3c2b7;
+  --accent: #5b3fbf;
+  --accent-ink: #ffffff;
+  --accent-soft: #ebe6fa;
+  --focus: #1f5fbf;
+  --you: #2a78d6;
+  --gambler: #eb6834;
+  --steady: #1baf7a;
+  --other: #a3a19a;
+  --shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 2px 8px rgba(20, 20, 20, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --ink: #f0efec;
+    --ink-2: #c9c8c0;
+    --muted: #a3a29a;
+    --line: #2f2f2c;
+    --line-strong: #46463f;
+    --accent: #9085e9;
+    --accent-ink: #120e24;
+    --accent-soft: #2a2546;
+    --focus: #7fb0ff;
+    --you: #3987e5;
+    --gambler: #d95926;
+    --steady: #199e70;
+    --other: #77756f;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --surface: #1a1a19;
+  --surface-2: #242422;
+  --ink: #f0efec;
+  --ink-2: #c9c8c0;
+  --muted: #a3a29a;
+  --line: #2f2f2c;
+  --line-strong: #46463f;
+  --accent: #9085e9;
+  --accent-ink: #120e24;
+  --accent-soft: #2a2546;
+  --focus: #7fb0ff;
+  --you: #3987e5;
+  --gambler: #d95926;
+  --steady: #199e70;
+  --other: #77756f;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+h1, h2, h3 { line-height: 1.25; margin: 0 0 0.5rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 0.75rem; }
+a { color: var(--accent); }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* header */
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { padding-top: 20px; padding-bottom: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
+.tagline { color: var(--ink-2); margin: 6px 0 0; max-width: 68ch; }
+main.wrap { padding-top: 20px; padding-bottom: 48px; }
+footer { color: var(--muted); font-size: 0.875rem; padding: 24px 0 40px; border-top: 1px solid var(--line); }
+
+/* cards and controls */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); }
+.stack > * + * { margin-top: 16px; }
+.setup { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .setup { grid-template-columns: minmax(0, 1fr); } }
+.setup h2 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; }
+.slider { margin-bottom: 14px; }
+.slider label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 0.9375rem; }
+.slider output { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.slider input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 2px; min-height: 28px; }
+.hint { color: var(--muted); font-size: 0.875rem; margin: 0; }
+.btn {
+  appearance: none; font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; padding: 9px 14px;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); min-height: 44px;
+}
+.btn:hover { background: var(--surface-2); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.select { font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); min-height: 44px; }
+.field-label { display: block; font-weight: 600; font-size: 0.9375rem; margin-bottom: 6px; }
+fieldset { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+legend { font-weight: 600; font-size: 0.9375rem; padding: 0; margin-bottom: 6px; }
+.seg { display: flex; flex-direction: column; gap: 6px; }
+.seg label { position: relative; cursor: pointer; display: block; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 8px 12px; font-size: 0.9375rem; font-weight: 600; color: var(--ink-2); border: 1px solid var(--line-strong); border-radius: 8px; }
+.seg label:hover span { background: var(--surface-2); }
+.seg input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; font-size: 0.9375rem; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 18px; height: 18px; margin-top: 2px; }
+
+/* status */
+.status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.875rem; color: var(--muted); }
+.bar { width: 160px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 0.8125rem; color: var(--muted); }
+.tile .v { font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+.tile .s { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
+.insight { font-size: 1.02rem; margin: 0; }
+
+/* charts */
+.two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.875rem; color: var(--ink-2); margin: 6px 0 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.sw.line { height: 3px; border-radius: 2px; width: 16px; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.chart .grid { stroke: var(--line); }
+.chart .axis { stroke: var(--line-strong); }
+.tooltip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); padding: 8px 10px; border-radius: 8px; font-size: 0.8125rem; line-height: 1.4; max-width: 260px; opacity: 0; z-index: 5; }
+.tooltip.on { opacity: 1; }
+.bars { list-style: none; margin: 8px 0 0; padding: 0; }
+.bars li { margin-bottom: 12px; }
+.bars .row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9375rem; }
+.bars .row b { font-variant-numeric: tabular-nums; }
+.bars .track { height: 12px; background: var(--surface-2); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+.bars .track span { display: block; height: 100%; border-radius: 6px; }
+.facts { margin: 14px 0 0; padding: 12px 14px; background: var(--surface-2); border-radius: 10px; font-size: 0.9375rem; }
+.facts p { margin: 0 0 6px; }
+.facts p:last-child { margin: 0; }
+.table-wrap { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; font-size: 0.875rem; font-variant-numeric: tabular-nums; margin-top: 10px; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.data th:nth-child(-n+2), table.data td:nth-child(-n+2) { text-align: left; }
+table.data thead th { color: var(--muted); font-weight: 600; }
+table.data tr.you td, table.data tr.you th { background: var(--accent-soft); font-weight: 700; }
+.kind { display: inline-flex; align-items: center; gap: 6px; }
+details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.stale #results { opacity: 0.55; transition: opacity 0.2s; }
+.prose { max-width: 72ch; }
+.prose h3 { margin-top: 18px; }
+.prose li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="32" height="28" viewBox="0 0 32 28" aria-hidden="true" focusable="false">
+        <rect x="1" y="12" width="9" height="15" rx="2" fill="var(--steady)"></rect>
+        <rect x="11.5" y="3" width="9" height="24" rx="2" fill="var(--gambler)"></rect>
+        <rect x="22" y="16" width="9" height="11" rx="2" fill="var(--you)"></rect>
+      </svg>
+      <h1>Leaderboard luck</h1>
+    </div>
+    <p class="tagline">Run a trading challenge thousands of times. How much of the leaderboard is skill, who usually wins, and how much risk should your team take?</p>
+  </div>
+</header>
+
+<main class="wrap stack">
+  <section class="setup" aria-label="Settings">
+    <form class="card" id="you-form" aria-labelledby="you-h">
+      <h2 id="you-h">Your team</h2>
+      <div id="sliders-you"></div>
+    </form>
+    <form class="card" id="field-form" aria-labelledby="field-h">
+      <h2 id="field-h">The field</h2>
+      <div id="sliders-field"></div>
+    </form>
+    <form class="card" id="rules-form" aria-labelledby="rules-h">
+      <h2 id="rules-h">The rules</h2>
+      <div id="sliders-rules"></div>
+      <fieldset>
+        <legend>How teams are ranked</legend>
+        <div class="seg" id="rule-seg"></div>
+      </fieldset>
+      <div id="slider-dd"></div>
+      <label class="check"><input type="checkbox" id="fat-tails"> Fat tails: a few days with moves three times the usual size</label>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="btn-row">
+      <label class="field-label visually-hidden" for="preset">Start from a scenario</label>
+      <select id="preset" class="select" style="max-width: 340px"></select>
+      <button type="button" class="btn" id="new-luck">New luck</button>
+      <div class="status" role="status" aria-live="polite"><span id="status-text"></span><span class="bar" aria-hidden="true"><span id="status-bar"></span></span></div>
+    </div>
+    <p class="hint" id="preset-hint" style="margin-top: 8px"></p>
+  </section>
+
+  <section aria-label="Results" class="stack" id="results">
+    <div class="tiles" id="tiles"></div>
+    <div class="card"><p class="insight" id="insight"></p></div>
+    <div class="two">
+      <div class="card">
+        <div class="chart-head"><h3>How much risk should your team take?</h3><span class="hint" id="risk-rule"></span></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw line" style="background:var(--you)"></i>Chance of winning</span>
+          <span><i class="sw line" style="background:var(--accent)"></i>Chance of a top-3 finish</span>
+        </div>
+        <div class="chart" id="risk-chart"></div>
+        <p class="hint" id="risk-note"></p>
+      </div>
+      <div class="card">
+        <h3>Who actually wins?</h3>
+        <ul class="bars" id="winner-bars"></ul>
+        <div class="facts" id="winner-facts"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h3 id="sample-title">One simulated challenge</h3>
+        <div class="btn-row"><button type="button" class="btn" id="prev-sample">Previous</button><button type="button" class="btn" id="next-sample">Run another challenge</button></div>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="sw line" style="background:var(--you)"></i>Your team</span>
+        <span><i class="sw line" style="background:var(--gambler)"></i>Gambler</span>
+        <span><i class="sw line" style="background:var(--steady)"></i>Steady team</span>
+      </div>
+      <div class="chart" id="sample-chart"></div>
+      <div class="table-wrap"><table class="data" id="sample-table"></table></div>
+    </div>
+  </section>
+
+  <section class="card prose" aria-labelledby="about-h">
+    <h2 id="about-h">How it works</h2>
+    <div id="about">
+      <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
+      <p>Your team is then run at your chosen risk and at twenty other levels on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
+      <p>Two thousand challenges are simulated each time. "New luck" draws a different two thousand, which shows how much the numbers move by chance: usually by less than a point.</p>
+      <h3>What it means</h3>
+      <ul>
+        <li><strong>For teams:</strong> in a short challenge ranked on return, the leaderboard mostly measures risk and luck. If the goal is to win, more risk is usually the answer; if the goal is to learn, judge yourselves on risk-adjusted results, not the rank.</li>
+        <li><strong>For organisers:</strong> ranking on Sharpe ratio removes the reward for leverage, a drawdown limit caps it, and a longer challenge gives skill more time to show. None of them makes a few weeks long enough to pick out the best team reliably.</li>
+      </ul>
+      <h3>Limits</h3>
+      <ul>
+        <li>Everything is simulated. Real returns have more structure than a normal distribution with an optional fat tail, and real strategies are not equally good every day.</li>
+        <li>Teams keep the same risk all challenge. Real teams that fall behind often take more risk near the end, which makes luck matter even more.</li>
+        <li>The shared market move is a single factor. Real teams overlap in more complicated ways.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Leaderboard luck. Every team, price move and result is simulated; nothing leaves this page and it works offline.</div>
+</footer>
+<script>
+/* MODEL START */
+var LeaderboardModel = (function () {
+  'use strict';
+
+  var DAYS_PER_YEAR = 252;
+  var RULES = ['return', 'sharpe', 'drawdown'];
+  var RULE_LABELS = {
+    return: 'Highest return',
+    sharpe: 'Highest Sharpe ratio',
+    drawdown: 'Highest return, out if the drawdown limit is breached'
+  };
+
+  var DEFAULTS = {
+    teams: 30,
+    days: 20,
+    skillSpread: 0.75,
+    fieldVol: 0.2,
+    gamblers: 0.2,
+    gamblerMultiple: 3,
+    correlation: 0.3,
+    fatTails: false,
+    rule: 'return',
+    drawdownLimit: 0.15,
+    yourSharpe: 1,
+    yourVol: 0.2,
+    sims: 2000,
+    seed: 1
+  };
+
+  // [min, max, whole number?]
+  var RANGES = {
+    teams: [3, 100, true],
+    days: [5, 250, true],
+    skillSpread: [0, 2, false],
+    fieldVol: [0.05, 0.5, false],
+    gamblers: [0, 0.8, false],
+    gamblerMultiple: [1, 4, false],
+    correlation: [0, 0.9, false],
+    drawdownLimit: [0.02, 0.6, false],
+    yourSharpe: [-1, 3, false],
+    yourVol: [0.02, 1, false],
+    sims: [100, 20000, true],
+    seed: [0, 4294967295, true]
+  };
+
+  // Your volatility is also evaluated at each of these levels, on the same simulated draws.
+  var VOL_GRID = [];
+  for (var gi = 1; gi <= 20; gi++) VOL_GRID.push(gi / 20);
+
+  // Fat tails: on about one day in twenty a move is three times the usual size (variance kept at 1).
+  var JUMP_PROB = 0.05;
+  var JUMP_SIZE = 3;
+  var JUMP_NORM = Math.sqrt(1 + JUMP_PROB * (JUMP_SIZE * JUMP_SIZE - 1));
+
+  // Rivals' volatility varies around the typical level by this much (log scale).
+  var VOL_JITTER = 0.25;
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+  }
+
+  function roundHalfUp(x) {
+    return Math.floor(x + 0.5);
+  }
+
+  function normalise(params) {
+    var src = params || {};
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function (key) {
+      var v = src[key] === undefined || src[key] === null ? DEFAULTS[key] : src[key];
+      if (key === 'rule') {
+        if (RULES.indexOf(v) < 0) throw new Error('rule must be one of ' + RULES.join(', '));
+        out[key] = v;
+        return;
+      }
+      if (key === 'fatTails') {
+        if (typeof v !== 'boolean') throw new Error('fatTails must be true or false');
+        out[key] = v;
+        return;
+      }
+      if (typeof v !== 'number' || !isFinite(v)) throw new Error(key + ' must be a finite number');
+      var r = RANGES[key];
+      v = clamp(v, r[0], r[1]);
+      out[key] = r[2] ? roundHalfUp(v) : v;
+    });
+    return out;
+  }
+
+  /* ---------- random numbers (the Python version uses the same generator) ---------- */
+
+  function mulberry32(seed) {
+    var t = seed >>> 0;
+    return function () {
+      t = (t + 0x6d2b79f5) >>> 0;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Normal variates by Marsaglia's polar method, which needs only a logarithm and a square root.
+  function makeRng(seed) {
+    var next = mulberry32(seed);
+    var spare = null;
+    return {
+      uniform: next,
+      normal: function () {
+        if (spare !== null) {
+          var s0 = spare;
+          spare = null;
+          return s0;
+        }
+        var u;
+        var v;
+        var s;
+        do {
+          u = 2 * next() - 1;
+          v = 2 * next() - 1;
+          s = u * u + v * v;
+        } while (s >= 1 || s === 0);
+        var f = Math.sqrt(-2 * Math.log(s) / s);
+        spare = v * f;
+        return u * f;
+      }
+    };
+  }
+
+  // Each simulated competition has its own seed, so competition k can be replayed on its own.
+  function competitionSeed(seed, k) {
+    return (seed * 1000003 + k) % 4294967296;
+  }
+
+  function shock(g, fat) {
+    var z = g.normal();
+    if (!fat) return z;
+    return (g.uniform() < JUMP_PROB ? JUMP_SIZE : 1) * z / JUMP_NORM;
+  }
+
+  /* ---------- one team's account ---------- */
+
+  function newAccount(record) {
+    return { wealth: 1, peak: 1, maxDD: 0, sum: 0, sumSq: 0, bust: false, path: record ? [1] : null };
+  }
+
+  function step(acc, r) {
+    if (!acc.bust) {
+      acc.sum += r;
+      acc.sumSq += r * r;
+      acc.wealth *= 1 + r;
+      if (acc.wealth <= 0) {
+        acc.wealth = 0;
+        acc.bust = true;
+      }
+      if (acc.wealth > acc.peak) acc.peak = acc.wealth;
+      var dd = 1 - acc.wealth / acc.peak;
+      if (dd > acc.maxDD) acc.maxDD = dd;
+    }
+    if (acc.path) acc.path.push(acc.wealth);
+  }
+
+  function finish(acc, p) {
+    var n = p.days;
+    var mean = acc.sum / n;
+    var variance = n > 1 ? (acc.sumSq - n * mean * mean) / (n - 1) : 0;
+    var sharpe = variance > 0 ? mean / Math.sqrt(variance) * Math.sqrt(DAYS_PER_YEAR) : 0;
+    var out = acc.bust || (p.rule === 'drawdown' && acc.maxDD > p.drawdownLimit);
+    var ret = acc.wealth - 1;
+    return {
+      ret: ret,
+      sharpe: sharpe,
+      maxDD: acc.maxDD,
+      bust: acc.bust,
+      out: out,
+      score: out ? -Infinity : (p.rule === 'sharpe' ? sharpe : ret)
+    };
+  }
+
+  function dailyMean(sharpe, vol) {
+    return sharpe * vol / DAYS_PER_YEAR;
+  }
+
+  function dailySd(vol) {
+    return vol / Math.sqrt(DAYS_PER_YEAR);
+  }
+
+  function runYou(p, z, vol, record) {
+    var acc = newAccount(record);
+    var mu = dailyMean(p.yourSharpe, vol);
+    var sd = dailySd(vol);
+    for (var t = 0; t < z.length; t++) step(acc, mu + sd * z[t]);
+    var f = finish(acc, p);
+    if (record) f.path = acc.path;
+    return f;
+  }
+
+  // One whole competition: the rivals' results, plus your daily shocks so your result can be
+  // worked out at any level of risk on exactly the same luck.
+  function runCompetition(p, k, record) {
+    var g = makeRng(competitionSeed(p.seed, k));
+    var nRivals = p.teams - 1;
+    var nGamblers = roundHalfUp(p.gamblers * nRivals);
+    var a = Math.sqrt(p.correlation);
+    var b = Math.sqrt(1 - p.correlation);
+    var rivals = [];
+    for (var j = 0; j < nRivals; j++) {
+      var gambler = j < nGamblers;
+      var z1 = g.normal();
+      var z2 = g.normal();
+      rivals.push({
+        gambler: gambler,
+        sharpe: p.skillSpread * z1,
+        vol: p.fieldVol * (gambler ? p.gamblerMultiple : 1) * Math.exp(VOL_JITTER * z2)
+      });
+    }
+    var market = [];
+    for (var t = 0; t < p.days; t++) market.push(shock(g, p.fatTails));
+    rivals.forEach(function (rv) {
+      var acc = newAccount(record);
+      var mu = dailyMean(rv.sharpe, rv.vol);
+      var sd = dailySd(rv.vol);
+      for (var t2 = 0; t2 < p.days; t2++) step(acc, mu + sd * (a * market[t2] + b * shock(g, p.fatTails)));
+      var f = finish(acc, p);
+      rv.ret = f.ret;
+      rv.realisedSharpe = f.sharpe;
+      rv.maxDD = f.maxDD;
+      rv.bust = f.bust;
+      rv.out = f.out;
+      rv.score = f.score;
+      if (record) rv.path = acc.path;
+    });
+    var yourZ = [];
+    for (var t3 = 0; t3 < p.days; t3++) yourZ.push(a * market[t3] + b * shock(g, p.fatTails));
+    return { rivals: rivals, yourZ: yourZ };
+  }
+
+  function placeYou(rivals, you) {
+    var inRivals = 0;
+    var better = 0;
+    rivals.forEach(function (rv) {
+      if (!rv.out) {
+        inRivals += 1;
+        if (rv.score > you.score) better += 1;
+      }
+    });
+    if (you.out) return (inRivals + 1 + rivals.length + 1) / 2;
+    return better + 1;
+  }
+
+  /* ---------- many competitions ---------- */
+
+  function normCdf(x) {
+    if (x !== x) return NaN;
+    if (x === Infinity) return 1;
+    if (x === -Infinity) return 0;
+    var z = Math.abs(x);
+    var c;
+    if (z > 37) {
+      c = 0;
+    } else {
+      var e = Math.exp(-z * z / 2);
+      if (z < 7.07106781186547) {
+        var n = 3.52624965998911e-2 * z + 0.700383064443688;
+        n = n * z + 6.37396220353165;
+        n = n * z + 33.912866078383;
+        n = n * z + 112.079291497871;
+        n = n * z + 221.213596169931;
+        n = n * z + 220.206867912376;
+        var d = 8.83883476483184e-2 * z + 1.75566716318264;
+        d = d * z + 16.064177579207;
+        d = d * z + 86.7807322029461;
+        d = d * z + 296.564248779674;
+        d = d * z + 637.333633378831;
+        d = d * z + 793.826512519948;
+        d = d * z + 440.413735824752;
+        c = e * n / d;
+      } else {
+        var bb = z + 0.65;
+        bb = z + 4 / bb;
+        bb = z + 3 / bb;
+        bb = z + 2 / bb;
+        bb = z + 1 / bb;
+        c = e / bb / 2.506628274631;
+      }
+    }
+    return x > 0 ? 1 - c : c;
+  }
+
+  // Share of rivals whose true Sharpe ratio is below yours (rivals' skill is normal around zero).
+  function skillPercentile(p) {
+    if (p.skillSpread === 0) return p.yourSharpe > 0 ? 1 : (p.yourSharpe === 0 ? 0.5 : 0);
+    return normCdf(p.yourSharpe / p.skillSpread);
+  }
+
+  function tally() {
+    return { wins: 0, top3: 0, rankSum: 0, out: 0 };
+  }
+
+  function add(t, rank, out) {
+    if (!out && rank === 1) t.wins += 1;
+    if (!out && rank <= 3) t.top3 += 1;
+    t.rankSum += rank;
+    if (out) t.out += 1;
+  }
+
+  function rates(t, n) {
+    return { pWin: t.wins / n, pTop3: t.top3 / n, meanRank: t.rankSum / n, pOut: t.out / n };
+  }
+
+  // A run can be advanced in chunks (so a page can stay responsive) and read at any time.
+  function createRun(params) {
+    var p = normalise(params);
+    var state = {
+      p: p,
+      done: 0,
+      main: tally(),
+      grid: VOL_GRID.map(function () { return tally(); }),
+      winners: { you: 0, gambler: 0, steady: 0, none: 0, noEdge: 0, mostSkilled: 0 }
+    };
+    return {
+      params: p,
+      advance: function (count) {
+        var stop = Math.min(p.sims, state.done + count);
+        for (var k = state.done; k < stop; k++) oneCompetition(state, k);
+        state.done = stop;
+        return state.done >= p.sims;
+      },
+      progress: function () { return state.done / p.sims; },
+      result: function () { return summarise(state); }
+    };
+  }
+
+  function oneCompetition(state, k) {
+    var p = state.p;
+    var c = runCompetition(p, k, false);
+    var you = runYou(p, c.yourZ, p.yourVol, false);
+    add(state.main, placeYou(c.rivals, you), you.out);
+    for (var i = 0; i < VOL_GRID.length; i++) {
+      var alt = runYou(p, c.yourZ, VOL_GRID[i], false);
+      add(state.grid[i], placeYou(c.rivals, alt), alt.out);
+    }
+    // Who won this competition, and was it the most skilled team?
+    var best = you.out ? null : { score: you.score, sharpe: p.yourSharpe, kind: 'you', index: -1 };
+    var topSkill = p.yourSharpe;
+    var topSkillIndex = -1;
+    c.rivals.forEach(function (rv, j) {
+      if (rv.sharpe > topSkill) {
+        topSkill = rv.sharpe;
+        topSkillIndex = j;
+      }
+      if (!rv.out && (best === null || rv.score > best.score)) {
+        best = { score: rv.score, sharpe: rv.sharpe, kind: rv.gambler ? 'gambler' : 'steady', index: j };
+      }
+    });
+    var w = state.winners;
+    if (best === null) {
+      w.none += 1;
+    } else {
+      w[best.kind] += 1;
+      if (best.sharpe <= 0) w.noEdge += 1;
+      if (best.index === topSkillIndex) w.mostSkilled += 1;
+    }
+  }
+
+  function summarise(state) {
+    var n = Math.max(1, state.done);
+    var curve = VOL_GRID.map(function (v, i) {
+      var r = rates(state.grid[i], n);
+      r.vol = v;
+      return r;
+    });
+    var bestPoint = curve.reduce(function (acc, pt) { return pt.pWin > acc.pWin ? pt : acc; }, curve[0]);
+    var winners = {};
+    Object.keys(state.winners).forEach(function (key) { winners[key] = state.winners[key] / n; });
+    return {
+      params: state.p,
+      sims: state.done,
+      you: rates(state.main, n),
+      curve: curve,
+      bestVol: bestPoint.vol,
+      bestPWin: bestPoint.pWin,
+      winners: winners,
+      skillPercentile: skillPercentile(state.p)
+    };
+  }
+
+  function simulate(params) {
+    var run = createRun(params);
+    run.advance(run.params.sims);
+    return run.result();
+  }
+
+  // One competition in full, for the leaderboard and equity curves. Competition k here is the
+  // same as competition k inside simulate().
+  function sampleCompetition(params, k) {
+    var p = normalise(params);
+    var c = runCompetition(p, k, true);
+    var you = runYou(p, c.yourZ, p.yourVol, true);
+    var teams = c.rivals.map(function (rv, j) {
+      return { name: 'Team ' + (j + 2), you: false, gambler: rv.gambler, sharpe: rv.sharpe, vol: rv.vol,
+        ret: rv.ret, realisedSharpe: rv.realisedSharpe, maxDD: rv.maxDD, bust: rv.bust, out: rv.out,
+        score: rv.score, path: rv.path };
+    });
+    teams.unshift({ name: 'Your team', you: true, gambler: false, sharpe: p.yourSharpe, vol: p.yourVol,
+      ret: you.ret, realisedSharpe: you.sharpe, maxDD: you.maxDD, bust: you.bust, out: you.out,
+      score: you.score, path: you.path });
+    var order = teams.map(function (t, i) { return i; });
+    order.sort(function (x, y) {
+      var sx = teams[x].score;
+      var sy = teams[y].score;
+      if (sx === sy) return x - y;
+      return sy > sx ? 1 : -1;
+    });
+    return order.map(function (i, pos) {
+      var t = teams[i];
+      t.rank = pos + 1;
+      return t;
+    });
+  }
+
+  return {
+    DAYS_PER_YEAR: DAYS_PER_YEAR,
+    RULES: RULES,
+    RULE_LABELS: RULE_LABELS,
+    DEFAULTS: DEFAULTS,
+    RANGES: RANGES,
+    VOL_GRID: VOL_GRID,
+    normalise: normalise,
+    makeRng: makeRng,
+    competitionSeed: competitionSeed,
+    normCdf: normCdf,
+    skillPercentile: skillPercentile,
+    createRun: createRun,
+    simulate: simulate,
+    sampleCompetition: sampleCompetition
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = LeaderboardModel;
+}
+/* MODEL END */
+</script>
+<script>
+(function () {
+  'use strict';
+  var M = LeaderboardModel;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function el(tag, attrs, text) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function svgEl(tag, attrs, parent) {
+    var node = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function svgText(parent, x, y, str, attrs) {
+    var t = svgEl('text', Object.assign({ x: x, y: y }, attrs || {}), parent);
+    t.textContent = str;
+    return t;
+  }
+
+  function pct(v, d) {
+    return (v * 100).toFixed(d === undefined ? 0 : d) + '%';
+  }
+
+  function signed(v, d) {
+    var s = (v * 100).toFixed(d === undefined ? 1 : d);
+    if (Number(s) === 0) return (0).toFixed(d === undefined ? 1 : d) + '%';
+    return (v > 0 ? '+' : '−') + s.replace('-', '') + '%';
+  }
+
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  function weeks(days) {
+    var w = days / 5;
+    if (days % 5 === 0) return w === 1 ? '1 week' : w + ' weeks';
+    return 'about ' + Math.round(w) + ' weeks';
+  }
+
+  function ordinal(n) {
+    var s = ['th', 'st', 'nd', 'rd'];
+    var v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  var params = Object.assign({}, M.DEFAULTS);
+  var lastResult = null;
+  var sampleIndex = 0;
+
+  /* ---------- controls ---------- */
+
+  var SLIDERS = [
+    { key: 'yourSharpe', group: 'you', label: 'Skill: your true Sharpe ratio', min: -1, max: 3, step: 0.1,
+      fmt: function (v) { return v.toFixed(1); },
+      hint: function () { return '0 means no real edge, 1 is very good, 2 is exceptional. Better than ' + pct(M.skillPercentile(params)) + ' of rivals.'; } },
+    { key: 'yourVol', group: 'you', label: 'Risk: your volatility', min: 0.02, max: 1, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'Annualised. Leverage scales risk and return together, so it does not change your Sharpe ratio.'; } },
+    { key: 'teams', group: 'field', label: 'Teams in the challenge', min: 3, max: 100, step: 1,
+      fmt: function (v) { return String(v); },
+      hint: function () { return 'Including yours.'; } },
+    { key: 'skillSpread', group: 'field', label: 'How much rivals’ skill varies', min: 0, max: 2, step: 0.05,
+      fmt: function (v) { return v.toFixed(2); },
+      hint: function () { return 'Spread of rivals’ true Sharpe ratios around zero. At 0.75, one rival in six has a Sharpe above 0.75.'; } },
+    { key: 'fieldVol', group: 'field', label: 'Typical rival risk', min: 0.05, max: 0.5, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'Annualised volatility of a steady team; each varies a little around this.'; } },
+    { key: 'gamblers', group: 'field', label: 'Share of gamblers', min: 0, max: 0.8, step: 0.05,
+      fmt: function (v) { return pct(v); },
+      hint: function () {
+        var n = Math.floor(params.gamblers * (params.teams - 1) + 0.5);
+        return n + ' of the ' + (params.teams - 1) + ' rivals swing for the fences. Their skill is no better than anyone else’s.';
+      } },
+    { key: 'gamblerMultiple', group: 'field', label: 'How much more risk gamblers run', min: 1, max: 4, step: 0.5,
+      fmt: function (v) { return v.toFixed(1) + '×'; },
+      hint: function () { return 'About ' + pct(params.fieldVol * params.gamblerMultiple) + ' volatility.'; } },
+    { key: 'correlation', group: 'field', label: 'How much everyone rides the same market', min: 0, max: 0.9, step: 0.05,
+      fmt: function (v) { return v.toFixed(2); },
+      hint: function () { return 'Correlation of daily returns between teams. High when most teams hold the same kind of positions.'; } },
+    { key: 'days', group: 'rules', label: 'Length of the challenge', min: 5, max: 250, step: 5,
+      fmt: function (v) { return v + ' days'; },
+      hint: function () { return 'Trading days: ' + weeks(params.days) + '.'; } },
+    { key: 'drawdownLimit', group: 'dd', label: 'Drawdown limit', min: 0.02, max: 0.6, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'A team is out once its account falls this far below its peak.'; } }
+  ];
+
+  function buildControls() {
+    SLIDERS.forEach(function (s) {
+      var wrap = el('div', { class: 'slider', id: 'wrap-' + s.key });
+      var label = el('label', { for: 's-' + s.key });
+      label.appendChild(el('span', {}, s.label));
+      label.appendChild(el('output', { id: 'o-' + s.key, for: 's-' + s.key }));
+      var input = el('input', { type: 'range', id: 's-' + s.key, min: s.min, max: s.max, step: s.step, 'aria-describedby': 'h-' + s.key });
+      input.value = params[s.key];
+      input.addEventListener('input', function () {
+        params[s.key] = parseFloat(input.value);
+        clearPreset();
+        changed();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(el('p', { class: 'hint', id: 'h-' + s.key }));
+      var target = s.group === 'dd' ? '#slider-dd' : '#sliders-' + s.group;
+      $(target).appendChild(wrap);
+    });
+    var seg = $('#rule-seg');
+    M.RULES.forEach(function (r) {
+      var lab = el('label');
+      var input = el('input', { type: 'radio', name: 'rule', value: r });
+      input.checked = params.rule === r;
+      input.addEventListener('change', function () {
+        if (input.checked) {
+          params.rule = r;
+          clearPreset();
+          changed();
+        }
+      });
+      lab.appendChild(input);
+      lab.appendChild(el('span', {}, M.RULE_LABELS[r]));
+      seg.appendChild(lab);
+    });
+    $('#fat-tails').addEventListener('change', function (e) {
+      params.fatTails = e.target.checked;
+      clearPreset();
+      changed();
+    });
+  }
+
+  function syncControls() {
+    SLIDERS.forEach(function (s) {
+      var input = $('#s-' + s.key);
+      if (parseFloat(input.value) !== params[s.key]) input.value = params[s.key];
+      var text = s.fmt(params[s.key]);
+      $('#o-' + s.key).textContent = text;
+      input.setAttribute('aria-valuetext', text);
+      $('#h-' + s.key).textContent = s.hint();
+    });
+    $$('input[name="rule"]').forEach(function (r) { r.checked = r.value === params.rule; });
+    $('#fat-tails').checked = params.fatTails;
+    $('#slider-dd').hidden = params.rule !== 'drawdown';
+  }
+
+  /* ---------- scenarios ---------- */
+
+  var PRESETS = [
+    { name: 'A four-week challenge', note: 'Thirty teams, four weeks, ranked on return, with a few gamblers in the field.', params: {} },
+    { name: 'A twelve-week league', note: 'The same field over a whole term. Skill starts to show, slowly.', params: { days: 60 } },
+    { name: 'Ranked on Sharpe ratio', note: 'Return divided by volatility. Leverage no longer buys a better rank.', params: { rule: 'sharpe' } },
+    { name: 'Knocked out at a 10% drawdown', note: 'A tight risk limit: gamble too hard and you are out.', params: { rule: 'drawdown', drawdownLimit: 0.1 } },
+    { name: 'Everyone gambles', note: 'Most of the field runs three times the usual risk.', params: { gamblers: 0.6 } },
+    { name: 'A society league of eight', note: 'A small internal league over eight weeks.', params: { teams: 8, days: 40 } },
+    { name: 'A full year of trading', note: 'Two hundred and fifty trading days. Is that long enough for skill to win?', params: { days: 250 } }
+  ];
+
+  function buildPresets() {
+    var sel = $('#preset');
+    sel.appendChild(el('option', { value: '' }, 'Start from a scenario…'));
+    PRESETS.forEach(function (pr, i) { sel.appendChild(el('option', { value: String(i) }, pr.name)); });
+    sel.addEventListener('change', function () {
+      if (sel.value === '') return;
+      var pr = PRESETS[parseInt(sel.value, 10)];
+      params = Object.assign({}, M.DEFAULTS, pr.params, { seed: params.seed });
+      $('#preset-hint').textContent = pr.note;
+      changed();
+    });
+  }
+
+  function clearPreset() {
+    $('#preset').value = '';
+    $('#preset-hint').textContent = '';
+  }
+
+  /* ---------- running the simulation in chunks ---------- */
+
+  var runToken = 0;
+  var pending = null;
+
+  function changed() {
+    params = M.normalise(params);
+    syncControls();
+    sampleIndex = 0;
+    drawSample();
+    document.body.classList.add('stale');
+    $('#status-text').textContent = 'Waiting…';
+    clearTimeout(pending);
+    pending = setTimeout(startRun, 180);
+  }
+
+  function startRun() {
+    var token = ++runToken;
+    var run = M.createRun(params);
+    var bar = $('#status-bar');
+    function work() {
+      if (token !== runToken) return;
+      var t0 = Date.now();
+      var finished = false;
+      while (!finished && Date.now() - t0 < 30) finished = run.advance(25);
+      bar.style.width = (run.progress() * 100) + '%';
+      if (finished) {
+        lastResult = run.result();
+        document.body.classList.remove('stale');
+        $('#status-text').textContent = 'Based on ' + lastResult.sims.toLocaleString('en-GB') + ' simulated challenges (luck number ' + params.seed + ').';
+        renderResults(lastResult);
+      } else {
+        $('#status-text').textContent = 'Simulating ' + run.params.sims.toLocaleString('en-GB') + ' challenges… ' + pct(run.progress());
+        setTimeout(work, 0);
+      }
+    }
+    work();
+  }
+
+  $('#new-luck').addEventListener('click', function () {
+    params.seed = (params.seed + 1) % 4294967296;
+    changed();
+  });
+
+  /* ---------- results ---------- */
+
+  function tile(label, value, sub) {
+    var t = el('div', { class: 'tile' });
+    t.appendChild(el('div', { class: 'k' }, label));
+    t.appendChild(el('div', { class: 'v' }, value));
+    if (sub) t.appendChild(el('div', { class: 's' }, sub));
+    return t;
+  }
+
+  function renderResults(r) {
+    var p = r.params;
+    var tiles = $('#tiles');
+    tiles.innerHTML = '';
+    tiles.appendChild(tile('Chance your team wins', pct(r.you.pWin, 1), 'Fair share: ' + pct(1 / p.teams, 1)));
+    tiles.appendChild(tile('Chance of a top-3 finish', pct(r.you.pTop3, 1), 'Fair share: ' + pct(Math.min(3, p.teams) / p.teams, 1)));
+    tiles.appendChild(tile('Average finishing place', ordinal(Math.round(r.you.meanRank)), 'Out of ' + p.teams + ' teams'));
+    tiles.appendChild(tile('Most skilled team wins', pct(r.winners.mostSkilled, 1), 'Whoever it is'));
+    $('#insight').textContent = insightText(r);
+    drawRiskChart(r);
+    drawWinners(r);
+  }
+
+  function insightText(r) {
+    var p = r.params;
+    var parts = [];
+    parts.push('Your team is better than ' + pct(r.skillPercentile) + ' of the field, yet it wins ' + pct(r.you.pWin, 1) +
+      ' of ' + weeks(p.days).replace('about ', '') + ' challenges.');
+    if (p.rule === 'sharpe') {
+      parts.push('Ranked on Sharpe ratio, extra risk buys nothing: your chances are the same at any volatility, so the only way up is a better strategy.');
+    } else if (r.bestVol > p.yourVol + 0.04 && r.bestPWin > r.you.pWin + 0.005) {
+      parts.push('Taking more risk is the quickest way up the table: at ' + pct(r.bestVol) + ' volatility your chance of winning would be ' +
+        pct(r.bestPWin, 1) + '.');
+      if (p.rule === 'drawdown') parts.push('Beyond that the drawdown limit starts to knock you out.');
+    } else {
+      parts.push('More risk would not help much from here.');
+    }
+    if (r.winners.gambler > 0.3) {
+      parts.push('Gamblers, who are no more skilled than anyone else, win ' + pct(r.winners.gambler) + ' of challenges.');
+    }
+    return parts.join(' ');
+  }
+
+  function makeTooltip(box) {
+    var tip = el('div', { class: 'tooltip', 'aria-hidden': 'true' });
+    box.appendChild(tip);
+    return {
+      show: function (html, x, y) {
+        tip.innerHTML = html;
+        tip.classList.add('on');
+        var w = tip.offsetWidth;
+        tip.style.left = clamp(x + 14, 0, Math.max(0, box.clientWidth - w)) + 'px';
+        tip.style.top = Math.max(0, y - tip.offsetHeight - 10) + 'px';
+      },
+      hide: function () { tip.classList.remove('on'); }
+    };
+  }
+
+  function localPoint(e, box) {
+    var r = box.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function niceMax(v) {
+    var steps = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1];
+    for (var i = 0; i < steps.length; i++) if (v <= steps[i]) return steps[i];
+    return 1;
+  }
+
+  function drawRiskChart(r) {
+    var box = $('#risk-chart');
+    box.innerHTML = '';
+    var p = r.params;
+    var W = Math.max(280, box.clientWidth || 600);
+    var H = 260;
+    var m = { l: 44, r: 16, t: 14, b: 38 };
+    var showOut = r.curve.some(function (c) { return c.pOut > 0; });
+    var yMax = niceMax(Math.max.apply(null, r.curve.map(function (c) { return Math.max(c.pTop3, showOut ? c.pOut : 0); }).concat([r.you.pTop3, 0.04])) * 1.1);
+    var sx = function (v) { return m.l + (W - m.l - m.r) * v; };
+    var sy = function (v) { return H - m.b - (H - m.t - m.b) * v / yMax; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Chance of winning and of a top-3 finish as your volatility rises from 5% to 100%. Best: ' +
+        pct(r.bestPWin, 1) + ' at ' + pct(r.bestVol) + '. At your current ' + pct(p.yourVol) + ': ' + pct(r.you.pWin, 1) + '.' });
+    var ticks = yMax <= 0.1 ? 5 : 4;
+    for (var i = 0; i <= ticks; i++) {
+      var v = yMax * i / ticks;
+      svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: i === 0 ? 'axis' : 'grid' }, s);
+      svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
+    }
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+      svgText(s, sx(v), H - m.b + 18, pct(v), { 'text-anchor': 'middle' });
+    });
+    svgText(s, m.l + (W - m.l - m.r) / 2, H - 4, 'Your volatility (annualised)', { 'text-anchor': 'middle' });
+    function line(key, colour, dash) {
+      var d = r.curve.map(function (c, k) { return (k ? 'L' : 'M') + sx(c.vol).toFixed(1) + ' ' + sy(c[key]).toFixed(1); }).join(' ');
+      svgEl('path', { d: d, fill: 'none', stroke: colour, 'stroke-width': 2.5, 'stroke-dasharray': dash || 'none', 'stroke-linejoin': 'round' }, s);
+    }
+    if (showOut) line('pOut', 'var(--other)', '5 4');
+    line('pTop3', 'var(--accent)');
+    line('pWin', 'var(--you)');
+    svgEl('line', { x1: sx(p.yourVol), x2: sx(p.yourVol), y1: m.t, y2: H - m.b, stroke: 'var(--ink-2)', 'stroke-dasharray': '3 3' }, s);
+    svgText(s, clamp(sx(p.yourVol) + 4, m.l, W - 90), m.t + 10, 'You: ' + pct(p.yourVol), { style: 'font-weight:600;fill:var(--ink)' });
+    [[r.you.pTop3, 'var(--accent)'], [r.you.pWin, 'var(--you)']].forEach(function (pt) {
+      svgEl('circle', { cx: sx(p.yourVol), cy: sy(pt[0]), r: 5, fill: pt[1], stroke: 'var(--surface)', 'stroke-width': 2 }, s);
+    });
+    if (p.rule !== 'sharpe') {
+      svgEl('circle', { cx: sx(r.bestVol), cy: sy(r.bestPWin), r: 6, fill: 'none', stroke: 'var(--you)', 'stroke-width': 2 }, s);
+    }
+    var guide = svgEl('line', { y1: m.t, y2: H - m.b, stroke: 'var(--line-strong)', visibility: 'hidden' }, s);
+    var hit = svgEl('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent', style: 'cursor:crosshair' }, s);
+    box.appendChild(s);
+    var tip = makeTooltip(box);
+    function nearest(e) {
+      var pt = localPoint(e, box);
+      var scale = W / box.getBoundingClientRect().width;
+      var v = (pt.x * scale - m.l) / (W - m.l - m.r);
+      var k = clamp(Math.round(v * 20) - 1, 0, r.curve.length - 1);
+      return { c: r.curve[k], pt: pt };
+    }
+    hit.addEventListener('mousemove', function (e) {
+      var n = nearest(e);
+      guide.setAttribute('x1', sx(n.c.vol));
+      guide.setAttribute('x2', sx(n.c.vol));
+      guide.setAttribute('visibility', 'visible');
+      tip.show('<strong>Volatility ' + pct(n.c.vol) + '</strong><br>Wins: ' + pct(n.c.pWin, 1) + '<br>Top 3: ' + pct(n.c.pTop3, 1) +
+        '<br>Average place: ' + ordinal(Math.round(n.c.meanRank)) + (showOut ? '<br>Knocked out: ' + pct(n.c.pOut, 1) : '') +
+        '<br><em>Click to use this risk</em>', n.pt.x, n.pt.y);
+    });
+    hit.addEventListener('mouseleave', function () { guide.setAttribute('visibility', 'hidden'); tip.hide(); });
+    hit.addEventListener('click', function (e) {
+      params.yourVol = nearest(e).c.vol;
+      clearPreset();
+      changed();
+    });
+    $('#risk-rule').textContent = M.RULE_LABELS[p.rule];
+    $('#risk-note').textContent = showOut ? 'The grey dashed line is the chance of being knocked out.' :
+      'Each point uses the same simulated luck, so the curve shows the effect of risk alone.';
+  }
+
+  function drawWinners(r) {
+    var w = r.winners;
+    var p = r.params;
+    var list = $('#winner-bars');
+    list.innerHTML = '';
+    var nGamblers = Math.floor(p.gamblers * (p.teams - 1) + 0.5);
+    var rows = [
+      { label: 'Your team', v: w.you, c: 'var(--you)' },
+      { label: 'A gambler (' + nGamblers + ' in the field)', v: w.gambler, c: 'var(--gambler)' },
+      { label: 'A steady team (' + (p.teams - 1 - nGamblers) + ' in the field)', v: w.steady, c: 'var(--steady)' }
+    ];
+    if (w.none > 0) rows.push({ label: 'Nobody: every team was knocked out', v: w.none, c: 'var(--other)' });
+    rows.forEach(function (row) {
+      var li = el('li');
+      var head = el('div', { class: 'row' });
+      head.appendChild(el('span', {}, row.label));
+      head.appendChild(el('b', {}, pct(row.v, 1)));
+      li.appendChild(head);
+      var track = el('div', { class: 'track', 'aria-hidden': 'true' });
+      var fill = el('span');
+      fill.style.width = (row.v * 100) + '%';
+      fill.style.background = row.c;
+      track.appendChild(fill);
+      li.appendChild(track);
+      list.appendChild(li);
+    });
+    var facts = $('#winner-facts');
+    facts.innerHTML = '';
+    facts.appendChild(el('p', {}, 'The most skilled team in the field won ' + pct(w.mostSkilled, 1) + ' of challenges.'));
+    facts.appendChild(el('p', {}, 'In ' + pct(w.noEdge, 1) + ' the winner had no real edge at all (a true Sharpe ratio of zero or below).'));
+  }
+
+  /* ---------- one sample challenge ---------- */
+
+  var KIND_COLOUR = { you: 'var(--you)', gambler: 'var(--gambler)', steady: 'var(--steady)' };
+
+  function kindOf(t) { return t.you ? 'you' : (t.gambler ? 'gambler' : 'steady'); }
+
+  function drawSample() {
+    var teams = M.sampleCompetition(params, sampleIndex);
+    var p = M.normalise(params);
+    $('#sample-title').textContent = 'One simulated challenge (number ' + (sampleIndex + 1) + ' of ' + p.sims.toLocaleString('en-GB') + ')';
+    $('#prev-sample').disabled = sampleIndex === 0;
+    var shown = teams.filter(function (t) { return t.rank <= 5 || t.you; });
+    var box = $('#sample-chart');
+    box.innerHTML = '';
+    var W = Math.max(280, box.clientWidth || 600);
+    var H = 240;
+    var m = { l: 44, r: 40, t: 10, b: 30 };
+    var lo = Infinity;
+    var hi = -Infinity;
+    shown.forEach(function (t) { t.path.forEach(function (v) { lo = Math.min(lo, v); hi = Math.max(hi, v); }); });
+    lo = Math.min(lo, 1);
+    hi = Math.max(hi, 1);
+    var pad = (hi - lo) * 0.08 || 0.02;
+    lo -= pad;
+    hi += pad;
+    var sx = function (d) { return m.l + (W - m.l - m.r) * d / p.days; };
+    var sy = function (v) { return H - m.b - (H - m.t - m.b) * (v - lo) / (hi - lo); };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Account value over the challenge for the top five teams and yours. Full results are in the table below.' });
+    for (var i = 0; i <= 4; i++) {
+      var v = lo + (hi - lo) * i / 4;
+      svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: 'grid' }, s);
+      svgText(s, m.l - 6, sy(v) + 4, signed(v - 1, 0), { 'text-anchor': 'end' });
+    }
+    svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(1), y2: sy(1), class: 'axis' }, s);
+    svgText(s, m.l, H - 8, 'Day 0', {});
+    svgText(s, W - m.r, H - 8, 'Day ' + p.days, { 'text-anchor': 'end' });
+    var labels = [];
+    shown.slice().reverse().forEach(function (t) {
+      var d = t.path.map(function (val, k) { return (k ? 'L' : 'M') + sx(k).toFixed(1) + ' ' + sy(val).toFixed(1); }).join(' ');
+      svgEl('path', { d: d, fill: 'none', stroke: KIND_COLOUR[kindOf(t)], 'stroke-width': t.you ? 3 : 1.75,
+        opacity: t.you ? 1 : 0.9, 'stroke-linejoin': 'round' }, s);
+      labels.push({ y: sy(t.path[t.path.length - 1]), text: t.out ? 'out' : ordinal(t.rank) });
+    });
+    labels.sort(function (x, y) { return x.y - y.y; });
+    for (var k = 1; k < labels.length; k++) labels[k].y = Math.max(labels[k].y, labels[k - 1].y + 13);
+    labels.forEach(function (lb) { svgText(s, W - m.r + 6, lb.y + 4, lb.text, { style: 'font-weight:600' }); });
+    box.appendChild(s);
+    drawSampleTable(teams);
+  }
+
+  function drawSampleTable(teams) {
+    var t = $('#sample-table');
+    t.innerHTML = '';
+    var head = el('thead');
+    var hr = el('tr');
+    ['Place', 'Team', 'Type', 'True skill', 'Risk', 'Return', 'Worst drawdown', 'Status'].forEach(function (h) {
+      hr.appendChild(el('th', { scope: 'col' }, h));
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    var body = el('tbody');
+    var rows = teams.filter(function (x) { return x.rank <= 10; });
+    var you = teams.filter(function (x) { return x.you; })[0];
+    if (you.rank > 10) rows.push(you);
+    rows.forEach(function (x, i) {
+      if (i > 0 && x.rank - rows[i - 1].rank > 1) {
+        var gap = el('tr');
+        gap.appendChild(el('td', { colspan: '8' }, '…'));
+        body.appendChild(gap);
+      }
+      var tr = el('tr', x.you ? { class: 'you' } : {});
+      tr.appendChild(el('th', { scope: 'row' }, x.out ? '–' : ordinal(x.rank)));
+      tr.appendChild(el('td', {}, x.name));
+      var kind = el('td');
+      var span = el('span', { class: 'kind' });
+      var sw = el('i', { class: 'sw', 'aria-hidden': 'true' });
+      sw.style.background = KIND_COLOUR[kindOf(x)];
+      span.appendChild(sw);
+      span.appendChild(document.createTextNode(x.you ? 'You' : (x.gambler ? 'Gambler' : 'Steady')));
+      kind.appendChild(span);
+      tr.appendChild(kind);
+      tr.appendChild(el('td', {}, x.sharpe.toFixed(2)));
+      tr.appendChild(el('td', {}, pct(x.vol)));
+      tr.appendChild(el('td', {}, signed(x.ret)));
+      tr.appendChild(el('td', {}, pct(x.maxDD, 1)));
+      tr.appendChild(el('td', {}, x.bust ? 'Blown up' : (x.out ? 'Out: drawdown' : '')));
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+  }
+
+  $('#next-sample').addEventListener('click', function () {
+    sampleIndex = Math.min(sampleIndex + 1, M.normalise(params).sims - 1);
+    drawSample();
+  });
+  $('#prev-sample').addEventListener('click', function () {
+    sampleIndex = Math.max(0, sampleIndex - 1);
+    drawSample();
+  });
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (lastResult) drawRiskChart(lastResult);
+      drawSample();
+    }, 150);
+  });
+
+  buildControls();
+  buildPresets();
+  changed();
+})();
+</script>
+</body>
+</html>
