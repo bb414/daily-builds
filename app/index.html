@@ -98,7 +98,7 @@ header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 1
 .logo { width: 30px; height: 30px; flex: none; }
 .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
 .tagline { color: var(--ink-2); font-size: 14px; margin: 0; }
-main { padding: 24px 0 48px; }
+main.wrap { padding-top: 24px; padding-bottom: 48px; }
 footer { color: var(--muted); font-size: 13px; padding: 24px 0 40px; border-top: 1px solid var(--line); }
 h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; }
 h1 { font-size: 28px; margin: 0 0 12px; }
@@ -148,6 +148,7 @@ p { margin: 0 0 12px; }
 .step p { margin: 0; font-size: 14px; color: var(--ink-2); }
 details.settings { margin-top: 20px; }
 details.settings > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+details.settings > summary .muted { font-weight: 400; }
 fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
 legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
 .seg { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -250,38 +251,42 @@ select, input[type="text"] {
 .banner { background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-bottom: 16px; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-.tile-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.tile-label { font-size: 13px; color: var(--muted); }
+.tile-label b { color: var(--ink); }
+.tile-extra { font-size: 13px; color: var(--checker-ink); font-weight: 600; margin-top: 2px; }
 .tile-value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin-top: 4px; }
 .tile-value small { font-size: 16px; color: var(--muted); font-weight: 600; }
 .tile-sub { font-size: 14px; color: var(--ink-2); }
 .profile { border-left: 4px solid var(--checker); padding: 4px 0 4px 14px; }
 .profile .name { font-size: 22px; font-weight: 700; }
 .hbars { display: grid; gap: 10px; margin: 8px 0 4px; }
-.hbar { display: grid; grid-template-columns: minmax(130px, 34%) 1fr 48px; gap: 10px; align-items: center; font-size: 14px; }
+.hbar { display: grid; grid-template-columns: minmax(150px, 44%) 1fr 44px; gap: 10px; align-items: center; font-size: 14px; line-height: 1.3; }
 .hbar .track { height: 14px; background: var(--surface-2); border-radius: 4px; position: relative; overflow: hidden; }
 .hbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 4px 4px 0; }
 .hbar.adv .fill { background: var(--checker); }
 .hbar.faint .fill { background: var(--accent); opacity: 0.45; }
 .hbar.you .name { font-weight: 700; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; padding: 0; list-style: none; }
-.chips li { background: var(--surface-2); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
-.chips li b { font-variant-numeric: tabular-nums; }
 .meter { position: relative; height: 34px; margin: 6px 0 2px; }
 .meter .line { position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: var(--line-2); }
 .meter .mid { position: absolute; left: 50%; top: 8px; width: 2px; height: 18px; background: var(--line-2); }
-.meter .mark { position: absolute; top: 8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; border: 2px solid var(--surface); }
-.meter .mark.r1 { background: var(--accent); opacity: 0.5; }
+.meter .mark { position: absolute; top: 4px; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%; border: 2px solid var(--surface); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.meter .mark.r1 { background: #7fa9de; color: #0b0b0b; }
 .meter .mark.r3 { background: var(--accent); }
 .meter-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .hbar .val { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
 .axis-note { font-size: 12px; color: var(--muted); }
-.quad { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 14px; align-items: stretch; }
-.quad .hd { font-weight: 700; color: var(--ink-2); padding: 6px 8px; }
-.quad .cell { border-radius: 10px; padding: 10px; background: var(--surface-2); }
-.quad .cell .n { font-size: 24px; font-weight: 700; display: block; }
+.quad { display: grid; gap: 12px; margin-top: 14px; }
+.quad-h { font-size: 14px; font-weight: 600; color: var(--ink-2); margin: 0 0 6px; }
+.quad-cells { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.quad .cell { border-radius: 10px; padding: 8px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; }
+.quad .cell .n { font-size: 26px; font-weight: 700; grid-row: span 2; font-variant-numeric: tabular-nums; }
+.quad .cell .what { font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+.quad .cell .verdict { font-size: 14px; font-weight: 700; line-height: 1.3; }
 .quad .cell.good { background: var(--good-soft); }
+.quad .cell.good .verdict { color: var(--good-ink); }
 .quad .cell.bad { background: var(--bad-soft); }
-.quad .cell .tagline-s { font-size: 13px; color: var(--ink-2); }
+.quad .cell.bad .verdict { color: var(--bad-ink); }
+.results-grid .span-2 { grid-column: 1 / -1; }
 .review-round { margin-top: 18px; }
 .review details { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-bottom: 8px; }
 .review summary { cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; list-style: none; }
@@ -300,14 +305,24 @@ select, input[type="text"] {
 
 @media (max-width: 760px) {
   .trial { grid-template-columns: 1fr; }
-  .steps { grid-template-columns: 1fr; }
-  .tiles { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr; gap: 8px; }
+  .step { display: grid; grid-template-columns: 26px 1fr; column-gap: 12px; padding: 10px 12px; }
+  .step .num { grid-row: span 2; margin: 0; }
+  .tiles { gap: 8px; }
+  .tile { padding: 10px; }
+  .tile-label span { display: block; }
+  .tile-value { font-size: 24px; }
+  .tile-value small { font-size: 13px; }
+  .tile-sub, .tile-extra { font-size: 12px; }
   .grid-2 { grid-template-columns: 1fr; }
   .field-grid { grid-template-columns: 1fr; }
   h1 { font-size: 24px; }
   .tagline { display: none; }
-  .hbar { grid-template-columns: 1fr 48px; }
+  .hbar { grid-template-columns: 1fr 44px; }
   .hbar .name { grid-column: 1 / -1; }
+}
+@media (hover: none) {
+  .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bar > span { transition: none; }
@@ -347,7 +362,7 @@ select, input[type="text"] {
     <p class="error" id="start-error" role="alert" hidden></p>
 
     <details class="settings card" id="settings">
-      <summary>Test settings</summary>
+      <summary>Test settings <span class="muted small" id="settings-summary"></span></summary>
       <fieldset>
         <legend>How often is the checker right in round 2?</legend>
         <div class="seg" id="acc-group">
@@ -436,7 +451,7 @@ select, input[type="text"] {
           <div class="answers" id="answers-first" role="group" aria-labelledby="ask-first"></div>
         </div>
         <div id="checker-block" hidden>
-          <div class="checker" id="checker-panel" aria-live="polite"></div>
+          <div class="checker" id="checker-panel" tabindex="-1" aria-live="polite"></div>
           <p class="ask" id="ask-final">Your final answer</p>
           <div class="answers" id="answers-final" role="group" aria-labelledby="ask-final"></div>
         </div>
@@ -2001,7 +2016,15 @@ if (typeof module !== 'undefined' && module.exports) {
     focusEl($('#start-btn'));
   }
 
+  function updateSettingsSummary() {
+    const d = readDesign();
+    const shows = [d.showReasons ? 'reasons' : '', d.showConfidence ? 'confidence' : ''].filter(Boolean);
+    $('#settings-summary').textContent = '(checker right on ' + (12 - d.checkerWrong) + ' of 12' +
+      (shows.length ? ', shows its ' + shows.join(' and ') : ', verdict only') + (studyMode() ? ', study mode' : '') + ')';
+  }
+
   function updateStartLabel() {
+    updateSettingsSummary();
     const on = studyMode();
     $('#study-fields').hidden = !on;
     const id = $('#participant-id').value.trim();
@@ -2063,6 +2086,7 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#checker-block').hidden = true;
     state.stage = 'initial';
     state.shownAt = performance.now();
+    window.scrollTo(0, 0);
     focusEl($('#trial-title'));
   }
 
@@ -2098,7 +2122,12 @@ if (typeof module !== 'undefined' && module.exports) {
       state.shownAt = performance.now();
       state.lockUntil = performance.now() + 350;
       renderChecker(t);
-      focusEl($('#a2-0'));
+      const block = $('#checker-block');
+      if (block.getBoundingClientRect().bottom > window.innerHeight) {
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        block.scrollIntoView({block: 'start', behavior: reduce ? 'auto' : 'smooth'});
+      }
+      focusEl($('#checker-panel'));
       return;
     }
     t.final = resp;
@@ -2171,10 +2200,10 @@ if (typeof module !== 'undefined' && module.exports) {
       '<span class="val">' + pct(value) + '</span></div>';
   }
 
-  function tile(label, st, sub) {
-    return '<div class="tile"><div class="tile-label">' + esc(label) + '</div>' +
+  function tile(label, desc, st, sub, extra) {
+    return '<div class="tile"><div class="tile-label"><b>' + esc(label) + '</b> <span>' + esc(desc) + '</span></div>' +
       '<div class="tile-value">' + st.correct + '<small> of ' + st.n + '</small></div>' +
-      '<div class="tile-sub">' + sub + '</div></div>';
+      '<div class="tile-sub">' + esc(sub) + '</div>' + (extra ? '<div class="tile-extra">' + esc(extra) + '</div>' : '') + '</div>';
   }
 
   function changeSentence(res) {
@@ -2197,56 +2226,63 @@ if (typeof module !== 'undefined' && module.exports) {
       '<p class="lede" style="margin:0">' + esc(changeSentence(res)) + '</p></div></div>';
 
     html += '<div class="tiles" style="margin-top:18px">';
-    html += tile('Round 1: on your own', r1, pct(r1.accuracy) + ' right');
-    if (a) html += tile('Round 2: with the checker', r2, pct(r2.accuracy) + ' right. The checker alone: ' + a.checkerCorrect + ' of ' + a.n);
-    else html += tile('Round 2: on your own', r2, pct(r2.accuracy) + ' right');
-    html += tile('Round 3: on your own again', r3, pct(r3.accuracy) + ' right');
+    html += tile('Round 1', 'On your own', r1, pct(r1.accuracy) + ' right', '');
+    if (a) html += tile('Round 2', 'With the checker', r2, pct(r2.accuracy) + ' right', 'Checker alone: ' + a.checkerCorrect + ' of ' + a.n);
+    else html += tile('Round 2', 'On your own', r2, pct(r2.accuracy) + ' right', '');
+    html += tile('Round 3', 'On your own again', r3, pct(r3.accuracy) + ' right', '');
     html += '</div>';
 
-    html += '<div class="grid-2" style="margin-top:16px">';
-    html += '<div class="card"><h2>Accuracy, round by round</h2><div class="hbars" role="list">';
-    html += hbar('Round 1: your answers', r1.accuracy, 'faint');
+    const cards = [];
+    let acc = '<div class="card"><h2>Accuracy, round by round</h2><div class="hbars">';
+    acc += hbar('Round 1: your answers', r1.accuracy, 'faint');
     if (a) {
-      html += hbar('Round 2: your first answers', a.initialAccuracy, 'faint');
-      html += hbar('Round 2: the checker on its own', a.checkerAccuracy, 'adv');
-      html += hbar('Round 2: your final answers', a.finalAccuracy, '');
+      acc += hbar('Round 2: your first answers', a.initialAccuracy, 'faint');
+      acc += hbar('Round 2: the checker on its own', a.checkerAccuracy, 'adv');
+      acc += hbar('Round 2: your final answers', a.finalAccuracy, 'you');
     } else {
-      html += hbar('Round 2: your answers', r2.accuracy, 'faint');
+      acc += hbar('Round 2: your answers', r2.accuracy, 'faint');
     }
-    html += hbar('Round 3: your answers', r3.accuracy, 'faint');
-    html += '</div><p class="axis-note">Share of messages judged correctly. 50% is what guessing would get.</p></div>';
+    acc += hbar('Round 3: your answers', r3.accuracy, 'faint');
+    acc += '</div><p class="axis-note">Share of messages judged correctly. 50% is what guessing would get.</p>';
+    if (a) {
+      const gap = Math.round((a.finalAccuracy - Math.max(a.initialAccuracy, a.checkerAccuracy)) * 100);
+      acc += '<p class="note-box" style="margin-top:12px">' + (gap > 0
+        ? 'Working together, you and the checker beat both your own first answers and the checker on its own, by ' + gap + ' points. That is the point of a second opinion.'
+        : gap === 0
+          ? 'Working together, you and the checker did exactly as well as the better of the two on its own, but no better.'
+          : 'Working together, you and the checker did ' + Math.abs(gap) + ' points worse than ' + (a.checkerAccuracy >= a.initialAccuracy ? 'the checker on its own' : 'your own first answers') + '. Teams of people and AI often fall short of the better partner.') + '</p>';
+    }
+    acc += '</div>';
+    cards.push(acc);
 
-    html += '<div class="card"><h2>How you used the checker</h2>';
-    html += '<div class="profile"><div class="muted small">Your pattern</div><div class="name">' + esc(res.profileTitle) + '</div></div>';
-    html += '<p style="margin-top:10px">' + esc(PROFILE_TEXT[res.profile]) + '</p>';
+    let used = '<div class="card"><h2>' + (a || res.profile !== 'control' ? 'How you used the checker' : 'Round 2 without the checker') + '</h2>';
+    used += '<div class="profile"><div class="muted small">Your pattern</div><div class="name">' + esc(res.profileTitle) + '</div></div>';
+    used += '<p style="margin-top:10px">' + esc(PROFILE_TEXT[res.profile]) + '</p>';
     if (a) {
       const c = a.cases;
-      html += '<div class="quad" role="table" aria-label="What happened when you and the checker disagreed">' +
-        '<div role="row" style="display:contents"><span class="hd" role="columnheader"></span><span class="hd" role="columnheader">You switched to its answer</span><span class="hd" role="columnheader">You kept your answer</span></div>' +
-        '<div role="row" style="display:contents"><span class="hd" role="rowheader">Checker right, you wrong</span>' +
-        '<span class="cell good" role="cell"><span class="n">' + c.switchedToRight + '</span><span class="tagline-s">Good switch</span></span>' +
-        '<span class="cell bad" role="cell"><span class="n">' + c.stayedWrong + '</span><span class="tagline-s">Missed its help</span></span></div>' +
-        '<div role="row" style="display:contents"><span class="hd" role="rowheader">Checker wrong, you right</span>' +
-        '<span class="cell bad" role="cell"><span class="n">' + c.switchedToWrong + '</span><span class="tagline-s">Talked out of it</span></span>' +
-        '<span class="cell good" role="cell"><span class="n">' + c.keptRight + '</span><span class="tagline-s">Held firm</span></span></div></div>';
-      html += '<p class="small muted" style="margin-top:10px">You agreed with the checker from the start on ' + (c.bothRight + c.bothWrong) + ' messages' +
+      const cell = (n, kind, what, verdict) => '<div class="cell ' + kind + '"><span class="n">' + n + '</span><span class="what">' + what + '</span><span class="verdict">' + verdict + '</span></div>';
+      used += '<div class="quad"><div class="quad-row"><h3 class="quad-h">The checker was right and you weren\'t (' + (c.switchedToRight + c.stayedWrong) + ')</h3><div class="quad-cells">' +
+        cell(c.switchedToRight, 'good', 'switched to its answer', 'Good switch') + cell(c.stayedWrong, 'bad', 'kept your answer', 'Missed its help') + '</div></div>' +
+        '<div class="quad-row"><h3 class="quad-h">The checker was wrong and you were right (' + (c.switchedToWrong + c.keptRight) + ')</h3><div class="quad-cells">' +
+        cell(c.keptRight, 'good', 'kept your answer', 'Held firm') + cell(c.switchedToWrong, 'bad', 'switched to its answer', 'Talked out of it') + '</div></div></div>';
+      used += '<p class="small muted" style="margin-top:10px">You agreed with the checker from the start on ' + (c.bothRight + c.bothWrong) + ' messages' +
         (c.bothWrong ? ', including ' + c.bothWrong + ' where you were both wrong' : '') + '. ' +
         'You followed it when it was wrong on ' + a.followedWrong + ' of ' + a.checkerWrong + ' messages.</p>';
     }
-    html += '</div></div>';
+    cards.push(used + '</div>');
 
-    html += '<div class="card" style="margin-top:16px"><h2>How sure were you?</h2>';
+    if (res.strategies) cards.push(strategiesCard(res, s));
+    cards.push(instinctCard(res));
+
     const all = roundStats(s.trials);
-    html += '<p>When you said <strong>definitely</strong>, you were right ' + all.sure.correct + ' of ' + all.sure.n + ' times (' + pct(all.sure.accuracy) + '). ' +
-      'When you said <strong>probably</strong>, you were right ' + all.unsure.correct + ' of ' + all.unsure.n + ' times (' + pct(all.unsure.accuracy) + ').</p>';
-    html += '<p class="small muted">Your Brier score (final answers, all rounds) is ' + (all.brier === null ? 'n/a' : all.brier.toFixed(3)) +
-      '. Lower is better: 0 means always right and certain, 0.25 is what you would get by always saying "50:50".</p></div>';
-
-    html += '<div class="grid-2" style="margin-top:16px">';
-    if (res.strategies) html += strategiesCard(res, s);
-    html += instinctCard(res);
-    html += cuesCard(res.cueProfile);
-    html += '</div>';
+    cards.push('<div class="card"><h2>How sure were you?</h2>' +
+      '<p>When you said <strong>definitely</strong>, you were right ' + all.sure.correct + ' of ' + all.sure.n + ' times (' + pct(all.sure.accuracy) + '). ' +
+      'When you said <strong>probably</strong>, you were right ' + all.unsure.correct + ' of ' + all.unsure.n + ' times (' + pct(all.unsure.accuracy) + ').</p>' +
+      '<p class="small muted">Your Brier score (final answers, all rounds) is ' + (all.brier === null ? 'n/a' : all.brier.toFixed(3)) +
+      '. Lower is better: 0 means always right and certain, 0.25 is what you would get by always saying "50:50".</p></div>');
+    cards.push(cuesCard(res.cueProfile));
+    if (cards.length % 2) cards[cards.length - 1] = cards[cards.length - 1].replace('<div class="card">', '<div class="card span-2">');
+    html += '<div class="grid-2 results-grid" style="margin-top:16px">' + cards.join('') + '</div>';
 
     html += '<div class="card review" style="margin-top:16px"><h2>Message by message</h2><p class="small muted">Open any message to see the answer, the warning signs and what made it look the other way.</p>';
     [1, 2, 3].forEach(rnum => {
@@ -2301,9 +2337,9 @@ if (typeof module !== 'undefined' && module.exports) {
     h += '<p>Leaning in round 1: <strong>' + biasWord(a.c) + '</strong>. In round 3: <strong>' + biasWord(b.c) + '</strong>.</p>' +
       '<div class="meter" role="img" aria-label="Bias in round 1 was ' + a.c.toFixed(2) + ' and in round 3 was ' + b.c.toFixed(2) + '. Negative means suspicious, positive means trusting.">' +
       '<span class="line"></span><span class="mid"></span>' +
-      '<span class="mark r1" style="left:' + pos(a.c) + '" title="Round 1"></span><span class="mark r3" style="left:' + pos(b.c) + '" title="Round 3"></span></div>' +
-      '<div class="meter-scale"><span>Calls too much a scam</span><span>Balanced</span><span>Lets scams through</span></div>' +
-      '<ul class="chips" style="margin-top:12px"><li>Round 1 marker: faded</li><li>Round 3 marker: solid</li></ul>' +
+      '<span class="mark r1" style="left:' + pos(a.c) + '" title="Round 1">1</span><span class="mark r3" style="left:' + pos(b.c) + '" title="Round 3">3</span></div>' +
+      '<div class="meter-scale" aria-hidden="true"><span>Suspicious: flags too much</span><span>Trusting: lets scams through</span></div>' +
+      '<p class="small muted" style="margin-top:6px">Circles show rounds 1 and 3; the middle line is perfectly balanced.</p>' +
       '<p class="small">Sensitivity (d\u2032), how well you tell scams from genuine messages regardless of leaning: <b>' + a.dPrime.toFixed(2) + '</b> in round 1 and <b>' + b.dPrime.toFixed(2) + '</b> in round 3. 0 is guessing; above 2 is very good.</p>' +
       '<p class="small muted">Signal detection measures, worked out from your scam and genuine answers separately, so being suspicious and being skilled are not confused.</p></div>';
     return h;
@@ -2479,6 +2515,7 @@ if (typeof module !== 'undefined' && module.exports) {
   /* ---------- Wiring ---------- */
   $('#start-btn').addEventListener('click', startTest);
   $('#opt-study').addEventListener('change', updateStartLabel);
+  $('#settings').addEventListener('change', updateSettingsSummary);
   $('#participant-id').addEventListener('input', updateStartLabel);
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-store]');
