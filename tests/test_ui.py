@@ -86,6 +86,25 @@ class UiTest(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_what_if_sweep(self):
+        page = self.open()
+        page.click("summary:has-text('Simulation')")
+        page.fill("#p-runs", "10")
+        page.dispatch_event("#p-runs", "input")
+        self.settle(page)
+        page.select_option("#sweep-key", "champions")
+        page.click("#sweep-run")
+        page.wait_for_function("document.getElementById('sweep-summary').textContent.includes('wins')", timeout=60000)
+        self.assertEqual(len(page.query_selector_all("#sweep-chart polyline")), 5)
+        self.assertIn("Number of champions", page.inner_text("#sweep-summary"))
+        page.fill("#p-lapse", "0.2")
+        page.dispatch_event("#p-lapse", "input")
+        self.settle(page)
+        self.assertIn("Settings changed", page.inner_text("#sweep-summary"))
+        self.assertEqual(len(page.query_selector_all("#sweep-chart polyline")), 0)
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_every_control_has_an_accessible_name(self):
         page = self.open()
         unnamed = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button'))

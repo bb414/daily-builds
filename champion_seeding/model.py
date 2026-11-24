@@ -346,37 +346,51 @@ def simulate_rollout(net, p, champions, rng, record=False):
     curve = [count / n]
     reached = 0 if count / n >= 0.5 else None
     states = [user[:]] if record else None
+    # a[i] = weighted number of i's contacts using the tool (a champion counts as w users).
     a = [0] * n
+    for i in range(n):
+        total = 0
+        for j in adj[i]:
+            if user[j]:
+                total += w if champ[j] else 1
+        a[i] = total
+    lapse, fit, spont, peer_state = p["lapse"], p["fit"], p["spontaneous"], rng.a
     for week in range(1, weeks + 1):
-        for i in range(n):
-            total = 0
-            for j in adj[i]:
-                if user[j]:
-                    total += w if champ[j] else 1
-            a[i] = total
         nxt = user[:]
         for i in range(n):
-            u = rng.uniform()
+            # Mulberry32 inlined for speed (identical to Rng.uniform).
+            peer_state = (peer_state + 0x6D2B79F5) & MASK
+            t = peer_state
+            t = ((t ^ (t >> 15)) * (t | 1)) & MASK
+            t ^= (t + (((t ^ (t >> 7)) * (t | 61)) & MASK)) & MASK
+            u = ((t ^ (t >> 14)) & MASK) / 4294967296
             if champ[i]:
                 continue
             deg = degree[i]
             share = min(1, a[i] / deg) if deg > 0 else 0
             if user[i]:
-                if u < p["lapse"] * (1 - share):
+                if u < lapse * (1 - share):
                     nxt[i] = 0
-            elif suit[i] < p["fit"]:
+            elif suit[i] < fit:
                 is_open = deg > 0 and share >= theta[i]
-                p_try = 1 - (1 - p["spontaneous"]) * (stay[a[i]] if is_open else 1)
+                p_try = 1 - (1 - spont) * (stay[a[i]] if is_open else 1)
                 if u < p_try:
                     nxt[i] = 1
                     ever[i] = 1
+        # Update the counts only around people who changed this week.
+        for i in range(n):
+            if nxt[i] != user[i]:
+                delta = nxt[i] - user[i]
+                count += delta
+                for j in adj[i]:
+                    a[j] += delta
         user = nxt
-        count = sum(user)
         curve.append(count / n)
         if reached is None and count / n >= 0.5:
             reached = week
         if states is not None:
             states.append(user[:])
+    rng.a = peer_state
     in_team = [0] * net["teams"]
     using_in_team = [0] * net["teams"]
     for i in range(n):
@@ -439,6 +453,44 @@ def run_strategy(net, src, strategy):
 
 def rank_strategies(results):
     return sorted(results, key=lambda r: (-r["finalMean"], STRATEGY_KEYS.index(r["strategy"])))
+
+
+# Values each "what if" sweep tries.
+SWEEPS = {
+    "socialProof": [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6],
+    "champions": [1, 2, 4, 6, 8, 10, 12, 16, 20, 25, 30],
+    "peerPull": [0.02, 0.04, 0.06, 0.08, 0.1, 0.15, 0.2, 0.3, 0.4],
+    "tiesOrg": [0, 0.2, 0.4, 0.8, 1.2, 1.6, 2.4, 3.2, 4],
+    "lapse": [0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+}
+SWEEP_KEYS = ["socialProof", "champions", "peerPull", "tiesOrg", "lapse"]
+
+
+def sweep_point(src, key, value):
+    """The same organisation shape with one setting changed, all five strategies."""
+    q = normalise_params(dict(normalise_params(src), **{key: value}))
+    net = build_network(q)
+    results = []
+    for s in STRATEGY_KEYS:
+        r = run_strategy(net, q, s)
+        results.append({"strategy": s, "finalMean": r["finalMean"], "everMean": r["everMean"], "reachShare": r["reachShare"]})
+    return {"value": q[key], "results": results, "best": rank_strategies(results)[0]["strategy"]}
+
+
+def sweep(src, key):
+    if key not in SWEEPS:
+        raise ValueError("Cannot sweep %s. Choose from: %s" % (key, ", ".join(SWEEP_KEYS)))
+    return {"key": key, "points": [sweep_point(src, key, v) for v in SWEEPS[key]]}
+
+
+def winner_spans(sw):
+    spans = []
+    for pt in sw["points"]:
+        if spans and spans[-1]["strategy"] == pt["best"]:
+            spans[-1]["to"] = pt["value"]
+        else:
+            spans.append({"strategy": pt["best"], "from": pt["value"], "to": pt["value"]})
+    return spans
 
 
 def summarise_network(net):

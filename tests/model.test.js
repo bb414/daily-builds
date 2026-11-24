@@ -151,3 +151,57 @@ test('extreme settings finish and give sensible numbers', () => {
     assert.ok(M.explain(c).length >= 1);
   }
 });
+
+test('incremental influence counts match a full recount every week', () => {
+  const p = M.normaliseParams(small({ socialProof: 0.2, peerPull: 0.2, lapse: 0.2 }));
+  const net = M.buildNetwork(p);
+  const champs = M.pickChampions(net, p.champions, 'spread', M.makeRng(1));
+  const rec = M.simulateRollout(net, p, champs, M.makeRng(4), true);
+  // Replay the rules by hand with a full recount and check every weekly state agrees.
+  const rng = M.makeRng(4), champ = new Set(champs), N = net.size;
+  let user = rec.states[0].slice();
+  const stay = [1];
+  for (let k = 1; k <= 200; k++) stay.push(stay[k - 1] * (1 - p.peerPull));
+  for (let week = 1; week <= p.weeks; week++) {
+    const a = user.map((_, i) => net.adj[i].reduce((s, j) => s + (user[j] ? (champ.has(j) ? p.championWeight : 1) : 0), 0));
+    const next = user.slice();
+    for (let i = 0; i < N; i++) {
+      const u = rng.uniform();
+      if (champ.has(i)) continue;
+      const deg = net.degree[i], share = deg > 0 ? Math.min(1, a[i] / deg) : 0;
+      if (user[i]) { if (u < p.lapse * (1 - share)) next[i] = 0; }
+      else if (net.suit[i] < p.fit) {
+        const open = deg > 0 && share >= p.socialProof * net.need[i];
+        if (u < 1 - (1 - p.spontaneous) * (open ? stay[a[i]] : 1)) next[i] = 1;
+      }
+    }
+    user = next;
+    assert.deepEqual(plain(rec.states[week]), plain(user), 'week ' + week);
+  }
+});
+
+test('what-if sweeps change only the chosen setting and report the winners', () => {
+  const p = small({ runs: 10, weeks: 20 });
+  const pt = M.sweepPoint(p, 'socialProof', 0.1);
+  assert.equal(pt.value, 0.1);
+  assert.equal(pt.results.length, 5);
+  const direct = M.compareStrategies(Object.assign({}, p, { socialProof: 0.1 }));
+  assert.equal(pt.best, direct.ranking[0]);
+  assert.equal(pt.results[1].finalMean, direct.results[1].finalMean);
+  const sw = M.sweep(p, 'champions');
+  assert.deepEqual(sw.points.map((x) => x.value), M.SWEEPS.champions);
+  const spans = M.winnerSpans(sw);
+  assert.equal(spans[0].from, 1);
+  assert.equal(spans[spans.length - 1].to, 30);
+  for (let i = 1; i < spans.length; i++) assert.notEqual(spans[i].strategy, spans[i - 1].strategy);
+  assert.throws(() => M.sweep(p, 'people'), /Cannot sweep/);
+  assert.deepEqual(plain(M.winnerSpans({ points: [{ value: 1, best: 'hubs' }, { value: 2, best: 'hubs' }, { value: 3, best: 'spread' }] })),
+    [{ strategy: 'hubs', from: 1, to: 2 }, { strategy: 'spread', from: 3, to: 3 }]);
+});
+
+test('more contacts across departments changes the organisation itself', () => {
+  const p = small();
+  const a = M.buildNetwork(Object.assign({}, p, { tiesOrg: 0 }));
+  const b = M.buildNetwork(Object.assign({}, p, { tiesOrg: 3 }));
+  assert.ok(b.outsideShare > a.outsideShare);
+});

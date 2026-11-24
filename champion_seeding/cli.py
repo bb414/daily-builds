@@ -68,6 +68,40 @@ def format_comparison(cmp, ids=None, team_names=None, show_champions=False):
     return "\n".join(lines)
 
 
+def fmt_value(key, v):
+    if key in ("socialProof", "peerPull", "lapse", "fit", "spontaneous"):
+        return "%g%%" % round(v * 100, 1)
+    return "%g" % v
+
+
+def format_sweep(sw):
+    key = sw["key"]
+    lines = ["What if %s changes? Share using the tool at the end, by strategy (* marks the best)" % model.PARAM_LABELS[key].lower(), "",
+             "  %-10s" % model.PARAM_LABELS[key][:10] + "".join("%16s" % model.STRATEGY_LABELS[s] for s in model.STRATEGY_KEYS)]
+    for pt in sw["points"]:
+        cells = []
+        for r in pt["results"]:
+            mark = "*" if r["strategy"] == pt["best"] else " "
+            cells.append("%15s%s" % (pct(r["finalMean"]), mark))
+        lines.append("  %-10s" % fmt_value(key, pt["value"]) + "".join(cells))
+    lines.append("")
+    for span in model.winner_spans(sw):
+        rng = ("at %s" % fmt_value(key, span["from"]) if span["from"] == span["to"]
+               else "from %s to %s" % (fmt_value(key, span["from"]), fmt_value(key, span["to"])))
+        lines.append("  %s wins %s" % (model.STRATEGY_LABELS[span["strategy"]], rng))
+    return "\n".join(lines)
+
+
+def write_sweep_csv(sw, path):
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow([sw["key"], "strategy", "share_using_at_end", "share_ever_tried", "share_of_rollouts_reaching_half", "best"])
+        for pt in sw["points"]:
+            for r in pt["results"]:
+                w.writerow([pt["value"], r["strategy"], "%.4f" % r["finalMean"], "%.4f" % r["everMean"],
+                            "%.4f" % r["reachShare"], int(r["strategy"] == pt["best"])])
+
+
 def write_csv(cmp, path):
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -103,6 +137,12 @@ def make_parser():
     sp.add_argument("--edges", required=True, help="CSV file with source,target columns")
     sp.add_argument("--teams", help="CSV file with id,team columns (needed for the team-based strategies)")
 
+    sp = sub.add_parser("sweep", help="Which strategy wins as one setting changes?")
+    sp.add_argument("--preset", default="assistant")
+    sp.add_argument("--set", action="append", metavar="KEY=VALUE")
+    sp.add_argument("--param", default="socialProof", choices=model.SWEEP_KEYS)
+    sp.add_argument("--csv", help="Write the results to this CSV file")
+
     sp = sub.add_parser("export-network", help="Write the synthetic organisation as CSV files")
     sp.add_argument("--preset", default="assistant")
     sp.add_argument("--set", action="append", metavar="KEY=VALUE")
@@ -119,6 +159,13 @@ def main(argv=None):
             net = model.build_network(params)
             export_network(net, args.edges, args.teams)
             print("Wrote %s and %s (%d people, %d ties)" % (args.edges, args.teams, net["size"], net["edges"]))
+            return 0
+        if args.command == "sweep":
+            sw = model.sweep(params, args.param)
+            print(format_sweep(sw))
+            if args.csv:
+                write_sweep_csv(sw, args.csv)
+                print("\nWrote %s" % args.csv)
             return 0
         ids = None
         if args.command == "load":

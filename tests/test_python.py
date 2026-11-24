@@ -102,10 +102,21 @@ class CliTest(unittest.TestCase):
             code, out = run_cli("load", "--edges", edges, *self.small[:4])
             self.assertIn("no teams file", out)
 
+    def test_sweep(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "sweep.csv")
+            code, out = run_cli("sweep", "--param", "champions", *self.small, "--csv", path)
+            with open(path, encoding="utf-8") as fh:
+                rows = list(csv.DictReader(fh))
+        self.assertIn("wins", out)
+        self.assertIn("*", out)
+        self.assertEqual(len(rows), 5 * len(model.SWEEPS["champions"]))
+        self.assertEqual(sum(int(r["best"]) for r in rows), len(model.SWEEPS["champions"]))
+
     def test_bad_arguments_exit_cleanly(self):
         for args in (["compare", "--set", "nonsense=1"], ["compare", "--set", "runs=lots"], ["compare", "--set", "x"],
                      ["compare", "--set", "strategy=magic"], ["compare", "--preset", "nope"],
-                     ["load", "--edges", "/nonexistent/e.csv"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
+                     ["load", "--edges", "/nonexistent/e.csv"], ["sweep", "--param", "people"], ["compare", *self.small, "--csv", "/nonexistent/dir/x.csv"]):
             with self.subTest(args=args), self.assertRaises(SystemExit) as ctx:
                 with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
                     cli.main(list(args))

@@ -63,6 +63,14 @@ class ParityTest(unittest.TestCase):
                 assert_same(self, out["compare"], cmp)
                 self.assertEqual(out["why"], model.explain(cmp))
 
+    def test_sweeps_match(self):
+        params = {"people": 60, "teams": 5, "runs": 10, "weeks": 12}
+        jobs = [{"sweep": {"params": params, "key": k}} for k in model.SWEEP_KEYS]
+        for job, out in zip(jobs, run_js(jobs)):
+            sw = model.sweep(params, job["sweep"]["key"])
+            assert_same(self, out["sweep"], sw, job["sweep"]["key"])
+            assert_same(self, out["spans"], model.winner_spans(sw))
+
     def test_settings_are_read_the_same_way(self):
         odd = [{"champions": v} for v in (" ", "0x10", [9], True, "1e999", "12abc", " 12 ", "1e1", None, 2.5, 0.49999999999999994)]
         odd += [{"people": 40, "teams": 30, "departments": 6}, {"teams": 2, "departments": 5}, {"strategy": "spread"},
@@ -76,7 +84,10 @@ class ParityTest(unittest.TestCase):
                "process.stdout.write(JSON.stringify({C:M.CONSTANTS,P:M.PARAMS,K:M.STRATEGY_KEYS,"
                "S:Object.fromEntries(Object.entries(M.STRATEGIES).map(([k,v])=>[k,v.label])),"
                "R:Object.fromEntries(Object.entries(M.PRESETS).map(([k,v])=>[k,{label:v.label,params:v.params}])),D:M.DEFAULTS}))")
+        src = src.replace("D:M.DEFAULTS}", "D:M.DEFAULTS,W:M.SWEEPS,WK:M.SWEEP_KEYS}")
         js = json.loads(subprocess.run([NODE, "-e", src], capture_output=True, text=True, check=True, cwd=ROOT).stdout)
+        self.assertEqual(js["W"], model.SWEEPS)
+        self.assertEqual(js["WK"], model.SWEEP_KEYS)
         self.assertEqual(js["C"], model.CONSTANTS)
         self.assertEqual(js["K"], model.STRATEGY_KEYS)
         self.assertEqual(js["S"], model.STRATEGY_LABELS)

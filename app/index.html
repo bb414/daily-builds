@@ -65,6 +65,8 @@
   .btn { font: inherit; font-size: 0.88rem; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
   .btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .measure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.85rem; }
+  .measure select { width: auto; max-width: 100%; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   .results { transition: opacity 0.15s; }
   .results.busy { opacity: 0.55; }
@@ -132,6 +134,18 @@
       <h2>Share of people using the tool</h2>
       <div class="legend" id="curve-legend"></div>
       <svg class="chart" id="curve" role="img"></svg>
+    </div>
+    <div class="card chart-card">
+      <h2>What if?</h2>
+      <p class="help">Re-runs all five strategies across a range of values for one setting, keeping everything else as it is, to show where the best choice changes.</p>
+      <div class="btn-row">
+        <span class="measure"><label for="sweep-key">Vary</label>
+          <select id="sweep-key"></select></span>
+        <button type="button" class="btn primary" id="sweep-run">Run the what-if</button>
+      </div>
+      <p id="sweep-summary" role="status"></p>
+      <div class="legend" id="sweep-legend"></div>
+      <svg class="chart" id="sweep-chart" role="img" aria-label="What-if chart, not run yet"></svg>
     </div>
     <div class="card chart-card">
       <h2>Compare the five strategies</h2>
@@ -442,12 +456,13 @@ var SeedingModel = (function () {
     var count = champions.length;
     var curve = [count / N], reached = count / N >= 0.5 ? 0 : null;
     var states = record ? [user.slice()] : null;
+    // a[i] = weighted number of i's contacts using the tool (a champion counts as w users).
+    for (i = 0; i < N; i++) {
+      var sum = 0, nb = net.adj[i];
+      for (k = 0; k < nb.length; k++) if (user[nb[k]]) sum += champ[nb[k]] ? w : 1;
+      a[i] = sum;
+    }
     for (var week = 1; week <= W; week++) {
-      for (i = 0; i < N; i++) {
-        var sum = 0, nb = net.adj[i];
-        for (k = 0; k < nb.length; k++) if (user[nb[k]]) sum += champ[nb[k]] ? w : 1;
-        a[i] = sum;
-      }
       var next = user.slice();
       for (i = 0; i < N; i++) {
         var u = rng.uniform();
@@ -462,9 +477,16 @@ var SeedingModel = (function () {
           if (u < pTry) { next[i] = 1; ever[i] = 1; }
         }
       }
+      // Update the counts only around people who changed this week.
+      for (i = 0; i < N; i++) {
+        if (next[i] !== user[i]) {
+          var delta = next[i] - user[i];
+          count += delta;
+          var adjI = net.adj[i];
+          for (k = 0; k < adjI.length; k++) a[adjI[k]] += delta;
+        }
+      }
       user = next;
-      count = 0;
-      for (i = 0; i < N; i++) count += user[i];
       curve.push(count / N);
       if (reached === null && count / N >= 0.5) reached = week;
       if (states) states.push(user.slice());
@@ -531,6 +553,47 @@ var SeedingModel = (function () {
     return { params: p, network: summariseNetwork(net), results: results, ranking: rankStrategies(results).map(function (r) { return r.strategy; }) };
   }
 
+  // Values each "what if" sweep tries.
+  var SWEEPS = {
+    socialProof: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6],
+    champions: [1, 2, 4, 6, 8, 10, 12, 16, 20, 25, 30],
+    peerPull: [0.02, 0.04, 0.06, 0.08, 0.1, 0.15, 0.2, 0.3, 0.4],
+    tiesOrg: [0, 0.2, 0.4, 0.8, 1.2, 1.6, 2.4, 3.2, 4],
+    lapse: [0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+  };
+  var SWEEP_KEYS = ['socialProof', 'champions', 'peerPull', 'tiesOrg', 'lapse'];
+
+  // One point of a sweep: the same organisation shape with one setting changed, all five strategies.
+  function sweepPoint(input, key, value) {
+    var q = normaliseParams(input), k;
+    var copy = {};
+    for (k in q) copy[k] = q[k];
+    copy[key] = value;
+    q = normaliseParams(copy);
+    var net = buildNetwork(q);
+    var results = STRATEGY_KEYS.map(function (s) {
+      var r = runStrategy(net, q, s);
+      return { strategy: s, finalMean: r.finalMean, everMean: r.everMean, reachShare: r.reachShare };
+    });
+    return { value: q[key], results: results, best: rankStrategies(results)[0].strategy };
+  }
+
+  function sweep(input, key) {
+    if (!SWEEPS[key]) throw new Error('Cannot sweep ' + key);
+    return { key: key, points: SWEEPS[key].map(function (v) { return sweepPoint(input, key, v); }) };
+  }
+
+  // Runs of consecutive sweep values with the same winner, for the summary sentence.
+  function winnerSpans(sw) {
+    var spans = [];
+    sw.points.forEach(function (pt) {
+      var last = spans[spans.length - 1];
+      if (last && last.strategy === pt.best) last.to = pt.value;
+      else spans.push({ strategy: pt.best, from: pt.value, to: pt.value });
+    });
+    return spans;
+  }
+
   function summariseNetwork(net) {
     return { size: net.size, teams: net.teams, edges: net.edges, meanDegree: net.meanDegree, outsideShare: net.outsideShare };
   }
@@ -588,7 +651,8 @@ var SeedingModel = (function () {
     makeRng: makeRng, mixSeed: mixSeed, toNumber: toNumber, normaliseParams: normaliseParams, presetParams: presetParams,
     buildNetwork: buildNetwork, finishNetwork: finishNetwork, betweenness: betweenness, pickChampions: pickChampions,
     simulateRollout: simulateRollout, runStrategy: runStrategy, rankStrategies: rankStrategies,
-    compareStrategies: compareStrategies, summariseNetwork: summariseNetwork, explain: explain
+    compareStrategies: compareStrategies, summariseNetwork: summariseNetwork, explain: explain,
+    SWEEPS: SWEEPS, SWEEP_KEYS: SWEEP_KEYS, sweepPoint: sweepPoint, sweep: sweep, winnerSpans: winnerSpans
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SeedingModel;
@@ -661,6 +725,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       document.getElementById('group-' + spec.group).appendChild(wrap);
     });
     document.getElementById('week').addEventListener('input', function () { stopPlay(); renderNetwork(); });
+    var sweepSel = document.getElementById('sweep-key');
+    M.SWEEP_KEYS.forEach(function (k) { sweepSel.appendChild(el('option', { value: k }, specFor(k).label)); });
+    sweepSel.addEventListener('change', function () { if (sweepState && sweepState.sweep.key !== sweepSel.value) clearSweep('Choose Run to try the new setting.'); });
+    document.getElementById('sweep-run').addEventListener('click', runSweep);
     document.getElementById('play').addEventListener('click', togglePlay);
   }
 
@@ -702,6 +770,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       if (i < M.STRATEGY_KEYS.length) { setTimeout(step, 0); return; }
       clearTimeout(busy);
       box.classList.remove('busy');
+      if ((sweepState && sweepState.code !== sweepCode(p)) || (sweepJob && sweepJob.code !== sweepCode(p))) {
+        clearSweep('Settings changed. Run the what-if again to see the new picture.');
+      }
       current = { p: p, net: net, layout: layout(net, p), cmp: { params: p, network: M.summariseNetwork(net), results: results,
         ranking: M.rankStrategies(results).map(function (r) { return r.strategy; }) } };
       var week = document.getElementById('week');
@@ -880,6 +951,102 @@ if (typeof module !== 'undefined' && module.exports) module.exports = SeedingMod
       key.appendChild(document.createTextNode(M.STRATEGIES[res.strategy].label));
       legend.appendChild(key);
     });
+  }
+
+  // ---- What if? ----
+  var sweepState = null, sweepJob = null;
+
+  function specFor(key) { for (var i = 0; i < M.PARAMS.length; i++) if (M.PARAMS[i].key === key) return M.PARAMS[i]; return null; }
+
+  // Everything except the selected strategy, which does not change the sweep.
+  function sweepCode(params) {
+    var q = M.normaliseParams(params);
+    delete q.strategy;
+    return JSON.stringify(q);
+  }
+
+  function clearSweep(message) {
+    sweepState = null;
+    sweepJob = null;
+    var btn = document.getElementById('sweep-run');
+    btn.setAttribute('aria-disabled', 'false');
+    btn.textContent = 'Run the what-if';
+    renderSweep();
+    document.getElementById('sweep-summary').textContent = message;
+  }
+
+  function runSweep() {
+    if (sweepJob) return;
+    var key = document.getElementById('sweep-key').value;
+    var values = M.SWEEPS[key], points = [];
+    var job = sweepJob = { code: sweepCode(state.params), key: key };
+    var btn = document.getElementById('sweep-run'), summary = document.getElementById('sweep-summary');
+    btn.setAttribute('aria-disabled', 'true');
+    btn.textContent = 'Running...';
+    function step() {
+      if (sweepJob !== job) return;
+      points.push(M.sweepPoint(state.params, key, values[points.length]));
+      summary.textContent = 'Running: ' + points.length + ' of ' + values.length + ' values done.';
+      if (points.length < values.length) { setTimeout(step, 0); return; }
+      sweepJob = null;
+      btn.setAttribute('aria-disabled', 'false');
+      btn.textContent = 'Run the what-if';
+      sweepState = { code: job.code, sweep: { key: key, points: points } };
+      renderSweep();
+    }
+    setTimeout(step, 0);
+  }
+
+  function renderSweep() {
+    var svg = document.getElementById('sweep-chart'), summary = document.getElementById('sweep-summary');
+    var legend = document.getElementById('sweep-legend');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    legend.innerHTML = '';
+    if (!sweepState) return;
+    var sw = sweepState.sweep, spec = specFor(sw.key), pts = sw.points;
+    var spans = M.winnerSpans(sw);
+    summary.textContent = spec.label + ': ' + spans.map(function (sp) {
+      var range = sp.from === sp.to ? 'at ' + fmtValue(spec, sp.from) : 'from ' + fmtValue(spec, sp.from) + ' to ' + fmtValue(spec, sp.to);
+      return M.STRATEGIES[sp.strategy].label.toLowerCase() + ' wins ' + range;
+    }).join('; ') + '.';
+    var W = svg.clientWidth || 640, H = svg.clientHeight || 260, m = { l: 40, r: 12, t: 10, b: 34 };
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var lo = pts[0].value, hi = pts[pts.length - 1].value;
+    var x = function (v) { return m.l + (W - m.l - m.r) * (v - lo) / (hi - lo); };
+    var y = function (v) { return m.t + (H - m.t - m.b) * (1 - v); };
+    for (var t = 0; t <= 1.0001; t += 0.25) {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: 'var(--line)' }));
+      var lab = svgEl('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+      lab.textContent = Math.round(t * 100) + '%';
+      svg.appendChild(lab);
+    }
+    pts.forEach(function (pt, i) {
+      if (i % Math.ceil(pts.length / 7) && i !== pts.length - 1) return;
+      var tx = svgEl('text', { x: x(pt.value), y: H - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' });
+      tx.textContent = fmtValue(spec, pt.value);
+      svg.appendChild(tx);
+    });
+    var cap = svgEl('text', { x: W - m.r, y: H - 2, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+    cap.textContent = spec.label;
+    svg.appendChild(cap);
+    var now = state.params[sw.key];
+    if (now >= lo && now <= hi) {
+      svg.appendChild(svgEl('line', { x1: x(now), x2: x(now), y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '4 3' }));
+    }
+    M.STRATEGY_KEYS.forEach(function (key, si) {
+      svg.appendChild(svgEl('polyline', { points: pts.map(function (pt) { return x(pt.value).toFixed(1) + ',' + y(pt.results[si].finalMean).toFixed(1); }).join(' '),
+        fill: 'none', stroke: 'var(--s-' + key + ')', 'stroke-width': 2 }));
+      pts.forEach(function (pt) {
+        if (pt.best === key) svg.appendChild(svgEl('circle', { cx: x(pt.value).toFixed(1), cy: y(pt.results[si].finalMean).toFixed(1), r: 4, fill: 'var(--s-' + key + ')' }));
+      });
+      var k = el('span', { 'class': 'key' });
+      var sv = svgEl('svg', { viewBox: '0 0 22 10', 'aria-hidden': 'true' });
+      sv.appendChild(svgEl('line', { x1: 1, x2: 21, y1: 5, y2: 5, stroke: 'var(--s-' + key + ')', 'stroke-width': 2.5 }));
+      k.appendChild(sv);
+      k.appendChild(document.createTextNode(M.STRATEGIES[key].label));
+      legend.appendChild(k);
+    });
+    svg.setAttribute('aria-label', 'Share using the tool at the end for each strategy as ' + spec.label.toLowerCase() + ' changes. ' + summary.textContent);
   }
 
   var COLUMNS = ['Strategy', 'Using it at the end', 'Tried it', 'Reached half', 'Weeks to half', 'Teams taken hold'];
