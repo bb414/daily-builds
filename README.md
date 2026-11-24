@@ -53,7 +53,7 @@ Requires Python 3.9 or later (tested with 3.11 and 3.13). No packages to install
 python -m markdown_ladder plan --preset truffles
 
 # ...or your own numbers (any setting left out takes the app's default)
-python -m markdown_ladder plan --stock 80 --days 5 --price 4.5 --demand 12 --elasticity 2.2 --freshness 10
+python -m markdown_ladder plan --stock 80 --days 5 --price 4.5 --unit-cost 1.6 --demand 12 --elasticity 2.2 --freshness 10
 
 # What if the demand forecast is wrong?
 python -m markdown_ladder robust --preset truffles
