@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliance lab</title>
+<meta name="description" content="When does a person checking an AI's advice make the pair better than either alone? Try it on synthetic payment cases, then explore the model.">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1;
+  --surface: #fcfcfb;
+  --surface-2: #f0efea;
+  --ink: #16181d;
+  --ink-2: #4a4945;
+  --muted: #6b6963;
+  --line: #e1e0d9;
+  --line-strong: #c3c2b7;
+  --accent: #0d6b60;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefe9;
+  --focus: #1f5fbf;
+  --you: #eb6834;
+  --ai: #2a78d6;
+  --team: #1baf7a;
+  --shared: #a3a19a;
+  --good-ink: #0a6b1f;
+  --bad-ink: #b42323;
+  --shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 2px 8px rgba(20, 20, 20, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #f0efec;
+    --ink-2: #c9c8c0;
+    --muted: #a3a29a;
+    --line: #2f2f2c;
+    --line-strong: #46463f;
+    --accent: #3fb8a5;
+    --accent-ink: #0b1513;
+    --accent-soft: #173a34;
+    --focus: #7fb0ff;
+    --you: #d95926;
+    --ai: #3987e5;
+    --team: #199e70;
+    --shared: #77756f;
+    --good-ink: #5fd07a;
+    --bad-ink: #ff8a80;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #f0efec;
+  --ink-2: #c9c8c0;
+  --muted: #a3a29a;
+  --line: #2f2f2c;
+  --line-strong: #46463f;
+  --accent: #3fb8a5;
+  --accent-ink: #0b1513;
+  --accent-soft: #173a34;
+  --focus: #7fb0ff;
+  --you: #d95926;
+  --ai: #3987e5;
+  --team: #199e70;
+  --shared: #77756f;
+  --good-ink: #5fd07a;
+  --bad-ink: #ff8a80;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.25; margin: 0 0 0.5rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 0.75rem; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* header and tabs */
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { padding-top: 20px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.01em; }
+.tagline { color: var(--ink-2); margin: 4px 0 14px; max-width: 60ch; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tab {
+  appearance: none; background: none; border: 0; border-bottom: 3px solid transparent;
+  padding: 10px 14px; font: inherit; font-weight: 600; color: var(--ink-2); cursor: pointer;
+  white-space: nowrap;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--ink); }
+main.wrap { padding-top: 24px; padding-bottom: 48px; }
+footer { color: var(--muted); font-size: 0.875rem; padding: 24px 0 40px; border-top: 1px solid var(--line); }
+
+/* cards, buttons, form bits */
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px; box-shadow: var(--shadow);
+}
+.card + .card { margin-top: 16px; }
+.lede { font-size: 1.05rem; color: var(--ink-2); max-width: 65ch; }
+.btn {
+  appearance: none; font: inherit; font-weight: 600; cursor: pointer;
+  border-radius: 8px; padding: 10px 16px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); min-height: 44px;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
+legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
+.hint { color: var(--muted); font-size: 0.875rem; }
+.choice-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice {
+  position: relative; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  background: var(--surface); min-height: 44px;
+}
+.choice input { accent-color: var(--accent); margin: 0; }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.text-input {
+  font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); min-height: 44px; width: 12ch;
+}
+.setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; margin-top: 18px; }
+@media (max-width: 720px) { .setup-grid { grid-template-columns: 1fr; } }
+
+/* stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 0.8125rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tile .v { font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+.tile .s { font-size: 0.8125rem; color: var(--ink-2); margin-top: 2px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.you { background: var(--you); }
+.dot.ai { background: var(--ai); }
+.dot.team { background: var(--team); }
+.dot.shared { background: var(--shared); }
+.good { color: var(--good-ink); }
+.bad { color: var(--bad-ink); }
+
+/* case screen */
+.progress { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.progress-bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.progress-bar span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
+.case-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .case-layout { grid-template-columns: 1fr; } }
+.facts { width: 100%; border-collapse: collapse; }
+.facts th, .facts td { text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.facts th { font-weight: 500; color: var(--muted); width: 44%; padding-right: 12px; font-size: 0.9375rem; }
+.facts td { font-weight: 600; }
+.facts td small { display: block; font-weight: 400; color: var(--ink-2); }
+.step { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.step:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.step h3 { display: flex; align-items: center; gap: 8px; }
+.step-num {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--surface-2); font-size: 0.8125rem; font-weight: 700; color: var(--ink-2);
+}
+.decide { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.decide .btn { min-height: 52px; }
+.btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.conf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.conf .btn { padding: 8px 4px; font-weight: 500; font-size: 0.875rem; line-height: 1.2; }
+.conf .btn b { display: block; font-size: 1rem; }
+.advisor {
+  display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 10px;
+  background: var(--surface-2); border-left: 4px solid var(--ai);
+}
+.advisor .who { font-size: 0.8125rem; color: var(--muted); }
+.advisor .say { font-size: 1.2rem; font-weight: 700; }
+.meter { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin-top: 6px; width: 160px; max-width: 100%; }
+.meter span { display: block; height: 100%; background: var(--ai); }
+.feedback { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
+.kbd-hint { margin-top: 14px; }
+kbd {
+  font: 0.8125rem ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--line-strong); background: var(--surface-2);
+}
+.locked { opacity: 0.55; }
+
+/* model tab */
+.model-grid { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .model-grid { grid-template-columns: minmax(0, 1fr); } }
+.controls h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; }
+.controls h3:first-of-type { margin-top: 0; }
+.slider { margin-bottom: 14px; }
+.slider label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 0.9375rem; }
+.slider output { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 700; white-space: nowrap; }
+.slider input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 2px; min-height: 28px; }
+.slider .hint { margin: 0; }
+.insight { font-size: 1.02rem; margin-bottom: 0; }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.875rem; color: var(--ink-2); margin: 6px 0 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+.chart .axis { stroke: var(--line-strong); }
+.chart .grid { stroke: var(--line); }
+.tooltip {
+  position: absolute; pointer-events: none; background: var(--ink); color: var(--bg);
+  padding: 8px 10px; border-radius: 8px; font-size: 0.8125rem; line-height: 1.4; max-width: 260px;
+  opacity: 0; transition: opacity 0.1s; z-index: 5;
+}
+.tooltip.on { opacity: 1; }
+details.numbers { margin-top: 10px; }
+details.numbers summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.9375rem; }
+.table-wrap { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; font-size: 0.875rem; font-variant-numeric: tabular-nums; margin-top: 8px; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.data th:first-child, table.data td:first-child { text-align: left; white-space: normal; }
+table.data thead th { color: var(--muted); font-weight: 600; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.8125rem; background: var(--surface-2); }
+
+/* about tab */
+.prose { max-width: 72ch; }
+.prose h2 { margin-top: 28px; }
+.prose h2:first-child { margin-top: 0; }
+.prose li { margin-bottom: 6px; }
+.callout { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 8px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>Reliance lab</h1>
+    </div>
+    <p class="tagline">When a person checks an AI's advice, does the pair do better than either alone, or does the person just rubber-stamp it or overrule it?</p>
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-try" aria-controls="panel-try" aria-selected="true">Try it yourself</button>
+      <button class="tab" role="tab" id="tab-model" aria-controls="panel-model" aria-selected="false" tabindex="-1">Explore the model</button>
+      <button class="tab" role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">How it works</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- TRY IT YOURSELF -->
+  <section id="panel-try" role="tabpanel" aria-labelledby="tab-try" tabindex="-1">
+    <div id="try-setup" class="card">
+      <h2>Review flagged payments with an AI advisor</h2>
+      <p class="lede">You are checking card payments that a fraud system has flagged. For each one you make your own call first and say how sure you are. Then you see an AI advisor's view and make a final decision. At the end you see how well you used the advice.</p>
+      <p class="hint">Everything is synthetic and stays in this page. Half the payments are fraud. The advisor's mistakes are set in advance, so its accuracy is exactly what you choose below.</p>
+      <form id="setup-form" class="setup-grid">
+        <fieldset>
+          <legend>How many payments</legend>
+          <div class="choice-group">
+            <label class="choice"><input type="radio" name="cases" value="12"> 12</label>
+            <label class="choice"><input type="radio" name="cases" value="20" checked> 20</label>
+            <label class="choice"><input type="radio" name="cases" value="30"> 30</label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>How often the advisor is right</legend>
+          <div class="choice-group">
+            <label class="choice"><input type="radio" name="aiAccuracy" value="0.7"> 70%</label>
+            <label class="choice"><input type="radio" name="aiAccuracy" value="0.8" checked> 80%</label>
+            <label class="choice"><input type="radio" name="aiAccuracy" value="0.9"> 90%</label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>What the advisor tells you about its confidence</legend>
+          <div class="choice-group">
+            <label class="choice"><input type="radio" name="aiStyle" value="calibrated" checked> Honest confidence</label>
+            <label class="choice"><input type="radio" name="aiStyle" value="confident"> Always sounds sure</label>
+            <label class="choice"><input type="radio" name="aiStyle" value="hidden"> No confidence shown</label>
+          </div>
+          <p class="hint">"Honest" means a shown 80% is right about 80% of the time. "Always sounds sure" shows 90 to 99% whether it is right or not.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Session code</legend>
+          <input class="text-input" id="session-code" name="code" autocomplete="off" spellcheck="false" maxlength="24" aria-describedby="code-hint">
+          <p class="hint" id="code-hint">Everyone who uses the same code and number of payments sees the same payments, so a class can compare results across advisor settings.</p>
+          <label class="choice" style="margin-top:6px"><input type="checkbox" name="feedback" id="feedback"> Show the right answer after each payment</label>
+        </fieldset>
+        <div class="btn-row" style="grid-column: 1 / -1">
+          <button type="submit" class="btn primary">Start reviewing</button>
+          <span class="hint">Takes about five minutes for 20 payments.</span>
+        </div>
+      </form>
+    </div>
+
+    <div id="try-case" hidden>
+      <div class="progress">
+        <strong id="case-title" tabindex="-1">Payment 1 of 20</strong>
+        <div class="progress-bar" aria-hidden="true"><span id="progress-fill"></span></div>
+      </div>
+      <div class="case-layout">
+        <div class="card">
+          <h3>Flagged payment</h3>
+          <table class="facts" id="case-facts"><tbody></tbody></table>
+        </div>
+        <div class="card" id="decision-card">
+          <div class="step" id="step-1">
+            <h3><span class="step-num" aria-hidden="true">1</span> Your own call</h3>
+            <div class="decide" role="group" aria-label="Your own call">
+              <button type="button" class="btn" data-initial="fraud" aria-pressed="false">Fraud: block it</button>
+              <button type="button" class="btn" data-initial="genuine" aria-pressed="false">Genuine: approve it</button>
+            </div>
+            <div class="conf" role="group" aria-label="How sure are you?">
+              <button type="button" class="btn" data-conf="0.55" aria-pressed="false"><b>55%</b>Guessing</button>
+              <button type="button" class="btn" data-conf="0.7" aria-pressed="false"><b>70%</b>Leaning</button>
+              <button type="button" class="btn" data-conf="0.85" aria-pressed="false"><b>85%</b>Fairly sure</button>
+              <button type="button" class="btn" data-conf="0.95" aria-pressed="false"><b>95%</b>Certain</button>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button type="button" class="btn primary" id="reveal-btn" disabled>Lock in and see the advisor</button>
+            </div>
+          </div>
+          <div class="step" id="step-2" hidden>
+            <h3><span class="step-num" aria-hidden="true">2</span> The advisor's view</h3>
+            <div class="advisor" id="advisor-box" aria-live="polite"></div>
+          </div>
+          <div class="step" id="step-3" hidden>
+            <h3><span class="step-num" aria-hidden="true">3</span> Your final decision</h3>
+            <p class="hint" id="first-call-note"></p>
+            <div class="decide" role="group" aria-label="Your final decision" id="final-group">
+              <button type="button" class="btn" data-final="fraud" aria-pressed="false">Fraud: block it</button>
+              <button type="button" class="btn" data-final="genuine" aria-pressed="false">Genuine: approve it</button>
+            </div>
+            <div id="feedback-box" class="feedback" hidden aria-live="polite"></div>
+            <div class="btn-row" style="margin-top:12px">
+              <button type="button" class="btn primary" id="next-btn" disabled>Next payment</button>
+            </div>
+          </div>
+          <p class="hint kbd-hint">Keys: <kbd>F</kbd> fraud, <kbd>G</kbd> genuine, <kbd>1</kbd> to <kbd>4</kbd> how sure, <kbd>Enter</kbd> to continue.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="try-debrief" hidden>
+      <div class="card">
+        <h2 id="debrief-title" tabindex="-1">How you used the advice</h2>
+        <p class="lede" id="debrief-lede"></p>
+      </div>
+      <div class="tiles" id="debrief-tiles" style="margin-top:16px"></div>
+      <div class="card">
+        <h3>Your reliance, in two numbers</h3>
+        <div id="reliance-pair" class="tiles" style="grid-template-columns: repeat(2, minmax(0,1fr)); margin:10px 0 0"></div>
+      </div>
+      <div class="card">
+        <div class="chart-head"><h3>The same payments, other strategies</h3></div>
+        <p class="hint">Each bar replays your own first calls and the advisor's answers with a different rule for who wins a disagreement.</p>
+        <div class="chart" id="cf-chart"></div>
+      </div>
+      <div class="card">
+        <h3>Your confidence</h3>
+        <p id="confidence-text"></p>
+      </div>
+      <div class="card">
+        <details class="numbers">
+          <summary>Every payment, one by one</summary>
+          <div class="table-wrap"><table class="data" id="trial-table"></table></div>
+        </details>
+      </div>
+      <div class="card">
+        <div class="btn-row">
+          <button type="button" class="btn primary" id="download-btn">Download results (JSON)</button>
+          <button type="button" class="btn" id="to-model-btn">Open your numbers in the model</button>
+          <button type="button" class="btn" id="again-btn">Start a new session</button>
+        </div>
+        <p class="hint" style="margin-top:10px">The download is a small file you can keep or pass to the Python companion, which can score a whole class at once.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXPLORE THE MODEL -->
+  <section id="panel-model" role="tabpanel" aria-labelledby="tab-model" tabindex="-1" hidden>
+    <div class="model-grid">
+      <form class="card controls" id="model-form" aria-label="Model assumptions">
+        <h3>The two of you</h3>
+        <div id="sliders-a"></div>
+        <h3>Confidence</h3>
+        <div id="sliders-b"></div>
+        <h3>Rule settings</h3>
+        <div id="sliders-c"></div>
+        <button type="button" class="btn" id="reset-model">Reset to defaults</button>
+      </form>
+      <div>
+        <div class="tiles" id="model-tiles"></div>
+        <div class="card">
+          <p class="insight" id="model-insight" aria-live="polite"></p>
+        </div>
+        <div class="card">
+          <div class="chart-head"><h3>Where each rule's errors come from</h3><span class="hint">Shorter bars are better</span></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="background:var(--shared)"></i>Both wrong (no rule can fix)</span>
+            <span><i class="sw" style="background:var(--ai)"></i>Followed a wrong AI</span>
+            <span><i class="sw" style="background:var(--you)"></i>Overrode a right AI</span>
+          </div>
+          <div class="chart" id="error-chart"></div>
+          <details class="numbers">
+            <summary>Show the numbers</summary>
+            <div class="table-wrap"><table class="data" id="error-table"></table></div>
+          </details>
+        </div>
+        <div class="card">
+          <div class="chart-head"><h3>Raising the bar for following the AI</h3><span class="hint">Rule: follow the AI when it sounds at least this sure</span></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="background:var(--team)"></i>Team accuracy</span>
+            <span><i class="sw" style="background:var(--ai)"></i>AI alone</span>
+            <span><i class="sw" style="background:var(--you)"></i>Person alone</span>
+            <span><i class="sw" style="background:var(--shared)"></i>Best possible</span>
+          </div>
+          <div class="chart" id="curve-chart"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="panel-about" role="tabpanel" aria-labelledby="tab-about" tabindex="-1" hidden>
+    <div class="card prose">
+      <h2>Why this matters</h2>
+      <p>The usual answer to "can we trust this AI?" is "a person will check it". Human oversight is written into the EU AI Act, whose Article 14 asks that people overseeing high-risk systems stay aware of the tendency to over-rely on the output, which it calls automation bias. But a reviewer only adds value if they know <em>when</em> to trust the AI. A reviewer who agrees with everything adds nothing, and one who overrules the AI too often makes things worse.</p>
+      <p>That is one quiet reason AI pilots stall. The pilot measures the AI on its own, it looks good, and then the deployed system (a person plus the AI) does no better than before, so the return never shows up.</p>
+      <div class="callout"><strong>The key idea.</strong> When a person and an AI disagree, exactly one of them is right. Any reliance habit that treats every disagreement the same way (always defer, never defer, defer 70% of the time) lands somewhere between the two solo accuracies. Beating both needs a signal that tells you <em>which</em> disagreements to give to the AI, and the only places that signal can come from are confidence: the AI's and your own.</div>
+
+      <h2>The exercise</h2>
+      <p>The "Try it yourself" tab uses a two-step design common in research on AI advice: you decide first, then see the advice, then decide again. That separates your own judgement from the AI's influence. The payments are generated from six cues with fixed odds of fraud, so an ideal reader of the cues would get about 85% right. The advisor's mistakes are chosen at random in advance, so it is right exactly as often as you set.</p>
+      <p>Two measures, from Schemmer and colleagues (2023), summarise how you used the advice:</p>
+      <ul>
+        <li><strong>Switching when it helped</strong> (relative AI reliance): of the payments where you were wrong and the AI was right, how often you switched to the AI.</li>
+        <li><strong>Holding firm when it mattered</strong> (relative self-reliance): of the payments where you were right and the AI was wrong, how often you kept your answer.</li>
+      </ul>
+      <p>Appropriate reliance means both are high. Over-reliance shows up as a low second number, under-reliance as a low first number.</p>
+
+      <h2>The model</h2>
+      <p>The "Explore the model" tab works out the same thing exactly, for any assumptions. It needs:</p>
+      <ul>
+        <li>the person's and the AI's accuracy on their own;</li>
+        <li><strong>error overlap</strong>: how far they tend to get the same cases wrong. Errors they share can never be fixed by any rule;</li>
+        <li>how much each side's <strong>confidence</strong> tells you about whether it is right (in signal detection terms, d', from 0 for "no information" to 4 for "almost perfect"), and whether either side is <strong>overconfident</strong>.</li>
+      </ul>
+      <p>It then compares four rules for settling disagreements: deferring at a fixed rate, following the AI whenever it shows at least a set confidence, going with whoever is surer, and the best possible rule, which weighs both confidences exactly. Every result is calculated in closed form, not simulated, and each rule's errors are split into the three kinds in the chart.</p>
+      <p>One result is worth knowing: if both sides' confidence is honest and their errors are unrelated, "go with whoever is surer" <em>is</em> the best possible rule. Overconfidence on either side, or errors that cluster on the same cases, is what breaks it.</p>
+
+      <h2>Limits</h2>
+      <ul>
+        <li>The model is a simplification. Real confidence is coarser and people's habits drift as they learn whether the AI tends to be right.</li>
+        <li>A session of 20 payments is a small sample. Treat your own numbers as a conversation starter, not a diagnosis.</li>
+        <li>The payment cues and their odds are made up for teaching. They are not a real fraud model.</li>
+      </ul>
+      <h2>Sources</h2>
+      <ul>
+        <li>Schemmer, M., K&uuml;hl, N., Benz, C., Bartos, A. and Satzger, G. (2023) "Appropriate reliance on AI advice: conceptualization and the effect of explanations", <em>Proceedings of the 28th International Conference on Intelligent User Interfaces</em>.</li>
+        <li>Bansal, G. and colleagues (2021) "Does the whole exceed its parts? The effect of AI explanations on complementary team performance", <em>Proceedings of CHI 2021</em>.</li>
+        <li>Regulation (EU) 2024/1689 (the AI Act), Article 14: human oversight.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Reliance lab. Synthetic data only; nothing leaves this page. Works offline.</div>
+</footer>
+
+<script>
+/* MODEL START */
+var RelianceModel = (function () {
+  'use strict';
+
+  var LABELS = ['fraud', 'genuine'];
+
+  var POLICIES = ['fixed', 'threshold', 'surer', 'optimal'];
+  var POLICY_LABELS = {
+    fixed: 'Defer at a fixed rate',
+    threshold: 'Follow the AI when it sounds sure',
+    surer: 'Go with whoever is surer',
+    optimal: 'Best possible rule'
+  };
+
+  var DEFAULTS = {
+    human: 0.75,
+    ai: 0.85,
+    overlap: 0.2,
+    aiSignal: 1.5,
+    humanSignal: 1.0,
+    aiBias: 0,
+    humanBias: 0,
+    threshold: 0.8,
+    deferRate: 0.7
+  };
+
+  var RANGES = {
+    human: [0.5, 0.99],
+    ai: [0.5, 0.99],
+    overlap: [-1, 1],
+    aiSignal: [0, 4],
+    humanSignal: [0, 4],
+    aiBias: [-2, 2],
+    humanBias: [-2, 2],
+    threshold: [0.5, 0.99],
+    deferRate: [0, 1]
+  };
+
+  /* ---------- maths helpers ---------- */
+
+  // Standard normal CDF (Hart 1968, as given by West 2005): double precision.
+  function normCdf(x) {
+    if (x !== x) return NaN;
+    if (x === Infinity) return 1;
+    if (x === -Infinity) return 0;
+    var z = Math.abs(x);
+    var c;
+    if (z > 37) {
+      c = 0;
+    } else {
+      var e = Math.exp(-z * z / 2);
+      if (z < 7.07106781186547) {
+        var n = 3.52624965998911e-2 * z + 0.700383064443688;
+        n = n * z + 6.37396220353165;
+        n = n * z + 33.912866078383;
+        n = n * z + 112.079291497871;
+        n = n * z + 221.213596169931;
+        n = n * z + 220.206867912376;
+        var d = 8.83883476483184e-2 * z + 1.75566716318264;
+        d = d * z + 16.064177579207;
+        d = d * z + 86.7807322029461;
+        d = d * z + 296.564248779674;
+        d = d * z + 637.333633378831;
+        d = d * z + 793.826512519948;
+        d = d * z + 440.413735824752;
+        c = e * n / d;
+      } else {
+        var b = z + 0.65;
+        b = z + 4 / b;
+        b = z + 3 / b;
+        b = z + 2 / b;
+        b = z + 1 / b;
+        c = e / b / 2.506628274631;
+      }
+    }
+    return x > 0 ? 1 - c : c;
+  }
+
+  // Inverse standard normal CDF (Acklam's rational approximation plus one Halley step).
+  function normInv(p) {
+    if (!(p > 0 && p < 1)) {
+      if (p === 0) return -Infinity;
+      if (p === 1) return Infinity;
+      return NaN;
+    }
+    var a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+      1.38357751867269e2, -3.066479806614716e1, 2.506628277459239];
+    var b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+      6.680131188771972e1, -1.328068155288572e1];
+    var c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
+      -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    var d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
+      3.754408661907416];
+    var pLow = 0.02425;
+    var q, r, x;
+    if (p < pLow) {
+      q = Math.sqrt(-2 * Math.log(p));
+      x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    } else if (p <= 1 - pLow) {
+      q = p - 0.5;
+      r = q * q;
+      x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    } else {
+      q = Math.sqrt(-2 * Math.log(1 - p));
+      x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    var err = normCdf(x) - p;
+    var u = err * Math.sqrt(2 * Math.PI) * Math.exp(x * x / 2);
+    return x - u / (1 + x * u / 2);
+  }
+
+  function logit(p) {
+    return Math.log(p / (1 - p));
+  }
+
+  function sigmoid(x) {
+    return 1 / (1 + Math.exp(-x));
+  }
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+  }
+
+  /* ---------- the reliance model ---------- */
+
+  // Merge with defaults, reject non-numbers, clamp to the supported ranges.
+  function normalise(params) {
+    var out = {};
+    var src = params || {};
+    Object.keys(DEFAULTS).forEach(function (key) {
+      var v = src[key] === undefined || src[key] === null ? DEFAULTS[key] : src[key];
+      if (typeof v !== 'number' || !isFinite(v)) {
+        throw new Error(key + ' must be a finite number');
+      }
+      out[key] = clamp(v, RANGES[key][0], RANGES[key][1]);
+    });
+    return out;
+  }
+
+  // Joint probabilities of who is right. p10 = person right, AI wrong; p01 = person wrong, AI right.
+  function jointCells(h, a, rho) {
+    var sd = Math.sqrt(h * (1 - h) * a * (1 - a));
+    var raw = h * a + rho * sd;
+    var lo = Math.max(0, h + a - 1);
+    var hi = Math.min(h, a);
+    var p11 = clamp(raw, lo, hi);
+    var p10 = Math.max(0, h - p11);
+    var p01 = Math.max(0, a - p11);
+    var p00 = Math.max(0, 1 - h - a + p11);
+    return {
+      p11: p11,
+      p10: p10,
+      p01: p01,
+      p00: p00,
+      rho: sd > 0 ? (p11 - h * a) / sd : 0,
+      clamped: Math.abs(p11 - raw) > 1e-12
+    };
+  }
+
+  // Probability of following the AI when the decision variable (aiSignal*s - humanSignal*t) exceeds k.
+  // f1: in cases where the AI is right and the person wrong; f0: AI wrong, person right.
+  function passRates(k, q) {
+    if (q > 0) {
+      return { f1: normCdf((q * q / 2 - k) / q), f0: normCdf((-q * q / 2 - k) / q) };
+    }
+    var f = 0 > k ? 1 : 0;
+    return { f1: f, f0: f };
+  }
+
+  function followRates(p, policy, cells) {
+    var la = logit(p.ai);
+    var lh = logit(p.human);
+    var da = p.aiSignal;
+    var dh = p.humanSignal;
+    var q = Math.sqrt(da * da + dh * dh);
+    if (policy === 'fixed') {
+      return { f1: p.deferRate, f0: p.deferRate };
+    }
+    if (policy === 'threshold') {
+      var lt = logit(p.threshold);
+      if (da > 0) {
+        var sStar = (lt - la - p.aiBias) / da;
+        return { f1: normCdf(da / 2 - sStar), f0: normCdf(-da / 2 - sStar) };
+      }
+      var always = la + p.aiBias >= lt ? 1 : 0;
+      return { f1: always, f0: always };
+    }
+    if (policy === 'surer') {
+      return passRates(lh + p.humanBias - la - p.aiBias, q);
+    }
+    if (policy === 'optimal') {
+      var logOdds;
+      if (cells.p01 <= 0 && cells.p10 <= 0) return { f1: 0, f0: 0 };
+      if (cells.p10 <= 0) logOdds = Infinity;
+      else if (cells.p01 <= 0) logOdds = -Infinity;
+      else logOdds = Math.log(cells.p01 / cells.p10);
+      return passRates(-logOdds, q);
+    }
+    throw new Error('Unknown policy: ' + policy);
+  }
+
+  function evaluate(params, policy) {
+    var p = normalise(params);
+    var cells = jointCells(p.human, p.ai, p.overlap);
+    var f = followRates(p, policy, cells);
+    var over = cells.p10 * f.f0;
+    var under = cells.p01 * (1 - f.f1);
+    var team = cells.p11 + cells.p01 * f.f1 + cells.p10 * (1 - f.f0);
+    var dis = cells.p01 + cells.p10;
+    var best = Math.max(p.human, p.ai);
+    return {
+      policy: policy,
+      label: POLICY_LABELS[policy],
+      team: team,
+      shared: cells.p00,
+      overErrors: over,
+      underErrors: under,
+      gain: team - best,
+      gainOverHuman: team - p.human,
+      gainOverAI: team - p.ai,
+      overRelianceRate: f.f0,
+      underRelianceRate: 1 - f.f1,
+      rair: f.f1,
+      rsr: 1 - f.f0,
+      followRate: dis > 0 ? (cells.p01 * f.f1 + cells.p10 * f.f0) / dis : 0,
+      disagreeRate: dis
+    };
+  }
+
+  function analyse(params) {
+    var p = normalise(params);
+    var cells = jointCells(p.human, p.ai, p.overlap);
+    var policies = {};
+    POLICIES.forEach(function (key) {
+      policies[key] = evaluate(p, key);
+    });
+    return {
+      params: p,
+      cells: cells,
+      best: Math.max(p.human, p.ai),
+      ceiling: policies.optimal.team,
+      sharedMistakeShare: (1 - p.ai) > 0 ? cells.p00 / (1 - p.ai) : 0,
+      policies: policies
+    };
+  }
+
+  function thresholdCurve(params, steps) {
+    var n = steps || 50;
+    var p = normalise(params);
+    var out = [];
+    for (var i = 0; i <= n; i++) {
+      var t = RANGES.threshold[0] + (RANGES.threshold[1] - RANGES.threshold[0]) * i / n;
+      var r = evaluate(Object.assign({}, p, { threshold: t }), 'threshold');
+      out.push({ threshold: t, team: r.team, over: r.overRelianceRate, under: r.underRelianceRate });
+    }
+    return out;
+  }
+
+  /* ---------- synthetic payment cases for the hands-on exercise ---------- */
+
+  function hashCode(str) {
+    var h = 0x811c9dc5;
+    var s = String(str);
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function mulberry32(seed) {
+    var t = seed >>> 0;
+    return function () {
+      t = (t + 0x6d2b79f5) >>> 0;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function gaussian(rand) {
+    var u = 0;
+    while (u === 0) u = rand();
+    var v = rand();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function pick(rand, weights) {
+    var r = rand();
+    var acc = 0;
+    for (var i = 0; i < weights.length; i++) {
+      acc += weights[i];
+      if (r < acc) return i;
+    }
+    return weights.length - 1;
+  }
+
+  function shuffle(rand, arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(rand() * (i + 1));
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  var FEATURES = [
+    { key: 'amount', label: 'Amount against usual spend',
+      levels: ['In line with usual', 'About 3 times usual', '10 times usual or more'],
+      genuine: [0.65, 0.25, 0.10], fraud: [0.25, 0.35, 0.40] },
+    { key: 'location', label: 'Where',
+      levels: ['Customer’s home town', 'Elsewhere in the UK', 'Abroad'],
+      genuine: [0.60, 0.28, 0.12], fraud: [0.30, 0.25, 0.45] },
+    { key: 'device', label: 'Device',
+      levels: ['Customer’s usual phone', 'A device never seen before'],
+      genuine: [0.80, 0.20], fraud: [0.40, 0.60] },
+    { key: 'time', label: 'Time',
+      levels: ['Daytime', 'Late at night'],
+      genuine: [0.85, 0.15], fraud: [0.55, 0.45] },
+    { key: 'merchant', label: 'Merchant type',
+      levels: ['Supermarket', 'Travel booking', 'Electronics shop', 'Gift card seller', 'Streaming subscription'],
+      genuine: [0.35, 0.15, 0.20, 0.05, 0.25], fraud: [0.12, 0.15, 0.30, 0.30, 0.13] },
+    { key: 'attempts', label: 'Payment attempts in the last hour',
+      levels: ['1', '2 or 3', '4 or more'],
+      genuine: [0.85, 0.12, 0.03], fraud: [0.50, 0.32, 0.18] }
+  ];
+
+  var AI_STYLES = ['calibrated', 'confident', 'hidden'];
+
+  function idealFraudProbability(levels) {
+    var lo = 0;
+    FEATURES.forEach(function (f, i) {
+      lo += Math.log(f.fraud[levels[i]] / f.genuine[levels[i]]);
+    });
+    return sigmoid(lo);
+  }
+
+  function pad2(n) {
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  function generateCases(options) {
+    var o = options || {};
+    var n = Math.round(clamp(o.n || 20, 4, 60));
+    var aiAccuracy = clamp(typeof o.aiAccuracy === 'number' ? o.aiAccuracy : 0.8, 0.5, 0.99);
+    var aiSignal = clamp(typeof o.aiSignal === 'number' ? o.aiSignal : 1.5, 0, 4);
+    var style = AI_STYLES.indexOf(o.aiStyle) >= 0 ? o.aiStyle : 'calibrated';
+    var rand = mulberry32(hashCode(String(o.code || 'reliance')));
+
+    var truths = [];
+    for (var i = 0; i < n; i++) truths.push(i < Math.floor(n / 2) ? 'fraud' : 'genuine');
+    shuffle(rand, truths);
+
+    var nRight = Math.round(n * aiAccuracy);
+    var order = shuffle(rand, truths.map(function (_, k) { return k; }));
+    var aiRight = truths.map(function () { return false; });
+    order.slice(0, nRight).forEach(function (k) { aiRight[k] = true; });
+
+    return truths.map(function (truth, k) {
+      var levels = FEATURES.map(function (f) {
+        return pick(rand, truth === 'fraud' ? f.fraud : f.genuine);
+      });
+      var usual = 18 + Math.round(rand() * 122);
+      var mult = [0.5 + rand() * 1.1, 2.5 + rand() * 2, 9 + rand() * 16][levels[0]];
+      var amount = Math.round(usual * mult * 100) / 100;
+      var hour = levels[3] === 0 ? 7 + Math.floor(rand() * 16) : Math.floor(rand() * 6);
+      var minute = Math.floor(rand() * 60);
+      var correct = aiRight[k];
+      var signal = gaussian(rand) + (correct ? aiSignal / 2 : -aiSignal / 2);
+      var calibrated = sigmoid(logit(aiAccuracy) + aiSignal * signal);
+      var shown = rand();
+      var confidence = null;
+      if (style === 'calibrated') confidence = Math.round(Math.max(0.5, calibrated) * 100) / 100;
+      if (style === 'confident') confidence = Math.round((0.9 + 0.09 * shown) * 100) / 100;
+      return {
+        id: k + 1,
+        truth: truth,
+        levels: levels,
+        details: {
+          amount: amount,
+          usual: usual,
+          time: pad2(hour) + ':' + pad2(minute)
+        },
+        idealFraudProbability: idealFraudProbability(levels),
+        ai: correct ? truth : (truth === 'fraud' ? 'genuine' : 'fraud'),
+        aiCorrect: correct,
+        aiConfidence: confidence
+      };
+    });
+  }
+
+  /* ---------- scoring a session ---------- */
+
+  function checkTrial(t, i) {
+    ['truth', 'initial', 'ai', 'final'].forEach(function (key) {
+      if (LABELS.indexOf(t[key]) < 0) {
+        throw new Error('Trial ' + (i + 1) + ': ' + key + ' must be "fraud" or "genuine"');
+      }
+    });
+    if (typeof t.initialConfidence !== 'number' || !(t.initialConfidence >= 0.5 && t.initialConfidence <= 1)) {
+      throw new Error('Trial ' + (i + 1) + ': initialConfidence must be between 0.5 and 1');
+    }
+    if (t.aiConfidence !== null && t.aiConfidence !== undefined &&
+        (typeof t.aiConfidence !== 'number' || !(t.aiConfidence >= 0 && t.aiConfidence <= 1))) {
+      throw new Error('Trial ' + (i + 1) + ': aiConfidence must be between 0 and 1, or null');
+    }
+  }
+
+  // Area under the ROC curve: how well a score separates correct (true) from incorrect (false).
+  function auroc(scores, outcomes) {
+    var pos = [];
+    var neg = [];
+    scores.forEach(function (s, i) {
+      (outcomes[i] ? pos : neg).push(s);
+    });
+    if (!pos.length || !neg.length) return null;
+    var wins = 0;
+    pos.forEach(function (a) {
+      neg.forEach(function (b) {
+        wins += a > b ? 1 : (a === b ? 0.5 : 0);
+      });
+    });
+    return wins / (pos.length * neg.length);
+  }
+
+  var OUTCOMES = {
+    agreedRight: 'Agreed, both right',
+    sharedMiss: 'Agreed, both wrong',
+    goodSwitch: 'Switched to a right AI',
+    underRelied: 'Overrode a right AI',
+    heldFirm: 'Held firm against a wrong AI',
+    overRelied: 'Followed a wrong AI',
+    changedAfterAgreeing: 'Changed after agreeing'
+  };
+
+  function classifyTrial(t) {
+    if (t.initial === t.ai) {
+      if (t.final !== t.initial) return 'changedAfterAgreeing';
+      return t.initial === t.truth ? 'agreedRight' : 'sharedMiss';
+    }
+    if (t.ai === t.truth) return t.final === t.ai ? 'goodSwitch' : 'underRelied';
+    return t.final === t.initial ? 'heldFirm' : 'overRelied';
+  }
+
+  function ratio(num, den) {
+    return den > 0 ? num / den : null;
+  }
+
+  function scoreSession(trials) {
+    if (!Array.isArray(trials) || trials.length === 0) {
+      throw new Error('A session needs at least one trial');
+    }
+    trials.forEach(checkTrial);
+    var n = trials.length;
+    var count = function (fn) {
+      return trials.filter(fn).length;
+    };
+    var initialRight = count(function (t) { return t.initial === t.truth; });
+    var aiRightN = count(function (t) { return t.ai === t.truth; });
+    var finalRight = count(function (t) { return t.final === t.truth; });
+    var agree = count(function (t) { return t.initial === t.ai; });
+    var switched = count(function (t) { return t.final !== t.initial; });
+    var aiOnlyRight = trials.filter(function (t) { return t.initial !== t.truth && t.ai === t.truth; });
+    var youOnlyRight = trials.filter(function (t) { return t.initial === t.truth && t.ai !== t.truth; });
+    var switchedToAI = aiOnlyRight.filter(function (t) { return t.final === t.ai; }).length;
+    var keptOwn = youOnlyRight.filter(function (t) { return t.final === t.initial; }).length;
+    var meanConfidence = trials.reduce(function (s, t) { return s + t.initialConfidence; }, 0) / n;
+    var shown = trials.every(function (t) { return typeof t.aiConfidence === 'number'; });
+    var rair = ratio(switchedToAI, aiOnlyRight.length);
+    var rsr = ratio(keptOwn, youOnlyRight.length);
+    var initialAccuracy = initialRight / n;
+    var aiAccuracy = aiRightN / n;
+    var outcomes = {};
+    Object.keys(OUTCOMES).forEach(function (key) { outcomes[key] = 0; });
+    trials.forEach(function (t) { outcomes[classifyTrial(t)] += 1; });
+    var finalAccuracy = finalRight / n;
+    return {
+      n: n,
+      initialAccuracy: initialAccuracy,
+      aiAccuracy: aiAccuracy,
+      finalAccuracy: finalAccuracy,
+      agreeRate: agree / n,
+      switchRate: switched / n,
+      disagreements: n - agree,
+      aiOnlyRight: aiOnlyRight.length,
+      switchedToAI: switchedToAI,
+      youOnlyRight: youOnlyRight.length,
+      keptOwn: keptOwn,
+      rair: rair,
+      rsr: rsr,
+      overRelianceRate: rsr === null ? null : 1 - rsr,
+      underRelianceRate: rair === null ? null : 1 - rair,
+      helpfulSwitches: count(function (t) { return t.initial !== t.truth && t.final === t.truth; }),
+      harmfulSwitches: count(function (t) { return t.initial === t.truth && t.final !== t.truth; }),
+      meanConfidence: meanConfidence,
+      overconfidence: meanConfidence - initialAccuracy,
+      confidenceAuroc: auroc(trials.map(function (t) { return t.initialConfidence; }),
+        trials.map(function (t) { return t.initial === t.truth; })),
+      aiConfidenceAuroc: shown ? auroc(trials.map(function (t) { return t.aiConfidence; }),
+        trials.map(function (t) { return t.ai === t.truth; })) : null,
+      gainOverAI: finalAccuracy - aiAccuracy,
+      gainOverYou: finalAccuracy - initialAccuracy,
+      complementarity: finalAccuracy - Math.max(initialAccuracy, aiAccuracy),
+      outcomes: outcomes
+    };
+  }
+
+  // What simple strategies would have scored on exactly the same cases.
+  function counterfactuals(trials, threshold) {
+    trials.forEach(checkTrial);
+    var t0 = typeof threshold === 'number' ? threshold : 0.8;
+    var shown = trials.every(function (t) { return typeof t.aiConfidence === 'number'; });
+    var n = trials.length;
+    function acc(choose) {
+      return trials.filter(function (t) { return choose(t) === t.truth; }).length / n;
+    }
+    return [
+      { key: 'you', label: 'Your first call, ignoring the AI', available: true,
+        accuracy: acc(function (t) { return t.initial; }) },
+      { key: 'ai', label: 'Always take the AI’s answer', available: true,
+        accuracy: acc(function (t) { return t.ai; }) },
+      { key: 'threshold', label: 'Take the AI’s answer when it shows ' + Math.round(t0 * 100) + '% or more', available: shown,
+        accuracy: shown ? acc(function (t) { return t.aiConfidence >= t0 ? t.ai : t.initial; }) : null },
+      { key: 'surer', label: 'Go with whoever is surer', available: shown,
+        accuracy: shown ? acc(function (t) { return t.aiConfidence > t.initialConfidence ? t.ai : t.initial; }) : null },
+      { key: 'final', label: 'What you actually did', available: true,
+        accuracy: acc(function (t) { return t.final; }) }
+    ];
+  }
+
+  function dPrimeFromAuroc(auc) {
+    if (auc === null || auc === undefined) return null;
+    return Math.SQRT2 * normInv(clamp(auc, 0.01, 0.99));
+  }
+
+  // Rough model settings implied by one session, so a person can see "their" numbers in the model.
+  function estimateParams(trials) {
+    var s = scoreSession(trials);
+    var n = trials.length;
+    var mh = s.initialAccuracy;
+    var ma = s.aiAccuracy;
+    var both = trials.filter(function (t) { return t.initial === t.truth && t.ai === t.truth; }).length / n;
+    var den = Math.sqrt(mh * (1 - mh) * ma * (1 - ma));
+    var shown = trials.every(function (t) { return typeof t.aiConfidence === 'number'; });
+    var meanAi = shown ? trials.reduce(function (acc, t) { return acc + t.aiConfidence; }, 0) / n : null;
+    var disagreements = trials.filter(function (t) { return t.initial !== t.ai; });
+    var followed = disagreements.filter(function (t) { return t.final === t.ai; }).length;
+    var capped = function (v) { return clamp(v, 0.5, 0.99); };
+    return normalise({
+      human: capped(mh),
+      ai: capped(ma),
+      overlap: den > 0 ? clamp((both - mh * ma) / den, -1, 1) : 0,
+      humanSignal: s.confidenceAuroc === null ? DEFAULTS.humanSignal : clamp(dPrimeFromAuroc(s.confidenceAuroc), 0, 4),
+      aiSignal: s.aiConfidenceAuroc === null ? 0 : clamp(dPrimeFromAuroc(s.aiConfidenceAuroc), 0, 4),
+      humanBias: clamp(logit(capped(s.meanConfidence)) - logit(capped(mh)), -2, 2),
+      aiBias: shown ? clamp(logit(capped(meanAi)) - logit(capped(ma)), -2, 2) : 0,
+      threshold: DEFAULTS.threshold,
+      deferRate: disagreements.length ? followed / disagreements.length : DEFAULTS.deferRate
+    });
+  }
+
+  return {
+    LABELS: LABELS,
+    POLICIES: POLICIES,
+    POLICY_LABELS: POLICY_LABELS,
+    DEFAULTS: DEFAULTS,
+    RANGES: RANGES,
+    FEATURES: FEATURES,
+    AI_STYLES: AI_STYLES,
+    OUTCOMES: OUTCOMES,
+    normCdf: normCdf,
+    normInv: normInv,
+    logit: logit,
+    sigmoid: sigmoid,
+    normalise: normalise,
+    jointCells: jointCells,
+    evaluate: evaluate,
+    analyse: analyse,
+    thresholdCurve: thresholdCurve,
+    hashCode: hashCode,
+    mulberry32: mulberry32,
+    idealFraudProbability: idealFraudProbability,
+    generateCases: generateCases,
+    auroc: auroc,
+    classifyTrial: classifyTrial,
+    scoreSession: scoreSession,
+    counterfactuals: counterfactuals,
+    dPrimeFromAuroc: dPrimeFromAuroc,
+    estimateParams: estimateParams
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = RelianceModel;
+}
+/* MODEL END */
+</script>
+<script>
+(function () {
+  'use strict';
+  var M = RelianceModel;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function el(tag, attrs, text) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function svgEl(tag, attrs, parent) {
+    var node = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function svgText(parent, x, y, str, attrs) {
+    var t = svgEl('text', Object.assign({ x: x, y: y }, attrs || {}), parent);
+    t.textContent = str;
+    return t;
+  }
+
+  function pct(v, d) {
+    if (v === null || v === undefined) return 'n/a';
+    return (v * 100).toFixed(d === undefined ? 0 : d) + '%';
+  }
+
+  function pts(v) {
+    if (v === null || v === undefined) return 'n/a';
+    var r = Math.round(v * 1000) / 10;
+    if (r === 0) return '0.0 pts';
+    return (r > 0 ? '+' : '−') + Math.abs(r).toFixed(1) + ' pts';
+  }
+
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  var LABEL_WORD = { fraud: 'Fraud', genuine: 'Genuine' };
+
+  /* ---------- tabs ---------- */
+
+  var tabs = $$('[role="tab"]');
+  function selectTab(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (focus) tab.focus();
+    if (tab.id === 'tab-model') renderModel();
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { selectTab(tab, false); });
+    tab.addEventListener('keydown', function (e) {
+      var next = null;
+      if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+      if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (e.key === 'Home') next = tabs[0];
+      if (e.key === 'End') next = tabs[tabs.length - 1];
+      if (next) { e.preventDefault(); selectTab(next, true); }
+    });
+  });
+
+  /* ---------- tooltips ---------- */
+
+  function makeTooltip(box) {
+    var tip = el('div', { class: 'tooltip', 'aria-hidden': 'true' });
+    box.appendChild(tip);
+    return {
+      show: function (html, x, y) {
+        tip.innerHTML = html;
+        tip.classList.add('on');
+        var w = tip.offsetWidth;
+        var left = clamp(x + 14, 0, Math.max(0, box.clientWidth - w));
+        tip.style.left = left + 'px';
+        tip.style.top = Math.max(0, y - tip.offsetHeight - 10) + 'px';
+      },
+      hide: function () { tip.classList.remove('on'); }
+    };
+  }
+
+  function localPoint(e, box) {
+    var r = box.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  /* ---------- explore the model ---------- */
+
+  var modelParams = Object.assign({}, M.DEFAULTS);
+  var modelSource = null;
+
+  function signalWord(v) {
+    if (v === 0) return 'none';
+    if (v < 0.75) return 'weak';
+    if (v < 1.5) return 'some';
+    if (v < 2.5) return 'useful';
+    return 'strong';
+  }
+
+  function biasExample(b) {
+    if (Math.abs(b) < 0.05) return 'Honest: a shown 70% is right 70% of the time.';
+    var shown = M.sigmoid(M.logit(0.7) + b);
+    return (b > 0 ? 'Overconfident' : 'Underconfident') + ': a true 70% is shown as ' + pct(shown) + '.';
+  }
+
+  var SLIDERS = [
+    { key: 'human', group: 'a', label: 'Person’s accuracy alone', min: 0.5, max: 0.99, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'How often the person is right without any advice.'; } },
+    { key: 'ai', group: 'a', label: 'AI’s accuracy alone', min: 0.5, max: 0.99, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'How often the AI is right on its own.'; } },
+    { key: 'overlap', group: 'a', label: 'Error overlap', min: -0.3, max: 0.9, step: 0.05,
+      fmt: function (v) { return v.toFixed(2); },
+      hint: function (a) {
+        return 'The person also gets ' + pct(a.sharedMistakeShare) + ' of the AI’s mistakes wrong.' +
+          (a.cells.clamped ? ' (Capped at what these accuracies allow.)' : '');
+      } },
+    { key: 'aiSignal', group: 'b', label: 'How much the AI’s confidence tells you', min: 0, max: 4, step: 0.1,
+      fmt: function (v) { return v.toFixed(1) + ' (' + signalWord(v) + ')'; },
+      hint: function () { return 'Does it sound surer when it is right? 0 means its confidence is no guide at all.'; } },
+    { key: 'humanSignal', group: 'b', label: 'How much the person’s confidence tells you', min: 0, max: 4, step: 0.1,
+      fmt: function (v) { return v.toFixed(1) + ' (' + signalWord(v) + ')'; },
+      hint: function () { return 'Does the person feel surer when they are right?'; } },
+    { key: 'aiBias', group: 'b', label: 'AI overconfidence', min: -2, max: 2, step: 0.1,
+      fmt: function (v) { return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(1); },
+      hint: function (a) { return biasExample(a.params.aiBias); } },
+    { key: 'humanBias', group: 'b', label: 'Person’s overconfidence', min: -2, max: 2, step: 0.1,
+      fmt: function (v) { return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(1); },
+      hint: function (a) { return biasExample(a.params.humanBias); } },
+    { key: 'threshold', group: 'c', label: 'Confidence bar for following the AI', min: 0.5, max: 0.99, step: 0.01,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'Used by "follow the AI when it sounds sure".'; } },
+    { key: 'deferRate', group: 'c', label: 'Fixed deferral rate', min: 0, max: 1, step: 0.05,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'Used by "defer at a fixed rate": the share of disagreements handed to the AI.'; } }
+  ];
+
+  function buildSliders() {
+    SLIDERS.forEach(function (s) {
+      var wrap = el('div', { class: 'slider' });
+      var label = el('label', { for: 's-' + s.key });
+      label.appendChild(el('span', {}, s.label));
+      label.appendChild(el('output', { id: 'o-' + s.key, for: 's-' + s.key }));
+      var input = el('input', {
+        type: 'range', id: 's-' + s.key, min: s.min, max: s.max, step: s.step,
+        'aria-describedby': 'h-' + s.key
+      });
+      input.value = modelParams[s.key];
+      input.addEventListener('input', function () {
+        modelParams[s.key] = parseFloat(input.value);
+        renderModel();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(el('p', { class: 'hint', id: 'h-' + s.key }));
+      $('#sliders-' + s.group).appendChild(wrap);
+    });
+  }
+
+  function syncSliders(a) {
+    SLIDERS.forEach(function (s) {
+      var input = $('#s-' + s.key);
+      var v = modelParams[s.key];
+      if (parseFloat(input.value) !== v) input.value = v;
+      var text = s.fmt(v);
+      $('#o-' + s.key).textContent = text;
+      input.setAttribute('aria-valuetext', text);
+      $('#h-' + s.key).textContent = s.hint(a);
+    });
+  }
+
+  function tile(key, label, value, sub, cls) {
+    var t = el('div', { class: 'tile' });
+    var k = el('div', { class: 'k' });
+    if (key) k.appendChild(el('span', { class: 'dot ' + key, 'aria-hidden': 'true' }));
+    k.appendChild(document.createTextNode(label));
+    t.appendChild(k);
+    t.appendChild(el('div', { class: 'v' + (cls ? ' ' + cls : '') }, value));
+    if (sub) t.appendChild(el('div', { class: 's' }, sub));
+    return t;
+  }
+
+  function ruleLabel(r, p) {
+    if (r.policy === 'fixed') return r.label + ' (' + pct(p.deferRate) + ')';
+    if (r.policy === 'threshold') return r.label + ' (' + pct(p.threshold) + '+)';
+    return r.label;
+  }
+
+  function insightText(a) {
+    var p = a.params;
+    var winner = p.ai >= p.human ? 'the AI' : 'the person';
+    var lift = a.ceiling - a.best;
+    var surer = a.policies.surer;
+    var fixed = a.policies.fixed;
+    var parts = [];
+    if (lift < 0.005) {
+      parts.push('Here the pair can barely beat ' + winner + ' alone: even the best possible rule adds only ' +
+        pts(lift) + '.');
+      if (p.aiSignal < 0.5 && p.humanSignal < 0.5) {
+        parts.push('Neither side’s confidence says much about when it is right, so there is nothing to tell good disagreements from bad ones.');
+      } else if (Math.abs(p.ai - p.human) > 0.15) {
+        parts.push('The accuracy gap is so wide that the weaker side is rarely worth listening to.');
+      }
+    } else {
+      parts.push('The best possible rule reaches ' + pct(a.ceiling, 1) + ', ' + pts(lift) + ' on ' + winner + ' alone.');
+      parts.push('"Go with whoever is surer" gets ' + pct(surer.team, 1) + (Math.abs(surer.team - a.ceiling) < 0.002 ?
+        ', practically the same.' : ', ' + (Math.round((a.ceiling - surer.team) * 1000) / 10).toFixed(1) + ' pts short of that.'));
+    }
+    parts.push('Deferring at a fixed rate can never beat the better of the two: at ' + pct(p.deferRate) +
+      ' it scores ' + pct(fixed.team, 1) + '.');
+    return parts.join(' ');
+  }
+
+  function renderModel() {
+    var panel = $('#panel-model');
+    var a = M.analyse(modelParams);
+    syncSliders(a);
+    var tiles = $('#model-tiles');
+    tiles.innerHTML = '';
+    tiles.appendChild(tile('you', 'Person alone', pct(a.params.human, 1)));
+    tiles.appendChild(tile('ai', 'AI alone', pct(a.params.ai, 1)));
+    tiles.appendChild(tile('team', 'Best possible team', pct(a.ceiling, 1), pts(a.ceiling - a.best) + ' on the better one'));
+    tiles.appendChild(tile('shared', 'Both wrong', pct(a.cells.p00, 1), 'No rule can fix these'));
+    $('#model-insight').textContent = (modelSource ? modelSource + ' ' : '') + insightText(a);
+    if (panel.hidden) return;
+    drawErrorChart(a);
+    drawErrorTable(a);
+    drawCurve(a);
+  }
+
+  function niceStep(range, maxTicks) {
+    var steps = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25];
+    for (var i = 0; i < steps.length; i++) {
+      if (range / steps[i] <= maxTicks) return steps[i];
+    }
+    return 0.5;
+  }
+
+  function drawErrorChart(a) {
+    var box = $('#error-chart');
+    box.innerHTML = '';
+    var p = a.params;
+    var W = Math.max(280, box.clientWidth || 600);
+    var narrow = W < 560;
+    var rows = M.POLICIES.map(function (k) { return a.policies[k]; });
+    var labelW = narrow ? 0 : 270;
+    var rightPad = 86;
+    var top = 40;
+    var rowH = narrow ? 54 : 38;
+    var barH = 18;
+    var H = top + rows.length * rowH + 22;
+    var maxErr = Math.max(1 - p.human, 1 - p.ai);
+    rows.forEach(function (r) { maxErr = Math.max(maxErr, 1 - r.team); });
+    var step = niceStep(maxErr * 1.05, 6);
+    var xMax = Math.max(step, Math.ceil(maxErr * 1.05 / step) * step);
+    var x0 = labelW;
+    var x1 = W - rightPad;
+    var sx = function (v) { return x0 + (x1 - x0) * v / xMax; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Error rates for each reliance rule. Full numbers are in the table below.' });
+    for (var v = 0; v <= xMax + 1e-9; v += step) {
+      svgEl('line', { x1: sx(v), x2: sx(v), y1: top - 6, y2: H - 20, class: v === 0 ? 'axis' : 'grid' }, s);
+      svgText(s, sx(v), H - 4, pct(v), { 'text-anchor': 'middle' });
+    }
+    var refs = [
+      { v: 1 - p.human, name: 'Person alone', color: 'var(--you)' },
+      { v: 1 - p.ai, name: 'AI alone', color: 'var(--ai)' }
+    ].sort(function (m, n) { return m.v - n.v; });
+    refs.forEach(function (r, i) {
+      var x = sx(r.v);
+      svgEl('line', { x1: x, x2: x, y1: top - 6, y2: H - 20, stroke: r.color, 'stroke-width': 2, 'stroke-dasharray': '5 4' }, s);
+      var close = i === 1 && Math.abs(sx(refs[1].v) - sx(refs[0].v)) < 110;
+      var anchor = x > W - 120 ? 'end' : (x < 60 ? 'start' : 'middle');
+      svgText(s, x, close ? 26 : 12, r.name + ' ' + pct(r.v, 0), { 'text-anchor': anchor, style: 'font-weight:600' });
+    });
+    var tip = makeTooltip(box);
+    rows.forEach(function (r, i) {
+      var y = top + i * rowH + (narrow ? 18 : (rowH - barH) / 2);
+      var g = svgEl('g', {}, s);
+      if (narrow) {
+        svgText(g, 0, y - 6, ruleLabel(r, p), { style: 'font-weight:600;fill:var(--ink)' });
+      } else {
+        svgText(g, 0, y + barH / 2 + 4, ruleLabel(r, p), { style: 'font-weight:600;fill:var(--ink)' });
+      }
+      var segs = [
+        { v: r.shared, c: 'var(--shared)' },
+        { v: r.overErrors, c: 'var(--ai)' },
+        { v: r.underErrors, c: 'var(--you)' }
+      ];
+      var x = sx(0);
+      segs.forEach(function (sg) {
+        var w = sx(sg.v) - sx(0);
+        if (w <= 0.5) return;
+        svgEl('rect', { x: x, y: y, width: Math.max(0.5, w - 2), height: barH, rx: 3, fill: sg.c }, g);
+        x += w;
+      });
+      svgText(g, Math.min(x + 6, W - rightPad + 6), y + barH / 2 + 4, pct(r.team, 1) + ' right', { style: 'fill:var(--ink)' });
+      var hit = svgEl('rect', { x: 0, y: y - (narrow ? 18 : 8), width: W, height: barH + (narrow ? 26 : 16), fill: 'transparent' }, g);
+      var html = '<strong>' + ruleLabel(r, p) + '</strong><br>' + pct(r.team, 1) + ' right (' + pts(r.gain) + ' on the better solo)<br>' +
+        'Both wrong: ' + pct(r.shared, 1) + '<br>Followed a wrong AI: ' + pct(r.overErrors, 1) +
+        '<br>Overrode a right AI: ' + pct(r.underErrors, 1);
+      hit.addEventListener('mousemove', function (e) { var pt = localPoint(e, box); tip.show(html, pt.x, pt.y); });
+      hit.addEventListener('mouseleave', tip.hide);
+    });
+    box.insertBefore(s, box.firstChild);
+  }
+
+  function drawErrorTable(a) {
+    var t = $('#error-table');
+    t.innerHTML = '';
+    var head = el('thead');
+    var hr = el('tr');
+    ['Rule', 'Right', 'On better solo', 'Both wrong', 'Followed wrong AI', 'Overrode right AI', 'Switching when it helped', 'Holding firm when it mattered']
+      .forEach(function (h) { hr.appendChild(el('th', { scope: 'col' }, h)); });
+    head.appendChild(hr);
+    t.appendChild(head);
+    var body = el('tbody');
+    M.POLICIES.forEach(function (k) {
+      var r = a.policies[k];
+      var tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, ruleLabel(r, a.params)));
+      [pct(r.team, 1), pts(r.gain), pct(r.shared, 1), pct(r.overErrors, 1), pct(r.underErrors, 1), pct(r.rair), pct(r.rsr)]
+        .forEach(function (v) { tr.appendChild(el('td', {}, v)); });
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+  }
+
+  function drawCurve(a) {
+    var box = $('#curve-chart');
+    box.innerHTML = '';
+    var p = a.params;
+    var data = M.thresholdCurve(p, 98);
+    var W = Math.max(280, box.clientWidth || 600);
+    var H = 250;
+    var m = { l: 46, r: 14, t: 12, b: 34 };
+    var vals = data.map(function (d) { return d.team; }).concat([p.human, p.ai, a.ceiling]);
+    var lo = Math.min.apply(null, vals);
+    var hi = Math.max.apply(null, vals);
+    var step = niceStep(Math.max(0.02, hi - lo) * 1.2, 6);
+    var y0 = Math.max(0, Math.floor((lo - step * 0.3) / step) * step);
+    var y1 = Math.min(1, Math.ceil((hi + step * 0.3) / step) * step);
+    var sx = function (t) { return m.l + (W - m.l - m.r) * (t - 0.5) / 0.49; };
+    var sy = function (v) { return H - m.b - (H - m.t - m.b) * (v - y0) / (y1 - y0); };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Team accuracy as the confidence bar for following the AI rises from 50% to 99%.' });
+    for (var v = y0; v <= y1 + 1e-9; v += step) {
+      svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: 'grid' }, s);
+      svgText(s, m.l - 6, sy(v) + 4, pct(v), { 'text-anchor': 'end' });
+    }
+    [0.5, 0.6, 0.7, 0.8, 0.9].forEach(function (t) {
+      svgText(s, sx(t), H - m.b + 18, pct(t), { 'text-anchor': 'middle' });
+    });
+    svgEl('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: 'axis' }, s);
+    [{ v: p.ai, c: 'var(--ai)', d: '6 4' }, { v: p.human, c: 'var(--you)', d: '6 4' }, { v: a.ceiling, c: 'var(--shared)', d: '2 4' }]
+      .forEach(function (r) {
+        svgEl('line', { x1: m.l, x2: W - m.r, y1: sy(r.v), y2: sy(r.v), stroke: r.c, 'stroke-width': 2, 'stroke-dasharray': r.d }, s);
+      });
+    var path = data.map(function (d, i) { return (i ? 'L' : 'M') + sx(d.threshold).toFixed(1) + ' ' + sy(d.team).toFixed(1); }).join(' ');
+    svgEl('path', { d: path, fill: 'none', stroke: 'var(--team)', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, s);
+    var cur = M.evaluate(p, 'threshold');
+    svgEl('circle', { cx: sx(p.threshold), cy: sy(cur.team), r: 6, fill: 'var(--team)', stroke: 'var(--surface)', 'stroke-width': 2 }, s);
+    var guide = svgEl('line', { y1: m.t, y2: H - m.b, stroke: 'var(--line-strong)', 'stroke-width': 1, visibility: 'hidden' }, s);
+    var dot = svgEl('circle', { r: 4, fill: 'var(--team)', visibility: 'hidden' }, s);
+    var hit = svgEl('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent', style: 'cursor:crosshair' }, s);
+    var tip = makeTooltip(box);
+    function nearest(e) {
+      var pt = localPoint(e, box);
+      var scale = W / box.getBoundingClientRect().width;
+      var t = 0.5 + 0.49 * (pt.x * scale - m.l) / (W - m.l - m.r);
+      var idx = Math.round(clamp((t - 0.5) / 0.49, 0, 1) * (data.length - 1));
+      return { d: data[idx], pt: pt };
+    }
+    hit.addEventListener('mousemove', function (e) {
+      var n = nearest(e);
+      var d = n.d;
+      guide.setAttribute('x1', sx(d.threshold));
+      guide.setAttribute('x2', sx(d.threshold));
+      guide.setAttribute('visibility', 'visible');
+      dot.setAttribute('cx', sx(d.threshold));
+      dot.setAttribute('cy', sy(d.team));
+      dot.setAttribute('visibility', 'visible');
+      tip.show('<strong>Bar at ' + pct(d.threshold) + '</strong><br>Team right: ' + pct(d.team, 1) +
+        '<br>Follows a wrong AI: ' + pct(d.over) + ' of the time<br>Overrides a right AI: ' + pct(d.under) +
+        '<br><em>Click to use this bar</em>', n.pt.x, n.pt.y);
+    });
+    hit.addEventListener('mouseleave', function () {
+      guide.setAttribute('visibility', 'hidden');
+      dot.setAttribute('visibility', 'hidden');
+      tip.hide();
+    });
+    hit.addEventListener('click', function (e) {
+      modelParams.threshold = Math.round(nearest(e).d.threshold * 100) / 100;
+      renderModel();
+    });
+    box.insertBefore(s, box.firstChild);
+  }
+
+  $('#reset-model').addEventListener('click', function () {
+    modelParams = Object.assign({}, M.DEFAULTS);
+    modelSource = null;
+    renderModel();
+  });
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (!$('#panel-model').hidden) renderModel();
+      if (!$('#try-debrief').hidden && session) drawCounterfactuals();
+    }, 120);
+  });
+
+  /* ---------- try it yourself ---------- */
+
+  var session = null;
+
+  function randomCode() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var out = '';
+    var buf = new Uint32Array(5);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(buf);
+    else for (var i = 0; i < 5; i++) buf[i] = Math.floor(Math.random() * 4294967296);
+    for (var j = 0; j < 5; j++) out += chars[buf[j] % chars.length];
+    return out;
+  }
+
+  $('#session-code').value = randomCode();
+
+  function money(v) {
+    return '£' + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function showTryView(name) {
+    ['setup', 'case', 'debrief'].forEach(function (v) { $('#try-' + v).hidden = v !== name; });
+  }
+
+  $('#setup-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target;
+    var code = ($('#session-code').value || '').trim() || randomCode();
+    $('#session-code').value = code;
+    var settings = {
+      cases: parseInt(f.elements.cases.value, 10),
+      aiAccuracy: parseFloat(f.elements.aiAccuracy.value),
+      aiStyle: f.elements.aiStyle.value,
+      feedback: $('#feedback').checked,
+      code: code
+    };
+    session = {
+      settings: settings,
+      cases: M.generateCases({ n: settings.cases, code: code, aiAccuracy: settings.aiAccuracy, aiStyle: settings.aiStyle }),
+      trials: [],
+      index: 0,
+      current: null
+    };
+    showTryView('case');
+    renderCase();
+  });
+
+  function setPressed(buttons, attr, value) {
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute(attr) === String(value) ? 'true' : 'false'); });
+  }
+
+  function renderCase() {
+    var c = session.cases[session.index];
+    var n = session.cases.length;
+    session.current = { initial: null, conf: null, revealed: false, final: null, started: Date.now(), done: false };
+    $('#case-title').textContent = 'Payment ' + (session.index + 1) + ' of ' + n;
+    $('#progress-fill').style.width = (100 * session.index / n) + '%';
+    var F = M.FEATURES;
+    var L = c.levels;
+    var rows = [
+      ['Amount', money(c.details.amount), F[0].levels[L[0]] + ' (usual spend about ' + money(c.details.usual) + ')'],
+      ['Where', F[1].levels[L[1]]],
+      ['Device', F[2].levels[L[2]]],
+      ['Time', c.details.time, F[3].levels[L[3]]],
+      ['Merchant type', F[4].levels[L[4]]],
+      ['Payment attempts in the last hour', F[5].levels[L[5]]]
+    ];
+    var tbody = $('#case-facts tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function (r) {
+      var tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, r[0]));
+      var td = el('td', {}, r[1]);
+      if (r[2]) td.appendChild(el('small', {}, r[2]));
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+    $$('#step-1 .btn').forEach(function (b) { b.disabled = false; });
+    $('#step-1').classList.remove('locked');
+    setPressed($$('[data-initial]'), 'data-initial', '');
+    setPressed($$('[data-conf]'), 'data-conf', '');
+    setPressed($$('[data-final]'), 'data-final', '');
+    $$('[data-final]').forEach(function (b) { b.disabled = false; });
+    $('#reveal-btn').disabled = true;
+    $('#step-2').hidden = true;
+    $('#step-3').hidden = true;
+    $('#feedback-box').hidden = true;
+    $('#next-btn').disabled = true;
+    $('#next-btn').textContent = session.index + 1 === n ? 'See how you did' : 'Next payment';
+    $('#case-title').focus();
+  }
+
+  function updateReveal() {
+    var cur = session.current;
+    $('#reveal-btn').disabled = !(cur.initial && cur.conf);
+  }
+
+  function chooseInitial(v) {
+    if (!session || session.current.revealed) return;
+    session.current.initial = v;
+    setPressed($$('[data-initial]'), 'data-initial', v);
+    updateReveal();
+  }
+
+  function chooseConf(v) {
+    if (!session || session.current.revealed) return;
+    session.current.conf = v;
+    setPressed($$('[data-conf]'), 'data-conf', v);
+    updateReveal();
+  }
+
+  function reveal() {
+    var cur = session.current;
+    if (!cur.initial || !cur.conf || cur.revealed) return;
+    cur.revealed = true;
+    var c = session.cases[session.index];
+    $$('#step-1 .btn').forEach(function (b) { b.disabled = true; });
+    $('#step-1').classList.add('locked');
+    var box = $('#advisor-box');
+    box.innerHTML = '';
+    var txt = el('div');
+    txt.appendChild(el('div', { class: 'who' }, 'AI advisor says'));
+    txt.appendChild(el('div', { class: 'say' }, LABEL_WORD[c.ai]));
+    box.appendChild(txt);
+    var confWrap = el('div');
+    if (c.aiConfidence === null) {
+      confWrap.appendChild(el('div', { class: 'who' }, 'Confidence not shown'));
+    } else {
+      confWrap.appendChild(el('div', { class: 'who' }, 'Confidence: ' + pct(c.aiConfidence)));
+      var meter = el('div', { class: 'meter', 'aria-hidden': 'true' });
+      var fill = el('span');
+      fill.style.width = (c.aiConfidence * 100) + '%';
+      meter.appendChild(fill);
+      confWrap.appendChild(meter);
+    }
+    box.appendChild(confWrap);
+    $('#step-2').hidden = false;
+    $('#step-3').hidden = false;
+    $('#first-call-note').textContent = 'Your first call was ' + LABEL_WORD[cur.initial].toLowerCase() + ', ' + pct(cur.conf) + ' sure. ' +
+      (c.ai === cur.initial ? 'The advisor agrees.' : 'The advisor disagrees.');
+    $('[data-final="fraud"]').focus();
+  }
+
+  function chooseFinal(v) {
+    var cur = session && session.current;
+    if (!cur || !cur.revealed || cur.done) return;
+    cur.final = v;
+    cur.ms = Date.now() - cur.started;
+    setPressed($$('[data-final]'), 'data-final', v);
+    $('#next-btn').disabled = false;
+    if (session.settings.feedback) {
+      cur.done = true;
+      $$('[data-final]').forEach(function (b) { b.disabled = true; });
+      var c = session.cases[session.index];
+      var right = v === c.truth;
+      var fb = $('#feedback-box');
+      fb.innerHTML = '';
+      fb.appendChild(el('strong', { class: right ? 'good' : 'bad' }, right ? 'Right. ' : 'Not this time. '));
+      fb.appendChild(document.createTextNode('This payment was ' + c.truth + '. The advisor was ' + (c.aiCorrect ? 'right' : 'wrong') + '.'));
+      fb.hidden = false;
+      $('#next-btn').focus();
+    }
+  }
+
+  function nextCase() {
+    var cur = session.current;
+    if (!cur.final) return;
+    var c = session.cases[session.index];
+    session.trials.push({
+      id: c.id, truth: c.truth, initial: cur.initial, initialConfidence: cur.conf,
+      ai: c.ai, aiConfidence: c.aiConfidence, final: cur.final, ms: cur.ms
+    });
+    session.index += 1;
+    if (session.index >= session.cases.length) {
+      showDebrief();
+    } else {
+      renderCase();
+    }
+  }
+
+  $$('[data-initial]').forEach(function (b) { b.addEventListener('click', function () { chooseInitial(b.getAttribute('data-initial')); }); });
+  $$('[data-conf]').forEach(function (b) { b.addEventListener('click', function () { chooseConf(parseFloat(b.getAttribute('data-conf'))); }); });
+  $$('[data-final]').forEach(function (b) { b.addEventListener('click', function () { chooseFinal(b.getAttribute('data-final')); }); });
+  $('#reveal-btn').addEventListener('click', reveal);
+  $('#next-btn').addEventListener('click', nextCase);
+
+  document.addEventListener('keydown', function (e) {
+    if ($('#try-case').hidden || $('#panel-try').hidden || !session) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    var k = e.key.toLowerCase();
+    var cur = session.current;
+    if (k === 'f' || k === 'g') {
+      var v = k === 'f' ? 'fraud' : 'genuine';
+      if (!cur.revealed) chooseInitial(v); else chooseFinal(v);
+      e.preventDefault();
+    } else if (['1', '2', '3', '4'].indexOf(k) >= 0 && !cur.revealed) {
+      chooseConf([0.55, 0.7, 0.85, 0.95][parseInt(k, 10) - 1]);
+      e.preventDefault();
+    } else if (k === 'enter') {
+      var t = e.target;
+      var isChoice = t && t.hasAttribute &&
+        (t.hasAttribute('data-initial') || t.hasAttribute('data-conf') || t.hasAttribute('data-final'));
+      if (tag === 'BUTTON' && !isChoice) return;
+      if (!cur.revealed) reveal(); else nextCase();
+      e.preventDefault();
+    }
+  });
+
+  /* ---------- debrief ---------- */
+
+  function showDebrief() {
+    showTryView('debrief');
+    var trials = session.trials;
+    var sc = M.scoreSession(trials);
+    session.score = sc;
+    var n = sc.n;
+    var you = Math.round(sc.initialAccuracy * n);
+    var ai = Math.round(sc.aiAccuracy * n);
+    var fin = Math.round(sc.finalAccuracy * n);
+    var verdict;
+    if (sc.complementarity > 0) verdict = 'Together you beat both the advisor and your own first calls, which is the hard part.';
+    else if (sc.finalAccuracy === sc.aiAccuracy && sc.aiAccuracy >= sc.initialAccuracy) verdict = 'You ended up level with the advisor, so checking its work added nothing on these payments.';
+    else if (sc.complementarity === 0) verdict = 'You ended up level with the better of the two, so the pairing added nothing on these payments.';
+    else verdict = 'Your final calls were worse than ' + (sc.aiAccuracy >= sc.initialAccuracy ? 'the advisor' : 'your own first calls') + ' alone.';
+    $('#debrief-lede').textContent = 'You got ' + you + ' of ' + n + ' right on your own, the advisor got ' + ai +
+      ', and your final calls got ' + fin + '. ' + verdict;
+    var tiles = $('#debrief-tiles');
+    tiles.innerHTML = '';
+    tiles.appendChild(tile('you', 'Your first calls', pct(sc.initialAccuracy), you + ' of ' + n));
+    tiles.appendChild(tile('ai', 'The advisor', pct(sc.aiAccuracy), ai + ' of ' + n));
+    tiles.appendChild(tile('team', 'Your final calls', pct(sc.finalAccuracy), fin + ' of ' + n));
+    tiles.appendChild(tile('', 'Against the better of the two', pts(sc.complementarity),
+      sc.complementarity > 0 ? 'You added value' : 'No added value', sc.complementarity > 0 ? 'good' : (sc.complementarity < 0 ? 'bad' : '')));
+    var pair = $('#reliance-pair');
+    pair.innerHTML = '';
+    pair.appendChild(tile('ai', 'Switching when it helped', sc.aiOnlyRight ? sc.switchedToAI + ' of ' + sc.aiOnlyRight : 'None',
+      sc.aiOnlyRight ? 'Payments where you were wrong and the advisor was right: you switched ' + pct(sc.rair) + ' of the time.' :
+        'There were no payments where only the advisor was right.'));
+    pair.appendChild(tile('you', 'Holding firm when it mattered', sc.youOnlyRight ? sc.keptOwn + ' of ' + sc.youOnlyRight : 'None',
+      sc.youOnlyRight ? 'Payments where you were right and the advisor was wrong: you kept your answer ' + pct(sc.rsr) + ' of the time.' :
+        'There were no payments where only you were right.'));
+    drawCounterfactuals();
+    var conf = 'On average you said you were ' + pct(sc.meanConfidence) + ' sure and your first calls were right ' + pct(sc.initialAccuracy) + ' of the time, so you were ';
+    var oc = sc.overconfidence;
+    conf += Math.abs(oc) < 0.03 ? 'well calibrated overall. ' : (oc > 0 ? 'overconfident by ' + pts(oc).replace('+', '') + '. ' : 'underconfident by ' + pts(-oc).replace('+', '') + '. ');
+    if (sc.confidenceAuroc === null) conf += 'Your confidence could not be checked against right and wrong calls, because your first calls were all ' + (sc.initialAccuracy === 1 ? 'right' : 'wrong') + '.';
+    else conf += 'How well your confidence separated your right calls from your wrong ones: ' + sc.confidenceAuroc.toFixed(2) + ' (0.5 is no better than chance, 1 is perfect).';
+    if (sc.aiConfidenceAuroc !== null) conf += ' The advisor’s confidence scored ' + sc.aiConfidenceAuroc.toFixed(2) + ' on the same test.';
+    $('#confidence-text').textContent = conf;
+    drawTrialTable();
+    $('#debrief-title').focus();
+  }
+
+  function drawCounterfactuals() {
+    var box = $('#cf-chart');
+    box.innerHTML = '';
+    var cfs = M.counterfactuals(session.trials, 0.8);
+    var W = Math.max(280, box.clientWidth || 600);
+    var narrow = W < 560;
+    var labelW = narrow ? 0 : 290;
+    var rowH = narrow ? 50 : 34;
+    var barH = 18;
+    var H = cfs.length * rowH + 8;
+    var x0 = labelW;
+    var x1 = W - 60;
+    var colours = { you: 'var(--you)', ai: 'var(--ai)', threshold: 'var(--shared)', surer: 'var(--shared)', final: 'var(--team)' };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Accuracy of five strategies on your payments: ' + cfs.map(function (c) {
+        return c.label + ' ' + (c.available ? pct(c.accuracy) : 'not available');
+      }).join('; ') });
+    cfs.forEach(function (c, i) {
+      var y = i * rowH + (narrow ? 20 : (rowH - barH) / 2);
+      var ly = narrow ? y - 6 : y + barH / 2 + 4;
+      svgText(s, 0, ly, c.label, { style: 'fill:var(--ink);' + (c.key === 'final' ? 'font-weight:700' : 'font-weight:500') });
+      svgEl('rect', { x: x0, y: y, width: x1 - x0, height: barH, rx: 3, fill: 'var(--surface-2)' }, s);
+      if (c.available) {
+        svgEl('rect', { x: x0, y: y, width: Math.max(0.5, (x1 - x0) * c.accuracy), height: barH, rx: 3, fill: colours[c.key] }, s);
+        svgText(s, x1 + 8, y + barH / 2 + 4, pct(c.accuracy), { style: 'fill:var(--ink);font-weight:600' });
+      } else {
+        svgText(s, x0 + 8, y + barH / 2 + 4, 'Not available: advisor confidence was hidden');
+      }
+    });
+    box.appendChild(s);
+  }
+
+  function drawTrialTable() {
+    var t = $('#trial-table');
+    t.innerHTML = '';
+    var head = el('thead');
+    var hr = el('tr');
+    ['Payment', 'Truth', 'Your first call', 'Advisor', 'Your final call', 'What happened']
+      .forEach(function (h) { hr.appendChild(el('th', { scope: 'col' }, h)); });
+    head.appendChild(hr);
+    t.appendChild(head);
+    var body = el('tbody');
+    session.trials.forEach(function (tr) {
+      var row = el('tr');
+      row.appendChild(el('th', { scope: 'row' }, String(tr.id)));
+      row.appendChild(el('td', {}, LABEL_WORD[tr.truth]));
+      row.appendChild(el('td', {}, LABEL_WORD[tr.initial] + ' (' + pct(tr.initialConfidence) + ')'));
+      row.appendChild(el('td', {}, LABEL_WORD[tr.ai] + (tr.aiConfidence === null ? '' : ' (' + pct(tr.aiConfidence) + ')')));
+      row.appendChild(el('td', { class: tr.final === tr.truth ? 'good' : 'bad' }, LABEL_WORD[tr.final]));
+      var cell = el('td');
+      cell.appendChild(el('span', { class: 'tag' }, M.OUTCOMES[M.classifyTrial(tr)]));
+      row.appendChild(cell);
+      body.appendChild(row);
+    });
+    t.appendChild(body);
+  }
+
+  $('#download-btn').addEventListener('click', function () {
+    var record = {
+      format: 'reliance-lab-session',
+      version: 1,
+      createdWith: 'Reliance lab browser app',
+      createdAt: new Date().toISOString(),
+      settings: session.settings,
+      summary: session.score,
+      trials: session.trials
+    };
+    var blob = new Blob([JSON.stringify(record, null, 1)], { type: 'application/json' });
+    var a = el('a', { href: URL.createObjectURL(blob), download: 'reliance-session-' + session.settings.code + '.json' });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+
+  $('#to-model-btn').addEventListener('click', function () {
+    modelParams = M.estimateParams(session.trials);
+    modelSource = 'Showing rough estimates from your ' + session.trials.length + ' payments.';
+    selectTab($('#tab-model'), true);
+  });
+
+  $('#again-btn').addEventListener('click', function () {
+    $('#session-code').value = randomCode();
+    session = null;
+    showTryView('setup');
+    $('#setup-form button[type="submit"]').focus();
+  });
+
+  buildSliders();
+  renderModel();
+})();
+</script>
+</body>
+</html>

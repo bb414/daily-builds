@@ -1,0 +1,196 @@
+{
+ "format": "reliance-lab-session",
+ "version": 1,
+ "synthetic": true,
+ "label": "P21",
+ "habit": "rubber-stamper",
+ "settings": {
+  "cases": 20,
+  "aiAccuracy": 0.8,
+  "aiStyle": "confident",
+  "feedback": false,
+  "code": "synthetic"
+ },
+ "trials": [
+  {
+   "id": 1,
+   "truth": "fraud",
+   "initial": "genuine",
+   "initialConfidence": 0.55,
+   "ai": "genuine",
+   "aiConfidence": 0.97,
+   "final": "genuine"
+  },
+  {
+   "id": 2,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.7,
+   "ai": "fraud",
+   "aiConfidence": 0.96,
+   "final": "genuine"
+  },
+  {
+   "id": 3,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.97,
+   "final": "fraud"
+  },
+  {
+   "id": 4,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.55,
+   "ai": "fraud",
+   "aiConfidence": 0.95,
+   "final": "fraud"
+  },
+  {
+   "id": 5,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "genuine",
+   "aiConfidence": 0.95,
+   "final": "genuine"
+  },
+  {
+   "id": 6,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.7,
+   "ai": "fraud",
+   "aiConfidence": 0.97,
+   "final": "fraud"
+  },
+  {
+   "id": 7,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.7,
+   "ai": "genuine",
+   "aiConfidence": 0.93,
+   "final": "genuine"
+  },
+  {
+   "id": 8,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.94,
+   "final": "fraud"
+  },
+  {
+   "id": 9,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.91,
+   "final": "fraud"
+  },
+  {
+   "id": 10,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.98,
+   "final": "fraud"
+  },
+  {
+   "id": 11,
+   "truth": "fraud",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.92,
+   "final": "fraud"
+  },
+  {
+   "id": 12,
+   "truth": "genuine",
+   "initial": "fraud",
+   "initialConfidence": 0.85,
+   "ai": "genuine",
+   "aiConfidence": 0.95,
+   "final": "genuine"
+  },
+  {
+   "id": 13,
+   "truth": "fraud",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.99,
+   "final": "fraud"
+  },
+  {
+   "id": 14,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "genuine",
+   "aiConfidence": 0.93,
+   "final": "genuine"
+  },
+  {
+   "id": 15,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.7,
+   "ai": "fraud",
+   "aiConfidence": 0.96,
+   "final": "fraud"
+  },
+  {
+   "id": 16,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.94,
+   "final": "fraud"
+  },
+  {
+   "id": 17,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.95,
+   "ai": "genuine",
+   "aiConfidence": 0.94,
+   "final": "genuine"
+  },
+  {
+   "id": 18,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.55,
+   "ai": "genuine",
+   "aiConfidence": 0.93,
+   "final": "genuine"
+  },
+  {
+   "id": 19,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "genuine",
+   "aiConfidence": 0.93,
+   "final": "genuine"
+  },
+  {
+   "id": 20,
+   "truth": "fraud",
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.91,
+   "final": "fraud"
+  }
+ ]
+}
