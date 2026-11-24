@@ -26,12 +26,27 @@ HABITS = {
 }
 
 
+HONEST_SPREAD = 1.5
+
+
+def honest_confidence(rng: random.Random, accuracy: float, correct: bool) -> float:
+    """A calibrated confidence between 0.5 and 1, as in the browser app (see honestConfidence there)."""
+    mu = 2 * accuracy - 1
+    alpha = max(mu * HONEST_SPREAD, 0.05)
+    beta = max((1 - mu) * HONEST_SPREAD, 0.05)
+    if correct:
+        b = rng.betavariate(alpha, beta) if rng.random() < 1 / (1 + mu) else rng.betavariate(alpha + 1, beta)
+    else:
+        b = rng.betavariate(alpha, beta + 1)
+    return 0.5 + 0.5 * b
+
+
 def _nearest_level(c: float) -> float:
     return min(CONFIDENCE_LEVELS, key=lambda lvl: abs(lvl - c))
 
 
 def simulate_session(rng: random.Random, *, habit: str, n: int = 20, ai_accuracy: float = 0.8,
-                     ai_style: str = "calibrated", ai_signal: float = 1.5,
+                     ai_style: str = "calibrated",
                      human_accuracy: float = 0.7, human_signal: float = 1.0,
                      mistakes: str = "random", label: str = "synthetic") -> dict:
     """One virtual participant's session.
@@ -66,9 +81,8 @@ def simulate_session(rng: random.Random, *, habit: str, n: int = 20, ai_accuracy
         t = rng.gauss(human_signal / 2 if you_right else -human_signal / 2, 1)
         conf = _nearest_level(max(0.5, sigmoid(logit(human_accuracy) + human_signal * t)))
         ai = truth if ai_right[k] else other
-        s = rng.gauss(ai_signal / 2 if ai_right[k] else -ai_signal / 2, 1)
         if ai_style == "calibrated":
-            ai_conf = round(max(0.5, sigmoid(logit(ai_accuracy) + ai_signal * s)), 2)
+            ai_conf = min(0.99, round(honest_confidence(rng, sum(ai_right) / n, ai_right[k]), 2))
         elif ai_style == "confident":
             ai_conf = round(0.9 + 0.09 * rng.random(), 2)
         else:

@@ -345,7 +345,7 @@ table.data thead th { color: var(--muted); font-weight: 600; }
             <label class="choice"><input type="radio" name="aiStyle" value="confident"> Always sounds sure</label>
             <label class="choice"><input type="radio" name="aiStyle" value="hidden"> No confidence shown</label>
           </div>
-          <p class="hint">"Honest" means a shown 80% is right about 80% of the time. "Always sounds sure" shows 90 to 99% whether it is right or not.</p>
+          <p class="hint">"Honest" means that, over many payments, answers shown at 80% are right about 80% of the time, so a low number is a real warning. "Always sounds sure" shows 90 to 99% whether it is right or not.</p>
         </fieldset>
         <fieldset>
           <legend>Where the advisor's mistakes fall</legend>
@@ -358,8 +358,8 @@ table.data thead th { color: var(--muted); font-weight: 600; }
         </fieldset>
         <fieldset>
           <legend>Session code</legend>
-          <input class="text-input" id="session-code" name="code" autocomplete="off" spellcheck="false" maxlength="24" aria-describedby="code-hint">
-          <p class="hint" id="code-hint">Everyone who uses the same code and number of payments sees the same payments, so a class can compare results across advisor settings.</p>
+          <input class="text-input" id="session-code" name="code" autocomplete="off" spellcheck="false" maxlength="24" aria-label="Session code" aria-describedby="code-hint">
+          <p class="hint" id="code-hint">Everyone who uses the same code and number of payments sees the same payments (capitals and spaces do not matter), so a class can compare results across advisor settings.</p>
           <label class="choice" style="margin-top:6px"><input type="checkbox" name="feedback" id="feedback"> Show the right answer after each payment</label>
         </fieldset>
         <div class="btn-row" style="grid-column: 1 / -1">
@@ -929,6 +929,55 @@ var RelianceModel = (function () {
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
+  // Gamma and beta variates (Marsaglia and Tsang), for the honest advisor's confidence.
+  function gammaSample(rand, shape) {
+    if (shape < 1) {
+      var u0 = rand();
+      while (u0 === 0) u0 = rand();
+      return gammaSample(rand, shape + 1) * Math.pow(u0, 1 / shape);
+    }
+    var d = shape - 1 / 3;
+    var c = 1 / Math.sqrt(9 * d);
+    for (;;) {
+      var x;
+      var v;
+      do {
+        x = gaussian(rand);
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      var u = rand();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+
+  function betaSample(rand, a, b) {
+    var x = gammaSample(rand, a);
+    var y = gammaSample(rand, b);
+    return x + y > 0 ? x / (x + y) : a / (a + b);
+  }
+
+  // An honest advisor's confidence lies between 50% and 100% and is calibrated: across many
+  // payments, those shown at c% are right c% of the time. Confidence is 0.5 + 0.5B with
+  // B ~ Beta(mu k, (1 - mu) k) and mu = 2 accuracy - 1. Given that, a right answer's B is drawn
+  // from Beta(mu k, (1 - mu) k) or Beta(mu k + 1, (1 - mu) k) with odds 1 : mu, and a wrong
+  // answer's from Beta(mu k, (1 - mu) k + 1). A smaller spread k makes confidence more telling.
+  var HONEST_SPREAD = 1.5;
+
+  function honestConfidence(rand, accuracy, correct) {
+    var mu = 2 * accuracy - 1;
+    var alpha = Math.max(mu * HONEST_SPREAD, 0.05);
+    var beta = Math.max((1 - mu) * HONEST_SPREAD, 0.05);
+    var b;
+    if (correct) {
+      b = rand() < 1 / (1 + mu) ? betaSample(rand, alpha, beta) : betaSample(rand, alpha + 1, beta);
+    } else {
+      b = betaSample(rand, alpha, beta + 1);
+    }
+    return 0.5 + 0.5 * b;
+  }
+
   function pick(rand, weights) {
     var r = rand();
     var acc = 0;
@@ -990,7 +1039,6 @@ var RelianceModel = (function () {
     var o = options || {};
     var n = Math.round(clamp(o.n || 20, 4, 60));
     var aiAccuracy = clamp(typeof o.aiAccuracy === 'number' ? o.aiAccuracy : 0.8, 0.5, 0.99);
-    var aiSignal = clamp(typeof o.aiSignal === 'number' ? o.aiSignal : 1.5, 0, 4);
     var style = AI_STYLES.indexOf(o.aiStyle) >= 0 ? o.aiStyle : 'calibrated';
     var mistakes = MISTAKES.indexOf(o.mistakes) >= 0 ? o.mistakes : 'random';
     var rand = mulberry32(hashCode(String(o.code || 'reliance')));
@@ -1004,7 +1052,7 @@ var RelianceModel = (function () {
         return pick(rand, truth === 'fraud' ? f.fraud : f.genuine);
       });
       var usual = 18 + Math.round(rand() * 122);
-      var mult = [0.5 + rand() * 1.1, 2.5 + rand() * 2, 9 + rand() * 16][levels[0]];
+      var mult = [0.5 + rand() * 1.1, 2.5 + rand() * 2, 10 + rand() * 15][levels[0]];
       var hour = levels[3] === 0 ? 7 + Math.floor(rand() * 16) : Math.floor(rand() * 6);
       var minute = Math.floor(rand() * 60);
       return {
@@ -1029,15 +1077,15 @@ var RelianceModel = (function () {
     var wrong = {};
     keyed.slice(0, nWrong).forEach(function (x) { wrong[x.index] = true; });
 
-    // 3. The advice and its confidence.
+    // 3. The advice and its confidence, shown as a whole percentage from 50% to 99%.
+    var accuracyUsed = (n - nWrong) / n;
     return cases.map(function (c, k) {
       var correct = !wrong[k];
-      var signal = gaussian(rand) + (correct ? aiSignal / 2 : -aiSignal / 2);
-      var calibrated = sigmoid(logit(aiAccuracy) + aiSignal * signal);
-      var shown = rand();
       var confidence = null;
-      if (style === 'calibrated') confidence = Math.round(Math.max(0.5, calibrated) * 100) / 100;
-      if (style === 'confident') confidence = Math.round((0.9 + 0.09 * shown) * 100) / 100;
+      if (style === 'calibrated') {
+        confidence = Math.min(0.99, Math.round(honestConfidence(rand, accuracyUsed, correct) * 100) / 100);
+      }
+      if (style === 'confident') confidence = Math.round((0.9 + 0.09 * rand()) * 100) / 100;
       c.ai = correct ? c.truth : (c.truth === 'fraud' ? 'genuine' : 'fraud');
       c.aiCorrect = correct;
       c.aiConfidence = confidence;
@@ -1048,6 +1096,7 @@ var RelianceModel = (function () {
   /* ---------- scoring a session ---------- */
 
   function checkTrial(t, i) {
+    if (!t || typeof t !== 'object') throw new Error('Trial ' + (i + 1) + ': must be an object');
     ['truth', 'initial', 'ai', 'final'].forEach(function (key) {
       if (LABELS.indexOf(t[key]) < 0) {
         throw new Error('Trial ' + (i + 1) + ': ' + key + ' must be "fraud" or "genuine"');
@@ -1163,6 +1212,9 @@ var RelianceModel = (function () {
 
   // What simple strategies would have scored on exactly the same cases.
   function counterfactuals(trials, threshold) {
+    if (!Array.isArray(trials) || trials.length === 0) {
+      throw new Error('A session needs at least one trial');
+    }
     trials.forEach(checkTrial);
     var t0 = typeof threshold === 'number' ? threshold : 0.8;
     var shown = trials.every(function (t) { return typeof t.aiConfidence === 'number'; });
@@ -1376,7 +1428,7 @@ if (typeof module !== 'undefined' && module.exports) {
     { key: 'ai', group: 'a', label: 'AI’s accuracy alone', min: 0.5, max: 0.99, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'How often the AI is right on its own.'; } },
-    { key: 'overlap', group: 'a', label: 'Error overlap', min: -0.3, max: 0.9, step: 0.05,
+    { key: 'overlap', group: 'a', label: 'Error overlap', min: -1, max: 1, step: 0.05,
       fmt: function (v) { return v.toFixed(2); },
       hint: function (a) {
         return 'The person also gets ' + pct(a.sharedMistakeShare) + ' of the AI’s mistakes wrong.' +
@@ -1514,7 +1566,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function insightText(a) {
     var p = a.params;
-    var winner = p.ai >= p.human ? 'the AI' : 'the person';
+    var winner = p.ai === p.human ? 'either of them' : (p.ai > p.human ? 'the AI' : 'the person');
     var lift = a.ceiling - a.best;
     var surer = a.policies.surer;
     var fixed = a.policies.fixed;
@@ -1722,7 +1774,8 @@ if (typeof module !== 'undefined' && module.exports) {
       dot.setAttribute('cy', sy(d.team));
       dot.setAttribute('visibility', 'visible');
       tip.show('<strong>Bar at ' + pct(d.threshold) + '</strong><br>Team right: ' + pct(d.team, 1) +
-        '<br>Follows a wrong AI: ' + pct(d.over) + ' of the time<br>Overrides a right AI: ' + pct(d.under) +
+        '<br>Follows the AI in ' + pct(d.over) + ' of disagreements where it is wrong' +
+        '<br>Keeps their own answer in ' + pct(d.under) + ' of disagreements where the AI is right' +
         '<br><em>Click to use this bar</em>', n.pt.x, n.pt.y);
     });
     hit.addEventListener('mouseleave', function () {
@@ -1964,7 +2017,7 @@ if (typeof module !== 'undefined' && module.exports) {
   $('#setup-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target;
-    var code = ($('#session-code').value || '').trim() || randomCode();
+    var code = ($('#session-code').value || '').replace(/\s+/g, '').toUpperCase() || randomCode();
     $('#session-code').value = code;
     var settings = {
       cases: parseInt(f.elements.cases.value, 10),
@@ -2240,12 +2293,12 @@ if (typeof module !== 'undefined' && module.exports) {
     head.appendChild(hr);
     t.appendChild(head);
     var body = el('tbody');
-    session.trials.forEach(function (tr) {
+    session.trials.forEach(function (tr, i) {
       var row = el('tr');
-      row.appendChild(el('th', { scope: 'row' }, String(tr.id)));
+      row.appendChild(el('th', { scope: 'row' }, String(tr.id === undefined || tr.id === null ? i + 1 : tr.id)));
       row.appendChild(el('td', {}, LABEL_WORD[tr.truth]));
       row.appendChild(el('td', {}, LABEL_WORD[tr.initial] + ' (' + pct(tr.initialConfidence) + ')'));
-      row.appendChild(el('td', {}, LABEL_WORD[tr.ai] + (tr.aiConfidence === null ? '' : ' (' + pct(tr.aiConfidence) + ')')));
+      row.appendChild(el('td', {}, LABEL_WORD[tr.ai] + (typeof tr.aiConfidence === 'number' ? ' (' + pct(tr.aiConfidence) + ')' : '')));
       row.appendChild(el('td', { class: tr.final === tr.truth ? 'good' : 'bad' }, LABEL_WORD[tr.final]));
       var cell = el('td');
       cell.appendChild(el('span', { class: 'tag' }, M.OUTCOMES[M.classifyTrial(tr)]));

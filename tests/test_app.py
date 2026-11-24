@@ -94,13 +94,14 @@ class AppTests(unittest.TestCase):
 
     def test_same_code_gives_same_payments(self):
         facts = []
-        for _ in range(2):
+        for code in ("SAME1", " same1 "):
             page = self.open()
-            page.fill("#session-code", "SAME")
+            page.fill("#session-code", code)
             page.click("text=Start reviewing")
             facts.append(page.inner_text("#case-facts"))
             page.close()
         self.assertEqual(facts[0], facts[1])
+        self.assertIn("\u00a3", facts[0])
 
     def test_model_tab_reacts_and_fits_a_phone(self):
         page = self.open(390, 844)
@@ -146,6 +147,35 @@ class AppTests(unittest.TestCase):
             page.set_input_files("#open-file", str(bad))
             self.assertIn("not a Reliance lab results file", page.inner_text("#open-status"))
             self.assertTrue(page.is_visible("#try-setup"))
+
+    def test_a_minimal_results_file_from_elsewhere(self):
+        page = self.open()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "minimal.json"
+            trials = [{"truth": "fraud", "initial": "genuine", "initialConfidence": 0.7, "ai": "fraud", "final": "fraud"},
+                      {"truth": "genuine", "initial": "genuine", "initialConfidence": 0.9, "ai": "fraud", "final": "genuine"}]
+            path.write_text(json.dumps({"format": "reliance-lab-session", "trials": trials}))
+            page.set_input_files("#open-file", str(path))
+        table = page.inner_text("#trial-table")
+        self.assertNotIn("undefined", table)
+        self.assertNotIn("n/a", table)
+        self.assertIn("Not available", page.inner_html("#cf-chart"))
+        self.assertEqual(self.problems, [])
+
+    def test_extreme_settings_stay_responsive(self):
+        page = self.open()
+        for params in ["human=0.99&ai=0.5&overlap=-1&aiSignal=4&humanSignal=4&aiBias=2&humanBias=-2&threshold=0.99&deferRate=1",
+                       "human=0.5&ai=0.5&overlap=1&aiSignal=0&humanSignal=0&aiBias=-2&humanBias=2&threshold=0.5&deferRate=0"]:
+            page.goto(APP + "#model?" + params)
+            ms = page.evaluate("""() => {
+                const s = document.getElementById('s-aiSignal');
+                const t0 = performance.now();
+                for (let i = 0; i < 10; i++) { s.value = String(i * 0.4); s.dispatchEvent(new Event('input')); }
+                return (performance.now() - t0) / 10;
+            }""")
+            self.assertLess(ms, 150, f"one redraw took {ms:.0f} ms")
+            self.assertNotIn("NaN", page.inner_text("#panel-model"))
+        self.assertEqual(self.problems, [])
 
     def test_tabs_work_from_the_keyboard(self):
         page = self.open()

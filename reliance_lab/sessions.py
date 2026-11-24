@@ -141,6 +141,8 @@ def score_session(trials: list[dict]) -> dict:
 
 def counterfactuals(trials: list[dict], threshold: float = 0.8) -> list[dict]:
     """What simple strategies would have scored on exactly the same cases."""
+    if not isinstance(trials, list) or not trials:
+        raise SessionError("A session needs at least one trial")
     for i, t in enumerate(trials):
         _check_trial(t, i)
     n = len(trials)

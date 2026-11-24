@@ -15,66 +15,66 @@
  "trials": [
   {
    "id": 1,
-   "truth": "genuine",
-   "initial": "genuine",
+   "truth": "fraud",
+   "initial": "fraud",
    "initialConfidence": 0.85,
-   "ai": "fraud",
-   "aiConfidence": 0.86,
-   "final": "fraud"
+   "ai": "genuine",
+   "aiConfidence": 0.77,
+   "final": "genuine"
   },
   {
    "id": 2,
    "truth": "genuine",
    "initial": "genuine",
-   "initialConfidence": 0.85,
+   "initialConfidence": 0.95,
    "ai": "genuine",
-   "aiConfidence": 0.89,
+   "aiConfidence": 0.84,
    "final": "genuine"
   },
   {
    "id": 3,
    "truth": "genuine",
    "initial": "genuine",
-   "initialConfidence": 0.85,
+   "initialConfidence": 0.95,
    "ai": "genuine",
-   "aiConfidence": 0.92,
+   "aiConfidence": 0.89,
    "final": "genuine"
   },
   {
    "id": 4,
-   "truth": "fraud",
-   "initial": "fraud",
-   "initialConfidence": 0.85,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.55,
    "ai": "fraud",
-   "aiConfidence": 0.76,
-   "final": "fraud"
+   "aiConfidence": 0.57,
+   "final": "genuine"
   },
   {
    "id": 5,
-   "truth": "genuine",
-   "initial": "genuine",
-   "initialConfidence": 0.85,
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.95,
    "ai": "fraud",
-   "aiConfidence": 0.87,
+   "aiConfidence": 0.99,
    "final": "fraud"
   },
   {
    "id": 6,
    "truth": "genuine",
    "initial": "genuine",
-   "initialConfidence": 0.7,
+   "initialConfidence": 0.95,
    "ai": "genuine",
-   "aiConfidence": 0.97,
+   "aiConfidence": 0.98,
    "final": "genuine"
   },
   {
    "id": 7,
    "truth": "fraud",
-   "initial": "genuine",
+   "initial": "fraud",
    "initialConfidence": 0.55,
    "ai": "fraud",
-   "aiConfidence": 1.0,
-   "final": "genuine"
+   "aiConfidence": 0.98,
+   "final": "fraud"
   },
   {
    "id": 8,
@@ -82,116 +82,116 @@
    "initial": "fraud",
    "initialConfidence": 0.85,
    "ai": "fraud",
-   "aiConfidence": 0.9,
+   "aiConfidence": 0.94,
    "final": "fraud"
   },
   {
    "id": 9,
-   "truth": "fraud",
-   "initial": "genuine",
+   "truth": "genuine",
+   "initial": "fraud",
    "initialConfidence": 0.55,
-   "ai": "fraud",
-   "aiConfidence": 1.0,
-   "final": "fraud"
+   "ai": "genuine",
+   "aiConfidence": 0.99,
+   "final": "genuine"
   },
   {
    "id": 10,
-   "truth": "fraud",
+   "truth": "genuine",
    "initial": "fraud",
    "initialConfidence": 0.7,
-   "ai": "fraud",
-   "aiConfidence": 0.78,
-   "final": "fraud"
+   "ai": "genuine",
+   "aiConfidence": 0.6,
+   "final": "genuine"
   },
   {
    "id": 11,
-   "truth": "genuine",
-   "initial": "genuine",
-   "initialConfidence": 0.7,
-   "ai": "genuine",
-   "aiConfidence": 0.92,
-   "final": "genuine"
+   "truth": "fraud",
+   "initial": "fraud",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.8,
+   "final": "fraud"
   },
   {
    "id": 12,
    "truth": "fraud",
    "initial": "genuine",
-   "initialConfidence": 0.7,
+   "initialConfidence": 0.55,
    "ai": "fraud",
-   "aiConfidence": 0.77,
+   "aiConfidence": 0.98,
    "final": "fraud"
   },
   {
    "id": 13,
    "truth": "fraud",
-   "initial": "fraud",
-   "initialConfidence": 0.95,
+   "initial": "genuine",
+   "initialConfidence": 0.55,
    "ai": "fraud",
-   "aiConfidence": 0.93,
+   "aiConfidence": 0.84,
    "final": "fraud"
   },
   {
    "id": 14,
    "truth": "genuine",
-   "initial": "fraud",
-   "initialConfidence": 0.55,
-   "ai": "fraud",
-   "aiConfidence": 0.53,
-   "final": "fraud"
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "genuine",
+   "aiConfidence": 0.94,
+   "final": "genuine"
   },
   {
    "id": 15,
    "truth": "genuine",
-   "initial": "fraud",
-   "initialConfidence": 0.55,
-   "ai": "genuine",
-   "aiConfidence": 0.98,
-   "final": "genuine"
+   "initial": "genuine",
+   "initialConfidence": 0.85,
+   "ai": "fraud",
+   "aiConfidence": 0.64,
+   "final": "fraud"
   },
   {
    "id": 16,
-   "truth": "genuine",
+   "truth": "fraud",
    "initial": "fraud",
-   "initialConfidence": 0.55,
+   "initialConfidence": 0.85,
    "ai": "genuine",
-   "aiConfidence": 0.9,
+   "aiConfidence": 0.82,
    "final": "genuine"
   },
   {
    "id": 17,
    "truth": "fraud",
    "initial": "fraud",
-   "initialConfidence": 0.7,
+   "initialConfidence": 0.85,
    "ai": "fraud",
-   "aiConfidence": 0.54,
+   "aiConfidence": 0.79,
    "final": "fraud"
   },
   {
    "id": 18,
-   "truth": "fraud",
-   "initial": "fraud",
+   "truth": "genuine",
+   "initial": "genuine",
    "initialConfidence": 0.7,
-   "ai": "fraud",
-   "aiConfidence": 0.96,
-   "final": "fraud"
+   "ai": "genuine",
+   "aiConfidence": 0.62,
+   "final": "genuine"
   },
   {
    "id": 19,
-   "truth": "fraud",
-   "initial": "fraud",
-   "initialConfidence": 0.85,
+   "truth": "genuine",
+   "initial": "genuine",
+   "initialConfidence": 0.95,
    "ai": "genuine",
-   "aiConfidence": 0.79,
+   "aiConfidence": 0.81,
    "final": "genuine"
   },
   {
    "id": 20,
-   "truth": "genuine",
+   "truth": "fraud",
    "initial": "fraud",
-   "initialConfidence": 0.55,
-   "ai": "genuine",
-   "aiConfidence": 0.97,
-   "final": "genuine"
+   "initialConfidence": 0.7,
+   "ai": "fraud",
+   "aiConfidence": 0.98,
+   "final": "fraud"
   }
  ]
 }

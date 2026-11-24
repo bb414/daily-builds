@@ -11,7 +11,7 @@ from reliance_lab.report import class_csv, class_report, model_report, session_r
 from reliance_lab.html_report import class_html
 from reliance_lab.sessions import (SessionError, auroc, bootstrap, bootstrap_mean, classify_trial, counterfactuals,
                                    estimate_params, load_session, score_session)
-from reliance_lab.synthetic import HABITS, make_class, simulate_session
+from reliance_lab.synthetic import HABITS, honest_confidence, make_class, simulate_session
 
 TOY = [
     {"truth": "fraud", "initial": "genuine", "initialConfidence": 0.55, "ai": "fraud", "aiConfidence": 0.9, "final": "fraud"},
@@ -162,6 +162,22 @@ class FileAndReportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             simulate_session(random.Random(1), habit="weigher", mistakes="sometimes")
 
+    def test_honest_confidence_is_calibrated(self):
+        rng = random.Random(12)
+        for acc in (0.7, 0.9):
+            bins = {}
+            for _ in range(40000):
+                right = rng.random() < acc
+                c = honest_confidence(rng, acc, right)
+                self.assertTrue(0.5 <= c <= 1)
+                b = bins.setdefault(min(4, int((c - 0.5) / 0.1)), [0, 0, 0.0])
+                b[0] += 1
+                b[1] += right
+                b[2] += c
+            for n, right, shown in bins.values():
+                if n > 1000:
+                    self.assertAlmostEqual(right / n, shown / n, delta=0.03)
+
     def test_reports(self):
         sessions = make_class(8, seed=1)
         text = session_report(sessions[0])
@@ -205,6 +221,7 @@ class FileAndReportTests(unittest.TestCase):
         with contextlib.redirect_stderr(err):
             self.assertEqual(main(["score", str(self.dir / "missing.json")]), 2)
             self.assertEqual(main(["model", "--human", "nan"]), 2)
+            self.assertEqual(main(["score", files[0], "--threshold", "80"]), 2)
         self.assertIn("error:", err.getvalue())
         out = io.StringIO()
         with contextlib.redirect_stdout(out):

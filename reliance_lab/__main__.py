@@ -69,6 +69,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
     if args.command == "score":
+        if not 0.5 <= args.threshold <= 1:
+            print("error: --threshold must be between 0.5 and 1 (for example 0.8)", file=sys.stderr)
+            return 2
         try:
             sessions = [load_session(f) for f in args.files]
         except (OSError, SessionError) as exc:

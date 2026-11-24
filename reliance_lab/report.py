@@ -26,7 +26,10 @@ def pct(v: float | None, digits: int = 1) -> str:
 
 
 def pts(v: float | None) -> str:
-    return "n/a" if v is None else f"{v * 100:+.1f} pts"
+    if v is None:
+        return "n/a"
+    r = round(v * 100, 1)
+    return "0.0 pts" if r == 0 else f"{r:+.1f} pts"
 
 
 def model_report(params: dict | None = None) -> str:
@@ -94,7 +97,8 @@ def interval(ci: tuple | None, points: bool = False) -> str:
     if ci is None:
         return "n/a"
     if points:
-        return f"{ci[0] * 100:+.1f} to {ci[1] * 100:+.1f} pts"
+        lo, hi = (round(v * 100, 1) + 0.0 for v in ci)
+        return f"{lo:+.1f} to {hi:+.1f} pts"
     return f"{ci[0] * 100:.0f}% to {ci[1] * 100:.0f}%"
 
 

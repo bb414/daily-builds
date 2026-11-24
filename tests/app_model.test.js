@@ -39,7 +39,7 @@ test('confidence styles produce the documented ranges', () => {
   const cal = M.generateCases({ n: 60, code: 'styles', aiStyle: 'calibrated' });
   const sure = M.generateCases({ n: 60, code: 'styles', aiStyle: 'confident' });
   const hidden = M.generateCases({ n: 60, code: 'styles', aiStyle: 'hidden' });
-  cal.forEach((c) => assert.ok(c.aiConfidence >= 0.5 && c.aiConfidence <= 1));
+  cal.forEach((c) => assert.ok(c.aiConfidence >= 0.5 && c.aiConfidence <= 0.99));
   sure.forEach((c) => assert.ok(c.aiConfidence >= 0.9 && c.aiConfidence <= 0.99));
   hidden.forEach((c) => assert.equal(c.aiConfidence, null));
   const meanRight = (cs, ok) => {
@@ -144,4 +144,30 @@ test('the gain map has the right shape and matches single evaluations', () => {
   const one = M.evaluate({ aiSignal: 2, human: g.values[3], ai: g.values[7] }, 'optimal');
   assert.equal(g.gains[3][7], one.gain);
   M.gainGrid({}, 'fixed', 10).gains.forEach((row) => row.forEach((v) => assert.ok(v <= 1e-12)));
+});
+
+test('honest confidence is calibrated: answers shown at c% are right about c% of the time', () => {
+  for (const acc of [0.7, 0.8, 0.9]) {
+    const bins = {};
+    for (let i = 0; i < 600; i++) {
+      M.generateCases({ n: 20, code: 'cal' + i, aiAccuracy: acc, aiStyle: 'calibrated' }).forEach((c) => {
+        const b = Math.min(4, Math.floor((c.aiConfidence - 0.5) / 0.1));
+        bins[b] = bins[b] || { n: 0, right: 0, shown: 0 };
+        bins[b].n += 1;
+        bins[b].right += c.aiCorrect ? 1 : 0;
+        bins[b].shown += c.aiConfidence;
+      });
+    }
+    Object.values(bins).forEach((b) => {
+      if (b.n < 400) return;
+      const gap = Math.abs(b.right / b.n - b.shown / b.n);
+      assert.ok(gap < 0.04, 'accuracy ' + acc + ': shown ' + (b.shown / b.n).toFixed(3) + ' vs right ' + (b.right / b.n).toFixed(3));
+    });
+  }
+});
+
+test('session checks reject malformed trials', () => {
+  assert.throws(() => M.scoreSession([null]), /must be an object/);
+  assert.throws(() => M.counterfactuals([]), /at least one trial/);
+  assert.throws(() => M.scoreSession([{ truth: 'fraud', initial: 'fraud', ai: 'fraud', final: 'fraud', initialConfidence: 0.4 }]), /initialConfidence/);
 });
