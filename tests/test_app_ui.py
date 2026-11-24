@@ -75,6 +75,43 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_timeline_shows_the_omnibus_moves(self):
+        page = self.open()
+        self.assertIn("2 August 2026 moved to 2 December 2027, 487 more days", page.inner_text("#omni"))
+        self.assertEqual(page.locator("#timeline svg").count(), 1)
+        self.assertIn("originally 2 August 2026", page.get_attribute("#timeline svg", "aria-label"))
+        page.select_option("#preset", "invoices")
+        self.assertIn("did not change the dates", page.inner_text("#omni"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
+    def test_register_and_roadmap(self):
+        page = self.open()
+        page.evaluate("window.localStorage.clear()")
+        page.reload()
+        self.assertIn("The register is empty", page.inner_text("#register"))
+        page.click("#reg-add")
+        self.assertEqual(page.locator("#register tbody tr").count(), 1)
+        page.click("#reg-add")
+        self.assertEqual(page.locator("#register tbody tr").count(), 1, "the same name updates the row")
+        self.assertIn("Updated", page.inner_text("#reg-msg"))
+        page.click("#reg-examples")
+        self.assertEqual(page.locator("#register tbody tr").count(), 9)
+        self.assertIn("2 December 2027", page.inner_text("#roadmap-table"))
+        self.assertEqual(page.locator("#roadmap svg").count(), 1)
+        page.reload()
+        self.assertEqual(page.locator("#register tbody tr").count(), 9, "kept in this browser")
+        page.locator("#register tbody tr").nth(3).get_by_role("button", name="Open").click()
+        self.assertIn("Loan decision engine", page.input_value("#a-name"))
+        self.assertIn("High-risk", page.inner_text("#tier"))
+        page.locator("#register tbody tr").nth(0).get_by_role("button", name="Remove").click()
+        self.assertEqual(page.locator("#register tbody tr").count(), 8)
+        page.once("dialog", lambda d: d.accept())
+        page.click("#reg-clear")
+        self.assertIn("The register is empty", page.inner_text("#register"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_every_control_has_a_label(self):
         page = self.open()
         unlabelled = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button')).filter(e =>

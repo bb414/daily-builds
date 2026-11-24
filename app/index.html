@@ -125,6 +125,13 @@ th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
 .kpi .v { font-size: 1.35rem; font-weight: 800; }
 .kpi .s { font-size: .8rem; color: var(--ink-3); }
 .table-wrap { overflow-x: auto; position: relative; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn { border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 8px 13px; cursor: pointer; font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.small { padding: 4px 9px; font-size: .85rem; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--ink-2); font-size: 11px; font-family: var(--font); }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 @media (max-width: 900px) {
   main { grid-template-columns: minmax(0, 1fr); padding: 14px 14px 48px; }
@@ -178,9 +185,29 @@ th { font-size: .82rem; color: var(--ink-3); font-weight: 600; }
       <p class="small muted" id="obl-sub"></p>
       <div class="table-wrap" id="obligations"></div>
     </section>
+    <section class="card" aria-labelledby="omni-title">
+      <h2 id="omni-title">Before and after the Digital Omnibus</h2>
+      <p class="small muted">Regulation (EU) 2026/1744 moved several dates in the AI Act. Filled markers show when each of this system's duties starts now; hollow markers show the original 2024 dates.</p>
+      <div id="timeline" class="chart"></div>
+      <ul id="omni"></ul>
+    </section>
     <section class="card" aria-labelledby="uk-title">
       <h2 id="uk-title">The UK view</h2>
       <ul id="uk"></ul>
+    </section>
+    <section class="card" aria-labelledby="reg-title">
+      <h2 id="reg-title">Your AI register</h2>
+      <p class="small muted">Most organisations have many AI systems. Add each one to build a register and a single roadmap of what starts when. The register is kept in this browser only.</p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="reg-add">Add this system to the register</button>
+        <button type="button" class="btn" id="reg-examples">Add all the examples</button>
+        <button type="button" class="btn" id="reg-clear">Clear the register</button>
+      </div>
+      <p class="small" id="reg-msg" role="status"></p>
+      <div class="table-wrap" id="register"></div>
+      <h3 style="margin-top:16px">Roadmap</h3>
+      <div id="roadmap" class="chart"></div>
+      <div class="table-wrap" id="roadmap-table"></div>
     </section>
   </div>
 </main>
@@ -271,7 +298,18 @@ var AiActTriage = (function () {
       "Existing law still applies: data protection (UK GDPR and the Data Protection Act 2018, overseen by the ICO, including the rules on solely automated decisions as amended by the Data (Use and Access) Act 2025), equality law (Equality Act 2010) and consumer protection law."
     ],
     "ukTransparency": "Chatbots and generated content: consumer protection law (the CMA) and, for online services, the Online Safety Act 2023 (Ofcom) may be relevant.",
-    "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices."
+    "ukAnnex1": "Products: the relevant UK product safety regime and regulator, for example the MHRA for medical devices.",
+    "examples": [
+      {"id": "shortlister", "name": "Shortlister: CV screening for a retail chain", "role": "deployer", "annex3": "employment", "profiling": true, "workplace": true, "turnover": 400},
+      {"id": "helpdesk", "name": "Helpdesk chatbot on a shop website", "role": "both", "interacts": true, "generates": true, "generatedBefore": true, "turnover": 400},
+      {"id": "moodMonitor", "name": "Mood monitor for call-centre staff", "role": "deployer", "prohibited": ["emotionWork"], "workplace": true, "turnover": 400},
+      {"id": "loanEngine", "name": "Loan decision engine at a credit union", "role": "deployer", "annex3": "credit", "profiling": true, "turnover": 60, "sme": true},
+      {"id": "benefits", "name": "Benefits eligibility checker for a council", "role": "deployer", "annex3": "publicBenefits", "profiling": true, "deployerType": "publicAuthority", "turnover": 900},
+      {"id": "transcript", "name": "Interview notes tidier", "role": "provider", "annex3": "employment", "derogation": "improve", "turnover": 12, "sme": true},
+      {"id": "insulin", "name": "Insulin dosing app (a medical device)", "role": "provider", "annex1": true, "interacts": true, "turnover": 85, "sme": true},
+      {"id": "openModel", "name": "Open-weights language model", "role": "provider", "gpai": "gpai", "gpaiOpen": true, "generates": true, "turnover": 30, "sme": true},
+      {"id": "invoices", "name": "Duplicate invoice detector", "role": "deployer", "turnover": 400}
+    ]
   };
   /* RULES END */
 
@@ -493,7 +531,42 @@ var AiActTriage = (function () {
     res.nextDeadline = upcoming.length ? { date: upcoming[0].date, dateKey: upcoming[0].dateKey, count: upcoming.filter(function (o) { return o.date === upcoming[0].date; }).length } : null;
     res.penalty = penaltyFor(res, a);
     res.uk = ukNotes(res, a);
+    res.omnibus = omnibusChanges(res.obligations);
     return res;
+  }
+
+  // What the Digital Omnibus changed for these duties: moved dates and new duties.
+  function omnibusChanges(obligations) {
+    var seen = {}, out = [];
+    obligations.forEach(function (o) {
+      if (o.originalDate === o.date) return;
+      if (!seen[o.dateKey]) {
+        seen[o.dateKey] = { dateKey: o.dateKey, label: RULES.dateLabels[o.dateKey], original: o.originalDate, amended: o.date,
+          daysGained: o.originalDate ? daysBetween(o.originalDate, o.date) : null, duties: 0 };
+        out.push(seen[o.dateKey]);
+      }
+      seen[o.dateKey].duties++;
+    });
+    return out;
+  }
+
+  // Milestones across a register of classified systems: when duties start and which systems they reach.
+  function roadmap(results) {
+    var byDate = {};
+    results.forEach(function (r, k) {
+      r.obligations.forEach(function (o) {
+        var m = byDate[o.date] = byDate[o.date] || { date: o.date, systems: [], duties: 0, dateKeys: [] };
+        m.duties++;
+        if (m.systems.indexOf(k) < 0) m.systems.push(k);
+        if (m.dateKeys.indexOf(o.dateKey) < 0) m.dateKeys.push(o.dateKey);
+      });
+    });
+    return Object.keys(byDate).sort().map(function (d) {
+      var m = byDate[d];
+      m.labels = m.dateKeys.map(function (k) { return RULES.dateLabels[k]; });
+      m.status = results.length && daysBetween(results[0].asOf, d) <= 0 ? 'applies' : 'upcoming';
+      return m;
+    });
   }
 
   // The highest fine tier that could apply, in euros, for the company's turnover.
@@ -521,7 +594,8 @@ var AiActTriage = (function () {
 
   var api = {
     RULES: RULES, TIERS: TIERS, TIER_ORDER: TIER_ORDER, ROLES: ROLES, EXCLUSIONS: EXCLUSIONS, GPAI: GPAI, DEPLOYER_TYPES: DEPLOYER_TYPES,
-    normalise: normalise, classify: classify, daysBetween: daysBetween, validIso: validIso, longDate: longDate
+    normalise: normalise, classify: classify, daysBetween: daysBetween, validIso: validIso, longDate: longDate,
+    omnibusChanges: omnibusChanges, roadmap: roadmap
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -536,17 +610,8 @@ var AiActTriage = (function () {
   var R = M.RULES;
   var $ = function (id) { return document.getElementById(id); };
 
-  var PRESETS = {
-    shortlister: { name: 'Shortlister: CV screening for a retail chain', role: 'deployer', annex3: 'employment', profiling: true, workplace: true, turnover: 400 },
-    helpdesk: { name: 'Helpdesk chatbot on a shop website', role: 'both', interacts: true, generates: true, generatedBefore: true, turnover: 400 },
-    moodMonitor: { name: 'Mood monitor for call-centre staff', role: 'deployer', prohibited: ['emotionWork'], workplace: true, turnover: 400 },
-    loanEngine: { name: 'Loan decision engine at a credit union', role: 'deployer', annex3: 'credit', profiling: true, turnover: 60, sme: true },
-    benefits: { name: 'Benefits eligibility checker for a council', role: 'deployer', annex3: 'publicBenefits', profiling: true, deployerType: 'publicAuthority', turnover: 900 },
-    transcript: { name: 'Interview notes tidier', role: 'provider', annex3: 'employment', derogation: 'improve', interacts: false, turnover: 12, sme: true },
-    insulin: { name: 'Insulin dosing app (a medical device)', role: 'provider', annex1: true, interacts: true, turnover: 85, sme: true },
-    openModel: { name: 'Open-weights language model', role: 'provider', gpai: 'gpai', gpaiOpen: true, generates: true, turnover: 30, sme: true },
-    invoices: { name: 'Duplicate invoice detector', role: 'deployer', turnover: 400 }
-  };
+  var PRESETS = {};
+  R.examples.forEach(function (e) { PRESETS[e.id] = e; });
 
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
@@ -715,9 +780,168 @@ var AiActTriage = (function () {
     var uk = $('uk');
     uk.innerHTML = '';
     res.uk.forEach(function (n) { uk.appendChild(el('li', { text: n })); });
+    renderTimeline(res);
+    if (register.length) renderRegister();
   }
 
+
+  // ---------- Timeline for one system ----------
+  var NS = 'http://www.w3.org/2000/svg';
+  function svgBox(w, h, label) {
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', label);
+    svg.add = function (tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    };
+    return svg;
+  }
+
+  var AXIS_START = '2025-01-01', AXIS_END = '2029-01-01';
+  function renderTimeline(res) {
+    var W = 720, H = 120, L = 20, Rm = 20, y = 58;
+    var span = M.daysBetween(AXIS_START, AXIS_END);
+    var x = function (iso) { return L + (W - L - Rm) * Math.max(0, Math.min(1, M.daysBetween(AXIS_START, iso) / span)); };
+    var groups = {};
+    res.obligations.forEach(function (o) {
+      var g = groups[o.date] = groups[o.date] || { date: o.date, original: o.originalDate, n: 0 };
+      g.n++;
+    });
+    var list = Object.keys(groups).sort().map(function (d) { return groups[d]; });
+    var svg = svgBox(W, H, "Timeline of this system's duties: " + list.map(function (g) { return g.n + ' from ' + longDate(g.date) + (g.original && g.original !== g.date ? ' (originally ' + longDate(g.original) + ')' : ''); }).join('; ') + '.');
+    svg.add('line', { x1: L, x2: W - Rm, y1: y, y2: y, stroke: 'var(--line)', 'stroke-width': 2 });
+    ['2025', '2026', '2027', '2028', '2029'].forEach(function (yr) {
+      var xx = x(yr + '-01-01');
+      svg.add('line', { x1: xx, x2: xx, y1: y - 5, y2: y + 5, stroke: 'var(--ink-3)' });
+      svg.add('text', { x: xx, y: H - 8, 'text-anchor': 'middle' }, yr);
+    });
+    var now = x(res.asOf);
+    svg.add('line', { x1: now, x2: now, y1: 14, y2: y + 18, stroke: 'var(--accent)', 'stroke-dasharray': '3 3' });
+    svg.add('text', { x: now, y: 10, 'text-anchor': 'middle', fill: 'var(--accent)' }, 'as of');
+    list.forEach(function (g, k) {
+      if (g.original && g.original !== g.date) {
+        svg.add('line', { x1: x(g.original), x2: x(g.date), y1: y, y2: y, stroke: 'var(--high)', 'stroke-width': 2, 'stroke-dasharray': '4 3' });
+        svg.add('circle', { cx: x(g.original), cy: y, r: 6, fill: 'var(--surface)', stroke: 'var(--high)', 'stroke-width': 2 });
+      }
+      svg.add('circle', { cx: x(g.date), cy: y, r: 7, fill: g.date <= res.asOf ? 'var(--banned)' : 'var(--accent)' });
+      svg.add('text', { x: x(g.date), y: k % 2 ? y + 26 : y - 14, 'text-anchor': 'middle' }, String(g.n));
+    });
+    $('timeline').innerHTML = '';
+    $('timeline').appendChild(svg);
+    var ul = $('omni');
+    ul.innerHTML = '';
+    if (!res.omnibus.length) ul.appendChild(el('li', { text: res.obligations.length ? "The Omnibus did not change the dates for this system's duties." : 'No duties, so nothing changed.' }));
+    res.omnibus.forEach(function (c) {
+      ul.appendChild(el('li', { text: c.original
+        ? c.label + ': ' + longDate(c.original) + ' moved to ' + longDate(c.amended) + ', ' + c.daysGained + ' more days for ' + c.duties + (c.duties === 1 ? ' duty.' : ' duties.')
+        : c.label + ': new, from ' + longDate(c.amended) + '.' }));
+    });
+  }
+
+  // ---------- Register ----------
+  var STORE = 'ai-act-triage-register';
+  var register = [];
+  function loadRegister() {
+    try { var raw = JSON.parse(window.localStorage.getItem(STORE) || '[]'); register = Array.isArray(raw) ? raw.map(M.normalise) : []; }
+    catch (e) { register = []; }
+  }
+  function saveRegister() { try { window.localStorage.setItem(STORE, JSON.stringify(register)); } catch (e) { /* storage blocked: keep for this visit */ } }
+
+  function addToRegister(answers) {
+    var a = M.normalise(answers);
+    if (!a.name) a.name = 'System ' + (register.length + 1);
+    var same = register.map(function (r) { return r.name; }).indexOf(a.name);
+    if (same >= 0) register[same] = a; else register.push(a);
+    saveRegister();
+    renderRegister();
+    return same >= 0;
+  }
+
+  function renderRegister() {
+    var asOf = currentAsOf();
+    var results = register.map(function (a) { return M.classify(a, asOf); });
+    var box = $('register');
+    box.innerHTML = '';
+    if (!results.length) {
+      box.appendChild(el('p', { className: 'muted small', text: 'The register is empty.' }));
+      $('roadmap').innerHTML = '';
+      $('roadmap-table').innerHTML = '';
+      return;
+    }
+    var tb = el('table');
+    tb.appendChild(el('thead', {}, [el('tr', {}, ['System', 'Classification', 'Duties', 'Next deadline', ''].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+    var body = el('tbody');
+    results.forEach(function (r, k) {
+      var load = el('button', { type: 'button', className: 'btn small', text: 'Open', 'aria-label': 'Open ' + r.answers.name });
+      load.addEventListener('click', function () { $('preset').value = ''; loadAnswers(register[k]); window.scrollTo(0, 0); });
+      var del = el('button', { type: 'button', className: 'btn small', text: 'Remove', 'aria-label': 'Remove ' + r.answers.name });
+      del.addEventListener('click', function () { register.splice(k, 1); saveRegister(); renderRegister(); $('reg-add').focus(); });
+      body.appendChild(el('tr', {}, [
+        el('td', { text: r.answers.name }),
+        el('td', {}, [el('span', { className: 'tag t-' + r.tier, text: r.tierLabel })]),
+        el('td', { text: r.obligations.length + ' (' + r.obligations.filter(function (o) { return o.status === 'applies'; }).length + ' now)' }),
+        el('td', { text: r.nextDeadline ? longDate(r.nextDeadline.date) : '-' }),
+        el('td', {}, [el('div', { className: 'row-actions' }, [load, del])])
+      ]));
+    });
+    tb.appendChild(body);
+    box.appendChild(tb);
+    renderRoadmap(results);
+  }
+
+  function renderRoadmap(results) {
+    var steps = M.roadmap(results);
+    var W = 720, H = 190, L = 34, Rm = 16, top = 16, base = 140;
+    var span = M.daysBetween(AXIS_START, AXIS_END);
+    var x = function (iso) { return L + (W - L - Rm) * Math.max(0, Math.min(1, M.daysBetween(AXIS_START, iso) / span)); };
+    var maxDuties = Math.max.apply(null, steps.map(function (s) { return s.duties; }).concat([1]));
+    var svg = svgBox(W, H, 'Roadmap for the register: ' + steps.map(function (s) { return s.duties + ' duties for ' + s.systems.length + ' systems from ' + longDate(s.date); }).join('; ') + '.');
+    svg.add('line', { x1: L, x2: W - Rm, y1: base, y2: base, stroke: 'var(--line)', 'stroke-width': 2 });
+    ['2025', '2026', '2027', '2028', '2029'].forEach(function (yr) { svg.add('text', { x: x(yr + '-01-01'), y: base + 18, 'text-anchor': 'middle' }, yr); });
+    var now = x(results[0].asOf);
+    svg.add('line', { x1: now, x2: now, y1: top, y2: base + 4, stroke: 'var(--accent)', 'stroke-dasharray': '3 3' });
+    steps.forEach(function (s) {
+      var h = (base - top - 14) * s.duties / maxDuties;
+      svg.add('rect', { x: x(s.date) - 7, y: base - h, width: 14, height: h, rx: 3, fill: s.status === 'applies' ? 'var(--banned)' : 'var(--accent)' });
+      svg.add('text', { x: x(s.date), y: base - h - 4, 'text-anchor': 'middle' }, String(s.duties));
+    });
+    $('roadmap').innerHTML = '';
+    $('roadmap').appendChild(svg);
+    var tb = el('table');
+    tb.appendChild(el('thead', {}, [el('tr', {}, ['Date', 'What starts', 'Systems', 'Duties'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+    var body = el('tbody');
+    steps.forEach(function (s) {
+      body.appendChild(el('tr', {}, [el('td', { text: longDate(s.date) }), el('td', { text: s.labels.join('; ') }),
+        el('td', { text: s.systems.map(function (k) { return results[k].answers.name; }).join(', ') }), el('td', { text: String(s.duties) })]));
+    });
+    tb.appendChild(body);
+    $('roadmap-table').innerHTML = '';
+    $('roadmap-table').appendChild(tb);
+  }
+
+  function currentAsOf() { return M.validIso($('a-asof').value) ? $('a-asof').value : todayIso(); }
+
+  $('reg-add').addEventListener('click', function () {
+    var replaced = addToRegister(readAnswers());
+    $('reg-msg').textContent = replaced ? 'Updated that system in the register.' : 'Added to the register.';
+  });
+  $('reg-examples').addEventListener('click', function () {
+    R.examples.forEach(function (e) { addToRegister(e); });
+    $('reg-msg').textContent = 'Added all ' + R.examples.length + ' examples.';
+  });
+  $('reg-clear').addEventListener('click', function () {
+    if (register.length && !window.confirm('Remove every system from the register?')) return;
+    register = []; saveRegister(); renderRegister(); $('reg-msg').textContent = 'The register is empty.';
+  });
+
+  loadRegister();
   buildQuestions();
+  renderRegister();
 })();
 </script>
 </body>

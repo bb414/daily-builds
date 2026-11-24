@@ -311,7 +311,43 @@ def _finish(res, a, roles, tags):
                             "count": sum(1 for o in upcoming if o["date"] == upcoming[0]["date"])} if upcoming else None)
     res["penalty"] = _penalty(res, a)
     res["uk"] = _uk_notes(res, a)
+    res["omnibus"] = omnibus_changes(obligations)
     return res
+
+
+def omnibus_changes(obligations):
+    """What the Digital Omnibus changed for these duties: moved dates and new duties."""
+    seen, out = {}, []
+    for o in obligations:
+        if o["originalDate"] == o["date"]:
+            continue
+        if o["dateKey"] not in seen:
+            seen[o["dateKey"]] = {"dateKey": o["dateKey"], "label": RULES["dateLabels"][o["dateKey"]], "original": o["originalDate"],
+                                  "amended": o["date"], "daysGained": days_between(o["originalDate"], o["date"]) if o["originalDate"] else None,
+                                  "duties": 0}
+            out.append(seen[o["dateKey"]])
+        seen[o["dateKey"]]["duties"] += 1
+    return out
+
+
+def roadmap(results):
+    """Milestones across a register of classified systems: when duties start and which systems they reach."""
+    by_date = {}
+    for k, r in enumerate(results):
+        for o in r["obligations"]:
+            m = by_date.setdefault(o["date"], {"date": o["date"], "systems": [], "duties": 0, "dateKeys": []})
+            m["duties"] += 1
+            if k not in m["systems"]:
+                m["systems"].append(k)
+            if o["dateKey"] not in m["dateKeys"]:
+                m["dateKeys"].append(o["dateKey"])
+    out = []
+    for d in sorted(by_date):
+        m = by_date[d]
+        m["labels"] = [RULES["dateLabels"][k] for k in m["dateKeys"]]
+        m["status"] = "applies" if results and days_between(results[0]["asOf"], d) <= 0 else "upcoming"
+        out.append(m)
+    return out
 
 
 def _penalty(res, a):

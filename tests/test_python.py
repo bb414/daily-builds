@@ -1,13 +1,14 @@
 """Tests for the Python package beyond agreement with the app: command line and key rulings."""
 
 import contextlib
+import csv
 import io
 import json
 import pathlib
 import tempfile
 import unittest
 
-from ai_act_triage import model
+from ai_act_triage import model, register
 from ai_act_triage.__main__ import main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -65,6 +66,53 @@ class CommandLineTests(unittest.TestCase):
             code, out, _ = run_cli("classify", str(good), "--as-of", "2029-01-01")
             self.assertIn("applies", out)
             self.assertNotRegex(out, r"in [0-9]+ days", "by 2029 everything applies")
+
+
+class RegisterTests(unittest.TestCase):
+    def test_example_register_matches_the_app_examples(self):
+        rows, warnings = register.load(ROOT / "examples" / "register.csv")
+        self.assertEqual(warnings, [])
+        self.assertEqual([r["notes"] for r in rows], [[]] * len(rows))
+        self.assertEqual(len(rows), len(model.RULES["examples"]))
+        for row, example in zip(rows, model.RULES["examples"]):
+            self.assertEqual(model.classify(row["answers"]), model.classify(example), example["name"])
+
+    def test_register_command(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            md, dc = pathlib.Path(tmp) / "plan.md", pathlib.Path(tmp) / "duties.csv"
+            code, out, _ = run_cli("register", str(ROOT / "examples" / "register.csv"), "--markdown", str(md), "--csv", str(dc))
+            self.assertEqual(code, 0)
+            self.assertIn("AI register: 9 systems", out)
+            self.assertIn("2 December 2027", out)
+            self.assertIn("What the Digital Omnibus moved", out)
+            self.assertIn("not legal advice", md.read_text(encoding="utf-8"))
+            with open(dc, encoding="utf-8", newline="") as f:
+                duties = list(csv.DictReader(f))
+            total = sum(len(model.classify(e)["obligations"]) for e in model.RULES["examples"])
+            self.assertEqual(len(duties), total)
+
+    def test_messy_register_is_read_with_notes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "messy.csv"
+            path.write_text("\ufeff Name ,ROLE,annex3,profiling,prohibited,turnover,colour\n"
+                            "A,deployer,employment,maybe,socialScoring; madeUp,lots,blue\n"
+                            ",,,,,,\n"
+                            "B,boss,,yes,,12,\n", encoding="utf-8")
+            rows, warnings = register.load(path)
+            self.assertEqual(warnings, ["ignored unknown column(s): colour"])
+            self.assertEqual(len(rows), 2, "blank rows are skipped")
+            a, b = rows
+            self.assertEqual(a["answers"]["prohibited"], ["socialScoring"])
+            self.assertEqual(len(a["notes"]), 3, a["notes"])
+            self.assertEqual(model.classify(a["answers"])["tier"], "prohibited")
+            self.assertNotIn("role", b["answers"])
+            self.assertEqual(len(b["notes"]), 1)
+            code, out, _ = run_cli("register", str(path))
+            self.assertEqual(code, 0)
+            self.assertIn("Notes on the input:", out)
+            for bad in ("", "name\n", "title\nx\n"):
+                path.write_text(bad, encoding="utf-8")
+                self.assertEqual(run_cli("register", str(path))[0], 2, repr(bad))
 
 
 if __name__ == "__main__":

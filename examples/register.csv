@@ -1,0 +1,10 @@
+name,role,excluded,annex3,derogation,gpai,deployerType,takeover,eu,annex1,profiling,interacts,generates,generatedBefore,emotionBiocat,deepfake,gpaiBefore,gpaiOpen,workplace,sme,prohibited,turnover
+Shortlister: CV screening for a retail chain,deployer,,employment,,,,,,,yes,,,,,,,,yes,,,400
+Helpdesk chatbot on a shop website,both,,,,,,,,,,yes,yes,yes,,,,,,,,400
+Mood monitor for call-centre staff,deployer,,,,,,,,,,,,,,,,,yes,,emotionWork,400
+Loan decision engine at a credit union,deployer,,credit,,,,,,,yes,,,,,,,,,yes,,60
+Benefits eligibility checker for a council,deployer,,publicBenefits,,,publicAuthority,,,,yes,,,,,,,,,,,900
+Interview notes tidier,provider,,employment,improve,,,,,,,,,,,,,,,yes,,12
+Insulin dosing app (a medical device),provider,,,,,,,,yes,,yes,,,,,,,,yes,,85
+Open-weights language model,provider,,,,gpai,,,,,,,yes,,,,,yes,,yes,,30
+Duplicate invoice detector,deployer,,,,,,,,,,,,,,,,,,,,400

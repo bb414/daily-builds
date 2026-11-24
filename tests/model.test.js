@@ -158,3 +158,38 @@ test('every combination of answers gives a coherent result', function () {
   });
   assert.equal(n, 3 * 12 * 2 * 2 * 2 * 3);
 });
+
+test('the Omnibus comparison lists each moved date once, with the days gained', function () {
+  const hr = M.classify({ role: 'provider', annex3: 'employment', interacts: true }, AS_OF);
+  const moved = plain(hr.omnibus);
+  assert.equal(moved.length, 1, 'transparency kept its date, only Annex III moved');
+  assert.equal(moved[0].dateKey, 'annex3');
+  assert.equal(moved[0].original, '2026-08-02');
+  assert.equal(moved[0].amended, '2027-12-02');
+  assert.equal(moved[0].daysGained, 487);
+  assert.equal(moved[0].duties, hr.obligations.filter(function (o) { return o.dateKey === 'annex3'; }).length);
+  const fresh = plain(M.classify({ prohibited: ['csam'] }, AS_OF).omnibus);
+  assert.deepEqual(fresh.map(function (c) { return [c.dateKey, c.original, c.daysGained]; }), [['prohibitionsNew', null, null]], 'a new ban has no original date');
+  assert.deepEqual(plain(M.classify({}, AS_OF).omnibus), [], 'AI literacy kept its date');
+  const product = plain(M.classify({ role: 'provider', annex1: true }, AS_OF).omnibus);
+  assert.equal(product[0].amended, '2028-08-02');
+  assert.equal(product[0].original, '2027-08-02');
+});
+
+test('the roadmap groups every duty in a register by start date', function () {
+  const results = M.RULES.examples.map(function (e) { return M.classify(e, AS_OF); });
+  const steps = plain(M.roadmap(results));
+  const dates = steps.map(function (s) { return s.date; });
+  assert.deepEqual(dates, dates.slice().sort(), 'in date order');
+  assert.equal(new Set(dates).size, dates.length, 'each date once');
+  const total = results.reduce(function (n, r) { return n + r.obligations.length; }, 0);
+  assert.equal(steps.reduce(function (n, s) { return n + s.duties; }, 0), total, 'no duty lost or counted twice');
+  steps.forEach(function (s) {
+    assert.equal(s.labels.length, s.dateKeys.length);
+    assert.equal(s.status, s.date <= AS_OF ? 'applies' : 'upcoming');
+    s.systems.forEach(function (k) { assert.ok(results[k].obligations.some(function (o) { return o.date === s.date; })); });
+  });
+  const dec27 = steps.filter(function (s) { return s.date === '2027-12-02'; })[0];
+  assert.ok(dec27.systems.length >= 3, 'several Annex III systems meet in December 2027');
+  assert.deepEqual(plain(M.roadmap([])), []);
+});

@@ -68,6 +68,14 @@ class ParityTests(unittest.TestCase):
         for a, j in zip(odd, js):
             self.assertEqual(j, model.normalise(a), repr(a))
 
+    def test_roadmaps_match(self):
+        answers = random_answers(60, 2)
+        for as_of in ("2026-11-24", "2027-12-02", "2025-06-01"):
+            results = [model.classify(a, as_of) for a in answers]
+            js = call_js([{"fn": "roadmap", "args": [results]}, {"fn": "roadmap", "args": [results[:1]]},
+                          {"fn": "roadmap", "args": [[]]}])
+            self.assertEqual(js, [model.roadmap(results), model.roadmap(results[:1]), model.roadmap([])])
+
     def test_dates_match(self):
         isos = ["2026-02-30", "2028-02-29", "2027-13-01", "2026-1-01", "", None, "2026-11-24"]
         js = call_js([{"fn": "validIso", "args": [s]} for s in isos])
