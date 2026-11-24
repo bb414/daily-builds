@@ -1,0 +1,146 @@
+"""Command-line interface: python -m champion_seeding <command> [options]."""
+
+import argparse
+import csv
+import json
+import math
+import sys
+
+from . import model
+from .network_io import export_network, load_network
+
+
+def pct(x):
+    return "n/a" if x is None else "%.0f%%" % (x * 100)
+
+
+def parse_sets(pairs):
+    """Reads --set key=value pairs, rejecting unknown keys and values the model would ignore."""
+    out = {}
+    numeric = [name for name, *_rest in model.PARAMS]
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise SystemExit("--set expects key=value, got %r" % pair)
+        key, value = pair.split("=", 1)
+        if key == "strategy":
+            if value not in model.STRATEGY_KEYS:
+                raise SystemExit("--set strategy must be one of: %s" % ", ".join(model.STRATEGY_KEYS))
+        elif key not in numeric:
+            raise SystemExit("Unknown setting %r. Known settings: %s" % (key, ", ".join(numeric + ["strategy"])))
+        elif not math.isfinite(model.to_number(value)):
+            raise SystemExit("--set %s needs a number, got %r" % (key, value))
+        out[key] = value
+    return out
+
+
+def build_params(args):
+    if args.preset not in model.PRESETS:
+        raise SystemExit("Unknown preset %r. Choose from: %s" % (args.preset, ", ".join(model.PRESETS)))
+    params = model.preset_params(args.preset)
+    params.update(parse_sets(args.set))
+    return model.normalise_params(params)
+
+
+def format_comparison(cmp, ids=None, team_names=None, show_champions=False):
+    p, net = cmp["params"], cmp["network"]
+    lines = [
+        "Champion Seeding: %d champions, %d weeks, %d rollouts per strategy" % (p["champions"], p["weeks"], p["runs"]),
+        "Organisation: %d people in %d teams, %d working ties (%.1f each on average), %s of ties cross team lines"
+        % (net["size"], net["teams"], net["edges"], net["meanDegree"], pct(net["outsideShare"])),
+        "",
+        "  %-16s %8s %8s %8s %8s %8s" % ("Strategy", "Using", "Tried", "Half?", "Weeks", "Teams"),
+    ]
+    by = {r["strategy"]: r for r in cmp["results"]}
+    for key in cmp["ranking"]:
+        r = by[key]
+        lines.append("  %-16s %8s %8s %8s %8s %8.1f" % (
+            model.STRATEGY_LABELS[key], pct(r["finalMean"]), pct(r["everMean"]), pct(r["reachShare"]),
+            "-" if r["weeksToHalf"] is None else str(r["weeksToHalf"]), r["holdsMean"]))
+    lines += ["", "  Using: share using it at the end. Tried: share who ever tried it. Half?: share of rollouts reaching",
+              "  half the organisation. Weeks: median weeks to half. Teams: teams where at least half use it at the end.",
+              "", "Why:"]
+    lines += ["  - " + text for text in model.explain(cmp)]
+    if show_champions:
+        lines += ["", "Champions each strategy would pick (the random pick shown is the first rollout's):"]
+        for key in model.STRATEGY_KEYS:
+            names = [ids[v] if ids else "P%03d" % (v + 1) for v in by[key]["champions"]]
+            lines.append("  %-16s %s" % (model.STRATEGY_LABELS[key], ", ".join(names)))
+    return "\n".join(lines)
+
+
+def write_csv(cmp, path):
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["strategy", "week", "mean_share_using", "p10", "p90"])
+        for r in cmp["results"]:
+            for week, (m, lo, hi) in enumerate(zip(r["curveMean"], r["curveLow"], r["curveHigh"])):
+                w.writerow([r["strategy"], week, "%.4f" % m, "%.4f" % lo, "%.4f" % hi])
+
+
+def summary_json(cmp):
+    return {"params": cmp["params"], "network": cmp["network"], "ranking": cmp["ranking"],
+            "results": [{k: v for k, v in r.items() if not k.startswith("curve")} for r in cmp["results"]],
+            "why": model.explain(cmp)}
+
+
+def make_parser():
+    parser = argparse.ArgumentParser(prog="python -m champion_seeding",
+                                     description="Champion Seeding: where should champions for a new tool sit?")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    def common(sp):
+        sp.add_argument("--preset", default="assistant", help="Starting scenario: " + ", ".join(model.PRESETS))
+        sp.add_argument("--set", action="append", metavar="KEY=VALUE", help="Override one setting (repeatable)")
+        sp.add_argument("--json", action="store_true", help="Print a JSON summary instead of text")
+        sp.add_argument("--csv", help="Write the weekly adoption curves to this CSV file")
+        sp.add_argument("--champions-list", action="store_true", help="List who each strategy would pick")
+
+    sp = sub.add_parser("compare", help="Compare the five strategies on a synthetic organisation")
+    common(sp)
+
+    sp = sub.add_parser("load", help="Compare the strategies on your own network, read from CSV files")
+    common(sp)
+    sp.add_argument("--edges", required=True, help="CSV file with source,target columns")
+    sp.add_argument("--teams", help="CSV file with id,team columns (needed for the team-based strategies)")
+
+    sp = sub.add_parser("export-network", help="Write the synthetic organisation as CSV files")
+    sp.add_argument("--preset", default="assistant")
+    sp.add_argument("--set", action="append", metavar="KEY=VALUE")
+    sp.add_argument("--edges", required=True)
+    sp.add_argument("--teams", required=True)
+    return parser
+
+
+def main(argv=None):
+    args = make_parser().parse_args(argv)
+    params = build_params(args)
+    try:
+        if args.command == "export-network":
+            net = model.build_network(params)
+            export_network(net, args.edges, args.teams)
+            print("Wrote %s and %s (%d people, %d ties)" % (args.edges, args.teams, net["size"], net["edges"]))
+            return 0
+        ids = None
+        if args.command == "load":
+            net, ids, team_names = load_network(args.edges, args.teams, params["seed"])
+            if not args.teams:
+                print("Note: no teams file, so everyone counts as one team. One team first and one per team need teams.\n")
+            cmp = model.compare_strategies(params, net)
+        else:
+            cmp = model.compare_strategies(params)
+        if args.json:
+            print(json.dumps(summary_json(cmp), indent=2))
+        else:
+            print(format_comparison(cmp, ids, None, args.champions_list))
+        if args.csv:
+            write_csv(cmp, args.csv)
+            print("\nWrote %s" % args.csv)
+    except ValueError as err:
+        raise SystemExit("Error: %s" % err)
+    except OSError as err:
+        raise SystemExit("Could not write %s: %s" % (err.filename, err.strerror))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

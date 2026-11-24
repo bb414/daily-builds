@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Champion Seeding: where should a new tool start?</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1b1f24; --muted: #586270; --line: #dde1e7;
+    --accent: #1f5fbf; --accent-ink: #ffffff; --accent-soft: #e6eefb;
+    --user: #1f5fbf; --champion: #c2410c; --lapsed: #b7791f; --never: #c4cad3; --edge: #d5dae1;
+    --s-random: #7d8796; --s-hubs: #1f5fbf; --s-bridges: #7a3fc4; --s-cluster: #c2410c; --s-spread: #1d7a3a;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --card: #1d2127; --ink: #e8ebef; --muted: #a3adba; --line: #333a43;
+      --accent: #7aa7ff; --accent-ink: #0d1626; --accent-soft: #1d2a40;
+      --user: #7aa7ff; --champion: #f08b4f; --lapsed: #e0b252; --never: #4a525d; --edge: #2c333c;
+      --s-random: #8f99a8; --s-hubs: #7aa7ff; --s-bridges: #bb92f2; --s-cluster: #f08b4f; --s-spread: #5cc77d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.45; }
+  header { padding: 20px 24px 6px; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); max-width: 72ch; }
+  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; padding: 12px 24px 24px; align-items: start; }
+  .layout > * { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  h2 { font-size: 1.02rem; margin: 0 0 8px; }
+  .control { margin: 12px 0; }
+  .control label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; font-weight: 600; }
+  .control output { color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .control input[type=range] { width: 100%; accent-color: var(--accent); }
+  .help { font-size: 0.8rem; color: var(--muted); margin: 2px 0 0; }
+  select { width: 100%; padding: 7px; font: inherit; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  fieldset { border: 0; padding: 0; margin: 12px 0; min-width: 0; }
+  legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; padding: 0; }
+  .strategies { display: grid; gap: 6px; }
+  .strategies label { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.8rem; color: var(--muted); cursor: pointer; display: block; }
+  .strategies strong { color: var(--ink); font-size: 0.88rem; }
+  .strategies label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  details.group { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; }
+  .headline { border-left: 6px solid var(--accent); }
+  .headline h2 { font-size: 1.35rem; margin: 0 0 4px; }
+  .headline p { margin: 4px 0; }
+  .why { margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .kpi .label { font-size: 0.82rem; color: var(--muted); }
+  .kpi .value { font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .sub { font-size: 0.8rem; color: var(--muted); }
+  .chart-card { margin-bottom: 16px; }
+  .net-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: start; }
+  .net { width: 100%; height: auto; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--muted); margin: 6px 0; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { width: 22px; height: 10px; flex: none; }
+  .chart { width: 100%; height: 260px; display: block; }
+  table.compare { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  table.compare th, table.compare td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+  table.compare .num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.compare tr.current { background: var(--accent-soft); }
+  .btn { font: inherit; font-size: 0.88rem; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); cursor: pointer; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  .results { transition: opacity 0.15s; }
+  .results.busy { opacity: 0.55; }
+  footer { padding: 0 24px 32px; color: var(--muted); font-size: 0.85rem; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; padding: 8px 12px 24px; }
+    header { padding: 16px 12px 4px; }
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .net-wrap { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    table.compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+    table.compare tr { display: block; border-bottom: 1px solid var(--line); padding: 6px 0; }
+    table.compare th, table.compare td { display: flex; justify-content: space-between; border: 0; padding: 3px 8px; }
+    table.compare td::before { content: attr(data-label); color: var(--muted); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Champion Seeding</h1>
+  <p>You have a handful of champions for a new AI tool. Where should they sit? Simulate how use spreads (and fades) through an organisation's network, and compare five ways of choosing champions.</p>
+</header>
+
+<main class="layout">
+  <section class="card controls" aria-labelledby="controls-title">
+    <h2 id="controls-title">Set up the rollout</h2>
+    <div class="control">
+      <label for="preset">Scenario</label>
+      <select id="preset" aria-describedby="preset-help"></select>
+      <p class="help" id="preset-help"></p>
+    </div>
+    <fieldset>
+      <legend>How champions are chosen</legend>
+      <div class="strategies" id="strategy"></div>
+    </fieldset>
+    <details class="group" open><summary>Champions</summary><div id="group-champions"></div></details>
+    <details class="group" open><summary>The tool</summary><div id="group-tool"></div></details>
+    <details class="group" open><summary>The organisation</summary><div id="group-org"></div></details>
+    <details class="group"><summary>Simulation</summary><div id="group-run"></div></details>
+  </section>
+
+  <section class="results" aria-label="Results">
+    <p class="sr-only" id="live" aria-live="polite"></p>
+    <div class="card headline" id="headline"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card chart-card">
+      <h2>One rollout, week by week</h2>
+      <div class="net-wrap">
+        <div>
+          <svg class="net" id="net" role="img" viewBox="0 0 600 600"></svg>
+        </div>
+        <div>
+          <div class="legend" id="net-legend"></div>
+          <div class="control">
+            <label for="week">Week <output id="week-out" for="week"></output></label>
+            <input type="range" id="week" min="0" max="52" step="1" value="52">
+          </div>
+          <div class="btn-row"><button type="button" class="btn" id="play">Play</button></div>
+          <p class="help" id="net-note"></p>
+        </div>
+      </div>
+    </div>
+    <div class="card chart-card">
+      <h2>Share of people using the tool</h2>
+      <div class="legend" id="curve-legend"></div>
+      <svg class="chart" id="curve" role="img"></svg>
+    </div>
+    <div class="card chart-card">
+      <h2>Compare the five strategies</h2>
+      <p class="help">Same organisation, same number of champions, same luck in each simulated rollout. Only where the champions sit changes.</p>
+      <table class="compare" id="compare"></table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Synthetic organisations, generated in your browser. Nothing is sent anywhere. The model is a thinking tool built on stated assumptions, not a forecast.</p>
+</footer>
+
+<script>
+/* MODEL START */
+var SeedingModel = (function () {
+  'use strict';
+
+  var C = Object.freeze({
+    thresholdLow: 0.5,   // each person's need for social proof is between 0.5 and 1.5 times the average
+    thresholdSpan: 1.0,
+    holdShare: 0.5,      // a team has "taken hold" when at least half of it is using the tool
+    bandLow: 0.1,        // the shaded band on the chart runs from the 10th to the 90th percentile
+    bandHigh: 0.9,
+    networkSalt: 0x51ED27,
+    pickSalt: 0x2F6B4A
+  });
+
+  var PARAMS = [
+    { key: 'champions', group: 'champions', label: 'Number of champions', help: 'People who start using the tool on day one, never give up on it and talk it up.', min: 1, max: 30, step: 1, def: 8, fmt: 'int', int: true },
+    { key: 'championWeight', group: 'champions', label: 'Champion influence', help: 'How many ordinary users a champion counts as, in the eyes of their contacts.', min: 1, max: 5, step: 1, def: 2, fmt: 'times', int: true },
+    { key: 'socialProof', group: 'tool', label: 'Social proof needed', help: 'Average share of a person\'s contacts who must be using the tool before they are open to trying it. 0 means one keen colleague is enough.', min: 0, max: 0.6, step: 0.05, def: 0.35, fmt: 'pct' },
+    { key: 'peerPull', group: 'tool', label: 'Peer pull', help: 'Weekly chance that each contact using the tool gets an open-minded person to try it.', min: 0.01, max: 0.4, step: 0.01, def: 0.06, fmt: 'pct' },
+    { key: 'spontaneous', group: 'tool', label: 'Trying it unprompted', help: 'Weekly chance someone tries it with no help from colleagues, for example after an all-staff email.', min: 0, max: 0.03, step: 0.001, def: 0.001, fmt: 'pct1' },
+    { key: 'fit', group: 'tool', label: 'Jobs it suits', help: 'Share of people whose work has a real use for the tool. The rest never take it up.', min: 0.3, max: 1, step: 0.05, def: 0.8, fmt: 'pct' },
+    { key: 'lapse', group: 'tool', label: 'Dropping it', help: 'Weekly chance that a user stops when none of their contacts use it. The more contacts using it, the less likely they are to stop.', min: 0, max: 0.3, step: 0.01, def: 0.1, fmt: 'pct' },
+    { key: 'people', group: 'org', label: 'People', help: 'Size of the organisation.', min: 40, max: 300, step: 10, def: 180, fmt: 'int', int: true },
+    { key: 'teams', group: 'org', label: 'Teams', help: 'People are split evenly into teams of at least three.', min: 2, max: 30, step: 1, def: 12, fmt: 'int', int: true },
+    { key: 'departments', group: 'org', label: 'Departments', help: 'Teams are grouped into departments.', min: 1, max: 6, step: 1, def: 3, fmt: 'int', int: true },
+    { key: 'tiesTeam', group: 'org', label: 'Close contacts in the team', help: 'Average number of teammates each person works with closely.', min: 1, max: 12, step: 0.5, def: 5, fmt: 'dec1' },
+    { key: 'tiesDept', group: 'org', label: 'Contacts in other teams', help: 'Average number of contacts in other teams of the same department.', min: 0, max: 6, step: 0.1, def: 1.2, fmt: 'dec1' },
+    { key: 'tiesOrg', group: 'org', label: 'Contacts in other departments', help: 'Average number of contacts elsewhere in the organisation.', min: 0, max: 4, step: 0.1, def: 0.4, fmt: 'dec1' },
+    { key: 'weeks', group: 'run', label: 'Weeks', help: 'How long the rollout runs.', min: 8, max: 104, step: 4, def: 52, fmt: 'int', int: true },
+    { key: 'runs', group: 'run', label: 'Rollouts per strategy', help: 'More rollouts give steadier averages but take longer.', min: 10, max: 100, step: 10, def: 40, fmt: 'int', int: true },
+    { key: 'seed', group: 'run', label: 'Organisation seed', help: 'Change it to draw a different organisation of the same shape.', min: 1, max: 9999, step: 1, def: 7, fmt: 'int', int: true }
+  ];
+
+  var STRATEGY_KEYS = ['random', 'hubs', 'bridges', 'cluster', 'spread'];
+  var STRATEGIES = {
+    random: { label: 'Volunteers', help: 'Whoever puts their hand up: in effect, people at random.' },
+    hubs: { label: 'Best connected', help: 'The people with the most contacts.' },
+    bridges: { label: 'Bridge builders', help: 'The people who link otherwise separate groups (most shortest paths run through them).' },
+    cluster: { label: 'One team first', help: 'Like a pilot team: all champions in the most tightly knit team, so it takes hold there first.' },
+    spread: { label: 'One per team', help: 'A champion in as many teams as possible: the best-connected member of each.' }
+  };
+
+  var PRESETS = {
+    assistant: {
+      label: 'AI assistant that changes how a team works',
+      help: 'People only try it once a fair share of the colleagues they work with are using it, and drop it if they are left using it alone.',
+      params: { socialProof: 0.35, peerPull: 0.06, spontaneous: 0.001, lapse: 0.1, fit: 0.8, strategy: 'hubs' }
+    },
+    plugin: {
+      label: 'Handy add-on that spreads by word of mouth',
+      help: 'One enthusiastic colleague is enough to get someone to try it, and people rarely drop it.',
+      params: { socialProof: 0, peerPull: 0.05, spontaneous: 0.002, lapse: 0.03, fit: 0.7, strategy: 'hubs' }
+    },
+    silos: {
+      label: 'Siloed organisation',
+      help: 'Teams rarely work with other departments, and people need some social proof before switching.',
+      params: { socialProof: 0.3, peerPull: 0.06, spontaneous: 0.001, lapse: 0.1, fit: 0.8, tiesOrg: 0.1, tiesDept: 0.5, strategy: 'cluster' }
+    }
+  };
+
+  var DEFAULTS = (function () {
+    var d = { strategy: 'hubs' };
+    PARAMS.forEach(function (s) { d[s.key] = s.def; });
+    return d;
+  })();
+
+  function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+
+  // Mulberry32: a small 32-bit generator that is easy to reproduce exactly in Python.
+  function makeRng(seed) {
+    var a = seed >>> 0;
+    return {
+      uniform: function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        var t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+    };
+  }
+
+  function mixSeed(seed, i) {
+    var h = (seed ^ Math.imul(i + 1, 0x9E3779B1)) >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+
+  // Accepts numbers and plain decimal strings only; anything else falls back to the default.
+  var NUMBER_PATTERN = /^[ \t\r\n]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\r\n]*$/;
+  function toNumber(raw) {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string' && NUMBER_PATTERN.test(raw)) return Number(raw);
+    return NaN;
+  }
+
+  function normaliseParams(input) {
+    var src = (input && typeof input === 'object') ? input : {};
+    var out = {};
+    PARAMS.forEach(function (spec) {
+      var v = toNumber(src[spec.key]);
+      if (!isFinite(v)) v = spec.def;
+      v = clamp(v, spec.min, spec.max);
+      if (spec.int) v = Math.floor(v + 0.5);
+      out[spec.key] = v;
+    });
+    // Every team needs at least three people, and every department at least one team.
+    out.teams = Math.min(out.teams, Math.floor(out.people / 3));
+    out.departments = Math.min(out.departments, out.teams);
+    out.strategy = STRATEGY_KEYS.indexOf(src.strategy) >= 0 ? src.strategy : DEFAULTS.strategy;
+    return out;
+  }
+
+  function presetParams(key) {
+    var out = {}, k;
+    for (k in DEFAULTS) out[k] = DEFAULTS[k];
+    if (PRESETS[key]) for (k in PRESETS[key].params) out[k] = PRESETS[key].params[k];
+    return normaliseParams(out);
+  }
+
+  // ---- The organisation ----
+
+  // Builds a synthetic organisation: dense ties inside teams, fewer across teams, fewest across departments.
+  function buildNetwork(input) {
+    var p = normaliseParams(input);
+    var N = p.people, T = p.teams, D = p.departments;
+    var rng = makeRng(mixSeed(p.seed, C.networkSalt));
+    var team = [], teamSize = [], dept = [], deptSize = [], teamsInDept = [], i, j, t;
+    var base = Math.floor(N / T), extra = N % T, idx = 0;
+    for (t = 0; t < T; t++) {
+      var size = base + (t < extra ? 1 : 0);
+      teamSize.push(size);
+      for (j = 0; j < size; j++) team[idx++] = t;
+    }
+    for (var d = 0; d < D; d++) { deptSize.push(0); teamsInDept.push(0); }
+    for (t = 0; t < T; t++) { dept.push(t % D); teamsInDept[t % D]++; deptSize[t % D] += teamSize[t]; }
+    var pTeam = teamSize.map(function (s) { return Math.min(1, p.tiesTeam / (s - 1)); });
+    var pDept = deptSize.map(function (s, k) {
+      var others = s - s / teamsInDept[k];
+      return others > 0 ? Math.min(1, p.tiesDept / others) : 0;
+    });
+    var otherDepts = N - N / D;
+    var pOrg = otherDepts > 0 ? Math.min(1, p.tiesOrg / otherDepts) : 0;
+    var adj = [];
+    for (i = 0; i < N; i++) adj.push([]);
+    for (i = 0; i < N; i++) {
+      for (j = i + 1; j < N; j++) {
+        var prob = team[i] === team[j] ? pTeam[team[i]] : (dept[team[i]] === dept[team[j]] ? pDept[dept[team[i]]] : pOrg);
+        if (rng.uniform() < prob) { adj[i].push(j); adj[j].push(i); }
+      }
+    }
+    // Nobody is left with no contacts: link them to the first teammate.
+    for (i = 0; i < N; i++) {
+      if (adj[i].length === 0) {
+        for (j = 0; j < N; j++) {
+          if (j !== i && team[j] === team[i]) { adj[i].push(j); adj[j].push(i); break; }
+        }
+      }
+    }
+    for (i = 0; i < N; i++) adj[i].sort(function (a, b) { return a - b; });
+    var need = [], suit = [];
+    for (i = 0; i < N; i++) need.push(C.thresholdLow + C.thresholdSpan * rng.uniform());
+    for (i = 0; i < N; i++) suit.push(rng.uniform());
+    return finishNetwork(adj, team, need, suit, dept);
+  }
+
+  // Shared by synthetic and loaded networks: degrees, ties, betweenness and team summaries.
+  function finishNetwork(adj, team, need, suit, dept) {
+    var N = adj.length, i, k;
+    var T = 0;
+    for (i = 0; i < N; i++) T = Math.max(T, team[i] + 1);
+    var degree = adj.map(function (a) { return a.length; });
+    var outside = adj.map(function (a, v) { return a.filter(function (w) { return team[w] !== team[v]; }).length; });
+    var edges = 0;
+    for (i = 0; i < N; i++) edges += degree[i];
+    edges = edges / 2;
+    var teamSize = [], teamTies = [];
+    for (k = 0; k < T; k++) { teamSize.push(0); teamTies.push(0); }
+    for (i = 0; i < N; i++) {
+      teamSize[team[i]]++;
+      for (k = 0; k < adj[i].length; k++) if (adj[i][k] > i && team[adj[i][k]] === team[i]) teamTies[team[i]]++;
+    }
+    var outsideTotal = 0;
+    for (i = 0; i < N; i++) outsideTotal += outside[i];
+    return {
+      size: N, teams: T, adj: adj, team: team, dept: dept || null, need: need, suit: suit, degree: degree, outside: outside,
+      edges: edges, teamSize: teamSize, teamTies: teamTies, betweenness: betweenness(adj),
+      meanDegree: N ? 2 * edges / N : 0, outsideShare: edges ? outsideTotal / (2 * edges) : 0
+    };
+  }
+
+  // Brandes' algorithm for betweenness centrality (unweighted, undirected; each pair counted twice).
+  function betweenness(adj) {
+    var N = adj.length, cb = [], s, i;
+    for (i = 0; i < N; i++) cb.push(0);
+    for (s = 0; s < N; s++) {
+      var stack = [], preds = [], sigma = [], dist = [], delta = [];
+      for (i = 0; i < N; i++) { preds.push([]); sigma.push(0); dist.push(-1); delta.push(0); }
+      sigma[s] = 1; dist[s] = 0;
+      var queue = [s], head = 0;
+      while (head < queue.length) {
+        var v = queue[head++];
+        stack.push(v);
+        var nb = adj[v];
+        for (i = 0; i < nb.length; i++) {
+          var w = nb[i];
+          if (dist[w] < 0) { dist[w] = dist[v] + 1; queue.push(w); }
+          if (dist[w] === dist[v] + 1) { sigma[w] += sigma[v]; preds[w].push(v); }
+        }
+      }
+      while (stack.length) {
+        var x = stack.pop();
+        var px = preds[x];
+        for (i = 0; i < px.length; i++) delta[px[i]] += sigma[px[i]] / sigma[x] * (1 + delta[x]);
+        if (x !== s) cb[x] += delta[x];
+      }
+    }
+    return cb;
+  }
+
+  // ---- Choosing champions ----
+
+  function byKeys(list, keyFn) {
+    return list.slice().sort(function (a, b) {
+      var ka = keyFn(a), kb = keyFn(b);
+      for (var i = 0; i < ka.length; i++) { if (ka[i] < kb[i]) return -1; if (ka[i] > kb[i]) return 1; }
+      return 0;
+    });
+  }
+
+  function range(n) { var out = []; for (var i = 0; i < n; i++) out.push(i); return out; }
+
+  function teamOrder(net) {
+    // Most tightly knit first: highest share of possible internal ties, then larger teams, then lower index.
+    return byKeys(range(net.teams), function (t) {
+      var s = net.teamSize[t];
+      var density = s > 1 ? net.teamTies[t] / (s * (s - 1) / 2) : 0;
+      return [-density, -s, t];
+    });
+  }
+
+  function membersByDegree(net, t) {
+    return byKeys(range(net.size).filter(function (v) { return net.team[v] === t; }), function (v) { return [-net.degree[v], v]; });
+  }
+
+  function pickChampions(net, k, strategy, rng) {
+    var N = net.size, K = Math.min(k, N), out = [], i;
+    if (strategy === 'random') {
+      var pool = range(N);
+      for (i = 0; i < K; i++) {
+        var j = i + Math.floor(rng.uniform() * (N - i));
+        var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+        out.push(pool[i]);
+      }
+    } else if (strategy === 'hubs') {
+      out = byKeys(range(N), function (v) { return [-net.degree[v], v]; }).slice(0, K);
+    } else if (strategy === 'bridges') {
+      out = byKeys(range(N), function (v) { return [-net.betweenness[v], -net.degree[v], v]; }).slice(0, K);
+    } else if (strategy === 'cluster') {
+      var teams = teamOrder(net);
+      for (i = 0; i < teams.length && out.length < K; i++) {
+        var members = membersByDegree(net, teams[i]);
+        for (var m = 0; m < members.length && out.length < K; m++) out.push(members[m]);
+      }
+    } else if (strategy === 'spread') {
+      var lists = teamOrder(net).map(function (t) { return membersByDegree(net, t); });
+      for (var round = 0; out.length < K; round++) {
+        var added = false;
+        for (i = 0; i < lists.length && out.length < K; i++) {
+          if (round < lists[i].length) { out.push(lists[i][round]); added = true; }
+        }
+        if (!added) break;
+      }
+    } else {
+      throw new Error('Unknown strategy: ' + strategy);
+    }
+    return out.slice().sort(function (a, b) { return a - b; });
+  }
+
+  // ---- One rollout ----
+
+  // Runs one rollout week by week. Everyone draws one random number per week, whatever their state,
+  // so rollouts with different champions face the same luck (common random numbers).
+  function simulateRollout(net, p, champions, rng, record) {
+    var N = net.size, W = p.weeks, w = p.championWeight, i, k;
+    var user = [], champ = [], ever = [], a = [], theta = [];
+    for (i = 0; i < N; i++) { user.push(0); champ.push(0); ever.push(0); a.push(0); theta.push(p.socialProof * net.need[i]); }
+    for (k = 0; k < champions.length; k++) { user[champions[k]] = 1; champ[champions[k]] = 1; ever[champions[k]] = 1; }
+    var maxA = 0;
+    for (i = 0; i < N; i++) maxA = Math.max(maxA, net.degree[i] * w);
+    var stay = [1];   // stay[n] = chance of resisting n units of peer pull: (1 - peerPull)^n
+    for (k = 1; k <= maxA; k++) stay.push(stay[k - 1] * (1 - p.peerPull));
+    var count = champions.length;
+    var curve = [count / N], reached = count / N >= 0.5 ? 0 : null;
+    var states = record ? [user.slice()] : null;
+    for (var week = 1; week <= W; week++) {
+      for (i = 0; i < N; i++) {
+        var sum = 0, nb = net.adj[i];
+        for (k = 0; k < nb.length; k++) if (user[nb[k]]) sum += champ[nb[k]] ? w : 1;
+        a[i] = sum;
+      }
+      var next = user.slice();
+      for (i = 0; i < N; i++) {
+        var u = rng.uniform();
+        if (champ[i]) continue;
+        var deg = net.degree[i];
+        var share = deg > 0 ? Math.min(1, a[i] / deg) : 0;
+        if (user[i]) {
+          if (u < p.lapse * (1 - share)) next[i] = 0;
+        } else if (net.suit[i] < p.fit) {
+          var open = deg > 0 && share >= theta[i];
+          var pTry = 1 - (1 - p.spontaneous) * (open ? stay[a[i]] : 1);
+          if (u < pTry) { next[i] = 1; ever[i] = 1; }
+        }
+      }
+      user = next;
+      count = 0;
+      for (i = 0; i < N; i++) count += user[i];
+      curve.push(count / N);
+      if (reached === null && count / N >= 0.5) reached = week;
+      if (states) states.push(user.slice());
+    }
+    var inTeam = [], usingInTeam = [];
+    for (k = 0; k < net.teams; k++) { inTeam.push(0); usingInTeam.push(0); }
+    for (i = 0; i < N; i++) { inTeam[net.team[i]]++; usingInTeam[net.team[i]] += user[i]; }
+    var holds = 0;
+    for (k = 0; k < net.teams; k++) if (inTeam[k] > 0 && usingInTeam[k] / inTeam[k] >= C.holdShare) holds++;
+    var everCount = 0;
+    for (i = 0; i < N; i++) everCount += ever[i];
+    return { curve: curve, final: count / N, ever: everCount / N, holds: holds, reached: reached, states: states, ever01: record ? ever : null };
+  }
+
+  function percentile(sorted, q) { return sorted[Math.floor(q * (sorted.length - 1))]; }
+
+  // Runs every rollout for one strategy and summarises them.
+  function runStrategy(net, input, strategy) {
+    var p = normaliseParams(input);
+    var finals = [], evers = [], holds = [], reachedWeeks = [], byWeek = [], r, k;
+    for (k = 0; k <= p.weeks; k++) byWeek.push([]);
+    var firstChampions = null;
+    for (r = 0; r < p.runs; r++) {
+      var champs = pickChampions(net, p.champions, strategy, makeRng(mixSeed(p.seed ^ C.pickSalt, r)));
+      if (r === 0) firstChampions = champs;
+      var res = simulateRollout(net, p, champs, makeRng(mixSeed(p.seed, 1000 + r)), false);
+      finals.push(res.final); evers.push(res.ever); holds.push(res.holds);
+      if (res.reached !== null) reachedWeeks.push(res.reached);
+      for (k = 0; k <= p.weeks; k++) byWeek[k].push(res.curve[k]);
+    }
+    var mean = function (xs) { var t = 0; for (var i = 0; i < xs.length; i++) t += xs[i]; return xs.length ? t / xs.length : null; };
+    var asc = function (a, b) { return a - b; };
+    var curveMean = [], curveLow = [], curveHigh = [];
+    for (k = 0; k <= p.weeks; k++) {
+      var sorted = byWeek[k].slice().sort(asc);
+      curveMean.push(mean(byWeek[k]));
+      curveLow.push(percentile(sorted, C.bandLow));
+      curveHigh.push(percentile(sorted, C.bandHigh));
+    }
+    reachedWeeks.sort(asc);
+    return {
+      strategy: strategy,
+      champions: firstChampions,
+      finalMean: mean(finals),
+      everMean: mean(evers),
+      holdsMean: mean(holds),
+      reachShare: reachedWeeks.length / p.runs,
+      weeksToHalf: reachedWeeks.length ? reachedWeeks[Math.floor((reachedWeeks.length - 1) / 2)] : null,
+      curveMean: curveMean, curveLow: curveLow, curveHigh: curveHigh
+    };
+  }
+
+  function rankStrategies(results) {
+    return results.slice().sort(function (a, b) {
+      if (b.finalMean !== a.finalMean) return b.finalMean - a.finalMean;
+      return STRATEGY_KEYS.indexOf(a.strategy) - STRATEGY_KEYS.indexOf(b.strategy);
+    });
+  }
+
+  function compareStrategies(input) {
+    var p = normaliseParams(input);
+    var net = buildNetwork(p);
+    var results = STRATEGY_KEYS.map(function (s) { return runStrategy(net, p, s); });
+    return { params: p, network: summariseNetwork(net), results: results, ranking: rankStrategies(results).map(function (r) { return r.strategy; }) };
+  }
+
+  function summariseNetwork(net) {
+    return { size: net.size, teams: net.teams, edges: net.edges, meanDegree: net.meanDegree, outsideShare: net.outsideShare };
+  }
+
+  function wholePct(x) { return Math.floor(x * 100 + 0.5) + '%'; }
+
+  // Plain-English reasons, built from the numbers.
+  function explain(cmp) {
+    var p = cmp.params, by = {}, out = [];
+    cmp.results.forEach(function (r) { by[r.strategy] = r; });
+    var best = by[cmp.ranking[0]], second = by[cmp.ranking[1]], worst = by[cmp.ranking[cmp.ranking.length - 1]];
+    var ties = cmp.network.outsideShare;
+    if (best.finalMean - second.finalMean < 0.03) {
+      out.push('It is close: ' + STRATEGIES[best.strategy].label.toLowerCase() + ' ends at ' + wholePct(best.finalMean) + ' and ' +
+        STRATEGIES[second.strategy].label.toLowerCase() + ' at ' + wholePct(second.finalMean) + ', so where the champions sit matters little for how far it spreads.');
+      if (best.weeksToHalf !== null && second.weeksToHalf !== null && best.weeksToHalf !== second.weeksToHalf) {
+        var fast = best.weeksToHalf < second.weeksToHalf ? best : second, slow = fast === best ? second : best;
+        out.push('It does change the speed: ' + STRATEGIES[fast.strategy].label.toLowerCase() + ' reaches half the organisation in ' + fast.weeksToHalf +
+          ' weeks, ' + STRATEGIES[slow.strategy].label.toLowerCase() + ' in ' + slow.weeksToHalf + '.');
+      }
+    } else {
+      out.push(STRATEGIES[best.strategy].label + ' does best: ' + wholePct(best.finalMean) + ' of people are using the tool after ' + p.weeks +
+        ' weeks, against ' + wholePct(second.finalMean) + ' for ' + STRATEGIES[second.strategy].label.toLowerCase() + '.');
+      if (best.strategy === 'spread') {
+        out.push('Every team gets a champion that people work with closely. Only ' + wholePct(ties) + ' of working ties cross team lines, so use rarely jumps between teams on its own: starting in many teams at once matters.');
+      } else if (best.strategy === 'cluster') {
+        out.push('Concentrated champions push one team well past the bar, and that team then carries its neighbours.');
+      } else if (best.strategy === 'hubs') {
+        out.push('The best-connected people are seen by the most colleagues, so they clear the bar for more people than champions anywhere else.');
+      } else if (best.strategy === 'bridges') {
+        out.push('Bridge builders sit between groups, so their use is seen on both sides of the gaps that otherwise stop it spreading.');
+      } else {
+        out.push('Champions chosen at random do as well as any plan here.');
+      }
+    }
+    if (p.socialProof >= 0.15) {
+      out.push('People need about ' + wholePct(p.socialProof) + ' of their contacts using it before they are open to it, so a lone user rarely persuades anyone.');
+    } else if (p.socialProof < 0.1) {
+      out.push('Very little social proof is needed, so one colleague using it is enough to get someone to try it.');
+    }
+    if (worst.strategy === 'cluster' && best.finalMean - worst.finalMean > 0.15) {
+      out.push('Starting in one pilot team is the weakest choice (' + wholePct(worst.finalMean) + '): use takes hold in that team but rarely crosses into others.');
+    }
+    if (best.everMean - best.finalMean > 0.1) {
+      out.push(wholePct(best.everMean) + ' of people tried it at some point but only ' + wholePct(best.finalMean) + ' are still using it: people left using it alone tend to drop it.');
+    }
+    if (best.finalMean < 0.2) {
+      out.push('No strategy gets far. Try more champions, more peer pull or less need for social proof to see what would tip it.');
+    }
+    return out;
+  }
+
+  return {
+    CONSTANTS: C, PARAMS: PARAMS, STRATEGY_KEYS: STRATEGY_KEYS, STRATEGIES: STRATEGIES, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
+    makeRng: makeRng, mixSeed: mixSeed, toNumber: toNumber, normaliseParams: normaliseParams, presetParams: presetParams,
+    buildNetwork: buildNetwork, finishNetwork: finishNetwork, betweenness: betweenness, pickChampions: pickChampions,
+    simulateRollout: simulateRollout, runStrategy: runStrategy, rankStrategies: rankStrategies,
+    compareStrategies: compareStrategies, summariseNetwork: summariseNetwork, explain: explain
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SeedingModel;
+/* MODEL END */
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var M = SeedingModel;
+  var state = { preset: 'assistant', params: M.presetParams('assistant') };
+  var timer = null, token = 0, current = null, playing = null;
+
+  function pct(x, dp) { return x === null || x === undefined ? 'n/a' : (x * 100).toFixed(dp || 0) + '%'; }
+  function fmtValue(spec, v) {
+    if (spec.fmt === 'pct') return Math.round(v * 100) + '%';
+    if (spec.fmt === 'pct1') return (v * 100).toFixed(1) + '%';
+    if (spec.fmt === 'times') return v + '×';
+    if (spec.fmt === 'dec1') return v.toFixed(1);
+    return String(v);
+  }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+
+  function buildControls() {
+    var sel = document.getElementById('preset');
+    Object.keys(M.PRESETS).forEach(function (k) { sel.appendChild(el('option', { value: k }, M.PRESETS[k].label)); });
+    sel.appendChild(el('option', { value: 'custom' }, 'Custom'));
+    sel.addEventListener('change', function () {
+      if (sel.value === 'custom') { markCustom(); return; }
+      state.preset = sel.value;
+      state.params = M.presetParams(sel.value);
+      syncControls();
+      schedule();
+    });
+    var box = document.getElementById('strategy');
+    M.STRATEGY_KEYS.forEach(function (key) {
+      var lab = el('label');
+      var input = el('input', { type: 'radio', name: 'strategy', value: key });
+      input.addEventListener('change', function () { state.params.strategy = key; markCustom(); renderAll(); });
+      lab.appendChild(input);
+      lab.appendChild(el('strong', null, ' ' + M.STRATEGIES[key].label));
+      lab.appendChild(el('div', null, M.STRATEGIES[key].help));
+      box.appendChild(lab);
+    });
+    M.PARAMS.forEach(function (spec) {
+      var wrap = el('div', { 'class': 'control' });
+      var label = el('label', { 'for': 'p-' + spec.key });
+      label.appendChild(el('span', null, spec.label));
+      label.appendChild(el('output', { id: 'o-' + spec.key, 'for': 'p-' + spec.key }));
+      var input = el('input', { type: 'range', id: 'p-' + spec.key, min: spec.min, max: spec.max, step: spec.step, 'aria-describedby': 'h-' + spec.key });
+      input.addEventListener('input', function () {
+        state.params[spec.key] = Number(input.value);
+        refreshOutputs();
+        markCustom();
+        schedule();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(el('p', { 'class': 'help', id: 'h-' + spec.key }, spec.help));
+      document.getElementById('group-' + spec.group).appendChild(wrap);
+    });
+    document.getElementById('week').addEventListener('input', function () { stopPlay(); renderNetwork(); });
+    document.getElementById('play').addEventListener('click', togglePlay);
+  }
+
+  function markCustom() {
+    state.preset = 'custom';
+    document.getElementById('preset').value = 'custom';
+    document.getElementById('preset-help').textContent = 'Your own settings.';
+  }
+
+  function refreshOutputs() {
+    M.PARAMS.forEach(function (spec) {
+      var text = fmtValue(spec, state.params[spec.key]);
+      document.getElementById('o-' + spec.key).textContent = text;
+      document.getElementById('p-' + spec.key).setAttribute('aria-valuetext', text);
+    });
+  }
+
+  function syncControls() {
+    document.getElementById('preset').value = state.preset;
+    document.getElementById('preset-help').textContent = state.preset === 'custom' ? 'Your own settings.' : M.PRESETS[state.preset].help;
+    M.PARAMS.forEach(function (spec) { document.getElementById('p-' + spec.key).value = state.params[spec.key]; });
+    refreshOutputs();
+    document.querySelectorAll('input[name=strategy]').forEach(function (r) { r.checked = r.value === state.params.strategy; });
+  }
+
+  function schedule() { clearTimeout(timer); timer = setTimeout(run, 150); }
+
+  // Builds the organisation, then runs one strategy per tick so the page never freezes.
+  function run() {
+    var my = ++token;
+    var p = M.normaliseParams(state.params);
+    var results = [], i = 0, net = null;
+    var box = document.querySelector('.results');
+    var busy = setTimeout(function () { if (my === token) box.classList.add('busy'); }, 150);
+    function step() {
+      if (my !== token) { clearTimeout(busy); return; }
+      if (!net) net = M.buildNetwork(p);
+      else { results.push(M.runStrategy(net, p, M.STRATEGY_KEYS[i])); i++; }
+      if (i < M.STRATEGY_KEYS.length) { setTimeout(step, 0); return; }
+      clearTimeout(busy);
+      box.classList.remove('busy');
+      current = { p: p, net: net, layout: layout(net, p), cmp: { params: p, network: M.summariseNetwork(net), results: results,
+        ranking: M.rankStrategies(results).map(function (r) { return r.strategy; }) } };
+      var week = document.getElementById('week');
+      week.max = p.weeks;
+      week.value = p.weeks;
+      renderAll();
+    }
+    setTimeout(step, 0);
+  }
+
+  function selected() {
+    var key = state.params.strategy;
+    for (var i = 0; i < current.cmp.results.length; i++) if (current.cmp.results[i].strategy === key) return current.cmp.results[i];
+    return null;
+  }
+
+  function renderAll() {
+    if (!current) return;
+    var r = selected();
+    current.sample = M.simulateRollout(current.net, current.p, r.champions, M.makeRng(M.mixSeed(current.p.seed, 1000)), true);
+    renderHeadline(r);
+    renderKpis(r);
+    renderNetwork();
+    renderCurve(r);
+    renderCompare();
+    document.getElementById('live').textContent = M.STRATEGIES[r.strategy].label + ': ' + pct(r.finalMean) + ' using the tool after ' + current.p.weeks + ' weeks.';
+    document.body.setAttribute('data-runs', String((Number(document.body.getAttribute('data-runs')) || 0) + 1));
+  }
+
+  function renderHeadline(r) {
+    var box = document.getElementById('headline'), cmp = current.cmp;
+    box.innerHTML = '';
+    var best = cmp.ranking[0];
+    box.appendChild(el('h2', null, best === r.strategy ? M.STRATEGIES[r.strategy].label + ' is the best strategy here' :
+      M.STRATEGIES[best].label + ' beats ' + M.STRATEGIES[r.strategy].label.toLowerCase() + ' here'));
+    var ul = el('ul', { 'class': 'why' });
+    M.explain(cmp).forEach(function (t) { ul.appendChild(el('li', null, t)); });
+    box.appendChild(ul);
+  }
+
+  function kpi(label, value, sub) {
+    var d = el('div', { 'class': 'card kpi' });
+    d.appendChild(el('div', { 'class': 'label' }, label));
+    d.appendChild(el('div', { 'class': 'value' }, value));
+    d.appendChild(el('div', { 'class': 'sub' }, sub));
+    return d;
+  }
+
+  function renderKpis(r) {
+    var box = document.getElementById('kpis'), p = current.p;
+    box.innerHTML = '';
+    box.appendChild(kpi('Using it after ' + p.weeks + ' weeks', pct(r.finalMean), 'Tried it at some point: ' + pct(r.everMean)));
+    box.appendChild(kpi('Chance of reaching half', pct(r.reachShare), 'Share of rollouts where half the organisation used it'));
+    box.appendChild(kpi('Weeks to half', r.weeksToHalf === null ? 'Not reached' : String(r.weeksToHalf), 'Median, in rollouts that got there'));
+    box.appendChild(kpi('Teams where it took hold', r.holdsMean.toFixed(1) + ' of ' + current.net.teams, 'At least half the team using it at the end'));
+  }
+
+  // Departments round a large circle, teams round each department, people round each team.
+  function layout(net, p) {
+    var pos = [], cx = 300, cy = 300, D = p.departments, T = net.teams, t, i;
+    var teamsByDept = [];
+    for (var d = 0; d < D; d++) teamsByDept.push([]);
+    for (t = 0; t < T; t++) teamsByDept[t % D].push(t);
+    var centres = [];
+    var deptR = D > 1 ? 185 : 0;
+    for (d = 0; d < D; d++) {
+      var da = 2 * Math.PI * d / D - Math.PI / 2;
+      var dx = cx + deptR * Math.cos(da), dy = cy + deptR * Math.sin(da);
+      var list = teamsByDept[d];
+      var teamR = list.length > 1 ? (D > 1 ? Math.min(85, 30 + 12 * list.length) : 200) : 0;
+      list.forEach(function (tt, j) {
+        var ta = 2 * Math.PI * j / list.length - Math.PI / 2 + d;
+        centres[tt] = [dx + teamR * Math.cos(ta), dy + teamR * Math.sin(ta)];
+      });
+    }
+    var seen = [];
+    for (t = 0; t < T; t++) seen.push(0);
+    for (i = 0; i < net.size; i++) {
+      var tm = net.team[i], n = net.teamSize[tm], k = seen[tm]++;
+      var r = 5 + 2.2 * Math.sqrt(n) * 2;
+      var a = 2 * Math.PI * k / n;
+      pos.push([centres[tm][0] + r * Math.cos(a), centres[tm][1] + r * Math.sin(a)]);
+    }
+    return pos;
+  }
+
+  function renderNetwork() {
+    if (!current) return;
+    var svg = document.getElementById('net'), net = current.net, pos = current.layout;
+    var week = Number(document.getElementById('week').value);
+    document.getElementById('week-out').textContent = String(week);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var users = current.sample.states[week], champs = {};
+    var everSoFar = [];
+    for (var i = 0; i < net.size; i++) everSoFar.push(0);
+    for (var w = 0; w <= week; w++) for (i = 0; i < net.size; i++) if (current.sample.states[w][i]) everSoFar[i] = 1;
+    selected().champions.forEach(function (c) { champs[c] = true; });
+    for (i = 0; i < net.size; i++) {
+      net.adj[i].forEach(function (j) {
+        if (j > i) svg.appendChild(svgEl('line', { x1: pos[i][0].toFixed(1), y1: pos[i][1].toFixed(1), x2: pos[j][0].toFixed(1), y2: pos[j][1].toFixed(1), stroke: 'var(--edge)', 'stroke-width': 0.8 }));
+      });
+    }
+    var using = 0;
+    for (i = 0; i < net.size; i++) {
+      var fill = champs[i] ? 'var(--champion)' : (users[i] ? 'var(--user)' : (everSoFar[i] ? 'var(--lapsed)' : 'var(--never)'));
+      using += users[i];
+      svg.appendChild(svgEl('circle', { cx: pos[i][0].toFixed(1), cy: pos[i][1].toFixed(1), r: champs[i] ? 6.5 : 4.5, fill: fill, stroke: 'var(--card)', 'stroke-width': 1 }));
+    }
+    svg.setAttribute('aria-label', 'Network of ' + net.size + ' people in ' + net.teams + ' teams at week ' + week + ': ' + using + ' using the tool, including ' + Object.keys(champs).length + ' champions.');
+    document.getElementById('net-note').textContent = 'Week ' + week + ': ' + using + ' of ' + net.size + ' people using it. This is one sample rollout; the numbers above average ' + current.p.runs + '.';
+    var legend = document.getElementById('net-legend');
+    legend.innerHTML = '';
+    [['Champion', 'var(--champion)'], ['Using it', 'var(--user)'], ['Tried, then dropped it', 'var(--lapsed)'], ['Not yet', 'var(--never)']].forEach(function (k) {
+      var key = el('span', { 'class': 'key' });
+      var s = svgEl('svg', { viewBox: '0 0 10 10', 'aria-hidden': 'true' });
+      s.appendChild(svgEl('circle', { cx: 5, cy: 5, r: 4.5, fill: k[1] }));
+      key.appendChild(s);
+      key.appendChild(document.createTextNode(k[0]));
+      legend.appendChild(key);
+    });
+  }
+
+  function togglePlay() {
+    if (playing) { stopPlay(); return; }
+    var week = document.getElementById('week');
+    if (Number(week.value) >= Number(week.max)) week.value = 0;
+    document.getElementById('play').textContent = 'Pause';
+    playing = setInterval(function () {
+      if (Number(week.value) >= Number(week.max)) { stopPlay(); return; }
+      week.value = Number(week.value) + 1;
+      renderNetwork();
+    }, 140);
+  }
+
+  function stopPlay() {
+    if (playing) clearInterval(playing);
+    playing = null;
+    document.getElementById('play').textContent = 'Play';
+  }
+
+  function renderCurve(r) {
+    var svg = document.getElementById('curve'), p = current.p;
+    var W = svg.clientWidth || 640, H = svg.clientHeight || 260, m = { l: 40, r: 12, t: 10, b: 30 };
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var x = function (v) { return m.l + (W - m.l - m.r) * v / p.weeks; };
+    var y = function (v) { return m.t + (H - m.t - m.b) * (1 - v); };
+    for (var t = 0; t <= 1.0001; t += 0.25) {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: 'var(--line)' }));
+      var lab = svgEl('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+      lab.textContent = Math.round(t * 100) + '%';
+      svg.appendChild(lab);
+    }
+    for (var wk = 0; wk <= p.weeks; wk += (p.weeks > 52 ? 26 : 13)) {
+      var tx = svgEl('text', { x: x(wk), y: H - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' });
+      tx.textContent = String(wk);
+      svg.appendChild(tx);
+    }
+    var band = r.curveHigh.map(function (v, i) { return x(i).toFixed(1) + ',' + y(v).toFixed(1); })
+      .concat(r.curveLow.map(function (v, i) { return [i, v]; }).reverse().map(function (q) { return x(q[0]).toFixed(1) + ',' + y(q[1]).toFixed(1); }));
+    svg.appendChild(svgEl('polygon', { points: band.join(' '), fill: 'var(--s-' + r.strategy + ')', 'fill-opacity': 0.15 }));
+    current.cmp.results.forEach(function (res) {
+      var mine = res.strategy === r.strategy;
+      svg.appendChild(svgEl('polyline', { points: res.curveMean.map(function (v, i) { return x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' '),
+        fill: 'none', stroke: 'var(--s-' + res.strategy + ')', 'stroke-width': mine ? 3 : 1.5, 'stroke-opacity': mine ? 1 : 0.6 }));
+    });
+    svg.setAttribute('aria-label', 'Average share of people using the tool over ' + p.weeks + ' weeks for each strategy. ' +
+      current.cmp.results.map(function (res) { return M.STRATEGIES[res.strategy].label + ' ends at ' + pct(res.finalMean); }).join('; ') + '.');
+    var legend = document.getElementById('curve-legend');
+    legend.innerHTML = '';
+    current.cmp.results.forEach(function (res) {
+      var key = el('span', { 'class': 'key' });
+      var s = svgEl('svg', { viewBox: '0 0 22 10', 'aria-hidden': 'true' });
+      s.appendChild(svgEl('line', { x1: 1, x2: 21, y1: 5, y2: 5, stroke: 'var(--s-' + res.strategy + ')', 'stroke-width': res.strategy === r.strategy ? 3 : 2 }));
+      key.appendChild(s);
+      key.appendChild(document.createTextNode(M.STRATEGIES[res.strategy].label));
+      legend.appendChild(key);
+    });
+  }
+
+  var COLUMNS = ['Strategy', 'Using it at the end', 'Tried it', 'Reached half', 'Weeks to half', 'Teams taken hold'];
+
+  function renderCompare() {
+    var table = document.getElementById('compare');
+    table.innerHTML = '';
+    var head = el('tr');
+    COLUMNS.forEach(function (h, i) {
+      head.appendChild(el('th', { scope: 'col', 'class': i ? 'num' : '' }, h));
+    });
+    var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
+    var body = el('tbody');
+    current.cmp.ranking.forEach(function (key) {
+      var r = current.cmp.results[M.STRATEGY_KEYS.indexOf(key)];
+      var tr = el('tr', { 'class': key === state.params.strategy ? 'current' : '' });
+      tr.appendChild(el('th', { scope: 'row' }, M.STRATEGIES[key].label));
+      var cells = [pct(r.finalMean), pct(r.everMean), pct(r.reachShare), r.weeksToHalf === null ? 'n/a' : String(r.weeksToHalf), r.holdsMean.toFixed(1)];
+      cells.forEach(function (text, i) { tr.appendChild(el('td', { 'class': 'num', 'data-label': COLUMNS[i + 1] }, text)); });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+  }
+
+  buildControls();
+  syncControls();
+  run();
+})();
+</script>
+</body>
+</html>
