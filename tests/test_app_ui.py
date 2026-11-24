@@ -39,7 +39,7 @@ class AppTests(unittest.TestCase):
 
     def test_default_product_shows_the_plan(self):
         page = self.open()
-        self.assertIn("£570.90", page.inner_text("#compare"))
+        self.assertIn("£540.02", page.inner_text("#compare"))
         self.assertIn("10% off today", page.inner_text("#lead"))
         self.assertEqual(page.locator("#map rect").count(), 7 * 30)
         self.assertEqual(self.errors, [])
@@ -49,10 +49,16 @@ class AppTests(unittest.TestCase):
     def test_changing_inputs_updates_results(self):
         page = self.open()
         page.select_option("#preset", "mochi")
-        self.assertIn("£236.03", page.inner_text("#compare"))
+        self.assertIn("£220.04", page.inner_text("#compare"))
         page.fill("#f-stock", "10")
         page.dispatch_event("#f-stock", "change")
-        self.assertNotIn("£236.03", page.inner_text("#compare"))
+        self.assertNotIn("£220.04", page.inner_text("#compare"))
+        page.select_option("#rule-pct", "50")
+        page.select_option("#rule-days", "1")
+        self.assertIn("50% off with 1 day left", page.inner_text("#compare"))
+        page.check("#f-rises")
+        page.dispatch_event("#f-rises", "change")
+        self.assertIn("chance of selling out", page.inner_text("#leftover-note"))
         self.assertEqual(self.errors, [])
         page.close()
 

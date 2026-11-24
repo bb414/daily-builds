@@ -33,6 +33,20 @@ class ModelTests(unittest.TestCase):
                 self.assertGreaterEqual(best["profit"], r["result"]["profit"] - 1e-7, msg=key + " " + r["name"])
             self.assertAlmostEqual(best["sold"] + best["waste"], preset["stock"], places=7)
 
+    def test_freshness_lowers_demand_day_by_day(self):
+        cfg = model.normalise({"demand": 10, "freshness": 20, "pattern": "flat"})
+        self.assertAlmostEqual(model.demand_rate(cfg, 0, 0), 10)
+        self.assertAlmostEqual(model.demand_rate(cfg, 2, 0), 10 * 0.8 ** 2)
+        stale = model.solve(dict(model.PRESETS["mochi"], freshness=30))["value"]
+        fresh = model.solve(dict(model.PRESETS["mochi"], freshness=0))["value"]
+        self.assertLess(stale, fresh)
+
+    def test_quantiles(self):
+        self.assertEqual(model.quantile([0.05, 0.05, 0.4, 0.5], 0.1), 1)
+        self.assertEqual(model.quantile([0.05, 0.05, 0.4, 0.5], 0.5), 2)
+        self.assertEqual(model.quantile([0.05, 0.05, 0.4, 0.5], 0.9), 3)
+        self.assertEqual(model.quantile([1.0], 0.9), 0)
+
     def test_settings_are_clamped(self):
         cfg = model.normalise({"stock": 5000, "days": -2, "price": "x", "pattern": "nope"})
         self.assertEqual((cfg["stock"], cfg["days"], cfg["price"], cfg["pattern"]), (300, 1, 12.0, "flat"))
@@ -48,8 +62,9 @@ class CommandLineTests(unittest.TestCase):
     def test_plan_for_a_preset(self):
         code, out, _ = run_cli("plan", "--preset", "truffles")
         self.assertEqual(code, 0)
-        self.assertIn("Best plan (this model)      £570.90", out)
-        self.assertIn("10% off    £570.90   <- best", out)
+        self.assertIn("Best plan (this model)      £540.02", out)
+        self.assertIn("10% off    £540.02   <- best", out)
+        self.assertIn("Mon 60 (60-60), Tue 54 (51-57)", out)
         self.assertIn("Units  Mon", out)
 
     def test_plan_with_own_numbers(self):

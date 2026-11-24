@@ -113,3 +113,25 @@ test('rules switch on at the right day', function () {
   assert.equal(M.POLICIES.lastDay(sol)(4, 10, 0), 4);
   assert.equal(M.POLICIES.rule(sol, 25, 2)(4, 10, 0), 0, 'a discount not on the ladder means no discount');
 });
+
+test('freshness lowers demand by a fixed share each day', function () {
+  const cfg = M.normalise({ demand: 10, freshness: 20, pattern: 'flat' });
+  near(M.demandRate(cfg, 0, 0), 10, 1e-12);
+  near(M.demandRate(cfg, 3, 0), 10 * Math.pow(0.8, 3), 1e-12);
+  near(M.demandRate(cfg, 3, 4), 10 * Math.pow(0.8, 3) * Math.pow(0.5, -cfg.elasticity), 1e-12);
+});
+
+test('outcome distributions are consistent with the expectations', function () {
+  const res = M.comparePolicies(M.PRESETS.truffles).rows[0].result;
+  res.days.forEach(function (d) {
+    near(d.stockDist.reduce(function (a, b) { return a + b; }, 0), 1, 1e-9);
+    near(d.stepProb.reduce(function (a, b) { return a + b; }, 0), 1, 1e-9);
+    assert.ok(d.p10 <= d.p50 && d.p50 <= d.p90);
+    const mean = d.stockDist.reduce(function (a, p, s) { return a + p * s; }, 0);
+    near(mean, d.stockStart, 1e-9);
+  });
+  assert.equal(res.days[0].p50, 60, 'everything is still in stock on day one');
+  assert.ok(res.leftoverP10 <= res.leftoverP50 && res.leftoverP50 <= res.leftoverP90);
+  assert.equal(M.quantile([0.05, 0.05, 0.4, 0.5], 0.1), 1);
+  assert.equal(M.quantile([0.05, 0.05, 0.4, 0.5], 0.9), 3);
+});

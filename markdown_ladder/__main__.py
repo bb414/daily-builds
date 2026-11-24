@@ -52,9 +52,9 @@ def cmd_plan(args):
     cmp = model.compare_policies(cfg, {"pct": args.rule_pct, "daysLeft": args.rule_days})
     sol = cmp["solution"]
     pattern_names = {"flat": "same every day", "highStreet": "busy weekends", "office": "quiet weekends"}
-    print("%d units, %d selling days from %s, full price %s, demand %.1f a day at full price (%s), price sensitivity %.1f" % (
-        cfg["stock"], cfg["days"], model.DAY_NAMES[cfg["startDay"]], money(cfg["price"]), cfg["demand"],
-        pattern_names[cfg["pattern"]], cfg["elasticity"]))
+    print("%d units, %d selling days from %s, full price %s, demand %.1f a day at full price (%s)" % (
+        cfg["stock"], cfg["days"], model.DAY_NAMES[cfg["startDay"]], money(cfg["price"]), cfg["demand"], pattern_names[cfg["pattern"]]))
+    print("Price sensitivity %.1f, appeal lost per day %d%%" % (cfg["elasticity"], cfg["freshness"]))
     print("Disposal %s a unit, stock cost %s a unit%s" % (money(cfg["wasteCost"]), money(cfg["unitCost"]),
                                                           "" if cfg["monotone"] else ", prices may go back up"))
     print()
@@ -69,6 +69,12 @@ def cmd_plan(args):
     pick = sol["policy"][0][0][S]
     for j, d in enumerate(model.LADDER):
         print("  %-10s %s%s" % ("full price" if d == 0 else "%d%% off" % d, money(sol["Q"][0][j][S]), "   <- best" if j == pick else ""))
+    print()
+    best = cmp["rows"][0]["result"]
+    print("Following the best plan, units left at the start of each day (middle outcome, and the range 8 times in 10):")
+    path = ["%s %d (%d-%d)" % (model.DAY_NAMES[(cfg["startDay"] + t) % 7], d["p50"], d["p10"], d["p90"]) for t, d in enumerate(best["days"])]
+    path.append("end %d (%d-%d)" % (best["leftoverP50"], best["leftoverP10"], best["leftoverP90"]))
+    print("  " + ", ".join(path))
     print()
     print("The ladder: best discount by units left (rows) and day (columns), before any markdown")
     days = [model.DAY_NAMES[(cfg["startDay"] + t) % 7] for t in range(cfg["days"])]
@@ -88,6 +94,7 @@ def build_parser():
     plan.add_argument("--waste-cost", dest="wasteCost", type=float, help="cost of throwing one away (negative if leftovers can be sold on)")
     plan.add_argument("--demand", type=float, help="average units a day at full price")
     plan.add_argument("--elasticity", type=float, help="price sensitivity")
+    plan.add_argument("--freshness", type=float, help="%% of appeal lost per day as the stock ages")
     plan.add_argument("--start-day", dest="startDay", type=int, choices=range(7), help="0 = Monday")
     plan.add_argument("--pattern", choices=list(model.WEEK_PATTERNS))
     plan.add_argument("--allow-price-rises", action="store_true", help="let the price go back up after a markdown")

@@ -79,7 +79,10 @@ h3 { font-size: 1rem; margin: 0 0 8px; }
 .field input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
 .field select, .field input[type="number"] { width: 100%; margin-top: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
 .field .hint { font-size: .8rem; color: var(--ink-3); margin: 2px 0 0; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.check { display: flex !important; justify-content: flex-start !important; align-items: flex-start; gap: 8px; font-weight: 600; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; font-size: .92rem; }
+.rule-row select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
 
 /* Results */
 .headline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -160,6 +163,15 @@ tr.best td { font-weight: 700; }
       </section>
       <section class="card" aria-labelledby="compare-title">
         <h2 id="compare-title">Against simple rules</h2>
+        <div class="rule-row">
+          <span>Your rule:</span>
+          <label class="sr-only" for="rule-pct">Discount for your rule</label>
+          <select id="rule-pct"><option value="10">10%</option><option value="20">20%</option><option value="30" selected>30%</option><option value="50">50%</option></select>
+          <span>off with</span>
+          <label class="sr-only" for="rule-days">Days left when your rule starts</label>
+          <select id="rule-days"></select>
+          <span>left</span>
+        </div>
         <div class="table-wrap" id="compare"></div>
       </section>
     </div>
@@ -168,6 +180,28 @@ tr.best td { font-weight: 700; }
       <p class="small muted">The best discount for every day and every amount of stock left, before any markdown has been taken. Read across a row to see the price fall as the sell-by date nears; read up a column to see that more stock means deeper cuts.</p>
       <div id="map"></div>
       <ul class="legend" id="map-legend"></ul>
+    </section>
+    <section class="card chart" aria-labelledby="outlook-title">
+      <h2 id="outlook-title">What to expect if you follow the plan</h2>
+      <p class="small muted" id="outlook-sub"></p>
+      <div class="grid-2">
+        <div>
+          <h3>Units left at the start of each day</h3>
+          <div id="fan"></div>
+          <ul class="legend">
+            <li><span class="sw" style="background: var(--d2); opacity: .45"></span>8 times in 10 it lands in the shaded band</li>
+            <li><span class="sw" style="background: var(--accent)"></span>Middle outcome</li>
+            <li><span class="sw" style="background: none; border: 2px dashed var(--ink-3)"></span>Middle outcome if you never discount</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Chance of each price, day by day</h3>
+          <div id="steps"></div>
+        </div>
+      </div>
+      <h3 style="margin-top: 18px">Units left at the sell-by date</h3>
+      <div id="leftover"></div>
+      <p class="small" id="leftover-note"></p>
     </section>
   </div>
 </main>
@@ -195,13 +229,14 @@ var MarkdownLadder = (function () {
     wasteCost: { min: -50, max: 50, step: 0.05, value: 0.3 },
     demand: { min: 0.1, max: 100, step: 0.1, value: 6 },
     elasticity: { min: 0, max: 6, step: 0.1, value: 1.8 },
+    freshness: { min: 0, max: 40, step: 1, value: 0 },
     startDay: { min: 0, max: 6, step: 1, value: 0 }
   };
   var PRESETS = {
-    truffles: { name: 'Chocolate truffle box', stock: 60, days: 7, price: 12, unitCost: 4.8, wasteCost: 0.3, demand: 6, elasticity: 1.8, startDay: 0, pattern: 'highStreet' },
-    mochi: { name: 'Fresh mochi, pack of six', stock: 40, days: 3, price: 6.5, unitCost: 2.4, wasteCost: 0.2, demand: 10, elasticity: 2.5, startDay: 3, pattern: 'highStreet' },
-    eclairs: { name: 'Coffee eclairs at an office kiosk', stock: 30, days: 2, price: 3.2, unitCost: 1.1, wasteCost: 0.1, demand: 11, elasticity: 3, startDay: 3, pattern: 'office' },
-    tins: { name: 'Festive biscuit tins', stock: 120, days: 14, price: 15, unitCost: 6, wasteCost: 2, demand: 6, elasticity: 2.2, startDay: 0, pattern: 'highStreet' }
+    truffles: { name: 'Chocolate truffle box', stock: 60, days: 7, price: 12, unitCost: 4.8, wasteCost: 0.3, demand: 6, elasticity: 1.8, freshness: 3, startDay: 0, pattern: 'highStreet' },
+    mochi: { name: 'Fresh mochi, pack of six', stock: 40, days: 3, price: 6.5, unitCost: 2.4, wasteCost: 0.2, demand: 10, elasticity: 2.5, freshness: 15, startDay: 3, pattern: 'highStreet' },
+    eclairs: { name: 'Coffee eclairs at an office kiosk', stock: 30, days: 2, price: 3.2, unitCost: 1.1, wasteCost: 0.1, demand: 11, elasticity: 3, freshness: 20, startDay: 3, pattern: 'office' },
+    tins: { name: 'Festive biscuit tins', stock: 120, days: 14, price: 15, unitCost: 6, wasteCost: 2, demand: 6, elasticity: 2.2, freshness: 0, startDay: 0, pattern: 'highStreet' }
   };
   var MAX_STOCK = FIELDS.stock.max;
 
@@ -226,10 +261,22 @@ var MarkdownLadder = (function () {
     return out;
   }
 
-  // Expected demand on day t (0 = first day) at ladder step j.
+  // Expected demand on day t (0 = first day) at ladder step j: the weekday pattern,
+  // the loss of appeal as stock ages (freshness, % a day) and the lift from the discount.
   function demandRate(cfg, t, j) {
     var weekday = (cfg.startDay + t) % 7;
-    return cfg.demand * WEEK_PATTERNS[cfg.pattern][weekday] * Math.pow(1 - LADDER[j] / 100, -cfg.elasticity);
+    return cfg.demand * WEEK_PATTERNS[cfg.pattern][weekday] * Math.pow(1 - cfg.freshness / 100, t) *
+      Math.pow(1 - LADDER[j] / 100, -cfg.elasticity);
+  }
+
+  // Smallest s with P(stock <= s) >= q, for a probability distribution over stock levels.
+  function quantile(dist, q) {
+    var cum = 0;
+    for (var s = 0; s < dist.length; s++) {
+      cum += dist[s];
+      if (cum >= q - 1e-12) return s;
+    }
+    return dist.length - 1;
   }
 
   // Poisson probabilities for the counts that matter. Counts outside [lo, hi]
@@ -349,6 +396,9 @@ var MarkdownLadder = (function () {
           discountSum += w * LADDER[j];
         }
       }
+      day.p10 = quantile(day.stockDist, 0.1);
+      day.p50 = quantile(day.stockDist, 0.5);
+      day.p90 = quantile(day.stockDist, 0.9);
       revenue += day.revenue;
       sold += day.sold;
       days.push(day);
@@ -367,6 +417,9 @@ var MarkdownLadder = (function () {
       sellOut: left[0],
       avgDiscount: discountSum / T,
       leftover: left,
+      leftoverP10: quantile(left, 0.1),
+      leftoverP50: quantile(left, 0.5),
+      leftoverP90: quantile(left, 0.9),
       days: days
     };
   }
@@ -386,7 +439,7 @@ var MarkdownLadder = (function () {
 
   var api = {
     LADDER: LADDER, DAY_NAMES: DAY_NAMES, WEEK_PATTERNS: WEEK_PATTERNS, FIELDS: FIELDS, PRESETS: PRESETS,
-    normalise: normalise, demandRate: demandRate, poissonWindow: poissonWindow, expectedValues: expectedValues,
+    normalise: normalise, demandRate: demandRate, quantile: quantile, poissonWindow: poissonWindow, expectedValues: expectedValues,
     solve: solve, evaluate: evaluate, POLICIES: POLICIES, comparePolicies: comparePolicies
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -409,6 +462,7 @@ var MarkdownLadder = (function () {
     wasteCost: ['Cost of throwing one away (£)', 'Disposal cost. Use a negative number if leftovers can be sold on.'],
     demand: ['Daily demand at full price', 'Average units a day, before weekday effects.'],
     elasticity: ['Price sensitivity', 'How much discounts lift demand: at 2, 20% off sells about 56% more.'],
+    freshness: ['Appeal lost per day (%)', 'Fresh goods sell less each day they age. Use 0 for long-life stock.'],
     startDay: ['Today is', '']
   };
   var STEP_COLOURS = ['var(--d0)', 'var(--d1)', 'var(--d2)', 'var(--d3)', 'var(--d4)'];
@@ -445,7 +499,12 @@ var MarkdownLadder = (function () {
     var pat = el('select', { id: 'f-pattern' });
     [['flat', 'Same every day'], ['highStreet', 'High street: busy weekends'], ['office', 'Office area: quiet weekends']].forEach(function (o) { pat.appendChild(el('option', { value: o[0], text: o[1] })); });
     box.appendChild(el('div', { className: 'field' }, [el('label', { for: 'f-pattern', text: 'Weekly pattern' }), pat]));
+    var rise = el('input', { type: 'checkbox', id: 'f-rises' });
+    box.appendChild(el('div', { className: 'field' }, [el('label', { className: 'check', for: 'f-rises' }, [rise, 'Prices can go back up after a markdown']),
+      el('p', { className: 'hint', text: 'Most shops never raise a price once it is cut. Ticking this shows what that rule costs.' })]));
     $('preset').addEventListener('change', function () { loadPreset(this.value); });
+    $('rule-pct').addEventListener('change', render);
+    $('rule-days').addEventListener('change', render);
     box.addEventListener('change', render);
     box.addEventListener('input', function (e) { if (e.target.tagName === 'SELECT') render(); });
     loadPreset('truffles');
@@ -455,6 +514,7 @@ var MarkdownLadder = (function () {
     var p = M.PRESETS[key];
     Object.keys(M.FIELDS).forEach(function (name) { $('f-' + name).value = p[name]; });
     $('f-pattern').value = p.pattern;
+    $('f-rises').checked = false;
     render();
   }
 
@@ -462,6 +522,7 @@ var MarkdownLadder = (function () {
     var cfg = {};
     Object.keys(M.FIELDS).forEach(function (name) { cfg[name] = $('f-' + name).value; });
     cfg.pattern = $('f-pattern').value;
+    cfg.monotone = !$('f-rises').checked;
     return M.normalise(cfg);
   }
 
@@ -470,9 +531,17 @@ var MarkdownLadder = (function () {
     return el('div', { className: 'tile' }, [el('div', { className: 'k', text: k }), el('div', { className: 'v', text: v }), el('div', { className: 's', text: s })]);
   }
 
+  function syncRuleDays(days) {
+    var sel = $('rule-days'), keep = Number(sel.value) || 2;
+    sel.innerHTML = '';
+    for (var d = 1; d <= days; d++) sel.appendChild(el('option', { value: String(d), text: d + (d === 1 ? ' day' : ' days') }));
+    sel.value = String(Math.min(keep, days));
+  }
+
   function render() {
     var cfg = readConfig();
-    var cmp = M.comparePolicies(cfg);
+    syncRuleDays(cfg.days);
+    var cmp = M.comparePolicies(cfg, { pct: Number($('rule-pct').value), daysLeft: Number($('rule-days').value) });
     var sol = cmp.solution, best = cmp.rows[0].result;
     var baselines = cmp.rows.slice(1);
     var bestBase = baselines.reduce(function (a, b) { return b.result.profit > a.result.profit ? b : a; });
@@ -485,6 +554,7 @@ var MarkdownLadder = (function () {
     renderToday(sol);
     renderCompare(cmp);
     renderMap(sol);
+    renderOutlook(cmp);
   }
 
   function firstMove(sol) {
@@ -570,6 +640,95 @@ var MarkdownLadder = (function () {
         legend.appendChild(el('li', {}, [el('span', { className: 'sw', style: 'background:' + STEP_COLOURS[j] }), d ? d + '% off' : 'Full price']));
       });
     }
+  }
+
+
+  function svgBox(width, height, label) {
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', label);
+    svg.add = function (tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    };
+    return svg;
+  }
+
+  function renderOutlook(cmp) {
+    var cfg = cmp.solution.cfg, T = cfg.days, S = cfg.stock;
+    var best = cmp.rows[0].result, never = cmp.rows[1].result;
+    $('outlook-sub').textContent = 'Demand is uncertain, so the same plan can end in different places. These are exact probabilities from the demand model, for the best plan.';
+    // Fan chart: stock at the start of each day and at the sell-by date.
+    var W = 360, H = 210, L = 38, R = 10, Tp = 10, B = 30;
+    var xs = function (t) { return L + (W - L - R) * t / T; };
+    var ys = function (v) { return Tp + (H - Tp - B) * (1 - v / S); };
+    var pts = best.days.map(function (d) { return [d.p10, d.p50, d.p90]; }).concat([[best.leftoverP10, best.leftoverP50, best.leftoverP90]]);
+    var nev = never.days.map(function (d) { return d.p50; }).concat([never.leftoverP50]);
+    var svg = svgBox(W, H, 'Units left by day under the best plan: middle outcome ' + pts.map(function (p) { return p[1]; }).join(', ') + '. If you never discount: ' + nev.join(', ') + '.');
+    [0, 0.5, 1].forEach(function (f) {
+      svg.add('line', { x1: L, x2: W - R, y1: ys(f * S), y2: ys(f * S), stroke: 'var(--line)', 'stroke-width': 1 });
+      svg.add('text', { x: L - 6, y: ys(f * S) + 4, 'text-anchor': 'end' }, String(Math.round(f * S)));
+    });
+    var band = pts.map(function (p, t) { return xs(t) + ',' + ys(p[2]); }).concat(pts.slice().reverse().map(function (p, k) { return xs(pts.length - 1 - k) + ',' + ys(p[0]); }));
+    svg.add('polygon', { points: band.join(' '), fill: 'var(--d2)', 'fill-opacity': '0.45' });
+    svg.add('polyline', { points: nev.map(function (v, t) { return xs(t) + ',' + ys(v); }).join(' '), fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 2, 'stroke-dasharray': '5 4' });
+    svg.add('polyline', { points: pts.map(function (p, t) { return xs(t) + ',' + ys(p[1]); }).join(' '), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5 });
+    for (var t = 0; t <= T; t++) {
+      if (T <= 10 || t % 2 === 0 || t === T) {
+        svg.add('text', { x: xs(t), y: H - 12, 'text-anchor': 'middle' }, t === T ? 'End' : M.DAY_NAMES[(cfg.startDay + t) % 7]);
+      }
+    }
+    $('fan').innerHTML = '';
+    $('fan').appendChild(svg);
+
+    // Chance of each price by day: stacked columns.
+    var W2 = 360, H2 = 210, L2 = 38;
+    var colW = (W2 - L2 - 10) / T;
+    var svg2 = svgBox(W2, H2, 'Chance of each price by day under the best plan. ' + best.days.map(function (d, t) {
+      var top = d.stepProb.indexOf(Math.max.apply(null, d.stepProb));
+      return M.DAY_NAMES[(cfg.startDay + t) % 7] + ': most likely ' + (M.LADDER[top] ? M.LADDER[top] + '% off' : 'full price') + ' (' + pct(d.stepProb[top]) + ')';
+    }).join('; ') + '.');
+    [0, 0.5, 1].forEach(function (f) {
+      var y = 10 + (H2 - 40) * (1 - f);
+      svg2.add('text', { x: L2 - 6, y: y + 4, 'text-anchor': 'end' }, Math.round(f * 100) + '%');
+    });
+    best.days.forEach(function (d, t) {
+      var y = 10 + (H2 - 40);
+      d.stepProb.forEach(function (p, j) {
+        var h = (H2 - 40) * p;
+        if (h > 0.05) svg2.add('rect', { x: L2 + t * colW + 1, y: y - h, width: Math.max(1, colW - 2), height: h, fill: STEP_COLOURS[j] });
+        y -= h;
+      });
+      if (T <= 10 || t % 2 === 0) svg2.add('text', { x: L2 + t * colW + colW / 2, y: H2 - 12, 'text-anchor': 'middle' }, M.DAY_NAMES[(cfg.startDay + t) % 7]);
+    });
+    $('steps').innerHTML = '';
+    $('steps').appendChild(svg2);
+
+    // Leftovers at the sell-by date: a histogram, binned for large stocks.
+    // Bar 0 is exactly zero left (sold out); the others group units when stock is large.
+    var width = Math.max(1, Math.ceil(S / 30));
+    var binOf = function (units) { return units === 0 ? 0 : 1 + Math.floor((units - 1) / width); };
+    var bins = binOf(S) + 1, probs = new Array(bins).fill(0);
+    best.leftover.forEach(function (p, s) { probs[binOf(s)] += p; });
+    var top = Math.max.apply(null, probs);
+    var W3 = 720, H3 = 150, L3 = 38, bw = (W3 - L3 - 10) / bins;
+    var svg3 = svgBox(W3, H3, 'Units left at the sell-by date under the best plan: ' + pct(best.sellOut) + ' chance of none, middle outcome ' + best.leftoverP50 + ', 9 times in 10 at most ' + best.leftoverP90 + '.');
+    probs.forEach(function (p, b) {
+      var h = top > 0 ? (H3 - 40) * p / top : 0;
+      svg3.add('rect', { x: L3 + b * bw + 1, y: 10 + (H3 - 40) - h, width: Math.max(1, bw - 2), height: Math.max(h, 0.5), fill: b === 0 ? 'var(--good)' : 'var(--d2)' });
+    });
+    [0, Math.round(S / 2), S].forEach(function (v) {
+      svg3.add('text', { x: L3 + (binOf(v) + 0.5) * bw, y: H3 - 12, 'text-anchor': 'middle' }, String(v));
+    });
+    svg3.add('text', { x: L3 - 6, y: 14, 'text-anchor': 'end' }, pct(top));
+    $('leftover').innerHTML = '';
+    $('leftover').appendChild(svg3);
+    $('leftover-note').textContent = pct(best.sellOut) + ' chance of selling out. The middle outcome is ' + best.leftoverP50 + (best.leftoverP50 === 1 ? ' unit' : ' units') +
+      ' left, and 9 times in 10 it is ' + best.leftoverP90 + ' or fewer. If you never discount, the middle outcome is ' + never.leftoverP50 + ' left.';
   }
 
   function describeMap(sol) {

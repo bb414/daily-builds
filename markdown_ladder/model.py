@@ -26,13 +26,14 @@ FIELDS = {
     "wasteCost": {"min": -50, "max": 50, "step": 0.05, "value": 0.3},
     "demand": {"min": 0.1, "max": 100, "step": 0.1, "value": 6},
     "elasticity": {"min": 0, "max": 6, "step": 0.1, "value": 1.8},
+    "freshness": {"min": 0, "max": 40, "step": 1, "value": 0},
     "startDay": {"min": 0, "max": 6, "step": 1, "value": 0},
 }
 PRESETS = {
-    "truffles": {"name": "Chocolate truffle box", "stock": 60, "days": 7, "price": 12, "unitCost": 4.8, "wasteCost": 0.3, "demand": 6, "elasticity": 1.8, "startDay": 0, "pattern": "highStreet"},
-    "mochi": {"name": "Fresh mochi, pack of six", "stock": 40, "days": 3, "price": 6.5, "unitCost": 2.4, "wasteCost": 0.2, "demand": 10, "elasticity": 2.5, "startDay": 3, "pattern": "highStreet"},
-    "eclairs": {"name": "Coffee eclairs at an office kiosk", "stock": 30, "days": 2, "price": 3.2, "unitCost": 1.1, "wasteCost": 0.1, "demand": 11, "elasticity": 3, "startDay": 3, "pattern": "office"},
-    "tins": {"name": "Festive biscuit tins", "stock": 120, "days": 14, "price": 15, "unitCost": 6, "wasteCost": 2, "demand": 6, "elasticity": 2.2, "startDay": 0, "pattern": "highStreet"},
+    "truffles": {"name": "Chocolate truffle box", "stock": 60, "days": 7, "price": 12, "unitCost": 4.8, "wasteCost": 0.3, "demand": 6, "elasticity": 1.8, "freshness": 3, "startDay": 0, "pattern": "highStreet"},
+    "mochi": {"name": "Fresh mochi, pack of six", "stock": 40, "days": 3, "price": 6.5, "unitCost": 2.4, "wasteCost": 0.2, "demand": 10, "elasticity": 2.5, "freshness": 15, "startDay": 3, "pattern": "highStreet"},
+    "eclairs": {"name": "Coffee eclairs at an office kiosk", "stock": 30, "days": 2, "price": 3.2, "unitCost": 1.1, "wasteCost": 0.1, "demand": 11, "elasticity": 3, "freshness": 20, "startDay": 3, "pattern": "office"},
+    "tins": {"name": "Festive biscuit tins", "stock": 120, "days": 14, "price": 15, "unitCost": 6, "wasteCost": 2, "demand": 6, "elasticity": 2.2, "freshness": 0, "startDay": 0, "pattern": "highStreet"},
 }
 MAX_STOCK = FIELDS["stock"]["max"]
 
@@ -110,9 +111,20 @@ def normalise(cfg=None):
 
 
 def demand_rate(cfg, t, j):
-    """Expected demand on day t (0 = first day) at ladder step j."""
+    """Expected demand on day t (0 = first day) at ladder step j: weekday, freshness and discount."""
     weekday = (cfg["startDay"] + t) % 7
-    return cfg["demand"] * WEEK_PATTERNS[cfg["pattern"]][weekday] * (1 - LADDER[j] / 100) ** (-cfg["elasticity"])
+    return (cfg["demand"] * WEEK_PATTERNS[cfg["pattern"]][weekday] * (1 - cfg["freshness"] / 100) ** t *
+            (1 - LADDER[j] / 100) ** (-cfg["elasticity"]))
+
+
+def quantile(dist, q):
+    """Smallest s with P(stock <= s) >= q."""
+    cum = 0.0
+    for s, p in enumerate(dist):
+        cum += p
+        if cum >= q - 1e-12:
+            return s
+    return len(dist) - 1
 
 
 def poisson_window(lam, s_max):
@@ -228,6 +240,9 @@ def evaluate(cfg_in, policy_fn):
                 day["revenue"] += tail * price * s
                 day["sold"] += tail * s
                 discount_sum += w * LADDER[j]
+        day["p10"] = quantile(day["stockDist"], 0.1)
+        day["p50"] = quantile(day["stockDist"], 0.5)
+        day["p90"] = quantile(day["stockDist"], 0.9)
         revenue += day["revenue"]
         sold += day["sold"]
         days.append(day)
@@ -248,6 +263,9 @@ def evaluate(cfg_in, policy_fn):
         "sellOut": left[0],
         "avgDiscount": discount_sum / T,
         "leftover": left,
+        "leftoverP10": quantile(left, 0.1),
+        "leftoverP50": quantile(left, 0.5),
+        "leftoverP90": quantile(left, 0.9),
         "days": days,
     }
 
