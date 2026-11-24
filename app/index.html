@@ -90,8 +90,14 @@ p { margin: 0 0 10px; }
 .small { font-size: 0.87rem; }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; font-weight: 700; color: var(--accent); margin: 0 0 4px; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-fieldset + fieldset { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-legend { font-weight: 800; font-size: 0.95rem; padding: 0; margin-bottom: 6px; }
+fieldset + fieldset { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+legend { float: left; width: 100%; font-weight: 800; font-size: 0.95rem; padding: 0; margin: 0 0 2px; }
+legend + * { clear: both; }
+#settings-box > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+#settings-box > summary::-webkit-details-marker { display: none; }
+#settings-box > summary h2 { margin: 0; }
+.summary-hint { font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+#settings-box[open] > summary { margin-bottom: 6px; }
 .control { margin: 10px 0 0; }
 .control-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 0.9rem; }
 .control-top label { font-weight: 600; }
@@ -113,7 +119,7 @@ legend { font-weight: 800; font-size: 0.95rem; padding: 0; margin-bottom: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
 
 /* Stairstep */
-.stairs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: end; margin-top: 8px; }
+.stairs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: start; margin-top: 8px; }
 .step { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; }
 .step-delta { text-align: center; font-size: 0.78rem; font-weight: 800; min-height: 1.3em; }
 .step-delta.good { color: var(--good); }
@@ -121,7 +127,8 @@ legend { font-weight: 800; font-size: 0.95rem; padding: 0; margin-bottom: 6px; }
 .step-value { text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
 .step-bar-wrap { height: 200px; display: flex; align-items: flex-end; border-bottom: 2px solid var(--line); }
 .step-bar { width: 100%; border-radius: 8px 8px 0 0; min-height: 2px; }
-.step-name { text-align: center; font-size: 0.82rem; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.step-name { text-align: center; font-size: 0.82rem; font-weight: 600; line-height: 1.25; min-height: 2.5em; hyphens: manual; }
+.step-name .short { display: none; }
 
 table.data { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 table.data th, table.data td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
@@ -131,7 +138,14 @@ table.data thead th { color: var(--muted); font-weight: 600; font-size: 0.82rem;
 td.best { outline: 2px solid var(--muted); outline-offset: -3px; border-radius: 6px; }
 td.win { background: var(--good-soft); color: var(--good); font-weight: 800; border-radius: 6px; }
 td.lose { color: var(--bad); }
-.verdict { display: inline-block; padding: 2px 8px; border-radius: 99px; font-weight: 700; font-size: 0.8rem; }
+.verdict { display: inline-block; padding: 2px 8px; border-radius: 99px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
+table.data.compact { font-size: 0.84rem; }
+table.data.compact th, table.data.compact td { padding: 6px 5px; }
+table.data thead th { white-space: normal; }
+table.data td.wrap, table.data th.wrap { white-space: normal; text-align: left; min-width: 120px; }
+.sku-cards { display: none; list-style: none; margin: 0; padding: 0; }
+.sku-card { border-top: 1px solid var(--line); padding: 10px 0; }
+.sku-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 2px; }
 .verdict.ai { background: var(--good-soft); color: var(--good); }
 .verdict.simpler { background: var(--surface-2); color: var(--muted); }
 
@@ -160,6 +174,8 @@ select { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid
 .chart text { fill: var(--muted); font-family: inherit; font-size: 12px; }
 .chart .grid { stroke: var(--line); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.84rem; color: var(--muted); margin-top: 8px; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.line-key { width: 22px; height: 8px; flex: none; }
 footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 960px) {
@@ -174,12 +190,17 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   .stairs { gap: 5px; }
   .step-bar-wrap { height: 150px; }
   .step-name { font-size: 0.72rem; }
+  .step-name .full { display: none; }
+  .step-name .short { display: inline; }
   .step-value { font-size: 0.82rem; }
   .step-delta { font-size: 0.7rem; }
   .hrow { grid-template-columns: 96px minmax(0, 1fr) 48px; font-size: 0.8rem; }
   .hrow.wide { grid-template-columns: minmax(0, 1fr) 56px; }
   .hrow.wide .htrack { grid-column: 1 / -1; grid-row: 2; }
   .ov-grid { grid-template-columns: minmax(0, 1fr); }
+  .sku-cards { display: block; }
+  .sku-table { display: none; }
+  .hide-sm { display: none; }
 }
 </style>
 </head>
@@ -195,8 +216,10 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
 </section>
 <div class="layout">
   <aside class="panel card" aria-labelledby="settings-title">
-    <h2 id="settings-title">Settings</h2>
-    <form id="settings" novalidate></form>
+    <details id="settings-box" open>
+      <summary><h2 id="settings-title">Settings</h2><span class="summary-hint">Show or hide</span></summary>
+      <form id="settings" novalidate></form>
+    </details>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </aside>
   <main id="results" class="stack" tabindex="-1"></main>
@@ -863,6 +886,7 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   var IDS = M.METHODS.map(function (m) { return m.id; });
   var NAMES = {};
   M.METHODS.forEach(function (m) { NAMES[m.id] = m.name; });
+  var SHORT = { naive: 'Naive', average: 'Moving avg', seasonal: 'Last year', smoothing: 'Smooth\u00ADing', ai: 'AI', planner: 'AI + planners' };
   var MINUS = '−';
 
   var state = {
@@ -1030,6 +1054,19 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     schedule();
   });
 
+  // Round-number axis ticks from lo to hi.
+  function niceTicks(lo, hi, count) {
+    var range = hi - lo;
+    if (range <= 0) { return { lo: lo, hi: lo + 1, ticks: [lo, lo + 1] }; }
+    var raw = range / count;
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var step = [1, 2, 2.5, 5, 10].map(function (f) { return f * mag; }).filter(function (st) { return st >= raw; })[0];
+    var start = Math.floor(lo / step) * step, end = Math.ceil(hi / step) * step;
+    var ticks = [];
+    for (var v = start; v <= end + step / 2; v += step) { ticks.push(Math.round(v / step) * step); }
+    return { lo: start, hi: end, ticks: ticks };
+  }
+
   /* ---------- Results ---------- */
 
   // Settings live in the page address after #, so a link reopens the same world.
@@ -1103,20 +1140,20 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       }
       return '<div class="step">' + delta + '<div class="step-value">' + pct1(m.wape) + '</div>' +
         '<div class="step-bar-wrap"><div class="step-bar" style="height:' + h.toFixed(2) + '%; background:' + colour(m.id) + '"></div></div>' +
-        '<div class="step-name">' + esc(m.name) + '</div></div>';
+        '<div class="step-name"><span class="full">' + esc(m.name) + '</span><span class="short" aria-hidden="true">' + esc(SHORT[m.id]) + '</span></div></div>';
     }).join('');
     var rows = r.methods.map(function (m) {
       return '<tr><th scope="row"><span class="dot" style="background:' + colour(m.id) + '"></span> ' + esc(m.name) + '</th>' +
-        '<td>' + pct1(m.wape) + '</td><td>' + signed(m.bias * 100, 1, '%') + '</td>' +
-        '<td>' + (m.fvaNaive === null ? '' : signed(m.fvaNaive * 100, 1)) + '</td>' +
-        '<td>' + units(m.waste) + '</td><td>' + units(m.lost) + '</td><td>' + pct1(m.fillRate) + '</td></tr>';
+        '<td>' + pct1(m.wape) + '</td><td class="hide-sm">' + signed(m.bias * 100, 1, '%') + '</td>' +
+        '<td class="hide-sm">' + (m.fvaNaive === null ? '' : signed(m.fvaNaive * 100, 1)) + '</td>' +
+        '<td>' + units(m.waste) + '</td><td class="hide-sm">' + units(m.lost) + '</td><td>' + pct1(m.fillRate) + '</td></tr>';
     }).join('');
     return '<section class="card" aria-labelledby="stairs-title"><h2 id="stairs-title">The stairstep</h2>' +
       '<p class="small muted">Each bar is a forecasting step\'s error. The number above it is how much it changed the error compared with the step to its left: negative is better.</p>' +
       '<div class="stairs" role="img" aria-label="' + esc(r.methods.map(function (m) { return m.name + ' ' + pct1(m.wape); }).join(', ')) + '">' + steps + '</div>' +
       '<div class="scroll" style="margin-top: 16px"><table class="data"><caption class="visually-hidden">Error, bias and stock for each step</caption>' +
-      '<thead><tr><th scope="col">Step</th><th scope="col">Error</th><th scope="col">Bias</th><th scope="col">Value added vs naive (pts)</th>' +
-      '<th scope="col">Unsold units</th><th scope="col">Lost sales units</th><th scope="col">Sales met</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<thead><tr><th scope="col">Step</th><th scope="col">Error</th><th scope="col" class="hide-sm">Bias</th><th scope="col" class="hide-sm">Value added vs naive (pts)</th>' +
+      '<th scope="col">Unsold units</th><th scope="col" class="hide-sm">Lost sales units</th><th scope="col">Sales met</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="small muted" style="margin-top: 8px">Stock is ordered at the forecast plus ' + pct0(r.settings.buffer) + ' safety stock. Positive bias means forecasts run high.</p></section>';
   }
 
@@ -1135,15 +1172,24 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
           (s.aiGain > 0 ? 'AI only ' + pts(s.aiGain) + ' better' : 'AI no better') + '</span>';
       var advance = s.chosen === 'ai' ? 'AI model' : NAMES[s.chosen];
       var differs = (s.chosen === 'ai') !== (s.verdict === 'ai');
-      return '<tr><th scope="row">' + esc(s.name) + '</th>' + cells + '<td style="text-align:left">' + verdict + '</td>' +
-        '<td style="text-align:left"' + (differs ? ' class="lose"' : '') + '>' + esc(advance) + (differs ? ' <span class="small">(differs)</span>' : '') + '</td></tr>';
+      return '<tr><th scope="row">' + esc(s.name) + '</th>' + cells + '<td class="wrap">' + verdict + '</td>' +
+        '<td class="wrap' + (differs ? ' lose' : '') + '">' + esc(advance) + (differs ? ' <span class="small">(differs)</span>' : '') + '</td></tr>';
+    }).join('');
+    var cards = r.bySku.slice().sort(function (a, b) { return b.aiGain - a.aiGain; }).map(function (s) {
+      var simple = s.methods[s.bestSimpler].wape, aiW = s.methods.ai.wape;
+      var advanceName = s.chosen === 'ai' ? 'the AI' : NAMES[s.chosen].toLowerCase();
+      return '<li class="sku-card"><div class="sku-top"><strong>' + esc(s.name) + '</strong>' +
+        (s.verdict === 'ai' ? '<span class="verdict ai">Use the AI</span>' : '<span class="verdict simpler">Keep ' + esc(NAMES[s.bestSimpler].toLowerCase()) + '</span>') + '</div>' +
+        '<div class="small">AI ' + pct1(aiW) + ' against ' + pct1(simple) + ' for ' + esc(NAMES[s.bestSimpler].toLowerCase()) + ' (' + signed((aiW - simple) * 100, 1) + ' pts). ' +
+        'With planners ' + pct1(s.methods.planner.wape) + '. Chosen in advance: ' + esc(advanceName) + '.</div></li>';
     }).join('');
     return '<section class="card" aria-labelledby="sku-title"><h2 id="sku-title">Where the AI earns its place</h2>' +
       '<p class="small muted">Error by product. The outlined cell is the best simple method; green means the AI beats it by at least ' +
       (r.settings.threshold * 100).toFixed(1) + ' points; red means planners made the AI worse.</p>' +
-      '<div class="scroll"><table class="data"><caption class="visually-hidden">Forecast error for each product and method</caption><thead><tr><th scope="col">Product</th>' +
-      M.METHODS.map(function (m) { return '<th scope="col">' + esc(m.name) + '</th>'; }).join('') + '<th scope="col" style="text-align:left">Verdict with hindsight</th>' +
-      '<th scope="col" style="text-align:left">Chosen in advance</th></tr></thead>' +
+      '<ul class="sku-cards">' + cards + '</ul>' +
+      '<div class="scroll sku-table"><table class="data compact"><caption class="visually-hidden">Forecast error for each product and method</caption><thead><tr><th scope="col">Product</th>' +
+      M.METHODS.map(function (m) { return '<th scope="col">' + esc(m.name) + '</th>'; }).join('') + '<th scope="col" class="wrap">Verdict with hindsight</th>' +
+      '<th scope="col" class="wrap">Chosen in advance</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></section>';
   }
 
@@ -1260,7 +1306,8 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     var max = 1;
     series.actual.forEach(function (v) { if (v > max) { max = v; } });
     IDS.forEach(function (id) { if (state.shown[id]) { series[id].forEach(function (v) { if (v > max) { max = v; } }); } });
-    max = max * 1.08;
+    var scale = niceTicks(0, max * 1.04, 4);
+    max = scale.hi;
     var iw = width - left - right, ih = height - top - bottom;
     function x(i) { return left + (i + 0.5) * iw / n; }
     function y(v) { return top + ih - (v / max) * ih; }
@@ -1269,13 +1316,14 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     series.festival.forEach(function (f, i) {
       if (f) { svg += '<rect x="' + (left + i * iw / n).toFixed(1) + '" y="' + top + '" width="' + (iw / n).toFixed(1) + '" height="' + ih + '" fill="var(--festival)"/>'; }
     });
-    for (var g = 0; g <= 4; g++) {
-      var v = max * g / 4;
+    scale.ticks.forEach(function (v) {
       svg += '<line class="grid" x1="' + left + '" x2="' + (width - right) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
-        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + Math.round(v) + '</text>';
-    }
-    [1, 13, 26, 39, 52].forEach(function (w) {
-      svg += '<text x="' + x(w - 1).toFixed(1) + '" y="' + (height - 8) + '" text-anchor="middle">wk ' + w + '</text>';
+        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + v.toLocaleString('en-GB') + '</text>';
+    });
+    [1, 13, 26, 39, 52].forEach(function (w, k, all) {
+      var anchor = k === 0 ? 'start' : (k === all.length - 1 ? 'end' : 'middle');
+      var xx = k === 0 ? left : (k === all.length - 1 ? width - right : x(w - 1));
+      svg += '<text x="' + xx.toFixed(1) + '" y="' + (height - 8) + '" text-anchor="' + anchor + '">week ' + w + '</text>';
     });
     series.promo.forEach(function (pr, i) {
       if (pr) { svg += '<path d="M' + x(i).toFixed(1) + ' ' + (top + ih - 9) + ' l5 8 h-10 z" fill="var(--warn)"/>'; }
@@ -1333,22 +1381,24 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
       '<div class="explorer-controls"><label>Pilot length<select id="pilot-length">' + lengths + '</select></label><label>Pilot stores<select id="pilot-stores">' + stores + '</select></label></div>' +
       '<p id="pilot-summary"></p><div class="chart" id="pilot-chart"></div>' +
       '<div class="legend"><span><span class="dot" style="background: var(--good)"></span>Clears the bar</span><span><span class="dot" style="background: var(--c-naive)"></span>Falls short</span>' +
-      '<span><span class="dot" style="background: var(--ink)"></span>Full year, all stores (dashed)</span><span><span class="dot" style="background: var(--bad)"></span>The bar the AI must clear (dotted)</span></div></section>';
+      '<span><svg class="line-key" viewBox="0 0 22 8" aria-hidden="true"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/></svg>Full year, all stores</span>' +
+      '<span><svg class="line-key" viewBox="0 0 22 8" aria-hidden="true"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--bad)" stroke-width="2" stroke-dasharray="2 4"/></svg>The bar the AI must clear</span></div></section>';
   }
 
   function pilotChart(windows, full, threshold, width) {
-    var height = 230, left = 44, right = 12, top = 14, bottom = 30;
-    var values = windows.map(function (w) { return w.gain === null ? 0 : w.gain; }).concat([full, threshold, 0]);
-    var hi = Math.max.apply(null, values), lo = Math.min.apply(null, values);
-    hi = hi + (hi - lo) * 0.08 + 0.001; lo = Math.min(0, lo - (hi - lo) * 0.04);
+    var height = 230, left = 44, right = 12, top = 20, bottom = 30;
+    var values = windows.map(function (w) { return w.gain === null ? 0 : w.gain * 100; }).concat([full * 100, threshold * 100, 0]);
+    var scale = niceTicks(Math.min.apply(null, values), Math.max.apply(null, values) * 1.04, 4);
+    var lo = scale.lo / 100, hi = scale.hi / 100;
     var iw = width - left - right, ih = height - top - bottom, n = windows.length;
     function y(v) { return top + ih - (v - lo) / (hi - lo) * ih; }
     var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Gain measured by each possible pilot, in points">';
-    for (var g = 0; g <= 4; g++) {
-      var v = lo + (hi - lo) * g / 4;
+    scale.ticks.forEach(function (t) {
+      var v = t / 100;
       svg += '<line class="grid" x1="' + left + '" x2="' + (width - right) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
-        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + (v * 100).toFixed(0) + '</text>';
-    }
+        '<text x="' + (left - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + t + '</text>';
+    });
+    svg += '<text x="' + left + '" y="' + (top - 2) + '" text-anchor="start" font-size="11">points</text>';
     var bw = iw / n;
     windows.forEach(function (w, i) {
       if (w.gain === null) { return; }
@@ -1358,8 +1408,10 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
     });
     svg += '<line x1="' + left + '" x2="' + (width - right) + '" y1="' + y(full).toFixed(1) + '" y2="' + y(full).toFixed(1) + '" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/>';
     svg += '<line x1="' + left + '" x2="' + (width - right) + '" y1="' + y(threshold).toFixed(1) + '" y2="' + y(threshold).toFixed(1) + '" stroke="var(--bad)" stroke-width="2" stroke-dasharray="2 4"/>';
-    [0, Math.floor((n - 1) / 2), n - 1].forEach(function (i) {
-      svg += '<text x="' + (left + (i + 0.5) * bw).toFixed(1) + '" y="' + (height - 8) + '" text-anchor="middle">starts wk ' + (i + 1) + '</text>';
+    [0, Math.floor((n - 1) / 2), n - 1].forEach(function (i, k) {
+      var anchor = k === 0 ? 'start' : (k === 2 ? 'end' : 'middle');
+      var xx = k === 0 ? left : (k === 2 ? width - right : left + (i + 0.5) * bw);
+      svg += '<text x="' + xx.toFixed(1) + '" y="' + (height - 8) + '" text-anchor="' + anchor + '">' + (k === 0 ? 'starting week ' : 'week ') + (i + 1) + '</text>';
     });
     return svg + '</svg>';
   }
@@ -1438,6 +1490,8 @@ footer.foot { max-width: 1240px; margin: 0 auto; padding: 0 20px 32px; color: va
   window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { drawExplorer(); drawPilot(); }, 150); });
 
   state.settings = M.normaliseSettings(Object.assign({}, M.normaliseSettings({}), readHash()));
+  // On a phone the settings start folded away, so the answer comes first.
+  if (window.matchMedia && window.matchMedia('(max-width: 960px)').matches) { document.getElementById('settings-box').open = false; }
   renderControls();
   compute();
 })();

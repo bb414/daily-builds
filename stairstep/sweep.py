@@ -63,7 +63,11 @@ def summary_text(rows):
              "  %-76s %8s %8s %8s" % ("Measure", "Lowest", "Median", "Highest")]
     for key, label in MEASURES:
         values = [r[key] for r in rows]
-        lines.append("  %-76s %8.1f %8.1f %8.1f" % (label, min(values), statistics.median(values), max(values)))
+        if key in ("deployOn", "chosenAi"):
+            cells = "%8d %8s %8d" % (min(values), ("%g" % statistics.median(values)), max(values))
+        else:
+            cells = "%8.1f %8.1f %8.1f" % (min(values), statistics.median(values), max(values))
+        lines.append("  %-76s %s" % (label, cells))
 
     def share(test):
         k = sum(1 for r in rows if test(r))
