@@ -2,7 +2,7 @@
 
 **When should the AI run? Carbon-aware scheduling for AI compute, and the gap between the saving a carbon report would show and the saving the grid actually sees.**
 
-![The app on the windy grid: headline tiles, a verdict, and tonnes saved by each scheduler](docs/overview.png)
+![The app on the windy grid: a travel-poster header of wind turbines and a data centre under a sky that turns from noon to midnight, then the settings, headline tiles and a verdict](docs/overview.png)
 
 Clean hours takes a fleet of AI compute jobs (fine-tunes, retrains, nightly embedding refreshes, evaluation suites) and an invented electricity grid with a year of hourly weather, demand and power stations. It moves the flexible jobs into "cleaner" hours with six schedulers, then scores every choice twice:
 
@@ -77,7 +77,7 @@ Use `--help` on any command for every option.
 
 | Part | Language | Roughly | What it does |
 |---|---|---:|---|
-| `app/index.html` | HTML and CSS | 380 lines | Layout, light and dark themes, phone layout |
+| `app/index.html` | HTML, CSS and SVG | 750 lines | Layout, the screenprinted travel-poster look and its header illustration, embedded fonts, phone layout |
 | | JavaScript, model block | 630 lines | The grid, forecasts, schedulers, accounting, curves, weather-year checks, run explainer, jobs CSV |
 | | JavaScript, interface | 900 lines | Controls, hand-drawn SVG charts, tooltips, keyboard reading of charts, tables, saving and loading |
 | `cleanhours/` | Python | 1,090 lines | A line-by-line port of the model (570), the command-line tool (280), reports (150) and jobs CSV (70) |
