@@ -272,8 +272,16 @@ def esc(text):
     return html.escape(str(text), quote=True)
 
 
-def page(title, body, depth, description, config, page_class=""):
+ARROW = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+EXTERNAL = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5H3.5v9h9V10M9 3h4v4M13 3 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+SEARCH = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+
+
+def page(title, body, depth, description, config, current=""):
     up = "../" * depth
+    links = [("projects", "index.html#archive", "Projects"), ("archive", "archive.html", "Archive"), ("about", "about.html", "About")]
+    nav = "".join('<a href="%s%s"%s>%s</a>' % (up, href, ' aria-current="page"' if key == current else "", label) for key, href, label in links)
+    foot_links = "".join('<a href="%s" target="_blank" rel="noopener">%s</a>' % (esc(l["url"]), esc(l["label"])) for l in config.get("links", []))
     return """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -281,42 +289,55 @@ def page(title, body, depth, description, config, page_class=""):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s</title>
 <meta name="description" content="%(desc)s">
+<meta name="theme-color" content="#fafaf9">
+<link rel="preload" href="%(up)sstatic/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="%(up)sstatic/style.css">
 <link rel="icon" href="%(up)sstatic/icon.svg" type="image/svg+xml">
 </head>
-<body class="%(cls)s">
+<body>
 <a class="skip" href="#main">Skip to the content</a>
-<header class="site-head"><div class="wrap">
-<a class="brand" href="%(up)sindex.html">%(name)s</a>
-<nav aria-label="Site"><a href="%(up)sindex.html#archive">Projects</a><a href="%(up)sarchive.html">By month</a><a href="%(up)sabout.html">About</a></nav>
+<header class="site-head"><div class="wrap head-row">
+<a class="brand" href="%(up)sindex.html"><img src="%(up)sstatic/icon.svg" alt="" width="26" height="26"><span>%(name)s</span></a>
+<nav class="site-nav" aria-label="Site">%(nav)s</nav>
 </div></header>
 <main id="main">
 %(body)s
 </main>
-<footer class="site-foot"><div class="wrap">
-<p>%(foot)s</p>
+<footer class="site-foot"><div class="wrap foot-row">
+<div><p class="foot-name">%(name)s</p><p>%(foot)s</p></div>
+<nav aria-label="Footer">%(navfoot)s%(links)s</nav>
 </div></footer>
 </body>
 </html>
-""" % {"title": esc(title), "desc": esc(description), "up": up, "cls": page_class, "name": esc(config["name"]),
-       "body": body, "foot": esc(config["footer"])}
+""" % {"title": esc(title), "desc": esc(description), "up": up, "name": esc(config["name"]), "nav": nav,
+       "navfoot": "".join('<a href="%s%s">%s</a>' % (up, href, label) for _k, href, label in links),
+       "links": foot_links, "body": body, "foot": esc(config["footer"])}
 
 
-def fmt_date(iso):
+def fmt_date(iso, short=False):
     d = datetime.date.fromisoformat(iso)
-    return "%d %s %d" % (d.day, d.strftime("%B"), d.year)
+    return "%d %s %d" % (d.day, d.strftime("%b" if short else "%B"), d.year)
+
+
+def cat_color(cats, cid):
+    return cats.get(cid, cats["other"]).get("color", "#64748b")
+
+
+def topic_html(cats, cid):
+    cat = cats.get(cid, cats["other"])
+    return '<span class="topic"><span class="dot" style="--c:%s"></span>%s</span>' % (esc(cat_color(cats, cid)), esc(cat["name"]))
 
 
 def card_html(p, cats, up=""):
-    thumb = ('<img src="%s%s" alt="" loading="lazy" width="640" height="400">' % (up, esc(p["thumb"]))
-             if p.get("thumb") else '<span class="no-thumb" aria-hidden="true">%s</span>' % esc(p["name"][:1]))
-    cat = cats.get(p["category"], {"name": "Other"})
+    shot = ('<img src="%s%s" alt="" loading="lazy" width="960" height="600">' % (up, esc(p["cover"]))
+            if p.get("cover") else '<span class="no-shot" aria-hidden="true">%s</span>' % esc(p["name"][:1]))
     return ('<article class="card"><a class="card-link" href="%(up)s%(url)s">'
-            '<div class="thumb">%(thumb)s</div><div class="card-body">'
-            '<p class="meta"><time datetime="%(date)s">%(nice)s</time><span class="cat" data-cat="%(cid)s">%(cat)s</span></p>'
-            '<h3>%(name)s</h3><p class="tag">%(tag)s</p></div></a></article>') % {
-        "up": up, "url": esc(p["url"]), "thumb": thumb, "date": esc(p["date"]), "nice": esc(fmt_date(p["date"])),
-        "cid": esc(p["category"]), "cat": esc(cat["name"]), "name": esc(p["name"]), "tag": esc(p["tagline"])}
+            '<div class="shot" style="--c:%(color)s">%(shot)s</div><div class="card-body">'
+            '<p class="card-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time></p>'
+            '<h3>%(name)s</h3><p class="tag">%(tag)s</p>%(topic)s</div></a></article>') % {
+        "up": up, "url": esc(p["url"]), "shot": shot, "color": esc(cat_color(cats, p["category"])), "num": p["number"],
+        "date": esc(p["date"]), "nice": esc(fmt_date(p["date"], True)), "name": esc(p["name"]), "tag": esc(p["tagline"]),
+        "topic": topic_html(cats, p["category"])}
 
 
 def build(out, config, cache=None):
@@ -324,7 +345,8 @@ def build(out, config, cache=None):
         readme = f.read()
     rows = parse_table(readme)
     cats = {c["id"]: c for c in config["categories"]}
-    cats["other"] = {"id": "other", "name": "Other", "keywords": [], "blurb": "Projects outside the usual themes."}
+    cats["other"] = {"id": "other", "name": "Other", "keywords": [], "blurb": "Projects outside the usual themes.",
+                     "color": config.get("otherColor", "#64748b")}
 
     if os.path.isdir(out):
         shutil.rmtree(out)
@@ -367,18 +389,22 @@ def build(out, config, cache=None):
         page_map = {"README.md": "index.html"}
         if findings_text:
             page_map["FINDINGS.md"] = "findings.html"
+        category = categorise(row["theme"], row["branch"], config)
+        color = cat_color(cats, category)
         shot = first_image(readme_text, published)
-        thumb = None
+        cover = None
         if shot:
-            thumb_cache = os.path.join(cache, "thumb-" + blob_id(ref, shot) + ".jpg") if cache else None
-            if thumb_cache and os.path.exists(thumb_cache):
-                shutil.copyfile(thumb_cache, os.path.join(dest, "thumb.jpg"))
-                thumb = True
+            key = "cover-%s-%s.jpg" % (blob_id(ref, shot), color.lstrip("#"))
+            cover_cache = os.path.join(cache, key) if cache else None
+            target = os.path.join(dest, "cover.jpg")
+            if cover_cache and os.path.exists(cover_cache):
+                shutil.copyfile(cover_cache, target)
+                made = True
             else:
-                thumb = make_thumb(os.path.join(dest, shot), os.path.join(dest, "thumb.jpg"))
-                if thumb and thumb_cache:
-                    shutil.copyfile(os.path.join(dest, "thumb.jpg"), thumb_cache)
-            thumb = "projects/%s/%s" % (slug, "thumb.jpg" if thumb else shot)
+                made = make_cover(os.path.join(dest, shot), target, color)
+                if made and cover_cache:
+                    shutil.copyfile(target, cover_cache)
+            cover = "projects/%s/%s" % (slug, "cover.jpg" if made else shot)
         line = tagline(readme_text, row["what"], config.get("taglines", {}).get(row["branch"]))
         caps = image_captions(readme_text)
         shown = [m.group(1) or m.group(2) for m in re.finditer(r"!\[[^\]]*\]\(([^)\s]+)\)|<img[^>]+src=\"([^\"]+)\"", readme_text)]
@@ -386,21 +412,23 @@ def build(out, config, cache=None):
         order += sorted(x for x in published if x.startswith("docs/") and x.lower().endswith(IMAGE_EXT) and x not in order)
         shots = []
         for x in order:
-            if x not in [s[0] for s in shots]:
+            if x not in [pair[0] for pair in shots]:
                 shots.append((x, caption_for(x, caps)))
         projects.append({
             "slug": slug, "branch": row["branch"], "date": row["date"], "name": strip_md(row["name"]),
             "what": strip_md(row["what"]), "theme": strip_md(row["theme"]), "stack": strip_md(row["stack"]),
-            "category": categorise(row["theme"], row["branch"], config),
-            "tagline": line,
-            "url": "projects/%s/index.html" % slug, "app": app, "shot": shot, "thumb": thumb,
+            "category": category, "tagline": line,
+            "url": "projects/%s/index.html" % slug, "app": app, "shot": shot, "cover": cover,
             "findings": bool(findings_text), "shots": shots,
             "_readme": render_markdown(readme_text, published, page_map, line) if readme_text else "",
             "_findings": render_markdown(findings_text, published, page_map) if findings_text else "",
         })
 
     # Newest first; ties keep the order of the index (newest first within a day).
+    # Numbers count up from the very first project.
     projects.sort(key=lambda p: p["date"], reverse=True)
+    for i, p in enumerate(projects):
+        p["number"] = len(projects) - i
     for i, p in enumerate(projects):
         newer = projects[i - 1] if i > 0 else None
         older = projects[i + 1] if i + 1 < len(projects) else None
@@ -408,7 +436,7 @@ def build(out, config, cache=None):
 
     write_index(out, projects, cats, config)
     write_archive(out, projects, cats, config)
-    write_about(out, projects, config)
+    write_about(out, projects, cats, config)
     public = [{k: v for k, v in p.items() if not k.startswith("_")} for p in projects]
     with open(os.path.join(out, "projects.json"), "w", encoding="utf-8") as f:
         json.dump({"generated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "projects": public}, f, indent=1)
@@ -442,17 +470,49 @@ def site_size(out):
     return total
 
 
-def make_thumb(src, dest):
+def _mix(hex_color, amount):
+    """Blend a #rrggbb colour with white: amount 0 is white, 1 is the colour."""
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return tuple(round(255 + (c - 255) * amount) for c in (r, g, b))
+
+
+def make_cover(src, dest, color, size=(960, 600)):
+    """A product shot: the top of the screenshot in a rounded window on a soft tinted backdrop."""
     if Image is None:
         return False
     try:
+        from PIL import ImageDraw, ImageFilter
+        W, H = size
+        top, bottom = _mix(color, 0.10), _mix(color, 0.30)
+        bg = Image.new("RGB", size, top)
+        grad = Image.linear_gradient("L").resize(size)
+        bg = Image.composite(Image.new("RGB", size, bottom), bg, grad)
         with Image.open(src) as im:
             im = im.convert("RGB")
-            w, h = im.size
-            crop_h = min(h, int(w * 10 / 16))
-            im = im.crop((0, 0, w, crop_h))
-            im.thumbnail((640, 400))
-            im.save(dest, "JPEG", quality=78, optimize=True, progressive=True)
+            if im.height > im.width * 1.3:      # a phone screenshot: show it like a phone
+                w = 300
+                shot = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
+                x, y, radius = (W - w) // 2, 56, 28
+            else:                               # a desktop screenshot: the top-left corner, legibly
+                cw = min(im.width, 1120)
+                crop = im.crop((0, 0, cw, min(im.height, round(cw * 0.72))))
+                w = 840
+                shot = crop.resize((w, round(crop.height * w / crop.width)), Image.LANCZOS)
+                x, y, radius = 60, 60, 14
+        h = min(shot.height, H - y + radius)
+        shot = shot.crop((0, 0, shot.width, h))
+        mask = Image.new("L", shot.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, shot.width - 1, shot.height + radius), radius=radius, fill=255)
+        shadow = Image.new("L", size, 0)
+        ImageDraw.Draw(shadow).rounded_rectangle((x, y + 10, x + shot.width, y + shot.height + 40), radius=radius, fill=70)
+        shadow = shadow.filter(ImageFilter.GaussianBlur(18))
+        bg = Image.composite(Image.new("RGB", size, _mix(color, 0.75)), bg, shadow)
+        border = Image.new("RGB", (shot.width + 2, shot.height + 2), _mix(color, 0.35))
+        bmask = Image.new("L", border.size, 0)
+        ImageDraw.Draw(bmask).rounded_rectangle((0, 0, border.width - 1, border.height + radius), radius=radius + 1, fill=255)
+        bg.paste(border, (x - 1, y - 1), bmask)
+        bg.paste(shot, (x, y), mask)
+        bg.save(dest, "JPEG", quality=84, optimize=True, progressive=True)
         return True
     except (OSError, ValueError):
         return False
@@ -484,133 +544,194 @@ def write_project(out, p, newer, older, cats, config):
     up = "../../"
     tabs, panels = [], []
 
-    def add(key, label, body, cls=""):
+    def add(key, label, body):
         tabs.append('<button type="button" role="tab" id="tab-%s" aria-controls="panel-%s" data-tab="%s">%s</button>' % (key, key, key, esc(label)))
-        panels.append('<section class="tab-panel %s" role="tabpanel" id="panel-%s" aria-labelledby="tab-%s" tabindex="0">%s</section>' % (cls, key, key, body))
+        panels.append('<section class="tab-panel" role="tabpanel" id="panel-%s" aria-labelledby="tab-%s" tabindex="0">%s</section>' % (key, key, body))
 
     if p["app"]:
         add("try", "Try it", (
-            '<div class="wrap"><div class="app-bar"><p>The real app, running live in your browser on synthetic data. Nothing you enter leaves your device.</p>'
-            '<a class="btn small" href="%(app)s" target="_blank" rel="noopener">Open full screen</a></div>'
-            '<div class="app-frame"><iframe src="%(app)s" title="%(name)s: the interactive app" allow="clipboard-write; fullscreen"></iframe></div>'
-            '<p class="app-hint">On a small screen the app is easier to use <a href="%(app)s" target="_blank" rel="noopener">full screen</a>.</p></div>') % {
-                "app": esc(p["app"]), "name": esc(p["name"])}, "wide")
-    how = ('<div class="wrap narrow"><details class="summary"><summary>Everything it does, in one sentence</summary><p>%s</p></details>'
-           '<article class="prose">%s</article></div>') % (esc(p["what"]), p["_readme"])
-    add("how", "How it works", how)
+            '<div class="wrap"><div class="window"><div class="window-bar"><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>'
+            '<span class="window-title">%(name)s <span>Running live in your browser</span></span>'
+            '<a class="window-link" href="%(app)s" target="_blank" rel="noopener">Full screen %(ext)s</a></div>'
+            '<iframe src="%(app)s" title="%(name)s: the interactive app" allow="clipboard-write; fullscreen"></iframe></div>'
+            '<p class="fine">Everything runs on your device with synthetic data. Nothing you enter is sent anywhere.</p></div>') % {
+                "app": esc(p["app"]), "name": esc(p["name"]), "ext": EXTERNAL})
+    facts = ('<aside class="facts"><dl>'
+             '<div><dt>Project</dt><dd>No. %03d</dd></div>'
+             '<div><dt>Published</dt><dd><time datetime="%s">%s</time></dd></div>'
+             '<div><dt>Topic</dt><dd>%s</dd></div>'
+             '<div><dt>Built with</dt><dd>%s</dd></div></dl>'
+             '<details><summary>The whole project in one sentence</summary><p>%s</p></details></aside>') % (
+        p["number"], esc(p["date"]), esc(fmt_date(p["date"])), topic_html(cats, p["category"]), esc(p["stack"]), esc(p["what"]))
+    add("how", "How it works", '<div class="wrap read-grid"><article class="prose">%s</article>%s</div>' % (p["_readme"], facts))
     if p["findings"]:
-        add("findings", "Findings", '<div class="wrap narrow"><article class="prose">%s</article></div>' % p["_findings"])
+        add("findings", "Findings", '<div class="wrap read-grid"><article class="prose">%s</article>%s</div>' % (p["_findings"], facts))
     if p["shots"]:
         steps = []
         n = len(p["shots"])
         for i, (path, cap) in enumerate(p["shots"]):
-            steps.append('<figure class="tour-step" data-step="%d"><img src="%s" alt="%s" loading="lazy"><figcaption><span class="step-no">Step %d of %d</span> %s</figcaption></figure>' % (
-                i, esc(path), esc(cap), i + 1, n, esc(cap)))
+            steps.append('<figure class="tour-step"><img src="%s" alt="%s" loading="lazy"><figcaption><span class="step-no">%d / %d</span>%s</figcaption></figure>' % (
+                esc(path), esc(cap), i + 1, n, esc(cap)))
         intro = ("A walk through the app, one screen at a time." if p["app"]
                  else "This project has no app to run here, so this tour shows what it does, one screen at a time.")
-        add("tour", "Tour" if not p["app"] else "Screenshots", (
-            '<div class="wrap"><p class="tour-intro">%s</p><div class="tour" data-count="%d">%s'
-            '<div class="tour-nav" hidden><button type="button" class="btn small" data-move="-1">Previous</button>'
-            '<span class="tour-pos" aria-live="polite"></span><button type="button" class="btn small" data-move="1">Next</button></div></div></div>') % (
-                intro, n, "".join(steps)), "wide")
+        add("tour", "Screenshots" if p["app"] else "Tour", (
+            '<div class="wrap"><p class="tour-intro">%s</p><div class="tour">%s'
+            '<div class="tour-nav" hidden><button type="button" class="btn" data-move="-1">Previous</button>'
+            '<span class="tour-pos" aria-live="polite"></span><button type="button" class="btn" data-move="1">Next</button></div></div></div>') % (
+                intro, "".join(steps)))
 
+    actions = []
+    if p["app"]:
+        actions.append('<a class="btn primary" href="#try">Try it live %s</a>' % ARROW)
+        actions.append('<a class="btn" href="%s" target="_blank" rel="noopener">Open full screen %s</a>' % (esc(p["app"]), EXTERNAL))
+    if p["findings"]:
+        actions.append('<a class="btn" href="#findings">Read the findings</a>')
+    head = ('<section class="p-hero"><div class="wrap">'
+            '<nav class="crumbs" aria-label="Breadcrumb"><a href="%(up)sindex.html#archive">Projects</a><span aria-hidden="true">/</span><a href="%(up)sindex.html#category=%(cid)s">%(cat)s</a></nav>'
+            '<p class="p-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time>%(topic)s</p>'
+            '<h1>%(name)s</h1><p class="lede">%(tag)s</p><div class="actions">%(actions)s</div></div></section>') % {
+        "up": up, "cid": esc(p["category"]), "cat": esc(cat["name"]), "num": p["number"], "date": esc(p["date"]),
+        "nice": esc(fmt_date(p["date"])), "topic": topic_html(cats, p["category"]), "name": esc(p["name"]),
+        "tag": esc(p["tagline"]), "actions": "".join(actions)}
     nav = '<nav class="prev-next" aria-label="More projects">'
-    nav += ('<a class="older" href="%sprojects/%s/index.html"><span>Older</span>%s</a>' % (up, esc(older["slug"]), esc(older["name"]))) if older else "<span></span>"
-    nav += ('<a class="newer" href="%sprojects/%s/index.html"><span>Newer</span>%s</a>' % (up, esc(newer["slug"]), esc(newer["name"]))) if newer else "<span></span>"
+    nav += ('<a class="older" href="%sprojects/%s/index.html"><span>Previous project</span>%s</a>' % (up, esc(older["slug"]), esc(older["name"]))) if older else "<span></span>"
+    nav += ('<a class="newer" href="%sprojects/%s/index.html"><span>Next project</span>%s</a>' % (up, esc(newer["slug"]), esc(newer["name"]))) if newer else "<span></span>"
     nav += "</nav>"
-    head = ('<div class="wrap project-head">'
-            '<p class="crumbs"><a href="%(up)sindex.html#archive">Projects</a> / <a href="%(up)sindex.html#category=%(cid)s">%(cat)s</a></p>'
-            '<h1>%(name)s</h1><p class="lede">%(tag)s</p>'
-            '<p class="meta"><time datetime="%(date)s">%(nice)s</time><span class="cat" data-cat="%(cid)s">%(cat)s</span><span>%(stack)s</span></p></div>') % {
-        "up": up, "cid": esc(p["category"]), "cat": esc(cat["name"]), "name": esc(p["name"]), "tag": esc(p["tagline"]),
-        "date": esc(p["date"]), "nice": esc(fmt_date(p["date"])), "stack": esc(p["stack"])}
-    body = (head + '<div class="wrap"><div class="tabs" role="tablist" aria-label="%s">%s</div></div>' % (esc(p["name"]), "".join(tabs)) +
-            "".join(panels) +
-            '<div class="wrap narrow"><p class="note">%s</p>%s</div>' % (esc(config["projectNote"]), nav) +
+    body = (head + '<div class="wrap tabs-row"><div class="tabs" role="tablist" aria-label="%s">%s</div></div>' % (esc(p["name"]), "".join(tabs)) +
+            "".join(panels) + '<div class="wrap"><p class="note">%s</p>%s</div>' % (esc(config["projectNote"]), nav) +
             '<script src="%sstatic/project.js"></script>' % up)
     with open(os.path.join(out, "projects", p["slug"], "index.html"), "w", encoding="utf-8") as f:
-        f.write(page("%s | %s" % (p["name"], config["name"]), body, 2, p["tagline"], config, "project"))
+        f.write(page("%s | %s" % (p["name"], config["name"]), body, 2, p["tagline"], config, "projects"))
     if p["findings"]:
-        fbody = ('<div class="wrap narrow project-head"><p class="crumbs"><a href="%(up)sindex.html#archive">Projects</a> / <a href="index.html">%(name)s</a></p>'
-                 '<h1>Findings: %(name)s</h1><div class="actions"><a class="btn" href="index.html#how">How it works</a>%(app)s</div></div>'
-                 '<div class="wrap narrow"><article class="prose">%(body)s</article></div>') % {
+        fbody = ('<section class="p-hero"><div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="%(up)sindex.html#archive">Projects</a><span aria-hidden="true">/</span><a href="index.html">%(name)s</a></nav>'
+                 '<h1>Findings</h1><p class="lede">%(name)s</p><div class="actions">%(app)s<a class="btn" href="index.html#how">How it works</a></div></div></section>'
+                 '<div class="wrap read-grid single"><article class="prose">%(body)s</article></div>') % {
             "up": up, "name": esc(p["name"]), "body": p["_findings"],
-            "app": ('<a class="btn primary" href="index.html#try">Try the app</a>') if p["app"] else ""}
+            "app": ('<a class="btn primary" href="index.html#try">Try it live %s</a>' % ARROW) if p["app"] else ""}
         with open(os.path.join(out, "projects", p["slug"], "findings.html"), "w", encoding="utf-8") as f:
-            f.write(page("Findings: %s | %s" % (p["name"], config["name"]), fbody, 2, p["tagline"], config, "project"))
+            f.write(page("Findings: %s | %s" % (p["name"], config["name"]), fbody, 2, p["tagline"], config, "projects"))
+
+
+def year_grid(projects, config, today=None):
+    """One square per day of the first year, shaded by how many projects that day has."""
+    length = int(config.get("yearLength", 365))
+    if not projects:
+        return "", 0
+    start = datetime.date.fromisoformat(min(p["date"] for p in projects))
+    today = today or datetime.date.today()
+    per_day = {}
+    for p in projects:
+        per_day[p["date"]] = per_day.get(p["date"], 0) + 1
+    year = (today - start).days // length
+    first = start + datetime.timedelta(days=year * length)
+    day_no = min((today - first).days + 1, length)
+    cells = ['<span class="d pad"></span>' for _ in range(first.weekday())]
+    for i in range(length):
+        d = first + datetime.timedelta(days=i)
+        n = per_day.get(d.isoformat(), 0)
+        if d > today:
+            cls = "d future"
+        else:
+            cls = "d l%d" % (0 if n == 0 else 1 if n == 1 else 2 if n <= 3 else 3 if n <= 6 else 4)
+        label = "%s: %d project%s" % (fmt_date(d.isoformat()), n, "" if n == 1 else "s") if d <= today else ""
+        cells.append('<span class="%s"%s></span>' % (cls, ' title="%s"' % esc(label) if label else ""))
+    total = sum(per_day.values())
+    days_with = sum(1 for k in per_day if first.isoformat() <= k <= today.isoformat())
+    summary = "Year %d, day %d of %d: %d projects on %d days so far." % (year + 1, day_no, length, total, days_with)
+    html_out = ('<figure class="year"><figcaption><span>Year %d</span><span>Day %d of %d</span></figcaption>'
+                '<div class="year-scroll"><div class="year-grid" role="img" aria-label="%s">%s</div></div>'
+                '<div class="year-legend" aria-hidden="true"><span>Fewer</span><i class="d l1"></i><i class="d l2"></i><i class="d l3"></i><i class="d l4"></i><span>More</span></div></figure>') % (
+        year + 1, day_no, length, esc(summary), "".join(cells))
+    return html_out, day_no
 
 
 def write_index(out, projects, cats, config):
     counts = {}
     for p in projects:
         counts[p["category"]] = counts.get(p["category"], 0) + 1
-    used = [c for c in list(cats.values()) if counts.get(c["id"])]
+    used = [c for c in cats.values() if counts.get(c["id"])]
     first = min((p["date"] for p in projects), default=None)
     days = (datetime.date.today() - datetime.date.fromisoformat(first)).days + 1 if first else 0
-    by_slug = {p["branch"]: p for p in projects}
-    featured = [by_slug[b] for b in config.get("featured", []) if b in by_slug][:3]
-    data = [{k: p[k] for k in ("slug", "date", "name", "tagline", "what", "theme", "category", "url", "thumb")} for p in projects]
+    by_branch = {p["branch"]: p for p in projects}
+    featured = [by_branch[b] for b in config.get("featured", []) if b in by_branch][:3]
+    latest = projects[0] if projects else None
+    grid, _day = year_grid(projects, config)
+    data = [{"n": p["number"], "date": p["date"], "name": p["name"], "tag": p["tagline"], "what": p["what"], "theme": p["theme"],
+             "cat": p["category"], "url": p["url"], "cover": p["cover"]} for p in projects]
 
-    stats = ('<dl class="stats"><div><dt>Projects</dt><dd>%d</dd></div><div><dt>Topics</dt><dd>%d</dd></div>'
-             '<div><dt>Started</dt><dd>%s</dd></div><div><dt>Days so far</dt><dd>%d</dd></div></dl>') % (
-        len(projects), len(used), esc(fmt_date(first)) if first else "Soon", days)
-    hero = ('<section class="intro"><div class="wrap"><p class="kicker">%s</p><h1>%s</h1><p class="lede">%s</p>%s</div></section>') % (
-        esc(config["name"]), esc(config["title"]), esc(config["tagline"]), stats)
+    actions = '<a class="btn primary" href="#archive">Browse the projects %s</a>' % ARROW
+    if latest:
+        actions += '<a class="btn" href="%s">Latest: %s</a>' % (esc(latest["url"]), esc(latest["name"]))
+    hero = ('<section class="hero"><div class="wrap hero-grid"><div class="hero-copy">'
+            '<p class="eyebrow"><span class="live" aria-hidden="true"></span>%s</p>'
+            '<h1>%s</h1><p class="lede">%s</p><div class="actions">%s</div></div>%s</div></section>') % (
+        esc("New every day · %d projects so far" % len(projects)), esc(config["title"]), esc(config["tagline"]), actions, grid)
+    stats = ('<section class="band"><div class="wrap stats">'
+             '<div><span class="stat">%d</span><span class="stat-label">projects</span></div>'
+             '<div><span class="stat">%d</span><span class="stat-label">topics</span></div>'
+             '<div><span class="stat">%d</span><span class="stat-label">days so far, since %s</span></div>'
+             '<div><span class="stat">100%%</span><span class="stat-label">run in your browser</span></div>'
+             '</div></section>') % (len(projects), len(used), days, esc(fmt_date(first, True)) if first else "")
     feat = ""
     if featured:
-        feat = '<section class="featured" aria-labelledby="h-feat"><div class="wrap"><h2 id="h-feat">Start with these</h2><div class="grid three">%s</div></div></section>' % \
-            "".join(card_html(p, cats) for p in featured)
+        feat = ('<section class="section" aria-labelledby="h-feat"><div class="wrap"><div class="section-head"><div><h2 id="h-feat">Start here</h2>'
+                '<p>A few favourites to try first.</p></div></div><div class="grid feat">%s</div></div></section>') % "".join(card_html(p, cats) for p in featured)
     chips = '<button type="button" class="chip" data-cat="" aria-pressed="true">All <span>%d</span></button>' % len(projects)
-    chips += "".join('<button type="button" class="chip" data-cat="%s" aria-pressed="false">%s <span>%d</span></button>' % (
-        esc(c["id"]), esc(c["name"]), counts[c["id"]]) for c in used)
-    static_cards = "".join(card_html(p, cats) for p in projects[:24])
-    archive = ('<section class="archive" id="archive" aria-labelledby="h-arch"><div class="wrap">'
-               '<div class="arch-head"><h2 id="h-arch">Every project</h2><p class="count" id="count" role="status" aria-live="polite">%d projects</p></div>'
-               '<p class="arch-sub">Open any project to try it right here in your browser, then read how it works.</p>'
-               '<div class="tools"><label class="search"><span class="sr-only">Search projects</span><input type="search" id="q" placeholder="Search projects, for example forecasting or AI Act" autocomplete="off"></label>'
-               '<label class="sort"><span>Sort</span><select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option></select></label></div>'
+    chips += "".join('<button type="button" class="chip" data-cat="%s" aria-pressed="false"><span class="dot" style="--c:%s"></span>%s <span>%d</span></button>' % (
+        esc(c["id"]), esc(c.get("color", "#64748b")), esc(c["name"]), counts[c["id"]]) for c in used)
+    archive = ('<section class="section archive" id="archive" aria-labelledby="h-arch"><div class="wrap">'
+               '<div class="section-head"><div><h2 id="h-arch">All projects</h2><p>Open any project to try it right here in your browser.</p></div>'
+               '<p class="count" id="count" role="status" aria-live="polite">%d projects</p></div>'
+               '<div class="filters"><label class="search">%s<span class="sr-only">Search projects</span>'
+               '<input type="search" id="q" placeholder="Search, for example forecasting or AI Act" autocomplete="off"></label>'
+               '<label class="select"><span class="sr-only">Sort</span><select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option></select></label>'
+               '<div class="view" role="group" aria-label="Layout"><button type="button" id="view-grid" aria-pressed="true">Grid</button><button type="button" id="view-list" aria-pressed="false">List</button></div></div>'
                '<div class="chips" role="group" aria-label="Filter by topic">%s</div>'
                '<p class="cat-blurb" id="cat-blurb"></p>'
                '<div class="grid" id="grid">%s</div>'
-               '<p class="empty" id="empty" hidden>No projects match. Try a different word or topic.</p>'
+               '<p class="empty" id="empty" hidden>No projects match. Try another word or topic.</p>'
                '<div class="more"><button type="button" class="btn" id="more" hidden>Show more</button></div>'
-               '<noscript><p><a href="archive.html">See every project by month</a>.</p></noscript>'
-               '</div></section>') % (len(projects), chips, static_cards)
-    cat_data = {c["id"]: {"name": c["name"], "blurb": c.get("blurb", "")} for c in used}
+               '<noscript><p><a href="archive.html">See every project in the archive</a>.</p></noscript>'
+               '</div></section>') % (len(projects), SEARCH, chips, "".join(card_html(p, cats) for p in projects[:24]))
+    cat_data = {c["id"]: {"name": c["name"], "blurb": c.get("blurb", ""), "color": c.get("color", "#64748b")} for c in used}
+    how = ('<section class="section how"><div class="wrap how-grid"><div><p class="eyebrow">How these are made</p><h2>A daily habit, built in the open</h2></div>'
+           '<div><p>%s</p><p><a class="text-link" href="about.html">More about this project %s</a></p></div></div></section>') % (esc(config["how"]), ARROW)
     script = ('<script type="application/json" id="data">%s</script><script type="application/json" id="cats">%s</script>'
-              '<script src="static/site.js"></script>') % (
-        json.dumps(data).replace("</", "<\\/"), json.dumps(cat_data).replace("</", "<\\/"))
-    how = '<section class="how"><div class="wrap narrow"><h2>How these are made</h2><p>%s</p><p><a href="about.html">More about this project</a></p></div></section>' % esc(config["how"])
+              '<script src="static/site.js"></script>') % (json.dumps(data).replace("</", "<\\/"), json.dumps(cat_data).replace("</", "<\\/"))
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
-        f.write(page("%s: %s" % (config["name"], config["title"]), hero + feat + archive + how + script, 0, config["tagline"], config, "home"))
+        f.write(page("%s: %s" % (config["name"], config["title"]), hero + stats + feat + archive + how + script, 0, config["tagline"], config, "projects"))
 
 
 def write_archive(out, projects, cats, config):
     months = {}
     for p in projects:
         months.setdefault(p["date"][:7], []).append(p)
-    parts = ['<div class="wrap narrow project-head"><h1>Every project, by month</h1><p class="lede">%d projects so far, newest first.</p></div><div class="wrap narrow">' % len(projects)]
+    parts = ['<section class="p-hero"><div class="wrap"><h1>Archive</h1><p class="lede">Every project, month by month. %d so far.</p></div></section><div class="wrap">' % len(projects)]
     for m in sorted(months, reverse=True):
         d = datetime.date.fromisoformat(m + "-01")
-        parts.append('<section class="month"><h2>%s <span>%d</span></h2><ol class="month-list">' % (esc(d.strftime("%B %Y")), len(months[m])))
+        parts.append('<section class="month" id="m-%s"><h2>%s <span>%d projects</span></h2><ol class="rows">' % (esc(m), esc(d.strftime("%B %Y")), len(months[m])))
         for p in months[m]:
-            parts.append('<li><time datetime="%s">%s</time><a href="%s">%s</a><span class="cat" data-cat="%s">%s</span><p>%s</p></li>' % (
-                esc(p["date"]), esc(fmt_date(p["date"])), esc(p["url"]), esc(p["name"]), esc(p["category"]),
-                esc(cats.get(p["category"], cats["other"])["name"]), esc(p["tagline"])))
+            parts.append('<li><a class="row" href="%s"><span class="num">No. %03d</span><span class="row-main"><strong>%s</strong><span>%s</span></span>%s<time datetime="%s">%s</time></a></li>' % (
+                esc(p["url"]), p["number"], esc(p["name"]), esc(p["tagline"]), topic_html(cats, p["category"]), esc(p["date"]), esc(fmt_date(p["date"], True))))
         parts.append("</ol></section>")
     parts.append("</div>")
     with open(os.path.join(out, "archive.html"), "w", encoding="utf-8") as f:
-        f.write(page("Every project by month | %s" % config["name"], "".join(parts), 0, config["tagline"], config, "archive-page"))
+        f.write(page("Archive | %s" % config["name"], "".join(parts), 0, config["tagline"], config, "archive"))
 
 
-def write_about(out, projects, config):
+def write_about(out, projects, cats, config):
     paras = "".join("<p>%s</p>" % esc(t) for t in config["about"])
-    links = "".join('<li><a href="%s" target="_blank" rel="noopener">%s</a></li>' % (esc(l["url"]), esc(l["label"])) for l in config.get("links", []))
-    body = ('<div class="wrap narrow project-head"><h1>About</h1><p class="lede">%s</p></div><div class="wrap narrow prose">%s'
-            '<h2>How these are made</h2><p>%s</p>%s</div>') % (
-        esc(config["tagline"]), paras, esc(config["how"]), ("<h2>Elsewhere</h2><ul>%s</ul>" % links) if links else "")
+    counts = {}
+    for p in projects:
+        counts[p["category"]] = counts.get(p["category"], 0) + 1
+    topics = "".join('<li><a href="index.html#category=%s">%s</a><span>%d</span></li>' % (esc(c["id"]), topic_html(cats, c["id"]), counts[c["id"]])
+                     for c in cats.values() if counts.get(c["id"]))
+    body = ('<section class="p-hero"><div class="wrap"><h1>About</h1><p class="lede">%s</p></div></section>'
+            '<div class="wrap read-grid"><article class="prose">%s<h2>How these are made</h2><p>%s</p></article>'
+            '<aside class="facts"><h2 class="facts-title">Topics so far</h2><ul class="topic-list">%s</ul></aside></div>') % (
+        esc(config["tagline"]), paras, esc(config["how"]), topics)
     with open(os.path.join(out, "about.html"), "w", encoding="utf-8") as f:
-        f.write(page("About | %s" % config["name"], body, 0, config["tagline"], config, "about-page"))
+        f.write(page("About | %s" % config["name"], body, 0, config["tagline"], config, "about"))
 
 
 def main(argv=None):

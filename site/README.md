@@ -27,6 +27,10 @@ Everything you might want to edit is in `site.json`:
 - `categoryOverrides`: put a project in a different topic, for example `"build/2026-11-24-range-finder": "consulting"`.
 - `taglines`: replace a project's one-line hook, for example `"build/2026-11-24-ai-act-triage": "Where does your AI system sit under the EU AI Act?"`.
 
+## How it looks
+
+One typeface (Inter, bundled in `static/fonts` under the SIL Open Font License, so the site makes no outside requests), a neutral palette and one colour per topic. Each project gets a cover image made from its first screenshot, framed on a backdrop in its topic's colour, and a number counting up from the first project. The home page shows the first year as a grid of 365 days that fills in as projects arrive. Topic colours live in `site.json`.
+
 ## Building it on your own computer
 
 ```bash
@@ -36,7 +40,7 @@ python site/build_site.py --out _site --cache .site-cache
 python -m unittest discover -s site -p "test_*.py"
 ```
 
-Then open `_site/index.html`. The `--cache` folder keeps shrunk screenshots between builds, so later builds take about a second.
+Then preview it through a local web server, for example `python -m http.server -d _site 8000` and http://localhost:8000 (browsers refuse to load the bundled font from a file opened directly). The `--cache` folder keeps shrunk screenshots between builds, so later builds take about a second.
 
 ## Growing to thousands of projects
 

@@ -9,7 +9,10 @@
     "They are practice pieces, not finished products: quick, focused and sometimes rough at the edges. The numbers come from invented, synthetic data, so treat them as ways of thinking about a problem rather than forecasts."
   ],
   "links": [
-    {"label": "GitHub", "url": "https://github.com/bb414"}
+    {
+      "label": "GitHub",
+      "url": "https://github.com/bb414"
+    }
   ],
   "footer": "One new project every day. Synthetic data, nothing confidential, everything runs in your browser.",
   "projectNote": "The app above runs entirely in your browser and uses synthetic data. The source code for this project is kept in a private repository.",
@@ -19,21 +22,166 @@
     "build/2026-11-24-ai-act-triage"
   ],
   "categories": [
-    {"id": "ai-adoption", "name": "AI adoption and scaling", "keywords": ["adoption", "scaling", "pilot"], "blurb": "Why AI gets stuck between a promising pilot and everyday use."},
-    {"id": "human-ai", "name": "Humans and AI", "keywords": ["human-ai", "over-reliance", "reliance"], "blurb": "How people use, trust and lean on AI advice."},
-    {"id": "fintech", "name": "Fintech and money", "keywords": ["fintech", "financial literacy", "scam"], "blurb": "AI in consumer finance and everyday money skills."},
-    {"id": "innovation", "name": "Innovation management", "keywords": ["innovation"], "blurb": "How new ideas and tools spread through organisations."},
-    {"id": "governance", "name": "AI governance and regulation", "keywords": ["governance", "regulation", "ai act", "assurance", "oversight"], "blurb": "The EU AI Act, the UK's approach and keeping AI accountable."},
-    {"id": "consulting", "name": "Consulting toolkit", "keywords": ["consulting", "market sizing", "business case", "issue tree"], "blurb": "Case practice, market sizing and frameworks."},
-    {"id": "markets", "name": "Markets and trading", "keywords": ["markets", "trading", "options", "futures", "backtest"], "blurb": "Risk, luck and skill in markets."},
-    {"id": "sustainability", "name": "Sustainability and carbon", "keywords": ["sustainab", "carbon", "cbam", "green"], "blurb": "Carbon, green forecasting and cleaner computing."},
-    {"id": "retail", "name": "Retail and forecasting", "keywords": ["retail", "forecast", "inventory"], "blurb": "Demand, stock and pricing decisions in shops."},
-    {"id": "explainable-ai", "name": "Explainable AI and decisions", "keywords": ["explainable", "decision"], "blurb": "Making automated decisions understandable."},
-    {"id": "sales", "name": "Sales and CRM analytics", "keywords": ["sales", "crm"], "blurb": "Pipelines, win rates and the data behind them."},
-    {"id": "sport", "name": "Teams and sport", "keywords": ["sports", "squad", "training load", "rugby"], "blurb": "Squad planning, training load and leading teams."},
-    {"id": "languages", "name": "Language learning", "keywords": ["language", "czech", "slovak", "mandarin"], "blurb": "Tools for learning Czech, Slovak and Mandarin."},
-    {"id": "fun", "name": "Just for fun", "keywords": ["minecraft", "redstone"], "blurb": "The occasional side quest."}
+    {
+      "id": "ai-adoption",
+      "name": "AI adoption and scaling",
+      "keywords": [
+        "adoption",
+        "scaling",
+        "pilot"
+      ],
+      "blurb": "Why AI gets stuck between a promising pilot and everyday use.",
+      "color": "#4f46e5"
+    },
+    {
+      "id": "human-ai",
+      "name": "Humans and AI",
+      "keywords": [
+        "human-ai",
+        "over-reliance",
+        "reliance"
+      ],
+      "blurb": "How people use, trust and lean on AI advice.",
+      "color": "#db2777"
+    },
+    {
+      "id": "fintech",
+      "name": "Fintech and money",
+      "keywords": [
+        "fintech",
+        "financial literacy",
+        "scam"
+      ],
+      "blurb": "AI in consumer finance and everyday money skills.",
+      "color": "#059669"
+    },
+    {
+      "id": "innovation",
+      "name": "Innovation management",
+      "keywords": [
+        "innovation"
+      ],
+      "blurb": "How new ideas and tools spread through organisations.",
+      "color": "#d97706"
+    },
+    {
+      "id": "governance",
+      "name": "AI governance and regulation",
+      "keywords": [
+        "governance",
+        "regulation",
+        "ai act",
+        "assurance",
+        "oversight"
+      ],
+      "blurb": "The EU AI Act, the UK's approach and keeping AI accountable.",
+      "color": "#2563eb"
+    },
+    {
+      "id": "consulting",
+      "name": "Consulting toolkit",
+      "keywords": [
+        "consulting",
+        "market sizing",
+        "business case",
+        "issue tree"
+      ],
+      "blurb": "Case practice, market sizing and frameworks.",
+      "color": "#7c3aed"
+    },
+    {
+      "id": "markets",
+      "name": "Markets and trading",
+      "keywords": [
+        "markets",
+        "trading",
+        "options",
+        "futures",
+        "backtest"
+      ],
+      "blurb": "Risk, luck and skill in markets.",
+      "color": "#0891b2"
+    },
+    {
+      "id": "sustainability",
+      "name": "Sustainability and carbon",
+      "keywords": [
+        "sustainab",
+        "carbon",
+        "cbam",
+        "green"
+      ],
+      "blurb": "Carbon, green forecasting and cleaner computing.",
+      "color": "#16a34a"
+    },
+    {
+      "id": "retail",
+      "name": "Retail and forecasting",
+      "keywords": [
+        "retail",
+        "forecast",
+        "inventory"
+      ],
+      "blurb": "Demand, stock and pricing decisions in shops.",
+      "color": "#ea580c"
+    },
+    {
+      "id": "explainable-ai",
+      "name": "Explainable AI and decisions",
+      "keywords": [
+        "explainable",
+        "decision"
+      ],
+      "blurb": "Making automated decisions understandable.",
+      "color": "#9333ea"
+    },
+    {
+      "id": "sales",
+      "name": "Sales and CRM analytics",
+      "keywords": [
+        "sales",
+        "crm"
+      ],
+      "blurb": "Pipelines, win rates and the data behind them.",
+      "color": "#0d9488"
+    },
+    {
+      "id": "sport",
+      "name": "Teams and sport",
+      "keywords": [
+        "sports",
+        "squad",
+        "training load",
+        "rugby"
+      ],
+      "blurb": "Squad planning, training load and leading teams.",
+      "color": "#dc2626"
+    },
+    {
+      "id": "languages",
+      "name": "Language learning",
+      "keywords": [
+        "language",
+        "czech",
+        "slovak",
+        "mandarin"
+      ],
+      "blurb": "Tools for learning Czech, Slovak and Mandarin.",
+      "color": "#ca8a04"
+    },
+    {
+      "id": "fun",
+      "name": "Just for fun",
+      "keywords": [
+        "minecraft",
+        "redstone"
+      ],
+      "blurb": "The occasional side quest.",
+      "color": "#65a30d"
+    }
   ],
   "categoryOverrides": {},
-  "taglines": {}
+  "taglines": {},
+  "otherColor": "#64748b",
+  "yearLength": 365
 }
