@@ -1,11 +1,12 @@
 {
   "name": "Benjamin Brighton",
   "title": "One new project every day",
-  "tagline": "Small projects on the things I find interesting: why AI stalls at the pilot stage, fintech, markets, retail, carbon and more. Practice, not polish.",
-  "how": "I choose the themes and write the brief that steers every build. Each night an AI coding assistant designs and builds one new project from that brief, and I review it, use it and learn from it. Every app runs in your browser, works offline and uses synthetic data.",
+  "tagline": "Small projects on the questions I keep coming back to: why AI stalls at the pilot stage, fintech, markets, retail, carbon and more. Practice, not polish.",
+  "how": "Every project starts with a question of mine, drawn from my research, my work and the business I help run. I pick the themes and the questions, then use AI coding tools to turn each idea into a working app. Every app runs in your browser, works offline and uses synthetic data.",
   "about": [
-    "I'm a final-year Business and Management with Legal Studies student at the University of Sussex. The question behind most of these projects: why does AI so often stall at the pilot stage, in companies and in people's everyday lives?",
-    "This site is a daily habit. Each project takes one idea, builds a small working tool around it and writes up what it shows. Some are about AI adoption, human and AI decision-making, fintech and AI regulation; others are about consulting, markets, retail forecasting, carbon, sport and languages.",
+    "I'm a final-year Business and Management with Legal Studies student at the University of Sussex. One question runs through most of what I do: why does AI so often stall at the pilot stage, in companies and in people's everyday lives?",
+    "The ideas come from my own experience: interviewing senior executives about AI transformation as a research associate, building AI tools and CRM reports in a global sales team, and growing a confectionery business I co-founded from an online shop to ten outlets. Each project takes one of those questions, turns it into a small tool you can try and writes up what it shows.",
+    "Some are about AI adoption, how people and AI make decisions together, fintech and AI regulation. Others come from the things I do outside my degree: consulting, trading challenges, retail forecasting, carbon, sport and languages.",
     "They are practice pieces, not finished products: quick, focused and sometimes rough at the edges. The numbers come from invented, synthetic data, so treat them as ways of thinking about a problem rather than forecasts."
   ],
   "links": [

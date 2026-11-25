@@ -760,7 +760,7 @@ def write_index(out, projects, cats, config):
                '<noscript><p><a href="archive.html">See every project in the archive</a>.</p></noscript>'
                '</div></section>') % (len(projects), SEARCH, chips, "".join(card_html(p, cats) for p in projects[:24]))
     challenge = ('<section class="section reveal" aria-labelledby="h-chal"><div class="wrap challenge"><div class="chal-copy"><p class="kicker">The challenge</p>'
-                 '<h2 id="h-chal">One project a day, for a year</h2><p>%s</p><p><a class="text-link" href="about.html">How these are made %s</a></p></div>%s</div></section>') % (
+                 '<h2 id="h-chal">One project a day, for a year</h2><p>%s</p><p><a class="text-link" href="about.html">How I make them %s</a></p></div>%s</div></section>') % (
         esc(config["how"]), ARROW, grid)
     cat_data = {c["id"]: {"name": c["name"], "blurb": c.get("blurb", ""), "color": c.get("color", "#64748b")} for c in used}
     script = ('<script type="application/json" id="data">%s</script><script type="application/json" id="cats">%s</script>'
@@ -803,7 +803,7 @@ def write_about(out, projects, cats, config):
     topics = "".join('<li><a href="index.html#category=%s">%s</a><span>%d</span></li>' % (esc(c["id"]), topic_html(cats, c["id"]), counts[c["id"]])
                      for c in cats.values() if counts.get(c["id"]))
     body = ('<section class="p-hero"><div class="wrap"><h1>About</h1><p class="lede">%s</p></div></section>'
-            '<div class="wrap read-grid"><article class="prose">%s<h2>How these are made</h2><p>%s</p></article>'
+            '<div class="wrap read-grid"><article class="prose">%s<h2>How I make them</h2><p>%s</p></article>'
             '<aside class="facts"><h2 class="facts-title">Topics so far</h2><ul class="topic-list">%s</ul></aside></div>') % (
         esc(config["tagline"]), paras, esc(config["how"]), topics)
     with open(os.path.join(out, "about.html"), "w", encoding="utf-8") as f:
