@@ -136,6 +136,7 @@ select:hover, input[type="number"]:hover { border-color: var(--ink-2); }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .hint { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.qhint:empty { display: none; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 12px; color: var(--ink-2); }
 .check input { margin-top: 3px; width: 16px; height: 16px; flex: none; }
 .btn {
@@ -165,8 +166,9 @@ section.card { padding: 18px 20px; }
 }
 .tabs [role="tab"][aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .view-note { font-size: 14px; color: var(--ink-2); margin: 0 0 14px; }
-.grid2 { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
-.risk-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 112px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.stack-plan { display: grid; gap: 22px; }
+.sub-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+.risk-row { display: grid; grid-template-columns: 250px minmax(0, 1fr) 120px; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grid); }
 .risk-row:last-child { border-bottom: 0; }
 .risk-name { font-size: 14px; font-weight: 600; line-height: 1.25; }
 .risk-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
@@ -193,6 +195,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; overflow: visible; }
 .chart text { fill: var(--ink-2); font-size: 12px; }
+.chart text.halo, .timeline-label { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
 .tooltip {
   position: absolute; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12px; line-height: 1.4;
   padding: 8px 10px; border-radius: 8px; max-width: 260px; opacity: 0; transition: opacity 0.1s; z-index: 5;
@@ -205,7 +208,14 @@ details.alt summary { cursor: pointer; color: var(--accent-ink); }
 .pill { display: block; font-size: 13px; padding: 5px 9px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
 .pill.on { color: var(--ink); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .pill.off { text-decoration: line-through; opacity: 0.6; }
-.cov { text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; border-radius: 4px; min-width: 38px; }
+.covtd { padding: 7px 3px; }
+.covh { text-align: center; padding: 7px 3px; }
+.covh abbr { text-decoration: none; }
+.cov { display: block; text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; border-radius: 4px; min-width: 40px; line-height: 26px; height: 26px; }
+.covk { display: none; }
+.tmeta { font-size: 12px; color: var(--muted); margin: 2px 0; }
+.tmeta .tag { margin: 0 4px 0 0; }
+tr.in-plan .tname { color: var(--accent-ink); }
 .choice { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
 .choice label { font-size: 12px; padding: 5px 8px; cursor: pointer; border-right: 1px solid var(--axis); white-space: nowrap; }
 .choice label:last-child { border-right: 0; }
@@ -254,11 +264,16 @@ details.alt summary { cursor: pointer; color: var(--accent-ink); }
 .scroll-x { overflow-x: auto; }
 .empty { padding: 18px; border: 1px dashed var(--axis); border-radius: 10px; color: var(--ink-2); font-size: 14px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mobile-bar { display: none; }
 footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12px; color: var(--muted); }
-@media (max-width: 1100px) {
-  .grid2 { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 900px) {
+  body { padding-bottom: 64px; }
+  .mobile-bar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; gap: 10px; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--border); font-size: 14px; box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .mobile-bar a { text-decoration: none; white-space: nowrap; }
+  .mobile-bar.gone { display: none; }
   .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
   aside.controls { position: static; max-height: none; }
   header.top { padding: 16px; }
@@ -280,6 +295,14 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
   table.stack td { display: block; border: 0; padding: 2px 0; text-align: left; }
   table.stack td.num { text-align: left; }
   table.stack td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; }
+  #catalogue td.covtd { display: inline-block; padding: 2px 6px 2px 0; }
+  #catalogue .covk { display: block; font-size: 11px; color: var(--muted); }
+  #catalogue .cov { min-width: 0; width: 52px; }
+  #catalogue td.c-cost::before { content: "Cost: "; color: var(--muted); font-size: 12px; }
+  #catalogue td.c-choice { padding-top: 6px; }
+  table.plan td.c-stage, table.plan td.c-cost { display: inline-block; color: var(--ink-2); font-size: 12px; padding-right: 10px; }
+  table.plan td.c-why { font-size: 13px; }
+  table.plan tfoot td.c-why { display: none; }
 }
 @media print {
   aside.controls { position: static; max-height: none; }
@@ -363,9 +386,9 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
             <button class="btn" type="button" id="custom-clear">Clear</button>
           </p>
         </div>
-        <div class="grid2">
+        <div class="stack-plan">
           <div>
-            <h3 class="sr-only">Risk by principle</h3>
+            <h3 class="sub-h">Risk by principle</h3>
             <div id="risk"></div>
             <div class="legend" aria-hidden="true">
               <span><i class="sw" style="background: var(--inherent)"></i>Before assurance</span>
@@ -373,8 +396,9 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
               <span><i class="sw dash"></i>Your appetite</span>
             </div>
           </div>
-          <div class="scroll-x">
-            <table class="stack" id="plan-table"></table>
+          <div>
+            <h3 class="sub-h">Techniques in this plan</h3>
+            <table class="stack plan" id="plan-table"></table>
           </div>
         </div>
       </div>
@@ -456,13 +480,14 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
     </section>
   </main>
 </div>
+<div class="mobile-bar" id="mobile-bar"><span id="mobile-sum" aria-live="polite"></span><a href="#results" class="btn primary">See the results</a></div>
 <footer>Assurance mix is a planning aid with invented example systems and illustrative numbers. It runs entirely in this page and sends nothing anywhere.</footer>
 <div class="tooltip" id="tooltip" role="status" aria-live="off"></div>
 <script>
 /* MODEL START */
 // Assurance mix: the model. Everything the app calculates lives in this block,
 // so it can be run and tested in Node.js outside the browser.
-const DATA = /* DATA START */{"version":1,"principles":[{"id":"safety","short":"Safety","name":"Safety, security and robustness"},{"id":"transparency","short":"Transparency","name":"Appropriate transparency and explainability"},{"id":"fairness","short":"Fairness","name":"Fairness"},{"id":"accountability","short":"Accountability","name":"Accountability and governance"},{"id":"contestability","short":"Contestability","name":"Contestability and redress"}],"likelihood":{"scores":[0,1,2,3,4,5],"probabilities":[0,0.025,0.125,0.35,0.65,0.9],"bands":["under 5%","5 to 20%","20 to 50%","50 to 80%","over 80%"]},"riskBands":[{"max":4,"label":"Low"},{"max":9,"label":"Medium"},{"max":15,"label":"High"},{"max":25,"label":"Very high"}],"questions":[{"id":"stakes","label":"What does its output decide?","options":[{"id":"advisory","label":"Nothing about individuals (back-office work or general advice)","L":{},"I":{}},{"id":"shapes","label":"It shapes decisions about people (ranking, pricing, flagging)","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1.5,"accountability":1,"contestability":1}},{"id":"significant","label":"It decides access to jobs, credit, housing or services","L":{},"I":{"safety":1,"transparency":2,"fairness":2.5,"accountability":2,"contestability":2.5}},{"id":"safety","label":"It could cause physical harm (equipment, vehicles, health)","L":{},"I":{"safety":3,"transparency":1,"fairness":1,"accountability":2.5,"contestability":1}}]},{"id":"autonomy","label":"How much does a person check?","options":[{"id":"suggests","label":"A person decides; the system only suggests","L":{},"I":{}},{"id":"approves","label":"A person signs off each output, usually quickly","L":{"safety":0.5,"transparency":0.5,"fairness":0.5,"contestability":0.5},"I":{}},{"id":"automated","label":"Fully automated, with no person in the loop","L":{"safety":1,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1.5},"I":{}}]},{"id":"model","label":"What kind of model is it?","options":[{"id":"rules","label":"Rules or simple statistics","L":{"safety":0.5,"fairness":0.5},"I":{}},{"id":"ml","label":"A machine-learning model","L":{"safety":1,"transparency":1.5,"fairness":1.5,"accountability":0.5},"I":{}},{"id":"genai","label":"A general-purpose or generative model","L":{"safety":2,"transparency":2,"fairness":1.5,"accountability":1,"contestability":0.5},"I":{}}]},{"id":"data","label":"What data does it use?","options":[{"id":"none","label":"No personal data","L":{},"I":{}},{"id":"personal","label":"Personal data","L":{"transparency":0.5,"fairness":0.5,"accountability":0.5},"I":{"transparency":0.5}},{"id":"special","label":"Special category data (for example health or ethnicity)","L":{"transparency":0.5,"fairness":1,"accountability":1},"I":{"safety":0.5,"transparency":0.5,"fairness":1}}]},{"id":"affected","label":"Who is affected?","options":[{"id":"staff","label":"Staff only","L":{},"I":{}},{"id":"customers","label":"Customers who chose to deal with you","L":{},"I":{"transparency":0.5,"fairness":0.5,"contestability":0.5}},{"id":"public","label":"The public, including people in vulnerable circumstances","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1}}]},{"id":"source","label":"Where does it come from?","options":[{"id":"inhouse","label":"Built in-house","L":{},"I":{}},{"id":"full","label":"Bought in, with full access to the model and data","L":{"accountability":0.5},"I":{}},{"id":"outputs","label":"Bought in, outputs only: you can test it but not look inside","L":{"transparency":1,"fairness":0.5,"accountability":1},"I":{}},{"id":"docs","label":"Bought in, documentation only: no testing before go-live","L":{"safety":0.5,"transparency":1.5,"fairness":1,"accountability":1.5},"I":{}}]},{"id":"change","label":"Does it change after go-live?","options":[{"id":"fixed","label":"No, it is fixed once deployed","L":{},"I":{}},{"id":"retrained","label":"It is retrained from time to time","L":{"safety":0.5,"fairness":0.5,"accountability":0.5},"I":{}},{"id":"learning","label":"It keeps learning from live data","L":{"safety":1,"transparency":0.5,"fairness":1,"accountability":1},"I":{}}]},{"id":"stage","label":"How far is it being rolled out?","options":[{"id":"pilot","label":"Pilot: a few hundred cases, closely watched","L":{},"I":{"safety":-1,"transparency":-1,"fairness":-1,"accountability":-1,"contestability":-1}},{"id":"rollout","label":"Limited roll-out: thousands of cases","L":{},"I":{}},{"id":"scale","label":"Full scale: hundreds of thousands of cases","L":{},"I":{"safety":1,"transparency":1,"fairness":1,"accountability":1,"contestability":1}}]}],"stages":[{"id":"design","label":"Design"},{"id":"test","label":"Before go-live"},{"id":"live","label":"In operation"}],"techniques":[{"id":"risk","name":"Risk assessment","source":"DSIT","stage":"design","spectrum":0.15,"independent":false,"cost":4,"weeks":2,"coverage":{"safety":0.25,"transparency":0.15,"fairness":0.2,"accountability":0.3,"contestability":0.15},"blurb":"A structured look at what could go wrong in development and use: bias, privacy, misuse, reputation."},{"id":"aia","name":"Algorithmic impact assessment","source":"DSIT","stage":"design","spectrum":0.2,"independent":false,"cost":9,"weeks":4,"coverage":{"safety":0.15,"transparency":0.2,"fairness":0.35,"accountability":0.2,"contestability":0.3},"blurb":"Anticipates wider effects on people, equality and rights, ideally with input from those affected."},{"id":"dpia","name":"Data protection impact assessment","source":"UK GDPR","stage":"design","spectrum":0.25,"independent":false,"cost":6,"weeks":3,"coverage":{"safety":0.1,"transparency":0.3,"fairness":0.2,"accountability":0.3,"contestability":0.25},"needsData":true,"blurb":"The UK GDPR assessment for processing likely to be high risk to people; the ICO expects one for most AI that uses personal data."},{"id":"docs","name":"Model and data documentation","source":"Common practice","stage":"design","spectrum":0.45,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0.1,"transparency":0.4,"fairness":0.1,"accountability":0.3,"contestability":0.1},"access":{"full":1,"outputs":0.6,"docs":0.6},"blurb":"Model cards and data sheets: what the system is for, how it was built and tested, and its known limits."},{"id":"supplier","name":"Supplier due diligence","source":"Common practice","stage":"design","spectrum":0.3,"independent":false,"cost":5,"weeks":2,"coverage":{"safety":0.15,"transparency":0.25,"fairness":0.15,"accountability":0.35,"contestability":0.15},"boughtInOnly":true,"blurb":"Questions, evidence and contract terms for a bought-in system: testing rights, incident notice, audit access."},{"id":"aims","name":"Certified AI management system (ISO/IEC 42001)","source":"Standard","stage":"design","spectrum":0.4,"independent":true,"cost":45,"weeks":14,"coverage":{"safety":0.1,"transparency":0.1,"fairness":0.1,"accountability":0.5,"contestability":0.2},"requires":["risk","aia"],"blurb":"Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."},{"id":"biasInternal","name":"Internal bias audit","source":"DSIT","stage":"test","spectrum":0.75,"independent":false,"cost":10,"weeks":3,"coverage":{"safety":0,"transparency":0.05,"fairness":0.4,"accountability":0,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"Your own team tests inputs and outputs for unfair differences between groups."},{"id":"biasIndependent","name":"Independent bias audit","source":"DSIT","stage":"test","spectrum":0.8,"independent":true,"cost":24,"weeks":5,"coverage":{"safety":0,"transparency":0.1,"fairness":0.55,"accountability":0.1,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"An external assurer tests for unfair bias. Needs access to data and outputs."},{"id":"performance","name":"Performance and robustness testing","source":"Common practice","stage":"test","spectrum":0.85,"independent":false,"cost":12,"weeks":3,"coverage":{"safety":0.4,"transparency":0.05,"fairness":0.1,"accountability":0,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Accuracy, error rates and behaviour on hard or shifted cases, measured against agreed thresholds."},{"id":"redteam","name":"Independent red teaming","source":"Common practice","stage":"test","spectrum":0.6,"independent":true,"cost":28,"weeks":4,"coverage":{"safety":0.45,"transparency":0.05,"fairness":0.15,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":0.5,"ml":0.8,"genai":1},"blurb":"Outside specialists try to make the system fail, leak or misbehave."},{"id":"formal","name":"Formal verification","source":"DSIT","stage":"test","spectrum":1,"independent":false,"cost":55,"weeks":10,"coverage":{"safety":0.6,"transparency":0,"fairness":0.05,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":0,"docs":0},"model":{"rules":1,"ml":0.4,"genai":0},"blurb":"Mathematical proof that the system meets specific requirements. Practical for rules and small models only."},{"id":"explain","name":"Explainability testing","source":"Common practice","stage":"test","spectrum":0.55,"independent":false,"cost":9,"weeks":3,"coverage":{"safety":0.05,"transparency":0.45,"fairness":0.1,"accountability":0.05,"contestability":0.25},"access":{"full":1,"outputs":0.6,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Checks that explanations are faithful to the model and that the people who get them understand them."},{"id":"compliance","name":"Compliance audit","source":"DSIT","stage":"test","spectrum":0.5,"independent":false,"cost":14,"weeks":3,"coverage":{"safety":0.1,"transparency":0.15,"fairness":0.15,"accountability":0.4,"contestability":0.2},"blurb":"Reviews adherence to internal policies, regulations and legal requirements."},{"id":"conformity","name":"Independent conformity assessment","source":"DSIT","stage":"test","spectrum":0.7,"independent":true,"cost":38,"weeks":8,"coverage":{"safety":0.3,"transparency":0.25,"fairness":0.2,"accountability":0.35,"contestability":0.1},"access":{"full":1,"outputs":0.7,"docs":0.4},"requires":["docs"],"blurb":"Shows whether the system meets a set of requirements, such as a standard, before it goes live. Needs documentation."},{"id":"appeals","name":"Appeal and redress test","source":"Common practice","stage":"test","spectrum":0.35,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0,"transparency":0.1,"fairness":0.1,"accountability":0.15,"contestability":0.55},"blurb":"Walks real cases through the route for challenging an outcome and getting human review and a remedy."},{"id":"monitor","name":"Live monitoring and incident response","source":"Common practice","stage":"live","spectrum":0.9,"independent":false,"cost":15,"weeks":0,"coverage":{"safety":0.3,"transparency":0.05,"fairness":0.25,"accountability":0.15,"contestability":0.3},"access":{"full":1,"outputs":0.8,"docs":0.8},"blurb":"Watches drift, errors and complaints after go-live, with a plan for when something goes wrong. Cost is the first year."}],"defaults":{"answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"},"appetite":8,"budget":150,"weeks":20,"legalMust":true},"appetitePresets":[{"value":4,"label":"Cautious"},{"value":8,"label":"Balanced"},{"value":12,"label":"Tolerant"}],"examples":[{"id":"shortlister","name":"CV shortlister","blurb":"A bought-in model that ranks job applicants for a national retailer's recruiters.","answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"}},{"id":"billing","name":"Billing assistant","blurb":"A generative chat assistant that answers customers' billing questions for an energy supplier.","answers":{"stakes":"shapes","autonomy":"automated","model":"genai","data":"personal","affected":"customers","source":"outputs","change":"fixed","stage":"scale"}},{"id":"maintenance","name":"Predictive maintenance","blurb":"An in-house model that tells engineers which machines on a production line to service first.","answers":{"stakes":"safety","autonomy":"suggests","model":"ml","data":"none","affected":"staff","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"fraud","name":"Payment fraud flags","blurb":"An in-house model that holds suspicious card payments for a lender's review team.","answers":{"stakes":"shapes","autonomy":"approves","model":"ml","data":"personal","affected":"customers","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"policy","name":"Policy search assistant","blurb":"A generative assistant, still in pilot, that helps staff find and summarise internal policies.","answers":{"stakes":"advisory","autonomy":"suggests","model":"genai","data":"personal","affected":"staff","source":"outputs","change":"fixed","stage":"pilot"}},{"id":"grant","name":"Hardship grant checker","blurb":"Rules that decide eligibility for a local authority's hardship grant from application answers.","answers":{"stakes":"significant","autonomy":"automated","model":"rules","data":"special","affected":"public","source":"full","change":"fixed","stage":"scale"}}]}/* DATA END */;
+const DATA = /* DATA START */{"version":1,"principles":[{"id":"safety","short":"Safety","name":"Safety, security and robustness"},{"id":"transparency","short":"Transparency","name":"Appropriate transparency and explainability"},{"id":"fairness","short":"Fairness","name":"Fairness"},{"id":"accountability","short":"Accountability","name":"Accountability and governance"},{"id":"contestability","short":"Contestability","name":"Contestability and redress"}],"likelihood":{"scores":[0,1,2,3,4,5],"probabilities":[0,0.025,0.125,0.35,0.65,0.9],"bands":["under 5%","5 to 20%","20 to 50%","50 to 80%","over 80%"]},"riskBands":[{"max":4,"label":"Low"},{"max":9,"label":"Medium"},{"max":15,"label":"High"},{"max":25,"label":"Very high"}],"questions":[{"id":"stakes","label":"What does its output decide?","options":[{"id":"advisory","label":"Nothing about individuals","detail":"Back-office work or general advice, not decisions about particular people.","L":{},"I":{}},{"id":"shapes","label":"Shapes decisions about people","detail":"Ranks, prices or flags people, and a person or process acts on it.","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1.5,"accountability":1,"contestability":1}},{"id":"significant","label":"Decides access to jobs, credit or services","detail":"Its output settles whether people get a job, credit, housing or a service.","L":{},"I":{"safety":1,"transparency":2,"fairness":2.5,"accountability":2,"contestability":2.5}},{"id":"safety","label":"Could cause physical harm","detail":"Errors could hurt people through equipment, vehicles or health care.","L":{},"I":{"safety":3,"transparency":1,"fairness":1,"accountability":2.5,"contestability":1}}]},{"id":"autonomy","label":"How much does a person check?","options":[{"id":"suggests","label":"A person decides; it only suggests","L":{},"I":{}},{"id":"approves","label":"A person signs off each output","detail":"Usually quickly, so in practice most outputs go through.","L":{"safety":0.5,"transparency":0.5,"fairness":0.5,"contestability":0.5},"I":{}},{"id":"automated","label":"Fully automated","L":{"safety":1,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1.5},"I":{}}]},{"id":"model","label":"What kind of model is it?","options":[{"id":"rules","label":"Rules or simple statistics","L":{"safety":0.5,"fairness":0.5},"I":{}},{"id":"ml","label":"A machine-learning model","L":{"safety":1,"transparency":1.5,"fairness":1.5,"accountability":0.5},"I":{}},{"id":"genai","label":"A general-purpose or generative model","L":{"safety":2,"transparency":2,"fairness":1.5,"accountability":1,"contestability":0.5},"I":{}}]},{"id":"data","label":"What data does it use?","options":[{"id":"none","label":"No personal data","L":{},"I":{}},{"id":"personal","label":"Personal data","L":{"transparency":0.5,"fairness":0.5,"accountability":0.5},"I":{"transparency":0.5}},{"id":"special","label":"Special category data","detail":"Such as health, ethnicity or religion, which UK GDPR protects more strictly.","L":{"transparency":0.5,"fairness":1,"accountability":1},"I":{"safety":0.5,"transparency":0.5,"fairness":1}}]},{"id":"affected","label":"Who is affected?","options":[{"id":"staff","label":"Staff only","L":{},"I":{}},{"id":"customers","label":"Customers","L":{},"I":{"transparency":0.5,"fairness":0.5,"contestability":0.5}},{"id":"public","label":"The public, including vulnerable people","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1}}]},{"id":"source","label":"Where does it come from?","options":[{"id":"inhouse","label":"Built in-house","L":{},"I":{}},{"id":"full","label":"Bought in, with full access","detail":"The supplier gives you the model and its data to inspect and test.","L":{"accountability":0.5},"I":{}},{"id":"outputs","label":"Bought in, outputs only","detail":"You can test what it does, but not look inside the model or its data.","L":{"transparency":1,"fairness":0.5,"accountability":1},"I":{}},{"id":"docs","label":"Bought in, documentation only","detail":"You have the supplier's documents but cannot test it before go-live.","L":{"safety":0.5,"transparency":1.5,"fairness":1,"accountability":1.5},"I":{}}]},{"id":"change","label":"Does it change after go-live?","options":[{"id":"fixed","label":"Fixed once deployed","L":{},"I":{}},{"id":"retrained","label":"Retrained from time to time","L":{"safety":0.5,"fairness":0.5,"accountability":0.5},"I":{}},{"id":"learning","label":"Keeps learning from live data","L":{"safety":1,"transparency":0.5,"fairness":1,"accountability":1},"I":{}}]},{"id":"stage","label":"How far is it being rolled out?","options":[{"id":"pilot","label":"Pilot","detail":"A few hundred cases, closely watched.","L":{},"I":{"safety":-1,"transparency":-1,"fairness":-1,"accountability":-1,"contestability":-1}},{"id":"rollout","label":"Limited roll-out","detail":"Thousands of cases.","L":{},"I":{}},{"id":"scale","label":"Full scale","detail":"Hundreds of thousands of cases.","L":{},"I":{"safety":1,"transparency":1,"fairness":1,"accountability":1,"contestability":1}}]}],"stages":[{"id":"design","label":"Design"},{"id":"test","label":"Before go-live"},{"id":"live","label":"In operation"}],"techniques":[{"id":"risk","name":"Risk assessment","source":"DSIT","stage":"design","spectrum":0.15,"independent":false,"cost":4,"weeks":2,"coverage":{"safety":0.25,"transparency":0.15,"fairness":0.2,"accountability":0.3,"contestability":0.15},"blurb":"A structured look at what could go wrong in development and use: bias, privacy, misuse, reputation."},{"id":"aia","name":"Algorithmic impact assessment","source":"DSIT","stage":"design","spectrum":0.2,"independent":false,"cost":9,"weeks":4,"coverage":{"safety":0.15,"transparency":0.2,"fairness":0.35,"accountability":0.2,"contestability":0.3},"blurb":"Anticipates wider effects on people, equality and rights, ideally with input from those affected."},{"id":"dpia","name":"Data protection impact assessment","source":"UK GDPR","stage":"design","spectrum":0.25,"independent":false,"cost":6,"weeks":3,"coverage":{"safety":0.1,"transparency":0.3,"fairness":0.2,"accountability":0.3,"contestability":0.25},"needsData":true,"blurb":"The UK GDPR assessment for processing likely to be high risk to people; the ICO expects one for most AI that uses personal data."},{"id":"docs","name":"Model and data documentation","source":"Common practice","stage":"design","spectrum":0.45,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0.1,"transparency":0.4,"fairness":0.1,"accountability":0.3,"contestability":0.1},"access":{"full":1,"outputs":0.6,"docs":0.6},"blurb":"Model cards and data sheets: what the system is for, how it was built and tested, and its known limits."},{"id":"supplier","name":"Supplier due diligence","source":"Common practice","stage":"design","spectrum":0.3,"independent":false,"cost":5,"weeks":2,"coverage":{"safety":0.15,"transparency":0.25,"fairness":0.15,"accountability":0.35,"contestability":0.15},"boughtInOnly":true,"blurb":"Questions, evidence and contract terms for a bought-in system: testing rights, incident notice, audit access."},{"id":"aims","name":"Certified AI management system (ISO/IEC 42001)","source":"Standard","stage":"design","spectrum":0.4,"independent":true,"cost":45,"weeks":14,"coverage":{"safety":0.1,"transparency":0.1,"fairness":0.1,"accountability":0.5,"contestability":0.2},"requires":["risk","aia"],"blurb":"Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."},{"id":"biasInternal","name":"Internal bias audit","source":"DSIT","stage":"test","spectrum":0.75,"independent":false,"cost":10,"weeks":3,"coverage":{"safety":0,"transparency":0.05,"fairness":0.4,"accountability":0,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"Your own team tests inputs and outputs for unfair differences between groups."},{"id":"biasIndependent","name":"Independent bias audit","source":"DSIT","stage":"test","spectrum":0.8,"independent":true,"cost":24,"weeks":5,"coverage":{"safety":0,"transparency":0.1,"fairness":0.55,"accountability":0.1,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"An external assurer tests for unfair bias. Needs access to data and outputs."},{"id":"performance","name":"Performance and robustness testing","source":"Common practice","stage":"test","spectrum":0.85,"independent":false,"cost":12,"weeks":3,"coverage":{"safety":0.4,"transparency":0.05,"fairness":0.1,"accountability":0,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Accuracy, error rates and behaviour on hard or shifted cases, measured against agreed thresholds."},{"id":"redteam","name":"Independent red teaming","source":"Common practice","stage":"test","spectrum":0.6,"independent":true,"cost":28,"weeks":4,"coverage":{"safety":0.45,"transparency":0.05,"fairness":0.15,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":0.5,"ml":0.8,"genai":1},"blurb":"Outside specialists try to make the system fail, leak or misbehave."},{"id":"formal","name":"Formal verification","source":"DSIT","stage":"test","spectrum":1,"independent":false,"cost":55,"weeks":10,"coverage":{"safety":0.6,"transparency":0,"fairness":0.05,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":0,"docs":0},"model":{"rules":1,"ml":0.4,"genai":0},"blurb":"Mathematical proof that the system meets specific requirements. Practical for rules and small models only."},{"id":"explain","name":"Explainability testing","source":"Common practice","stage":"test","spectrum":0.55,"independent":false,"cost":9,"weeks":3,"coverage":{"safety":0.05,"transparency":0.45,"fairness":0.1,"accountability":0.05,"contestability":0.25},"access":{"full":1,"outputs":0.6,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Checks that explanations are faithful to the model and that the people who get them understand them."},{"id":"compliance","name":"Compliance audit","source":"DSIT","stage":"test","spectrum":0.5,"independent":false,"cost":14,"weeks":3,"coverage":{"safety":0.1,"transparency":0.15,"fairness":0.15,"accountability":0.4,"contestability":0.2},"blurb":"Reviews adherence to internal policies, regulations and legal requirements."},{"id":"conformity","name":"Independent conformity assessment","source":"DSIT","stage":"test","spectrum":0.7,"independent":true,"cost":38,"weeks":8,"coverage":{"safety":0.3,"transparency":0.25,"fairness":0.2,"accountability":0.35,"contestability":0.1},"access":{"full":1,"outputs":0.7,"docs":0.4},"requires":["docs"],"blurb":"Shows whether the system meets a set of requirements, such as a standard, before it goes live. Needs documentation."},{"id":"appeals","name":"Appeal and redress test","source":"Common practice","stage":"test","spectrum":0.35,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0,"transparency":0.1,"fairness":0.1,"accountability":0.15,"contestability":0.55},"blurb":"Walks real cases through the route for challenging an outcome and getting human review and a remedy."},{"id":"monitor","name":"Live monitoring and incident response","source":"Common practice","stage":"live","spectrum":0.9,"independent":false,"cost":15,"weeks":0,"coverage":{"safety":0.3,"transparency":0.05,"fairness":0.25,"accountability":0.15,"contestability":0.3},"access":{"full":1,"outputs":0.8,"docs":0.8},"blurb":"Watches drift, errors and complaints after go-live, with a plan for when something goes wrong. Cost is the first year."}],"defaults":{"answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"},"appetite":8,"budget":150,"weeks":20,"legalMust":true},"appetitePresets":[{"value":4,"label":"Cautious"},{"value":8,"label":"Balanced"},{"value":12,"label":"Tolerant"}],"examples":[{"id":"shortlister","name":"CV shortlister","blurb":"A bought-in model that ranks job applicants for a national retailer's recruiters.","answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"}},{"id":"billing","name":"Billing assistant","blurb":"A generative chat assistant that answers customers' billing questions for an energy supplier.","answers":{"stakes":"shapes","autonomy":"automated","model":"genai","data":"personal","affected":"customers","source":"outputs","change":"fixed","stage":"scale"}},{"id":"maintenance","name":"Predictive maintenance","blurb":"An in-house model that tells engineers which machines on a production line to service first.","answers":{"stakes":"safety","autonomy":"suggests","model":"ml","data":"none","affected":"staff","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"fraud","name":"Payment fraud flags","blurb":"An in-house model that holds suspicious card payments for a lender's review team.","answers":{"stakes":"shapes","autonomy":"approves","model":"ml","data":"personal","affected":"customers","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"policy","name":"Policy search assistant","blurb":"A generative assistant, still in pilot, that helps staff find and summarise internal policies.","answers":{"stakes":"advisory","autonomy":"suggests","model":"genai","data":"personal","affected":"staff","source":"outputs","change":"fixed","stage":"pilot"}},{"id":"grant","name":"Hardship grant checker","blurb":"Rules that decide eligibility for a local authority's hardship grant from application answers.","answers":{"stakes":"significant","autonomy":"automated","model":"rules","data":"special","affected":"public","source":"full","change":"fixed","stage":"scale"}}]}/* DATA END */;
 
 const EPS = 1e-9;
 const PRINCIPLES = DATA.principles.map(function (p) { return p.id; });
@@ -1147,8 +1172,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     });
     const qs = $('questions');
     qs.innerHTML = D.questions.map(function (q) {
-      return '<label class="q" for="q-' + q.id + '">' + esc(q.label) + '</label><select id="q-' + q.id + '" data-q="' + q.id + '">' +
-        q.options.map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.label) + '</option>'; }).join('') + '</select>';
+      return '<label class="q" for="q-' + q.id + '">' + esc(q.label) + '</label><select id="q-' + q.id + '" data-q="' + q.id + '" aria-describedby="h-' + q.id + '">' +
+        q.options.map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.label) + '</option>'; }).join('') + '</select>' +
+        '<p class="hint qhint" id="h-' + q.id + '"></p>';
     }).join('');
     qs.addEventListener('change', function (ev) {
       const q = ev.target.getAttribute('data-q');
@@ -1270,6 +1296,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
       try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
       $('file-status').textContent = copied ? 'Link copied. Anyone opening this file with it sees the same settings.' : 'Copy the link below. Anyone opening this file with it sees the same settings.';
     });
+    function toggleBar() {
+      const top = $('results').getBoundingClientRect().top;
+      $('mobile-bar').classList.toggle('gone', top < window.innerHeight * 0.6);
+    }
+    window.addEventListener('scroll', toggleBar, { passive: true });
+    toggleBar();
     window.addEventListener('resize', function () { if (result) { drawFrontier(); drawTimeline(currentPlan()); } });
   }
 
@@ -1308,7 +1340,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     $('example').value = state.example;
     const e = D.examples.find(function (x) { return x.id === state.example; });
     $('example-blurb').textContent = e ? e.blurb : 'Your own answers. Pick an example above to start again.';
-    for (const q of D.questions) $('q-' + q.id).value = state.answers[q.id];
+    for (const q of D.questions) {
+      $('q-' + q.id).value = state.answers[q.id];
+      const o = q.options.find(function (x) { return x.id === state.answers[q.id]; });
+      $('h-' + q.id).textContent = o && o.detail ? o.detail : '';
+    }
     $('appetite').value = state.appetite;
     $('budget').value = state.budget;
     $('weeks').value = state.weeks;
@@ -1478,6 +1514,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     const t3 = '<div class="tile"><p class="label">Before any assurance</p><p class="big">' + sc(r.inherentWorst) + ' <span style="font-size:15px;font-weight:500">' + esc(M.band(r.inherentWorst).toLowerCase()) + '</span></p>' +
       '<p class="sub">Worst principle: ' + esc(PSHORT[worstP.id]) + '. ' + (above ? plural(above, 'principle is', 'principles are') + ' above your appetite of ' + sc(a) + '.' : 'Every principle is already within your appetite.') + '</p></div>';
     $('summary').innerHTML = t1 + t2 + t3;
+    $('mobile-sum').textContent = r.cheapest ? 'Cheapest plan: ' + money(r.cheapest.cost) + ', worst ' + sc(r.cheapest.worst) : (r.best ? 'Appetite out of reach' : 'No plan fits in time');
     $('searched').textContent = result.plansSearched.toLocaleString('en-GB') + ' combinations of ' + result.usable.length + ' usable techniques searched';
   }
 
@@ -1532,7 +1569,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
       const chip = meets ? '<span class="chip good">✓ Within</span>' : '<span class="chip bad">▲ Above</span>';
       const label = PNAME[r.id] + ': ' + sc(r.score) + ' before assurance' + (res ? ', ' + sc(res.score) + ' after this plan' : '') + ', appetite ' + sc(a) + ', ' + (meets ? 'within appetite' : 'above appetite');
       return '<div class="risk-row">' +
-        '<div class="risk-name">' + esc(PSHORT[r.id]) + '<small>L ' + sc(r.L) + ' × I ' + sc(r.I) + (res ? ', unnoticed ' + pct(r.prob) + ' → ' + pct(res.prob) : '') + '</small></div>' +
+        '<div class="risk-name">' + esc(PNAME[r.id]) + '<small>Likelihood ' + sc(r.L) + ' × impact ' + sc(r.I) + (res ? '. Chance a problem slips through: ' + pct(r.prob) + ' → ' + pct(res.prob) : '') + '</small></div>' +
         '<div class="bars" role="img" aria-label="' + esc(label) + '">' +
         '<div class="bar inh" style="width:' + inhW + '%"></div>' +
         (res ? '<div class="bar res" style="width:' + resW + '%"></div>' : '') +
@@ -1548,11 +1585,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     if (!plan.ids.length) { tbl.innerHTML = '<caption class="sr-only">Plan</caption><tbody><tr><td>No techniques: every principle is already within your appetite, or none are ticked.</td></tr></tbody>'; return; }
     const marg = {};
     for (const m of plan.marginal || []) marg[m.id] = m;
+    const status = {};
+    for (const s of result.techniques) status[s.id] = s;
+    function lockedWhy(id) {
+      const st = status[id];
+      if (st.done) return 'Already done';
+      if (st.required) return 'Required: the system uses personal data';
+      if (state.must.indexOf(id) >= 0) return 'You chose it as a must';
+      const by = D.techniques.filter(function (t) { return (t.requires || []).indexOf(id) >= 0 && status[t.id].must; }).map(function (t) { return t.name.toLowerCase(); });
+      return by.length ? 'Needed for ' + by.join(' and ') : 'Always included';
+    }
     const rows = plan.ids.map(function (id) {
       const t = TECH[id], m = marg[id];
       let why = '';
       if (m) {
-        if (m.locked) why = '<span class="why-good">' + (state.done.indexOf(id) >= 0 ? 'Already done' : 'Required or chosen as a must') + '</span>';
+        if (m.locked) why = '<span class="why-good">' + esc(status[id].must ? lockedWhy(id) : 'Needed by a technique that is always included') + '</span>';
         else {
           const also = m.alsoDrops.length ? ' (and ' + m.alsoDrops.map(function (x) { return TECH[x].name.toLowerCase(); }).join(', ') + ')' : '';
           if (!m.meetsWithout && plan.meets) why = '<span class="why-key">Without it' + esc(also) + ', ' + esc(PSHORT[m.worstIdWithout]) + ' rises to ' + sc(m.worstWithout) + ', above appetite</span>';
@@ -1560,12 +1607,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
           else why = '<span class="why-good">Without it' + esc(also) + ', the worst principle goes from ' + sc(plan.worst) + ' to ' + sc(m.worstWithout) + '</span>';
         }
       }
-      return '<tr><td data-label="Technique"><span class="tname">' + esc(t.name) + '</span>' + (t.independent && t.name.indexOf('Independent') !== 0 ? '<span class="tag">independent</span>' : '') + '</td>' +
-        '<td data-label="Stage">' + esc(STAGE[t.stage]) + '</td><td class="num" data-label="Cost">' + (state.done.indexOf(id) >= 0 ? 'done' : money(t.cost)) + '</td>' +
-        '<td data-label="Why">' + why + '</td></tr>';
+      return '<tr><td class="c-name"><span class="tname">' + esc(t.name) + '</span>' + (t.independent && t.name.indexOf('Independent') !== 0 ? '<span class="tag">independent</span>' : '') + '</td>' +
+        '<td class="c-stage">' + esc(STAGE[t.stage]) + '</td><td class="num c-cost">' + (state.done.indexOf(id) >= 0 ? 'done' : money(t.cost)) + '</td>' +
+        '<td class="c-why">' + why + '</td></tr>';
     });
     tbl.innerHTML = '<caption class="sr-only">Techniques in this plan</caption><thead><tr><th>Technique</th><th>Stage</th><th class="num">Cost</th><th>Why it is there</th></tr></thead><tbody>' +
-      rows.join('') + '</tbody><tfoot><tr><td data-label="Total"><b>' + plural(plan.ids.length, 'technique', 'techniques') + '</b></td><td data-label="Live in">Live in ' + weeksText(plan.weeks) + '</td><td class="num" data-label="Cost"><b>' + money(plan.cost) + '</b></td><td></td></tr></tfoot>';
+      rows.join('') + '</tbody><tfoot><tr><td class="c-name"><b>' + plural(plan.ids.length, 'technique', 'techniques') + '</b></td><td class="c-stage">Live in ' + weeksText(plan.weeks) + '</td><td class="num c-cost"><b>' + money(plan.cost) + '</b></td><td class="c-why"></td></tr></tfoot>';
   }
 
   // ---------- charts ----------
@@ -1576,22 +1623,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     if (text !== undefined) el.textContent = text;
     return el;
   }
-  function niceMax(x) {
-    const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000];
-    for (const s of steps) if (x <= s) return s;
-    return Math.ceil(x / 1000) * 1000;
-  }
 
   function drawFrontier() {
     const box = $('frontier');
     box.innerHTML = '';
     const pts = result.frontier;
     if (!pts.length) { box.innerHTML = '<div class="empty">No plan goes live in time, so there is nothing to chart.</div>'; $('frontier-table').innerHTML = ''; return; }
-    const W = Math.max(280, box.clientWidth), H = W < 500 ? 240 : 290;
-    const m = { l: 44, r: 16, t: 16, b: 40 };
+    const W = Math.max(280, box.clientWidth), H = W < 500 ? 250 : 300;
+    const m = { l: 40, r: 16, t: 30, b: 46 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const lastCost = pts[pts.length - 1].cost;
-    const xmax = niceMax(Math.max(lastCost, state.budget, custom ? custom.cost : 0) * 1.05 + 1);
+    const rawMax = Math.max(lastCost, state.budget, custom ? custom.cost : 0) * 1.05 + 1;
+    const maxTicks = W < 500 ? 4 : 6;
+    let step = 5;
+    for (const st of [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000]) { step = st; if (rawMax / st <= maxTicks) break; }
+    const xmax = Math.ceil(rawMax / step) * step;
     const ymax = Math.min(25, Math.ceil(Math.max(result.inherentWorst, state.appetite) / 5) * 5);
     const x = function (v) { return m.l + v / xmax * iw; };
     const y = function (v) { return m.t + (1 - Math.min(v, ymax) / ymax) * ih; };
@@ -1602,21 +1648,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
       svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: 'var(--grid)' }));
       svg.appendChild(svgEl('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end' }, String(v)));
     }
-    const xticks = 5;
-    for (let i = 0; i <= xticks; i++) {
-      const v = xmax / xticks * i;
-      svg.appendChild(svgEl('text', { x: x(v), y: H - m.b + 18, 'text-anchor': i === 0 ? 'start' : (i === xticks ? 'end' : 'middle') }, money(v)));
+    for (let v = 0; v <= xmax + 1e-9; v += step) {
+      svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: y(0), y2: y(0) + 4, stroke: 'var(--axis)' }));
+      svg.appendChild(svgEl('text', { x: x(v), y: H - m.b + 18, 'text-anchor': v === 0 ? 'start' : (v + step > xmax + 1e-9 ? 'end' : 'middle') }, money(v)));
     }
     svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: 'var(--axis)' }));
-    svg.appendChild(svgEl('text', { x: m.l, y: H - 4 }, 'Cost'));
-    svg.appendChild(svgEl('text', { x: 4, y: m.t - 4, 'text-anchor': 'start' }, 'Worst risk score'));
+    svg.appendChild(svgEl('text', { x: W - m.r, y: H - 4, 'text-anchor': 'end' }, 'Cost of the plan'));
+    svg.appendChild(svgEl('text', { x: 0, y: 12, 'text-anchor': 'start' }, 'Worst principle score'));
     // appetite and budget
     svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(state.appetite), y2: y(state.appetite), stroke: 'var(--ink-2)', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }));
-    svg.appendChild(svgEl('text', { x: W - m.r, y: y(state.appetite) - 6, 'text-anchor': 'end' }, 'Appetite ' + sc(state.appetite)));
+    svg.appendChild(svgEl('text', { x: W - m.r, y: y(state.appetite) - 6, 'text-anchor': 'end', class: 'halo' }, 'Appetite ' + sc(state.appetite)));
     if (state.budget <= xmax) {
       svg.appendChild(svgEl('line', { x1: x(state.budget), x2: x(state.budget), y1: m.t, y2: y(0), stroke: 'var(--ink-2)', 'stroke-dasharray': '2 4', 'stroke-width': 1.5 }));
       const right = x(state.budget) > W - 90;
-      svg.appendChild(svgEl('text', { x: x(state.budget) + (right ? -6 : 6), y: m.t + 12, 'text-anchor': right ? 'end' : 'start' }, 'Budget'));
+      svg.appendChild(svgEl('text', { x: x(state.budget) + (right ? -6 : 6), y: m.t + 12, 'text-anchor': right ? 'end' : 'start', class: 'halo' }, 'Budget'));
     }
     // step line of the frontier
     let d = 'M' + x(pts[0].cost) + ',' + y(pts[0].worst);
@@ -1629,12 +1674,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     if (result.cheapest) marks.push({ p: result.cheapest, label: 'A', title: 'Cheapest meeting appetite' });
     if (result.inBudget) marks.push({ p: result.inBudget, label: 'B', title: 'Lowest risk within budget' });
     if (custom && custom.ids.length) marks.push({ p: custom, label: 'C', title: 'Your own mix' });
+    const viewLetter = { cheapest: 'A', budget: 'B', custom: 'C' }[state.view];
+    const groups = [];
     for (const mk of marks) {
+      const g = groups.find(function (x0) { return x0.p.cost === mk.p.cost && Math.abs(x0.p.worst - mk.p.worst) < 1e-9; });
+      if (g) g.labels.push(mk.label); else groups.push({ p: mk.p, labels: [mk.label] });
+    }
+    for (const gr of groups) {
       const g = svgEl('g', {});
-      const sel = (mk.label === 'A' && state.view === 'cheapest') || (mk.label === 'B' && state.view === 'budget') || (mk.label === 'C' && state.view === 'custom');
-      g.appendChild(svgEl('circle', { cx: x(mk.p.cost), cy: y(mk.p.worst), r: 10, fill: sel ? 'var(--ink)' : 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 1.5 }));
-      const tx = svgEl('text', { x: x(mk.p.cost), y: y(mk.p.worst) + 4, 'text-anchor': 'middle', style: 'font-weight:700;fill:' + (sel ? 'var(--surface)' : 'var(--ink)') }, mk.label);
-      g.appendChild(tx);
+      const sel = gr.labels.indexOf(viewLetter) >= 0;
+      const text = gr.labels.join(' ');
+      const w = 20 + (text.length - 1) * 7;
+      g.appendChild(svgEl('rect', { x: x(gr.p.cost) - w / 2, y: y(gr.p.worst) - 10, width: w, height: 20, rx: 10, fill: sel ? 'var(--ink)' : 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 1.5 }));
+      g.appendChild(svgEl('text', { x: x(gr.p.cost), y: y(gr.p.worst) + 4, 'text-anchor': 'middle', style: 'font-weight:700;fill:' + (sel ? 'var(--surface)' : 'var(--ink)') }, text));
       svg.appendChild(g);
     }
     box.appendChild(svg);
@@ -1688,15 +1740,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     rows.forEach(function (r, i) {
       const yy = m.t + i * rowH;
       const barY = narrow ? yy + 15 : yy + 4;
-      if (!narrow) svg.appendChild(svgEl('text', { x: labelW, y: yy + 15, 'text-anchor': 'end', style: 'fill:var(--ink)' }, TECH[r.id].name.length > 34 ? TECH[r.id].name.slice(0, 32) + '…' : TECH[r.id].name));
-      else svg.appendChild(svgEl('text', { x: m.l, y: yy + 11, style: 'fill:var(--ink);font-size:11px' }, TECH[r.id].name));
+      const nm = TECH[r.id].name + (state.done.indexOf(r.id) >= 0 ? ' (done)' : '');
+      if (!narrow) svg.appendChild(svgEl('text', { x: labelW, y: yy + 15, 'text-anchor': 'end', style: 'fill:var(--ink)' }, nm.length > 34 ? nm.slice(0, 32) + '…' : nm));
+      else svg.appendChild(svgEl('text', { x: m.l, y: yy + 11, class: 'timeline-label', style: 'fill:var(--ink);font-size:11px' }, nm));
       const end = r.stage === 'live' ? span : r.end;
       svg.appendChild(svgEl('rect', { x: x(r.start), y: barY, width: Math.max(2, x(end) - x(r.start)), height: narrow ? 12 : 15, rx: 4,
         fill: colour[r.stage], opacity: r.stage === 'live' ? 0.55 : 1 }));
     });
     function vline(v, label, dash, anchorEnd) {
       svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: m.t - 8, y2: H - m.b, stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-dasharray': dash }));
-      svg.appendChild(svgEl('text', { x: x(v) + (anchorEnd ? -4 : 4), y: m.t - 10, 'text-anchor': anchorEnd ? 'end' : 'start', style: 'fill:var(--ink);font-weight:600' }, label));
+      svg.appendChild(svgEl('text', { x: x(v) + (anchorEnd ? -4 : 4), y: m.t - 10, 'text-anchor': anchorEnd ? 'end' : 'start', class: 'halo', style: 'fill:var(--ink);font-weight:600' }, label));
     }
     const close = Math.abs(plan.weeks - state.weeks) < span * 0.18;
     vline(plan.weeks, 'Go-live', '', close && plan.weeks <= state.weeks);
@@ -1704,7 +1757,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     box.appendChild(svg);
     const lg = document.createElement('div');
     lg.className = 'legend';
-    lg.innerHTML = '<span><i class="sw" style="background:var(--stage-design)"></i>Design</span><span><i class="sw" style="background:var(--stage-test)"></i>Before go-live</span><span><i class="sw" style="background:var(--stage-live);opacity:.55"></i>In operation</span>';
+    const present = {};
+    for (const r of rows) present[r.stage] = true;
+    lg.innerHTML = (present.design ? '<span><i class="sw" style="background:var(--stage-design)"></i>Design</span>' : '') +
+      (present.test ? '<span><i class="sw" style="background:var(--stage-test)"></i>Before go-live</span>' : '') +
+      (present.live ? '<span><i class="sw" style="background:var(--stage-live);opacity:.55"></i>In operation (ongoing)</span>' : '');
     box.appendChild(lg);
   }
 
@@ -1721,9 +1778,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     }).join('');
   }
 
-  function covCell(v) {
+  function covCell(v, label) {
     const a = v <= 0 ? 0 : v <= 0.15 ? 0.14 : v <= 0.3 ? 0.3 : v <= 0.45 ? 0.48 : 0.68;
-    return '<td class="cov" style="background:rgba(var(--cov),' + a + ')">' + (v > 0 ? Math.round(v * 100) : '') + '</td>';
+    return '<td class="covtd" aria-hidden="true"><span class="covk">' + esc(label) + '</span><span class="cov" style="background:rgba(var(--cov),' + a + ')">' + Math.round(v * 100) + '</span></td>';
   }
 
   function renderCatalogue() {
@@ -1731,8 +1788,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     for (const s of result.techniques) status[s.id] = s;
     const plan = currentPlan();
     const inPlan = plan ? plan.ids : [];
-    const head = '<caption class="sr-only">All assurance techniques, their coverage of each principle for this system, and your choices</caption><thead><tr><th>Technique</th><th>Stage</th><th class="num">Cost</th><th class="num">Weeks</th>' +
-      D.principles.map(function (p) { return '<th class="num" title="' + esc(p.name) + '">' + esc(p.short.slice(0, 5)) + '.</th>'; }).join('') + '<th>Your choice</th></tr></thead>';
+    const head = '<caption class="sr-only">All assurance techniques, their coverage of each principle for this system, and your choices</caption><thead><tr><th>Technique</th><th class="num">Cost</th>' +
+      D.principles.map(function (p) { return '<th class="covh" title="' + esc(p.name) + '"><abbr title="' + esc(p.name) + '">' + esc(p.short.slice(0, 5)) + '.</abbr></th>'; }).join('') + '<th>Your choice</th></tr></thead>';
     const rows = D.techniques.map(function (t) {
       const s = status[t.id];
       const val = s.done ? 'done' : s.required ? 'must' : state.must.indexOf(t.id) >= 0 ? 'must' : state.exclude.indexOf(t.id) >= 0 ? 'exclude' : 'auto';
@@ -1741,12 +1798,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
         const disabled = dis || (s.required && !s.done && c[0] !== 'must' && c[0] !== 'done');
         return '<label><input type="radio" name="c-' + t.id + '" data-t="' + t.id + '" value="' + c[0] + '"' + (val === c[0] ? ' checked' : '') + (disabled ? ' disabled' : '') + '><span>' + c[1] + '</span></label>';
       }).join('') + '</div>';
-      const covs = D.principles.map(function (p) { return covCell(s.coverage[p.id]); });
+      const covs = D.principles.map(function (p) { return covCell(s.coverage[p.id], p.short.slice(0, 5) + '.'); });
       const covLabel = D.principles.map(function (p) { return p.short + ' ' + Math.round(s.coverage[p.id] * 100) + '%'; }).join(', ');
       const note = !s.available ? '<div class="unavail">' + esc(s.reason) + '</div>' : s.done ? '<div class="unavail">Already done: no further cost or time</div>' : (s.required ? '<div class="unavail">Required: personal data is used</div>' : '');
-      return '<tr><td data-label="Technique"><span class="tname">' + (inPlan.indexOf(t.id) >= 0 ? '✓ ' : '') + esc(t.name) + '</span><span class="tag">' + esc(t.source) + '</span>' + (t.independent ? '<span class="tag">independent</span>' : '') +
-        '<div class="tsub">' + esc(t.blurb) + '</div>' + note + '</td><td data-label="Stage">' + esc(STAGE[t.stage]) + '</td><td class="num" data-label="Cost">' + money(t.cost) + '</td><td class="num" data-label="Weeks">' + (t.stage === 'live' ? 'ongoing' : t.weeks) + '</td>' +
-        covs.join('').replace('<td class="cov"', '<td class="cov" data-label="Coverage" aria-label="' + esc(covLabel) + '"') + '<td data-label="Choice">' + choice + '</td></tr>';
+      const when = esc(STAGE[t.stage]) + ', ' + (t.stage === 'live' ? 'ongoing' : weeksText(t.weeks));
+      return '<tr' + (inPlan.indexOf(t.id) >= 0 ? ' class="in-plan"' : '') + '><td class="c-tech"><span class="tname">' + (inPlan.indexOf(t.id) >= 0 ? '<span aria-label="In this plan">✓ </span>' : '') + esc(t.name) + '</span>' +
+        '<div class="tmeta"><span class="tag">' + esc(t.source) + '</span>' + (t.independent ? '<span class="tag">independent</span>' : '') + ' ' + when + '</div>' +
+        '<div class="tsub">' + esc(t.blurb) + '</div>' + note + '<span class="sr-only">Coverage: ' + esc(covLabel) + '.</span></td><td class="num c-cost" data-label="Cost">' + money(t.cost) + '</td>' +
+        covs.join('') + '<td class="c-choice">' + choice + '</td></tr>';
     });
     $('catalogue').innerHTML = head + '<tbody>' + rows.join('') + '</tbody>';
   }

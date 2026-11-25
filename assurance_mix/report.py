@@ -1,6 +1,10 @@
 """Plain-text and Markdown reports for plans and portfolios."""
 
+import textwrap
+
 from . import model
+
+TEXT_CELL = 64  # widest a plain-text table cell gets before it wraps
 
 DISCLAIMER = "Simplified and illustrative, not legal advice. Costs, durations and coverages are illustrative judgements."
 PNAME = {p["id"]: p["name"] for p in model.DATA["principles"]}
@@ -39,11 +43,16 @@ def _table(headers, rows, markdown, align=None):
                "|" + "|".join("---:" if a == "r" else "---" for a in align) + "|"]
         out += ["| " + " | ".join(str(c).replace("|", "/") for c in r) + " |" for r in rows]
         return "\n".join(out)
-    widths = [max(len(str(h)), *(len(str(r[i])) for r in rows)) if rows else len(str(h)) for i, h in enumerate(headers)]
+    wrapped = [[textwrap.wrap(str(c), TEXT_CELL) or [""] for c in r] for r in rows]
+    widths = [max([len(str(h))] + [len(line) for r in wrapped for line in r[i]]) for i, h in enumerate(headers)]
 
     def fmt(r):
         return "  ".join(str(c).rjust(w) if a == "r" else str(c).ljust(w) for c, w, a in zip(r, widths, align)).rstrip()
-    return "\n".join([fmt(headers), fmt(["-" * w for w in widths])] + [fmt(r) for r in rows])
+    out = [fmt(headers), fmt(["-" * w for w in widths])]
+    for r in wrapped:
+        for k in range(max(len(c) for c in r)):
+            out.append(fmt([c[k] if k < len(c) else "" for c in r]))
+    return "\n".join(out)
 
 
 def why_text(plan, m):
@@ -197,11 +206,17 @@ def plan_report(res, title="Assurance mix", markdown=False, ladder=None, robust=
         lines.append("")
     lines.append(h2 + "What each extra pound buys")
     lines.append("")
-    lines.append("Every plan that no cheaper plan beats:")
+    lines.append("Every plan that no cheaper plan beats, and how it differs from the one before:")
     lines.append("")
-    frows = [[money(p["cost"]), sc(p["worst"]), ", ".join(model.TECHNIQUES[i]["name"] for i in p["ids"]) or "(none)"]
-             for p in res["frontier"]]
-    lines.append(_table(["Cost", "Worst score", "Techniques"], frows, markdown, ["r", "r", "l"]))
+    frows = []
+    prev = []
+    for p in res["frontier"]:
+        adds = [model.TECHNIQUES[i]["name"] for i in p["ids"] if i not in prev]
+        drops = [model.TECHNIQUES[i]["name"] for i in prev if i not in p["ids"]]
+        change = "; ".join(x for x in ("adds " + ", ".join(adds) if adds else "", "drops " + ", ".join(drops) if drops else "") if x)
+        frows.append([money(p["cost"]), sc(p["worst"]), change or "(no techniques)"])
+        prev = p["ids"]
+    lines.append(_table(["Cost", "Worst score", "Change from the plan above"], frows, markdown, ["r", "r", "l"]))
     lines.append("")
     if robust is not None:
         lines += robustness_lines(robust, markdown)

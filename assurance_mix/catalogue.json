@@ -23,19 +23,19 @@
       "id": "stakes",
       "label": "What does its output decide?",
       "options": [
-        {"id": "advisory", "label": "Nothing about individuals (back-office work or general advice)", "L": {}, "I": {}},
-        {"id": "shapes", "label": "It shapes decisions about people (ranking, pricing, flagging)", "L": {}, "I": {"safety": 0.5, "transparency": 1, "fairness": 1.5, "accountability": 1, "contestability": 1}},
-        {"id": "significant", "label": "It decides access to jobs, credit, housing or services", "L": {}, "I": {"safety": 1, "transparency": 2, "fairness": 2.5, "accountability": 2, "contestability": 2.5}},
-        {"id": "safety", "label": "It could cause physical harm (equipment, vehicles, health)", "L": {}, "I": {"safety": 3, "transparency": 1, "fairness": 1, "accountability": 2.5, "contestability": 1}}
+        {"id": "advisory", "label": "Nothing about individuals", "detail": "Back-office work or general advice, not decisions about particular people.", "L": {}, "I": {}},
+        {"id": "shapes", "label": "Shapes decisions about people", "detail": "Ranks, prices or flags people, and a person or process acts on it.", "L": {}, "I": {"safety": 0.5, "transparency": 1, "fairness": 1.5, "accountability": 1, "contestability": 1}},
+        {"id": "significant", "label": "Decides access to jobs, credit or services", "detail": "Its output settles whether people get a job, credit, housing or a service.", "L": {}, "I": {"safety": 1, "transparency": 2, "fairness": 2.5, "accountability": 2, "contestability": 2.5}},
+        {"id": "safety", "label": "Could cause physical harm", "detail": "Errors could hurt people through equipment, vehicles or health care.", "L": {}, "I": {"safety": 3, "transparency": 1, "fairness": 1, "accountability": 2.5, "contestability": 1}}
       ]
     },
     {
       "id": "autonomy",
       "label": "How much does a person check?",
       "options": [
-        {"id": "suggests", "label": "A person decides; the system only suggests", "L": {}, "I": {}},
-        {"id": "approves", "label": "A person signs off each output, usually quickly", "L": {"safety": 0.5, "transparency": 0.5, "fairness": 0.5, "contestability": 0.5}, "I": {}},
-        {"id": "automated", "label": "Fully automated, with no person in the loop", "L": {"safety": 1, "transparency": 1, "fairness": 1, "accountability": 0.5, "contestability": 1.5}, "I": {}}
+        {"id": "suggests", "label": "A person decides; it only suggests", "L": {}, "I": {}},
+        {"id": "approves", "label": "A person signs off each output", "detail": "Usually quickly, so in practice most outputs go through.", "L": {"safety": 0.5, "transparency": 0.5, "fairness": 0.5, "contestability": 0.5}, "I": {}},
+        {"id": "automated", "label": "Fully automated", "L": {"safety": 1, "transparency": 1, "fairness": 1, "accountability": 0.5, "contestability": 1.5}, "I": {}}
       ]
     },
     {
@@ -53,7 +53,7 @@
       "options": [
         {"id": "none", "label": "No personal data", "L": {}, "I": {}},
         {"id": "personal", "label": "Personal data", "L": {"transparency": 0.5, "fairness": 0.5, "accountability": 0.5}, "I": {"transparency": 0.5}},
-        {"id": "special", "label": "Special category data (for example health or ethnicity)", "L": {"transparency": 0.5, "fairness": 1, "accountability": 1}, "I": {"safety": 0.5, "transparency": 0.5, "fairness": 1}}
+        {"id": "special", "label": "Special category data", "detail": "Such as health, ethnicity or religion, which UK GDPR protects more strictly.", "L": {"transparency": 0.5, "fairness": 1, "accountability": 1}, "I": {"safety": 0.5, "transparency": 0.5, "fairness": 1}}
       ]
     },
     {
@@ -61,8 +61,8 @@
       "label": "Who is affected?",
       "options": [
         {"id": "staff", "label": "Staff only", "L": {}, "I": {}},
-        {"id": "customers", "label": "Customers who chose to deal with you", "L": {}, "I": {"transparency": 0.5, "fairness": 0.5, "contestability": 0.5}},
-        {"id": "public", "label": "The public, including people in vulnerable circumstances", "L": {}, "I": {"safety": 0.5, "transparency": 1, "fairness": 1, "accountability": 0.5, "contestability": 1}}
+        {"id": "customers", "label": "Customers", "L": {}, "I": {"transparency": 0.5, "fairness": 0.5, "contestability": 0.5}},
+        {"id": "public", "label": "The public, including vulnerable people", "L": {}, "I": {"safety": 0.5, "transparency": 1, "fairness": 1, "accountability": 0.5, "contestability": 1}}
       ]
     },
     {
@@ -70,27 +70,27 @@
       "label": "Where does it come from?",
       "options": [
         {"id": "inhouse", "label": "Built in-house", "L": {}, "I": {}},
-        {"id": "full", "label": "Bought in, with full access to the model and data", "L": {"accountability": 0.5}, "I": {}},
-        {"id": "outputs", "label": "Bought in, outputs only: you can test it but not look inside", "L": {"transparency": 1, "fairness": 0.5, "accountability": 1}, "I": {}},
-        {"id": "docs", "label": "Bought in, documentation only: no testing before go-live", "L": {"safety": 0.5, "transparency": 1.5, "fairness": 1, "accountability": 1.5}, "I": {}}
+        {"id": "full", "label": "Bought in, with full access", "detail": "The supplier gives you the model and its data to inspect and test.", "L": {"accountability": 0.5}, "I": {}},
+        {"id": "outputs", "label": "Bought in, outputs only", "detail": "You can test what it does, but not look inside the model or its data.", "L": {"transparency": 1, "fairness": 0.5, "accountability": 1}, "I": {}},
+        {"id": "docs", "label": "Bought in, documentation only", "detail": "You have the supplier's documents but cannot test it before go-live.", "L": {"safety": 0.5, "transparency": 1.5, "fairness": 1, "accountability": 1.5}, "I": {}}
       ]
     },
     {
       "id": "change",
       "label": "Does it change after go-live?",
       "options": [
-        {"id": "fixed", "label": "No, it is fixed once deployed", "L": {}, "I": {}},
-        {"id": "retrained", "label": "It is retrained from time to time", "L": {"safety": 0.5, "fairness": 0.5, "accountability": 0.5}, "I": {}},
-        {"id": "learning", "label": "It keeps learning from live data", "L": {"safety": 1, "transparency": 0.5, "fairness": 1, "accountability": 1}, "I": {}}
+        {"id": "fixed", "label": "Fixed once deployed", "L": {}, "I": {}},
+        {"id": "retrained", "label": "Retrained from time to time", "L": {"safety": 0.5, "fairness": 0.5, "accountability": 0.5}, "I": {}},
+        {"id": "learning", "label": "Keeps learning from live data", "L": {"safety": 1, "transparency": 0.5, "fairness": 1, "accountability": 1}, "I": {}}
       ]
     },
     {
       "id": "stage",
       "label": "How far is it being rolled out?",
       "options": [
-        {"id": "pilot", "label": "Pilot: a few hundred cases, closely watched", "L": {}, "I": {"safety": -1, "transparency": -1, "fairness": -1, "accountability": -1, "contestability": -1}},
-        {"id": "rollout", "label": "Limited roll-out: thousands of cases", "L": {}, "I": {}},
-        {"id": "scale", "label": "Full scale: hundreds of thousands of cases", "L": {}, "I": {"safety": 1, "transparency": 1, "fairness": 1, "accountability": 1, "contestability": 1}}
+        {"id": "pilot", "label": "Pilot", "detail": "A few hundred cases, closely watched.", "L": {}, "I": {"safety": -1, "transparency": -1, "fairness": -1, "accountability": -1, "contestability": -1}},
+        {"id": "rollout", "label": "Limited roll-out", "detail": "Thousands of cases.", "L": {}, "I": {}},
+        {"id": "scale", "label": "Full scale", "detail": "Hundreds of thousands of cases.", "L": {}, "I": {"safety": 1, "transparency": 1, "fairness": 1, "accountability": 1, "contestability": 1}}
       ]
     }
   ],
