@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missing minutes: Home insurance claims</title>
+<style>
+body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #17202b; max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 0 0 4px; } h2 { font-size: 18px; margin: 28px 0 8px; }
+.muted, .note { color: #5b6775; } .note { font-size: 13px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+.card { border: 1px solid #dde2e8; border-radius: 9px; padding: 12px 14px; }
+.card .k { font-size: 13px; color: #5b6775; font-weight: 600; } .card .v { font-size: 24px; font-weight: 700; }
+.row { display: grid; grid-template-columns: minmax(140px, 260px) minmax(0, 1fr) 90px; gap: 10px; align-items: center; padding: 4px 0; }
+.row.total { font-weight: 700; border-top: 1px solid #dde2e8; padding-top: 8px; }
+.track { position: relative; height: 16px; } .zero { position: absolute; top: -3px; bottom: -3px; width: 1px; background: #5b6775; }
+.bar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; } .bar.save { background: #1f6fb2; } .bar.cost { background: #c2541b; }
+.val { text-align: right; font-variant-numeric: tabular-nums; } .val.save { color: #1f6fb2; } .val.cost { color: #c2541b; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #dde2e8; } th { color: #5b6775; font-size: 13px; }
+.tag { background: #d7ecee; color: #0f6e78; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; }
+.warn { background: #fff4e0; color: #7a4a00; padding: 10px 12px; border-radius: 8px; }
+@media (max-width: 560px) { .row { grid-template-columns: minmax(0, 1fr) 80px; } .row .lab { grid-column: 1 / -1; } }
+</style></head><body>
+<h1>Missing minutes: Home insurance claims</h1>
+<p class="muted">The AI helps with step 2, Assess claim: it saves 40% of the hands-on time on 75% of cases, takes 5 minutes to check and is wrong on 6% of cases (90% of errors caught later). 40 cases a day, 120 measured working days, seed 42. Invented process, synthetic data.</p>
+
+<div class="cards">
+<div class="card"><div class="k">The pilot's promise</div><div class="v">20 min</div><div class="note">saved on each case at Assess claim</div></div>
+<div class="card"><div class="k">End to end</div><div class="v">−1.1 h</div><div class="note">2.0 days without the AI, 1.9 days with it</div></div>
+<div class="card"><div class="k">Minutes that reached the customer</div><div class="v">3.18&times;</div><div class="note">for each minute saved at the desk</div></div>
+</div>
+<h2>Where the minutes went</h2><p class="note">Average change per case. Blue saves time; orange adds it.</p>
+<div class="row"><div class="lab">Time the AI saves if everyone uses it</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:71.50%;width:28.50%"></div></div><div class="val save">−20 min</div></div>
+<div class="row"><div class="lab">Cases where it is not used</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:71.50%;width:6.95%"></div></div><div class="val cost">+5 min</div></div>
+<div class="row"><div class="lab">Checking the AI&#x27;s work</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:78.45%;width:5.35%"></div></div><div class="val cost">+4 min</div></div>
+<div class="row"><div class="lab">Reworking cases sent back</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:83.80%;width:2.47%"></div></div><div class="val cost">+2 min</div></div>
+<div class="row"><div class="lab">Waiting at Assess claim</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:0.00%;width:86.27%"></div></div><div class="val save">−1.0 h</div></div>
+<div class="row"><div class="lab">Waiting at Quality check</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:0.00%;width:6.44%"></div></div><div class="val cost">+5 min</div></div>
+<div class="row"><div class="lab">Waiting at Payment run</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:6.44%;width:2.29%"></div></div><div class="val cost">+2 min</div></div>
+<div class="row"><div class="lab">Waiting at Write to customer</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar cost" style="left:8.73%;width:0.75%"></div></div><div class="val cost">+1 min</div></div>
+<div class="row total"><div class="lab">Change in end-to-end time</div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:9.48%;width:90.52%"></div></div><div class="val save">−1.1 h</div></div>
+<h2>Step by step</h2>
+<table><thead><tr><th>Step</th><th>Busy</th><th>Waiting a case</th><th>Hands-on a case</th></tr></thead><tbody><tr><td>1. Register claim</td><td>40% to 40%</td><td>1 min to 1 min</td><td>9 min to 9 min</td></tr><tr><td>2. Assess claim <span class="tag">AI</span></td><td>92% to 74%</td><td>1.2 h to 10 min</td><td>52 min to 42 min</td></tr><tr><td>3. Quality check</td><td>73% to 76%</td><td>9 min to 13 min</td><td>16 min to 17 min</td></tr><tr><td>4. Await repair quote</td><td>outside the team</td><td>6.9 h to 6.9 h</td><td>none</td></tr><tr><td>5. Payment run</td><td>20% to 20% full</td><td>4.1 h to 4.1 h</td><td>1 min to 1 min</td></tr><tr><td>6. Write to customer</td><td>44% to 44%</td><td>1.3 h to 1.3 h</td><td>10 min to 10 min</td></tr></tbody></table>
+<h2>How long cases take</h2>
+<table><thead><tr><th>Cases</th><th>Without the AI</th><th>With the AI</th></tr></thead><tbody><tr><td>Average</td><td>2.00 days</td><td>1.86 days</td></tr><tr><td>Median</td><td>1.70 days</td><td>1.56 days</td></tr><tr><td>85th percentile</td><td>3.04 days</td><td>2.88 days</td></tr><tr><td>95th percentile</td><td>4.22 days</td><td>4.08 days</td></tr><tr><td>Closed within 5 days</td><td>97.4%</td><td>97.8%</td></tr></tbody></table>
+<p class="note">Staff time freed: 0.85 full-time people. Cases sent back: 9.0 to 13.2 per 100. AI errors reaching customers: 0.4 per 100 cases.</p>
+<h2>Where else could the time come from?</h2><p class="note">The same AI on each other step against one more person at each team step; change in end-to-end time against no AI.</p>
+<div class="row"><div class="lab">The AI on Assess claim (current)<div class="note">saves 20 min at the desk; 0.4 errors per 100 cases reach customers</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:0.00%;width:100.00%"></div></div><div class="val save">−1.1 h</div></div>
+<div class="row"><div class="lab">One more person at Assess claim<div class="note">one extra full-time person</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:14.35%;width:85.65%"></div></div><div class="val save">−54 min</div></div>
+<div class="row"><div class="lab">One more person at Write to customer<div class="note">one extra full-time person</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:47.60%;width:52.40%"></div></div><div class="val save">−33 min</div></div>
+<div class="row"><div class="lab">The AI on Write to customer<div class="note">saves 4 min at the desk; 4.5 errors per 100 cases reach customers</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:62.88%;width:37.12%"></div></div><div class="val save">−23 min</div></div>
+<div class="row"><div class="lab">The AI on Quality check<div class="note">saves 7 min at the desk; 5.1 errors per 100 cases reach customers</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:82.31%;width:17.69%"></div></div><div class="val save">−11 min</div></div>
+<div class="row"><div class="lab">One more person at Quality check<div class="note">one extra full-time person</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:86.34%;width:13.66%"></div></div><div class="val save">−9 min</div></div>
+<div class="row"><div class="lab">The AI on Register claim<div class="note">saves 4 min at the desk; 4.5 errors per 100 cases reach customers</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:95.64%;width:4.36%"></div></div><div class="val save">−3 min</div></div>
+<div class="row"><div class="lab">One more person at Register claim<div class="note">one extra full-time person</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:98.34%;width:1.66%"></div></div><div class="val save">−1 min</div></div>
+<div class="row"><div class="lab">The AI on Payment run<div class="note">saves 0 min at the desk; 3.8 errors per 100 cases reach customers</div></div><div class="track"><div class="zero" style="left:100.00%"></div><div class="bar save" style="left:99.46%;width:0.54%"></div></div><div class="val save">0 min</div></div>
+<h2>Bank the saving as a headcount cut?</h2><p>The pilot&#x27;s business case frees 1.8 people at Assess claim; in practice the AI frees 0.9. Cut 2 of 5 people: cases take 22.3 days on average (+20.3 days against no AI, +20.4 days against keeping everyone). Assess claim would be 100% busy and 0.0% of cases close within 5 days; its queue keeps growing.</p>
+<h2>How robust is it?</h2><p>With 10 runs of different luck, the AI made cases faster in 10 and slower in 0. The change ranged from −2.0 h to −57 min (average −1.2 h).</p>
+<h2>What moves the answer</h2><table><thead><tr><th>Assumption</th><th>Lower</th><th>Higher</th><th>Gap</th></tr></thead><tbody><tr><td>Cases a day</td><td>10% fewer: −29 min</td><td>10% more: −2.7 days</td><td>2.6 days</td></tr><tr><td>Time the AI saves</td><td>10 points less: −52 min</td><td>10 points more: −1.2 h</td><td>19 min</td></tr><tr><td>Minutes to check its work</td><td>half: −1.1 h</td><td>double: −54 min</td><td>13 min</td></tr><tr><td>Cases where it is used</td><td>20 points fewer: −57 min</td><td>20 points more: −1.1 h</td><td>12 min</td></tr><tr><td>Cases it gets wrong</td><td>half: −1.1 h</td><td>double: −58 min</td><td>7 min</td></tr></tbody></table>
+<p class="note" style="margin-top:32px">Made with Missing minutes, a discrete-event simulation of a process with and without an AI assistant. A thinking tool, not a forecast.</p>
+</body></html>

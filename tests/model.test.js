@@ -261,3 +261,43 @@ test('Erlang C and the Allen-Cunneen wait', () => {
   assert.ok(Math.abs(util - 0.9) < 0.02, String(util));
   assert.ok(Math.abs(wait - theory) / theory < 0.2, wait + ' vs ' + theory);
 });
+
+test('only plain numbers or decimal strings are read as numbers', () => {
+  const c = M.normalise({ arrivalsPerDay: ' ', slaDays: '1_000', warmupDays: '0x10', measureDays: '90', drainDays: [5], reworkEffort: true });
+  assert.equal(c.arrivalsPerDay, 20);
+  assert.equal(c.slaDays, 10);
+  assert.equal(c.warmupDays, 20);
+  assert.equal(c.measureDays, 90);
+  assert.equal(c.drainDays, 80);
+  assert.equal(c.reworkEffort, 0.5);
+});
+
+test('with no AI errors the rework part is zero, so every minute is accounted for', () => {
+  for (const key of Object.keys(M.PRESETS)) {
+    const cfg = M.presetConfig(key);
+    cfg.ai.errorRate = 0;
+    const r = M.compare(cfg, 5);
+    const rework = r.parts.find((p) => p.key === 'rework').value;
+    assert.ok(Math.abs(rework) < 1e-6, key + ' ' + rework);
+  }
+});
+
+test('a meeting that is always full is flagged as overloaded', () => {
+  const cfg = M.presetConfig('loans');
+  cfg.steps[3].capacity = 15;
+  const r = M.simulate(cfg, 2, { noAi: true });
+  assert.ok(r.overloaded.indexOf(3) >= 0);
+  assert.equal(r.stable, false);
+});
+
+test('choosing to cut nobody explains itself', () => {
+  const b = M.bankSavings(M.presetConfig('claims'), 42, undefined, 0);
+  assert.equal(b.possible, false);
+  assert.match(b.reason, /Nobody is cut/);
+});
+
+test('waits outside the team are capped at 60 working days', () => {
+  const cfg = M.presetConfig('claims');
+  cfg.steps[3].minutes = 61 * M.DAY;
+  assert.ok(M.validate(cfg).some((e) => /length of the wait/.test(e)));
+});

@@ -46,6 +46,13 @@ def _add_source(p):
 
 def _parse_values(text):
     """'0,0.1,0.2' or '0:0.6:0.1' (start:stop:step, inclusive)."""
+    try:
+        return _parse_values_unchecked(text)
+    except ValueError:
+        raise SystemExit("Could not read the values %r: use 0.1,0.2,0.3 or start:stop:step." % text)
+
+
+def _parse_values_unchecked(text):
     if ":" in text:
         start, stop, step = (float(x) for x in text.split(":"))
         if step <= 0:
@@ -137,7 +144,13 @@ def cmd_sweep(args):
             print("Wrote %d rows to %s" % (len(rows), args.out))
 
 
+def _check_runs(args):
+    if not 1 <= args.runs <= 200:
+        raise SystemExit("--runs must be between 1 and 200.")
+
+
 def cmd_robust(args):
+    _check_runs(args)
     cfg = _load(args)
     r = model.compare(cfg, args.seed)
     seeds = model.robustness(cfg, args.seed, args.runs)
@@ -146,6 +159,7 @@ def cmd_robust(args):
 
 
 def cmd_report(args):
+    _check_runs(args)
     cfg = _load(args)
     r = model.compare(cfg, args.seed)
     bank = model.bank_savings(cfg, args.seed, r)

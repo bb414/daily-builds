@@ -96,6 +96,10 @@ class Validation(unittest.TestCase):
         self.assertEqual(c["steps"][1]["kind"], "team")
         self.assertEqual(c["ai"]["step"], -1)
 
+    def test_strict_numbers(self):
+        c = M.normalise({"arrivalsPerDay": " ", "slaDays": "1_000", "warmupDays": "0x10", "measureDays": "90", "drainDays": [5]})
+        self.assertEqual((c["arrivalsPerDay"], c["slaDays"], c["warmupDays"], c["measureDays"], c["drainDays"]), (20, 10, 20, 90, 80))
+
     def test_formatting(self):
         self.assertEqual(M.fmt_duration(12.4), "12 min")
         self.assertEqual(M.fmt_duration(-90), "-1.5 h")

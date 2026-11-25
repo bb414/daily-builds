@@ -93,6 +93,14 @@ class Cli(unittest.TestCase):
         self.assertNotIn("https://", text)
         self.assertNotIn("\u2014", text)
 
+    def test_bad_values_and_runs_are_refused_politely(self):
+        with self.assertRaises(SystemExit) as ctx:
+            run("sweep", "--param", "saving", "--values", "0:x:1")
+        self.assertIn("Could not read the values", str(ctx.exception))
+        with self.assertRaises(SystemExit) as ctx:
+            run("robust", "--runs", "0")
+        self.assertIn("between 1 and 200", str(ctx.exception))
+
     def test_bad_config_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "bad.json")

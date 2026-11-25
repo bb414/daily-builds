@@ -12,6 +12,7 @@ import copy
 import heapq
 import json
 import math
+import re
 
 DAY = 450
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
@@ -115,16 +116,18 @@ PRESETS = {
 DEFAULTS = {"warmupDays": 20, "measureDays": 120, "drainDays": 80, "reworkEffort": 0.5}
 
 
+_DECIMAL = re.compile(r"^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$")
+
+
 def _num(v, d):
-    if v is None or v == "" or isinstance(v, bool):
+    """Numbers, or strings holding a plain decimal number; anything else gets the default."""
+    if isinstance(v, str):
+        if not _DECIMAL.match(v):
+            return d
+        v = float(v)
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
         return d
-    try:
-        x = float(v)
-    except (TypeError, ValueError):
-        return d
-    if not math.isfinite(x):
-        return d
-    return int(x) if x == int(x) else x
+    return int(v) if v == int(v) else v
 
 
 def _round(x):
@@ -210,6 +213,10 @@ def validate(cfg):
         if not ok:
             e.append("%s must be between %s and %s." % (label, _fmt_num(lo), _fmt_num(hi)))
 
+    def whole(v, label):
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v != math.floor(v):
+            e.append(label + " must be a whole number.")
+
     check(cfg["arrivalsPerDay"], 0.5, 400, "Cases per day")
     check(cfg["slaDays"], 0.5, 200, "Target days")
     check(cfg["warmupDays"], 0, 200, "Warm-up days")
@@ -226,8 +233,9 @@ def validate(cfg):
         label = s["name"]
         if s["kind"] == "team":
             check(s["staff"], 1, 60, label + ": people")
+            whole(s["staff"], label + ": people")
         if s["kind"] == "delay":
-            check(s["minutes"], 0, 45000, label + ": length of the wait (minutes)")
+            check(s["minutes"], 0, 27000, label + ": length of the wait (minutes)")
         else:
             check(s["minutes"], 0.1, 2400, label + ": minutes per case")
         check(s["cv"], 0, 3, label + ": variability")
@@ -241,6 +249,7 @@ def validate(cfg):
             if not s["batchDays"]:
                 e.append(label + ": pick at least one day.")
             check(s["capacity"], 1, 2000, label + ": cases per session")
+            whole(s["capacity"], label + ": cases per session")
         if s["kind"] == "delay":
             check(s["share"], 0, 1, label + ": share of cases that wait")
     a = cfg["ai"]
@@ -281,7 +290,7 @@ def quantile(sorted_values, p):
 
 class _Case:
     __slots__ = ("id", "arr", "tracked", "enq", "reworking", "rework_check", "reworks",
-                 "defect", "ai", "u_back", "u_catch", "visits", "touch", "wait")
+                 "defect", "ai", "saved", "lost", "check", "u_back", "u_catch", "visits", "touch", "wait")
 
     def __init__(self, cid, arr, tracked, n):
         self.id = cid
@@ -293,6 +302,9 @@ class _Case:
         self.reworks = 0
         self.defect = False
         self.ai = False
+        self.saved = 0
+        self.lost = 0
+        self.check = 0
         self.u_back = 0
         self.u_catch = 0
         self.visits = [0] * n
@@ -385,12 +397,11 @@ def simulate(cfg_in, seed=1, no_ai=False, keep_lead_times=False):
                 dur = base - potential + ai["checkMinutes"]
                 if u_err < ai["errorRate"]:
                     c.defect = True
-                if c.tracked:
-                    st_["ai_saved"] += potential
-                    st_["ai_check"] += ai["checkMinutes"]
-                    c.ai = True
-            elif c.tracked:
-                st_["ai_lost"] += potential
+                c.saved += potential
+                c.check += ai["checkMinutes"]
+                c.ai = True
+            else:
+                c.lost += potential
         if c.tracked:
             c.wait[k] += t - c.enq
             c.touch[k] += dur
@@ -458,6 +469,9 @@ def simulate(cfg_in, seed=1, no_ai=False, keep_lead_times=False):
             st_["escaped"] += 1
         if c.ai:
             st_["ai_used"] += 1
+        st_["ai_saved"] += c.saved
+        st_["ai_lost"] += c.lost
+        st_["ai_check"] += c.check
 
     def compact(k):
         if heads[k] > 1024 and heads[k] * 2 > len(queues[k]):
@@ -562,7 +576,7 @@ def simulate(cfg_in, seed=1, no_ai=False, keep_lead_times=False):
     lead_mean = lead_total / done if done else 0
     tracked = st_["tracked"]
     # A team busy almost all the time cannot keep up: its queue keeps growing.
-    overloaded = [j for j, s in enumerate(step_out) if s["kind"] == "team" and s["utilisation"] >= OVERLOAD]
+    overloaded = [j for j, s in enumerate(step_out) if s["kind"] != "delay" and s["utilisation"] >= OVERLOAD]
     return {
         "seed": seed, "aiStep": ai_step,
         "tracked": tracked, "done": done, "open": st_["open"],
@@ -709,8 +723,10 @@ def bank_savings(cfg_in, seed=1, cmp=None, cut=None):
     if n < 1:
         if out["maxCut"] < 1:
             out["reason"] = st["name"] + " has only one person, so nobody can be cut."
-        else:
+        elif cut is None:
             out["reason"] = "The pilot's business case frees less than half a person at " + st["name"] + ", so nobody is cut."
+        else:
+            out["reason"] = "Nobody is cut, so the queue is the same as with the AI and everyone kept."
         return out
     cfg["steps"][k]["staff"] -= n
     r = simulate(cfg, seed)

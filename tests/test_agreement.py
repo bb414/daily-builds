@@ -108,6 +108,8 @@ class Agreement(unittest.TestCase):
             {"steps": []},
             {"arrivalsPerDay": "abc", "steps": [{"kind": "batch", "batchDays": [5, 2, 2]}], "ai": {"step": 3}},
             {"steps": [{"kind": "delay", "minutes": -1, "reworkTo": 0}, {"staff": 0, "reworkTo": 0, "reworkRate": 0.9}], "ai": {"step": 0}},
+            {"arrivalsPerDay": " ", "slaDays": "1_000", "warmupDays": "0x10", "measureDays": " 90 ", "drainDays": [5], "reworkEffort": True,
+             "steps": [{"kind": "team", "staff": "2.5", "minutes": "1e1", "cv": ".5", "reworkTo": None}]},
             M.preset_config("claims"),
         ]
         js = run_js([{"fn": "normalise", "config": c} for c in odd] + [{"fn": "validate", "config": c} for c in odd])

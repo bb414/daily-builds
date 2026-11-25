@@ -109,6 +109,33 @@ class BrowserApp(unittest.TestCase):
         self.assertIn("Desk B", page.inner_text("#results"))
         page.close()
 
+    def test_every_control_has_a_label(self):
+        page = self.open()
+        page.click("#steps-edit summary")
+        page.wait_for_selector("#s0-name")
+        missing = page.evaluate("""() => Array.from(document.querySelectorAll('input, select, button')).filter(el => {
+            if (el.type === 'file' || el.getAttribute('aria-hidden') === 'true') return false;
+            if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return false;
+            if (el.tagName === 'BUTTON') return !el.textContent.trim();
+            if (el.closest('label')) return false;
+            return !(el.id && document.querySelector('label[for="' + el.id + '"]'));
+        }).map(el => el.id || el.outerHTML.slice(0, 60))""")
+        self.assertEqual(missing, [])
+        page.close()
+
+    def test_extreme_settings_stay_responsive(self):
+        page = self.open()
+        page.select_option("#preset", "complaints")
+        page.wait_for_function("document.querySelector('#results').innerText.includes('Team leader sign-off')")
+        page.fill("#arrivals", "200")
+        page.wait_for_selector(".wf-row.total", timeout=20000)
+        page.wait_for_function("!document.querySelector('#results').classList.contains('busy')", timeout=20000)
+        # The page still reacts to input while the extra checks run or wait.
+        page.fill("#arrivals", "30")
+        page.wait_for_function("document.querySelector('#results').innerText.includes('sign-off')", timeout=20000)
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(390)
         width = page.evaluate("document.documentElement.scrollWidth")

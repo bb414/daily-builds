@@ -131,6 +131,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 .robust .strip { flex: none; }
 .legend span.hollow::before { background: transparent; border: 2px solid var(--c); width: 7px; height: 7px; }
 .errors.warn { margin-bottom: 12px; }
+#results.busy { opacity: .55; transition: opacity .15s; }
 .about summary { cursor: pointer; list-style: none; }
 .about summary::-webkit-details-marker { display: none; }
 .about summary h2 { display: inline; }
@@ -344,10 +345,12 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+  // Numbers, or strings holding a plain decimal number; anything else gets the default.
+  var DECIMAL = /^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$/;
   function num(v, d) {
-    if (v === undefined || v === null || v === '' || typeof v === 'boolean') return d;
-    var x = Number(v);
-    return isFinite(x) ? x : d;
+    if (typeof v === 'string') { if (!DECIMAL.test(v)) return d; v = Number(v); }
+    if (typeof v !== 'number' || !isFinite(v)) return d;
+    return v;
   }
 
   function presetConfig(key) {
@@ -417,6 +420,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     function check(v, lo, hi, label) {
       if (!(typeof v === 'number' && isFinite(v)) || v < lo || v > hi) e.push(label + ' must be between ' + lo + ' and ' + hi + '.');
     }
+    function whole(v, label) {
+      if (typeof v === 'number' && isFinite(v) && v !== Math.floor(v)) e.push(label + ' must be a whole number.');
+    }
     check(cfg.arrivalsPerDay, 0.5, 400, 'Cases per day');
     check(cfg.slaDays, 0.5, 200, 'Target days');
     check(cfg.warmupDays, 0, 200, 'Warm-up days');
@@ -428,8 +434,8 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     if (cfg.arrivalsPerDay * (cfg.warmupDays + cfg.measureDays) > 60000) e.push('That is too many cases to simulate quickly: lower the cases per day or the number of days.');
     cfg.steps.forEach(function (s, i) {
       var l = s.name;
-      if (s.kind === 'team') check(s.staff, 1, 60, l + ': people');
-      check(s.minutes, s.kind === 'delay' ? 0 : 0.1, s.kind === 'delay' ? 45000 : 2400, l + (s.kind === 'delay' ? ': length of the wait (minutes)' : ': minutes per case'));
+      if (s.kind === 'team') { check(s.staff, 1, 60, l + ': people'); whole(s.staff, l + ': people'); }
+      check(s.minutes, s.kind === 'delay' ? 0 : 0.1, s.kind === 'delay' ? 27000 : 2400, l + (s.kind === 'delay' ? ': length of the wait (minutes)' : ': minutes per case'));
       check(s.cv, 0, 3, l + ': variability');
       if (s.reworkTo >= 0) {
         if (s.reworkTo >= i) e.push(l + ': cases can only be sent back to an earlier step.');
@@ -439,6 +445,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       if (s.kind === 'batch') {
         if (!s.batchDays.length) e.push(l + ': pick at least one day.');
         check(s.capacity, 1, 2000, l + ': cases per session');
+        whole(s.capacity, l + ': cases per session');
       }
       if (s.kind === 'delay') check(s.share, 0, 1, l + ': share of cases that wait');
     });
@@ -550,9 +557,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
         if (uAdopt < ai.adoption) {
           dur = base - potential + ai.checkMinutes;
           if (uErr < ai.errorRate) c.defect = true;
-          if (c.tracked) { aiSaved += potential; aiCheck += ai.checkMinutes; c.ai = true; }
-        } else if (c.tracked) {
-          aiLost += potential;
+          c.saved += potential; c.check += ai.checkMinutes; c.ai = true;
+        } else {
+          c.lost += potential;
         }
       }
       if (c.tracked) { c.wait[k] += t - c.enq; c.touch[k] += dur; }
@@ -602,6 +609,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       if (c.reworks > 0) reworked++;
       if (c.defect) escaped++;
       if (c.ai) aiUsed++;
+      aiSaved += c.saved; aiLost += c.lost; aiCheck += c.check;
     }
 
     function compact(k) {
@@ -646,7 +654,8 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       if (ev.t > CAP) break;
       now = ev.t;
       if (ev.type === ARRIVE) {
-        var c = { id: cases.length, arr: now, tracked: inWindow(now), enq: now, reworking: false, reworkCheck: -1, reworks: 0, defect: false, ai: false, uBack: 0, uCatch: 0, visits: [], touch: [], wait: [] };
+        var c = { id: cases.length, arr: now, tracked: inWindow(now), enq: now, reworking: false, reworkCheck: -1, reworks: 0, defect: false, ai: false,
+          saved: 0, lost: 0, check: 0, uBack: 0, uCatch: 0, visits: [], touch: [], wait: [] };
         for (k = 0; k < n; k++) { c.visits.push(0); c.touch.push(0); c.wait.push(0); }
         cases.push(c);
         if (c.tracked) { tracked++; open++; }
@@ -689,7 +698,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     // A team that is busy almost all the time cannot keep up: its queue grows
     // for as long as the simulation runs, so averages depend on the run length.
     var overloaded = [];
-    stepOut.forEach(function (s, j) { if (s.kind === 'team' && s.utilisation >= OVERLOAD) overloaded.push(j); });
+    stepOut.forEach(function (s, j) { if (s.kind !== 'delay' && s.utilisation >= OVERLOAD) overloaded.push(j); });
     return {
       seed: seed, aiStep: aiStep,
       tracked: tracked, done: done, open: open,
@@ -825,7 +834,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var n = cut === undefined || cut === null ? Math.round(out.claimedPeople) : Math.round(cut);
     if (n > out.maxCut) n = out.maxCut;
     if (n < 1) {
-      out.reason = out.maxCut < 1 ? st.name + ' has only one person, so nobody can be cut.' : 'The pilot\'s business case frees less than half a person at ' + st.name + ', so nobody is cut.';
+      out.reason = out.maxCut < 1 ? st.name + ' has only one person, so nobody can be cut.'
+        : cut === undefined || cut === null ? 'The pilot\'s business case frees less than half a person at ' + st.name + ', so nobody is cut.'
+        : 'Nobody is cut, so the queue is the same as with the AI and everyone kept.';
       return out;
     }
     cfg.steps[k].staff -= n;
@@ -986,6 +997,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   function syncControls() {
     var c = state.cfg;
+    if (c.ai.step < 0 || c.ai.step >= c.steps.length) c.ai.step = firstWorkStep();
     $('preset').value = c.preset && M.PRESETS[c.preset] ? c.preset : 'custom';
     $('blurb').textContent = c.preset && M.PRESETS[c.preset] ? M.PRESETS[c.preset].blurb : 'Your own version of the process. Edit the steps below.';
     $('arrivals').value = c.arrivalsPerDay;
@@ -1047,12 +1059,12 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
           '<div class="field"><label for="' + p + 'minutes">Minutes a case</label><input type="number" id="' + p + 'minutes" min="0.1" max="2400" step="1" value="' + s.minutes + '"></div></div>';
       } else {
         h += '<div class="row2"><div class="field"><label for="' + p + 'share">Cases that wait (%)</label><input type="number" id="' + p + 'share" min="0" max="100" step="5" value="' + Math.round(s.share * 100) + '"></div>' +
-          '<div class="field"><label for="' + p + 'days">Average wait (days)</label><input type="number" id="' + p + 'days" min="0" max="100" step="0.5" value="' + +(s.minutes / DAY).toFixed(2) + '"></div></div>';
+          '<div class="field"><label for="' + p + 'days">Average wait (days)</label><input type="number" id="' + p + 'days" min="0" max="60" step="0.5" value="' + +(s.minutes / DAY).toFixed(2) + '"></div></div>';
       }
       h += '<div class="field"><label for="' + p + 'cv">How much cases vary</label>' + cvSelect(p + 'cv', s.cv) + '</div>';
       if (s.kind !== 'delay' && i > 0) {
         h += '<div class="row2"><div class="field"><label for="' + p + 'back">Sends cases back to</label><select id="' + p + 'back"><option value="-1">Nowhere</option>' +
-          c.steps.slice(0, i).map(function (t, j) { return t.kind === 'delay' ? '' : '<option value="' + j + '"' + (j === s.reworkTo ? ' selected' : '') + '>' + esc((j + 1) + '. ' + t.name) + '</option>'; }).join('') + '</select></div>' +
+          c.steps.slice(0, i).map(function (t, j) { return '<option value="' + j + '"' + (j === s.reworkTo ? ' selected' : '') + '>' + esc((j + 1) + '. ' + t.name) + '</option>'; }).join('') + '</select></div>' +
           '<div class="field"><label for="' + p + 'rate">Share sent back (%)</label><input type="number" id="' + p + 'rate" min="0" max="60" step="1" value="' + Math.round(s.reworkRate * 100) + '"' + (s.reworkTo < 0 ? ' disabled' : '') + '></div></div>';
       }
       return h + '</div>';
@@ -1070,7 +1082,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var structural = false;
     if (id === 'name') { s.name = v.trim() || 'Step ' + (i + 1); renderAiStep(); }
     else if (id === 'kind') {
+      var wasDelay = s.kind === 'delay';
       s.kind = v;
+      if (wasDelay && v !== 'delay') s.minutes = 10;
       if (v === 'team') { s.staff = s.staff || 1; delete s.batchDays; delete s.capacity; delete s.share; }
       if (v === 'batch') { s.batchDays = [2]; s.capacity = 30; s.staff = 0; delete s.share; }
       if (v === 'delay') { s.share = 1; s.staff = 0; s.minutes = DAY; s.reworkTo = -1; s.reworkRate = 0; delete s.batchDays; delete s.capacity; }
@@ -1128,7 +1142,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       syncControls();
       schedule(0);
     });
-    $('arrivals').addEventListener('input', function () { state.cfg.arrivalsPerDay = parseNum(this.value); markCustomIfEdited(); schedule(); });
+    $('arrivals').addEventListener('input', function () { state.cfg.arrivalsPerDay = parseNum(this.value); schedule(); });
     $('sla').addEventListener('input', function () { state.cfg.slaDays = parseNum(this.value); schedule(); });
     $('ai-step').addEventListener('change', function () { state.cfg.ai.step = Number(this.value); state.cut = null; schedule(); });
     $('ai-saving').addEventListener('input', function () { state.cfg.ai.saving = Number(this.value) / 100; syncOutputs(); schedule(); });
@@ -1153,8 +1167,6 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (state.last) drawHistogram(state.last); }, 150); });
   }
 
-  function markCustomIfEdited() { /* changing demand keeps the preset's steps, so the name stays */ }
-
   // ---------------------------------------------------------------- save and share
   function setupObject() { return { app: 'missing-minutes', version: 1, seed: state.seed, config: state.cfg }; }
 
@@ -1178,6 +1190,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   function bindTools() {
     $('save').addEventListener('click', function () {
+      if (M.validate(state.cfg).length) { say('Fix the settings marked in the results first.'); return; }
       var blob = new Blob([JSON.stringify(setupObject(), null, 2)], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1199,8 +1212,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       this.value = '';
     });
     $('link').addEventListener('click', function () {
+      if (M.validate(state.cfg).length) { say('Fix the settings marked in the results first.'); return; }
       var hash = '#setup=' + encodeURIComponent(JSON.stringify({ seed: state.seed, config: state.cfg }));
-      history.replaceState(null, '', hash);
+      try { history.replaceState(null, '', hash); } catch (err) { location.hash = hash; }
       var url = location.href;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function () { say('Link copied. Anyone opening this file with it sees the same setup.'); },
@@ -1226,20 +1240,48 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var errs = M.validate(state.cfg);
     var out = $('results');
     if (errs.length) {
+      state.gen++;
       out.innerHTML = '<section class="panel"><div class="errors" role="alert"><strong>Fix these to see results:</strong><ul>' +
         errs.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div></section>';
       state.last = null;
       return;
     }
     if (state.cfg.ai.step < 0) {
-      out.innerHTML = '<section class="panel"><div class="errors" role="alert">Choose a step for the AI to help with.</div></section>';
+      state.gen++;
+      out.innerHTML = '<section class="panel"><div class="errors" role="alert">Add a step where a team or a meeting works on cases, so the AI has something to help with.</div></section>';
       state.last = null;
       return;
     }
-    var r = M.compare(state.cfg, state.seed, { keepLeadTimes: true });
-    state.last = r;
-    renderResults(r);
-    runOptions(r);
+    // Let the browser paint the busy state before the simulation blocks it.
+    var gen = ++state.gen;
+    out.classList.add('busy');
+    setTimeout(function () {
+      if (gen !== state.gen) return;
+      var t0 = Date.now();
+      var r = M.compare(state.cfg, state.seed, { keepLeadTimes: true });
+      var took = Date.now() - t0;
+      out.classList.remove('busy');
+      if (!r.base.done || !r.ai.done) {
+        out.innerHTML = '<section class="panel"><div class="errors" role="alert">No cases finished in the measured period. Raise the cases a day.</div></section>';
+        state.last = null;
+        return;
+      }
+      state.last = r;
+      renderResults(r);
+      // Slow setups (very high volumes or long rework loops) wait for a click.
+      if (took > 600) offerExtraChecks(r); else runOptions(r);
+    }, 30);
+  }
+
+  function offerExtraChecks(r) {
+    ++state.gen;
+    var msg = '<p class="muted">This setup is slow to simulate, so the extra checks wait for you. <button type="button" class="btn small run-extra">Run the extra checks</button></p>';
+    ['options', 'tornado'].forEach(function (id) { var b = $(id); if (b) b.innerHTML = msg; });
+    var bank = $('bank'); if (bank) bank.innerHTML = msg;
+    var rb = $('robust'); if (rb) rb.innerHTML = '';
+    Array.prototype.forEach.call(document.querySelectorAll('.run-extra'), function (btn) {
+      btn.addEventListener('click', function () { runOptions(r); });
+    });
   }
 
   // The slower analyses (options, other luck, the tornado) run one piece per
@@ -1374,6 +1416,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var b = r.base.overloaded, a = r.ai.overloaded;
     if (r.base.stable && r.ai.stable) return '';
     var msg;
+    if (!b.length && !a.length) {
+      return '<div class="errors warn" role="note"><strong>Some cases were still open</strong> when the simulation stopped, ' + (r.base.open + r.ai.open) + ' in all, because of very long waits. The averages cover the cases that finished.</div>';
+    }
     if (!r.base.stable && r.ai.stable) msg = 'Without the AI, ' + (names(b) || 'one step') + ' cannot keep up: its queue grows for as long as work keeps arriving. With the AI the process copes, so the gain is real but its size depends on how long the simulation runs.';
     else if (r.base.stable && !r.ai.stable) msg = 'With the AI, ' + (names(a) || 'one step') + ' cannot keep up: its queue grows for as long as work keeps arriving, so the extra delay depends on how long the simulation runs.';
     else msg = 'Even without the AI, ' + (names(b.concat(a.filter(function (x) { return b.indexOf(x) < 0; }))) || 'one step') + ' cannot keep up, so queues grow in both runs and the averages depend on how long the simulation runs. Add people or lower the demand.';
@@ -1543,6 +1588,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     if (!el) return;
     var W = Math.max(280, el.clientWidth || 600), H = 236, m = { l: 12, r: 12, t: 28, b: 34 };
     var b = r.base.leadDays, a = r.ai.leadDays;
+    if (!b || !b.length || !a || !a.length) { el.innerHTML = ''; return; }
     var maxX = Math.max(M.quantile(b, 0.99), M.quantile(a, 0.99), r.config.slaDays) * 1.05;
     var bins = 36, bw = maxX / bins;
     function counts(list) {
