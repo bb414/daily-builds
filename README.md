@@ -43,7 +43,7 @@ What you can do in it:
 - **Try narrowing a range**: halve a range, cut it to a quarter or pin it down at its median, and see what that scenario does to the answer and to the chance of making the wrong call.
 - **Save and share**: download the model as JSON, open it again later, or copy a link that carries the whole estimate. Your last estimate is also kept in the browser.
 
-It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard. The charts redraw at the screen's real width, so their labels stay readable on a phone.
+It is styled like a surveyor's field kit: survey paper on a khaki contour-map canvas, the headline range in a rangefinder-style readout, and the tornado bars drawn as ranging poles. It works on a phone as well as a desktop, and every control can be used with a keyboard. The charts redraw at the screen's real width, so their labels stay readable on a phone.
 
 <img src="docs/phone.png" alt="Range finder on a phone" width="300">
 
@@ -125,7 +125,7 @@ For the meal-kit market the app shows that about a fifth of the spread (22%) com
 | Browser app model | JavaScript | Validation, distributions, Latin hypercube sampling, analysis, value of information, narrowing and number formatting, inside `app/index.html` | 400 lines |
 | Examples in the app | JavaScript (data) | A copy of `templates.json`, written in by `tools/embed_templates.py` | 220 lines |
 | Browser app interface | JavaScript | The editor, the results cards and charts, saving, opening, share links | 700 lines |
-| Browser app styling and layout | CSS and HTML | Layout, typography, light and dark colours, phone layout | 240 lines |
+| Browser app styling and layout | CSS and HTML | Layout, the two embedded typefaces, the field-kit colours and contour pattern, the header illustration, phone layout | 620 lines |
 | Python package | Python (standard library only) | The same engine, plus text, CSV and JSON reports, the narrowing plan, Sobol indices, seed stability and the command line | 940 lines |
 | Examples | JSON | The three built-in examples and the textile reuse model | 140 lines |
 | Tests | Python (and a small Node.js runner) | Engine tests, statistical checks against brute force, browser tests in headless Chromium, and tests that run the app's model in Node.js and check it agrees with Python | 1,020 lines |
@@ -168,6 +168,7 @@ Edit `rangefinder/templates.json`, then run `python tools/embed_templates.py` to
 
 ```
 app/index.html                the browser app (open this)
+app/FONT-LICENCE.txt          the licence for the two fonts embedded in the app
 rangefinder/                  the Python package
   templates.json              the built-in examples, shared by both versions
   model.py                    validation, distributions, sampling, analysis, value of information, formatting
