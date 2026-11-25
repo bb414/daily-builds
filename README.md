@@ -92,7 +92,7 @@ The browser tests need Playwright with Chromium (`pip install -r requirements-de
 
 | Part | Language | Roughly | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | 1,500 lines: 200 of styles, 650 of model, 620 of interface | The whole analysis for the synthetic chain, interactive, in one offline file |
+| `app/index.html` | HTML, CSS, JavaScript | 1,900 lines: 470 of styles and embedded fonts, 650 of model, 620 of interface | The whole analysis for the synthetic chain, interactive, in one offline file |
 | `stairstep/` | Python | 1,150 lines | The same model line for line, CSV input for real data, the robustness sweep, and text, CSV, JSON and HTML reports |
 | `tests/` | Python and JavaScript | 840 lines | Unit tests for both, agreement tests, and browser tests |
 
