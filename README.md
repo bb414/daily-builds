@@ -40,7 +40,7 @@ What you can do in it:
 - **Raise the bar.** The last chart shows team accuracy as the confidence bar for following the AI rises; click it to set the bar.
 - **Share a setup.** "Copy link to these settings" puts every setting in the address, so the same file opened with that link shows the same picture.
 
-It works on a phone as well as a desktop, in light and dark mode, every control can be used with a keyboard, and every control has a label for screen readers.
+It works on a phone as well as a desktop, every control can be used with a keyboard, and every control has a label for screen readers. The look borrows from Swiss poster design: a visible grid, thick black rules, Schibsted Grotesk type, and one colour per side (black for the person, blue for the AI, red for the pair).
 
 <img src="docs/phone.png" alt="The app on a phone" width="300">
 
@@ -89,7 +89,7 @@ Out of every 100 cases under "go with whoever is surer", 67 are easy because bot
 - **Shared blind spots and vague confidence are the biggest brakes.** In the sweep, the best rule's average gain falls from 5.8 points with unrelated mistakes to 2.6 points when the overlap is 0.4, and rises from 2.5 points when the AI's confidence says nothing to 6.1 points when it is informative.
 - **The gap in overconfidence matters more than overconfidence itself.** "Whoever is surer" beats both in 76% of scenarios when the two sides are equally overconfident, and 66% when one is a full step more overconfident than the other.
 
-The map shows the third point at a glance: under the default confidence settings, "go with whoever is surer" lets the pair beat both (green) along the diagonal where the two are about equally good, and adds little or nothing where one side is far better.
+The map shows the third point at a glance: under the default confidence settings, "go with whoever is surer" lets the pair beat both (red) along the diagonal where the two are about equally good, and adds little or nothing where one side is far better.
 
 ![Where "go with whoever is surer" beats both, for every pair of accuracies](docs/map.png)
 
@@ -101,7 +101,7 @@ The levers chart turns the same model into a "where should we invest?" question.
 
 | Part | Language | Roughly | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML and CSS | 390 lines | Layout, light and dark themes, responsive design |
+| `app/index.html` | HTML and CSS | 600 lines | Layout, the poster styling with its embedded fonts, responsive design |
 | | JavaScript (model block) | 340 lines | The reliance model; runs in the browser and in Node.js for tests |
 | | JavaScript (interface) | 730 lines | Sliders, scenarios, the five charts and settings links |
 | `reliance_lab/` | Python | 670 lines | The same model (tested to agree), a command-line report, and what a browser page does badly: a 3,888-scenario sweep with main effects, a CSV of every scenario and a self-contained HTML report |
