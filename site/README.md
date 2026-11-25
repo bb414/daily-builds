@@ -1,6 +1,6 @@
 # The portfolio website
 
-This folder builds a public website from the projects in this repository: a home page with every project, searchable and grouped by topic, a page for each project with its app, screenshots and write-up, a list by month and an about page.
+This folder builds a public website from the projects in this repository: a home page with every project, searchable and grouped by topic, a list by month, an about page, and a page for each project with tabs to **try it** (the real app, embedded and running in the visitor's browser), read **how it works** (its README), read its **findings** (if it has a FINDINGS.md) and step through a **screenshot tour**. A project with no app gets the tour instead, so visitors still see what it does.
 
 It rebuilds itself. Every daily build adds a row to the table in the main README, and that change to `main` starts the workflow in `.github/workflows/site.yml`, which builds the site and publishes it with GitHub Pages. It also runs once a day as a backstop, and you can run it by hand from the Actions tab ("Build the portfolio site", then "Run workflow").
 

@@ -138,6 +138,15 @@ class FullBuild(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(self.out, p["url"])), p["slug"])
             self.assertTrue(p["app"], p["slug"])
 
+    def test_every_project_page_embeds_its_app_and_has_tabs(self):
+        for p in self.projects:
+            with open(os.path.join(self.out, p["url"]), encoding="utf-8") as f:
+                text = f.read()
+            self.assertRegex(text, r'<iframe src="app/index\.html" title="[^"]+: the interactive app"', p["slug"])
+            self.assertIn('id="tab-try"', text)
+            self.assertIn('id="tab-how"', text)
+            self.assertIn("static/project.js", text)
+
     def test_every_internal_link_and_image_resolves(self):
         for page in self.pages():
             with open(page, encoding="utf-8") as f:

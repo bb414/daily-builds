@@ -47,6 +47,7 @@ section h2 { font-size: 24px; }
 .archive { padding: 32px 0 24px; }
 .arch-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .count { color: var(--muted); margin: 0; }
+.arch-sub { color: var(--muted); margin: 2px 0 0; }
 .tools { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 12px; }
 .search { flex: 1 1 320px; }
 .search input, .sort select { width: 100%; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; min-height: 44px; }
@@ -135,4 +136,31 @@ section h2 { font-size: 24px; }
   .month-list p { grid-column: 1; }
   .sort { flex: 1 1 100%; }
   .sort select { flex: 1; }
+}
+
+/* Project pages: tabs, the embedded app and the tour */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 18px 0 0; overflow-x: auto; scrollbar-width: none; }
+.tabs [role="tab"] { font: inherit; font-weight: 600; font-size: 15px; color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px 9px; cursor: pointer; white-space: nowrap; min-height: 44px; }
+.tabs [role="tab"]:hover { color: var(--ink); }
+.tabs [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab-panel { padding: 22px 0 8px; }
+.tab-panel:focus-visible { outline-offset: -3px; }
+.app-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.app-bar p { margin: 0; color: var(--muted); font-size: 15px; }
+.btn.small { padding: 6px 14px; min-height: 38px; font-size: 14px; }
+.app-frame { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); background: var(--panel); }
+.app-frame iframe { display: block; width: 100%; height: min(85vh, 1100px); min-height: 560px; border: 0; }
+.app-hint { display: none; color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+.tour-intro { color: var(--muted); margin: 0 0 12px; }
+.tour-step { margin: 0 0 24px; }
+.tour-step img { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.tour-step figcaption { margin-top: 8px; color: var(--muted); font-size: 15px; }
+.step-no { font-weight: 700; color: var(--ink); margin-right: 6px; }
+.tour.one-at-a-time .tour-step { margin-bottom: 12px; }
+.tour.one-at-a-time .tour-step img { max-height: 78vh; object-fit: contain; object-position: top center; }
+.tour-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 4px 0 8px; }
+.tour-pos { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 60px; text-align: center; }
+@media (max-width: 600px) {
+  .app-frame iframe { height: 78vh; min-height: 480px; }
+  .app-hint { display: block; }
 }

@@ -380,13 +380,21 @@ def build(out, config, cache=None):
                     shutil.copyfile(os.path.join(dest, "thumb.jpg"), thumb_cache)
             thumb = "projects/%s/%s" % (slug, "thumb.jpg" if thumb else shot)
         line = tagline(readme_text, row["what"], config.get("taglines", {}).get(row["branch"]))
+        caps = image_captions(readme_text)
+        shown = [m.group(1) or m.group(2) for m in re.finditer(r"!\[[^\]]*\]\(([^)\s]+)\)|<img[^>]+src=\"([^\"]+)\"", readme_text)]
+        order = [x.lstrip("./") for x in shown if x.lstrip("./") in published and x.lower().endswith(IMAGE_EXT)]
+        order += sorted(x for x in published if x.startswith("docs/") and x.lower().endswith(IMAGE_EXT) and x not in order)
+        shots = []
+        for x in order:
+            if x not in [s[0] for s in shots]:
+                shots.append((x, caption_for(x, caps)))
         projects.append({
             "slug": slug, "branch": row["branch"], "date": row["date"], "name": strip_md(row["name"]),
             "what": strip_md(row["what"]), "theme": strip_md(row["theme"]), "stack": strip_md(row["stack"]),
             "category": categorise(row["theme"], row["branch"], config),
             "tagline": line,
             "url": "projects/%s/index.html" % slug, "app": app, "shot": shot, "thumb": thumb,
-            "findings": bool(findings_text),
+            "findings": bool(findings_text), "shots": shots,
             "_readme": render_markdown(readme_text, published, page_map, line) if readme_text else "",
             "_findings": render_markdown(findings_text, published, page_map) if findings_text else "",
         })
@@ -450,39 +458,84 @@ def make_thumb(src, dest):
         return False
 
 
+def image_captions(readme_text):
+    """Alt text the README gives each screenshot, used as captions in the tour."""
+    caps = {}
+    for m in re.finditer(r"!\[([^\]]*)\]\(([^)\s]+)\)", readme_text):
+        caps.setdefault(m.group(2).lstrip("./"), m.group(1))
+    for m in re.finditer(r"<img[^>]*>", readme_text):
+        src = re.search(r'src="([^"]+)"', m.group(0))
+        alt = re.search(r'alt="([^"]*)"', m.group(0))
+        if src:
+            caps.setdefault(src.group(1).lstrip("./"), alt.group(1) if alt else "")
+    return caps
+
+
+def caption_for(path, caps):
+    text = caps.get(path) or ""
+    if not text:
+        stem = os.path.splitext(os.path.basename(path))[0]
+        text = re.sub(r"[-_]+", " ", stem).strip().capitalize()
+    return text
+
+
 def write_project(out, p, newer, older, cats, config):
     cat = cats.get(p["category"], cats["other"])
     up = "../../"
-    actions = []
+    tabs, panels = [], []
+
+    def add(key, label, body, cls=""):
+        tabs.append('<button type="button" role="tab" id="tab-%s" aria-controls="panel-%s" data-tab="%s">%s</button>' % (key, key, key, esc(label)))
+        panels.append('<section class="tab-panel %s" role="tabpanel" id="panel-%s" aria-labelledby="tab-%s" tabindex="0">%s</section>' % (cls, key, key, body))
+
     if p["app"]:
-        actions.append('<a class="btn primary" href="%s">Open the app</a>' % esc(p["app"]))
+        add("try", "Try it", (
+            '<div class="wrap"><div class="app-bar"><p>The real app, running live in your browser on synthetic data. Nothing you enter leaves your device.</p>'
+            '<a class="btn small" href="%(app)s" target="_blank" rel="noopener">Open full screen</a></div>'
+            '<div class="app-frame"><iframe src="%(app)s" title="%(name)s: the interactive app" allow="clipboard-write; fullscreen"></iframe></div>'
+            '<p class="app-hint">On a small screen the app is easier to use <a href="%(app)s" target="_blank" rel="noopener">full screen</a>.</p></div>') % {
+                "app": esc(p["app"]), "name": esc(p["name"])}, "wide")
+    how = ('<div class="wrap narrow"><details class="summary"><summary>Everything it does, in one sentence</summary><p>%s</p></details>'
+           '<article class="prose">%s</article></div>') % (esc(p["what"]), p["_readme"])
+    add("how", "How it works", how)
     if p["findings"]:
-        actions.append('<a class="btn" href="findings.html">Read the findings</a>')
-    hero = ('<figure class="hero-shot"><img src="%s" alt="Screenshot of %s"></figure>' % (esc(p["shot"]), esc(p["name"]))
-            if p["shot"] else "")
+        add("findings", "Findings", '<div class="wrap narrow"><article class="prose">%s</article></div>' % p["_findings"])
+    if p["shots"]:
+        steps = []
+        n = len(p["shots"])
+        for i, (path, cap) in enumerate(p["shots"]):
+            steps.append('<figure class="tour-step" data-step="%d"><img src="%s" alt="%s" loading="lazy"><figcaption><span class="step-no">Step %d of %d</span> %s</figcaption></figure>' % (
+                i, esc(path), esc(cap), i + 1, n, esc(cap)))
+        intro = ("A walk through the app, one screen at a time." if p["app"]
+                 else "This project has no app to run here, so this tour shows what it does, one screen at a time.")
+        add("tour", "Tour" if not p["app"] else "Screenshots", (
+            '<div class="wrap"><p class="tour-intro">%s</p><div class="tour" data-count="%d">%s'
+            '<div class="tour-nav" hidden><button type="button" class="btn small" data-move="-1">Previous</button>'
+            '<span class="tour-pos" aria-live="polite"></span><button type="button" class="btn small" data-move="1">Next</button></div></div></div>') % (
+                intro, n, "".join(steps)), "wide")
+
     nav = '<nav class="prev-next" aria-label="More projects">'
     nav += ('<a class="older" href="%sprojects/%s/index.html"><span>Older</span>%s</a>' % (up, esc(older["slug"]), esc(older["name"]))) if older else "<span></span>"
     nav += ('<a class="newer" href="%sprojects/%s/index.html"><span>Newer</span>%s</a>' % (up, esc(newer["slug"]), esc(newer["name"]))) if newer else "<span></span>"
     nav += "</nav>"
-    head = ('<div class="wrap narrow project-head">'
+    head = ('<div class="wrap project-head">'
             '<p class="crumbs"><a href="%(up)sindex.html#archive">Projects</a> / <a href="%(up)sindex.html#category=%(cid)s">%(cat)s</a></p>'
             '<h1>%(name)s</h1><p class="lede">%(tag)s</p>'
-            '<p class="meta"><time datetime="%(date)s">%(nice)s</time><span class="cat" data-cat="%(cid)s">%(cat)s</span><span>%(stack)s</span></p>'
-            '<div class="actions">%(actions)s</div></div>') % {
+            '<p class="meta"><time datetime="%(date)s">%(nice)s</time><span class="cat" data-cat="%(cid)s">%(cat)s</span><span>%(stack)s</span></p></div>') % {
         "up": up, "cid": esc(p["category"]), "cat": esc(cat["name"]), "name": esc(p["name"]), "tag": esc(p["tagline"]),
-        "date": esc(p["date"]), "nice": esc(fmt_date(p["date"])), "stack": esc(p["stack"]), "actions": "".join(actions)}
-    body = head + '<div class="wrap narrow">' + hero + \
-        '<details class="summary"><summary>Everything it does, in one sentence</summary><p>%s</p></details>' % esc(p["what"]) + \
-        '<article class="prose">%s</article>' % p["_readme"] + \
-        '<p class="note">%s</p>' % esc(config["projectNote"]) + nav + "</div>"
+        "date": esc(p["date"]), "nice": esc(fmt_date(p["date"])), "stack": esc(p["stack"])}
+    body = (head + '<div class="wrap"><div class="tabs" role="tablist" aria-label="%s">%s</div></div>' % (esc(p["name"]), "".join(tabs)) +
+            "".join(panels) +
+            '<div class="wrap narrow"><p class="note">%s</p>%s</div>' % (esc(config["projectNote"]), nav) +
+            '<script src="%sstatic/project.js"></script>' % up)
     with open(os.path.join(out, "projects", p["slug"], "index.html"), "w", encoding="utf-8") as f:
         f.write(page("%s | %s" % (p["name"], config["name"]), body, 2, p["tagline"], config, "project"))
     if p["findings"]:
         fbody = ('<div class="wrap narrow project-head"><p class="crumbs"><a href="%(up)sindex.html#archive">Projects</a> / <a href="index.html">%(name)s</a></p>'
-                 '<h1>Findings: %(name)s</h1><div class="actions"><a class="btn" href="index.html">Back to the project</a>%(app)s</div></div>'
+                 '<h1>Findings: %(name)s</h1><div class="actions"><a class="btn" href="index.html#how">How it works</a>%(app)s</div></div>'
                  '<div class="wrap narrow"><article class="prose">%(body)s</article></div>') % {
             "up": up, "name": esc(p["name"]), "body": p["_findings"],
-            "app": ('<a class="btn primary" href="%s">Open the app</a>' % esc(p["app"])) if p["app"] else ""}
+            "app": ('<a class="btn primary" href="index.html#try">Try the app</a>') if p["app"] else ""}
         with open(os.path.join(out, "projects", p["slug"], "findings.html"), "w", encoding="utf-8") as f:
             f.write(page("Findings: %s | %s" % (p["name"], config["name"]), fbody, 2, p["tagline"], config, "project"))
 
@@ -513,6 +566,7 @@ def write_index(out, projects, cats, config):
     static_cards = "".join(card_html(p, cats) for p in projects[:24])
     archive = ('<section class="archive" id="archive" aria-labelledby="h-arch"><div class="wrap">'
                '<div class="arch-head"><h2 id="h-arch">Every project</h2><p class="count" id="count" role="status" aria-live="polite">%d projects</p></div>'
+               '<p class="arch-sub">Open any project to try it right here in your browser, then read how it works.</p>'
                '<div class="tools"><label class="search"><span class="sr-only">Search projects</span><input type="search" id="q" placeholder="Search projects, for example forecasting or AI Act" autocomplete="off"></label>'
                '<label class="sort"><span>Sort</span><select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option></select></label></div>'
                '<div class="chips" role="group" aria-label="Filter by topic">%s</div>'
