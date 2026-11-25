@@ -68,7 +68,7 @@ node --test                          # the app's model, run in Node.js
 python3 -m unittest discover -s tests   # Python, JavaScript/Python agreement, browser UI
 ```
 
-The agreement tests run the app's model in Node.js and check that the Python port gives identical numbers. The UI tests need Playwright for Python and are skipped without it. `python3 docs/make_screenshots.py` regenerates the screenshots.
+Node.js 18 or later runs the JavaScript tests. The agreement tests run the app's model in Node.js and check that the Python port gives identical numbers, and one UI test checks that the notice in the app matches the Python notice word for word. The UI tests need Playwright for Python and are skipped without it. `python3 docs/make_screenshots.py` regenerates the screenshots.
 
 ## Which language does what
 

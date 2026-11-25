@@ -1515,7 +1515,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     ctx.fill();
     ctx.stroke();
     const share = Math.round(yesCells / (nx * ny) * 100);
-    canvas.setAttribute('aria-label', 'Decision map of ' + FY.short + ' against ' + FX.short + ', other features fixed. ' + share + '% of combinations are shortlisted. The applicant is at ' + FX.short + ' ' + state.x[fx] + ', ' + FY.short + ' ' + state.x[fy] + '. ' + shown + ' route' + (shown === 1 ? '' : 's') + ' drawn.');
+    canvas.setAttribute('aria-label', 'Decision map of ' + FY.short + ' against ' + FX.short + ', other features fixed. ' + share + '% of combinations are shortlisted. The applicant is at ' + FX.short + ' ' + fmtVal(fx, state.x[fx]) + ', ' + FY.short + ' ' + fmtVal(fy, state.x[fy]) + '. ' + shown + ' route' + (shown === 1 ? '' : 's') + ' drawn.');
     const leg = $('mapLegend');
     leg.innerHTML = '';
     const item = function (color, text) { const s = el('span'); const i = el('i'); i.style.background = color; s.appendChild(i); s.appendChild(document.createTextNode(text)); leg.appendChild(s); };
@@ -1887,7 +1887,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     tile('Cheapest routes still working', pct(h0.all.keptShare), h0.all.routes + ' routes, no safety margin');
     const target = 0.9;
     const ok = h.filter(function (r) { return r.all.keptShare !== null && r.all.keptShare >= target; })[0];
-    tile('Smallest margin keeping 90% of routes', ok ? '+' + ok.margin : 'None', ok ? 'Margins up to +0.3 tried' : 'Even +0.3 keeps only ' + pct(h[h.length - 1].all.keptShare));
+    const lastKept = h[h.length - 1].all.keptShare;
+    tile('Smallest margin keeping 90% of routes', ok ? '+' + ok.margin : 'None',
+      ok ? 'Margins up to +0.3 tried' : lastKept === null ? 'No routes to check under these rules' : 'Even +0.3 keeps only ' + pct(lastKept));
     if (ok) {
       tile('Extra effort that margin asks for', '+' + (ok.all.medianCost - h0.all.medianCost).toFixed(1), 'Median, percentile points');
       tile('Rejected applicants left with no route', pct(1 - ok.all.routeShare), 'Up from ' + pct(1 - h0.all.routeShare) + ' with no margin');

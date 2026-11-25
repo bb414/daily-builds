@@ -4,9 +4,13 @@ a phone screen. Skipped when Playwright is not installed."""
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from urllib.parse import quote
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from whatwouldittake import cli, model as M  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL = "file://" + os.path.join(ROOT, "app", "index.html")
@@ -137,6 +141,18 @@ class UiTest(unittest.TestCase):
         page.click("#copyNotice")
         page.wait_for_function("document.getElementById('noticeMsg').textContent !== ''", timeout=3000)
         self.assertRegex(page.inner_text("#noticeMsg"), "Copied|Could not copy")
+        page.close()
+
+    def test_notice_matches_python_word_for_word(self):
+        world = cli.World()
+        settings = M.default_settings()
+        nxt = M.next_model(0, 1)
+        page = self.open()
+        for preset in M.PRESETS:
+            page.select_option("#preset", label=preset["name"])
+            score, sh, res = cli.explain_one(world, preset["x"], settings)
+            expected = cli.notice_text(preset["x"], score, sh, res, settings, 0, nxt)
+            self.assertEqual(page.inner_text("#notice").strip(), expected, preset["name"])
         page.close()
 
     def test_setup_download_load_and_link(self):

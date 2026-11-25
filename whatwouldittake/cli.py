@@ -489,6 +489,9 @@ def hold_markdown(results, retrains, target, title):
                 "n/a" if r["medianCost"] is None else "%.1f" % r["medianCost"], pct(r["keptMean"]), pct(r["keptMin"]),
                 pct(r["keptMax"]), pct(r["keptGroups"][0]), pct(r["keptGroups"][1])))
         lines.append("")
+        if all(not r["routeShare"] for r in res["rows"]):
+            lines.append("- No rejected applicant has a route under these rules, so there is nothing to check.")
+            continue
         on_average = [r for r in res["rows"] if r["keptMean"] is not None and r["keptMean"] >= target]
         worst_case = [r for r in res["rows"] if r["keptMin"] is not None and r["keptMin"] >= target]
         if on_average:
