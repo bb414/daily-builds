@@ -56,8 +56,6 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px s
 .field input[type="number"] { width: 72px; text-align: right; }
 .field select { min-width: 92px; }
 .field input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
-.chip { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
-.chip.fixed { background: var(--fixed-soft); color: var(--fixed); }
 .preset { margin-bottom: 8px; }
 .preset select { width: 100%; margin-top: 4px; }
 .decision { margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); }
@@ -217,7 +215,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding-bottom: 30px; }
       <div class="col">
         <section class="card" id="card-plans" aria-labelledby="h-plans">
           <h2 id="h-plans">Ways to get shortlisted</h2>
-          <p class="hint">Each route is the cheapest exact plan whose biggest change is a different feature. Effort is measured in percentile points: moving from the 40th to the 55th percentile of applicants on a feature costs 15, times its effort weight.</p>
+          <p class="hint">Each route is the cheapest exact plan that puts most of its effort into a different feature. Effort is measured in percentile points: moving from the 40th to the 55th percentile of applicants on a feature costs 15, times its effort weight.</p>
           <div id="plans"></div>
         </section>
         <section class="card" id="card-why" aria-labelledby="h-why">
@@ -1069,7 +1067,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
 (function () {
   'use strict';
-  const M = API;
   const $ = function (id) { return document.getElementById(id); };
   const svgNS = 'http://www.w3.org/2000/svg';
 

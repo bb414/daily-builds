@@ -16,7 +16,7 @@ Everything is synthetic and runs offline. It is a learning tool about explanatio
 
 Download or clone this branch, then double-click `app/index.html`. It opens in any modern browser, needs no internet connection and sends nothing anywhere.
 
-- **One applicant:** pick an example or set the six features yourself. You get the decision, up to one route to being shortlisted per feature that can change (each the exact cheapest plan whose biggest change is that feature), the Shapley values behind the score, and a decision map of any two features with the routes drawn on it. "Try this" applies a route.
+- **One applicant:** pick an example or set the six features yourself. You get the decision, up to one route to being shortlisted per feature that can change (each the exact cheapest plan that puts most of its effort into that feature), the Shapley values behind the score, and a decision map of any two features with the routes drawn on it. "Try this" applies a route.
 - **What counts as a realistic change:** which features can move, by how much and how hard each is, the most features a route may change and a safety margin. Degree result and past gaps are fixed by default.
 - **What the applicant would be told:** a plain-English notice built from the score, the three biggest Shapley drags (flagging the ones that cannot change), every route phrased as a counterfactual ("an aptitude test score of 73 instead of 66") and how many routes survive next year's retrain. One click copies it.
 - **Save or share this setup:** download the applicant, rules and retrain settings as a JSON file, load one back, or copy a link that carries the setup. The same file works with the Python companion (`--setup`).
@@ -46,8 +46,8 @@ Across 20 retrains on a same-sized fresh pool, 34% of the cheapest routes still 
 Python 3.9 or later, standard library only. From the repository root:
 
 ```bash
-python3 -m whatwouldittake explain --preset "Near miss" --notice
-python3 -m whatwouldittake explain --setup what-would-it-take-setup.json   # a setup downloaded from the app
+python3 -m whatwouldittake explain --preset "Near miss" --notice --save-setup setup.json
+python3 -m whatwouldittake explain --setup setup.json --weight test=2   # or a setup downloaded from the app
 python3 -m whatwouldittake explain --test 62 --experience 9 --projects 3 --certs 1 --degree Third --gap 3 --weight experience=2
 python3 -m whatwouldittake sample --n 40 --out applicants.csv
 python3 -m whatwouldittake plans applicants.csv --out plans.csv --notices notices
@@ -74,9 +74,12 @@ The agreement tests run the app's model in Node.js and check that the Python por
 
 | Part | Language | Lines (approx.) | Does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | 1,220 | The whole interactive tool, offline. Model logic sits between `MODEL START` and `MODEL END`. |
-| `whatwouldittake/` | Python | 780 | The same model, plus batch routes for a CSV of applicants and audit reports. |
-| `tests/` | JavaScript and Python | 630 | Exactness against brute force, Shapley properties, cross-language agreement, CLI and browser tests. |
+| `app/index.html` | HTML, CSS, JavaScript | 2,020 (about 740 of model logic, 150 of CSS, the rest layout and drawing) | The whole interactive tool, offline. Model logic sits between `MODEL START` and `MODEL END` so Node.js can run it. |
+| `whatwouldittake/` | Python (standard library) | 1,390 (740 model, 640 command line) | The same model, line for line, plus batch routes and notices for a CSV of applicants, audit reports and the many-retrain `hold` analysis. |
+| `tests/` | JavaScript and Python | 970 | Exactness against brute force, Shapley against the textbook definition, the score bound, cross-language agreement, the command line and the browser UI. |
+| `docs/make_screenshots.py` | Python (Playwright) | 40 | Regenerates the screenshots. |
+
+The browser app is for exploring one applicant and one retrain at a time. Python does the batch work: a CSV of applicants in, a CSV of routes and one notice per person out, and the 20-retrain robustness check, which the browser would only do one retrain at a time.
 
 ## How it works
 
@@ -97,4 +100,5 @@ The agreement tests run the app's model in Node.js and check that the Python por
 
 ## What could come next
 
-- Let the user upload their own model as a set of trees.
+- **Bring your own model.** Accept any tree ensemble exported as JSON (for example from scikit-learn or XGBoost), since the exact search and the Shapley shortcut only need the trees' split points and leaf values.
+- **Routes that survive by design.** Instead of a flat safety margin, search for the cheapest route that still works in, say, 18 of 20 retrained models, which would ask for extra effort only where the line actually moves.
