@@ -671,7 +671,7 @@ def year_grid(projects, config, today=None):
     return html_out, day_no
 
 
-def wall_html(projects, rows=3, per_row=14):
+def wall_html(projects, rows=4, per_row=14):
     """The moving wall of project covers at the top of the home page (decorative; the archive is the way in)."""
     pool = [p for p in projects if p.get("cover")][:60]
     if not pool:
