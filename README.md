@@ -76,7 +76,7 @@ Node.js 18 or later runs the JavaScript tests. The agreement tests run the app's
 |---|---|---|---|
 | `app/index.html` | HTML, CSS, JavaScript | 2,020 (about 740 of model logic, 150 of CSS, the rest layout and drawing) | The whole interactive tool, offline. Model logic sits between `MODEL START` and `MODEL END` so Node.js can run it. |
 | `whatwouldittake/` | Python (standard library) | 1,390 (740 model, 640 command line) | The same model, line for line, plus batch routes and notices for a CSV of applicants, audit reports and the many-retrain `hold` analysis. |
-| `tests/` | JavaScript and Python | 970 | Exactness against brute force, Shapley against the textbook definition, the score bound, cross-language agreement, the command line and the browser UI. |
+| `tests/` | JavaScript and Python | 990 | Exactness against brute force, Shapley against the textbook definition, the score bound, cross-language agreement, the command line and the browser UI. |
 | `docs/make_screenshots.py` | Python (Playwright) | 40 | Regenerates the screenshots. |
 
 The browser app is for exploring one applicant and one retrain at a time. Python does the batch work: a CSV of applicants in, a CSV of routes and one notice per person out, and the 20-retrain robustness check, which the browser would only do one retrain at a time.
