@@ -127,7 +127,7 @@ At the end, a pilot still running after at least a year counts as **stuck in pil
 |---|---|---|---|
 | Browser app model | JavaScript | The pilots, quarters and Monte Carlo runs, inside `app/index.html` | 270 lines |
 | Browser app interface | JavaScript | Sliders, tabs, pilot lanes, charts, robustness check, share links | 550 lines |
-| Browser app styling and layout | CSS and HTML | Layout, typography, colours, phone layout | 250 lines |
+| Browser app styling and layout | CSS, HTML and SVG | Departures-board look: layout, embedded B612 fonts, colours, header illustration, phone layout | 460 lines |
 | Python package | Python (standard library only) | The same model, plus command-line reports, the robustness check and HTML export | 1,080 lines |
 | Tests | Python | Tests for the Python model, plus tests that run the app's JavaScript model in Node.js and check it agrees | 570 lines |
 
@@ -173,6 +173,7 @@ print(summary.outcome_share, summary.net_value, summary.payback_quarter)
 ```
 app/
   index.html      the browser app: model, interface and charts in one self-contained file
+  FONT-LICENCE.txt  licence for the two typefaces embedded in index.html
 pilot_purgatory/
   model.py        pilots, organisations, assumptions, the quarterly simulation and Monte Carlo summary
   strategies.py   the two presets and the seven single changes
