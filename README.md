@@ -47,7 +47,7 @@ What you can do in it:
 - **See what moves the answer**: a tornado of five assumptions, each set lower and higher.
 - **Save, open and share setups** as a JSON file or a link. Saved files also run in the Python companion.
 
-It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard.
+It works on a phone as well as a desktop, and every control can be used with a keyboard. It is dressed as a factory floor: concrete and hazard tape, riveted steel control panels, numbered stations with stencilled plates, waiting time drawn as parcels queueing on a conveyor, and the headline and lead times on a clocking-in card. The header shows parcels piling up at the station after the sped-up one. Type is Barlow and Barlow Condensed, embedded in the file (licence in `app/FONT-LICENCE.txt`).
 
 <img src="docs/phone.png" alt="The headline on a phone" width="300">
 
@@ -97,12 +97,12 @@ The agreement tests run the app's model in Node.js and check it matches the Pyth
 | Part | Language | Lines (roughly) | What it does |
 |------|----------|-----------------|--------------|
 | `app/index.html` model block | JavaScript | 725 | The simulation, the decomposition, options, banking, robustness, the tornado and the queueing theory |
-| `app/index.html` interface | HTML, CSS, JavaScript | 910 | Controls, step editor, charts, save, open and share |
+| `app/index.html` interface | HTML, CSS, JavaScript | 1,250 | Controls, step editor, charts, styling and header illustration, save, open and share |
 | `missing_minutes/model.py` | Python | 880 | A line-for-line port of the model block, giving the same numbers |
 | `missing_minutes/cli.py`, `report.py` and the two package files | Python | 550 | Command line, text reports, CSV exports and the HTML report |
 | `tests/` | Python and JavaScript | 900 | Unit tests, agreement tests and browser tests |
 
-In all, about 1,640 lines of HTML, CSS and JavaScript and about 1,430 lines of Python, plus the tests.
+In all, about 1,970 lines of HTML, CSS and JavaScript and about 1,430 lines of Python, plus the tests.
 
 The browser app is the version anyone can open and use. The Python companion is for what a browser is less suited to: batch sweeps, ranked options and robustness runs written to CSV, a report file to attach to an email, and running a process definition kept under version control.
 
