@@ -163,15 +163,15 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 | `tests/test_agreement.py` | The app's model and the Python model give exactly the same numbers on 8 settings, including extreme ones, for simulations, sample challenges, skill by length and seeds, and on 8 tables for the leaderboard check |
 | `tests/app_model.test.js` | The app's model on its own in Node: determinism, chunked runs, scoring rules, busts, going for broke, settings limits, rank correlation, skill by length, consistency between the summary and single challenges, and the leaderboard check |
 | `tests/test_js.py` | Runs the Node tests from the Python suite |
-| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, wording that follows the numbers, checking pasted and opened tables, the dark theme and phone width |
+| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, wording that follows the numbers, checking pasted and opened tables, the dark theme whatever the system setting, and phone width |
 
 ## Which language does what
 
 | Part | Language | Lines | What it does |
 |---|---|---|---|
-| `app/index.html`, layout and styles | HTML and CSS | 420 | Page structure, light and dark themes, phone layout |
+| `app/index.html`, layout and styles | HTML and CSS | 574 | Page structure, the dark arcade high-score look with its pixel-art header and two embedded fonts (licences in `app/FONT-LICENCE.txt`), phone layout |
 | `app/index.html`, model | JavaScript | 1,057 | The simulation and the leaderboard check, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
-| `app/index.html`, interface | JavaScript | 1,103 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links, the leaderboard check card |
+| `app/index.html`, interface | JavaScript | 1,116 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links, the leaderboard check card |
 | `leaderboard_luck/` | Python | 1,762 | A line-for-line port of the model and the leaderboard check, the command line, text and JSON reports, the organiser's design report, and the check's calibration study |
 | `tests/*.py` | Python | 926 | Model, command line, cross-language agreement and browser tests |
 | `tests/*.js` | JavaScript | 252 | Node tests of the app's model, and the harness the agreement tests use |
