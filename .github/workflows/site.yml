@@ -1,0 +1,80 @@
+# Rebuilds the portfolio website whenever main changes (every daily build
+# adds its row to the index on main), once a day as a backstop, or on demand.
+name: Build the portfolio site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch every build branch
+        run: git fetch --no-tags --depth=1 origin '+refs/heads/build/*:refs/remotes/origin/build/*'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the site builder's packages
+        run: pip install -r site/requirements.txt
+
+      - name: Keep shrunk screenshots between runs
+        uses: actions/cache@v4
+        with:
+          path: .site-cache
+          key: site-images-${{ github.run_id }}
+          restore-keys: site-images-
+
+      - name: Test the site builder
+        run: python -m unittest discover -s site -p "test_*.py"
+
+      - name: Build the site
+        run: python site/build_site.py --out _site --cache .site-cache
+
+      - name: Is GitHub Pages switched on?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::The site was built but not published, because GitHub Pages is not switched on for this repository yet. See site/README.md."
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.enabled == 'true'
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.pages == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

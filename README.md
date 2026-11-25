@@ -7,6 +7,7 @@ One small, finished project every day, each on its own branch.
 - `main` holds this index and [`BRIEF.md`](BRIEF.md), which sets out who the projects are for and what makes a good one. Edit the brief to steer future builds.
 - Every project lives on its own branch, named `build/YYYY-MM-DD-short-name`, with its own README explaining what it is, why it exists and how to run it.
 - Each new build is added to the table below, newest first. The table doubles as the log that stops ideas from repeating.
+- A public website built from this table and the build branches is published automatically on every change to `main`. See [`site/README.md`](site/README.md) for how it works and how to switch it on.
 
 ## Projects
 

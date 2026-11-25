@@ -1,0 +1,39 @@
+{
+  "name": "Benjamin Brighton",
+  "title": "One new project every day",
+  "tagline": "Small projects on the things I find interesting: why AI stalls at the pilot stage, fintech, markets, retail, carbon and more. Practice, not polish.",
+  "how": "I choose the themes and write the brief that steers every build. Each night an AI coding assistant designs and builds one new project from that brief, and I review it, use it and learn from it. Every app runs in your browser, works offline and uses synthetic data.",
+  "about": [
+    "I'm a final-year Business and Management with Legal Studies student at the University of Sussex. The question behind most of these projects: why does AI so often stall at the pilot stage, in companies and in people's everyday lives?",
+    "This site is a daily habit. Each project takes one idea, builds a small working tool around it and writes up what it shows. Some are about AI adoption, human and AI decision-making, fintech and AI regulation; others are about consulting, markets, retail forecasting, carbon, sport and languages.",
+    "They are practice pieces, not finished products: quick, focused and sometimes rough at the edges. The numbers come from invented, synthetic data, so treat them as ways of thinking about a problem rather than forecasts."
+  ],
+  "links": [
+    {"label": "GitHub", "url": "https://github.com/bb414"}
+  ],
+  "footer": "One new project every day. Synthetic data, nothing confidential, everything runs in your browser.",
+  "projectNote": "The app above runs entirely in your browser and uses synthetic data. The source code for this project is kept in a private repository.",
+  "featured": [
+    "build/2026-11-25-missing-minutes",
+    "build/2026-11-24-pilot-purgatory-simulator",
+    "build/2026-11-24-ai-act-triage"
+  ],
+  "categories": [
+    {"id": "ai-adoption", "name": "AI adoption and scaling", "keywords": ["adoption", "scaling", "pilot"], "blurb": "Why AI gets stuck between a promising pilot and everyday use."},
+    {"id": "human-ai", "name": "Humans and AI", "keywords": ["human-ai", "over-reliance", "reliance"], "blurb": "How people use, trust and lean on AI advice."},
+    {"id": "fintech", "name": "Fintech and money", "keywords": ["fintech", "financial literacy", "scam"], "blurb": "AI in consumer finance and everyday money skills."},
+    {"id": "innovation", "name": "Innovation management", "keywords": ["innovation"], "blurb": "How new ideas and tools spread through organisations."},
+    {"id": "governance", "name": "AI governance and regulation", "keywords": ["governance", "regulation", "ai act", "assurance", "oversight"], "blurb": "The EU AI Act, the UK's approach and keeping AI accountable."},
+    {"id": "consulting", "name": "Consulting toolkit", "keywords": ["consulting", "market sizing", "business case", "issue tree"], "blurb": "Case practice, market sizing and frameworks."},
+    {"id": "markets", "name": "Markets and trading", "keywords": ["markets", "trading", "options", "futures", "backtest"], "blurb": "Risk, luck and skill in markets."},
+    {"id": "sustainability", "name": "Sustainability and carbon", "keywords": ["sustainab", "carbon", "cbam", "green"], "blurb": "Carbon, green forecasting and cleaner computing."},
+    {"id": "retail", "name": "Retail and forecasting", "keywords": ["retail", "forecast", "inventory"], "blurb": "Demand, stock and pricing decisions in shops."},
+    {"id": "explainable-ai", "name": "Explainable AI and decisions", "keywords": ["explainable", "decision"], "blurb": "Making automated decisions understandable."},
+    {"id": "sales", "name": "Sales and CRM analytics", "keywords": ["sales", "crm"], "blurb": "Pipelines, win rates and the data behind them."},
+    {"id": "sport", "name": "Teams and sport", "keywords": ["sports", "squad", "training load", "rugby"], "blurb": "Squad planning, training load and leading teams."},
+    {"id": "languages", "name": "Language learning", "keywords": ["language", "czech", "slovak", "mandarin"], "blurb": "Tools for learning Czech, Slovak and Mandarin."},
+    {"id": "fun", "name": "Just for fun", "keywords": ["minecraft", "redstone"], "blurb": "The occasional side quest."}
+  ],
+  "categoryOverrides": {},
+  "taglines": {}
+}
