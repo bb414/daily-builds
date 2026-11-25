@@ -158,3 +158,64 @@ test('durations are formatted in minutes, hours or working days', () => {
   assert.equal(M.fmtDuration(-90), '-1.5 h');
   assert.equal(M.fmtDuration(900), '2.0 days');
 });
+
+test('the options appraisal includes the current AI with the same result as the comparison', () => {
+  const cfg = M.presetConfig('claims');
+  const cmp = M.compare(cfg, 42);
+  const rows = M.placements(cfg, 42, cmp.base);
+  const current = rows.filter((o) => o.current);
+  assert.equal(current.length, 1);
+  assert.equal(current[0].total, cmp.total);
+  // One AI option per work step and one staffing option per team step.
+  assert.equal(rows.filter((o) => o.kind === 'ai').length, 5);
+  assert.equal(rows.filter((o) => o.kind === 'staff').length, 4);
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i - 1].total <= rows[i].total);
+});
+
+test('moving the AI scales its checking time with the step', () => {
+  const cfg = M.presetConfig('claims');
+  const base = M.simulate(cfg, 3, { noAi: true });
+  const opt = M.optionList(cfg).find((o) => o.kind === 'ai' && o.step === 2);
+  const row = M.evaluateOption(cfg, 3, opt, base);
+  const moved = M.normalise(cfg);
+  moved.ai.step = 2; moved.ai.checkMinutes = 5 * 15 / 50;
+  assert.equal(row.total, M.simulate(moved, 3).leadMean - base.leadMean);
+});
+
+test('an extra person never slows the process', () => {
+  for (const key of Object.keys(M.PRESETS)) {
+    const rows = M.placements(M.presetConfig(key), 9);
+    rows.filter((o) => o.kind === 'staff').forEach((o) => assert.ok(o.total <= 1e-9, key + ' ' + o.label + ' ' + o.total));
+  }
+});
+
+test('banking the pilot\'s business case as fewer people', () => {
+  const cfg = M.presetConfig('claims');
+  const cmp = M.compare(cfg, 42);
+  const b = M.bankSavings(cfg, 42, cmp);
+  assert.ok(Math.abs(b.claimedPeople - 20 * 40 / M.DAY) < 1e-9);
+  assert.equal(b.cut, 2);
+  assert.ok(b.freedPeople > 0.5 && b.freedPeople < b.claimedPeople);
+  assert.equal(b.stable, false);
+  assert.ok(b.vsBase > 0);
+  const one = M.bankSavings(cfg, 42, cmp, 1);
+  assert.equal(one.cut, 1);
+  assert.ok(one.leadMean < b.leadMean);
+  const none = M.bankSavings(cfg, 42, cmp, 0);
+  assert.equal(none.possible, false);
+  const tooMany = M.bankSavings(cfg, 42, cmp, 99);
+  assert.equal(tooMany.cut, 4);
+  const batch = M.normalise(M.presetConfig('loans'));
+  batch.ai.step = 3;
+  assert.equal(M.bankSavings(batch, 1).possible, false);
+});
+
+test('an overloaded team is flagged even when every case eventually finishes', () => {
+  const cfg = M.presetConfig('claims');
+  cfg.steps[1].staff = 3;
+  cfg.drainDays = 400;
+  const r = M.simulate(cfg, 1, { noAi: true });
+  assert.deepEqual(r.overloaded, [1]);
+  assert.equal(r.stable, false);
+  assert.ok(M.simulate(M.presetConfig('claims'), 1).stable);
+});

@@ -103,3 +103,22 @@ class Validation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Options(unittest.TestCase):
+    def test_placements_include_the_current_ai(self):
+        cfg = M.preset_config("loans")
+        cmp = M.compare(cfg, 42)
+        rows = M.placements(cfg, 42, cmp["base"])
+        current = [o for o in rows if o["current"]]
+        self.assertEqual(len(current), 1)
+        self.assertEqual(current[0]["total"], cmp["total"])
+        self.assertEqual([o["total"] for o in rows], sorted(o["total"] for o in rows))
+
+    def test_bank_savings(self):
+        cfg = M.preset_config("claims")
+        cmp = M.compare(cfg, 42)
+        b = M.bank_savings(cfg, 42, cmp)
+        self.assertEqual(b["cut"], 2)
+        self.assertFalse(b["stable"])
+        self.assertFalse(M.bank_savings(cfg, 42, cmp, 0)["possible"])

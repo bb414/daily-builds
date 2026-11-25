@@ -16,6 +16,7 @@ import math
 DAY = 450
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 ARRIVE, DONE, BATCH = 0, 1, 2
+OVERLOAD = 0.985
 MASK = 0xFFFFFFFF
 
 
@@ -560,9 +561,12 @@ def simulate(cfg_in, seed=1, no_ai=False, keep_lead_times=False):
         })
     lead_mean = lead_total / done if done else 0
     tracked = st_["tracked"]
+    # A team busy almost all the time cannot keep up: its queue keeps growing.
+    overloaded = [j for j, s in enumerate(step_out) if s["kind"] == "team" and s["utilisation"] >= OVERLOAD]
     return {
         "seed": seed, "aiStep": ai_step,
         "tracked": tracked, "done": done, "open": st_["open"],
+        "overloaded": overloaded, "stable": st_["open"] == 0 and not overloaded,
         "leadMean": lead_mean,
         "leadP50": quantile(srt, 0.5), "leadP85": quantile(srt, 0.85), "leadP95": quantile(srt, 0.95),
         "leadMax": srt[-1] if done else 0,
@@ -618,11 +622,110 @@ def compare(cfg_in, seed=1, keep_lead_times=False):
         "pilotClaim": cfg["steps"][ai["step"]]["minutes"] * ai["saving"] if ai["step"] >= 0 else 0,
         "parts": parts, "total": total,
         "complete": base["open"] == 0 and with_ai["open"] == 0,
+        "stable": base["stable"] and with_ai["stable"],
         "leverage": total / potential if potential < 0 else 0,
         "netTouch": d_touch,
         "fteFreed": -d_touch * cfg["arrivalsPerDay"] / DAY,
         "bottleneckBefore": bottleneck(base), "bottleneckAfter": bottleneck(with_ai),
     }
+
+
+# ---------------------------------------------------------------------------
+# Where else could the time come from?
+# ---------------------------------------------------------------------------
+
+def option_list(cfg_in):
+    """The same AI on each work step, and one more person at each team step."""
+    cfg = normalise(cfg_in)
+    out = []
+    for k, s in enumerate(cfg["steps"]):
+        if s["kind"] == "delay":
+            continue
+        out.append({"kind": "ai", "step": k, "label": "The AI on " + s["name"], "current": k == cfg["ai"]["step"], "order": len(out)})
+        if s["kind"] == "team":
+            out.append({"kind": "staff", "step": k, "label": "One more person at " + s["name"], "current": False, "order": len(out)})
+    return out
+
+
+def evaluate_option(cfg_in, seed, opt, base):
+    cfg = normalise(cfg_in)
+    if opt["kind"] == "ai":
+        # The same tool elsewhere: the same share of hands-on time saved, checking
+        # that takes the same share of the step, and the same share of errors.
+        frm = cfg["steps"][cfg["ai"]["step"]]["minutes"] if cfg["ai"]["step"] >= 0 else cfg["steps"][opt["step"]]["minutes"]
+        cfg["ai"]["checkMinutes"] = cfg["ai"]["checkMinutes"] * cfg["steps"][opt["step"]]["minutes"] / frm
+        cfg["ai"]["step"] = opt["step"]
+        r = simulate(cfg, seed)
+    else:
+        cfg["steps"][opt["step"]]["staff"] += 1
+        r = simulate(cfg, seed, no_ai=True)
+    at_desk = r["aiSavedPerCase"] + r["aiLostPerCase"] if opt["kind"] == "ai" else 0
+    total = r["leadMean"] - base["leadMean"]
+    return {
+        "kind": opt["kind"], "step": opt["step"], "label": opt["label"], "current": opt["current"], "order": opt["order"],
+        "atDesk": at_desk, "total": total, "leverage": -total / at_desk if at_desk > 0 else 0,
+        "leadMean": r["leadMean"], "leadP85": r["leadP85"], "withinSla": r["withinSla"],
+        "escapedPer100": r["escapedPer100"], "peopleChange": 1 if opt["kind"] == "staff" else 0,
+        "fteFreed": (base["touchTotal"] - r["touchTotal"]) * cfg["arrivalsPerDay"] / DAY,
+        "complete": r["open"] == 0 and base["open"] == 0,
+        "stable": r["stable"] and base["stable"],
+        "busiest": bottleneck(r),
+    }
+
+
+def sort_options(rows):
+    return sorted(rows, key=lambda r: (r["total"], r["order"]))
+
+
+def placements(cfg_in, seed=1, base=None):
+    cfg = normalise(cfg_in)
+    if base is None:
+        base = simulate(cfg, seed, no_ai=True)
+    return sort_options([evaluate_option(cfg, seed, o, base) for o in option_list(cfg)])
+
+
+def bank_savings(cfg_in, seed=1, cmp=None, cut=None):
+    """Take the saving as a cost cut.
+
+    By default finance removes the people the pilot's business case promised
+    (the pilot's minutes times the volume), rounded to whole people; ``cut``
+    overrides that number.
+    """
+    cfg = normalise(cfg_in)
+    k = cfg["ai"]["step"]
+    if cmp is None:
+        cmp = compare(cfg, seed)
+    out = {"step": k, "claimedPeople": 0, "freedPeople": 0, "cut": 0, "possible": False, "reason": ""}
+    if k < 0 or cfg["steps"][k]["kind"] != "team":
+        out["reason"] = "The AI is not on a team step, so there are no people to cut."
+        return out
+    st = cfg["steps"][k]
+    out["claimedPeople"] = cmp["pilotClaim"] * cfg["arrivalsPerDay"] / DAY
+    out["freedPeople"] = (cmp["base"]["steps"][k]["busyHoursPerDay"] - cmp["ai"]["steps"][k]["busyHoursPerDay"]) / (DAY / 60)
+    out["maxCut"] = st["staff"] - 1
+    n = _round(out["claimedPeople"]) if cut is None else _round(cut)
+    if n > out["maxCut"]:
+        n = out["maxCut"]
+    if n < 1:
+        if out["maxCut"] < 1:
+            out["reason"] = st["name"] + " has only one person, so nobody can be cut."
+        else:
+            out["reason"] = "The pilot's business case frees less than half a person at " + st["name"] + ", so nobody is cut."
+        return out
+    cfg["steps"][k]["staff"] -= n
+    r = simulate(cfg, seed)
+    out.update({
+        "cut": n, "possible": True, "staffAfter": cfg["steps"][k]["staff"],
+        "leadMean": r["leadMean"], "leadP85": r["leadP85"], "withinSla": r["withinSla"],
+        "complete": r["open"] == 0 and cmp["base"]["open"] == 0,
+        "stable": r["stable"] and cmp["base"]["stable"],
+        "open": r["open"],
+        "vsBase": r["leadMean"] - cmp["base"]["leadMean"],
+        "vsAi": r["leadMean"] - cmp["ai"]["leadMean"],
+        "utilisation": r["steps"][k]["utilisation"],
+        "busiest": bottleneck(r),
+    })
+    return out
 
 
 def fmt_duration(minutes):

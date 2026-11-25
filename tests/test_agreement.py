@@ -82,6 +82,18 @@ class Agreement(unittest.TestCase):
         js = run_js([{"fn": "simulate", "config": cfg, "seed": 3, "opts": {"keepLeadTimes": True}}])[0]
         assert_close(self, js, M.simulate(cfg, 3, keep_lead_times=True))
 
+    def test_options_and_bank_agree(self):
+        jobs, py = [], []
+        for key in M.PRESETS:
+            cfg = M.preset_config(key)
+            jobs.append({"fn": "placements", "config": cfg, "seed": 11})
+            py.append(M.placements(cfg, 11))
+            for cut in (None, 1):
+                jobs.append({"fn": "bank", "config": cfg, "seed": 11, "cut": cut})
+                py.append(M.bank_savings(cfg, 11, None, cut))
+        for js, p in zip(run_js(jobs), py):
+            assert_close(self, js, p)
+
     def test_normalise_and_validate_agree(self):
         odd = [
             {"steps": []},

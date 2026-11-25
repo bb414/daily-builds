@@ -24,6 +24,8 @@ if (require.main === module) {
   const out = input.map((job) => {
     if (job.fn === 'compare') return M.compare(job.config, job.seed);
     if (job.fn === 'simulate') return M.simulate(job.config, job.seed, job.opts || {});
+    if (job.fn === 'placements') return M.placements(job.config, job.seed);
+    if (job.fn === 'bank') return M.bankSavings(job.config, job.seed, undefined, job.cut === null ? undefined : job.cut);
     if (job.fn === 'validate') return M.validate(M.normalise(job.config));
     if (job.fn === 'normalise') return M.normalise(job.config);
     throw new Error('Unknown function ' + job.fn);

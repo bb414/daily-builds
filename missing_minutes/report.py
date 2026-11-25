@@ -17,7 +17,7 @@ def _dur(minutes):
     return "0 min" if abs(minutes) < 0.5 else fmt_duration(minutes)
 
 
-def comparison_text(r):
+def comparison_text(r, bank=None):
     """Describe one comparison (the output of model.compare) as plain text."""
     cfg = r["config"]
     k = cfg["ai"]["step"]
@@ -76,6 +76,50 @@ def comparison_text(r):
     lines.append("Cases sent back per 100:   %.1f -> %.1f (%.1f from AI errors)" % (
         b["aiSendBacksPer100"] + b["baseSendBacksPer100"], a["aiSendBacksPer100"] + a["baseSendBacksPer100"], a["aiSendBacksPer100"]))
     lines.append("AI errors reaching customers per 100 cases: %.1f" % a["escapedPer100"])
+    if not r["stable"]:
+        over = sorted(set(b["overloaded"]) | set(a["overloaded"]))
+        lines.append("")
+        lines.append("WARNING: %s cannot keep up, so its queue keeps growing; averages depend on the run length."
+                     % (", ".join(cfg["steps"][j]["name"] for j in over) or "a step"))
+    if bank is not None:
+        lines.append("")
+        lines.append(bank_text(r, bank))
+    return "\n".join(lines)
+
+
+def bank_text(r, bank):
+    """Describe what happens if the saving is banked as fewer people."""
+    cfg = r["config"]
+    lines = ["Bank the saving as a headcount cut?", "-" * 35]
+    if bank["step"] < 0 or cfg["steps"][bank["step"]]["kind"] != "team":
+        lines.append(bank["reason"])
+        return "\n".join(lines)
+    st = cfg["steps"][bank["step"]]
+    lines.append("The pilot's business case frees %.1f people at %s; in practice the AI frees %.1f." % (
+        bank["claimedPeople"], st["name"], bank["freedPeople"]))
+    if not bank["possible"]:
+        lines.append(bank["reason"])
+        return "\n".join(lines)
+    lines.append("Cut %d of %d people: cases take %s on average (%s against no AI, %s against keeping everyone)." % (
+        bank["cut"], st["staff"], _dur(bank["leadMean"]), _signed(bank["vsBase"]), _signed(bank["vsAi"])))
+    lines.append("%s would be %s busy and %s of cases close within %s days%s" % (
+        st["name"], _pct(bank["utilisation"]), _pct(bank["withinSla"], 1), _fmt(cfg["slaDays"]),
+        "." if bank["stable"] else "; its queue keeps growing."))
+    return "\n".join(lines)
+
+
+def options_text(r, rows):
+    """The options appraisal as a table."""
+    cfg = r["config"]
+    lines = ["Where else could the time come from? (%s, seed %d)" % (cfg["name"], r["base"]["seed"]), ""]
+    lines.append("  %-44s %12s %12s %10s" % ("Option", "At the desk", "End to end", "Errors/100"))
+    for o in rows:
+        label = o["label"] + (" (current)" if o["current"] else "")
+        lines.append("  %-44s %12s %12s %10s%s" % (
+            label[:44], _dur(o["atDesk"]) if o["kind"] == "ai" else "+1 person", _signed(o["total"]),
+            "%.1f" % o["escapedPer100"] if o["kind"] == "ai" else "-", "" if o["stable"] else "  queue grows"))
+    lines.append("")
+    lines.append("End to end is the change in average time from arrival to close against the process without the AI.")
     return "\n".join(lines)
 
 

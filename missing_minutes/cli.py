@@ -6,7 +6,7 @@ import json
 import sys
 
 from . import model
-from .report import comparison_text
+from .report import comparison_text, options_text
 
 SWEEP_PARAMS = {
     "saving": ("ai", "saving"),
@@ -57,11 +57,28 @@ def _parse_values(text):
 def cmd_run(args):
     cfg = _load(args)
     r = model.compare(cfg, args.seed)
+    bank = model.bank_savings(cfg, args.seed, r, args.cut)
     if args.json:
-        json.dump(r, sys.stdout, indent=2)
+        json.dump(dict(r, bank=bank), sys.stdout, indent=2)
         sys.stdout.write("\n")
     else:
-        print(comparison_text(r))
+        print(comparison_text(r, bank))
+
+
+def cmd_rank(args):
+    cfg = _load(args)
+    r = model.compare(cfg, args.seed)
+    rows = model.placements(cfg, args.seed, r["base"])
+    print(options_text(r, rows))
+    if args.out:
+        fields = ["label", "kind", "step", "current", "atDesk", "total", "leverage", "leadMean", "leadP85",
+                  "withinSla", "escapedPer100", "fteFreed", "stable"]
+        with open(args.out, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+            w.writeheader()
+            for row in rows:
+                w.writerow({k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()})
+        print("Wrote %d options to %s" % (len(rows), args.out))
 
 
 def cmd_sweep(args):
@@ -125,7 +142,13 @@ def build_parser():
     r = sub.add_parser("run", help="compare the process without and with the AI")
     _add_source(r)
     r.add_argument("--json", action="store_true", help="print the full result as JSON")
+    r.add_argument("--cut", type=int, help="people to cut at the AI step when banking the saving (default: the pilot's business case, rounded)")
     r.set_defaults(func=cmd_run)
+
+    k = sub.add_parser("rank", help="the same AI on every step against one more person at each step")
+    _add_source(k)
+    k.add_argument("--out", help="also write the options to this CSV file")
+    k.set_defaults(func=cmd_rank)
 
     s = sub.add_parser("sweep", help="vary one setting and write a CSV row for each value")
     _add_source(s)

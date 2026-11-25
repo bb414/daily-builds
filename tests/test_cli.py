@@ -51,6 +51,20 @@ class Cli(unittest.TestCase):
         self.assertEqual([float(r["adoption"]) for r in rows], [0.25, 0.5, 0.75])
         self.assertTrue(all(r["all_cases_finished"] == "True" for r in rows))
 
+    def test_rank_lists_every_option_and_writes_csv(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "r.csv")
+            out = run("rank", "--preset", "complaints", "--out", path)
+            with open(path, newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        self.assertIn("(current)", out)
+        self.assertEqual(len(rows), 10)
+        self.assertEqual(sum(r["current"] == "True" for r in rows), 1)
+
+    def test_run_reports_banking_the_saving(self):
+        out = run("run", "--preset", "claims", "--cut", "1")
+        self.assertIn("Cut 1 of 5 people", out)
+
     def test_bad_config_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "bad.json")
