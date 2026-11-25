@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mislabelled: how wrong is your budgeting app?</title>
+<meta name="description" content="An offline simulator of AI transaction categorisation in budgeting apps: how much of your spending lands in the wrong pot, and which corrections fix it fastest.">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1;
+  --surface: #fcfcfb;
+  --surface-2: #f0efea;
+  --border: #dcdad3;
+  --text: #16150f;
+  --text-2: #4d4b45;
+  --muted: #6b6961;
+  --accent: #1c5cab;
+  --accent-soft: #e3eefc;
+  --good: #146c2e;
+  --good-soft: #e3f3e6;
+  --bad: #b3261e;
+  --bad-soft: #fbe7e5;
+  --warn-soft: #fff3d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --app: #2a78d6;
+  --real: #8a877d;
+  --grid: #e6e4dd;
+  --shadow: 0 1px 2px rgba(20, 18, 10, 0.06), 0 2px 8px rgba(20, 18, 10, 0.05);
+  --radius: 12px;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --border: #383835;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --muted: #a3a197;
+    --accent: #86b6ef;
+    --accent-soft: #1d2b3d;
+    --good: #6fd08a;
+    --good-soft: #17301e;
+    --bad: #ff8a80;
+    --bad-soft: #3a1c1a;
+    --warn-soft: #3a3016;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+    --app: #3987e5;
+    --real: #8f8d84;
+    --grid: #2c2c2a;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--accent); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+.skip { position: absolute; left: -999px; top: 0; background: var(--surface); padding: 8px 12px; z-index: 10; }
+.skip:focus { left: 12px; top: 12px; }
+header.hero { padding: 36px 0 20px; }
+.eyebrow { margin: 0 0 6px; color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; }
+h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.1; letter-spacing: -0.02em; }
+.lede { margin: 0; max-width: 62ch; font-size: 1.1rem; color: var(--text-2); }
+.note { display: inline-block; margin: 14px 0 0; padding: 6px 12px; border-radius: 999px; background: var(--warn-soft); color: var(--text); font-size: 0.9rem; }
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; padding-bottom: 40px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+aside.settings { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+aside h2, section h2 { margin: 0 0 4px; font-size: 1.25rem; letter-spacing: -0.01em; }
+section .sub { margin: 0 0 16px; color: var(--text-2); max-width: 70ch; }
+.content { display: grid; gap: 24px; min-width: 0; }
+fieldset { border: 0; padding: 0; margin: 0 0 18px; }
+legend, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 6px; }
+.hint { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 2px; font-weight: 400; }
+.persona { display: grid; gap: 8px; }
+.persona label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--surface); }
+.persona label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.persona input { margin: 3px 0 0; accent-color: var(--accent); }
+.persona strong { font-size: 0.95rem; }
+.persona span { grid-column: 2; font-size: 0.82rem; color: var(--text-2); }
+.field { margin-bottom: 16px; }
+.field .row { display: flex; align-items: center; gap: 10px; }
+.field output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+input[type=number], select { font: inherit; font-size: 0.95rem; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+input[type=number] { width: 6.5em; }
+button { font: inherit; font-size: 0.92rem; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+button:hover { background: var(--surface-2); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { button.primary { color: #0d1a2b; } }
+button.primary:hover { filter: brightness(1.08); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.kpi .k { font-size: 0.82rem; color: var(--text-2); }
+.kpi .v { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
+.kpi .d { font-size: 0.82rem; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: var(--text-2); margin: 0 0 10px; padding: 0; list-style: none; }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 14px; height: 10px; border-radius: 3px; }
+.sw.app { background: var(--app); }
+.sw.real { background: transparent; border: 2px solid var(--real); }
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 92px; gap: 12px; align-items: center; }
+.bar-row .name { font-size: 0.92rem; font-weight: 600; }
+.bar-track { display: grid; gap: 3px; }
+.bar { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar.app { background: var(--app); }
+.bar.real { background: transparent; border: 2px solid var(--real); border-left-width: 0; height: 12px; }
+.bar-vals { font-size: 0.8rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.diff { font-size: 0.85rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.diff.over { color: var(--bad); }
+.diff.under { color: var(--accent); }
+.diff.ok { color: var(--muted); font-weight: 400; }
+.mixups { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.mixups li { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 0.92rem; }
+.mono { font-family: var(--mono); font-size: 0.86em; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-bottom: 12px; }
+.toolbar .label { margin-bottom: 4px; font-size: 0.82rem; }
+.tablewrap { position: relative; max-height: 540px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+thead th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--text-2); padding: 8px 10px; z-index: 1; }
+tbody td { padding: 7px 10px; border-top: 1px solid var(--grid); vertical-align: middle; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr.wrong td { background: var(--bad-soft); }
+tbody tr.checked td { background: var(--good-soft); }
+tbody tr.flash td { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--warn-soft); } }
+.conf { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.conf i { display: inline-block; width: 44px; height: 6px; border-radius: 3px; background: var(--grid); position: relative; overflow: hidden; }
+.conf i b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--text-2); border-radius: 3px; }
+.tick { color: var(--good); font-weight: 700; }
+.cross { color: var(--bad); font-weight: 700; }
+.status { min-height: 1.5em; margin: 10px 0 0; font-size: 0.92rem; }
+.status.show { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); }
+.chartbox { position: relative; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { fill: var(--text-2); font-size: 12px; font-family: inherit; }
+svg.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+svg.chart .axis { stroke: var(--border); }
+svg.chart .target { stroke: var(--text-2); stroke-dasharray: 2 4; stroke-width: 1.5; }
+svg.chart .cross-line { stroke: var(--text-2); stroke-width: 1; }
+.tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 0.82rem; min-width: 190px; display: none; z-index: 2; }
+.tooltip .t-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.tooltip .t-row span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.insight { margin: 14px 0; padding: 12px 14px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
+.best { font-weight: 700; }
+details { margin-top: 6px; }
+summary { cursor: pointer; font-weight: 600; }
+.prose p, .prose li { max-width: 72ch; color: var(--text-2); }
+footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside.settings { position: static; max-height: none; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 14px; }
+  .bar-row { grid-template-columns: 88px minmax(0, 1fr) 70px; gap: 8px; }
+  .kpi .v { font-size: 1.3rem; }
+  .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { tbody tr.flash td { animation: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the results</a>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">AI in consumer fintech &middot; digital financial literacy</p>
+    <h1>Mislabelled</h1>
+    <p class="lede">Budgeting apps use machine learning to sort your card payments into pots. On day one the app has never seen your local caf&eacute;, and it cannot know that you count rent paid to a flatmate as a bill. How wrong is your budget, and which corrections fix it fastest?</p>
+    <p class="note">Educational simulation with invented people, shops and amounts. Not financial advice.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <aside class="panel settings" aria-labelledby="settings-h">
+    <h2 id="settings-h">Settings</h2>
+    <p class="hint" style="margin:0 0 14px">Changing anything here starts a fresh statement, so any corrections you have made are cleared.</p>
+    <fieldset>
+      <legend>Whose statement?</legend>
+      <div class="persona" id="personas"></div>
+    </fieldset>
+    <div class="field">
+      <label class="label" for="weeks">Statement length</label>
+      <div class="row"><input type="range" id="weeks" min="4" max="26" step="1" value="13"><output for="weeks" id="weeks-out">13 wks</output></div>
+    </div>
+    <div class="field">
+      <label class="label" for="seed">Statement number<span class="hint">Same number, same invented transactions.</span></label>
+      <div class="row"><input type="number" id="seed" min="1" max="99999" step="1" value="1"><button type="button" id="reroll">Another one</button></div>
+    </div>
+    <div class="field">
+      <label class="label" for="weight">How much one correction teaches the app<span class="hint">One checked payment counts as this many examples.</span></label>
+      <div class="row"><input type="range" id="weight" min="1" max="60" step="1" value="20"><output for="weight" id="weight-out">20</output></div>
+    </div>
+    <div class="field">
+      <label class="label" for="target">Trustworthy when the wrong pot holds under<span class="hint">Share of all spending sitting in the wrong pot.</span></label>
+      <div class="row"><input type="range" id="target" min="1" max="20" step="1" value="5"><output for="target" id="target-out">5%</output></div>
+    </div>
+    <div class="field">
+      <label class="label" for="checks">Checks to simulate per strategy</label>
+      <div class="row"><input type="range" id="checks" min="10" max="150" step="10" value="60"><output for="checks" id="checks-out">60</output></div>
+    </div>
+    <div class="field">
+      <label class="label" for="slip">Slips: corrections filed in the wrong pot<span class="hint">How often a tired thumb picks the wrong category.</span></label>
+      <div class="row"><input type="range" id="slip" min="0" max="30" step="1" value="0"><output for="slip" id="slip-out">0%</output></div>
+    </div>
+  </aside>
+
+  <main class="content" id="main">
+    <section class="panel" aria-labelledby="dayone-h">
+      <h2 id="dayone-h">What the app tells you</h2>
+      <p class="sub" id="dayone-sub">The app's view of this statement, compared with how the person would file it themselves.</p>
+      <div class="kpis" id="kpis"></div>
+      <ul class="legend" aria-label="Budget chart key">
+        <li><span class="sw app" aria-hidden="true"></span>What the app says</li>
+        <li><span class="sw real" aria-hidden="true"></span>What was really spent</li>
+      </ul>
+      <div class="bars" id="bars" role="list" aria-label="Spending per pot: the app's figure against the real one"></div>
+      <h3 style="margin:22px 0 4px;font-size:1.02rem">Biggest mix-ups right now</h3>
+      <ul class="mixups" id="mixups"></ul>
+    </section>
+
+    <section class="panel" aria-labelledby="teach-h">
+      <h2 id="teach-h">Teach it yourself</h2>
+      <p class="sub">Change a payment's pot, or press Fix, and the app learns from it straight away. Watch how one correction re-files other payments, sometimes for the better and sometimes not.</p>
+      <div class="toolbar">
+        <div><label class="label" for="filter">Show</label>
+          <select id="filter">
+            <option value="all">All payments</option>
+            <option value="wrong">Only wrongly filed</option>
+            <option value="unsure">Only unsure (under 50%)</option>
+            <option value="checked">Only ones you checked</option>
+          </select></div>
+        <div><label class="label" for="sort">Sort by</label>
+          <select id="sort">
+            <option value="date">Date</option>
+            <option value="amount">Amount, largest first</option>
+            <option value="conf">Confidence, lowest first</option>
+          </select></div>
+        <div><label class="label" for="suggest">Let the app ask, using</label>
+          <select id="suggest"></select></div>
+        <div class="btnrow"><button type="button" class="primary" id="ask">Show the next check</button><button type="button" id="reset">Undo all my checks</button></div>
+      </div>
+      <div class="tablewrap" id="tablewrap">
+        <table>
+          <caption class="sr-only">Transactions with the app's pot, its confidence and the real pot</caption>
+          <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col" class="num">Amount</th><th scope="col">App's pot</th><th scope="col" class="hide-sm">Confidence</th><th scope="col">Really</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="strat-h">
+      <h2 id="strat-h">Which checks should the app ask for?</h2>
+      <p class="sub">Most apps ask new users to confirm a few payments. Here five ways of choosing them are replayed on the same statement, one check at a time, with the person always answering (apart from any slips you set).</p>
+      <div class="insight" id="insight"></div>
+      <ul class="legend" id="strat-legend" aria-label="Strategy key"></ul>
+      <div class="chartbox" id="chartbox">
+        <svg class="chart" id="chart" viewBox="0 0 760 340" role="img" aria-labelledby="chart-title chart-desc" tabindex="0">
+          <title id="chart-title">Share of spending in the wrong pot after each check</title>
+          <desc id="chart-desc">Line chart. Use the left and right arrow keys to step through the checks.</desc>
+        </svg>
+        <div class="tooltip" id="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="tablewrap" style="max-height:none;margin-top:16px">
+        <table>
+          <caption class="sr-only">Strategy results</caption>
+          <thead><tr><th scope="col">Strategy</th><th scope="col" class="num">Checks to reach target</th><th scope="col" class="num">Wrong pot after 10</th><th scope="col" class="num">After 30</th><th scope="col" class="num">At the end</th><th scope="col" class="num hide-sm">Payments filed right at the end</th></tr></thead>
+          <tbody id="strat-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel prose" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <details open>
+        <summary>The statement</summary>
+        <p>Each person has habits: how often they use each invented shop, on which days, and roughly how much they spend. A seeded random generator turns those habits into a statement with realistic bank descriptions: card terminal prefixes, store numbers, town names, order references, direct debits and bank transfers with a reference. Every payment also carries the pot that person would choose, which is the truth the app is scored against.</p>
+      </details>
+      <details>
+        <summary>The app's model</summary>
+        <p>The app is a naive Bayes text classifier, the classic technique behind early spam filters and many transaction categorisers. It reads the payment channel, a merchant key (the first two meaningful words), every word in the description, an amount band and weekday or weekend. Before you touch it, it has learned from about 1,360 invented payments filed the way most people file them. Each payment you check is added to its training data, counted as many times as the weight setting says, so your own habits soon outweigh the crowd's.</p>
+      </details>
+      <details>
+        <summary>Why the app gets things wrong</summary>
+        <ul>
+          <li><strong>It has never seen your local shops.</strong> A small caf&eacute; or pub is only recognisable from generic words such as CAFE or BAR, and some names contain none.</li>
+          <li><strong>Your conventions are not the crowd's.</strong> Rent paid to a flatmate looks like a transfer, a meal deal looks like groceries and a late taxi looks like transport.</li>
+          <li><strong>One merchant, several pots.</strong> The same supermarket can be the weekly shop or the pre-drinks shop. Only the amount and the day hint at which.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>How the strategies choose</summary>
+        <ul>
+          <li><strong>Random spot checks</strong>: any unchecked payment.</li>
+          <li><strong>Least confident first</strong>: the payment the model is least sure about.</li>
+          <li><strong>Biggest amounts first</strong>: the largest unchecked payment.</li>
+          <li><strong>Most common merchants first</strong>: one payment from the merchant that appears most often and has not been checked yet.</li>
+          <li><strong>Most money at risk first</strong>: adds up amount &times; (1 &minus; confidence) for each merchant and asks about the merchant with the most money that is probably misfiled.</li>
+        </ul>
+        <p>&ldquo;Wrong pot&rdquo; is half the sum of the gaps between what the app says and what was really spent in each pot, so it counts every misplaced pound once.</p>
+      </details>
+      <details>
+        <summary>Limits</summary>
+        <p>Everything is invented, and real apps use richer models, merchant databases and rules. The point is the shape of the problem: a generic model meets personal conventions, and the order in which an app asks for help decides how soon the budget can be trusted. This is an educational tool, not financial advice.</p>
+      </details>
+    </section>
+  </main>
+</div>
+<footer>
+  <div class="wrap">Mislabelled runs entirely in your browser. Nothing is uploaded or stored. All people, shops and payments are invented.</div>
+</footer>
+<script>
+/* MODEL START */
+var Mislabelled = (function () {
+  'use strict';
+
+  /* DATA START */
+  var DATA = {
+  "version": 1,
+  "categories": ["Groceries", "Eating out", "Transport", "Bills", "Subscriptions", "Shopping", "Fun", "Transfers"],
+  "start": [2026, 9, 7],
+  "model": {"alpha": 1, "weight": 20, "temperature": 2},
+  "cardPrefixes": ["TAP*", "CRD*", "PAYPT*"],
+  "channels": {"TAP": "CARD", "CRD": "CARD", "PAYPT": "CARD", "PAYWALLET": "WALLET", "DD": "DD", "TO": "TRANSFER"},
+  "noise": ["REF", "COM", "WWW", "GB", "UK", "LTD", "THE", "AND", "OF"],
+  "towns": ["BRIGHTON", "HOVE", "LEWES", "LONDON", "CROYDON", "READING", "LEEDS", "BRISTOL", "LEICESTER", "YORK"],
+  "amountBands": [3, 8, 20, 50, 120],
+  "merchants": [
+    {"id": "LARDERLY", "name": "LARDERLY", "style": "store", "pop": "Groceries", "known": true, "suffixes": ["STORES", "LOCAL"], "variants": [], "popAmt": 22},
+    {"id": "THRIFTYCART", "name": "THRIFTY CART", "style": "store", "pop": "Groceries", "known": true, "suffixes": [], "variants": [], "popAmt": 15},
+    {"id": "DOORSTEP", "name": "DOORSTEP GROCER", "style": "online", "pop": "Groceries", "known": true, "suffixes": [], "variants": ["DOORSTEP GROCER #", "DOORSTEPGROCER.COM"], "popAmt": 50},
+    {"id": "GREENLEAF", "name": "GREENLEAF GROCERS", "style": "local", "pop": "Groceries", "known": false, "suffixes": [], "variants": [], "popAmt": 9},
+    {"id": "CORNERMART", "name": "CORNER MART", "style": "local", "pop": "Groceries", "known": false, "suffixes": [], "variants": [], "popAmt": 6},
+    {"id": "BEANTHERE", "name": "BEAN THERE CAFE", "style": "local", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 4},
+    {"id": "KETTLECRUMB", "name": "KETTLE AND CRUMB", "style": "local", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 7},
+    {"id": "NOODLENOOK", "name": "NOODLE NOOK", "style": "wallet", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 10},
+    {"id": "CANTEEN", "name": "CAMPUS CANTEEN", "style": "local", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 5},
+    {"id": "MUNCHBOX", "name": "MUNCHBOX", "style": "online", "pop": "Eating out", "known": true, "suffixes": [], "variants": ["MUNCHBOX*ORDER #", "MUNCHBOX.COM", "WWW.MUNCHBOX.COM #"], "popAmt": 18},
+    {"id": "EMBERS", "name": "EMBERS GRILL", "style": "store", "pop": "Eating out", "known": true, "suffixes": [], "variants": [], "popAmt": 10},
+    {"id": "METRORIDE", "name": "METRORIDE", "style": "online", "pop": "Transport", "known": true, "suffixes": [], "variants": ["METRORIDE TICKETS #", "METRORIDE APP"], "popAmt": 3},
+    {"id": "TRACKWISE", "name": "TRACKWISE RAIL", "style": "online", "pop": "Transport", "known": true, "suffixes": [], "variants": ["TRACKWISE RAIL #", "TRACKWISE.COM TICKETS"], "popAmt": 25},
+    {"id": "ZIPCAB", "name": "ZIPCAB", "style": "online", "pop": "Transport", "known": true, "suffixes": [], "variants": ["ZIPCAB *TRIP #", "ZIPCAB *TRIP"], "popAmt": 12},
+    {"id": "PEDALPATH", "name": "PEDAL PATH BIKES", "style": "online", "pop": "Transport", "known": true, "suffixes": [], "variants": ["PEDAL PATH BIKES #", "PEDALPATH HIRE"], "popAmt": 4},
+    {"id": "HOMESHARE", "name": "HOMESHARE LETTINGS", "style": "dd", "pop": "Bills", "known": true, "suffixes": [], "variants": [], "popAmt": 600},
+    {"id": "GLOWGRID", "name": "GLOWGRID ENERGY", "style": "dd", "pop": "Bills", "known": true, "suffixes": [], "variants": [], "popAmt": 60},
+    {"id": "CHATTERBOX", "name": "CHATTERBOX MOBILE", "style": "dd", "pop": "Bills", "known": true, "suffixes": [], "variants": [], "popAmt": 18},
+    {"id": "VIDVAULT", "name": "VIDVAULT", "style": "online", "pop": "Subscriptions", "known": true, "suffixes": [], "variants": ["VIDVAULT.COM", "VIDVAULT MEMBERSHIP"], "popAmt": 9},
+    {"id": "TUNEPOOL", "name": "TUNEPOOL", "style": "online", "pop": "Subscriptions", "known": true, "suffixes": [], "variants": ["TUNEPOOL PREMIUM", "TUNEPOOL.COM #"], "popAmt": 9},
+    {"id": "PIXELPASS", "name": "PIXELPASS", "style": "online", "pop": "Subscriptions", "known": true, "suffixes": [], "variants": ["PIXELPASS GAMES #", "PIXELPASS.COM"], "popAmt": 8},
+    {"id": "CLOUDLOCKER", "name": "CLOUDLOCKER", "style": "online", "pop": "Subscriptions", "known": true, "suffixes": [], "variants": ["CLOUDLOCKER STORAGE", "CLOUDLOCKER.COM #"], "popAmt": 2},
+    {"id": "PULSEPOINT", "name": "PULSEPOINT GYM", "style": "dd", "pop": "Subscriptions", "known": true, "suffixes": [], "variants": [], "popAmt": 25},
+    {"id": "BIGBAZAAR", "name": "BIGBAZAAR", "style": "online", "pop": "Shopping", "known": true, "suffixes": [], "variants": ["BIGBAZAAR MKTPLACE #", "BIGBAZAAR.COM #", "BIGBAZAAR MARKETPLACE"], "popAmt": 20},
+    {"id": "STITCHSEAM", "name": "STITCH AND SEAM", "style": "store", "pop": "Shopping", "known": true, "suffixes": [], "variants": [], "popAmt": 35},
+    {"id": "PAGETURNER", "name": "PAGETURNER BOOKS AND CAFE", "style": "local", "pop": "Shopping", "known": false, "suffixes": [], "variants": [], "popAmt": 11},
+    {"id": "GADGETGROVE", "name": "GADGET GROVE", "style": "online", "pop": "Shopping", "known": true, "suffixes": [], "variants": ["GADGETGROVE.COM #", "GADGET GROVE ONLINE"], "popAmt": 45},
+    {"id": "HEALTHYHABIT", "name": "HEALTHY HABIT CHEMIST", "style": "store", "pop": "Shopping", "known": true, "suffixes": [], "variants": [], "popAmt": 9},
+    {"id": "FOXFIDDLE", "name": "THE FOX AND FIDDLE", "style": "local", "pop": "Fun", "known": false, "suffixes": [], "variants": [], "popAmt": 15},
+    {"id": "BASEMENT", "name": "BASEMENT CLUB", "style": "local", "pop": "Fun", "known": false, "suffixes": [], "variants": [], "popAmt": 12},
+    {"id": "MOONBEAM", "name": "MOONBEAM CINEMA", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 10},
+    {"id": "TICKETHIVE", "name": "TICKETHIVE", "style": "online", "pop": "Fun", "known": true, "suffixes": [], "variants": ["TICKETHIVE #", "TICKETHIVE.COM EVENTS"], "popAmt": 30},
+    {"id": "TENPIN", "name": "TENPIN TOWN BOWLING", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 12},
+    {"id": "TRANSFER", "name": "", "style": "transfer", "pop": "Transfers", "known": false, "suffixes": [], "variants": [], "popAmt": 20}
+  ],
+  "population": {
+    "seed": 2026,
+    "perChain": 30,
+    "perGeneric": 80,
+    "spread": 0.4,
+    "neutral": ["OLD", "OAK", "BLUE", "DOOR", "ROSE", "CROWN", "MILL", "STATION", "GREEN", "NORTH", "HIGH", "STREET", "KINGS", "QUEENS", "LANE", "CORNER", "VILLAGE", "HARBOUR", "ORCHARD", "SUNNY", "LITTLE", "GOLDEN", "RED", "BRIDGE", "PARK", "CITY", "HILL", "MARKET"],
+    "initials": ["A", "B", "C", "D", "E", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T"],
+    "surnames": ["BROWN", "KHAN", "JONES", "WILSON", "TAYLOR", "DAVIES", "ALI", "WALKER", "WRIGHT", "HUGHES", "CHEN", "PATEL", "NOVAK", "OKAFOR", "EVANS", "MURPHY", "SINGH", "WOOD"],
+    "memos": ["THANKS", "FOOD", "DINNER", "RENT", "TICKETS", "BILLS", "GIFT", "LUNCH", "PIZZA", "TAXI", "DRINKS", "BIRTHDAY", "CHEERS", "SHOPPING"],
+    "generic": [
+      {"cat": "Groceries", "styles": ["local", "store"], "amt": 16, "words": ["GROCERS", "FOODS", "MART", "PANTRY", "BUTCHERS", "SUPERSTORE", "GREENGROCER", "LARDER", "FOODSTORE"]},
+      {"cat": "Eating out", "styles": ["local", "store", "wallet"], "amt": 9, "words": ["CAFE", "COFFEE", "KITCHEN", "DINER", "BAKERY", "GRILL", "NOODLE", "PIZZA", "CURRY", "SUSHI", "BURGER", "CANTEEN", "BISTRO", "TAKEAWAY"]},
+      {"cat": "Transport", "styles": ["online", "local"], "amt": 9, "words": ["TAXI", "CABS", "RAIL", "BUSES", "PARKING", "FUEL", "TRAINS", "TRAVEL", "GARAGE"]},
+      {"cat": "Bills", "styles": ["dd"], "amt": 65, "words": ["ENERGY", "WATER", "LETTINGS", "MOBILE", "BROADBAND", "COUNCIL", "INSURANCE", "RENT"]},
+      {"cat": "Subscriptions", "styles": ["online"], "amt": 8, "words": ["PLUS", "PREMIUM", "MEMBERSHIP", "STREAMING", "MUSIC", "CLOUD", "APP", "GYM"]},
+      {"cat": "Shopping", "styles": ["store", "online", "local"], "amt": 24, "words": ["BOOKS", "FASHION", "SHOES", "HOME", "GADGETS", "CHEMIST", "PHARMACY", "GIFTS", "CLOTHING", "OUTLET"]},
+      {"cat": "Fun", "styles": ["local", "store", "online"], "amt": 16, "words": ["BAR", "PUB", "CLUB", "CINEMA", "BOWLING", "TICKETS", "ARMS", "INN", "LOUNGE", "ARCADE", "THEATRE"]},
+      {"cat": "Transfers", "styles": ["transfer"], "amt": 20, "words": []}
+    ]
+  },
+  "personas": [
+    {
+      "id": "student",
+      "label": "Jess, first-year student",
+      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer.",
+      "towns": ["BRIGHTON", "HOVE"],
+      "monthly": [
+        {"m": "HOMESHARE", "cat": "Bills", "day": 1, "amt": 620, "spread": 0},
+        {"m": "PULSEPOINT", "cat": "Subscriptions", "day": 2, "amt": 19.99, "spread": 0},
+        {"m": "VIDVAULT", "cat": "Subscriptions", "day": 5, "amt": 6.99, "spread": 0},
+        {"m": "CHATTERBOX", "cat": "Bills", "day": 12, "amt": 15, "spread": 0},
+        {"m": "TUNEPOOL", "cat": "Subscriptions", "day": 19, "amt": 5.99, "spread": 0},
+        {"m": "CLOUDLOCKER", "cat": "Subscriptions", "day": 23, "amt": 0.99, "spread": 0}
+      ],
+      "habits": [
+        {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 19, "spread": 0.35, "days": [1, 1, 1, 1, 1.3, 1.3, 1]},
+        {"m": "LARDERLY", "cat": "Fun", "perWeek": 0.35, "amt": 27, "spread": 0.3, "days": [0, 0, 0, 0.2, 1, 1, 0], "note": "pre-drinks shop"},
+        {"m": "THRIFTYCART", "cat": "Groceries", "perWeek": 0.6, "amt": 13, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "CORNERMART", "cat": "Fun", "perWeek": 1.3, "amt": 6.5, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "note": "late-night snacks and drinks"},
+        {"m": "BEANTHERE", "cat": "Eating out", "perWeek": 2.5, "amt": 3.6, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 1.1, "amt": 17, "spread": 0.3, "days": [0.6, 0.6, 0.8, 1, 1.4, 1.4, 1.2]},
+        {"m": "NOODLENOOK", "cat": "Eating out", "perWeek": 0.5, "amt": 9.5, "spread": 0.2, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "CANTEEN", "cat": "Eating out", "perWeek": 2, "amt": 5.2, "spread": 0.25, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "METRORIDE", "cat": "Transport", "perWeek": 2, "amt": 2.6, "spread": 0.15, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "ZIPCAB", "cat": "Transport", "perWeek": 0.5, "amt": 9, "spread": 0.35, "days": [0.3, 0.3, 0.3, 0.5, 1.5, 1.5, 0.6]},
+        {"m": "PEDALPATH", "cat": "Transport", "perWeek": 0.5, "amt": 3.2, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "FOXFIDDLE", "cat": "Fun", "perWeek": 1.1, "amt": 14, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "BASEMENT", "cat": "Fun", "perWeek": 0.45, "amt": 12, "spread": 0.35, "days": [0, 0, 0, 0.3, 1, 1, 0]},
+        {"m": "TICKETHIVE", "cat": "Fun", "perWeek": 0.18, "amt": 26, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "MOONBEAM", "cat": "Fun", "perWeek": 0.25, "amt": 9.5, "spread": 0.1, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "BIGBAZAAR", "cat": "Shopping", "perWeek": 0.6, "amt": 17, "spread": 0.5, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "STITCHSEAM", "cat": "Shopping", "perWeek": 0.2, "amt": 32, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "PAGETURNER", "cat": "Shopping", "perWeek": 0.3, "amt": 11, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "HEALTHYHABIT", "cat": "Shopping", "perWeek": 0.3, "amt": 7.5, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "TRANSFER", "cat": "Eating out", "perWeek": 0.4, "amt": 11, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "payee": "L CHEN", "memos": ["PIZZA", "DINNER", "CURRY"], "note": "paying a friend back for food"},
+        {"m": "TRANSFER", "cat": "Groceries", "perWeek": 0.3, "amt": 15, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "A PATEL", "memos": ["FOOD SHOP", "GROCERIES"], "note": "shared house food shop"},
+        {"m": "TRANSFER", "cat": "Fun", "perWeek": 0.12, "amt": 24, "spread": 0.2, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "M NOVAK", "memos": ["TICKETS", "GIG"]},
+        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.2, "amt": 8, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "CHEERS"]}
+      ]
+    },
+    {
+      "id": "graduate",
+      "label": "Sam, graduate commuting into London",
+      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun.",
+      "towns": ["CROYDON", "LONDON"],
+      "monthly": [
+        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 750, "spread": 0, "payee": "J OKAFOR", "memos": ["RENT"], "note": "rent paid to a flatmate"},
+        {"m": "PULSEPOINT", "cat": "Bills", "day": 1, "amt": 34.99, "spread": 0, "note": "gym counted as a bill"},
+        {"m": "TRANSFER", "cat": "Bills", "day": 3, "amt": 48, "spread": 0.15, "payee": "J OKAFOR", "memos": ["BILLS"]},
+        {"m": "VIDVAULT", "cat": "Subscriptions", "day": 9, "amt": 10.99, "spread": 0},
+        {"m": "CHATTERBOX", "cat": "Bills", "day": 14, "amt": 22, "spread": 0},
+        {"m": "TUNEPOOL", "cat": "Subscriptions", "day": 21, "amt": 11.99, "spread": 0},
+        {"m": "CLOUDLOCKER", "cat": "Subscriptions", "day": 27, "amt": 2.99, "spread": 0},
+        {"m": "TRACKWISE", "cat": "Transport", "day": 28, "amt": 182, "spread": 0, "note": "monthly season ticket"}
+      ],
+      "habits": [
+        {"m": "METRORIDE", "cat": "Transport", "perWeek": 4, "amt": 1.75, "spread": 0.05, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "TRACKWISE", "cat": "Transport", "perWeek": 0.4, "amt": 14, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "ZIPCAB", "cat": "Fun", "perWeek": 0.45, "amt": 15, "spread": 0.35, "days": [0, 0, 0, 0.2, 1.2, 1.2, 0.3], "note": "late taxi home after a night out"},
+        {"m": "ZIPCAB", "cat": "Transport", "perWeek": 0.25, "amt": 11, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "KETTLECRUMB", "cat": "Eating out", "perWeek": 2.8, "amt": 6.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "EMBERS", "cat": "Eating out", "perWeek": 0.6, "amt": 12, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 0.6, "amt": 23, "spread": 0.3, "days": [0.5, 0.5, 0.7, 1, 1.5, 1.5, 1.3]},
+        {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 24, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "DOORSTEP", "cat": "Groceries", "perWeek": 0.25, "amt": 58, "spread": 0.25, "days": [0, 0, 0, 0, 0, 1, 1]},
+        {"m": "GREENLEAF", "cat": "Groceries", "perWeek": 0.6, "amt": 9, "spread": 0.4, "days": [0.5, 0.5, 0.5, 0.5, 0.5, 1.5, 1.5]},
+        {"m": "BIGBAZAAR", "cat": "Groceries", "perWeek": 0.7, "amt": 11, "spread": 0.35, "days": [1, 1, 1, 1, 1, 1, 1], "note": "household bits counted as groceries"},
+        {"m": "BIGBAZAAR", "cat": "Shopping", "perWeek": 0.3, "amt": 42, "spread": 0.5, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "PEDALPATH", "cat": "Fun", "perWeek": 0.4, "amt": 6, "spread": 0.4, "days": [0, 0, 0, 0, 0, 1, 1], "note": "weekend bike rides"},
+        {"m": "FOXFIDDLE", "cat": "Fun", "perWeek": 0.8, "amt": 23, "spread": 0.4, "days": [0.2, 0.3, 0.5, 1, 1.6, 1.2, 0.4]},
+        {"m": "TENPIN", "cat": "Fun", "perWeek": 0.1, "amt": 18, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "TICKETHIVE", "cat": "Fun", "perWeek": 0.15, "amt": 48, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "STITCHSEAM", "cat": "Shopping", "perWeek": 0.3, "amt": 46, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "GADGETGROVE", "cat": "Shopping", "perWeek": 0.1, "amt": 65, "spread": 0.5, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "HEALTHYHABIT", "cat": "Shopping", "perWeek": 0.4, "amt": 9, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "TRANSFER", "cat": "Eating out", "perWeek": 0.3, "amt": 21, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "payee": "L CHEN", "memos": ["DINNER", "BRUNCH"]},
+        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.1, "amt": 25, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["BIRTHDAY", "THANKS"]}
+      ]
+    },
+    {
+      "id": "sixthformer",
+      "label": "Alex, sixth-former with a Saturday job",
+      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun.",
+      "towns": ["LEWES", "BRIGHTON"],
+      "monthly": [
+        {"m": "PIXELPASS", "cat": "Fun", "day": 8, "amt": 7.99, "spread": 0, "note": "games pass counted as fun"},
+        {"m": "CHATTERBOX", "cat": "Bills", "day": 10, "amt": 10, "spread": 0},
+        {"m": "VIDVAULT", "cat": "Subscriptions", "day": 15, "amt": 5.99, "spread": 0},
+        {"m": "TUNEPOOL", "cat": "Subscriptions", "day": 20, "amt": 5.99, "spread": 0}
+      ],
+      "habits": [
+        {"m": "CANTEEN", "cat": "Eating out", "perWeek": 3, "amt": 3.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0, 0]},
+        {"m": "CORNERMART", "cat": "Eating out", "perWeek": 2, "amt": 2.9, "spread": 0.35, "days": [1, 1, 1, 1, 1, 0.6, 0.4], "note": "snacks counted as eating out"},
+        {"m": "BEANTHERE", "cat": "Eating out", "perWeek": 0.5, "amt": 4.2, "spread": 0.2, "days": [0.3, 0.3, 0.3, 0.3, 0.5, 1.5, 1]},
+        {"m": "EMBERS", "cat": "Eating out", "perWeek": 0.4, "amt": 7.5, "spread": 0.25, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "LARDERLY", "cat": "Eating out", "perWeek": 0.5, "amt": 4.5, "spread": 0.15, "days": [1, 1, 1, 1, 1, 0.1, 0.1], "note": "meal deal counted as eating out"},
+        {"m": "METRORIDE", "cat": "Transport", "perWeek": 4, "amt": 1.6, "spread": 0.05, "days": [1, 1, 1, 1, 1, 0.8, 0.1]},
+        {"m": "PIXELPASS", "cat": "Fun", "perWeek": 0.25, "amt": 5, "spread": 0.5, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "note": "in-game purchases"},
+        {"m": "MOONBEAM", "cat": "Fun", "perWeek": 0.3, "amt": 7.5, "spread": 0.1, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "TENPIN", "cat": "Fun", "perWeek": 0.1, "amt": 9, "spread": 0.2, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "TICKETHIVE", "cat": "Fun", "perWeek": 0.07, "amt": 35, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "STITCHSEAM", "cat": "Shopping", "perWeek": 0.25, "amt": 22, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8]},
+        {"m": "BIGBAZAAR", "cat": "Shopping", "perWeek": 0.4, "amt": 13, "spread": 0.5, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "HEALTHYHABIT", "cat": "Shopping", "perWeek": 0.25, "amt": 6, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "TRANSFER", "cat": "Eating out", "perWeek": 0.25, "amt": 4.5, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.2, 0.2], "payee": "M NOVAK", "memos": ["LUNCH", "CHIPS"]},
+        {"m": "TRANSFER", "cat": "Fun", "perWeek": 0.1, "amt": 9, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "payee": "K BROWN", "memos": ["CINEMA", "BOWLING"]},
+        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.12, "amt": 10, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "BDAY"]}
+      ]
+    }
+  ]
+};
+  /* DATA END */
+
+  var CATS = DATA.categories;
+  var C = CATS.length;
+  var LN2 = 0.6931471805599453;
+  var SQRT2 = 1.4142135623730951;
+  var NORM_SD = 0.5773502691896258; // sd of the sum of four uniforms
+  var REF_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var MERCHANTS = {};
+  DATA.merchants.forEach(function (m) { MERCHANTS[m.id] = m; });
+  var PERSONAS = {};
+  DATA.personas.forEach(function (p) { PERSONAS[p.id] = p; });
+  var NOISE = Object.create(null);
+  DATA.noise.concat(DATA.towns).forEach(function (w) { NOISE[w] = true; });
+
+  var STRATEGIES = [
+    { id: 'random', label: 'Random spot checks', short: 'Random' },
+    { id: 'unsure', label: 'Least confident first', short: 'Least confident' },
+    { id: 'biggest', label: 'Biggest amounts first', short: 'Biggest' },
+    { id: 'common', label: 'Most common merchants first', short: 'Most common' },
+    { id: 'risk', label: 'Most money at risk first', short: 'Money at risk' }
+  ];
+
+  /* ---------- deterministic arithmetic (identical in JavaScript and Python) ---------- */
+
+  function mulberry32(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = Math.imul(a ^ (a >>> 15), a | 1);
+      t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function fnv1a(text) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  function seedFor(seed, label) {
+    return (fnv1a(label) ^ (seed >>> 0)) >>> 0;
+  }
+
+  // Natural log and exp built from + - * / only, so both languages agree to the last bit.
+  function ln(x) {
+    if (!(x > 0) || x === Infinity) throw new Error('ln needs a positive finite number');
+    var e = 0;
+    var m = x;
+    while (m >= 2) { m /= 2; e += 1; }
+    while (m < 1) { m *= 2; e -= 1; }
+    if (m > SQRT2) { m /= 2; e += 1; }
+    var s = (m - 1) / (m + 1);
+    var s2 = s * s;
+    var term = s;
+    var sum = 0;
+    for (var k = 0; k < 14; k++) { sum += term / (2 * k + 1); term *= s2; }
+    return 2 * sum + e * LN2;
+  }
+
+  function exp(x) {
+    if (x < -745) return 0;
+    if (x > 709) throw new Error('exp overflow');
+    var k = Math.floor(x / LN2 + 0.5);
+    var r = x - k * LN2;
+    var term = 1;
+    var sum = 1;
+    for (var i = 1; i <= 14; i++) { term *= r / i; sum += term; }
+    var i2;
+    if (k > 0) { for (i2 = 0; i2 < k; i2++) sum *= 2; }
+    else { for (i2 = 0; i2 < -k; i2++) sum /= 2; }
+    return sum;
+  }
+
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function daysInMonth(y, m) {
+    if (m === 2) return (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28;
+    return (m === 4 || m === 6 || m === 9 || m === 11) ? 30 : 31;
+  }
+
+  function dateOf(dayIndex) {
+    var y = DATA.start[0], m = DATA.start[1], d = DATA.start[2] + dayIndex;
+    while (d > daysInMonth(y, m)) {
+      d -= daysInMonth(y, m);
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
+    return { y: y, m: m, d: d, iso: y + '-' + pad2(m) + '-' + pad2(d) };
+  }
+
+  function drawPennies(rng, mean, spread) {
+    var s = rng() + rng() + rng() + rng();
+    var z = (s - 2) / NORM_SD;
+    var a = mean * (1 + spread * z);
+    if (a < 0.5) a = 0.5;
+    return Math.floor(a * 100 + 0.5);
+  }
+
+  function refCode(rng, n) {
+    var out = '';
+    for (var i = 0; i < n; i++) out += REF_CHARS.charAt(Math.floor(rng() * REF_CHARS.length));
+    return out;
+  }
+
+  // Fixed details for one habit: which town, which two stores, which card terminal, a direct debit reference.
+  function initState(rng, towns) {
+    var town = pick(rng, towns);
+    var stores = [1000 + Math.floor(rng() * 9000), 1000 + Math.floor(rng() * 9000)];
+    var prefix = pick(rng, DATA.cardPrefixes);
+    var ref = '';
+    for (var i = 0; i < 8; i++) ref += String(Math.floor(rng() * 10));
+    return { town: town, stores: stores, prefix: prefix, ref: ref };
+  }
+
+  function describe(rng, m, st, entry) {
+    var s;
+    switch (m.style) {
+      case 'store':
+        s = m.name;
+        if (m.suffixes.length > 0 && rng() < 0.35) s += ' ' + pick(rng, m.suffixes);
+        s += ' ' + (rng() < 0.8 ? st.stores[0] : st.stores[1]) + ' ' + st.town;
+        return s;
+      case 'local':
+        return st.prefix + m.name + ' ' + st.town;
+      case 'online':
+        s = pick(rng, m.variants);
+        if (s.indexOf('#') >= 0) s = s.replace('#', refCode(rng, 6));
+        return s;
+      case 'wallet':
+        return 'PAYWALLET *' + m.name.split(' ').join('') + ' ' + st.town;
+      case 'dd':
+        return 'DD ' + m.name + ' ' + st.ref;
+      case 'transfer':
+        return 'TO ' + entry.payee + ' REF ' + pick(rng, entry.memos);
+      default:
+        throw new Error('unknown style ' + m.style);
+    }
+  }
+
+  /* ---------- the synthetic statement ---------- */
+
+  function generateStatement(personaId, weeks, seed) {
+    var p = PERSONAS[personaId];
+    if (!p) throw new Error('unknown persona ' + personaId);
+    weeks = Math.max(1, Math.min(52, Math.floor(weeks)));
+    var rng = mulberry32(seedFor(seed, 'statement:' + personaId));
+    var monthlyStates = p.monthly.map(function () { return initState(rng, p.towns); });
+    var habitStates = p.habits.map(function () { return initState(rng, p.towns); });
+    var habitWeight = p.habits.map(function (h) {
+      var total = 0;
+      for (var i = 0; i < 7; i++) total += h.days[i];
+      return total;
+    });
+    var tx = [];
+    function add(entry, st, day, wd, dt) {
+      var pennies = drawPennies(rng, entry.amt, entry.spread);
+      var desc = describe(rng, MERCHANTS[entry.m], st, entry);
+      tx.push({
+        id: tx.length, day: day, wd: wd, date: dt.iso, month: dt.y + '-' + pad2(dt.m),
+        desc: desc, pennies: pennies, cat: CATS.indexOf(entry.cat), merchant: entry.m
+      });
+    }
+    for (var day = 0; day < weeks * 7; day++) {
+      var wd = day % 7;
+      var week = Math.floor(day / 7);
+      var dt = dateOf(day);
+      var i;
+      for (i = 0; i < p.monthly.length; i++) {
+        if (p.monthly[i].day === dt.d) add(p.monthly[i], monthlyStates[i], day, wd, dt);
+      }
+      for (i = 0; i < p.habits.length; i++) {
+        var h = p.habits[i];
+        var u = rng();
+        if (h.from !== undefined && week < h.from) continue;
+        if (h.until !== undefined && week >= h.until) continue;
+        var lam = h.perWeek * h.days[wd] / habitWeight[i];
+        var n = Math.floor(lam);
+        if (u < lam - n) n += 1;
+        for (var k = 0; k < n; k++) add(h, habitStates[i], day, wd, dt);
+      }
+    }
+    return { persona: personaId, weeks: weeks, seed: seed, tx: tx };
+  }
+
+  /* ---------- what the app reads from a transaction ---------- */
+
+  function amountBand(pennies) {
+    var b = 0;
+    while (b < DATA.amountBands.length && pennies >= DATA.amountBands[b] * 100) b++;
+    return b;
+  }
+
+  function featurise(desc, pennies, wd) {
+    var raw = desc.toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ');
+    var channel = 'CARD';
+    if (raw.length > 0 && DATA.channels[raw[0]] !== undefined) channel = DATA.channels[raw[0]];
+    var kept = [];
+    for (var i = 0; i < raw.length; i++) {
+      var t = raw[i];
+      if (t === '' || /[0-9]/.test(t)) continue;
+      if (DATA.channels[t] !== undefined || NOISE[t]) continue;
+      kept.push(t);
+    }
+    var key = kept.length > 0 ? kept.slice(0, 2).join(' ') : '(blank)';
+    var feats = ['c:' + channel, 'm:' + key];
+    var seen = Object.create(null);
+    for (i = 0; i < kept.length; i++) {
+      if (kept[i].length < 2 || seen[kept[i]]) continue;
+      seen[kept[i]] = true;
+      feats.push('w:' + kept[i]);
+    }
+    feats.push('a:' + amountBand(pennies));
+    feats.push(wd >= 5 ? 'd:we' : 'd:wd');
+    return { key: key, feats: feats };
+  }
+
+  /* ---------- the generic model every new user starts with ---------- */
+
+  var popCache = null;
+
+  function buildPopulation() {
+    if (popCache) return popCache;
+    var P = DATA.population;
+    var rng = mulberry32(seedFor(P.seed, 'population'));
+    var docs = [];
+    function addDoc(m, entry, amt, cat) {
+      var st = initState(rng, DATA.towns);
+      var desc = describe(rng, m, st, entry);
+      var pennies = drawPennies(rng, amt, P.spread);
+      var wd = Math.floor(rng() * 7);
+      docs.push({ desc: desc, feats: featurise(desc, pennies, wd).feats, cat: CATS.indexOf(cat) });
+    }
+    DATA.merchants.forEach(function (m) {
+      if (!m.known) return;
+      for (var i = 0; i < P.perChain; i++) addDoc(m, null, m.popAmt, m.pop);
+    });
+    P.generic.forEach(function (g) {
+      for (var i = 0; i < P.perGeneric; i++) {
+        var name = pick(rng, P.neutral);
+        if (rng() < 0.4) name += ' ' + pick(rng, P.neutral);
+        if (g.words.length > 0) name += ' ' + pick(rng, g.words);
+        var style = pick(rng, g.styles);
+        var compact = name.split(' ').join('');
+        var m = { name: name, style: style, suffixes: [], variants: [name + ' #', compact + '.COM'] };
+        var entry = null;
+        if (style === 'transfer') entry = { payee: pick(rng, P.initials) + ' ' + pick(rng, P.surnames), memos: P.memos };
+        addDoc(m, entry, g.amt, g.cat);
+      }
+    });
+    var vocab = new Map();
+    var counts = [];
+    var docsPerCat = [];
+    var totals = [];
+    for (var c = 0; c < C; c++) { counts.push([]); docsPerCat.push(0); totals.push(0); }
+    docs.forEach(function (d) {
+      docsPerCat[d.cat] += 1;
+      d.feats.forEach(function (f) {
+        if (!vocab.has(f)) {
+          vocab.set(f, vocab.size);
+          for (var c2 = 0; c2 < C; c2++) counts[c2].push(0);
+        }
+        counts[d.cat][vocab.get(f)] += 1;
+        totals[d.cat] += 1;
+      });
+    });
+    popCache = { docs: docs, vocab: vocab, counts: counts, docsPerCat: docsPerCat, totals: totals };
+    return popCache;
+  }
+
+  /* ---------- naive Bayes that learns from the user's corrections ---------- */
+
+  function Model(statement, opts) {
+    opts = opts || {};
+    var pop = buildPopulation();
+    this.alpha = DATA.model.alpha;
+    this.weight = opts.weight !== undefined ? opts.weight : DATA.model.weight;
+    this.temperature = opts.temperature !== undefined ? opts.temperature : DATA.model.temperature;
+    var vocab = new Map(pop.vocab);
+    var n = statement.tx.length;
+    this.fids = [];
+    this.keys = [];
+    for (var t = 0; t < n; t++) {
+      var tx = statement.tx[t];
+      var f = featurise(tx.desc, tx.pennies, tx.wd);
+      this.keys.push(f.key);
+      var ids = [];
+      for (var j = 0; j < f.feats.length; j++) {
+        if (!vocab.has(f.feats[j])) vocab.set(f.feats[j], vocab.size);
+        ids.push(vocab.get(f.feats[j]));
+      }
+      this.fids.push(ids);
+    }
+    this.V = vocab.size;
+    this.vocab = vocab;
+    this.counts = [];
+    this.docs = [];
+    this.totals = [];
+    for (var c = 0; c < C; c++) {
+      var row = new Array(this.V);
+      for (var v = 0; v < this.V; v++) row[v] = v < pop.counts[c].length ? pop.counts[c][v] : 0;
+      this.counts.push(row);
+      this.docs.push(pop.docsPerCat[c]);
+      this.totals.push(pop.totals[c]);
+    }
+    this.postings = [];
+    for (v = 0; v < this.V; v++) this.postings.push(null);
+    for (t = 0; t < n; t++) {
+      for (j = 0; j < this.fids[t].length; j++) {
+        var id = this.fids[t][j];
+        if (this.postings[id] === null) this.postings[id] = [];
+        var list = this.postings[id];
+        if (list.length === 0 || list[list.length - 1] !== t) list.push(t);
+      }
+    }
+    this.lnMemo = new Map();
+    this.classTerm = [];
+    this.denTerm = [];
+    for (c = 0; c < C; c++) {
+      this.classTerm.push(this.lnc(this.docs[c] + 1));
+      this.denTerm.push(this.lnc(this.totals[c] + this.alpha * this.V));
+    }
+    this.featSum = [];
+    for (t = 0; t < n; t++) {
+      var rowSum = [];
+      for (c = 0; c < C; c++) rowSum.push(this.sumFor(t, c));
+      this.featSum.push(rowSum);
+    }
+    this.pred = new Array(n);
+    this.conf = new Array(n);
+    this.probs = new Array(n);
+    this.stamp = new Array(n);
+    for (t = 0; t < n; t++) this.stamp[t] = 0;
+    this.stampNo = 0;
+    for (t = 0; t < n; t++) this.predictOne(t);
+  }
+
+  Model.prototype.lnc = function (x) {
+    var v = this.lnMemo.get(x);
+    if (v === undefined) { v = ln(x); this.lnMemo.set(x, v); }
+    return v;
+  };
+
+  Model.prototype.sumFor = function (t, c) {
+    var ids = this.fids[t];
+    var row = this.counts[c];
+    var s = 0;
+    for (var j = 0; j < ids.length; j++) s += this.lnc(row[ids[j]] + this.alpha);
+    return s;
+  };
+
+  Model.prototype.scores = function (t) {
+    var out = [];
+    var F = this.fids[t].length;
+    for (var c = 0; c < C; c++) out.push(this.classTerm[c] + this.featSum[t][c] - F * this.denTerm[c]);
+    return out;
+  };
+
+  Model.prototype.predictOne = function (t) {
+    var s = this.scores(t);
+    var best = 0;
+    for (var c = 1; c < C; c++) if (s[c] > s[best]) best = c;
+    var z = 0;
+    var ex = [];
+    for (c = 0; c < C; c++) {
+      var d = (s[c] - s[best]) / this.temperature;
+      var e = d < -40 ? 0 : exp(d);
+      ex.push(e);
+      z += e;
+    }
+    var probs = [];
+    for (c = 0; c < C; c++) probs.push(ex[c] / z);
+    this.pred[t] = best;
+    this.conf[t] = 1 / z;
+    this.probs[t] = probs;
+  };
+
+  // Learn from one checked transaction: its features count `weight` times towards category c.
+  Model.prototype.learn = function (t, c) {
+    var ids = this.fids[t];
+    var w = this.weight;
+    for (var j = 0; j < ids.length; j++) this.counts[c][ids[j]] += w;
+    this.docs[c] += w;
+    this.totals[c] += w * ids.length;
+    this.classTerm[c] = this.lnc(this.docs[c] + 1);
+    this.denTerm[c] = this.lnc(this.totals[c] + this.alpha * this.V);
+    this.stampNo += 1;
+    for (j = 0; j < ids.length; j++) {
+      var list = this.postings[ids[j]];
+      if (list === null) continue;
+      for (var k = 0; k < list.length; k++) {
+        var u = list[k];
+        if (this.stamp[u] !== this.stampNo) {
+          this.stamp[u] = this.stampNo;
+          this.featSum[u][c] = this.sumFor(u, c);
+        }
+      }
+    }
+    for (var t2 = 0; t2 < this.fids.length; t2++) this.predictOne(t2);
+  };
+
+  /* ---------- a user's session: what the app shows after any checks ---------- */
+
+  function Session(statement, opts) {
+    this.statement = statement;
+    this.model = new Model(statement, opts);
+    this.labels = [];
+    for (var t = 0; t < statement.tx.length; t++) this.labels.push(-1);
+    this.checks = 0;
+  }
+
+  Session.prototype.reported = function (t) {
+    return this.labels[t] >= 0 ? this.labels[t] : this.model.pred[t];
+  };
+
+  Session.prototype.reportedAll = function () {
+    var out = [];
+    for (var t = 0; t < this.labels.length; t++) out.push(this.reported(t));
+    return out;
+  };
+
+  Session.prototype.correct = function (t, label) {
+    this.labels[t] = label;
+    this.checks += 1;
+    this.model.learn(t, label);
+  };
+
+  Session.prototype.metrics = function () {
+    return metrics(this.statement, this.reportedAll());
+  };
+
+  function metrics(statement, reported) {
+    var trueTotals = [], appTotals = [];
+    for (var c = 0; c < C; c++) { trueTotals.push(0); appTotals.push(0); }
+    var n = statement.tx.length, correct = 0, correctP = 0, total = 0;
+    for (var t = 0; t < n; t++) {
+      var tx = statement.tx[t];
+      total += tx.pennies;
+      trueTotals[tx.cat] += tx.pennies;
+      appTotals[reported[t]] += tx.pennies;
+      if (reported[t] === tx.cat) { correct += 1; correctP += tx.pennies; }
+    }
+    var gap = 0;
+    for (c = 0; c < C; c++) gap += Math.abs(appTotals[c] - trueTotals[c]);
+    var misP = gap / 2;
+    return {
+      n: n,
+      correct: correct,
+      accuracy: n > 0 ? correct / n : 1,
+      totalP: total,
+      correctP: correctP,
+      valueAccuracy: total > 0 ? correctP / total : 1,
+      misP: misP,
+      misPct: total > 0 ? misP * 100 / total : 0,
+      trueTotals: trueTotals,
+      appTotals: appTotals
+    };
+  }
+
+  /* ---------- which transaction should the app ask the user to check next? ---------- */
+
+  function chooseNext(strategy, session, rng) {
+    var model = session.model;
+    var tx = session.statement.tx;
+    var n = tx.length;
+    var t, best = -1;
+    if (strategy === 'random') {
+      var open = [];
+      for (t = 0; t < n; t++) if (session.labels[t] < 0) open.push(t);
+      if (open.length === 0) return -1;
+      return open[Math.floor(rng() * open.length)];
+    }
+    if (strategy === 'biggest') {
+      for (t = 0; t < n; t++) {
+        if (session.labels[t] >= 0) continue;
+        if (best < 0 || tx[t].pennies > tx[best].pennies) best = t;
+      }
+      return best;
+    }
+    if (strategy === 'unsure') {
+      for (t = 0; t < n; t++) {
+        if (session.labels[t] >= 0) continue;
+        if (best < 0 || model.conf[t] < model.conf[best]) best = t;
+      }
+      return best;
+    }
+    var order = [], stats = Object.create(null), k;
+    if (strategy === 'common') {
+      var checkedKeys = Object.create(null);
+      for (t = 0; t < n; t++) if (session.labels[t] >= 0) checkedKeys[model.keys[t]] = true;
+      for (t = 0; t < n; t++) {
+        k = model.keys[t];
+        if (session.labels[t] >= 0 || checkedKeys[k]) continue;
+        if (!stats[k]) { stats[k] = { count: 0, first: t }; order.push(k); }
+        stats[k].count += 1;
+      }
+      var bestKey = null;
+      for (var i = 0; i < order.length; i++) {
+        if (bestKey === null || stats[order[i]].count > stats[bestKey].count) bestKey = order[i];
+      }
+      if (bestKey === null) return chooseNext('unsure', session, rng);
+      return stats[bestKey].first;
+    }
+    if (strategy === 'risk') {
+      for (t = 0; t < n; t++) {
+        if (session.labels[t] >= 0) continue;
+        k = model.keys[t];
+        var r = tx[t].pennies * (1 - model.conf[t]);
+        if (!stats[k]) { stats[k] = { risk: 0, top: t, topRisk: r }; order.push(k); }
+        stats[k].risk += r;
+        if (r > stats[k].topRisk) { stats[k].topRisk = r; stats[k].top = t; }
+      }
+      var bestRiskKey = null;
+      for (var i2 = 0; i2 < order.length; i2++) {
+        if (bestRiskKey === null || stats[order[i2]].risk > stats[bestRiskKey].risk) bestRiskKey = order[i2];
+      }
+      return bestRiskKey === null ? -1 : stats[bestRiskKey].top;
+    }
+    throw new Error('unknown strategy ' + strategy);
+  }
+
+  function summarise(m) {
+    return { misPct: m.misPct, misP: m.misP, accuracy: m.accuracy, valueAccuracy: m.valueAccuracy };
+  }
+
+  function runCurve(statement, strategy, opts) {
+    opts = opts || {};
+    var checks = opts.checks !== undefined ? opts.checks : 60;
+    var slip = opts.slip || 0;
+    var session = new Session(statement, opts);
+    var rng = mulberry32(seedFor(opts.seed !== undefined ? opts.seed : statement.seed, 'sim:' + strategy));
+    var points = [summarise(session.metrics())];
+    var picks = [];
+    for (var k = 1; k <= checks; k++) {
+      var t = chooseNext(strategy, session, rng);
+      if (t < 0) break;
+      var truth = statement.tx[t].cat;
+      var label = truth;
+      if (rng() < slip) label = (truth + 1 + Math.floor(rng() * (C - 1))) % C;
+      session.correct(t, label);
+      picks.push(t);
+      points.push(summarise(session.metrics()));
+    }
+    return { strategy: strategy, points: points, picks: picks };
+  }
+
+  function checksToTarget(points, target) {
+    for (var k = 0; k < points.length; k++) if (points[k].misPct <= target) return k;
+    return null;
+  }
+
+  function compareStrategies(statement, opts) {
+    opts = opts || {};
+    var target = opts.target !== undefined ? opts.target : 5;
+    return STRATEGIES.map(function (s) {
+      var curve = runCurve(statement, s.id, opts);
+      return {
+        strategy: s.id,
+        label: s.label,
+        points: curve.points,
+        picks: curve.picks,
+        toTarget: checksToTarget(curve.points, target)
+      };
+    });
+  }
+
+  return {
+    DATA: DATA, CATS: CATS, STRATEGIES: STRATEGIES, MERCHANTS: MERCHANTS, PERSONAS: PERSONAS,
+    mulberry32: mulberry32, fnv1a: fnv1a, seedFor: seedFor, ln: ln, exp: exp,
+    dateOf: dateOf, drawPennies: drawPennies, generateStatement: generateStatement,
+    featurise: featurise, amountBand: amountBand, buildPopulation: buildPopulation,
+    Model: Model, Session: Session, metrics: metrics, chooseNext: chooseNext,
+    runCurve: runCurve, checksToTarget: checksToTarget, compareStrategies: compareStrategies
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelled;
+/* MODEL END */
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var M = Mislabelled;
+  var CATS = M.CATS;
+  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
+  var DASHES = ['', '7 4', '2 3', '10 3 2 3', '4 4'];
+  var state = { persona: 'student', weeks: 13, seed: 1, weight: 20, target: 5, checks: 60, slip: 0 };
+  var statement = null, session = null, compare = null, askRng = null;
+  var filter = 'all', sort = 'date', suggest = 'risk', flashId = -1;
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  var gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+  var gbp0 = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
+  function lineSwatch(i, w) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', '10');
+    svg.setAttribute('aria-hidden', 'true');
+    var line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', '1'); line.setAttribute('y1', '5');
+    line.setAttribute('x2', String(w - 1)); line.setAttribute('y2', '5');
+    line.setAttribute('stroke', SERIES[i]);
+    line.setAttribute('stroke-width', '2.5');
+    if (DASHES[i]) line.setAttribute('stroke-dasharray', DASHES[i]);
+    svg.appendChild(line);
+    return svg;
+  }
+  function money(p) { return gbp.format(p / 100); }
+  function money0(p) { return gbp0.format(Math.round(p / 100)); }
+  function pct(x, dp) { return x.toFixed(dp === undefined ? 1 : dp) + '%'; }
+  function firstName() { return M.PERSONAS[state.persona].label.split(',')[0]; }
+
+  /* ---------- settings ---------- */
+  function buildPersonas() {
+    var box = $('personas');
+    M.DATA.personas.forEach(function (p) {
+      var lab = el('label');
+      var input = el('input', { type: 'radio', name: 'persona', value: p.id });
+      if (p.id === state.persona) input.checked = true;
+      input.addEventListener('change', function () { state.persona = p.id; rebuild(); });
+      lab.appendChild(input);
+      lab.appendChild(el('strong', null, p.label));
+      lab.appendChild(el('span', null, p.blurb));
+      box.appendChild(lab);
+    });
+  }
+
+  function bindRange(id, key, fmt) {
+    var input = $(id), out = $(id + '-out');
+    function show() { out.textContent = fmt(Number(input.value)); }
+    input.addEventListener('input', function () { show(); });
+    input.addEventListener('change', function () { state[key] = Number(input.value); rebuild(); });
+    show();
+  }
+
+  function bindSettings() {
+    bindRange('weeks', 'weeks', function (v) { return v + ' wks'; });
+    bindRange('weight', 'weight', function (v) { return String(v); });
+    bindRange('target', 'target', function (v) { return v + '%'; });
+    bindRange('checks', 'checks', function (v) { return String(v); });
+    bindRange('slip', 'slip', function (v) { return v + '%'; });
+    var seed = $('seed');
+    seed.addEventListener('change', function () {
+      var v = Math.floor(Number(seed.value));
+      if (!isFinite(v) || v < 1) v = 1;
+      if (v > 99999) v = 99999;
+      seed.value = v;
+      state.seed = v;
+      rebuild();
+    });
+    $('reroll').addEventListener('click', function () {
+      state.seed = state.seed >= 99999 ? 1 : state.seed + 1;
+      seed.value = state.seed;
+      rebuild();
+    });
+    $('filter').addEventListener('change', function (e) { filter = e.target.value; renderTable(); });
+    $('sort').addEventListener('change', function (e) { sort = e.target.value; renderTable(); });
+    var sug = $('suggest');
+    M.STRATEGIES.forEach(function (s) {
+      var o = el('option', { value: s.id }, s.label);
+      if (s.id === suggest) o.selected = true;
+      sug.appendChild(o);
+    });
+    sug.addEventListener('change', function (e) { suggest = e.target.value; });
+    $('ask').addEventListener('click', askNext);
+    $('reset').addEventListener('click', function () { newSession(); say('All your checks were undone. The app is back to its day-one guesses.'); });
+  }
+
+  /* ---------- state changes ---------- */
+  function rebuild() {
+    statement = M.generateStatement(state.persona, state.weeks, state.seed);
+    newSession();
+    say('');
+    scheduleCompare();
+  }
+
+  function newSession() {
+    session = new M.Session(statement, { weight: state.weight });
+    askRng = M.mulberry32(M.seedFor(state.seed, 'ask'));
+    flashId = -1;
+    renderDayOne();
+    renderTable();
+  }
+
+  function say(text) {
+    var s = $('status');
+    s.textContent = text;
+    s.className = text ? 'status show' : 'status';
+  }
+
+  function applyCheck(t, label) {
+    var before = session.reportedAll();
+    var mBefore = session.metrics();
+    session.correct(t, label);
+    var after = session.reportedAll();
+    var mAfter = session.metrics();
+    var moved = 0, nowRight = 0, nowWrong = 0;
+    for (var i = 0; i < after.length; i++) {
+      if (i === t || before[i] === after[i]) continue;
+      moved += 1;
+      var truth = statement.tx[i].cat;
+      if (after[i] === truth) nowRight += 1;
+      else if (before[i] === truth) nowWrong += 1;
+    }
+    var tx = statement.tx[t];
+    var msg = 'You filed ' + tx.desc + ' as ' + CATS[label] + (label === tx.cat ? '.' : ', which is not where ' + firstName() + ' would put it.');
+    msg += moved === 0 ? ' No other payments moved.' : ' ' + moved + ' other payment' + (moved === 1 ? '' : 's') + ' moved: ' + nowRight + ' now right, ' + nowWrong + ' now wrong' + (moved - nowRight - nowWrong > 0 ? ', ' + (moved - nowRight - nowWrong) + ' still wrong' : '') + '.';
+    msg += ' Money in the wrong pot: ' + money0(mBefore.misP) + ' → ' + money0(mAfter.misP) + '.';
+    say(msg);
+    flashId = t;
+    renderDayOne();
+    renderTable();
+  }
+
+  function askNext() {
+    var t = M.chooseNext(suggest, session, askRng);
+    if (t < 0) { say('Every payment has been checked. There is nothing left to ask about.'); return; }
+    if (filter !== 'all') { filter = 'all'; $('filter').value = 'all'; }
+    flashId = t;
+    renderTable();
+    var row = document.querySelector('tr[data-id="' + t + '"]');
+    if (row) {
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      var sel = row.querySelector('select');
+      if (sel) sel.focus({ preventScroll: true });
+    }
+    var tx = statement.tx[t];
+    say('The app would ask about ' + tx.desc + ' (' + money(tx.pennies) + ', ' + tx.date + '). It is highlighted below: pick the right pot or press Fix.');
+  }
+
+  /* ---------- day one ---------- */
+  function renderDayOne() {
+    var m = session.metrics();
+    var kp = $('kpis');
+    kp.textContent = '';
+    var worst = 0, worstGap = -1;
+    for (var c = 0; c < CATS.length; c++) {
+      var g = Math.abs(m.appTotals[c] - m.trueTotals[c]);
+      if (g > worstGap) { worstGap = g; worst = c; }
+    }
+    var tiles = [
+      ['Filed correctly', pct(m.accuracy * 100, 0), m.correct + ' of ' + m.n + ' payments'],
+      ['Money in the wrong pot', money0(m.misP), pct(m.misPct) + ' of ' + money0(m.totalP) + ' spent'],
+      ['Biggest gap', worstGap > 0 ? CATS[worst] : 'None', worstGap > 0 ? 'App ' + money0(m.appTotals[worst]) + ', really ' + money0(m.trueTotals[worst]) : 'Every pot is right'],
+      ['Your checks so far', String(session.checks), session.checks === 0 ? 'The app’s day-one guesses' : 'Each one taught the app']
+    ];
+    tiles.forEach(function (t) {
+      var d = el('div', { class: 'kpi' });
+      d.appendChild(el('div', { class: 'k' }, t[0]));
+      d.appendChild(el('div', { class: 'v' }, t[1]));
+      d.appendChild(el('div', { class: 'd' }, t[2]));
+      kp.appendChild(d);
+    });
+    $('dayone-sub').textContent = (session.checks === 0 ? 'Day one: ' : 'After your ' + session.checks + ' check' + (session.checks === 1 ? '' : 's') + ': ') +
+      'the app’s pots for ' + firstName() + '’s ' + state.weeks + '-week statement (' + statement.tx[0].date + ' to ' + statement.tx[statement.tx.length - 1].date + '), against how ' + firstName() + ' would file the same payments.';
+
+    var bars = $('bars');
+    bars.textContent = '';
+    var max = 1;
+    for (c = 0; c < CATS.length; c++) max = Math.max(max, m.appTotals[c], m.trueTotals[c]);
+    for (c = 0; c < CATS.length; c++) {
+      var row = el('div', { class: 'bar-row', role: 'listitem' });
+      var diff = m.appTotals[c] - m.trueTotals[c];
+      row.setAttribute('aria-label', CATS[c] + ': app says ' + money0(m.appTotals[c]) + ', really ' + money0(m.trueTotals[c]));
+      row.appendChild(el('div', { class: 'name' }, CATS[c]));
+      var track = el('div', { class: 'bar-track', 'aria-hidden': 'true' });
+      var a = el('div', { class: 'bar app', title: 'App says ' + money(m.appTotals[c]) });
+      a.style.width = (m.appTotals[c] / max * 100) + '%';
+      var r = el('div', { class: 'bar real', title: 'Really ' + money(m.trueTotals[c]) });
+      r.style.width = (m.trueTotals[c] / max * 100) + '%';
+      track.appendChild(a);
+      track.appendChild(r);
+      track.appendChild(el('div', { class: 'bar-vals' }, 'App ' + money0(m.appTotals[c]) + ' · really ' + money0(m.trueTotals[c])));
+      row.appendChild(track);
+      var cls = Math.abs(diff) < 100 ? 'ok' : (diff > 0 ? 'over' : 'under');
+      var label = Math.abs(diff) < 100 ? 'spot on' : (diff > 0 ? '+' : '−') + money0(Math.abs(diff));
+      row.appendChild(el('div', { class: 'diff ' + cls, 'aria-hidden': 'true' }, label));
+      bars.appendChild(row);
+    }
+
+    // biggest mix-ups: group misfiled payments by merchant key and (app pot, real pot)
+    var groups = {}, order = [];
+    var rep = session.reportedAll();
+    statement.tx.forEach(function (tx, t) {
+      if (rep[t] === tx.cat) return;
+      var key = session.model.keys[t] + '|' + rep[t] + '|' + tx.cat;
+      if (!groups[key]) { groups[key] = { key: session.model.keys[t], app: rep[t], real: tx.cat, n: 0, p: 0, eg: tx.desc }; order.push(key); }
+      groups[key].n += 1;
+      groups[key].p += tx.pennies;
+    });
+    var list = order.map(function (k) { return groups[k]; }).sort(function (x, y) { return y.p - x.p; }).slice(0, 4);
+    var ul = $('mixups');
+    ul.textContent = '';
+    if (list.length === 0) {
+      ul.appendChild(el('li', null, 'Nothing is misfiled. Every payment is in the pot ' + firstName() + ' would choose.'));
+    }
+    list.forEach(function (g) {
+      var li = el('li');
+      li.appendChild(el('span', { class: 'mono' }, g.eg));
+      li.appendChild(document.createTextNode(g.n > 1 ? ' and ' + (g.n - 1) + ' similar: ' : ': '));
+      li.appendChild(el('strong', null, money0(g.p)));
+      li.appendChild(document.createTextNode(' filed as ' + CATS[g.app] + ', really ' + CATS[g.real] + '.'));
+      ul.appendChild(li);
+    });
+  }
+
+  /* ---------- the statement table ---------- */
+  function renderTable() {
+    var body = $('rows');
+    body.textContent = '';
+    var model = session.model;
+    var idx = [];
+    for (var t = 0; t < statement.tx.length; t++) {
+      var rep = session.reported(t);
+      var tx = statement.tx[t];
+      if (filter === 'wrong' && rep === tx.cat) continue;
+      if (filter === 'unsure' && (session.labels[t] >= 0 || model.conf[t] >= 0.5)) continue;
+      if (filter === 'checked' && session.labels[t] < 0) continue;
+      idx.push(t);
+    }
+    if (sort === 'amount') idx.sort(function (a, b) { return statement.tx[b].pennies - statement.tx[a].pennies || a - b; });
+    if (sort === 'conf') idx.sort(function (a, b) { return model.conf[a] - model.conf[b] || a - b; });
+    if (idx.length === 0) {
+      var tr0 = el('tr');
+      var td0 = el('td', { colspan: '7' }, filter === 'checked' ? 'You have not checked any payments yet.' : 'No payments match this view.');
+      tr0.appendChild(td0);
+      body.appendChild(tr0);
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    idx.forEach(function (t) {
+      var tx = statement.tx[t];
+      var rep = session.reported(t);
+      var checked = session.labels[t] >= 0;
+      var right = rep === tx.cat;
+      var tr = el('tr', { 'data-id': String(t) });
+      tr.className = (checked ? 'checked' : (right ? '' : 'wrong')) + (t === flashId ? ' flash' : '');
+      tr.appendChild(el('td', null, tx.date.slice(5)));
+      tr.appendChild(el('td', { class: 'mono' }, tx.desc));
+      tr.appendChild(el('td', { class: 'num' }, money(tx.pennies)));
+      var td = el('td');
+      var sel = el('select', { 'aria-label': 'Pot for ' + tx.desc + ' on ' + tx.date });
+      CATS.forEach(function (c, i) {
+        var o = el('option', { value: String(i) }, c);
+        if (i === rep) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', function () { applyCheck(t, Number(sel.value)); });
+      td.appendChild(sel);
+      tr.appendChild(td);
+      var cf = el('td', { class: 'hide-sm' });
+      if (checked) cf.appendChild(el('span', { class: 'conf' }, 'Checked'));
+      else {
+        var span = el('span', { class: 'conf' });
+        var bar = el('i', { 'aria-hidden': 'true' });
+        var fill = el('b');
+        fill.style.width = Math.round(model.conf[t] * 100) + '%';
+        bar.appendChild(fill);
+        span.appendChild(bar);
+        span.appendChild(document.createTextNode(Math.round(model.conf[t] * 100) + '%'));
+        cf.appendChild(span);
+      }
+      tr.appendChild(cf);
+      var really = el('td');
+      really.appendChild(el('span', { class: right ? 'tick' : 'cross', 'aria-hidden': 'true' }, right ? '✓ ' : '✗ '));
+      really.appendChild(document.createTextNode(CATS[tx.cat]));
+      really.appendChild(el('span', { class: 'sr-only' }, right ? ' (app is right)' : ' (app is wrong)'));
+      tr.appendChild(really);
+      var act = el('td');
+      if (!checked) {
+        var b = el('button', { type: 'button', 'aria-label': (right ? 'Confirm ' : 'Fix ') + tx.desc + ' on ' + tx.date }, right ? 'Confirm' : 'Fix');
+        b.addEventListener('click', function () { applyCheck(t, tx.cat); });
+        act.appendChild(b);
+      }
+      tr.appendChild(act);
+      frag.appendChild(tr);
+    });
+    body.appendChild(frag);
+  }
+
+  /* ---------- strategy comparison ---------- */
+  var compareTimer = null;
+  function scheduleCompare() {
+    if (compareTimer) clearTimeout(compareTimer);
+    $('insight').textContent = 'Replaying the strategies…';
+    compareTimer = setTimeout(function () {
+      compareTimer = null;
+      compare = M.compareStrategies(statement, { checks: state.checks, target: state.target, slip: state.slip / 100, weight: state.weight, seed: state.seed });
+      renderCompare();
+    }, 30);
+  }
+
+  function describeTo(r) {
+    return r.toTarget === null ? 'never gets there in ' + state.checks + ' checks' : (r.toTarget === 0 ? 'is already there on day one' : 'gets there after ' + r.toTarget + ' check' + (r.toTarget === 1 ? '' : 's'));
+  }
+
+  function renderCompare() {
+    var leg = $('strat-legend');
+    leg.textContent = '';
+    compare.forEach(function (r, i) {
+      var li = el('li');
+      li.appendChild(lineSwatch(i, 26));
+      li.appendChild(document.createTextNode(r.label));
+      leg.appendChild(li);
+    });
+    drawChart();
+    var ranked = compare.slice().sort(function (a, b) {
+      var at = a.toTarget === null ? Infinity : a.toTarget, bt = b.toTarget === null ? Infinity : b.toTarget;
+      if (at !== bt) return at - bt;
+      return a.points[a.points.length - 1].misPct - b.points[b.points.length - 1].misPct;
+    });
+    var best = ranked[0], worst = ranked[ranked.length - 1];
+    var day1 = compare[0].points[0].misPct;
+    var ins = $('insight');
+    if (day1 <= state.target) {
+      ins.textContent = 'On day one only ' + pct(day1) + ' of ' + firstName() + '’s spending is in the wrong pot, already inside the ' + state.target + '% target. Try another person or a tighter target.';
+    } else {
+      ins.textContent = 'On day one ' + pct(day1) + ' of ' + firstName() + '’s spending is in the wrong pot. To get under ' + state.target + '%, ' + best.label.toLowerCase() + ' ' + describeTo(best) + ', while ' + worst.label.toLowerCase() + ' ' + describeTo(worst) + '.';
+    }
+    var body = $('strat-rows');
+    body.textContent = '';
+    compare.forEach(function (r, i) {
+      var tr = el('tr');
+      var th = el('th', { scope: 'row' });
+      var sw = lineSwatch(i, 22);
+      sw.style.marginRight = '6px';
+      sw.style.verticalAlign = 'middle';
+      th.appendChild(sw);
+      th.appendChild(document.createTextNode(r.label));
+      th.style.fontWeight = r === best && day1 > state.target ? '700' : '400';
+      th.style.textAlign = 'left';
+      tr.appendChild(th);
+      var last = r.points[r.points.length - 1];
+      tr.appendChild(el('td', { class: 'num' }, r.toTarget === null ? 'Not reached' : String(r.toTarget)));
+      tr.appendChild(el('td', { class: 'num' }, r.points.length > 10 ? pct(r.points[10].misPct) : '–'));
+      tr.appendChild(el('td', { class: 'num' }, r.points.length > 30 ? pct(r.points[30].misPct) : '–'));
+      tr.appendChild(el('td', { class: 'num' }, pct(last.misPct)));
+      tr.appendChild(el('td', { class: 'num hide-sm' }, pct(last.accuracy * 100, 0)));
+      body.appendChild(tr);
+    });
+  }
+
+  var chartGeom = null;
+  function drawChart() {
+    var svg = $('chart');
+    var W = 760, H = 340, L = 52, R = 16, T = 14, B = 40;
+    var keep = [svg.querySelector('title'), svg.querySelector('desc')];
+    svg.textContent = '';
+    keep.forEach(function (k) { svg.appendChild(k); });
+    var K = 0, ymax = state.target;
+    compare.forEach(function (r) {
+      K = Math.max(K, r.points.length - 1);
+      r.points.forEach(function (p) { ymax = Math.max(ymax, p.misPct); });
+    });
+    ymax = niceMax(ymax);
+    K = Math.max(K, 1);
+    function x(k) { return L + (W - L - R) * k / K; }
+    function y(v) { return T + (H - T - B) * (1 - v / ymax); }
+    var ns = 'http://www.w3.org/2000/svg';
+    function add(tag, attrs, text) {
+      var e = document.createElementNS(ns, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text !== undefined) e.textContent = text;
+      svg.appendChild(e);
+      return e;
+    }
+    var step = ymax / 5;
+    for (var i = 0; i <= 5; i++) {
+      var v = step * i;
+      add('line', { class: 'gridline', x1: L, x2: W - R, y1: y(v), y2: y(v) });
+      add('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end' }, (Math.round(v * 10) / 10) + '%');
+    }
+    var xstep = K <= 20 ? 5 : K <= 60 ? 10 : K <= 100 ? 20 : 30;
+    for (var k = 0; k <= K; k += xstep) add('text', { x: x(k), y: H - B + 18, 'text-anchor': 'middle' }, String(k));
+    add('text', { x: L + (W - L - R) / 2, y: H - 4, 'text-anchor': 'middle' }, 'Checks answered');
+    add('line', { class: 'axis', x1: L, x2: W - R, y1: y(0), y2: y(0) });
+    add('line', { class: 'target', x1: L, x2: W - R, y1: y(state.target), y2: y(state.target) });
+    add('text', { x: W - R, y: y(state.target) - 6, 'text-anchor': 'end' }, 'Target ' + state.target + '%');
+    compare.forEach(function (r, si) {
+      var d = r.points.map(function (p, k2) { return (k2 === 0 ? 'M' : 'L') + x(k2).toFixed(1) + ' ' + y(p.misPct).toFixed(1); }).join(' ');
+      add('path', { d: d, fill: 'none', stroke: SERIES[si], 'stroke-width': '2', 'stroke-dasharray': DASHES[si], 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    });
+    var cross = add('line', { class: 'cross-line', x1: 0, x2: 0, y1: T, y2: H - B, visibility: 'hidden' });
+    var dots = compare.map(function (r, si) { return add('circle', { r: 4.5, fill: SERIES[si], stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }); });
+    chartGeom = { x: x, y: y, K: K, L: L, R: R, W: W, cross: cross, dots: dots, at: -1 };
+  }
+
+  function niceMax(v) {
+    var steps = [1, 2, 2.5, 5, 10];
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= v) return steps[i] * mag;
+    return 10 * mag;
+  }
+
+  function showAt(k) {
+    if (!chartGeom || !compare) return;
+    var g = chartGeom;
+    k = Math.max(0, Math.min(g.K, k));
+    g.at = k;
+    var px = g.x(k);
+    g.cross.setAttribute('x1', px); g.cross.setAttribute('x2', px); g.cross.setAttribute('visibility', 'visible');
+    var tip = $('tooltip');
+    tip.textContent = '';
+    tip.appendChild(el('div', { style: 'font-weight:600;margin-bottom:4px' }, k === 0 ? 'Day one, no checks' : 'After ' + k + ' check' + (k === 1 ? '' : 's')));
+    compare.forEach(function (r, si) {
+      var p = r.points[Math.min(k, r.points.length - 1)];
+      g.dots[si].setAttribute('cx', px);
+      g.dots[si].setAttribute('cy', g.y(p.misPct));
+      g.dots[si].setAttribute('visibility', 'visible');
+      var row = el('div', { class: 't-row' });
+      var name = el('span');
+      var sw = el('i', { class: 'sw', style: 'background:' + SERIES[si] });
+      name.appendChild(sw);
+      name.appendChild(document.createTextNode(M.STRATEGIES[si].short));
+      row.appendChild(name);
+      row.appendChild(el('strong', null, pct(p.misPct)));
+      tip.appendChild(row);
+    });
+    var box = $('chartbox').getBoundingClientRect();
+    var svgBox = $('chart').getBoundingClientRect();
+    var scale = svgBox.width / 760;
+    tip.style.display = 'block';
+    var left = px * scale + 14;
+    if (left + tip.offsetWidth > box.width) left = px * scale - tip.offsetWidth - 14;
+    tip.style.left = Math.max(0, left) + 'px';
+    tip.style.top = '8px';
+  }
+
+  function hideTip() {
+    if (!chartGeom) return;
+    $('tooltip').style.display = 'none';
+    chartGeom.cross.setAttribute('visibility', 'hidden');
+    chartGeom.dots.forEach(function (d) { d.setAttribute('visibility', 'hidden'); });
+  }
+
+  function bindChart() {
+    var svg = $('chart');
+    function fromEvent(ev) {
+      var rect = svg.getBoundingClientRect();
+      var sx = (ev.clientX - rect.left) * 760 / rect.width;
+      var g = chartGeom;
+      return Math.round((sx - g.L) / (g.W - g.L - g.R) * g.K);
+    }
+    svg.addEventListener('pointermove', function (ev) { if (chartGeom) showAt(fromEvent(ev)); });
+    svg.addEventListener('pointerleave', hideTip);
+    svg.addEventListener('blur', hideTip);
+    svg.addEventListener('focus', function () { if (chartGeom) showAt(chartGeom.at < 0 ? 0 : chartGeom.at); });
+    svg.addEventListener('keydown', function (ev) {
+      if (!chartGeom) return;
+      var k = chartGeom.at < 0 ? 0 : chartGeom.at;
+      if (ev.key === 'ArrowRight') { showAt(k + 1); ev.preventDefault(); }
+      else if (ev.key === 'ArrowLeft') { showAt(k - 1); ev.preventDefault(); }
+      else if (ev.key === 'Home') { showAt(0); ev.preventDefault(); }
+      else if (ev.key === 'End') { showAt(chartGeom.K); ev.preventDefault(); }
+      else if (ev.key === 'Escape') hideTip();
+    });
+  }
+
+  buildPersonas();
+  bindSettings();
+  bindChart();
+  rebuild();
+})();
+</script>
+</body>
+</html>
