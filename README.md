@@ -6,7 +6,7 @@ Budgeting apps use machine learning to sort card payments into pots such as groc
 
 > Educational simulation with invented people, shops and amounts. It is not financial advice, and nothing in it describes a real app, bank or business.
 
-![The app on day one for Sam, a graduate: 55% of spending is in the wrong pot](docs/overview.png)
+![The top of the app: a till receipt curling out of a card terminal, its category stamps (one crossed out and re-stamped), and Sam, a graduate, picked from three invented people](docs/overview.png)
 
 ## What you can do with it
 
@@ -80,7 +80,7 @@ python -m mislabelled categorise my-statement.csv -o filed.csv
 
 | Part | Language | Rough size | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | about 2,250 lines: 235 CSS, 215 markup, 930 model (190 of them data), 870 interface | The whole interactive tool, offline in one file. The model sits between `/* MODEL START */` and `/* MODEL END */` and exports itself for Node.js. |
+| `app/index.html` | HTML, CSS, JavaScript | about 2,690 lines: 535 CSS (four of them embedded fonts), 350 markup (including the header illustration), 930 model (190 of them data), 870 interface | The whole interactive tool, offline in one file, styled like till receipts and bank statements with its two fonts embedded (licences in `app/FONT-LICENCE.txt`). The model sits between `/* MODEL START */` and `/* MODEL END */` and exports itself for Node.js. |
 | `mislabelled/` | Python (standard library) | about 1,390 lines | The same model, line for line, plus batch runs over many statements, CSV import of your own statement, strategy replays on it, CSV exports and HTML reports. |
 | `tests/` | Python and JavaScript | about 860 lines | Unit tests for both models, a cross-language agreement test, command-line tests, repository checks and browser tests. |
 
