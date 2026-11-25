@@ -39,6 +39,8 @@ class ReadingTablesTests(unittest.TestCase):
         self.assertEqual(read("12,5"), {"value": 12.5, "percent": False})
         self.assertEqual(read("1,234.5"), {"value": 1234.5, "percent": False})
         self.assertEqual(read("1e-2"), {"value": 0.01, "percent": False})
+        self.assertEqual(read("8,400"), {"value": 8400, "percent": False})
+        self.assertEqual(read("0,050"), {"value": 0.05, "percent": False})
         for bad in ("", "n/a", "12a", "--3", "٣"):
             self.assertIsNone(read(bad), bad)
 
@@ -63,6 +65,17 @@ class ReadingTablesTests(unittest.TestCase):
         self.assertFalse(t["header"])
         self.assertEqual(len(t["teams"]), 2)
         self.assertAlmostEqual(t["teams"][1]["vol"], 0.23)
+
+    def test_place_column_without_header_currency_and_risk_adjusted_headers(self):
+        t = check.parse_table("1,Alder,8.4%,21%\n2,Birch,4.0%,23%\n3rd,Cedar,-2%,15%\n")
+        self.assertEqual([x["name"] for x in t["teams"]], ["Alder", "Birch", "Cedar"])
+        self.assertAlmostEqual(t["teams"][2]["vol"], 0.15)
+        self.assertEqual(check.read_number("£8,400"), {"value": 8400, "percent": False})
+        t = check.parse_table("Team,Return,Risk-adjusted return\nA,5%,1.2\nB,2%,0.4\nC,-1%,-0.3\n")
+        self.assertEqual(t["columns"]["vol"], None)
+        self.assertIsNone(t["teams"][0]["vol"])
+        with self.assertRaisesRegex(ValueError, "Only 0 of the 3 rows"):
+            check.check_leaderboard(check.parse_table("Team,Return\nA,n/a\nB,?\nC,-\n"))
 
     def test_sharpe_only_and_true_skill(self):
         t = check.parse_table("Team,Sharpe,True skill\nA,1.2,0.5\nB,-0.3,0.1\n")
@@ -113,9 +126,25 @@ class StatisticsTests(unittest.TestCase):
         self.assertEqual(r["basis"], {"sharpe": 0, "vol": 0, "assumed": 3})
         sd = 0.2 * math.sqrt(60 / 252)
         self.assertAlmostEqual(r["rows"][0]["z"], (math.log(1.1) + sd * sd / 2) / sd)
-        # A team that lost everything still gets a finite score.
-        t = check.parse_table("Team,Return,Volatility\nA,5%,20%\nB,-100%,90%\nC,1%,15%\n")
-        self.assertTrue(math.isfinite(check.check_leaderboard(t, {"sims": 1000})["rows"][2]["z"]))
+
+    def test_a_team_that_lost_everything_is_left_out(self):
+        rows = "".join(f"T{i},{r}%,20%\n" for i, r in enumerate((4, 2, 1, -1, -3, -5)))
+        t = check.parse_table("Team,Return,Volatility\n" + rows + "Bust,-100%,80%\n")
+        r = check.check_leaderboard(t, {"sims": 1000})
+        self.assertEqual(r["excluded"], ["Bust"])
+        self.assertEqual(r["teams"], 6)
+        self.assertEqual(r["verdict"], "luck")
+        with self.assertRaisesRegex(ValueError, "once 1 team that lost everything is left out"):
+            check.check_leaderboard(check.parse_table("Team,Return\nA,5%\nB,-100%\nC,1%\n"))
+
+    def test_warnings_for_likely_misreadings(self):
+        year = check.example_table("year")["text"]
+        self.assertIn("extreme", check.check_leaderboard(check.parse_table(year), {"days": 20, "sims": 1000})["warnings"])
+        self.assertEqual(check.check_leaderboard(check.parse_table(year), {"days": 250, "sims": 1000})["warnings"], [])
+        money = check.parse_table("Team,P&L\nA,8400\nB,-1200\nC,300\nD,-50\n")
+        self.assertIn("large", check.check_leaderboard(money, {"sims": 1000})["warnings"])
+        mixed = check.parse_table("Team,Return,Volatility\nA,0.42,21\nB,-0.16,18\nC,0.05,25\n")
+        self.assertIn("mixedUnits", check.check_leaderboard(mixed, {"sims": 1000})["warnings"])
 
     def test_best_lead_chance_is_reproducible(self):
         t = table_of([1.5, 0.2, -0.4, -1.0, 0.6])

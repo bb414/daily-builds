@@ -77,7 +77,7 @@ NUMBER = re.compile(r"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)(e[+-]?[0-9]+)?", re.IGNORE
 
 def read_number(text: str) -> dict | None:
     """"+8.4%", "-3", "(2.1)", "12,5" and a typographic minus all read as numbers."""
-    s = re.sub(r"\s+", "", str(text).replace("−", "-"))
+    s = re.sub(r"\s+", "", re.sub(r"[£$€]", "", str(text)).replace("\u2212", "-"))
     negative = False
     if re.fullmatch(r"\(.*\)", s):
         negative = True
@@ -85,7 +85,8 @@ def read_number(text: str) -> dict | None:
     percent = "%" in s
     s = s.replace("%", "")
     if "," in s:
-        s = s.replace(",", "") if "." in s else s.replace(",", ".")
+        thousands = "." in s or re.fullmatch(r"[+-]?[1-9][0-9]{0,2}(,[0-9]{3})+", s)
+        s = s.replace(",", "") if thousands else s.replace(",", ".")
     if not NUMBER.fullmatch(s):
         return None
     v = float(s)
@@ -98,6 +99,8 @@ def column_role(label: str) -> str | None:
         return "truth"
     if re.search(r"sharpe", h):
         return "sharpe"
+    if re.search(r"risk.?adjusted", h):
+        return None
     if re.search(r"vol|risk|std|deviation", h):
         return "vol"
     if re.search(r"return|p&l|pnl|profit|perf|gain|result", h):
@@ -108,6 +111,7 @@ def column_role(label: str) -> str | None:
 
 
 PLACE_LABEL = re.compile(r"(place|rank|position|pos|#|no\.?)", re.IGNORECASE)
+PLACE_NUMBER = re.compile(r"[0-9]+(st|nd|rd|th|\.)?", re.IGNORECASE)
 
 
 def parse_table(text: str) -> dict:
@@ -140,11 +144,14 @@ def parse_table(text: str) -> dict:
             raise ValueError("No return or Sharpe ratio column found. Name the columns in a header row, "
                              "for example: Team, Return, Volatility.")
     else:
-        col["name"] = 0
-        col["ret"] = 1
-        if len(rows[0]) > 2:
-            col["vol"] = 2
-        if len(rows[0]) < 2:
+        # Without a header: team, return and volatility, after a leading place column if there is one.
+        lead = 1 if (all(PLACE_NUMBER.fullmatch(r[0]) for r in rows)
+                     and any(len(r) > 1 and read_number(r[1]) is None for r in rows)) else 0
+        col["name"] = lead
+        col["ret"] = lead + 1
+        if len(rows[0]) > lead + 2:
+            col["vol"] = lead + 2
+        if len(rows[0]) < lead + 2:
             raise ValueError("Each row needs at least a team name and a return.")
     labels = {key: (rows[0][c] if c >= 0 and header else None) for key, c in col.items()}
     body = rows[1:] if header else rows
@@ -255,19 +262,47 @@ def chi_square_quantile(p: float, df: int) -> float:
     return (lo + hi) / 2
 
 
+def check_warnings(table: dict, rows: list[dict]) -> list[str]:
+    """Signs that the table may have been misread: leads luck almost never produces (often a daily
+    volatility, the wrong length or the wrong units), returns over 1,000% (often money rather than
+    percentages), and returns and volatility read in different units."""
+    out = []
+    if any(abs(r["lead"]) > 5 for r in rows):
+        out.append("extreme")
+    if any(r["ret"] is not None and abs(r["ret"]) > 10 for r in rows):
+        out.append("large")
+    units = table.get("units") or {}
+    if units.get("ret") and units.get("vol") and units["ret"] != units["vol"]:
+        out.append("mixedUnits")
+    return out
+
+
 def check_leaderboard(table: dict, options: dict | None = None) -> dict:
     o = normalise_check(options)
     teams = table["teams"]
-    n = len(teams)
-    if n < 3:
-        raise ValueError(f"At least three teams are needed; this table has {n}.")
-    if n > CHECK_MAX_TEAMS:
-        raise ValueError(f"At most {CHECK_MAX_TEAMS} teams can be checked; this table has {n}.")
+    if len(teams) > CHECK_MAX_TEAMS:
+        raise ValueError(f"At most {CHECK_MAX_TEAMS} teams can be checked; this table has {len(teams)}.")
     k = math.sqrt(o["days"] / DAYS_PER_YEAR)
     luck = 1 - o["correlation"]
+    # A team that lost everything took far more risk than any volatility figure says, so it would
+    # swamp the test; it is left out and named.
+    lost = [t["sharpe"] is None and t["ret"] <= LOG_FLOOR - 1 for t in teams]
+    excluded = [t["name"] for t, x in zip(teams, lost) if x]
+    kept = [(i, t) for i, (t, x) in enumerate(zip(teams, lost)) if not x]
+    n = len(kept)
+    skipped = table.get("skipped", 0)
+    if n < 3 and skipped:
+        raise ValueError(f"Only {n} of the {len(teams) + skipped} rows had a number the check could read. "
+                         "Name the columns in a header row, for example: Team, Return, Volatility.")
+    if n < 3:
+        left_out = ""
+        if excluded:
+            what = " team that lost everything is" if len(excluded) == 1 else " teams that lost everything are"
+            left_out = f" once {len(excluded)}{what} left out"
+        raise ValueError(f"At least three teams are needed; this table has {n}{left_out}.")
     basis = {"sharpe": 0, "vol": 0, "assumed": 0}
     rows = []
-    for i, t in enumerate(teams):
+    for i, t in kept:
         how = "sharpe" if t["sharpe"] is not None else ("vol" if t["vol"] is not None else "assumed")
         basis[how] += 1
         if how == "sharpe":
@@ -358,6 +393,8 @@ def check_leaderboard(table: dict, options: dict | None = None) -> dict:
         "best": best,
         "pBest": beaten / o["sims"],
         "truthCorrelation": truth_correlation,
+        "excluded": excluded,
+        "warnings": check_warnings(table, rows),
         "rows": rows,
     }
 

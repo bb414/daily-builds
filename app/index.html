@@ -78,6 +78,7 @@
   --shadow: none;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 h1, h2, h3 { line-height: 1.25; margin: 0 0 0.5rem; }
@@ -197,12 +198,14 @@ table.data tr.you td, table.data tr.you th { background: var(--accent-soft); fon
 .num span { display: block; font-weight: 600; font-size: 0.9375rem; margin-bottom: 4px; }
 .num input { font: inherit; width: 8em; padding: 8px 10px; min-height: 44px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
 .chart-title { font-size: 1rem; margin: 4px 0 0; }
+.warning { margin: 0; padding: 10px 12px; border-left: 4px solid var(--gambler); background: var(--surface-2); border-radius: 6px; }
 #check-status.error { color: var(--gambler); font-weight: 600; }
 #check-table tr.picked td, #check-table tr.picked th { background: var(--accent-soft); font-weight: 700; }
 .edge-range { color: var(--ink-2); }
 @media (max-width: 600px) {
   #check-table .wide-col { display: none; }
-  #check-table td, #check-table th { padding: 6px 4px; }
+  #check-table td, #check-table th { padding: 6px 3px; }
+  #check-table { font-size: 0.8125rem; }
   #check-table thead th, #check-table td:nth-child(2) { white-space: normal; }
   #check-table .edge-range { display: block; font-size: 0.75rem; }
 }
@@ -334,7 +337,7 @@ details.about[open] summary::after { content: " \25b4"; }
 
   <section class="card" id="check-card" aria-labelledby="check-h">
     <div class="chart-head"><h3 id="check-h">Check a real leaderboard</h3><span class="hint">Nothing you paste leaves this page.</span></div>
-    <p class="hint">Paste the final table from a past challenge, or open a CSV file: one row per team, with a header row naming the columns. The check needs each team's return and, ideally, its volatility or Sharpe ratio, so that teams that took more risk are judged fairly. It then asks how much of the table luck alone could explain.</p>
+    <p class="hint">Paste the final table from a past challenge, or open a CSV file: one row per team, with a header row naming the columns. The check needs each team's return and, ideally, its annualised volatility, or else its Sharpe ratio, so that teams that took more risk are judged fairly. It then asks how much of the table luck alone could explain.</p>
     <div class="check-grid">
       <div>
         <label class="field-label" for="check-text">Final table</label>
@@ -359,6 +362,7 @@ details.about[open] summary::after { content: " \25b4"; }
     <p class="hint" id="check-status" role="status" aria-live="polite"></p>
     <div id="check-results" class="stack" style="margin-top: 16px" hidden>
       <p class="insight" id="check-verdict"></p>
+      <p id="check-warning" class="warning" role="note" hidden></p>
       <div class="tiles" id="check-tiles"></div>
       <div>
         <h4 class="chart-title">Each team's luck-adjusted lead, in finishing order</h4>
@@ -384,7 +388,7 @@ details.about[open] summary::after { content: " \25b4"; }
     <summary><h2 id="about-h">How it works</h2></summary>
     <div id="about">
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
-      <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; highest Sortino ratio, which divides return by the volatility of losing days only, so upside swings are not penalised; best return over worst drawdown, which divides return by the largest fall from a peak; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
+      <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; highest Sortino ratio, which divides return by the size of the losing days alone, so upside swings are not penalised; best return over worst drawdown, which divides return by the largest fall from a peak; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
       <p><strong>Going for broke.</strong> Your team, and a share of the steady rivals, can switch to a much higher risk if they are outside the top three at a checkpoint. Rivals judge their position against the other rivals, so their choices do not depend on yours and the risk curve still compares like with like. Studies of fund managers find the same behaviour: managers who are behind part-way through the year tend to raise their risk (Brown, Harlow and Starks, 1996; Chevalier and Ellison, 1997).</p>
       <p><strong>Capping and costing risk.</strong> With a volatility cap, no team may run more than the cap, whatever it wants: gamblers, teams going for broke and your team included. The cost of risk is a return lost each year in proportion to volatility, so it costs a gambler several times what it costs a steady team. Over a few weeks it is small next to luck, which is why a cap changes the leaderboard far more than a cost.</p>
       <p><strong>Checking a real leaderboard.</strong> Each team's result is turned into a luck-adjusted score: its log return divided by its volatility over the challenge, or its Sharpe ratio scaled to the challenge's length. If no team had any skill, those scores would spread out only as much as luck allows, and how much that is depends on how much teams ride the same market. More spread than that is a sign of skill: a chi-square test gives how often luck alone would produce it, and the excess gives an estimate of how much true skill varies across the field. Each team's estimated edge is its result pulled back towards the field's average by the share of the spread that is luck (a standard allowance for luck known as shrinkage). How often a field with no skill produces a best result as strong as the table's comes from 10,000 simulated luck-only fields. Tested on simulated challenges with no skill anywhere, it finds more spread than luck allows (at the 5% level) in about 5% of them, as a fair test should.</p>
@@ -1109,12 +1113,15 @@ var LeaderboardModel = (function () {
 
   // "+8.4%", "-3", "(2.1)", "12,5" and a typographic minus all read as numbers.
   function readNumber(text) {
-    var s = String(text).replace(/−/g, '-').replace(/\s+/g, '');
+    var s = String(text).replace(/[£$€]/g, '').replace(/−/g, '-').replace(/\s+/g, '');
     var negative = false;
     if (/^\(.*\)$/.test(s)) { negative = true; s = s.slice(1, -1); }
     var percent = s.indexOf('%') >= 0;
     s = s.replace(/%/g, '');
-    if (s.indexOf(',') >= 0) s = s.indexOf('.') >= 0 ? s.replace(/,/g, '') : s.replace(/,/g, '.');
+    if (s.indexOf(',') >= 0) {
+      var thousands = s.indexOf('.') >= 0 || /^[+-]?[1-9][0-9]{0,2}(,[0-9]{3})+$/.test(s);
+      s = thousands ? s.replace(/,/g, '') : s.replace(/,/g, '.');
+    }
     if (!/^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)(e[+-]?[0-9]+)?$/i.test(s)) return null;
     var v = parseFloat(s);
     return { value: negative ? -v : v, percent: percent };
@@ -1124,6 +1131,7 @@ var LeaderboardModel = (function () {
     var h = label.toLowerCase();
     if (/true|skill/.test(h)) return 'truth';
     if (/sharpe/.test(h)) return 'sharpe';
+    if (/risk.?adjusted/.test(h)) return null;
     if (/vol|risk|std|deviation/.test(h)) return 'vol';
     if (/return|p&l|pnl|profit|perf|gain|result/.test(h)) return 'ret';
     if (/team|name|player|entrant|fund|portfolio/.test(h)) return 'name';
@@ -1157,10 +1165,13 @@ var LeaderboardModel = (function () {
         throw new Error('No return or Sharpe ratio column found. Name the columns in a header row, for example: Team, Return, Volatility.');
       }
     } else {
-      col.name = 0;
-      col.ret = 1;
-      if (rows[0].length > 2) col.vol = 2;
-      if (rows[0].length < 2) throw new Error('Each row needs at least a team name and a return.');
+      // Without a header: team, return and volatility, after a leading place column if there is one.
+      var lead = rows.every(function (r) { return /^[0-9]+(st|nd|rd|th|\.)?$/i.test(r[0]); }) &&
+        rows.some(function (r) { return r.length > 1 && readNumber(r[1]) === null; }) ? 1 : 0;
+      col.name = lead;
+      col.ret = lead + 1;
+      if (rows[0].length > lead + 2) col.vol = lead + 2;
+      if (rows[0].length < lead + 2) throw new Error('Each row needs at least a team name and a return.');
     }
     var labels = {};
     Object.keys(col).forEach(function (key) { labels[key] = col[key] >= 0 && header ? rows[0][col[key]] : null; });
@@ -1263,16 +1274,48 @@ var LeaderboardModel = (function () {
     return (lo + hi) / 2;
   }
 
+  // Signs that the table may have been misread: leads luck almost never produces (often a daily
+  // volatility, the wrong length or the wrong units), returns over 1,000% (often money rather than
+  // percentages), and returns and volatility read in different units.
+  function checkWarnings(table, rows) {
+    var out = [];
+    if (rows.some(function (r) { return Math.abs(r.lead) > 5; })) out.push('extreme');
+    if (rows.some(function (r) { return r.ret !== null && Math.abs(r.ret) > 10; })) out.push('large');
+    var units = table.units || {};
+    if (units.ret && units.vol && units.ret !== units.vol) out.push('mixedUnits');
+    return out;
+  }
+
   function checkLeaderboard(table, options) {
     var o = normaliseCheck(options);
     var teams = table.teams;
-    var n = teams.length;
-    if (n < 3) throw new Error('At least three teams are needed; this table has ' + n + '.');
-    if (n > CHECK_MAX_TEAMS) throw new Error('At most ' + CHECK_MAX_TEAMS + ' teams can be checked; this table has ' + n + '.');
+    if (teams.length > CHECK_MAX_TEAMS) {
+      throw new Error('At most ' + CHECK_MAX_TEAMS + ' teams can be checked; this table has ' + teams.length + '.');
+    }
     var k = Math.sqrt(o.days / DAYS_PER_YEAR);
     var luck = 1 - o.correlation;
+    // A team that lost everything took far more risk than any volatility figure says, so it would
+    // swamp the test; it is left out and named.
+    var excluded = [];
+    var kept = [];
+    teams.forEach(function (t, i) {
+      if (t.sharpe === null && t.ret <= LOG_FLOOR - 1) excluded.push(t.name);
+      else kept.push({ t: t, i: i });
+    });
+    var n = kept.length;
+    var skipped = table.skipped || 0;
+    if (n < 3 && skipped) {
+      throw new Error('Only ' + n + ' of the ' + (teams.length + skipped) + ' rows had a number the check could read. ' +
+        'Name the columns in a header row, for example: Team, Return, Volatility.');
+    }
+    if (n < 3) {
+      throw new Error('At least three teams are needed; this table has ' + n +
+        (excluded.length ? ' once ' + excluded.length + (excluded.length === 1 ? ' team that lost everything is' : ' teams that lost everything are') + ' left out.' : '.'));
+    }
     var basis = { sharpe: 0, vol: 0, assumed: 0 };
-    var rows = teams.map(function (t, i) {
+    var rows = kept.map(function (entry) {
+      var t = entry.t;
+      var i = entry.i;
       var how = t.sharpe !== null ? 'sharpe' : (t.vol !== null ? 'vol' : 'assumed');
       basis[how] += 1;
       var z;
@@ -1363,6 +1406,8 @@ var LeaderboardModel = (function () {
       best: best,
       pBest: beaten / o.sims,
       truthCorrelation: truthCorrelation,
+      excluded: excluded,
+      warnings: checkWarnings(table, rows),
       rows: rows
     };
   }
@@ -1553,7 +1598,10 @@ if (typeof module !== 'undefined' && module.exports) {
       } },
     { key: 'gamblerMultiple', group: 'field-more', label: 'How much more risk gamblers run', min: 1, max: 4, step: 0.5,
       fmt: function (v) { return v.toFixed(1) + '×'; },
-      hint: function () { return 'About ' + pct(params.fieldVol * params.gamblerMultiple) + ' volatility.'; } },
+      hint: function () {
+        var want = params.fieldVol * params.gamblerMultiple;
+        return 'About ' + pct(want) + ' volatility' + (M.riskOf(params, want) < want ? ', held to ' + pct(params.volCap) + ' by the cap.' : '.');
+      } },
     { key: 'correlation', group: 'field-more', label: 'How much everyone rides the same market', min: 0, max: 0.9, step: 0.05,
       fmt: function (v) { return v.toFixed(2); },
       hint: function () { return 'Correlation of daily returns between teams. High when most teams hold the same kind of positions.'; } },
@@ -1577,7 +1625,7 @@ if (typeof module !== 'undefined' && module.exports) {
       hint: function () {
         return params.cost > 0 ? 'Return lost each year for every 100% of volatility a team runs, for trading and borrowing: ' +
           pct(params.cost * params.fieldVol, 1) + ' a year at the typical ' + pct(params.fieldVol) + ', ' +
-          pct(params.cost * params.fieldVol * params.gamblerMultiple, 1) + ' for a gambler.' : 'Risk is free: no trading or borrowing costs.';
+          pct(params.cost * M.riskOf(params, params.fieldVol * params.gamblerMultiple), 1) + ' for a gambler.' : 'Risk is free: no trading or borrowing costs.';
       } },
     { key: 'drawdownLimit', group: 'dd', label: 'Drawdown limit', min: 0.02, max: 0.6, step: 0.01,
       fmt: function (v) { return pct(v); },
@@ -1956,7 +2004,7 @@ if (typeof module !== 'undefined' && module.exports) {
       parts.push('A different level of risk would not help much from here.');
     }
     if (p.catchUp) {
-      parts.push('Going for broke when behind, you switched to ' + pct(p.catchUpVol) + ' risk in ' + pct(r.you.pSwitched) +
+      parts.push('Going for broke when behind, you switched to ' + pct(M.riskOf(p, p.catchUpVol)) + ' risk in ' + pct(r.you.pSwitched) +
         ' of challenges.');
     }
     if (r.winners.gambler > 0.3) {
@@ -2033,7 +2081,8 @@ if (typeof module !== 'undefined' && module.exports) {
     [[r.you.pTop3, 'var(--accent)'], [r.you.pWin, 'var(--you)']].forEach(function (pt) {
       svgEl('circle', { cx: sx(p.yourVol), cy: sy(pt[0]), r: 5, fill: pt[1], stroke: 'var(--surface)', 'stroke-width': 2 }, s);
     });
-    if (p.rule !== 'sharpe') {
+    var wins = r.curve.map(function (c) { return c.pWin; });
+    if (Math.max.apply(null, wins) - Math.min.apply(null, wins) >= 1e-9) {
       svgEl('circle', { cx: sx(r.bestVol), cy: sy(r.bestPWin), r: 6, fill: 'none', stroke: 'var(--you)', 'stroke-width': 2 }, s);
     }
     var guide = svgEl('line', { y1: m.t, y2: H - m.b, stroke: 'var(--line-strong)', visibility: 'hidden' }, s);
@@ -2065,7 +2114,7 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#risk-rule').textContent = M.RULE_LABELS[p.rule];
     var note = showOut ? 'The grey dashed line is the chance of being knocked out.' :
       'Each point uses the same simulated luck, so the curve shows the effect of risk alone.';
-    if (p.catchUp) note += ' Each point is your starting risk; you switch to ' + pct(p.catchUpVol) + ' if outside the top 3 on day ' + M.checkpointDay(p) + '.';
+    if (p.catchUp) note += ' Each point is your starting risk; you switch to ' + pct(M.riskOf(p, p.catchUpVol)) + ' if outside the top 3 on day ' + M.checkpointDay(p) + '.';
     $('#risk-note').textContent = note;
   }
 
@@ -2272,8 +2321,9 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#check-days').value = r.options.days;
     $('#check-corr').value = r.options.correlation;
     $('#check-vol').value = Math.round(r.options.assumedVol * 1000) / 10;
-    if (pickedTeam >= r.teams) pickedTeam = -1;
-    lastCheck = { table: table, r: r };
+    var text = $('#check-text').value;
+    if (pickedTeam >= r.teams || !lastCheck || lastCheck.text !== text) pickedTeam = -1;
+    lastCheck = { table: table, r: r, text: text };
     $('#check-results').hidden = false;
     renderCheck();
   }
@@ -2325,6 +2375,16 @@ if (typeof module !== 'undefined' && module.exports) {
     notes.push('Luck-adjusted leads come from ' + from.join(', ') + '.');
     if (b.assumed) notes.push('Where teams took different risks from the one assumed, the check will mistake some risk for skill, or for bad luck. Add a volatility or Sharpe ratio column if you can.');
     if (table.skipped) notes.push(table.skipped + (table.skipped === 1 ? ' row was' : ' rows were') + ' skipped because ' + (table.skipped === 1 ? 'it had' : 'they had') + ' no ' + (r.rankedOn === 'sharpe' ? 'Sharpe ratio' : 'return') + '.');
+    var warn = [];
+    if (r.excluded.length) {
+      warn.push(r.excluded.length === 1 ? r.excluded[0] + ' lost everything, so it was left out: no volatility figure can describe that much risk.' :
+        r.excluded.length + ' teams lost everything, so they were left out: ' + r.excluded.join(', ') + '.');
+    }
+    if (r.warnings.indexOf('extreme') >= 0) warn.push('Some leads are more than 5, which luck almost never produces. Check that volatility is annualised, that returns and volatility are in the right units, and that the number of trading days is right before trusting the verdict.');
+    if (r.warnings.indexOf('large') >= 0) warn.push('Some returns are over 1,000%. If the column holds money rather than percentages, divide by the starting capital first.');
+    if (r.warnings.indexOf('mixedUnits') >= 0) warn.push('Returns were read as ' + words[units.ret] + ' but volatility as ' + words[units.vol] + '. If both are percentages, add % signs to the returns.');
+    $('#check-warning').textContent = warn.join(' ');
+    $('#check-warning').hidden = warn.length === 0;
     if (r.truthCorrelation !== null) notes.push('This table gives every team’s true skill, so you can see how well the leads track it: a correlation of ' + num2(r.truthCorrelation) + ' (1 would be perfect).');
     $('#check-notes').textContent = notes.join(' ');
   }
@@ -2371,7 +2431,7 @@ if (typeof module !== 'undefined' && module.exports) {
       var g = svgEl('g', {}, s);
       var picked = i === pickedTeam;
       if (picked) svgEl('rect', { x: 0, y: sy(i) - rowH / 2, width: W, height: rowH, fill: 'var(--accent-soft)' }, g);
-      var name = row.name.length > (narrow ? 12 : 22) ? row.name.slice(0, narrow ? 11 : 21) + '…' : row.name;
+      var name = row.name.length > (narrow ? 15 : 22) ? row.name.slice(0, narrow ? 14 : 21) + '…' : row.name;
       svgText(g, 0, sy(i) + 4, ordinal(row.place) + ' ' + name, { 'font-weight': picked ? 700 : 400 });
       if (hasTruth) {
         var tx = sx(truthLead(row));

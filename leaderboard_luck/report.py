@@ -81,7 +81,7 @@ def describe(p: dict, every_length: bool = False) -> list[str]:
         rivals = (f"{pct(p['rivalsCatchUp'], 0)} of steady rivals switch to {p['gamblerMultiple']:g}x their risk"
                   if p["rivalsCatchUp"] > 0 else "no steady rivals switch")
         lines.append(f"  Going for broke at the checkpoint ({when}): your team "
-                     + (f"switches to {pct(p['catchUpVol'], 0)} if outside the top 3" if p["catchUp"] else "does not")
+                     + (f"switches to {pct(risk_of(p, p['catchUpVol']), 0)} if outside the top 3" if p["catchUp"] else "does not")
                      + f"; {rivals}")
     return lines
 
@@ -176,6 +176,12 @@ def edge_text(row: dict, r: dict, minus: str = "-") -> str:
 
 
 UNIT_WORDS = {"percent": "percentages", "fraction": "fractions"}
+CHECK_WARNINGS = {
+    "extreme": "some leads are more than 5, which luck almost never produces. Check that volatility is annualised, "
+               "that the units are right and that --days matches the challenge.",
+    "large": "some returns are over 1,000%. If the column holds money, divide by the starting capital first.",
+    "mixedUnits": "returns and volatility were read in different units. If both are percentages, add % signs.",
+}
 
 
 def check_report(table: dict, r: dict, source: str) -> str:
@@ -197,6 +203,10 @@ def check_report(table: dict, r: dict, source: str) -> str:
              "  Luck-adjusted scores from " + ", ".join(used)]
     if table["skipped"]:
         lines.append(f"  Skipped {table['skipped']} row{'' if table['skipped'] == 1 else 's'} without a number to rank on")
+    if r["excluded"]:
+        lines.append(f"  Left out, having lost everything: {', '.join(r['excluded'])}")
+    for code in r["warnings"]:
+        lines.append("  Warning: " + CHECK_WARNINGS[code])
     best = r["rows"][r["best"]]
     lines += ["", "  " + verdict_text(r),
               f"  Share of the spread down to luck   {pct(r['luckShare'], 0)}",

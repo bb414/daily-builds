@@ -105,10 +105,12 @@ class AgreementTests(unittest.TestCase):
             "Rank\tFund\tP&L (%)\tRisk\n1\tAlpha\t8.4\t21\n2\tBeta\t\u22121.5\t\n3\tGamma\tn/a\t30\n4\tDelta\t(3.2)\t12\n",
             'Team;Return;Volatility\n"Smith, Jones";0,05;0,2\nLee;-0,02;0,3\nPark;0,11;0,45\n',
             "Team,Sharpe,True skill\nA,1.2,0.5\nB,-0.3,0.1\nC,2.5,1.0\nD,0.4,-0.2\n",
-            "Oak, 8.4%, 21%\nElm, 4.0%, 23%\nAsh, -100%, 80%\n",
+            "Oak, 8.4%, 21%\nElm, 4.0%, 23%\nAsh, -100%, 80%\nYew, 1.0%, 12%\nFir, -2.5%, 30%\n",
+            "1,Alder,\u00a38400\n2,Birch,1200\n3,Cedar,-300\n4,Damson,(50)\n",
+            "Team,Return,Volatility\nA,0.42,21\nB,-0.16,18\nC,0.05,25\nD,0.01,1\n",
         ]
         options = [{}, {"days": 250}, {"days": 40, "correlation": 0.6}, {"assumedVol": 0.5, "seed": 9},
-                   {"days": 5, "sims": 3000}, {"correlation": 0}]
+                   {"days": 5, "sims": 3000}, {"correlation": 0}, {"sims": 1000}, {"days": 60, "sims": 1000}]
         js = run_js([{"fn": "parseTable", "args": [t]} for t in texts])
         for t, j in zip(texts, js):
             self.assert_same(j, check.parse_table(t), f"parse {t[:20]!r}")

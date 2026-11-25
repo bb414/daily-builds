@@ -171,6 +171,14 @@ class AppTests(unittest.TestCase):
         page.click("#check-run")
         expect(page.locator("#check-status")).to_contain_text("At least three teams")
         self.assertTrue(page.locator("#check-results").is_hidden())
+        # A team that lost everything is left out and named, and nothing about true skill is shown.
+        rows = "".join(f"T{i},{r}%,20%\n" for i, r in enumerate((4, 2, 1, -1, -3, -5)))
+        page.fill("#check-text", "Team,Return,Volatility\n" + rows + "Bust,-100%,80%\n")
+        page.click("#check-run")
+        expect(page.locator("#check-warning")).to_contain_text("Bust lost everything, so it was left out")
+        expect(page.locator("#check-verdict")).to_contain_text("Luck alone could easily have produced this table")
+        self.assertTrue(page.locator("#check-truth-key").is_hidden())
+        self.assertTrue(page.locator("#check-team-note").is_hidden())
         self.assertEqual(self.problems, [])
 
     def test_opens_a_csv_file(self):
