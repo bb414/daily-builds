@@ -68,7 +68,7 @@ In the app you can:
 - **See the trade-offs**: risk by principle, why each technique is there, the cost frontier, the pilot-to-scale ladder, the robustness check and the timeline.
 - **Save, open or share** your settings. A saved file can be opened again in the app or read by the Python companion, and "Copy link" puts every setting in the address.
 
-It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard and has a label for screen readers.
+It works on a phone as well as a desktop, and every control can be used with a keyboard and has a label for screen readers. The page is set out like an engraved policy document: ivory paper, a guilloche seal whose five petals stand for the five principles, numbered clauses and schedule-style tables, in Libre Caslon (embedded, under the SIL Open Font License; see `app/FONT-LICENCE.txt`).
 
 | Phone | Pilot to scale (billing assistant) |
 |---|---|
@@ -78,7 +78,7 @@ It works on a phone as well as a desktop, in light and dark mode, and every cont
 
 ![The cost frontier, with the cheapest plan, the lowest-risk plan within budget and your own mix marked](docs/frontier.png)
 
-Dark mode follows your system setting: ![The app in dark mode](docs/dark.png)
+The page stays on its ivory paper whatever colour scheme your system uses: ![The app with the system set to dark mode, still on ivory paper](docs/dark.png)
 
 ## Run the Python companion
 
@@ -117,7 +117,7 @@ The parity tests need Node.js and the browser tests need Playwright for Python w
 | Part | Language | Lines | What it does |
 |---|---|---:|---|
 | `app/index.html`: model (between `MODEL START` and `MODEL END`) | JavaScript | 665 | Inherent risk, technique availability, the exhaustive search, frontier, schedule, pilot-to-scale ladder and robustness draws, with the catalogue embedded as one line of JSON |
-| `app/index.html`: interface | JavaScript, HTML, CSS | 1,216 | Controls, summary, plan views, inline SVG charts, catalogue, save, open and share |
+| `app/index.html`: interface | JavaScript, HTML, CSS | 1,527 | Controls, summary, plan views, inline SVG charts, the seal illustration and embedded fonts, catalogue, save, open and share |
 | `assurance_mix/catalogue.json` | JSON | 261 | The data both versions share: principles, likelihood bands, questions, 16 techniques, examples |
 | `assurance_mix/model.py` | Python | 790 | A line-for-line port of the app's model |
 | `assurance_mix/portfolio.py`, `report.py`, `__main__.py` | Python | 646 | Budget allocation across systems, text and Markdown reports, CSV output and the command line |

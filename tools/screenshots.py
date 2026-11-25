@@ -26,7 +26,7 @@ def main():
         phone = browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=2)
         phone.goto(URL)
         phone.wait_for_selector("#summary .tile")
-        phone.evaluate("window.scrollTo(0, document.getElementById('summary').getBoundingClientRect().top + window.scrollY - 12)")
+        phone.evaluate("window.scrollTo(0, document.getElementById('summary').getBoundingClientRect().top + window.scrollY - 24)")
         phone.wait_for_timeout(300)
         phone.screenshot(path=str(DOCS / "phone.png"))
         phone.close()
