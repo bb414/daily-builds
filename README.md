@@ -117,11 +117,11 @@ The parity tests need Node.js and the browser tests need Playwright for Python w
 | Part | Language | Lines | What it does |
 |---|---|---:|---|
 | `app/index.html`: model (between `MODEL START` and `MODEL END`) | JavaScript | 665 | Inherent risk, technique availability, the exhaustive search, frontier, schedule, pilot-to-scale ladder and robustness draws, with the catalogue embedded as one line of JSON |
-| `app/index.html`: interface | JavaScript, HTML, CSS | 1,215 | Controls, summary, plan views, inline SVG charts, catalogue, save, open and share |
+| `app/index.html`: interface | JavaScript, HTML, CSS | 1,216 | Controls, summary, plan views, inline SVG charts, catalogue, save, open and share |
 | `assurance_mix/catalogue.json` | JSON | 261 | The data both versions share: principles, likelihood bands, questions, 16 techniques, examples |
 | `assurance_mix/model.py` | Python | 790 | A line-for-line port of the app's model |
 | `assurance_mix/portfolio.py`, `report.py`, `__main__.py` | Python | 646 | Budget allocation across systems, text and Markdown reports, CSV output and the command line |
-| `tests/` | JavaScript, Python | 929 | 24 Node tests, 42 Python tests (model, parity, portfolio, command line, browser) |
+| `tests/` | JavaScript, Python | 930 | 24 Node tests, 41 Python tests (model, parity, portfolio, command line, browser) |
 | `tools/` | Python | 82 | Catalogue sync and screenshots |
 
 The app has to work as one file opened from disk, so it carries its own copy of the model and the catalogue. Python adds what a browser tab does less well: running a whole inventory, exact budget allocation across systems, longer robustness runs, and files to keep. The parity tests run the app's own model in Node.js and check that both versions give identical answers, number for number: 156 analyses (the six examples and 150 random systems with odd inputs mixed in), 36 pilot-to-scale ladders, 26 robustness runs, 200 hand-built plans and the robustness of 40 more, the random number generator for seven seeds, and the two copies of the catalogue.

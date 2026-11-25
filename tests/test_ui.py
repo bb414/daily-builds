@@ -1,7 +1,10 @@
 """Browser tests: open the app in headless Chromium and use it like a person would."""
 
+import json
 import time
 import unittest
+
+from assurance_mix import model as M
 
 from helpers import APP
 
@@ -145,8 +148,6 @@ class UiTests(unittest.TestCase):
         with page.expect_download() as dl:
             page.click("#save")
         path = dl.value.path()
-        import json
-        from assurance_mix import model as M
         saved = json.loads(open(path, encoding="utf-8").read())
         self.assertEqual(saved["budget"], 77)
         # the Python companion reads the same file and finds the same cheapest plan
