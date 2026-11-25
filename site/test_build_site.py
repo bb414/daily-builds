@@ -89,6 +89,15 @@ class Taglines(unittest.TestCase):
 
 
 class Markdown(unittest.TestCase):
+    def test_public_repository_links_go_to_github(self):
+        text = "See [the code](pkg/), [a module](pkg/model.py), [the app](app/index.html) and [a missing file](nowhere.txt)."
+        source = {"url": "https://github.com/bb414/daily-builds", "branch": "build/x", "files": {"pkg/model.py", "pkg/__init__.py", "app/index.html"}}
+        out = B.render_markdown(text, {"app/index.html"}, {"README.md": "index.html"}, None, source)
+        self.assertIn('href="https://github.com/bb414/daily-builds/tree/build/x/pkg"', out)
+        self.assertIn('href="https://github.com/bb414/daily-builds/blob/build/x/pkg/model.py"', out)
+        self.assertIn('href="app/index.html"', out)
+        self.assertIn('<span class="was-link">a missing file</span>', out)
+
     def test_links_that_would_break_become_text(self):
         text = ("# Title\n\n**Hook?**\n\nSee [the app](app/index.html), [a report](examples/r.html), [the code](pkg/), "
                 "[the brief](https://github.com/bb414/daily-builds/blob/main/BRIEF.md), [findings](FINDINGS.md#results) "
@@ -159,17 +168,22 @@ class FullBuild(unittest.TestCase):
                 full = os.path.normpath(os.path.join(os.path.dirname(page), path))
                 self.assertTrue(os.path.exists(full), "%s: %s %s" % (os.path.relpath(page, self.out), attr, target))
 
-    def test_no_source_code_or_private_links_are_published(self):
+    def test_source_code_is_linked_not_copied(self):
         for folder, _dirs, files in os.walk(self.out):
             for name in files:
                 self.assertFalse(name.endswith((".py", ".R", ".ipynb")), os.path.join(folder, name))
+        public = CONFIG.get("repo", {}).get("public")
+        for p in self.projects:
+            with open(os.path.join(self.out, p["url"]), encoding="utf-8") as f:
+                text = f.read()
+            link = 'href="https://github.com/bb414/daily-builds/tree/%s"' % p["branch"]
+            if public:
+                self.assertIn(link, text, p["slug"])
+            else:
+                self.assertIsNone(re.search(r'href="https?://github\.com/bb414/daily-builds', text), p["slug"])
         for page in self.pages():
             with open(page, encoding="utf-8") as f:
-                text = f.read()
-            rel = os.path.relpath(page, self.out)
-            # The repository is private, so no link may point into it.
-            self.assertIsNone(re.search(r'href="https?://github\.com/bb414/daily-builds', text), rel)
-            self.assertNotIn("\u2014", text, rel)
+                self.assertNotIn("\u2014", f.read(), os.path.relpath(page, self.out))
 
     def test_index_data_matches_the_pages(self):
         with open(os.path.join(self.out, "projects.json"), encoding="utf-8") as f:

@@ -217,11 +217,13 @@ LINK_RE = re.compile(r"<a\s+([^>]*?)href=\"([^\"]*)\"([^>]*)>(.*?)</a>", re.S)
 IMG_RE = re.compile(r"<img\s+[^>]*?src=\"([^\"]*)\"[^>]*>", re.S)
 
 
-def render_markdown(text, published, page_map, drop_lead=None):
-    """Render and rewrite links: published files and pages stay, everything else becomes text.
+def render_markdown(text, published, page_map, drop_lead=None, source=None):
+    """Render and rewrite links so every link works on the site.
 
-    The title is dropped (the page shows its own), and so is a bold opening line
-    that repeats the tagline shown above it."""
+    Published files and pages stay. When the repository is public, `source`
+    ({"url", "branch", "files"}) sends links to code and other files to GitHub;
+    otherwise they become plain text. The title is dropped (the page shows its
+    own), and so is a bold opening line that repeats the tagline shown above it."""
     body = markdown.markdown(text, extensions=["tables", "fenced_code", "sane_lists"], output_format="html")
     body = re.sub(r"<h1>.*?</h1>\s*", "", body, count=1, flags=re.S)
     if drop_lead:
@@ -233,7 +235,7 @@ def render_markdown(text, published, page_map, drop_lead=None):
         if target.startswith("#") or target.startswith("mailto:"):
             return target
         if re.match(r"https?://", target):
-            if "github.com/bb414/daily-builds" in target:
+            if "github.com/bb414/daily-builds" in target and not source:
                 return None  # the repository is private
             return target
         path, _, frag = target.partition("#")
@@ -242,6 +244,12 @@ def render_markdown(text, published, page_map, drop_lead=None):
             return page_map[path] + ("#" + frag if frag else "")
         if path in published:
             return path + ("#" + frag if frag else "")
+        if source:
+            clean = path.rstrip("/")
+            if clean in source["files"]:
+                return "%s/blob/%s/%s" % (source["url"], source["branch"], clean) + ("#" + frag if frag else "")
+            if any(f.startswith(clean + "/") for f in source["files"]):
+                return "%s/tree/%s/%s" % (source["url"], source["branch"], clean)
         return None
 
     def link(m):
@@ -391,6 +399,8 @@ def build(out, config, cache=None):
         page_map = {"README.md": "index.html"}
         if findings_text:
             page_map["FINDINGS.md"] = "findings.html"
+        repo = config.get("repo", {})
+        source = {"url": repo["url"].rstrip("/"), "branch": row["branch"], "files": set(files)} if repo.get("public") and repo.get("url") else None
         category = categorise(row["theme"], row["branch"], config)
         color = cat_color(cats, category)
         shot = first_image(readme_text, published)
@@ -422,8 +432,9 @@ def build(out, config, cache=None):
             "category": category, "tagline": line,
             "url": "projects/%s/index.html" % slug, "app": app, "shot": shot, "cover": cover,
             "findings": bool(findings_text), "shots": shots,
-            "_readme": render_markdown(readme_text, published, page_map, line) if readme_text else "",
-            "_findings": render_markdown(findings_text, published, page_map) if findings_text else "",
+            "code": "%s/tree/%s" % (source["url"], row["branch"]) if source else None,
+            "_readme": render_markdown(readme_text, published, page_map, line, source) if readme_text else "",
+            "_findings": render_markdown(findings_text, published, page_map, None, source) if findings_text else "",
         })
 
     # Newest first; ties keep the order of the index (newest first within a day).
@@ -571,9 +582,11 @@ def write_project(out, p, newer, older, cats, config):
              '<div><dt>Project</dt><dd>No. %03d</dd></div>'
              '<div><dt>Published</dt><dd><time datetime="%s">%s</time></dd></div>'
              '<div><dt>Topic</dt><dd>%s</dd></div>'
-             '<div><dt>Built with</dt><dd>%s</dd></div></dl>'
+             '<div><dt>Built with</dt><dd>%s</dd></div>%s</dl>'
              '<details><summary>The whole project in one sentence</summary><p>%s</p></details></aside>') % (
-        p["number"], esc(p["date"]), esc(fmt_date(p["date"])), topic_html(cats, p["category"]), esc(p["stack"]), esc(p["what"]))
+        p["number"], esc(p["date"]), esc(fmt_date(p["date"])), topic_html(cats, p["category"]), esc(p["stack"]),
+        ('<div><dt>Source code</dt><dd><a href="%s" target="_blank" rel="noopener">On GitHub %s</a></dd></div>' % (esc(p["code"]), EXTERNAL)) if p.get("code") else "",
+        esc(p["what"]))
     add("how", "How it works", '<div class="wrap read-grid"><article class="prose">%s</article>%s</div>' % (p["_readme"], facts))
     if p["findings"]:
         add("findings", "Findings", '<div class="wrap read-grid"><article class="prose">%s</article>%s</div>' % (p["_findings"], facts))
@@ -597,6 +610,8 @@ def write_project(out, p, newer, older, cats, config):
         actions.append('<a class="btn" href="%s" target="_blank" rel="noopener">Open full screen %s</a>' % (esc(p["app"]), EXTERNAL))
     if p["findings"]:
         actions.append('<a class="btn" href="#findings">Read the findings</a>')
+    if p.get("code"):
+        actions.append('<a class="btn" href="%s" target="_blank" rel="noopener">View the code %s</a>' % (esc(p["code"]), EXTERNAL))
     head = ('<section class="p-hero" style="--c:%(color)s"><div class="wrap">'
             '<nav class="crumbs" aria-label="Breadcrumb"><a href="%(up)sindex.html#archive">Projects</a><span aria-hidden="true">/</span><a href="%(up)sindex.html#category=%(cid)s">%(cat)s</a></nav>'
             '<p class="p-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time>%(topic)s</p>'

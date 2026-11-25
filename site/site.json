@@ -10,12 +10,16 @@
   ],
   "links": [
     {
+      "label": "Source code",
+      "url": "https://github.com/bb414/daily-builds"
+    },
+    {
       "label": "GitHub",
       "url": "https://github.com/bb414"
     }
   ],
   "footer": "One new project every day. Synthetic data, nothing confidential, everything runs in your browser.",
-  "projectNote": "The app above runs entirely in your browser and uses synthetic data. The source code for this project is kept in a private repository.",
+  "projectNote": "The app above runs entirely in your browser on synthetic data. The full source code, including any companion version and its tests, is on GitHub.",
   "featured": [
     "build/2026-11-25-missing-minutes",
     "build/2026-11-24-pilot-purgatory-simulator",
@@ -183,5 +187,9 @@
   "categoryOverrides": {},
   "taglines": {},
   "otherColor": "#64748b",
-  "yearLength": 365
+  "yearLength": 365,
+  "repo": {
+    "url": "https://github.com/bb414/daily-builds",
+    "public": true
+  }
 }

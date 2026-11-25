@@ -4,17 +4,19 @@ This folder builds a public website from the projects in this repository: a home
 
 It rebuilds itself. Every daily build adds a row to the table in the main README, and that change to `main` starts the workflow in `.github/workflows/site.yml`, which builds the site and publishes it with GitHub Pages. It also runs once a day as a backstop, and you can run it by hand from the Actions tab ("Build the portfolio site", then "Run workflow").
 
-Only the apps, screenshots, example outputs and write-ups are published. Source code is never copied, so the repository can stay private.
+The site publishes the apps, screenshots, example outputs and write-ups, and links to the source code on GitHub rather than copying it.
 
 ## Switching it on
 
-GitHub Pages can publish from a private repository on GitHub Pro, which is free for students through the GitHub Student Developer Pack.
+GitHub Pages hosts the site for free from a public repository.
 
-1. Apply for the Student Developer Pack at education.github.com/pack and wait for it to be approved (GitHub Pro comes with it).
-2. In this repository, open Settings, then Pages. Under "Build and deployment", set Source to "GitHub Actions".
-3. Open the Actions tab, choose "Build the portfolio site" and click "Run workflow".
+1. In this repository, open **Settings**, scroll to the bottom of **General** and, under "Danger Zone", choose **Change visibility** and make the repository **public**.
+2. Open **Settings**, then **Pages**. Under "Build and deployment", set **Source** to **GitHub Actions**.
+3. Open the **Actions** tab, choose "Build the portfolio site" and click **Run workflow**.
 
 The site then appears at `https://bb414.github.io/daily-builds/`, and every new build appears on it automatically. Until Pages is switched on, the workflow still builds and tests the site but skips publishing, with a note in the run's summary.
+
+Because the repository is public, every project page has a "View the code" button and links in the write-ups that point at code open it on GitHub. Set `"public": false` under `repo` in `site.json` if the repository ever goes private again; the site then hides those links.
 
 ## Changing what it says
 
