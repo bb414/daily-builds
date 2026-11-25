@@ -38,16 +38,24 @@ def feature_index(name):
     raise SystemExit("Unknown feature '%s'. Use one of: %s" % (name, ", ".join(f["key"] for f in M.FEATURES)))
 
 
+def whole_number(text):
+    """The whole number in text, or None if it is not one (so 2.5, nan and inf are refused)."""
+    try:
+        v = float(str(text).strip())
+    except ValueError:
+        return None
+    if not math.isfinite(v) or not v.is_integer():
+        return None
+    return int(v)
+
+
 def parse_degree(text):
     t = str(text).strip().lower()
     if t in DEGREE_NAMES:
         return DEGREE_NAMES[t]
-    try:
-        v = int(float(t))
-    except ValueError:
-        raise SystemExit("Degree must be First, 2:1, 2:2, Third or 1 to 4, not '%s'" % text)
-    if not 1 <= v <= 4:
-        raise SystemExit("Degree must be between 1 (Third) and 4 (First), not %s" % v)
+    v = whole_number(t)
+    if v is None or not 1 <= v <= 4:
+        raise SystemExit("Degree must be First, 2:1, 2:2, Third or a whole number from 1 (Third) to 4 (First), not '%s'" % text)
     return v
 
 
@@ -55,13 +63,9 @@ def parse_value(j, text):
     f = M.FEATURES[j]
     if f["key"] == "degree":
         return parse_degree(text)
-    try:
-        v = float(str(text).strip())
-    except ValueError:
-        raise SystemExit("%s must be a number, not '%s'" % (f["label"], text))
-    if v != int(v):
-        raise SystemExit("%s must be a whole number, not %s" % (f["label"], text))
-    v = int(v)
+    v = whole_number(text)
+    if v is None:
+        raise SystemExit("%s must be a whole number, not '%s'" % (f["label"], text))
     if not f["min"] <= v <= f["max"]:
         raise SystemExit("%s must be between %d and %d, not %d" % (f["label"], f["min"], f["max"], v))
     return v
@@ -90,8 +94,8 @@ def resolve(args):
     max_levers = args.max_levers if args.max_levers is not None else (setup["maxLevers"] if setup else M.D)
     if max_levers < 1:
         raise SystemExit("--max-levers must be at least 1")
-    if margin < 0:
-        raise SystemExit("--margin cannot be negative")
+    if not 0 <= margin <= 0.5:
+        raise SystemExit("--margin must be from 0 to 0.5")
     return {"setup": setup, "settings": settings, "margin": margin, "maxLevers": max_levers,
             "points": setup["points"] if setup else 0, "retrain": setup["retrain"] if setup else 1}
 
@@ -308,10 +312,10 @@ def read_applicants(path):
 def safe_name(text, used):
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(text)).strip("_") or "applicant"
     name, n = base, 2
-    while name in used:
+    while name.lower() in used:  # some file systems ignore case
         name = "%s_%d" % (base, n)
         n += 1
-    used.add(name)
+    used.add(name.lower())
     return name
 
 
@@ -359,7 +363,8 @@ def cmd_plans(args):
         routed = sum(1 for r in rows if r["routes"])
         print("Wrote %d applicants to %s: %d not shortlisted, %d of them with a route." % (len(rows), args.out, rejected, routed))
     if args.notices:
-        print("Wrote %d notices to %s" % (len(rows), args.notices))
+        # Keep stdout clean when the CSV itself goes there.
+        print("Wrote %d notices to %s" % (len(rows), args.notices), file=sys.stdout if args.out else sys.stderr)
     return 0
 
 
@@ -518,6 +523,8 @@ def cmd_hold(args):
         people = read_applicants(args.csv)
         cohort = [{"x": p["x"], "g": p["g"] if p["g"] is not None else 0} for p in people]
         title = "Will the routes hold? %s" % args.csv
+        if any(p["g"] is None for p in people):
+            title += " (no first_in_family column, so everyone is counted under Others)"
     else:
         cohort = M.generate_cohort(M.DEFAULTS["nAudit"], M.DEFAULTS["auditSeed"])
         title = "Will the routes hold? %d synthetic applicants" % len(cohort)

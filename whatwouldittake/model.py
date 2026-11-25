@@ -244,6 +244,31 @@ def candidates(model, x, j, setting):
     return out
 
 
+def max_leaf(node, lo, hi):
+    """The best leaf a tree can reach when each feature stays between lo and hi."""
+    if "v" in node:
+        return node["v"]
+    best = -math.inf
+    f, t = node["f"], node["t"]
+    if lo[f] <= t:
+        h = list(hi)
+        h[f] = min(h[f], t)
+        best = max(best, max_leaf(node["l"], lo, h))
+    if hi[f] > t:
+        lw = list(lo)
+        lw[f] = max(lw[f], t + 1)
+        best = max(best, max_leaf(node["r"], lw, hi))
+    return best
+
+
+def score_bound(model, lo, hi):
+    """No plan can score more than the sum of each tree's best reachable leaf."""
+    s = model["base"]
+    for tree in model["trees"]:
+        s += model["lr"] * max_leaf(tree, lo, hi)
+    return s
+
+
 def search_routes(model, tables, x, settings, margins, max_levers=D, allowed=None, max_states=200000):
     """Exact minimum-cost recourse by uniform-cost search over split points.
 
@@ -261,6 +286,13 @@ def search_routes(model, tables, x, settings, margins, max_levers=D, allowed=Non
     for j in range(D):
         ok = allowed[j] if allowed is not None else True
         lists.append(candidates(model, x, j, settings[j]) if ok else [x[j]])
+    bound = score_bound(model, [min(l) for l in lists], [max(l) for l in lists])
+    for k in range(len(margins)):
+        if targets[k] > bound:
+            results[k] = {"status": "none", "score": score0, "cost": None, "values": None, "changes": [], "explored": 0}
+            open_count -= 1
+    if open_count == 0:
+        return results
     unit_cost = [[feature_cost(tables, settings, j, x[j], v) for v in lists[j]] for j in range(D)]
 
     def cost_of(idx):

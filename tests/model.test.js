@@ -328,3 +328,26 @@ test('bad setups are refused with a clear message', function () {
   ];
   bad.forEach(function (b) { assert.throws(function () { M.parseSetup(b[0]); }, b[1]); });
 });
+
+test('the score bound is exact for a single point and never below any plan in its box', function () {
+  cohort.slice(0, 40).forEach(function (r) {
+    assert.equal(M.scoreBound(model, r.x, r.x), M.predict(model, r.x));
+  });
+  const rng = M.mulberry32(99);
+  for (let trial = 0; trial < 30; trial++) {
+    const lo = M.FEATURES.map(function (f) { return f.min + Math.floor(rng() * (f.max - f.min + 1)); });
+    const hi = lo.map(function (v, j) { return Math.min(M.FEATURES[j].max, v + Math.floor(rng() * 4)); });
+    const bound = M.scoreBound(model, lo, hi);
+    for (let k = 0; k < 40; k++) {
+      const z = lo.map(function (v, j) { return v + Math.floor(rng() * (hi[j] - v + 1)); });
+      assert.ok(M.predict(model, z) <= bound + 1e-12);
+    }
+  }
+});
+
+test('an impossible target is answered without searching', function () {
+  const st = M.defaultSettings();
+  const res = M.findRecourse(model, tables, [30, 0, 0, 0, 1, 20], st, { margin: 0.3 });
+  assert.equal(res.status, 'none');
+  assert.equal(res.explored, 0);
+});

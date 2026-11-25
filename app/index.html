@@ -310,11 +310,11 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding-bottom: 30px; }
       <p>1,600 synthetic past applicants to an invented graduate scheme, each with six features. Past shortlisting decisions came from a hidden rule plus noise, with a fixed quota of 38% shortlisted. A small gradient-boosted model (60 trees, each two splits deep) learns to copy those decisions. A score of 0.50 or more means "shortlist".</p>
       <h3>Counterfactual routes</h3>
       <p>A counterfactual explanation answers "what would have had to be different for the answer to be yes?". Here it is restricted to changes a person could actually make: features can only move in a realistic direction (more experience, never less), by a limited amount, and degree result and past gaps are fixed unless you say otherwise.</p>
-      <p>Because the model is a sum of trees, its score only changes where a tree splits. So for each feature the tool only needs the current value and the first value past each split point. It searches those combinations cheapest first and stops at the first one that reaches 0.50, which makes the result the exact cheapest plan, not an approximation.</p>
+      <p>Because the model is a sum of trees, its score only changes where a tree splits. So for each feature the tool only needs the current value and the first value past each split point. It searches those combinations cheapest first and stops at the first one that reaches the target (0.50 plus any safety margin), which makes the result the exact cheapest plan, not an approximation. Before searching, it adds up the best leaf each tree could reach within the allowed changes; if even that falls short of the target, there is no route and no search is needed.</p>
       <h3>Effort</h3>
       <p>Effort is the percentile shift each change needs among past applicants, times an effort weight you choose. Moving from a common value to a rare one costs more than the same number of units in a crowded range.</p>
       <h3>Why the model scored them this way</h3>
-      <p>Shapley values split the gap between the average score and this applicant's score fairly between the six features, by trying every one of the 64 combinations of "this applicant's value" and "a reference applicant's value". They explain the score, but they do not say what to change: the feature that hurts most is often one nobody can change.</p>
+      <p>Shapley values split the gap between the average score and this applicant's score fairly between the six features, by averaging over every one of the 64 combinations of "this applicant's value" and "a reference applicant's value" (the code reaches the same exact answer tree by tree, which is much faster). They explain the score, but they do not say what to change: the feature that hurts most is often one nobody can change.</p>
       <h3>Will it hold?</h3>
       <p>The cheapest route lands just over the line by design, so it is fragile. The tool trains next year's model on 1,600 new applicants (optionally stronger on average, with the same quota, so the bar rises) and checks whether each route still reaches 0.50. A safety margin asks routes to aim higher, at the cost of more effort. One search answers every margin at once: the order in which the search visits plans does not depend on the target, so it simply notes the first plan that clears each margin.</p>
     </section>
@@ -585,6 +585,31 @@ function heapPop(h) {
   return top;
 }
 
+// The best leaf a tree can reach when each feature stays between lo and hi.
+function maxLeaf(node, lo, hi) {
+  if (node.v !== undefined) return node.v;
+  let best = -Infinity;
+  if (lo[node.f] <= node.t) {
+    const h = hi.slice();
+    h[node.f] = Math.min(h[node.f], node.t);
+    best = Math.max(best, maxLeaf(node.l, lo, h));
+  }
+  if (hi[node.f] > node.t) {
+    const l = lo.slice();
+    l[node.f] = Math.max(l[node.f], node.t + 1);
+    best = Math.max(best, maxLeaf(node.r, l, hi));
+  }
+  return best;
+}
+
+// No plan can score more than the sum of each tree's best reachable leaf, so a
+// target above this bound needs no search at all.
+function scoreBound(model, lo, hi) {
+  let s = model.base;
+  for (let m = 0; m < model.trees.length; m++) s += model.lr * maxLeaf(model.trees[m], lo, hi);
+  return s;
+}
+
 // Exact minimum-cost recourse. The model only changes value where a tree
 // splits, so each feature only needs its current value plus the first value
 // past each split point in the allowed direction. Uniform-cost search over
@@ -606,6 +631,16 @@ function searchRoutes(model, tables, x, settings, opts, margins) {
     const ok = o.allowed ? o.allowed[j] : true;
     lists.push(ok ? candidates(model, x, j, settings[j]) : [x[j]]);
   }
+  const bound = scoreBound(model,
+    lists.map(function (l) { return Math.min.apply(null, l); }),
+    lists.map(function (l) { return Math.max.apply(null, l); }));
+  for (let k = 0; k < margins.length; k++) {
+    if (targets[k] > bound) {
+      results[k] = { status: 'none', score: score0, cost: null, values: null, changes: [], explored: 0 };
+      open -= 1;
+    }
+  }
+  if (open === 0) return results;
   const unitCost = lists.map(function (list, j) {
     return list.map(function (v) { return featureCost(tables, settings, j, x[j], v); });
   });
@@ -1025,7 +1060,7 @@ function parseSetup(obj) {
 const API = {
   FEATURES, D, THRESHOLD, DEFAULTS, PRESETS, mulberry32, irwinHall, clampRound, generateCohort, bestSplit, growNode,
   leafValue, collectSplits, trainModel, predict, costTables, defaultSettings, featureCost, candidates,
-  searchRoutes, findRecourse, mainLever, recourseOptions, backgroundSample, treeFeatures, shapleyPrep, binOf, shapley, median, mean, audit,
+  maxLeaf, scoreBound, searchRoutes, findRecourse, mainLever, recourseOptions, backgroundSample, treeFeatures, shapleyPrep, binOf, shapley, median, mean, audit,
   MARGINS, nextModel, routeTable, summariseHold, holdSummary, biggestDrag, explainGap,
   SETUP_TOOL, makeSetup, parseSetup
 };
@@ -1097,7 +1132,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         range.addEventListener('input', function () { setFeature(j, Number(range.value)); });
       }
       input.addEventListener('change', function () {
-        let v = Math.round(Number(input.value));
+        // An emptied or unreadable box goes back to the current value.
+        let v = String(input.value).trim() === '' ? NaN : Math.round(Number(input.value));
         if (!Number.isFinite(v)) v = state.x[j];
         setFeature(j, Math.max(f.min, Math.min(f.max, v)));
       });
@@ -1112,11 +1148,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       if (range) range.value = String(state.x[j]);
     });
   }
+  // Dragging a slider fires many events; draw at most once per frame.
+  let renderPending = false;
+  function scheduleRender() {
+    if (renderPending) return;
+    renderPending = true;
+    requestAnimationFrame(function () { renderPending = false; renderApplicant(); });
+  }
   function setFeature(j, v) {
     state.x[j] = v;
     $('preset').value = '';
     syncFields();
-    renderApplicant();
+    scheduleRender();
   }
 
   function buildPresets() {
@@ -1157,8 +1200,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       body.appendChild(tr);
       cb.addEventListener('change', function () { state.settings[j].actionable = cb.checked; rulesChanged(); });
       cap.addEventListener('change', function () {
-        let v = Math.round(Number(cap.value));
-        if (!Number.isFinite(v) || v < 0) v = 0;
+        let v = String(cap.value).trim() === '' ? NaN : Math.round(Number(cap.value));
+        if (!Number.isFinite(v)) v = state.settings[j].cap;
+        if (v < 0) v = 0;
         v = Math.min(v, f.max - f.min);
         cap.value = String(v);
         state.settings[j].cap = v;
@@ -1318,17 +1362,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const sum = sh.phi.reduce(function (a, b) { return a + b; }, 0);
     let text = 'The reference group averages ' + sh.base.toFixed(2) + '; the six contributions add up to ' + (sum >= 0 ? '+' : '') + sum.toFixed(3) + ', giving this applicant’s ' + fmtScore(sh.value) + '. ';
     const worst = order.filter(function (j) { return sh.phi[j] < 0; })[0];
-    if (sh.value < model.threshold && worst !== undefined) {
+    if (sh.value < model.threshold && worst === undefined) {
+      text += 'No feature pulls this applicant below the reference average: they are turned down because the average itself is below 0.50.';
+    } else if (sh.value < model.threshold) {
       const wf = FEATURES[worst].short.toLowerCase();
-      if (!state.settings[worst].actionable) {
-        text += 'The biggest drag is ' + wf + ', which cannot change. ';
-      } else {
-        text += 'The biggest drag is ' + wf + '. ';
-      }
+      text += 'The biggest drag is ' + wf + (state.settings[worst].actionable ? '. ' : ', which cannot change under the current rules. ');
       if (options.length > 0) {
-        const lever = options[0].lever;
-        text += lever === worst ? 'Here the cheapest route also works on ' + wf + '.' :
-          'Yet the cheapest route works on ' + FEATURES[lever].short.toLowerCase() + ' instead: what hurts most is not always what is easiest to fix.';
+        const best = options[0];
+        const lf = FEATURES[best.lever].short.toLowerCase();
+        const touches = best.changes.some(function (ch) { return ch.j === worst; });
+        if (best.lever === worst) text += 'Here the cheapest route also works mainly on ' + wf + '.';
+        else if (touches) text += 'The cheapest route changes ' + wf + ' a little but puts most of its effort into ' + lf + '.';
+        else text += 'Yet the cheapest route leaves ' + wf + ' alone and works on ' + lf + ': what hurts most is not always what is easiest to fix.';
       }
     }
     note.textContent = text;

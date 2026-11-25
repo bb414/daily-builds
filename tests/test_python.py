@@ -190,9 +190,22 @@ class CliTest(unittest.TestCase):
             with open(os.path.join(notes, "A_1_2.txt"), encoding="utf-8") as fh:
                 self.assertIn("Outcome: shortlisted", fh.read())
 
+    def test_values_must_be_whole_finite_numbers(self):
+        for argv in (["--test", "nan"], ["--test", "inf"], ["--test", "62.5"], ["--degree", "2.5"],
+                     ["--degree", "inf"], ["--gap", "-1"]):
+            with self.assertRaises(SystemExit):
+                run_cli("explain", "--preset", "Near miss", *argv)
+        self.assertEqual(cli.parse_value(0, " 62.0 "), 62)
+        self.assertEqual(cli.parse_degree("First"), 4)
+
+    def test_notice_file_names_never_collide(self):
+        used = set()
+        names = [cli.safe_name(t, used) for t in ("A1", "a1", "A1", "../x", "")]
+        self.assertEqual(names, ["A1", "a1_2", "A1_3", "x", "applicant"])
+
     def test_rules_are_validated(self):
         for argv in (["--cap", "test=500"], ["--weight", "test=0"], ["--max-levers", "0"], ["--margin", "-0.1"],
-                     ["--cap", "colour=3"]):
+                     ["--margin", "nan"], ["--margin", "0.9"], ["--weight", "test=nan"], ["--cap", "colour=3"]):
             with self.assertRaises(SystemExit):
                 run_cli("explain", "--preset", "Near miss", *argv)
 
