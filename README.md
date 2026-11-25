@@ -17,8 +17,11 @@ Everything is synthetic and runs offline. It is a learning tool about explanatio
 Download or clone this branch, then double-click `app/index.html`. It opens in any modern browser, needs no internet connection and sends nothing anywhere.
 
 - **One applicant:** pick an example or set the six features yourself. You get the decision, up to four routes to being shortlisted (each the exact cheapest plan whose biggest change is a different feature), the Shapley values behind the score, and a decision map of any two features with the routes drawn on it. "Try this" applies a route.
-- **What counts as a realistic change:** which features can move, by how much and how hard each is. Degree result and past gaps are fixed by default.
+- **What counts as a realistic change:** which features can move, by how much and how hard each is, the most features a route may change and a safety margin. Degree result and past gaps are fixed by default.
+- **What the applicant would be told:** a plain-English notice built from the score, the three biggest Shapley drags (flagging the ones that cannot change), every route phrased as a counterfactual ("an aptitude test score of 73 instead of 66") and how many routes survive next year's retrain. One click copies it.
+- **Save or share this setup:** download the applicant, rules and retrain settings as a JSON file, load one back, or copy a link that carries the setup. The same file works with the Python companion (`--setup`).
 - **Whole cohort:** 500 new applicants scored by the model, split by whether they are the first in their family at university: shortlist rates, the share of rejected applicants with any route within the limits, the effort of the cheapest route and what the routes ask people to change.
+- **Explanation versus advice:** for every rejected applicant, the feature with the most negative Shapley value set against what the cheapest route changes. With the default rules about 30% of cheapest routes never touch the applicant's biggest drag, and for about 9% the biggest drag is something they cannot change.
 - **Will it hold?** A route is a promise about this year's model. The tool retrains the model on next year's applicants (the same kind of pool, or a stronger one, with the same quota) and checks how many routes still work, at seven safety margins. With no margin only about a third of the cheapest routes survive a routine retrain; it takes a margin of about +0.25 to keep 90% of them, which asks for much more effort and leaves a third of rejected applicants with no route at all. Each route card on the first tab also says whether it survives.
 
 ![The cohort view: shortlist rates, route effort and levers by group](docs/cohort.png)
@@ -28,19 +31,20 @@ Download or clone this branch, then double-click `app/index.html`. It opens in a
 Python 3.9 or later, standard library only. From the repository root:
 
 ```bash
-python3 -m whatwouldittake explain --preset "Near miss"
+python3 -m whatwouldittake explain --preset "Near miss" --notice
+python3 -m whatwouldittake explain --setup what-would-it-take-setup.json   # a setup downloaded from the app
 python3 -m whatwouldittake explain --test 62 --experience 9 --projects 3 --certs 1 --degree Third --gap 3 --weight experience=2
 python3 -m whatwouldittake sample --n 40 --out applicants.csv
-python3 -m whatwouldittake plans applicants.csv --out plans.csv
+python3 -m whatwouldittake plans applicants.csv --out plans.csv --notices notices
 python3 -m whatwouldittake audit --csv applicants.csv --out audit.md
 python3 -m whatwouldittake hold --retrains 20 --points 0 2 --out hold.md --raw hold.csv
 ```
 
-- `explain` prints one applicant's decision, Shapley values and routes.
-- `plans` reads a CSV of applicants (columns `test, experience, projects, certs, degree, gap`, optional `id`) and writes each one's decision, biggest drag and cheapest route to CSV: the batch job a screening team would run.
-- `audit` compares recourse burden between groups, for the synthetic cohort or your own CSV with a `first_in_family` column, and writes a Markdown report.
+- `explain` prints one applicant's decision, Shapley values and routes; `--notice` adds the notice, `--save-setup` writes a setup the app can load.
+- `plans` reads a CSV of applicants (columns `test, experience, projects, certs, degree, gap`, optional `id`) and writes each one's decision, biggest drag and cheapest route to CSV; `--notices DIR` also writes one notice per applicant. This is the batch job a screening team would run.
+- `audit` compares recourse burden between groups, for the synthetic cohort or your own CSV with a `first_in_family` column, and writes a Markdown report that includes the explanation-versus-advice table.
 - `hold` checks every route against many retrained models (20 by default, `--points 0 2 4` for stronger pools) and reports, for each safety margin, the mean, lowest and highest share of routes that survive, by group, plus the smallest margin that keeps your `--target` share on average and in the worst retrain. `--raw` writes every retrain's numbers to CSV.
-- Every command accepts the same rules as the app: `--allow degree`, `--fix test`, `--cap experience=6`, `--weight test=2`, `--max-levers 2`, `--margin 0.05`.
+- Every command accepts the same rules as the app: `--setup FILE`, `--allow degree`, `--fix test`, `--cap experience=6`, `--weight test=2`, `--max-levers 2`, `--margin 0.05`. Flags override the setup file.
 
 ## Run the tests
 
@@ -66,8 +70,8 @@ The agreement tests run the app's model in Node.js and check that the Python por
 3. **Exact routes.** Because the model is a sum of trees, the score only changes where a tree splits. For each feature the search only needs the current value and the first value past each split point in the allowed direction. It explores those combinations cheapest first and stops at the first one that reaches 0.50, so the answer is the exact cheapest plan. The tests check this against a brute-force search over every integer combination.
 4. **Effort.** The cost of moving a feature is the percentile shift among past applicants (with one pseudo-count per value, so every step costs something), times the effort weight. Moving from a common value to a rare one costs more.
 5. **Several routes.** For every subset of movable features the tool finds the cheapest plan that uses exactly that subset, then keeps the cheapest plan for each feature that carries most of the cost.
-6. **Shapley values.** Exact interventional Shapley values against 64 reference applicants, over all 64 combinations of features, so they add up exactly to the gap between the average score and this applicant's score.
-7. **Cohort audit.** Runs the cheapest-route search for every rejected applicant and compares groups.
+6. **Shapley values.** Exact interventional Shapley values against 64 reference applicants, so they add up exactly to the gap between the average score and this applicant's score. Rather than scoring all 64 combinations of features for every reference applicant, the code uses two facts: Shapley values add up over the trees, and each tree only reads which side of its (at most three) split points a value falls. So the reference applicants are grouped into those bins once, and each applicant then needs a few dozen look-ups per tree. A test checks the result against the textbook 64-combination calculation to 12 decimal places.
+7. **Cohort audit.** Runs the cheapest-route search for every rejected applicant and compares groups, then sets each rejected applicant's biggest Shapley drag against what their cheapest route changes.
 8. **Will it hold?** Next year's model is trained the same way on 1,600 fresh applicants, optionally stronger on average; with the same quota, a stronger pool raises the bar. The order in which the search visits plans does not depend on the target score, so a single search notes the first plan that clears each of the seven margins, exactly as seven separate searches would (a test checks this).
 
 ## Limitations

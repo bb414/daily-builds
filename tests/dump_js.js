@@ -40,6 +40,14 @@ const out = {
   shapley: M.PRESETS.map(function (p) { return M.shapley(model, p.x, background); }),
   audit: M.audit(model, tables, cohort, settings).groups,
   auditTight: M.audit(model, tables, cohort, tight, { maxLevers: 2, margin: 0.04 }).groups,
+  gap: M.explainGap(model, cohort, M.audit(model, tables, cohort, tight, { maxLevers: 3 }).rows, background, tight),
+  setups: [
+    {}, { applicant: { test: 80, degree: 1 } }, { rules: { gap: { canChange: true, upTo: 6, weight: 2.5 } }, margin: 0.15 },
+    { maxLevers: 2, nextYear: { points: 3, retrain: 9 } }, { tool: 'nope' }, { applicant: { test: 101 } },
+    { rules: { test: { weight: 11 } } }, { margin: 0.07 }, { nextYear: { retrain: 21 } }, { rules: { certs: 5 } }
+  ].map(function (o) {
+    try { return { ok: M.parseSetup(o) }; } catch (e) { return { error: e.message }; }
+  }),
   margins: M.MARGINS,
   nextSplits: M.nextModel(3 / 6, 2).splits,
   hold: (function () {

@@ -169,6 +169,37 @@ test('Shapley values add up exactly to score minus average', function () {
   });
 });
 
+// The textbook definition: all 64 coalitions of the whole model.
+function bruteShapley(x, bg) {
+  const n = 1 << M.D;
+  const v = [];
+  for (let mask = 0; mask < n; mask++) {
+    let s = 0;
+    bg.forEach(function (b) {
+      const z = b.map(function (val, j) { return (mask >> j) & 1 ? x[j] : val; });
+      s += M.predict(model, z);
+    });
+    v.push(s / bg.length);
+  }
+  const fact = [1, 1, 2, 6, 24, 120, 720];
+  const phi = new Array(M.D).fill(0);
+  for (let mask = 0; mask < n; mask++) {
+    let size = 0;
+    for (let j = 0; j < M.D; j++) if ((mask >> j) & 1) size += 1;
+    for (let j = 0; j < M.D; j++) if (!((mask >> j) & 1)) phi[j] += fact[size] * fact[M.D - size - 1] / fact[M.D] * (v[mask | (1 << j)] - v[mask]);
+  }
+  return phi;
+}
+
+test('tree-by-tree Shapley matches the full 64-coalition definition', function () {
+  cohort.slice(0, 12).concat(M.PRESETS.map(function (p) { return { x: p.x }; })).forEach(function (r) {
+    const fast = M.shapley(model, r.x, background);
+    const slow = bruteShapley(r.x, background);
+    fast.phi.forEach(function (v, j) { assert.ok(Math.abs(v - slow[j]) < 1e-12, 'feature ' + j + ': ' + v + ' vs ' + slow[j]); });
+  });
+  model.trees.forEach(function (t) { assert.ok(M.treeFeatures(t).length <= 3); });
+});
+
 test('Shapley gives zero to a feature that matches every reference applicant', function () {
   const bg = background.map(function (b) { const c = b.slice(); c[3] = 2; return c; });
   const sh = M.shapley(model, [60, 8, 2, 2, 3, 0], bg);
@@ -251,4 +282,49 @@ test('a retrained model breaks many minimal routes and a margin repairs most', f
   assert.ok(h[h.length - 1].all.keptShare > 0.85, 'a wide margin keeps most');
   const stronger = M.holdSummary(M.nextModel(4 / 6, 1), cohort, table, M.MARGINS);
   assert.ok(stronger[0].all.keptShare < h[0].all.keptShare, 'a stronger pool raises the bar');
+});
+
+test('explanation versus advice: counts are consistent with the audit', function () {
+  const a = M.audit(model, tables, cohort, settings);
+  const gap = M.explainGap(model, cohort, a.rows, background, settings);
+  [0, 1].forEach(function (g) {
+    assert.equal(gap[g].rejected, a.groups[g].rejected);
+    assert.equal(gap[g].routed, a.groups[g].feasible);
+    assert.ok(gap[g].mismatch <= gap[g].routed);
+  });
+  const total = gap[2].matrix.reduce(function (s, row) { return s + row.reduce(function (t, v) { return t + v; }, 0); }, 0);
+  assert.equal(total, gap[2].rejected);
+  const noRoute = gap[2].matrix.reduce(function (s, row) { return s + row[M.D]; }, 0);
+  assert.equal(noRoute, gap[2].rejected - gap[2].routed);
+  assert.ok(gap[2].mismatchShare > 0.1, 'advice often points away from the explanation');
+  assert.equal(M.biggestDrag([0.1, 0, 0.2, 0, 0, 0]), -1);
+  assert.equal(M.biggestDrag([0.1, -0.2, -0.3, 0, -0.3, 0]), 2);
+});
+
+test('setups round-trip and fill gaps with defaults', function () {
+  const st = M.defaultSettings();
+  st[1].weight = 2.5;
+  st[4].actionable = true;
+  st[0].cap = 15;
+  const setup = M.makeSetup([50, 3, 2, 0, 2, 6], st, 2, 0.1, 4, 7);
+  const plain = function (v) { return JSON.parse(JSON.stringify(v)); };
+  const back = M.parseSetup(plain(setup));
+  assert.deepEqual(plain(back), plain({ x: [50, 3, 2, 0, 2, 6], settings: st, maxLevers: 2, margin: 0.1, points: 4, retrain: 7 }));
+  const partial = M.parseSetup({ applicant: { test: 80 } });
+  assert.deepEqual(plain(partial.x), [80].concat(plain(M.PRESETS[0].x.slice(1))));
+  assert.deepEqual(plain(partial.settings), plain(M.defaultSettings()));
+  assert.equal(partial.margin, 0);
+  assert.equal(partial.maxLevers, M.D);
+});
+
+test('bad setups are refused with a clear message', function () {
+  const bad = [
+    [null, /JSON object/], [[1, 2], /JSON object/], [{ tool: 'other' }, /not a setup/],
+    [{ applicant: { test: 101 } }, /applicant.test/], [{ applicant: { gap: 2.5 } }, /applicant.gap/],
+    [{ applicant: { test: '60' } }, /applicant.test/], [{ rules: { test: { weight: 0 } } }, /weight/],
+    [{ rules: { test: { upTo: -1 } } }, /upTo/], [{ rules: { degree: { canChange: 'yes' } } }, /canChange/],
+    [{ rules: [] }, /rules/], [{ margin: 0.07 }, /margin/], [{ maxLevers: 0 }, /maxLevers/],
+    [{ nextYear: { points: 9 } }, /points/], [{ nextYear: { retrain: 0 } }, /retrain/]
+  ];
+  bad.forEach(function (b) { assert.throws(function () { M.parseSetup(b[0]); }, b[1]); });
 });

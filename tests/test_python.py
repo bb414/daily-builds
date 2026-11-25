@@ -161,10 +161,46 @@ class CliTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 run_cli("hold", *argv)
 
+    def test_notice_and_setup_round_trip(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "setup.json")
+            code, out = run_cli("explain", "--preset", "Held back by a past gap", "--notice", "--weight", "test=2",
+                                "--margin", "0.1", "--save-setup", path)
+            self.assertEqual(code, 0)
+            self.assertIn("Outcome: not shortlisted", out)
+            self.assertIn("This cannot be changed now.", out)
+            self.assertIn("aiming 0.1 above the line", out)
+            code, again = run_cli("explain", "--setup", path, "--notice")
+            self.assertEqual(out.split("Saved the setup")[0].strip(), again.strip())
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write('{"applicant": {"test": 300}}')
+            with self.assertRaises(SystemExit) as e:
+                run_cli("explain", "--setup", path)
+            self.assertIn("applicant.test", str(e.exception))
+
+    def test_plans_writes_notices(self):
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "a.csv")
+            with open(src, "w", encoding="utf-8") as fh:
+                fh.write("id,test,experience,projects,certs,degree,gap\nA/1,64,7,4,1,2:1,0\nA/1,74,12,3,1,2:1,0\n")
+            notes = os.path.join(d, "notices")
+            code, _ = run_cli("plans", src, "--out", os.path.join(d, "p.csv"), "--notices", notes)
+            self.assertEqual(code, 0)
+            self.assertEqual(sorted(os.listdir(notes)), ["A_1.txt", "A_1_2.txt"])
+            with open(os.path.join(notes, "A_1_2.txt"), encoding="utf-8") as fh:
+                self.assertIn("Outcome: shortlisted", fh.read())
+
+    def test_rules_are_validated(self):
+        for argv in (["--cap", "test=500"], ["--weight", "test=0"], ["--max-levers", "0"], ["--margin", "-0.1"],
+                     ["--cap", "colour=3"]):
+            with self.assertRaises(SystemExit):
+                run_cli("explain", "--preset", "Near miss", *argv)
+
     def test_audit_synthetic(self):
         code, out = run_cli("audit", "--n", "120")
         self.assertEqual(code, 0)
         self.assertIn("First in family at university", out)
+        self.assertIn("Cheapest route never touches the biggest drag", out)
 
 
 if __name__ == "__main__":

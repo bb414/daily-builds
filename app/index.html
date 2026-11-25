@@ -80,8 +80,9 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px s
 .plan .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
 .effort { height: 8px; border-radius: 5px; background: var(--line); overflow: hidden; }
 .effort span { display: block; height: 100%; background: var(--accent); }
-button.btn { appearance: none; font: inherit; font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
-button.btn.ghost { background: transparent; color: var(--accent); }
+.btn { display: inline-block; appearance: none; font: inherit; font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
 .empty { padding: 14px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
 .note { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); margin: 10px 0 0; }
 svg text { fill: var(--ink); font-family: inherit; }
@@ -108,6 +109,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .kpi .v { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
 .prose { max-width: 760px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filebtn { line-height: normal; }
+#loadSetup:focus-visible + .filebtn { outline: 2px solid var(--accent); outline-offset: 2px; }
+pre.notice { white-space: pre-wrap; word-wrap: break-word; font: inherit; font-size: 0.93rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 0 0 10px; }
+table.matrix td.num { min-width: 56px; }
+table.matrix td.hot { background: var(--accent-soft); font-weight: 700; }
 .holdctl { display: grid; gap: 6px; margin: 4px 0 14px; max-width: 560px; }
 .holdctl input[type="range"] { width: 100%; accent-color: var(--accent); }
 .holdctl .inline { margin-top: 4px; }
@@ -167,12 +174,23 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
           </div>
           <div class="inline">
             <label>Most features changed at once
-              <select id="maxLevers"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="6" selected>No limit</option></select>
+              <select id="maxLevers"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6" selected>No limit</option></select>
             </label>
             <label>Safety margin
               <select id="margin"></select>
             </label>
           </div>
+        </section>
+        <section class="card" aria-labelledby="h-setup">
+          <h2 id="h-setup">Save or share this setup</h2>
+          <p class="hint">The applicant, the rules and the retrain settings. The file also works with the Python companion.</p>
+          <div class="btnrow">
+            <button type="button" class="btn ghost" id="saveSetup">Download setup</button>
+            <input type="file" id="loadSetup" accept="application/json,.json" class="sr-only">
+            <label class="btn ghost filebtn" for="loadSetup">Load setup</label>
+            <button type="button" class="btn ghost" id="copyLink">Copy link</button>
+          </div>
+          <p class="small" id="setupMsg" role="status" aria-live="polite"></p>
         </section>
       </div>
       <div class="col">
@@ -197,6 +215,12 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
           <canvas id="map" height="320" role="img" aria-label="Decision map"></canvas>
           <div class="legend" id="mapLegend"></div>
         </section>
+        <section class="card" aria-labelledby="h-notice">
+          <h2 id="h-notice">What the applicant would be told</h2>
+          <p class="hint">A plain-English notice built from the score, the Shapley values and the routes above, including how firm the routes are.</p>
+          <pre class="notice" id="notice" tabindex="0" aria-label="Notice to the applicant"></pre>
+          <div class="btnrow"><button type="button" class="btn ghost" id="copyNotice">Copy notice</button><span class="small" id="noticeMsg" role="status" aria-live="polite"></span></div>
+        </section>
       </div>
     </div>
   </section>
@@ -207,6 +231,13 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
         <h2 id="h-cohort">Who has the longer road?</h2>
         <p class="hint">The model scores 500 new invented applicants. It never sees whether someone is the first in their family to go to university, but the cheapest route to "yes" can still differ. Uses the rules for realistic changes set on the first tab.</p>
         <div class="kpis" id="kpis"></div>
+      </section>
+      <section class="card" aria-labelledby="h-gap">
+        <h2 id="h-gap">Explanation versus advice</h2>
+        <p class="hint">For each rejected applicant, the feature that pulls their score down most (by Shapley value) set against what their cheapest route asks them to change.</p>
+        <div class="kpis" id="gapKpis"></div>
+        <h3>Biggest drag (rows) against where the cheapest route puts most of its effort (columns), all rejected applicants</h3>
+        <div class="tablewrap"><table id="gapMatrix" class="matrix"></table></div>
       </section>
       <section class="card" aria-labelledby="h-hist">
         <h2 id="h-hist">Effort of the cheapest route, rejected applicants only</h2>
@@ -656,34 +687,100 @@ function backgroundSample(rows, size) {
   return out;
 }
 
-// Exact interventional Shapley values against a background sample:
-// all 2^6 coalitions, so no sampling error.
-function shapley(model, x, background) {
-  const n = 1 << D;
-  const v = new Array(n);
-  const z = new Array(D);
-  for (let mask = 0; mask < n; mask++) {
-    let s = 0;
-    for (let b = 0; b < background.length; b++) {
-      const bg = background[b];
-      for (let j = 0; j < D; j++) z[j] = (mask >> j) & 1 ? x[j] : bg[j];
-      s += predict(model, z);
+function treeFeatures(node) {
+  const seen = {};
+  (function walk(n) {
+    if (n.v !== undefined) return;
+    seen[n.f] = true;
+    walk(n.l);
+    walk(n.r);
+  })(node);
+  return Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
+}
+
+// Exact interventional Shapley values against a background sample. Shapley
+// values add up over the trees, and a tree only reads the (at most three)
+// features it splits on, so each tree's share is computed over its own
+// features. A tree also only cares which side of each of its split points a
+// value falls, so the reference applicants are grouped into those "bins"
+// once (shapleyPrep) and each applicant then needs a few dozen look-ups per
+// tree instead of thousands of tree evaluations.
+function shapleyPrep(model, background) {
+  return model.trees.map(function (tree) {
+    const F = treeFeatures(tree);
+    const cuts = F.map(function (f) {
+      const set = {};
+      (function walk(n) { if (n.v !== undefined) return; if (n.f === f) set[n.t] = true; walk(n.l); walk(n.r); })(tree);
+      return Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
+    });
+    const sizes = cuts.map(function (c) { return c.length + 1; });
+    const strides = [];
+    let total = 1;
+    for (let i = 0; i < F.length; i++) { strides.push(total); total *= sizes[i]; }
+    const counts = new Array(total).fill(0);
+    background.forEach(function (bg) {
+      let p = 0;
+      for (let i = 0; i < F.length; i++) p += binOf(cuts[i], bg[F[i]]) * strides[i];
+      counts[p] += 1;
+    });
+    const leaf = new Array(total);
+    const z = new Array(D).fill(0);
+    for (let p = 0; p < total; p++) {
+      for (let i = 0; i < F.length; i++) {
+        const b = Math.floor(p / strides[i]) % sizes[i];
+        z[F[i]] = b < cuts[i].length ? cuts[i][b] : cuts[i][cuts[i].length - 1] + 1;
+      }
+      leaf[p] = leafValue(tree, z);
     }
-    v[mask] = s / background.length;
-  }
-  const fact = [1];
-  for (let k = 1; k <= D; k++) fact.push(fact[k - 1] * k);
+    return { F: F, cuts: cuts, sizes: sizes, strides: strides, counts: counts, leaf: leaf };
+  });
+}
+
+function binOf(cuts, v) {
+  let b = 0;
+  while (b < cuts.length && v > cuts[b]) b += 1;
+  return b;
+}
+
+function shapley(model, x, background, prep) {
+  const P = prep || shapleyPrep(model, background);
+  const B = background.length;
   const phi = new Array(D).fill(0);
-  for (let mask = 0; mask < n; mask++) {
-    let size = 0;
-    for (let j = 0; j < D; j++) if ((mask >> j) & 1) size += 1;
-    const w = fact[size] * fact[D - size - 1] / fact[D];
-    for (let j = 0; j < D; j++) {
-      if ((mask >> j) & 1) continue;
-      phi[j] += w * (v[mask | (1 << j)] - v[mask]);
+  const fact = [1, 1, 2, 6, 24, 120, 720];
+  for (let m = 0; m < P.length; m++) {
+    const T = P[m];
+    const k = T.F.length;
+    if (k === 0) continue;
+    const xb = T.F.map(function (f, i) { return binOf(T.cuts[i], x[f]); });
+    const n = 1 << k;
+    const v = new Array(n);
+    for (let mask = 0; mask < n; mask++) {
+      let s = 0;
+      for (let p = 0; p < T.counts.length; p++) {
+        if (T.counts[p] === 0) continue;
+        let q = 0;
+        for (let i = 0; i < k; i++) {
+          const b = (mask >> i) & 1 ? xb[i] : Math.floor(p / T.strides[i]) % T.sizes[i];
+          q += b * T.strides[i];
+        }
+        s += T.counts[p] * T.leaf[q];
+      }
+      v[mask] = s / B;
+    }
+    for (let i = 0; i < k; i++) {
+      let acc = 0;
+      for (let mask = 0; mask < n; mask++) {
+        if ((mask >> i) & 1) continue;
+        let size = 0;
+        for (let q = 0; q < k; q++) if ((mask >> q) & 1) size += 1;
+        acc += fact[size] * fact[k - size - 1] / fact[k] * (v[mask | (1 << i)] - v[mask]);
+      }
+      phi[T.F[i]] += model.lr * acc;
     }
   }
-  return { phi: phi, base: v[0], value: v[n - 1] };
+  let base = 0;
+  for (let b = 0; b < B; b++) base += predict(model, background[b]);
+  return { phi: phi, base: base / B, value: predict(model, x) };
 }
 
 function median(sorted) {
@@ -719,7 +816,8 @@ function audit(model, tables, cohort, settings, opts) {
       r.changes.forEach(function (ch) { G.lever[ch.j] += 1; });
       G.expAdded.push(r.values[1] - row.x[1]);
     }
-    rows.push({ i: i, g: row.g, status: r.status, cost: r.cost, lever: r.status === 'found' ? mainLever(r) : -1 });
+    rows.push({ i: i, g: row.g, status: r.status, cost: r.cost, lever: r.status === 'found' ? mainLever(r) : -1,
+      changed: r.changes.map(function (ch) { return ch.j; }) });
   });
   const summary = groups.map(function (G) {
     const sorted = G.costs.slice().sort(function (a, b) { return a - b; });
@@ -785,11 +883,128 @@ function holdSummary(model2, cohort, table, margins) {
   });
 }
 
+// ---- Explanation versus advice ----
+// For each rejected applicant: the feature that pulls their score down most
+// (Shapley), whether they could change it, and whether the cheapest route
+// touches that feature at all. The matrix counts biggest drag (rows, last row
+// "none") against the feature carrying most of the route's effort (columns,
+// last column "no route").
+function biggestDrag(phi) {
+  let j = -1;
+  for (let k = 0; k < D; k++) if (phi[k] < 0 && (j < 0 || phi[k] < phi[j])) j = k;
+  return j;
+}
+
+function explainGap(model, cohort, auditRows, background, settings, prep) {
+  const P = prep || shapleyPrep(model, background);
+  const acc = [0, 1, 2].map(function () {
+    return { rejected: 0, routed: 0, dragFixed: 0, noDrag: 0, mismatch: 0, matrix: [] };
+  });
+  acc.forEach(function (a) { for (let d = 0; d <= D; d++) a.matrix.push(new Array(D + 1).fill(0)); });
+  auditRows.forEach(function (row) {
+    if (row.status === 'already') return;
+    const drag = biggestDrag(shapley(model, cohort[row.i].x, background, P).phi);
+    const lever = row.status === 'found' ? row.lever : -1;
+    [acc[row.g], acc[2]].forEach(function (a) {
+      a.rejected += 1;
+      if (drag < 0) a.noDrag += 1;
+      else if (!settings[drag].actionable) a.dragFixed += 1;
+      if (lever >= 0) {
+        a.routed += 1;
+        if (row.changed.indexOf(drag) < 0) a.mismatch += 1;
+      }
+      a.matrix[drag < 0 ? D : drag][lever < 0 ? D : lever] += 1;
+    });
+  });
+  return acc.map(function (a) {
+    return {
+      rejected: a.rejected, routed: a.routed, dragFixed: a.dragFixed, noDrag: a.noDrag, mismatch: a.mismatch,
+      dragFixedShare: a.rejected ? a.dragFixed / a.rejected : null,
+      mismatchShare: a.routed ? a.mismatch / a.routed : null,
+      matrix: a.matrix
+    };
+  });
+}
+
+// ---- Saving and loading a setup ----
+const SETUP_TOOL = 'what-would-it-take';
+
+function makeSetup(x, settings, maxLevers, margin, points, retrain) {
+  const applicant = {};
+  const rules = {};
+  FEATURES.forEach(function (f, j) {
+    applicant[f.key] = x[j];
+    rules[f.key] = { canChange: settings[j].actionable, upTo: settings[j].cap, weight: settings[j].weight };
+  });
+  return { tool: SETUP_TOOL, version: 1, applicant: applicant, rules: rules, maxLevers: maxLevers, margin: margin,
+    nextYear: { points: points, retrain: retrain } };
+}
+
+// Checks a setup from a file or link and fills anything missing with the
+// defaults. Throws an Error whose message says what is wrong.
+function parseSetup(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('A setup must be a JSON object.');
+  if (obj.tool !== undefined && obj.tool !== SETUP_TOOL) throw new Error('This file is not a setup for this tool.');
+  const isInt = function (v) { return typeof v === 'number' && Number.isInteger(v); };
+  const x = PRESETS[0].x.slice();
+  const settings = defaultSettings();
+  const app = obj.applicant === undefined ? {} : obj.applicant;
+  if (!app || typeof app !== 'object' || Array.isArray(app)) throw new Error('"applicant" must be an object.');
+  const rules = obj.rules === undefined ? {} : obj.rules;
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) throw new Error('"rules" must be an object.');
+  FEATURES.forEach(function (f, j) {
+    if (app[f.key] !== undefined) {
+      const v = app[f.key];
+      if (!isInt(v) || v < f.min || v > f.max) throw new Error('applicant.' + f.key + ' must be a whole number from ' + f.min + ' to ' + f.max + '.');
+      x[j] = v;
+    }
+    const r = rules[f.key];
+    if (r === undefined) return;
+    if (!r || typeof r !== 'object' || Array.isArray(r)) throw new Error('rules.' + f.key + ' must be an object.');
+    if (r.canChange !== undefined) {
+      if (typeof r.canChange !== 'boolean') throw new Error('rules.' + f.key + '.canChange must be true or false.');
+      settings[j].actionable = r.canChange;
+    }
+    if (r.upTo !== undefined) {
+      if (!isInt(r.upTo) || r.upTo < 0 || r.upTo > f.max - f.min) throw new Error('rules.' + f.key + '.upTo must be a whole number from 0 to ' + (f.max - f.min) + '.');
+      settings[j].cap = r.upTo;
+    }
+    if (r.weight !== undefined) {
+      if (typeof r.weight !== 'number' || !(r.weight > 0) || r.weight > 10) throw new Error('rules.' + f.key + '.weight must be above 0 and at most 10.');
+      settings[j].weight = r.weight;
+    }
+  });
+  let maxLevers = D;
+  if (obj.maxLevers !== undefined) {
+    if (!isInt(obj.maxLevers) || obj.maxLevers < 1 || obj.maxLevers > D) throw new Error('maxLevers must be a whole number from 1 to ' + D + '.');
+    maxLevers = obj.maxLevers;
+  }
+  let margin = 0;
+  if (obj.margin !== undefined) {
+    if (MARGINS.indexOf(obj.margin) < 0) throw new Error('margin must be one of ' + MARGINS.join(', ') + '.');
+    margin = obj.margin;
+  }
+  let points = 0;
+  let retrain = 1;
+  const ny = obj.nextYear === undefined ? {} : obj.nextYear;
+  if (!ny || typeof ny !== 'object' || Array.isArray(ny)) throw new Error('"nextYear" must be an object.');
+  if (ny.points !== undefined) {
+    if (!isInt(ny.points) || ny.points < 0 || ny.points > 6) throw new Error('nextYear.points must be a whole number from 0 to 6.');
+    points = ny.points;
+  }
+  if (ny.retrain !== undefined) {
+    if (!isInt(ny.retrain) || ny.retrain < 1 || ny.retrain > 20) throw new Error('nextYear.retrain must be a whole number from 1 to 20.');
+    retrain = ny.retrain;
+  }
+  return { x: x, settings: settings, maxLevers: maxLevers, margin: margin, points: points, retrain: retrain };
+}
+
 const API = {
   FEATURES, D, THRESHOLD, DEFAULTS, PRESETS, mulberry32, irwinHall, clampRound, generateCohort, bestSplit, growNode,
   leafValue, collectSplits, trainModel, predict, costTables, defaultSettings, featureCost, candidates,
-  searchRoutes, findRecourse, mainLever, recourseOptions, backgroundSample, shapley, median, mean, audit,
-  MARGINS, nextModel, routeTable, summariseHold, holdSummary
+  searchRoutes, findRecourse, mainLever, recourseOptions, backgroundSample, treeFeatures, shapleyPrep, binOf, shapley, median, mean, audit,
+  MARGINS, nextModel, routeTable, summariseHold, holdSummary, biggestDrag, explainGap,
+  SETUP_TOOL, makeSetup, parseSetup
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 /* MODEL END */
@@ -804,6 +1019,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   const model = trainModel(train);
   const tables = costTables(train);
   const background = backgroundSample(train, 64);
+  const shapPrep = shapleyPrep(model, background);
   const cohort = generateCohort(DEFAULTS.nAudit, DEFAULTS.auditSeed);
 
   const state = { x: PRESETS[0].x.slice(), settings: defaultSettings(), maxLevers: D, margin: 0, mapX: 0, mapY: 1, points: 0, retrain: 1 };
@@ -826,7 +1042,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     if (f.levels) return f.levels[v - f.min];
     return v + (f.unit ? ' ' + (v === 1 && f.unit.endsWith('s') ? f.unit.slice(0, -1) : f.unit) : '');
   }
-  function fmtScore(s) { return s < 0 ? 'below 0' : s.toFixed(2); }
+  // Two decimals, except that a score just under the line never shows as 0.50.
+  function fmtScore(s) {
+    if (s < 0) return 'below 0';
+    if (s < model.threshold && s.toFixed(2) === model.threshold.toFixed(2)) return (Math.floor(s * 1000) / 1000).toFixed(3);
+    return s.toFixed(2);
+  }
   function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
   // ---- Applicant fields ----
@@ -1213,8 +1434,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     renderDecision(score);
     const res = recourseOptions(model, tables, state.x, state.settings, { maxLevers: state.maxLevers, margin: state.margin });
     lastOptions = renderPlans(res);
-    renderShap(shapley(model, state.x, background), lastOptions);
+    const sh = shapley(model, state.x, background, shapPrep);
+    renderShap(sh, lastOptions);
     renderMap(lastOptions);
+    $('notice').textContent = noticeText(score, sh, res);
   }
 
   // ---- Cohort ----
@@ -1251,6 +1474,52 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     k.appendChild(legend);
     renderHist(a);
     renderLevers(a);
+    renderGap(explainGap(model, cohort, a.rows, background, state.settings, shapPrep));
+  }
+  function renderGap(gap) {
+    const k = $('gapKpis');
+    k.innerHTML = '';
+    const tile = function (label, f) {
+      const box = el('div', { class: 'kpi' });
+      box.appendChild(el('div', { class: 'lab' }, label));
+      const vals = el('div', { class: 'vals' });
+      [0, 1].forEach(function (g) {
+        const sp = el('span');
+        const dot = el('span', { class: 'dot', 'aria-hidden': 'true' });
+        dot.style.background = groupColour(g);
+        sp.appendChild(dot);
+        sp.appendChild(el('span', { class: 'v' }, f(gap[g])));
+        sp.appendChild(el('span', { class: 'sr-only' }, ' ' + GROUPS[g]));
+        vals.appendChild(sp);
+      });
+      box.appendChild(vals);
+      k.appendChild(box);
+    };
+    tile('Biggest drag is something they cannot change', function (G) { return pct(G.dragFixedShare); });
+    tile('Cheapest route never touches the biggest drag', function (G) { return pct(G.mismatchShare); });
+    const t = $('gapMatrix');
+    t.innerHTML = '';
+    const cols = [0, 1, 2, 3, 4, 5].filter(function (j) { return gap[2].matrix.some(function (row) { return row[j] > 0; }); }).concat([D]);
+    const rows = [0, 1, 2, 3, 4, 5, D].filter(function (j) { return gap[2].matrix[j].some(function (v) { return v > 0; }); });
+    const thead = el('thead');
+    const hr = el('tr');
+    hr.appendChild(el('th', { scope: 'col' }, 'Biggest drag'));
+    cols.forEach(function (j) { hr.appendChild(el('th', { scope: 'col', class: 'num' }, j === D ? 'No route' : FEATURES[j].short)); });
+    thead.appendChild(hr);
+    t.appendChild(thead);
+    const body = el('tbody');
+    rows.forEach(function (r) {
+      const tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, r === D ? 'None (average is below the line)' : FEATURES[r].short + (state.settings[r].actionable ? '' : ' (fixed)')));
+      cols.forEach(function (c) {
+        const v = gap[2].matrix[r][c];
+        tr.appendChild(el('td', { class: 'num' + (r === c ? ' hot' : '') }, String(v)));
+      });
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+    t.appendChild(el('caption', { class: 'small', style: 'caption-side: bottom; text-align: left; padding-top: 8px;' },
+      'Counts of rejected applicants. Shaded cells are routes whose main effort goes on the biggest drag. Elsewhere the advice points away from the explanation; the figure above counts the routes that leave the biggest drag alone entirely.'));
   }
   function renderHist(a) {
     const box = $('hist');
@@ -1317,19 +1586,185 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     t.appendChild(cap);
   }
 
+  // ---- Notice ----
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+  function changePhrase(j, from, to) {
+    const lv = FEATURES[j].levels;
+    switch (FEATURES[j].key) {
+      case 'test': return 'an aptitude test score of ' + to + ' instead of ' + from;
+      case 'experience': return plural(to, 'month') + ' of relevant work experience instead of ' + from;
+      case 'projects': return plural(to, 'project') + ' or leadership role' + (to === 1 ? '' : 's') + ' instead of ' + from;
+      case 'certs': return plural(to, 'professional certificate') + ' instead of ' + from;
+      case 'degree': return 'a ' + lv[to - 1] + ' instead of a ' + lv[from - 1];
+      default: return 'a gap of ' + plural(to, 'month') + ' since last study or work instead of ' + from;
+    }
+  }
+  function changesSentence(o) {
+    return o.changes.map(function (ch) { return changePhrase(ch.j, ch.from, ch.to); }).join(', and ');
+  }
+  function noticeText(score, sh, res) {
+    const L = [];
+    const yes = score >= model.threshold;
+    L.push('Outcome: ' + (yes ? 'shortlisted' : 'not shortlisted') + '. The screening model gave a score of ' + fmtScore(score) + '; 0.50 or more is needed.');
+    L.push('');
+    const order = FEATURES.map(function (f, j) { return j; });
+    if (!yes) {
+      order.sort(function (a, b) { return (sh.phi[a] - sh.phi[b]) || (a - b); });
+      const against = order.filter(function (j) { return sh.phi[j] <= -0.01; }).slice(0, 3);
+      if (against.length) {
+        L.push('What counted most against the application, compared with a typical applicant:');
+        against.forEach(function (j) {
+          L.push('- ' + FEATURES[j].label + ' (' + fmtVal(j, state.x[j]) + ') lowered the score by ' + (-sh.phi[j]).toFixed(2) + '.' + (state.settings[j].actionable ? '' : ' This cannot be changed now.'));
+        });
+      } else {
+        L.push('No single factor stood out: this application scored close to a typical applicant, and a typical applicant is not shortlisted.');
+      }
+      L.push('');
+      if (res.options.length) {
+        L.push('What would have changed the outcome (the smallest realistic changes under the current rules):');
+        res.options.forEach(function (o, k) { L.push('- Route ' + String.fromCharCode(65 + k) + ': ' + changesSentence(o) + '.'); });
+        const m2 = currentNext();
+        const kept = res.options.filter(function (o) { return predict(m2, o.values) >= m2.threshold; }).length;
+        L.push('');
+        L.push('How firm this is: these routes are worked out on this year’s model' + (state.margin ? ', aiming ' + state.margin + ' above the line' : ', aiming just over the line') +
+          '. Checked against next year’s retrained model, ' + kept + ' of ' + res.options.length + ' would still be enough.');
+      } else {
+        L.push('No change allowed under the current rules would have changed the outcome.');
+      }
+    } else {
+      order.sort(function (a, b) { return (sh.phi[b] - sh.phi[a]) || (a - b); });
+      const forIt = order.filter(function (j) { return sh.phi[j] >= 0.01; }).slice(0, 3);
+      if (forIt.length) {
+        L.push('What counted most in favour, compared with a typical applicant:');
+        forIt.forEach(function (j) { L.push('- ' + FEATURES[j].label + ' (' + fmtVal(j, state.x[j]) + ') raised the score by ' + sh.phi[j].toFixed(2) + '.'); });
+      }
+    }
+    L.push('');
+    L.push('You can ask for a person to review this decision and to correct any information that is wrong.');
+    return L.join('\n');
+  }
+  // Tries the clipboard API, and falls back to a hidden text box if that is
+  // refused or does not answer within a second (some browsers block it for
+  // files opened from disk).
+  function copyText(text, msgId) {
+    let settled = false;
+    const done = function (ok) {
+      if (settled) return;
+      settled = true;
+      $(msgId).textContent = ok ? 'Copied.' : 'Could not copy automatically: select the text and copy it.';
+    };
+    const fallback = function () { if (!settled) done(legacyCopy(text)); };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+        setTimeout(fallback, 1000);
+        return;
+      }
+    } catch (e) { /* use the fallback */ }
+    fallback();
+  }
+  function legacyCopy(text) {
+    const ta = el('textarea');
+    ta.value = text;
+    ta.setAttribute('aria-hidden', 'true');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  // ---- Save, load and share ----
+  function currentSetup() {
+    return makeSetup(state.x, state.settings, state.maxLevers, state.margin, state.points, state.retrain);
+  }
+  function applySetup(p) {
+    state.x = p.x;
+    state.settings = p.settings;
+    state.maxLevers = p.maxLevers;
+    state.margin = p.margin;
+    state.points = p.points;
+    state.retrain = p.retrain;
+    $('preset').value = '';
+    PRESETS.forEach(function (pr, k) { if (pr.x.join() === state.x.join()) $('preset').value = String(k); });
+    syncFields();
+    syncRules();
+    syncHold();
+    rulesChanged();
+  }
+  function syncRules() {
+    FEATURES.forEach(function (f, j) {
+      $('act-' + j).checked = state.settings[j].actionable;
+      $('cap-' + j).value = String(state.settings[j].cap);
+      const w = $('w-' + j);
+      const val = String(state.settings[j].weight);
+      if (!Array.prototype.some.call(w.options, function (o) { return o.value === val; })) w.appendChild(el('option', { value: val }, val + 'x'));
+      w.value = val;
+    });
+    $('maxLevers').value = String(state.maxLevers);
+    $('margin').value = String(state.margin);
+  }
+  function buildSetup() {
+    $('saveSetup').addEventListener('click', function () {
+      const blob = new Blob([JSON.stringify(currentSetup(), null, 2) + '\n'], { type: 'application/json' });
+      const a = el('a', { href: URL.createObjectURL(blob), download: 'what-would-it-take-setup.json' });
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 0);
+      $('setupMsg').textContent = 'Downloaded what-would-it-take-setup.json.';
+    });
+    $('loadSetup').addEventListener('change', function () {
+      const file = $('loadSetup').files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function () {
+        try {
+          applySetup(parseSetup(JSON.parse(String(reader.result))));
+          $('setupMsg').textContent = 'Loaded ' + file.name + '.';
+        } catch (e) {
+          $('setupMsg').textContent = 'Could not load ' + file.name + ': ' + (e instanceof SyntaxError ? 'it is not valid JSON.' : e.message);
+        }
+        $('loadSetup').value = '';
+      };
+      reader.readAsText(file);
+    });
+    $('copyLink').addEventListener('click', function () {
+      const url = location.href.split('#')[0] + '#setup=' + encodeURIComponent(JSON.stringify(currentSetup()));
+      history.replaceState(null, '', url);
+      copyText(url, 'setupMsg');
+    });
+    $('copyNotice').addEventListener('click', function () { copyText($('notice').textContent, 'noticeMsg'); });
+  }
+  function loadFromLink() {
+    const m = /#setup=(.+)$/.exec(location.hash);
+    if (!m) return;
+    try {
+      applySetup(parseSetup(JSON.parse(decodeURIComponent(m[1]))));
+      $('setupMsg').textContent = 'Loaded the setup from the link.';
+    } catch (e) {
+      $('setupMsg').textContent = 'The link holds a setup that could not be loaded: ' + (e instanceof SyntaxError || e instanceof URIError ? 'it is damaged.' : e.message);
+    }
+  }
+
   // ---- Will it hold? ----
+  function syncHold() {
+    $('points').value = String(state.points);
+    $('pointsOut').textContent = strengthText(state.points);
+    $('retrainOut').textContent = String(state.retrain);
+    $('retrainPrev').disabled = state.retrain <= 1;
+    $('retrainNext').disabled = state.retrain >= RETRAINS;
+  }
   function buildHold() {
     const pts = $('points');
-    const sync = function () {
-      $('pointsOut').textContent = strengthText(state.points);
-      $('retrainOut').textContent = String(state.retrain);
-      $('retrainPrev').disabled = state.retrain <= 1;
-      $('retrainNext').disabled = state.retrain >= RETRAINS;
-    };
+    const sync = syncHold;
     pts.addEventListener('input', function () { state.points = Number(pts.value); sync(); });
     pts.addEventListener('change', function () { state.points = Number(pts.value); sync(); renderHold(); });
     $('retrainPrev').addEventListener('click', function () { if (state.retrain > 1) { state.retrain -= 1; sync(); renderHold(); } });
     $('retrainNext').addEventListener('click', function () { if (state.retrain < RETRAINS) { state.retrain += 1; sync(); renderHold(); } });
+    // The route cards on the first tab show the check against the same retrain.
     sync();
   }
   function renderHold() {
@@ -1466,9 +1901,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   buildRules();
   buildMapControls();
   buildHold();
+  buildSetup();
   buildTabs();
   syncFields();
   renderApplicant();
+  loadFromLink();
+  window.addEventListener('hashchange', loadFromLink);
 })();
 </script>
 </body>

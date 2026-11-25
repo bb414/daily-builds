@@ -2,8 +2,11 @@
 main interactions work, every control has a name, and nothing is wider than
 a phone screen. Skipped when Playwright is not installed."""
 
+import json
 import os
+import tempfile
 import unittest
+from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL = "file://" + os.path.join(ROOT, "app", "index.html")
@@ -115,6 +118,64 @@ class UiTest(unittest.TestCase):
         page.click("#tab-applicant")
         page.select_option("#margin", "0.3")
         self.assertIn("aim for 0.8", page.inner_text("#margin"))
+        page.close()
+
+    def test_notice_and_copy(self):
+        page = self.open()
+        text = page.inner_text("#notice")
+        self.assertIn("Outcome: not shortlisted", text)
+        self.assertIn("Route A: an aptitude test score of 66 instead of 64.", text)
+        page.click("#copyNotice")
+        page.wait_for_function("document.getElementById('noticeMsg').textContent !== ''", timeout=3000)
+        self.assertRegex(page.inner_text("#noticeMsg"), "Copied|Could not copy")
+        page.close()
+
+    def test_setup_download_load_and_link(self):
+        page = self.open()
+        page.uncheck("#act-0")
+        with page.expect_download() as info:
+            page.click("#saveSetup")
+        saved = json.loads(open(info.value.path(), encoding="utf-8").read())
+        self.assertEqual(saved["tool"], "what-would-it-take")
+        self.assertFalse(saved["rules"]["test"]["canChange"])
+        saved["applicant"]["test"] = 90
+        saved["rules"]["experience"]["weight"] = 2.5
+        with tempfile.TemporaryDirectory() as d:
+            good = os.path.join(d, "good.json")
+            with open(good, "w", encoding="utf-8") as fh:
+                json.dump(saved, fh)
+            page.set_input_files("#loadSetup", good)
+            page.wait_for_function("document.getElementById('setupMsg').textContent.startsWith('Loaded')")
+            self.assertEqual(page.input_value("#f-test"), "90")
+            self.assertEqual(page.input_value("#w-1"), "2.5")
+            self.assertFalse(page.is_checked("#act-0"))
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write('{"applicant": {"gap": 99}}')
+            page.set_input_files("#loadSetup", bad)
+            page.wait_for_function("document.getElementById('setupMsg').textContent.startsWith('Could not')")
+            self.assertIn("applicant.gap", page.inner_text("#setupMsg"))
+            self.assertEqual(page.input_value("#f-test"), "90")
+        page.close()
+        link = {"applicant": {"test": 47, "experience": 24, "projects": 3, "certs": 0, "degree": 3, "gap": 0},
+                "margin": 0.1, "nextYear": {"points": 2, "retrain": 3}}
+        page = self.browser.new_page()
+        page.goto(URL + "#setup=" + quote(json.dumps(link)))
+        page.wait_for_selector("#plans .plan")
+        self.assertEqual(page.input_value("#f-experience"), "24")
+        self.assertEqual(page.input_value("#margin"), "0.1")
+        self.assertEqual(page.input_value("#preset"), "4")
+        page.click("#tab-hold")
+        self.assertEqual(page.inner_text("#retrainOut"), "3")
+        page.goto(URL + "#setup=%7Bbroken")
+        page.wait_for_function("document.getElementById('setupMsg').textContent.includes('damaged')", timeout=3000)
+        page.close()
+
+    def test_explanation_gap_card(self):
+        page = self.open()
+        page.click("#tab-cohort")
+        self.assertEqual(page.locator("#gapKpis .kpi").count(), 2)
+        self.assertGreater(page.locator("#gapMatrix tbody tr").count(), 3)
         page.close()
 
     def test_every_control_has_a_name(self):

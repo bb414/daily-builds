@@ -91,6 +91,24 @@ class AgreementTest(unittest.TestCase):
         table = M.route_table(self.model, self.tables, self.cohort[:200], self.tight, M.MARGINS, max_levers=3)
         self.assertEqual(self.js["hold"], M.hold_summary(M.next_model(3 / 6, 2), self.cohort[:200], table, M.MARGINS))
 
+    def test_explanation_gap(self):
+        rows = M.audit(self.model, self.tables, self.cohort, self.tight, max_levers=3)["rows"]
+        self.assertEqual(self.js["gap"], M.explain_gap(self.model, self.cohort, rows, self.background, self.tight))
+
+    def test_setups(self):
+        inputs = [
+            {}, {"applicant": {"test": 80, "degree": 1}},
+            {"rules": {"gap": {"canChange": True, "upTo": 6, "weight": 2.5}}, "margin": 0.15},
+            {"maxLevers": 2, "nextYear": {"points": 3, "retrain": 9}}, {"tool": "nope"}, {"applicant": {"test": 101}},
+            {"rules": {"test": {"weight": 11}}}, {"margin": 0.07}, {"nextYear": {"retrain": 21}}, {"rules": {"certs": 5}},
+        ]
+        for obj, js in zip(inputs, self.js["setups"]):
+            try:
+                py = {"ok": M.parse_setup(obj)}
+            except M.SetupError as e:
+                py = {"error": str(e)}
+            self.assertEqual(js, py, obj)
+
 
 if __name__ == "__main__":
     unittest.main()
