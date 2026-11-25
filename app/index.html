@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What would it take? Counterfactual explanations for a shortlisting model</title>
+<style>
+:root {
+  --bg: #f4f6f9; --surface: #ffffff; --surface-2: #f8f9fb; --ink: #18202c; --muted: #566273; --line: #dfe4ea;
+  --accent: #2c56c9; --accent-ink: #ffffff; --accent-soft: #e7edfb;
+  --yes: #17795a; --yes-soft: #dff2ea; --no: #b13c33; --no-soft: #f8e3e0;
+  --helps: #2f6fdb; --hurts: #d0622a; --fixed: #7a5d12; --fixed-soft: #f6edd3;
+  --g0: #5a5fd0; --g1: #1b917d;
+  --map-yes: #cfe0fb; --map-no: #f1f2f4; --map-edge: #2c56c9;
+  --radius: 12px; --shadow: 0 1px 2px rgba(20, 30, 50, 0.06), 0 2px 8px rgba(20, 30, 50, 0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151c; --surface: #1a2029; --surface-2: #202835; --ink: #e8edf4; --muted: #a3afbf; --line: #2e3846;
+    --accent: #7c9cf0; --accent-ink: #0d1320; --accent-soft: #243256;
+    --yes: #5cc79f; --yes-soft: #17342b; --no: #ef8a80; --no-soft: #3c2220;
+    --helps: #7aa7f5; --hurts: #f09a64; --fixed: #e3c46d; --fixed-soft: #3a321b;
+    --g0: #9a9ef0; --g1: #4fc8b2;
+    --map-yes: #26406f; --map-no: #232b37; --map-edge: #9db5f5;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; padding-top: 18px; }
+h1 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
+.tag { margin: 0 0 14px; color: var(--muted); max-width: 640px; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+nav.tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+main { padding: 20px 0 40px; }
+.panel[hidden] { display: none; }
+.grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; }
+.col { display: grid; gap: 18px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
+.card h2 { font-size: 1.08rem; margin: 0 0 4px; }
+.card h3 { font-size: 0.98rem; margin: 14px 0 6px; }
+.hint { color: var(--muted); margin: 0 0 12px; font-size: 0.92rem; }
+label { display: block; }
+select, input[type="number"] { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field { padding: 10px 0; border-top: 1px solid var(--line); }
+.field:first-of-type { border-top: 0; }
+.field .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.field .name { font-weight: 600; font-size: 0.93rem; }
+.field input[type="number"] { width: 72px; text-align: right; }
+.field select { min-width: 92px; }
+.field input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
+.chip { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.chip.fixed { background: var(--fixed-soft); color: var(--fixed); }
+.preset { margin-bottom: 8px; }
+.preset select { width: 100%; margin-top: 4px; }
+.decision { margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); }
+.decision.yes { background: var(--yes-soft); border-color: transparent; }
+.decision.no { background: var(--no-soft); border-color: transparent; }
+.decision .verdict { font-weight: 700; font-size: 1.05rem; }
+.decision.yes .verdict { color: var(--yes); }
+.decision.no .verdict { color: var(--no); }
+.scorebar { position: relative; height: 10px; border-radius: 6px; background: var(--surface); margin: 8px 0 4px; overflow: hidden; border: 1px solid var(--line); }
+.scorebar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+.scorebar .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+.small { font-size: 0.86rem; color: var(--muted); }
+.plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.plan { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
+.plan.best { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.plan h3 { margin: 0; font-size: 0.95rem; }
+.plan ul { margin: 0; padding-left: 18px; }
+.plan li { margin: 2px 0; }
+.plan .delta { color: var(--muted); font-size: 0.86rem; }
+.plan .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.effort { height: 8px; border-radius: 5px; background: var(--line); overflow: hidden; }
+.effort span { display: block; height: 100%; background: var(--accent); }
+button.btn { appearance: none; font: inherit; font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+button.btn.ghost { background: transparent; color: var(--accent); }
+.empty { padding: 14px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+.note { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); margin: 10px 0 0; }
+svg text { fill: var(--ink); font-family: inherit; }
+svg .muted { fill: var(--muted); }
+.chartwrap { width: 100%; overflow: hidden; }
+.mapctl { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.mapctl label { font-size: 0.9rem; }
+.mapctl select { margin-left: 4px; }
+canvas { display: block; width: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+.rules td input[type="number"] { width: 64px; }
+.rules td select { width: 76px; }
+.inline { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+.kpi .lab { font-size: 0.84rem; color: var(--muted); }
+.kpi .vals { display: flex; gap: 14px; align-items: baseline; margin-top: 4px; flex-wrap: wrap; }
+.kpi .v { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+.prose { max-width: 760px; }
+.prose p, .prose li { margin: 0 0 10px; }
+footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  h1 { font-size: 1.35rem; }
+  .card { padding: 14px; }
+  nav.tabs button { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>What would it take?</h1>
+      <p class="tag">Counterfactual explanations for an automated shortlisting model: what a rejected applicant could realistically change, what it would cost them, and who ends up with the longer road.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-applicant" aria-controls="panel-applicant" aria-selected="true">One applicant</button>
+      <button role="tab" id="tab-cohort" aria-controls="panel-cohort" aria-selected="false" tabindex="-1">Whole cohort</button>
+      <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">How it works</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="panel-applicant" role="tabpanel" aria-labelledby="tab-applicant">
+    <div class="grid">
+      <div class="col">
+        <section class="card" aria-labelledby="h-applicant">
+          <h2 id="h-applicant">Applicant</h2>
+          <p class="hint">An invented graduate-scheme applicant. Change any value and everything updates.</p>
+          <label class="preset">Start from an example
+            <select id="preset"></select>
+          </label>
+          <div id="fields"></div>
+          <div id="decision" class="decision" aria-live="polite"></div>
+        </section>
+        <section class="card" aria-labelledby="h-rules">
+          <h2 id="h-rules">What counts as a realistic change</h2>
+          <p class="hint">Which features a person could change within about a year, by how much, and how hard each one is. Effort weight 2 makes a feature twice as costly.</p>
+          <div class="tablewrap">
+            <table class="rules">
+              <thead><tr><th scope="col">Feature</th><th scope="col">Can change</th><th scope="col" class="num">By up to</th><th scope="col" class="num">Effort weight</th></tr></thead>
+              <tbody id="rules"></tbody>
+            </table>
+          </div>
+          <div class="inline">
+            <label>Most features changed at once
+              <select id="maxLevers"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="6" selected>No limit</option></select>
+            </label>
+          </div>
+        </section>
+      </div>
+      <div class="col">
+        <section class="card" aria-labelledby="h-plans">
+          <h2 id="h-plans">Ways to get shortlisted</h2>
+          <p class="hint">Each route is the cheapest exact plan whose biggest change is a different feature. Effort is measured in percentile points: moving from the 40th to the 55th percentile of applicants on a feature costs 15, times its effort weight.</p>
+          <div id="plans"></div>
+        </section>
+        <section class="card" aria-labelledby="h-why">
+          <h2 id="h-why">Why the model scored them this way</h2>
+          <p class="hint">Exact Shapley values: how much each feature moves this applicant's score away from the average score of a reference group of 64 applicants.</p>
+          <div class="chartwrap" id="shap"></div>
+          <p class="note" id="shapNote"></p>
+        </section>
+        <section class="card" aria-labelledby="h-map">
+          <h2 id="h-map">Decision map</h2>
+          <p class="hint">The model's answer for every combination of two features, holding the others at this applicant's values.</p>
+          <div class="mapctl">
+            <label>Across <select id="mapX"></select></label>
+            <label>Up <select id="mapY"></select></label>
+          </div>
+          <canvas id="map" height="320" role="img" aria-label="Decision map"></canvas>
+          <div class="legend" id="mapLegend"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-cohort" role="tabpanel" aria-labelledby="tab-cohort" hidden>
+    <div class="col">
+      <section class="card" aria-labelledby="h-cohort">
+        <h2 id="h-cohort">Who has the longer road?</h2>
+        <p class="hint">The model scores 500 new invented applicants. It never sees whether someone is the first in their family to go to university, but the cheapest route to "yes" can still differ. Uses the rules for realistic changes set on the first tab.</p>
+        <div class="kpis" id="kpis"></div>
+      </section>
+      <section class="card" aria-labelledby="h-hist">
+        <h2 id="h-hist">Effort of the cheapest route, rejected applicants only</h2>
+        <p class="hint">Share of each group's rejected applicants in each effort band. "No route" means nothing within the limits gets them shortlisted.</p>
+        <div class="chartwrap" id="hist"></div>
+      </section>
+      <section class="card" aria-labelledby="h-levers">
+        <h2 id="h-levers">What the cheapest routes ask people to change</h2>
+        <div class="tablewrap"><table id="levers"></table></div>
+      </section>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+    <section class="card prose" aria-labelledby="h-about">
+      <h2 id="h-about">How it works</h2>
+      <p>Everything here is invented and runs in your browser. Nothing is sent anywhere.</p>
+      <h3>The model</h3>
+      <p>1,600 synthetic past applicants to an invented graduate scheme, each with six features. Past shortlisting decisions came from a hidden rule plus noise, with a fixed quota of 38% shortlisted. A small gradient-boosted model (60 trees, each two splits deep) learns to copy those decisions. A score of 0.50 or more means "shortlist".</p>
+      <h3>Counterfactual routes</h3>
+      <p>A counterfactual explanation answers "what would have had to be different for the answer to be yes?". Here it is restricted to changes a person could actually make: features can only move in a realistic direction (more experience, never less), by a limited amount, and degree result and past gaps are fixed unless you say otherwise.</p>
+      <p>Because the model is a sum of trees, its score only changes where a tree splits. So for each feature the tool only needs the current value and the first value past each split point. It searches those combinations cheapest first and stops at the first one that reaches 0.50, which makes the result the exact cheapest plan, not an approximation.</p>
+      <h3>Effort</h3>
+      <p>Effort is the percentile shift each change needs among past applicants, times an effort weight you choose. Moving from a common value to a rare one costs more than the same number of units in a crowded range.</p>
+      <h3>Why the model scored them this way</h3>
+      <p>Shapley values split the gap between the average score and this applicant's score fairly between the six features, by trying every one of the 64 combinations of "this applicant's value" and "a reference applicant's value". They explain the score, but they do not say what to change: the feature that hurts most is often one nobody can change.</p>
+    </section>
+  </section>
+</main>
+<footer class="foot wrap">
+  <p>Synthetic data and an invented employer, for learning about explanations of automated decisions. Not a hiring tool.</p>
+</footer>
+
+<script>
+/* MODEL START */
+// Core logic: synthetic applicants, a small boosted-tree shortlisting model,
+// exact minimum-cost recourse, exact Shapley values and a cohort audit.
+// Pure functions only, no DOM, so the same code runs in Node.js for tests.
+
+const FEATURES = [
+  { key: 'test', label: 'Aptitude test score', short: 'Test score', min: 0, max: 100, unit: 'points', dir: 1, actionable: true, cap: 10, weight: 1 },
+  { key: 'experience', label: 'Relevant work experience', short: 'Experience', min: 0, max: 36, unit: 'months', dir: 1, actionable: true, cap: 12, weight: 1 },
+  { key: 'projects', label: 'Projects and leadership roles', short: 'Projects', min: 0, max: 6, unit: 'roles', dir: 1, actionable: true, cap: 2, weight: 1 },
+  { key: 'certs', label: 'Professional certificates', short: 'Certificates', min: 0, max: 4, unit: 'certificates', dir: 1, actionable: true, cap: 2, weight: 1 },
+  { key: 'degree', label: 'Degree result', short: 'Degree', min: 1, max: 4, unit: '', dir: 1, actionable: false, cap: 1, weight: 1, levels: ['Third', '2:2', '2:1', 'First'] },
+  { key: 'gap', label: 'Months since last study or work', short: 'Gap', min: 0, max: 24, unit: 'months', dir: -1, actionable: false, cap: 24, weight: 1 }
+];
+const D = FEATURES.length;
+const THRESHOLD = 0.5;
+const DEFAULTS = { trainSeed: 11, auditSeed: 29, nextSeed: 47, nTrain: 1600, nAudit: 500, trees: 60, lr: 0.15, minLeaf: 15, quota: 0.38 };
+
+// Example applicants for the app's menu; tests check each one still matches its name.
+const PRESETS = [
+  { name: 'Near miss', x: [64, 7, 4, 1, 3, 0] },
+  { name: 'Four ways in', x: [66, 4, 3, 1, 3, 0] },
+  { name: 'Held back by degree result', x: [62, 9, 3, 1, 1, 3] },
+  { name: 'Held back by a past gap', x: [66, 7, 1, 1, 3, 7] },
+  { name: 'Strong experience, weak test', x: [47, 24, 3, 0, 3, 0] },
+  { name: 'No route within a year', x: [44, 3, 1, 0, 2, 6] },
+  { name: 'Already shortlisted', x: [74, 12, 3, 1, 3, 0] }
+];
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Sum of twelve uniforms minus six: close to a standard normal and uses only
+// additions, so JavaScript and Python produce bit-identical numbers.
+function irwinHall(rng) {
+  let s = 0;
+  for (let k = 0; k < 12; k++) s += rng();
+  return s - 6;
+}
+
+function clampRound(v, lo, hi) {
+  const r = Math.floor(v + 0.5);
+  return r < lo ? lo : r > hi ? hi : r;
+}
+
+// strength: 0 is this year's applicant pool; 1 is a noticeably stronger pool.
+function generateCohort(n, seed, strength, quota) {
+  const s = strength || 0;
+  const q = quota === undefined ? DEFAULTS.quota : quota;
+  const rng = mulberry32(seed);
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const g = rng() < 0.35 ? 1 : 0;
+    const test = clampRound(61 + 6 * s + 13 * irwinHall(rng), 0, 100);
+    const experience = clampRound((g ? 6 : 10) + 3 * s + 6 * irwinHall(rng), 0, 36);
+    const projects = clampRound((g ? 1.9 : 2.3) + 0.5 * s + 1.2 * irwinHall(rng), 0, 6);
+    const certs = clampRound(0.9 + 0.8 * irwinHall(rng), 0, 4);
+    const u = rng();
+    const degree = g ? (u < 0.06 ? 1 : u < 0.28 ? 2 : u < 0.78 ? 3 : 4) : (u < 0.05 ? 1 : u < 0.22 ? 2 : u < 0.73 ? 3 : 4);
+    const gap = rng() < (g ? 0.4 : 0.3) ? clampRound(2 + 8 * rng(), 1, 24) : 0;
+    const noise = irwinHall(rng);
+    const latent = 0.06 * (test - 60) + 0.09 * Math.min(experience, 18) + 0.35 * projects + 0.3 * certs +
+      0.6 * (degree - 3) - 0.08 * gap + ((test >= 70 && experience >= 6) ? 0.5 : 0) + 0.8 * noise;
+    rows.push({ x: [test, experience, projects, certs, degree, gap], g: g, latent: latent, y: 0 });
+  }
+  const order = rows.map(function (r, i) { return i; });
+  order.sort(function (a, b) { return (rows[b].latent - rows[a].latent) || (a - b); });
+  const k = Math.floor(q * n + 0.5);
+  for (let rank = 0; rank < k; rank++) rows[order[rank]].y = 1;
+  return rows;
+}
+
+function bestSplit(X, r, idx, minLeaf) {
+  const n = idx.length;
+  let total = 0;
+  for (let k = 0; k < n; k++) total += r[idx[k]];
+  let best = null;
+  let bestGain = 1e-12;
+  for (let f = 0; f < D; f++) {
+    const lo = FEATURES[f].min;
+    const B = FEATURES[f].max - lo + 1;
+    const cnt = new Array(B).fill(0);
+    const sum = new Array(B).fill(0);
+    for (let k = 0; k < n; k++) {
+      const i = idx[k];
+      const b = X[i][f] - lo;
+      cnt[b] += 1;
+      sum[b] += r[i];
+    }
+    let nL = 0;
+    let sL = 0;
+    for (let b = 0; b < B - 1; b++) {
+      if (cnt[b] === 0) continue;
+      nL += cnt[b];
+      sL += sum[b];
+      const nR = n - nL;
+      if (nL < minLeaf) continue;
+      if (nR < minLeaf) break;
+      const sR = total - sL;
+      const gain = sL * sL / nL + sR * sR / nR - total * total / n;
+      if (gain > bestGain) {
+        bestGain = gain;
+        best = { f: f, t: lo + b };
+      }
+    }
+  }
+  return best;
+}
+
+function growNode(X, r, idx, depth, maxDepth, minLeaf) {
+  if (depth < maxDepth) {
+    const s = bestSplit(X, r, idx, minLeaf);
+    if (s) {
+      const L = [];
+      const R = [];
+      for (let k = 0; k < idx.length; k++) {
+        const i = idx[k];
+        if (X[i][s.f] <= s.t) L.push(i); else R.push(i);
+      }
+      return { f: s.f, t: s.t, l: growNode(X, r, L, depth + 1, maxDepth, minLeaf), r: growNode(X, r, R, depth + 1, maxDepth, minLeaf) };
+    }
+  }
+  let s = 0;
+  for (let k = 0; k < idx.length; k++) s += r[idx[k]];
+  return { v: s / idx.length };
+}
+
+function leafValue(node, x) {
+  while (node.v === undefined) node = x[node.f] <= node.t ? node.l : node.r;
+  return node.v;
+}
+
+function collectSplits(trees) {
+  const sets = FEATURES.map(function () { return {}; });
+  function walk(node) {
+    if (node.v !== undefined) return;
+    sets[node.f][node.t] = true;
+    walk(node.l);
+    walk(node.r);
+  }
+  trees.forEach(walk);
+  return sets.map(function (s) { return Object.keys(s).map(Number).sort(function (a, b) { return a - b; }); });
+}
+
+// Least-squares gradient boosting with depth-2 trees on 0/1 labels.
+function trainModel(rows, params) {
+  const p = Object.assign({ trees: DEFAULTS.trees, lr: DEFAULTS.lr, minLeaf: DEFAULTS.minLeaf, depth: 2 }, params || {});
+  const n = rows.length;
+  const X = rows.map(function (row) { return row.x; });
+  let base = 0;
+  for (let i = 0; i < n; i++) base += rows[i].y;
+  base /= n;
+  const F = new Array(n).fill(base);
+  const r = new Array(n).fill(0);
+  const all = [];
+  for (let i = 0; i < n; i++) all.push(i);
+  const trees = [];
+  for (let m = 0; m < p.trees; m++) {
+    for (let i = 0; i < n; i++) r[i] = rows[i].y - F[i];
+    const tree = growNode(X, r, all, 0, p.depth, p.minLeaf);
+    trees.push(tree);
+    for (let i = 0; i < n; i++) F[i] += p.lr * leafValue(tree, X[i]);
+  }
+  return { base: base, lr: p.lr, trees: trees, threshold: THRESHOLD, splits: collectSplits(trees) };
+}
+
+function predict(model, x) {
+  let s = model.base;
+  for (let m = 0; m < model.trees.length; m++) s += model.lr * leafValue(model.trees[m], x);
+  return s;
+}
+
+// Mid-rank percentile of each value, with one pseudo-count per value so
+// every step costs something. Cost of a change = weight x percentile points moved.
+function costTables(rows) {
+  return FEATURES.map(function (f, j) {
+    const B = f.max - f.min + 1;
+    const c = new Array(B).fill(1);
+    for (let i = 0; i < rows.length; i++) c[rows[i].x[j] - f.min] += 1;
+    const N = rows.length + B;
+    const cdf = [];
+    let below = 0;
+    for (let b = 0; b < B; b++) {
+      cdf.push((below + 0.5 * c[b]) / N);
+      below += c[b];
+    }
+    return cdf;
+  });
+}
+
+function defaultSettings() {
+  return FEATURES.map(function (f) { return { actionable: f.actionable, cap: f.cap, weight: f.weight }; });
+}
+
+function featureCost(tables, settings, j, from, to) {
+  const lo = FEATURES[j].min;
+  return 100 * settings[j].weight * Math.abs(tables[j][to - lo] - tables[j][from - lo]);
+}
+
+function candidates(model, x, j, setting) {
+  const f = FEATURES[j];
+  const out = [x[j]];
+  if (!setting.actionable || setting.cap <= 0) return out;
+  const th = model.splits[j];
+  if (f.dir > 0) {
+    const hi = Math.min(f.max, x[j] + setting.cap);
+    for (let k = 0; k < th.length; k++) {
+      const v = th[k] + 1;
+      if (v > x[j] && v <= hi) out.push(v);
+    }
+  } else {
+    const lo = Math.max(f.min, x[j] - setting.cap);
+    for (let k = th.length - 1; k >= 0; k--) {
+      const v = th[k];
+      if (v < x[j] && v >= lo) out.push(v);
+    }
+  }
+  return out;
+}
+
+function heapPush(h, e) {
+  h.push(e);
+  let i = h.length - 1;
+  while (i > 0) {
+    const p = (i - 1) >> 1;
+    if (h[p].c < e.c || (h[p].c === e.c && h[p].seq < e.seq)) break;
+    h[i] = h[p];
+    i = p;
+  }
+  h[i] = e;
+}
+
+function heapPop(h) {
+  const top = h[0];
+  const last = h.pop();
+  if (h.length > 0) {
+    let i = 0;
+    const n = h.length;
+    for (;;) {
+      const l = 2 * i + 1;
+      if (l >= n) break;
+      const r = l + 1;
+      let m = l;
+      if (r < n && (h[r].c < h[l].c || (h[r].c === h[l].c && h[r].seq < h[l].seq))) m = r;
+      if (last.c < h[m].c || (last.c === h[m].c && last.seq < h[m].seq)) break;
+      h[i] = h[m];
+      i = m;
+    }
+    h[i] = last;
+  }
+  return top;
+}
+
+// Exact minimum-cost recourse. The model only changes value where a tree
+// splits, so each feature only needs its current value plus the first value
+// past each split point in the allowed direction. Uniform-cost search over
+// those values returns the cheapest plan that reaches the target score.
+function findRecourse(model, tables, x, settings, opts) {
+  const o = Object.assign({ margin: 0, maxLevers: D, allowed: null, maxStates: 200000 }, opts || {});
+  const score0 = predict(model, x);
+  if (score0 >= model.threshold) return { status: 'already', score: score0, cost: 0, values: x.slice(), changes: [], explored: 0 };
+  const target = model.threshold + o.margin;
+  const lists = [];
+  for (let j = 0; j < D; j++) {
+    const ok = o.allowed ? o.allowed[j] : true;
+    lists.push(ok ? candidates(model, x, j, settings[j]) : [x[j]]);
+  }
+  const unitCost = lists.map(function (list, j) {
+    return list.map(function (v) { return featureCost(tables, settings, j, x[j], v); });
+  });
+  function costOf(idx) {
+    let c = 0;
+    for (let j = 0; j < D; j++) c += unitCost[j][idx[j]];
+    return c;
+  }
+  const start = new Array(D).fill(0);
+  const heap = [];
+  const seen = new Set([start.join(',')]);
+  let seq = 0;
+  heapPush(heap, { c: 0, seq: seq++, idx: start });
+  let explored = 0;
+  while (heap.length > 0) {
+    const e = heapPop(heap);
+    explored += 1;
+    const vals = e.idx.map(function (k, j) { return lists[j][k]; });
+    const sc = predict(model, vals);
+    if (sc >= target) {
+      const changes = [];
+      for (let j = 0; j < D; j++) if (vals[j] !== x[j]) changes.push({ j: j, from: x[j], to: vals[j], cost: unitCost[j][e.idx[j]] });
+      return { status: 'found', score: sc, cost: e.c, values: vals, changes: changes, explored: explored };
+    }
+    if (explored >= o.maxStates) return { status: 'limit', score: score0, cost: null, values: null, changes: [], explored: explored };
+    let levers = 0;
+    for (let j = 0; j < D; j++) if (e.idx[j] > 0) levers += 1;
+    for (let j = 0; j < D; j++) {
+      if (e.idx[j] + 1 >= lists[j].length) continue;
+      if (e.idx[j] === 0 && levers >= o.maxLevers) continue;
+      const nidx = e.idx.slice();
+      nidx[j] += 1;
+      const key = nidx.join(',');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      heapPush(heap, { c: costOf(nidx), seq: seq++, idx: nidx });
+    }
+  }
+  return { status: 'none', score: score0, cost: null, values: null, changes: [], explored: explored };
+}
+
+function mainLever(plan) {
+  let best = -1;
+  let bestCost = -1;
+  plan.changes.forEach(function (ch) { if (ch.cost > bestCost) { bestCost = ch.cost; best = ch.j; } });
+  return best;
+}
+
+// Up to one plan per main lever: for every subset of the movable features,
+// the cheapest plan that uses exactly that subset; then the cheapest plan
+// for each feature that carries most of the cost.
+function recourseOptions(model, tables, x, settings, opts) {
+  const o = Object.assign({ margin: 0, maxLevers: D }, opts || {});
+  const first = findRecourse(model, tables, x, settings, o);
+  if (first.status !== 'found') return { status: first.status, score: first.score, options: [] };
+  const movable = [];
+  for (let j = 0; j < D; j++) if (candidates(model, x, j, settings[j]).length > 1) movable.push(j);
+  const pool = [];
+  for (let mask = 1; mask < (1 << movable.length); mask++) {
+    let size = 0;
+    const allowed = new Array(D).fill(false);
+    for (let k = 0; k < movable.length; k++) if (mask & (1 << k)) { allowed[movable[k]] = true; size += 1; }
+    if (size > o.maxLevers) continue;
+    const r = findRecourse(model, tables, x, settings, { margin: o.margin, maxLevers: o.maxLevers, allowed: allowed });
+    if (r.status !== 'found' || r.changes.length !== size) continue;
+    r.mask = mask;
+    r.lever = mainLever(r);
+    pool.push(r);
+  }
+  const byLever = {};
+  pool.forEach(function (r) {
+    const cur = byLever[r.lever];
+    if (!cur || r.cost < cur.cost || (r.cost === cur.cost && (r.changes.length < cur.changes.length || (r.changes.length === cur.changes.length && r.mask < cur.mask)))) byLever[r.lever] = r;
+  });
+  const options = Object.keys(byLever).map(function (k) { return byLever[k]; });
+  options.sort(function (a, b) { return (a.cost - b.cost) || (a.changes.length - b.changes.length) || (a.mask - b.mask); });
+  return { status: 'found', score: first.score, options: options };
+}
+
+function backgroundSample(rows, size) {
+  const step = Math.floor(rows.length / size);
+  const out = [];
+  for (let k = 0; k < size; k++) out.push(rows[k * step].x);
+  return out;
+}
+
+// Exact interventional Shapley values against a background sample:
+// all 2^6 coalitions, so no sampling error.
+function shapley(model, x, background) {
+  const n = 1 << D;
+  const v = new Array(n);
+  const z = new Array(D);
+  for (let mask = 0; mask < n; mask++) {
+    let s = 0;
+    for (let b = 0; b < background.length; b++) {
+      const bg = background[b];
+      for (let j = 0; j < D; j++) z[j] = (mask >> j) & 1 ? x[j] : bg[j];
+      s += predict(model, z);
+    }
+    v[mask] = s / background.length;
+  }
+  const fact = [1];
+  for (let k = 1; k <= D; k++) fact.push(fact[k - 1] * k);
+  const phi = new Array(D).fill(0);
+  for (let mask = 0; mask < n; mask++) {
+    let size = 0;
+    for (let j = 0; j < D; j++) if ((mask >> j) & 1) size += 1;
+    const w = fact[size] * fact[D - size - 1] / fact[D];
+    for (let j = 0; j < D; j++) {
+      if ((mask >> j) & 1) continue;
+      phi[j] += w * (v[mask | (1 << j)] - v[mask]);
+    }
+  }
+  return { phi: phi, base: v[0], value: v[n - 1] };
+}
+
+function median(sorted) {
+  const n = sorted.length;
+  if (n === 0) return null;
+  return n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+}
+
+function mean(arr) {
+  if (arr.length === 0) return null;
+  let s = 0;
+  for (let i = 0; i < arr.length; i++) s += arr[i];
+  return s / arr.length;
+}
+
+// Recourse burden by group: the model never sees the group, but the cost of
+// getting from "no" to "yes" can still differ.
+function audit(model, tables, cohort, settings, opts) {
+  const o = Object.assign({ margin: 0, maxLevers: D }, opts || {});
+  const groups = [0, 1].map(function (g) {
+    return { g: g, n: 0, shortlisted: 0, rejected: 0, feasible: 0, costs: [], lever: new Array(D).fill(0), expAdded: [] };
+  });
+  const rows = [];
+  cohort.forEach(function (row, i) {
+    const G = groups[row.g];
+    G.n += 1;
+    const r = findRecourse(model, tables, row.x, settings, o);
+    if (r.status === 'already') { G.shortlisted += 1; rows.push({ i: i, g: row.g, status: 'already', cost: 0 }); return; }
+    G.rejected += 1;
+    if (r.status === 'found') {
+      G.feasible += 1;
+      G.costs.push(r.cost);
+      r.changes.forEach(function (ch) { G.lever[ch.j] += 1; });
+      G.expAdded.push(r.values[1] - row.x[1]);
+    }
+    rows.push({ i: i, g: row.g, status: r.status, cost: r.cost, lever: r.status === 'found' ? mainLever(r) : -1 });
+  });
+  const summary = groups.map(function (G) {
+    const sorted = G.costs.slice().sort(function (a, b) { return a - b; });
+    return {
+      g: G.g, n: G.n, shortlisted: G.shortlisted, rejected: G.rejected, feasible: G.feasible,
+      shortlistRate: G.n ? G.shortlisted / G.n : null,
+      feasibleShare: G.rejected ? G.feasible / G.rejected : null,
+      meanCost: mean(G.costs), medianCost: median(sorted),
+      leverShare: G.lever.map(function (c) { return G.feasible ? c / G.feasible : 0; }),
+      meanExpAdded: mean(G.expAdded)
+    };
+  });
+  return { groups: summary, rows: rows };
+}
+
+const API = {
+  FEATURES, D, THRESHOLD, DEFAULTS, PRESETS, mulberry32, irwinHall, clampRound, generateCohort, bestSplit, growNode,
+  leafValue, collectSplits, trainModel, predict, costTables, defaultSettings, featureCost, candidates,
+  findRecourse, mainLever, recourseOptions, backgroundSample, shapley, median, mean, audit
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
+/* MODEL END */
+
+(function () {
+  'use strict';
+  const M = API;
+  const $ = function (id) { return document.getElementById(id); };
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  const train = generateCohort(DEFAULTS.nTrain, DEFAULTS.trainSeed);
+  const model = trainModel(train);
+  const tables = costTables(train);
+  const background = backgroundSample(train, 64);
+  const cohort = generateCohort(DEFAULTS.nAudit, DEFAULTS.auditSeed);
+
+  const state = { x: PRESETS[0].x.slice(), settings: defaultSettings(), maxLevers: D, mapX: 0, mapY: 1 };
+
+  function el(tag, attrs, text) {
+    const e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function sv(tag, attrs, text) {
+    const e = document.createElementNS(svgNS, tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function fmtVal(j, v) {
+    const f = FEATURES[j];
+    if (f.levels) return f.levels[v - f.min];
+    return v + (f.unit ? ' ' + (v === 1 && f.unit.endsWith('s') ? f.unit.slice(0, -1) : f.unit) : '');
+  }
+  function fmtScore(s) { return s < 0 ? 'below 0' : s.toFixed(2); }
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  // ---- Applicant fields ----
+  function buildFields() {
+    const box = $('fields');
+    FEATURES.forEach(function (f, j) {
+      const wrap = el('div', { class: 'field' });
+      const row = el('div', { class: 'row' });
+      const id = 'f-' + f.key;
+      const lab = el('label', { for: id, class: 'name' }, f.label);
+      row.appendChild(lab);
+      let input;
+      if (f.levels) {
+        input = el('select', { id: id });
+        f.levels.forEach(function (name, k) { input.appendChild(el('option', { value: String(f.min + k) }, name)); });
+        row.appendChild(input);
+        wrap.appendChild(row);
+      } else {
+        input = el('input', { id: id, type: 'number', min: f.min, max: f.max, step: 1, inputmode: 'numeric' });
+        row.appendChild(input);
+        wrap.appendChild(row);
+        const range = el('input', { type: 'range', min: f.min, max: f.max, step: 1, id: id + '-r', 'aria-label': f.label + ' slider' });
+        wrap.appendChild(range);
+        range.addEventListener('input', function () { setFeature(j, Number(range.value)); });
+      }
+      input.addEventListener('change', function () {
+        let v = Math.round(Number(input.value));
+        if (!Number.isFinite(v)) v = state.x[j];
+        setFeature(j, Math.max(f.min, Math.min(f.max, v)));
+      });
+      box.appendChild(wrap);
+    });
+  }
+  function syncFields() {
+    FEATURES.forEach(function (f, j) {
+      const input = $('f-' + f.key);
+      input.value = String(state.x[j]);
+      const range = $('f-' + f.key + '-r');
+      if (range) range.value = String(state.x[j]);
+    });
+  }
+  function setFeature(j, v) {
+    state.x[j] = v;
+    $('preset').value = '';
+    syncFields();
+    renderApplicant();
+  }
+
+  function buildPresets() {
+    const sel = $('preset');
+    sel.appendChild(el('option', { value: '' }, 'Custom applicant'));
+    PRESETS.forEach(function (p, k) { sel.appendChild(el('option', { value: String(k) }, p.name)); });
+    sel.value = '0';
+    sel.addEventListener('change', function () {
+      if (sel.value === '') return;
+      state.x = PRESETS[Number(sel.value)].x.slice();
+      syncFields();
+      renderApplicant();
+    });
+  }
+
+  // ---- Rules table ----
+  function buildRules() {
+    const body = $('rules');
+    FEATURES.forEach(function (f, j) {
+      const tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, f.short));
+      const td1 = el('td');
+      const cb = el('input', { type: 'checkbox', id: 'act-' + j, 'aria-label': 'Allow ' + f.short + ' to change' });
+      cb.checked = state.settings[j].actionable;
+      td1.appendChild(cb);
+      tr.appendChild(td1);
+      const td2 = el('td', { class: 'num' });
+      const cap = el('input', { type: 'number', min: 0, max: f.max - f.min, step: 1, id: 'cap-' + j, 'aria-label': (f.dir > 0 ? 'Largest increase in ' : 'Largest decrease in ') + f.short });
+      cap.value = String(state.settings[j].cap);
+      td2.appendChild(cap);
+      tr.appendChild(td2);
+      const td3 = el('td', { class: 'num' });
+      const w = el('select', { id: 'w-' + j, 'aria-label': 'Effort weight for ' + f.short });
+      [0.5, 1, 1.5, 2, 3].forEach(function (v) { w.appendChild(el('option', { value: String(v) }, v + 'x')); });
+      w.value = String(state.settings[j].weight);
+      td3.appendChild(w);
+      tr.appendChild(td3);
+      body.appendChild(tr);
+      cb.addEventListener('change', function () { state.settings[j].actionable = cb.checked; rulesChanged(); });
+      cap.addEventListener('change', function () {
+        let v = Math.round(Number(cap.value));
+        if (!Number.isFinite(v) || v < 0) v = 0;
+        v = Math.min(v, f.max - f.min);
+        cap.value = String(v);
+        state.settings[j].cap = v;
+        rulesChanged();
+      });
+      w.addEventListener('change', function () { state.settings[j].weight = Number(w.value); rulesChanged(); });
+    });
+    $('maxLevers').addEventListener('change', function () { state.maxLevers = Number($('maxLevers').value); rulesChanged(); });
+  }
+  let cohortDirty = true;
+  function rulesChanged() {
+    cohortDirty = true;
+    renderApplicant();
+    if (!$('panel-cohort').hidden) renderCohort();
+  }
+
+  // ---- Decision ----
+  function renderDecision(score) {
+    const box = $('decision');
+    const yes = score >= model.threshold;
+    box.className = 'decision ' + (yes ? 'yes' : 'no');
+    box.innerHTML = '';
+    box.appendChild(el('div', { class: 'verdict' }, yes ? 'Shortlisted' : 'Not shortlisted'));
+    const bar = el('div', { class: 'scorebar', role: 'img', 'aria-label': 'Score ' + fmtScore(score) + ' out of 1, 0.50 needed' });
+    const fill = el('div', { class: 'fill' });
+    fill.style.width = Math.max(0, Math.min(1, score)) * 100 + '%';
+    const mark = el('div', { class: 'mark' });
+    mark.style.left = model.threshold * 100 + '%';
+    bar.appendChild(fill);
+    bar.appendChild(mark);
+    box.appendChild(bar);
+    box.appendChild(el('div', { class: 'small' }, 'Score ' + fmtScore(score) + '; 0.50 needed.'));
+  }
+
+  // ---- Plans ----
+  function renderPlans(res) {
+    const box = $('plans');
+    box.innerHTML = '';
+    if (res.status === 'already') {
+      box.appendChild(el('div', { class: 'empty' }, 'Already shortlisted, so there is nothing to change. Pick another example or lower a value to see routes.'));
+      return [];
+    }
+    if (res.options.length === 0) {
+      const msg = res.status === 'limit' ? 'The search hit its safety limit before finding a route.' :
+        'No route within these limits. Nothing this applicant could change, by the amounts allowed, lifts the score to 0.50. Try allowing bigger changes or more features in the rules below the applicant.';
+      box.appendChild(el('div', { class: 'empty' }, msg));
+      return [];
+    }
+    const grid = el('div', { class: 'plans' });
+    const maxCost = Math.max.apply(null, res.options.map(function (o) { return o.cost; }));
+    res.options.forEach(function (o, k) {
+      const card = el('article', { class: 'plan' + (k === 0 ? ' best' : '') });
+      const letter = String.fromCharCode(65 + k);
+      card.appendChild(el('h3', null, 'Route ' + letter + (k === 0 ? ' (cheapest)' : '') + ': via ' + FEATURES[o.lever].short.toLowerCase()));
+      const ul = el('ul');
+      o.changes.forEach(function (ch) {
+        const li = el('li');
+        li.appendChild(el('strong', null, FEATURES[ch.j].short + ': '));
+        li.appendChild(document.createTextNode(fmtVal(ch.j, ch.from) + ' to ' + fmtVal(ch.j, ch.to) + ' '));
+        const d = ch.to - ch.from;
+        li.appendChild(el('span', { class: 'delta' }, '(' + (d > 0 ? '+' : '') + d + ', effort ' + ch.cost.toFixed(1) + ')'));
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+      const eff = el('div', { class: 'effort', role: 'img', 'aria-label': 'Total effort ' + o.cost.toFixed(1) });
+      const span = el('span');
+      span.style.width = (maxCost > 0 ? o.cost / maxCost * 100 : 0) + '%';
+      eff.appendChild(span);
+      card.appendChild(eff);
+      const foot = el('div', { class: 'foot' });
+      foot.appendChild(el('span', { class: 'small' }, 'Effort ' + o.cost.toFixed(1) + ', new score ' + fmtScore(o.score)));
+      const btn = el('button', { class: 'btn ghost', type: 'button', 'aria-label': 'Apply route ' + letter + ' to the applicant' }, 'Try this');
+      btn.addEventListener('click', function () {
+        state.x = o.values.slice();
+        $('preset').value = '';
+        syncFields();
+        renderApplicant();
+      });
+      foot.appendChild(btn);
+      card.appendChild(foot);
+      grid.appendChild(card);
+    });
+    box.appendChild(grid);
+    return res.options;
+  }
+
+  // ---- Shapley chart ----
+  function renderShap(sh, options) {
+    const box = $('shap');
+    box.innerHTML = '';
+    const order = FEATURES.map(function (f, j) { return j; }).sort(function (a, b) { return Math.abs(sh.phi[b]) - Math.abs(sh.phi[a]); });
+    const W = Math.max(300, box.clientWidth || 600);
+    const rowH = 30;
+    const labelW = Math.min(190, Math.round(W * 0.38));
+    const valW = 56;
+    const H = order.length * rowH + 34;
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+    const maxAbs = Math.max(0.05, Math.max.apply(null, sh.phi.map(Math.abs)));
+    const x0 = labelW + (W - labelW - valW) / 2;
+    const half = (W - labelW - valW) / 2 - 4;
+    const desc = [];
+    svg.appendChild(sv('line', { x1: x0, x2: x0, y1: 4, y2: H - 26, stroke: cssVar('--line'), 'stroke-width': 1 }));
+    order.forEach(function (j, r) {
+      const y = 6 + r * rowH;
+      const f = FEATURES[j];
+      const v = sh.phi[j];
+      const fixed = !state.settings[j].actionable;
+      svg.appendChild(sv('text', { x: 0, y: y + 13, 'font-size': 13, 'font-weight': 600 }, f.short));
+      svg.appendChild(sv('text', { x: 0, y: y + 26, 'font-size': 11, class: 'muted' }, fmtVal(j, state.x[j]) + (fixed ? ', fixed' : '')));
+      const w = Math.abs(v) / maxAbs * half;
+      const bx = v >= 0 ? x0 : x0 - w;
+      svg.appendChild(sv('rect', { x: bx, y: y + 4, width: Math.max(1, w), height: 18, rx: 3, fill: v >= 0 ? cssVar('--helps') : cssVar('--hurts'), opacity: fixed ? 0.55 : 1 }));
+      svg.appendChild(sv('text', { x: W - 2, y: y + 18, 'font-size': 12, 'text-anchor': 'end' }, (v >= 0 ? '+' : '') + v.toFixed(3)));
+      desc.push(f.short + ' ' + (v >= 0 ? 'adds ' : 'takes away ') + Math.abs(v).toFixed(3));
+    });
+    svg.appendChild(sv('text', { x: x0 - 6, y: H - 8, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, 'lowers score'));
+    svg.appendChild(sv('text', { x: x0 + 6, y: H - 8, 'font-size': 11, class: 'muted' }, 'raises score'));
+    svg.setAttribute('aria-label', 'Shapley values. Average score ' + sh.base.toFixed(2) + '. ' + desc.join('; ') + '. Applicant score ' + fmtScore(sh.value) + '.');
+    box.appendChild(svg);
+
+    const note = $('shapNote');
+    const sum = sh.phi.reduce(function (a, b) { return a + b; }, 0);
+    let text = 'The reference group averages ' + sh.base.toFixed(2) + '; the six contributions add up to ' + (sum >= 0 ? '+' : '') + sum.toFixed(3) + ', giving this applicant’s ' + fmtScore(sh.value) + '. ';
+    const worst = order.filter(function (j) { return sh.phi[j] < 0; })[0];
+    if (sh.value < model.threshold && worst !== undefined) {
+      const wf = FEATURES[worst].short.toLowerCase();
+      if (!state.settings[worst].actionable) {
+        text += 'The biggest drag is ' + wf + ', which cannot change. ';
+      } else {
+        text += 'The biggest drag is ' + wf + '. ';
+      }
+      if (options.length > 0) {
+        const lever = options[0].lever;
+        text += lever === worst ? 'Here the cheapest route also works on ' + wf + '.' :
+          'Yet the cheapest route works on ' + FEATURES[lever].short.toLowerCase() + ' instead: what hurts most is not always what is easiest to fix.';
+      }
+    }
+    note.textContent = text;
+  }
+
+  // ---- Decision map ----
+  function buildMapControls() {
+    ['mapX', 'mapY'].forEach(function (id, k) {
+      const sel = $(id);
+      FEATURES.forEach(function (f, j) { sel.appendChild(el('option', { value: String(j) }, f.short)); });
+      sel.value = String(k === 0 ? state.mapX : state.mapY);
+      sel.addEventListener('change', function () {
+        const v = Number(sel.value);
+        if (k === 0) { if (v === state.mapY) state.mapY = state.mapX; state.mapX = v; } else { if (v === state.mapX) state.mapX = state.mapY; state.mapY = v; }
+        $('mapX').value = String(state.mapX);
+        $('mapY').value = String(state.mapY);
+        renderMap(lastOptions);
+      });
+    });
+  }
+  function renderMap(options) {
+    const canvas = $('map');
+    const fx = state.mapX;
+    const fy = state.mapY;
+    const FX = FEATURES[fx];
+    const FY = FEATURES[fy];
+    const cssW = canvas.clientWidth || 600;
+    const cssH = Math.round(Math.min(360, Math.max(240, cssW * 0.55)));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.height = cssH + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    const padL = 44;
+    const padB = 34;
+    const padT = 8;
+    const padR = 10;
+    const pw = cssW - padL - padR;
+    const ph = cssH - padT - padB;
+    const nx = FX.max - FX.min + 1;
+    const ny = FY.max - FY.min + 1;
+    const cw = pw / nx;
+    const ch = ph / ny;
+    const z = state.x.slice();
+    const yesC = cssVar('--map-yes');
+    const noC = cssVar('--map-no');
+    let yesCells = 0;
+    const grid = [];
+    for (let a = 0; a < nx; a++) {
+      grid.push([]);
+      for (let b = 0; b < ny; b++) {
+        z[fx] = FX.min + a;
+        z[fy] = FY.min + b;
+        const yes = predict(model, z) >= model.threshold;
+        grid[a].push(yes);
+        if (yes) yesCells += 1;
+        ctx.fillStyle = yes ? yesC : noC;
+        ctx.fillRect(padL + a * cw, padT + (ny - 1 - b) * ch, cw + 0.6, ch + 0.6);
+      }
+    }
+    // boundary
+    ctx.strokeStyle = cssVar('--map-edge');
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let a = 0; a < nx; a++) {
+      for (let b = 0; b < ny; b++) {
+        if (a + 1 < nx && grid[a][b] !== grid[a + 1][b]) { const X = padL + (a + 1) * cw; ctx.moveTo(X, padT + (ny - 1 - b) * ch); ctx.lineTo(X, padT + (ny - b) * ch); }
+        if (b + 1 < ny && grid[a][b] !== grid[a][b + 1]) { const Y = padT + (ny - 1 - b) * ch; ctx.moveTo(padL + a * cw, Y); ctx.lineTo(padL + (a + 1) * cw, Y); }
+      }
+    }
+    ctx.stroke();
+    // axes
+    ctx.fillStyle = cssVar('--muted');
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    const ticks = function (F, n) { const step = Math.max(1, Math.ceil((F.max - F.min) / n)); const out = []; for (let v = F.min; v <= F.max; v += step) out.push(v); return out; };
+    ticks(FX, 6).forEach(function (v) { ctx.fillText(FX.levels ? FX.levels[v - FX.min] : String(v), padL + (v - FX.min + 0.5) * cw, cssH - padB + 14); });
+    ctx.fillText(FX.label + (FX.unit && !FX.levels ? ' (' + FX.unit + ')' : ''), padL + pw / 2, cssH - 4);
+    ctx.textAlign = 'right';
+    ticks(FY, 5).forEach(function (v) { ctx.fillText(FY.levels ? FY.levels[v - FY.min] : String(v), padL - 6, padT + (ny - 1 - (v - FY.min) + 0.5) * ch + 4); });
+    ctx.save();
+    ctx.translate(11, padT + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText(FY.short, 0, 0);
+    ctx.restore();
+    const px = function (v) { return padL + (v - FX.min + 0.5) * cw; };
+    const py = function (v) { return padT + (ny - 1 - (v - FY.min) + 0.5) * ch; };
+    // routes that only move the two plotted features
+    let shown = 0;
+    options.forEach(function (o, k) {
+      const others = o.changes.some(function (c) { return c.j !== fx && c.j !== fy; });
+      if (others) return;
+      shown += 1;
+      ctx.strokeStyle = cssVar('--ink');
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(px(state.x[fx]), py(state.x[fy]));
+      ctx.lineTo(px(o.values[fx]), py(o.values[fy]));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = cssVar('--surface');
+      ctx.beginPath();
+      ctx.arc(px(o.values[fx]), py(o.values[fy]), 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = cssVar('--ink');
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 10px system-ui, sans-serif';
+      ctx.fillText(String.fromCharCode(65 + k), px(o.values[fx]), py(o.values[fy]) + 3.5);
+    });
+    ctx.fillStyle = cssVar('--accent');
+    ctx.strokeStyle = cssVar('--surface');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px(state.x[fx]), py(state.x[fy]), 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    const share = Math.round(yesCells / (nx * ny) * 100);
+    canvas.setAttribute('aria-label', 'Decision map of ' + FY.short + ' against ' + FX.short + ', other features fixed. ' + share + '% of combinations are shortlisted. The applicant is at ' + FX.short + ' ' + state.x[fx] + ', ' + FY.short + ' ' + state.x[fy] + '. ' + shown + ' route' + (shown === 1 ? '' : 's') + ' drawn.');
+    const leg = $('mapLegend');
+    leg.innerHTML = '';
+    const item = function (color, text) { const s = el('span'); const i = el('i'); i.style.background = color; s.appendChild(i); s.appendChild(document.createTextNode(text)); leg.appendChild(s); };
+    item(yesC, 'Shortlisted');
+    item(noC, 'Not shortlisted');
+    item(cssVar('--accent'), 'This applicant');
+    if (options.length > shown) leg.appendChild(el('span', null, (options.length - shown) + ' route' + (options.length - shown === 1 ? '' : 's') + ' also change other features, so not drawn here.'));
+  }
+
+  // ---- Applicant render ----
+  let lastOptions = [];
+  function renderApplicant() {
+    const score = predict(model, state.x);
+    renderDecision(score);
+    const res = recourseOptions(model, tables, state.x, state.settings, { maxLevers: state.maxLevers });
+    lastOptions = renderPlans(res);
+    renderShap(shapley(model, state.x, background), lastOptions);
+    renderMap(lastOptions);
+  }
+
+  // ---- Cohort ----
+  const GROUPS = ['Others', 'First in family at university'];
+  function groupColour(g) { return cssVar(g ? '--g1' : '--g0'); }
+  function pct(v) { return v === null ? 'n/a' : Math.round(v * 100) + '%'; }
+  function renderCohort() {
+    const a = audit(model, tables, cohort, state.settings, { maxLevers: state.maxLevers });
+    cohortDirty = false;
+    const k = $('kpis');
+    k.innerHTML = '';
+    const kpi = function (label, f) {
+      const box = el('div', { class: 'kpi' });
+      box.appendChild(el('div', { class: 'lab' }, label));
+      const vals = el('div', { class: 'vals' });
+      a.groups.forEach(function (G) {
+        const s = el('span');
+        const dot = el('span', { class: 'dot', 'aria-hidden': 'true' });
+        dot.style.background = groupColour(G.g);
+        s.appendChild(dot);
+        s.appendChild(el('span', { class: 'v' }, f(G)));
+        s.appendChild(el('span', { class: 'sr-only' }, ' ' + GROUPS[G.g]));
+        vals.appendChild(s);
+      });
+      box.appendChild(vals);
+      k.appendChild(box);
+    };
+    kpi('Shortlisted', function (G) { return pct(G.shortlistRate); });
+    kpi('Rejected with a route within the limits', function (G) { return pct(G.feasibleShare); });
+    kpi('Median effort of the cheapest route', function (G) { return G.medianCost === null ? 'n/a' : G.medianCost.toFixed(1); });
+    kpi('Average extra months of experience asked for', function (G) { return G.meanExpAdded === null ? 'n/a' : G.meanExpAdded.toFixed(1); });
+    const legend = el('div', { class: 'legend' });
+    a.groups.forEach(function (G) { const s = el('span'); const i = el('i'); i.style.background = groupColour(G.g); s.appendChild(i); s.appendChild(document.createTextNode(GROUPS[G.g] + ' (' + G.n + ' applicants)')); legend.appendChild(s); });
+    k.appendChild(legend);
+    renderHist(a);
+    renderLevers(a);
+  }
+  function renderHist(a) {
+    const box = $('hist');
+    box.innerHTML = '';
+    const bands = [[0, 10], [10, 20], [20, 30], [30, 50], [50, 80], [80, Infinity]];
+    const labels = bands.map(function (b) { return b[1] === Infinity ? '80+' : b[0] + '–' + b[1]; }).concat(['No route']);
+    const shares = [0, 1].map(function (g) {
+      const rows = a.rows.filter(function (r) { return r.g === g && r.status !== 'already'; });
+      const counts = new Array(labels.length).fill(0);
+      rows.forEach(function (r) {
+        if (r.status !== 'found') { counts[labels.length - 1] += 1; return; }
+        for (let b = 0; b < bands.length; b++) if (r.cost >= bands[b][0] && r.cost < bands[b][1]) { counts[b] += 1; break; }
+      });
+      return counts.map(function (c) { return rows.length ? c / rows.length : 0; });
+    });
+    const W = Math.max(300, box.clientWidth || 600);
+    const H = 230;
+    const padL = 36, padB = 40, padT = 10;
+    const pw = W - padL - 6;
+    const ph = H - padT - padB;
+    const maxV = Math.max(0.1, Math.max.apply(null, shares[0].concat(shares[1])));
+    const top = Math.ceil(maxV * 10) / 10;
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+    for (let t = 0; t <= top + 1e-9; t += 0.1) {
+      const y = padT + ph - t / top * ph;
+      svg.appendChild(sv('line', { x1: padL, x2: W - 6, y1: y, y2: y, stroke: cssVar('--line') }));
+      svg.appendChild(sv('text', { x: padL - 6, y: y + 4, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, Math.round(t * 100) + '%'));
+    }
+    const gw = pw / labels.length;
+    const bw = Math.min(26, gw * 0.36);
+    const desc = [];
+    labels.forEach(function (lab, b) {
+      const cx = padL + gw * (b + 0.5);
+      [0, 1].forEach(function (g) {
+        const v = shares[g][b];
+        const h = v / top * ph;
+        svg.appendChild(sv('rect', { x: cx + (g === 0 ? -bw - 1 : 1), y: padT + ph - h, width: bw, height: Math.max(0, h), rx: 2, fill: groupColour(g) }));
+      });
+      svg.appendChild(sv('text', { x: cx, y: H - padB + 16, 'font-size': 11, 'text-anchor': 'middle', class: 'muted' }, lab));
+      desc.push(lab + ': ' + pct(shares[0][b]) + ' of others, ' + pct(shares[1][b]) + ' of first in family');
+    });
+    svg.appendChild(sv('text', { x: padL + pw / 2, y: H - 4, 'font-size': 11, 'text-anchor': 'middle', class: 'muted' }, 'Effort of the cheapest route (percentile points)'));
+    svg.setAttribute('aria-label', 'Histogram of route effort. ' + desc.join('; ') + '.');
+    box.appendChild(svg);
+  }
+  function renderLevers(a) {
+    const t = $('levers');
+    t.innerHTML = '';
+    const head = el('tr');
+    head.appendChild(el('th', { scope: 'col' }, 'Feature'));
+    a.groups.forEach(function (G) { head.appendChild(el('th', { scope: 'col', class: 'num' }, GROUPS[G.g])); });
+    const thead = el('thead');
+    thead.appendChild(head);
+    t.appendChild(thead);
+    const body = el('tbody');
+    FEATURES.forEach(function (f, j) {
+      const tr = el('tr');
+      tr.appendChild(el('th', { scope: 'row' }, f.short));
+      a.groups.forEach(function (G) { tr.appendChild(el('td', { class: 'num' }, G.feasible ? pct(G.leverShare[j]) : 'n/a')); });
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+    const cap = el('caption', { class: 'small', style: 'caption-side: bottom; text-align: left; padding-top: 8px;' }, 'Share of cheapest routes that change each feature. A route can change more than one.');
+    t.appendChild(cap);
+  }
+
+  // ---- Tabs ----
+  function buildTabs() {
+    const tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs [role="tab"]'));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        $(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      if (tab.id === 'tab-cohort' && cohortDirty) renderCohort();
+      if (tab.id === 'tab-applicant') renderApplicant();
+    }
+    tabs.forEach(function (t, k) {
+      t.addEventListener('click', function () { select(t); });
+      t.addEventListener('keydown', function (e) {
+        let n = null;
+        if (e.key === 'ArrowRight') n = tabs[(k + 1) % tabs.length];
+        if (e.key === 'ArrowLeft') n = tabs[(k - 1 + tabs.length) % tabs.length];
+        if (e.key === 'Home') n = tabs[0];
+        if (e.key === 'End') n = tabs[tabs.length - 1];
+        if (n) { e.preventDefault(); n.focus(); select(n); }
+      });
+    });
+  }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (!$('panel-applicant').hidden) renderApplicant();
+      if (!$('panel-cohort').hidden) renderCohort();
+    }, 150);
+  });
+
+  buildPresets();
+  buildFields();
+  buildRules();
+  buildMapControls();
+  buildTabs();
+  syncFields();
+  renderApplicant();
+})();
+</script>
+</body>
+</html>

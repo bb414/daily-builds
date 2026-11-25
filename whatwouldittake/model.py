@@ -1,0 +1,416 @@
+"""Core model: a line-for-line port of the browser app's MODEL block.
+
+Synthetic applicants, a small boosted-tree shortlisting model, exact
+minimum-cost recourse, exact Shapley values and a cohort audit. Every
+calculation follows the same order as the JavaScript so that both versions
+give identical numbers (the agreement tests check this).
+"""
+
+import heapq
+import math
+
+FEATURES = [
+    {"key": "test", "label": "Aptitude test score", "short": "Test score", "min": 0, "max": 100, "unit": "points", "dir": 1, "actionable": True, "cap": 10, "weight": 1},
+    {"key": "experience", "label": "Relevant work experience", "short": "Experience", "min": 0, "max": 36, "unit": "months", "dir": 1, "actionable": True, "cap": 12, "weight": 1},
+    {"key": "projects", "label": "Projects and leadership roles", "short": "Projects", "min": 0, "max": 6, "unit": "roles", "dir": 1, "actionable": True, "cap": 2, "weight": 1},
+    {"key": "certs", "label": "Professional certificates", "short": "Certificates", "min": 0, "max": 4, "unit": "certificates", "dir": 1, "actionable": True, "cap": 2, "weight": 1},
+    {"key": "degree", "label": "Degree result", "short": "Degree", "min": 1, "max": 4, "unit": "", "dir": 1, "actionable": False, "cap": 1, "weight": 1, "levels": ["Third", "2:2", "2:1", "First"]},
+    {"key": "gap", "label": "Months since last study or work", "short": "Gap", "min": 0, "max": 24, "unit": "months", "dir": -1, "actionable": False, "cap": 24, "weight": 1},
+]
+D = len(FEATURES)
+THRESHOLD = 0.5
+DEFAULTS = {"trainSeed": 11, "auditSeed": 29, "nextSeed": 47, "nTrain": 1600, "nAudit": 500,
+            "trees": 60, "lr": 0.15, "minLeaf": 15, "quota": 0.38}
+
+# Example applicants, identical to the browser app's menu.
+PRESETS = [
+    {"name": "Near miss", "x": [64, 7, 4, 1, 3, 0]},
+    {"name": "Four ways in", "x": [66, 4, 3, 1, 3, 0]},
+    {"name": "Held back by degree result", "x": [62, 9, 3, 1, 1, 3]},
+    {"name": "Held back by a past gap", "x": [66, 7, 1, 1, 3, 7]},
+    {"name": "Strong experience, weak test", "x": [47, 24, 3, 0, 3, 0]},
+    {"name": "No route within a year", "x": [44, 3, 1, 0, 2, 6]},
+    {"name": "Already shortlisted", "x": [74, 12, 3, 1, 3, 0]},
+]
+
+MASK = 0xFFFFFFFF
+
+
+def _imul(a, b):
+    return (a * b) & MASK
+
+
+def mulberry32(seed):
+    state = [seed & MASK]
+
+    def rng():
+        state[0] = (state[0] + 0x6D2B79F5) & MASK
+        t = state[0]
+        t = _imul(t ^ (t >> 15), t | 1)
+        t = (t ^ ((t + _imul(t ^ (t >> 7), t | 61)) & MASK)) & MASK
+        return ((t ^ (t >> 14)) & MASK) / 4294967296
+
+    return rng
+
+
+def irwin_hall(rng):
+    s = 0.0
+    for _ in range(12):
+        s += rng()
+    return s - 6
+
+
+def clamp_round(v, lo, hi):
+    r = math.floor(v + 0.5)
+    return lo if r < lo else hi if r > hi else r
+
+
+def generate_cohort(n, seed, strength=0.0, quota=None):
+    s = strength or 0
+    q = DEFAULTS["quota"] if quota is None else quota
+    rng = mulberry32(seed)
+    rows = []
+    for _ in range(n):
+        g = 1 if rng() < 0.35 else 0
+        test = clamp_round(61 + 6 * s + 13 * irwin_hall(rng), 0, 100)
+        experience = clamp_round((6 if g else 10) + 3 * s + 6 * irwin_hall(rng), 0, 36)
+        projects = clamp_round((1.9 if g else 2.3) + 0.5 * s + 1.2 * irwin_hall(rng), 0, 6)
+        certs = clamp_round(0.9 + 0.8 * irwin_hall(rng), 0, 4)
+        u = rng()
+        if g:
+            degree = 1 if u < 0.06 else 2 if u < 0.28 else 3 if u < 0.78 else 4
+        else:
+            degree = 1 if u < 0.05 else 2 if u < 0.22 else 3 if u < 0.73 else 4
+        gap = clamp_round(2 + 8 * rng(), 1, 24) if rng() < (0.4 if g else 0.3) else 0
+        noise = irwin_hall(rng)
+        latent = (0.06 * (test - 60) + 0.09 * min(experience, 18) + 0.35 * projects + 0.3 * certs
+                  + 0.6 * (degree - 3) - 0.08 * gap + (0.5 if (test >= 70 and experience >= 6) else 0) + 0.8 * noise)
+        rows.append({"x": [test, experience, projects, certs, degree, gap], "g": g, "latent": latent, "y": 0})
+    order = sorted(range(n), key=lambda i: (-rows[i]["latent"], i))
+    k = math.floor(q * n + 0.5)
+    for rank in range(k):
+        rows[order[rank]]["y"] = 1
+    return rows
+
+
+def best_split(X, r, idx, min_leaf):
+    n = len(idx)
+    total = 0.0
+    for i in idx:
+        total += r[i]
+    best = None
+    best_gain = 1e-12
+    for f in range(D):
+        lo = FEATURES[f]["min"]
+        B = FEATURES[f]["max"] - lo + 1
+        cnt = [0] * B
+        sm = [0.0] * B
+        for i in idx:
+            b = X[i][f] - lo
+            cnt[b] += 1
+            sm[b] += r[i]
+        nL = 0
+        sL = 0.0
+        for b in range(B - 1):
+            if cnt[b] == 0:
+                continue
+            nL += cnt[b]
+            sL += sm[b]
+            nR = n - nL
+            if nL < min_leaf:
+                continue
+            if nR < min_leaf:
+                break
+            sR = total - sL
+            gain = sL * sL / nL + sR * sR / nR - total * total / n
+            if gain > best_gain:
+                best_gain = gain
+                best = (f, lo + b)
+    return best
+
+
+def grow_node(X, r, idx, depth, max_depth, min_leaf):
+    if depth < max_depth:
+        s = best_split(X, r, idx, min_leaf)
+        if s:
+            f, t = s
+            L = [i for i in idx if X[i][f] <= t]
+            R = [i for i in idx if X[i][f] > t]
+            return {"f": f, "t": t,
+                    "l": grow_node(X, r, L, depth + 1, max_depth, min_leaf),
+                    "r": grow_node(X, r, R, depth + 1, max_depth, min_leaf)}
+    s = 0.0
+    for i in idx:
+        s += r[i]
+    return {"v": s / len(idx)}
+
+
+def leaf_value(node, x):
+    while "v" not in node:
+        node = node["l"] if x[node["f"]] <= node["t"] else node["r"]
+    return node["v"]
+
+
+def collect_splits(trees):
+    sets = [set() for _ in range(D)]
+
+    def walk(node):
+        if "v" in node:
+            return
+        sets[node["f"]].add(node["t"])
+        walk(node["l"])
+        walk(node["r"])
+
+    for t in trees:
+        walk(t)
+    return [sorted(s) for s in sets]
+
+
+def train_model(rows, trees=None, lr=None, min_leaf=None, depth=2):
+    trees_n = DEFAULTS["trees"] if trees is None else trees
+    lr = DEFAULTS["lr"] if lr is None else lr
+    min_leaf = DEFAULTS["minLeaf"] if min_leaf is None else min_leaf
+    n = len(rows)
+    X = [row["x"] for row in rows]
+    base = 0.0
+    for row in rows:
+        base += row["y"]
+    base /= n
+    F = [base] * n
+    r = [0.0] * n
+    allidx = list(range(n))
+    out = []
+    for _ in range(trees_n):
+        for i in range(n):
+            r[i] = rows[i]["y"] - F[i]
+        tree = grow_node(X, r, allidx, 0, depth, min_leaf)
+        out.append(tree)
+        for i in range(n):
+            F[i] += lr * leaf_value(tree, X[i])
+    return {"base": base, "lr": lr, "trees": out, "threshold": THRESHOLD, "splits": collect_splits(out)}
+
+
+def predict(model, x):
+    s = model["base"]
+    lr = model["lr"]
+    for tree in model["trees"]:
+        s += lr * leaf_value(tree, x)
+    return s
+
+
+def cost_tables(rows):
+    tables = []
+    for j, f in enumerate(FEATURES):
+        B = f["max"] - f["min"] + 1
+        c = [1] * B
+        for row in rows:
+            c[row["x"][j] - f["min"]] += 1
+        N = len(rows) + B
+        cdf = []
+        below = 0
+        for b in range(B):
+            cdf.append((below + 0.5 * c[b]) / N)
+            below += c[b]
+        tables.append(cdf)
+    return tables
+
+
+def default_settings():
+    return [{"actionable": f["actionable"], "cap": f["cap"], "weight": f["weight"]} for f in FEATURES]
+
+
+def feature_cost(tables, settings, j, frm, to):
+    lo = FEATURES[j]["min"]
+    return 100 * settings[j]["weight"] * abs(tables[j][to - lo] - tables[j][frm - lo])
+
+
+def candidates(model, x, j, setting):
+    f = FEATURES[j]
+    out = [x[j]]
+    if not setting["actionable"] or setting["cap"] <= 0:
+        return out
+    th = model["splits"][j]
+    if f["dir"] > 0:
+        hi = min(f["max"], x[j] + setting["cap"])
+        for t in th:
+            v = t + 1
+            if x[j] < v <= hi:
+                out.append(v)
+    else:
+        lo = max(f["min"], x[j] - setting["cap"])
+        for t in reversed(th):
+            if lo <= t < x[j]:
+                out.append(t)
+    return out
+
+
+def find_recourse(model, tables, x, settings, margin=0.0, max_levers=D, allowed=None, max_states=200000):
+    """Exact minimum-cost recourse by uniform-cost search over split points."""
+    score0 = predict(model, x)
+    if score0 >= model["threshold"]:
+        return {"status": "already", "score": score0, "cost": 0, "values": list(x), "changes": [], "explored": 0}
+    target = model["threshold"] + margin
+    lists = []
+    for j in range(D):
+        ok = allowed[j] if allowed is not None else True
+        lists.append(candidates(model, x, j, settings[j]) if ok else [x[j]])
+    unit_cost = [[feature_cost(tables, settings, j, x[j], v) for v in lists[j]] for j in range(D)]
+
+    def cost_of(idx):
+        c = 0.0
+        for j in range(D):
+            c += unit_cost[j][idx[j]]
+        return c
+
+    start = (0,) * D
+    heap = [(0, 0, start)]
+    seen = {start}
+    seq = 1
+    explored = 0
+    while heap:
+        c, _, idx = heapq.heappop(heap)
+        explored += 1
+        vals = [lists[j][idx[j]] for j in range(D)]
+        sc = predict(model, vals)
+        if sc >= target:
+            changes = [{"j": j, "from": x[j], "to": vals[j], "cost": unit_cost[j][idx[j]]}
+                       for j in range(D) if vals[j] != x[j]]
+            return {"status": "found", "score": sc, "cost": c, "values": vals, "changes": changes, "explored": explored}
+        if explored >= max_states:
+            return {"status": "limit", "score": score0, "cost": None, "values": None, "changes": [], "explored": explored}
+        levers = sum(1 for k in idx if k > 0)
+        for j in range(D):
+            if idx[j] + 1 >= len(lists[j]):
+                continue
+            if idx[j] == 0 and levers >= max_levers:
+                continue
+            nidx = idx[:j] + (idx[j] + 1,) + idx[j + 1:]
+            if nidx in seen:
+                continue
+            seen.add(nidx)
+            heapq.heappush(heap, (cost_of(nidx), seq, nidx))
+            seq += 1
+    return {"status": "none", "score": score0, "cost": None, "values": None, "changes": [], "explored": explored}
+
+
+def main_lever(plan):
+    best, best_cost = -1, -1
+    for ch in plan["changes"]:
+        if ch["cost"] > best_cost:
+            best_cost = ch["cost"]
+            best = ch["j"]
+    return best
+
+
+def recourse_options(model, tables, x, settings, margin=0.0, max_levers=D):
+    first = find_recourse(model, tables, x, settings, margin=margin, max_levers=max_levers)
+    if first["status"] != "found":
+        return {"status": first["status"], "score": first["score"], "options": []}
+    movable = [j for j in range(D) if len(candidates(model, x, j, settings[j])) > 1]
+    pool = []
+    for mask in range(1, 1 << len(movable)):
+        allowed = [False] * D
+        size = 0
+        for k, j in enumerate(movable):
+            if mask & (1 << k):
+                allowed[j] = True
+                size += 1
+        if size > max_levers:
+            continue
+        r = find_recourse(model, tables, x, settings, margin=margin, max_levers=max_levers, allowed=allowed)
+        if r["status"] != "found" or len(r["changes"]) != size:
+            continue
+        r["mask"] = mask
+        r["lever"] = main_lever(r)
+        pool.append(r)
+    by_lever = {}
+    for r in pool:
+        cur = by_lever.get(r["lever"])
+        if (cur is None or r["cost"] < cur["cost"] or (r["cost"] == cur["cost"] and (
+                len(r["changes"]) < len(cur["changes"]) or (len(r["changes"]) == len(cur["changes"]) and r["mask"] < cur["mask"])))):
+            by_lever[r["lever"]] = r
+    options = sorted(by_lever.values(), key=lambda r: (r["cost"], len(r["changes"]), r["mask"]))
+    return {"status": "found", "score": first["score"], "options": options}
+
+
+def background_sample(rows, size):
+    step = len(rows) // size
+    return [rows[k * step]["x"] for k in range(size)]
+
+
+def shapley(model, x, background):
+    """Exact interventional Shapley values over all 64 coalitions."""
+    n = 1 << D
+    v = [0.0] * n
+    z = [0] * D
+    for mask in range(n):
+        s = 0.0
+        for bg in background:
+            for j in range(D):
+                z[j] = x[j] if (mask >> j) & 1 else bg[j]
+            s += predict(model, z)
+        v[mask] = s / len(background)
+    fact = [1]
+    for k in range(1, D + 1):
+        fact.append(fact[k - 1] * k)
+    phi = [0.0] * D
+    for mask in range(n):
+        size = bin(mask).count("1")
+        w = fact[size] * fact[D - size - 1] / fact[D]
+        for j in range(D):
+            if (mask >> j) & 1:
+                continue
+            phi[j] += w * (v[mask | (1 << j)] - v[mask])
+    return {"phi": phi, "base": v[0], "value": v[n - 1]}
+
+
+def median(sorted_vals):
+    n = len(sorted_vals)
+    if n == 0:
+        return None
+    if n % 2:
+        return sorted_vals[(n - 1) // 2]
+    return (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+
+
+def mean(arr):
+    if not arr:
+        return None
+    s = 0.0
+    for a in arr:
+        s += a
+    return s / len(arr)
+
+
+def audit(model, tables, cohort, settings, margin=0.0, max_levers=D):
+    groups = [{"g": g, "n": 0, "shortlisted": 0, "rejected": 0, "feasible": 0, "costs": [],
+               "lever": [0] * D, "expAdded": []} for g in (0, 1)]
+    rows = []
+    for i, row in enumerate(cohort):
+        G = groups[row["g"]]
+        G["n"] += 1
+        r = find_recourse(model, tables, row["x"], settings, margin=margin, max_levers=max_levers)
+        if r["status"] == "already":
+            G["shortlisted"] += 1
+            rows.append({"i": i, "g": row["g"], "status": "already", "cost": 0})
+            continue
+        G["rejected"] += 1
+        if r["status"] == "found":
+            G["feasible"] += 1
+            G["costs"].append(r["cost"])
+            for ch in r["changes"]:
+                G["lever"][ch["j"]] += 1
+            G["expAdded"].append(r["values"][1] - row["x"][1])
+        rows.append({"i": i, "g": row["g"], "status": r["status"], "cost": r["cost"],
+                     "lever": main_lever(r) if r["status"] == "found" else -1})
+    summary = []
+    for G in groups:
+        summary.append({
+            "g": G["g"], "n": G["n"], "shortlisted": G["shortlisted"], "rejected": G["rejected"], "feasible": G["feasible"],
+            "shortlistRate": G["shortlisted"] / G["n"] if G["n"] else None,
+            "feasibleShare": G["feasible"] / G["rejected"] if G["rejected"] else None,
+            "meanCost": mean(G["costs"]), "medianCost": median(sorted(G["costs"])),
+            "leverShare": [c / G["feasible"] if G["feasible"] else 0 for c in G["lever"]],
+            "meanExpAdded": mean(G["expAdded"]),
+        })
+    return {"groups": summary, "rows": rows}
