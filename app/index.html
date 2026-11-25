@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Clean hours</title>
-<meta name="description" content="Carbon-aware scheduling for AI compute jobs on an invented grid: the saving you can report against the saving the grid actually sees.">
+<meta name="description" content="Carbon-aware scheduling for AI compute jobs on an invented grid: the saving a carbon report would show against the saving the grid actually sees.">
 <style>
 :root {
   color-scheme: light;
@@ -31,6 +31,7 @@
   --spare: #b9e6d3;
   --now-line: #9a9993;
   --ink-line: #0b0b0b;
+  --lane: #ebeae6;
   --good: #006300;
   --bad: #b42323;
   --warn-bg: #fff4e0;
@@ -40,66 +41,22 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #121211;
-    --surface: #1a1a19;
-    --surface-2: #232321;
-    --border: #34332f;
-    --grid: #2c2b28;
-    --text: #f0efec;
-    --text-2: #c3c2b7;
-    --muted: #a3a29c;
-    --accent: #86b6ef;
-    --accent-soft: #1d2a3b;
-    --avg: #3987e5;
-    --marg: #d95926;
-    --wind: #199e70;
-    --solar: #c98500;
-    --nuclear: #9085e9;
-    --ccgt: #d55181;
-    --ocgt: #e66767;
-    --coal: #8f8e88;
-    --reserve: #c3c2b7;
-    --surplus: #0ca30c;
-    --spare: #1f4a3a;
-    --now-line: #7d7c77;
-    --ink-line: #f0efec;
-    --good: #4cc24c;
-    --bad: #f08080;
-    --warn-bg: #3a2c10;
-    --warn-text: #f3d08a;
-    --shadow: none;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #34332f; --grid: #2c2b28;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #a3a29c; --accent: #86b6ef; --accent-soft: #1d2a3b;
+    --avg: #3987e5; --marg: #d95926; --wind: #199e70; --solar: #c98500; --nuclear: #9085e9;
+    --ccgt: #d55181; --ocgt: #e66767; --coal: #8f8e88; --reserve: #c3c2b7; --surplus: #0ca30c;
+    --spare: #1f4a3a; --now-line: #7d7c77; --ink-line: #f0efec; --lane: #2a2a27;
+    --good: #4cc24c; --bad: #f08080; --warn-bg: #3a2c10; --warn-text: #f3d08a; --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121211;
-  --surface: #1a1a19;
-  --surface-2: #232321;
-  --border: #34332f;
-  --grid: #2c2b28;
-  --text: #f0efec;
-  --text-2: #c3c2b7;
-  --muted: #a3a29c;
-  --accent: #86b6ef;
-  --accent-soft: #1d2a3b;
-  --avg: #3987e5;
-  --marg: #d95926;
-  --wind: #199e70;
-  --solar: #c98500;
-  --nuclear: #9085e9;
-  --ccgt: #d55181;
-  --ocgt: #e66767;
-  --coal: #8f8e88;
-  --reserve: #c3c2b7;
-  --surplus: #0ca30c;
-  --spare: #1f4a3a;
-  --now-line: #7d7c77;
-  --ink-line: #f0efec;
-  --good: #4cc24c;
-  --bad: #f08080;
-  --warn-bg: #3a2c10;
-  --warn-text: #f3d08a;
-  --shadow: none;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #34332f; --grid: #2c2b28;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #a3a29c; --accent: #86b6ef; --accent-soft: #1d2a3b;
+  --avg: #3987e5; --marg: #d95926; --wind: #199e70; --solar: #c98500; --nuclear: #9085e9;
+  --ccgt: #d55181; --ocgt: #e66767; --coal: #8f8e88; --reserve: #c3c2b7; --surplus: #0ca30c;
+  --spare: #1f4a3a; --now-line: #7d7c77; --ink-line: #f0efec; --lane: #2a2a27;
+  --good: #4cc24c; --bad: #f08080; --warn-bg: #3a2c10; --warn-text: #f3d08a; --shadow: none;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -111,120 +68,145 @@ body {
 }
 a { color: var(--accent); }
 h1, h2, h3 { line-height: 1.2; margin: 0; }
-h1 { font-size: 1.7rem; letter-spacing: -0.01em; }
-h2 { font-size: 1.15rem; }
+h1 { font-size: 1.8rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.12rem; }
 h3 { font-size: 1rem; }
 p { margin: 0 0 .6em; }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
-header.top { padding: 28px 0 18px; }
-header.top .kicker { color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-header.top .lede { color: var(--text-2); max-width: 68ch; margin-top: 8px; }
-.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; padding-bottom: 40px; }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; box-shadow: var(--shadow); }
+header.top { padding: 26px 0 18px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+header.top .kicker { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+header.top .lede { color: var(--text-2); max-width: 70ch; margin: 8px 0 0; }
+.readme-line { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: .88rem; color: var(--text-2); }
+.layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; align-items: start; padding-bottom: 36px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
 .stack > * + * { margin-top: 16px; }
-aside.controls { position: sticky; top: 12px; }
+aside.controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 legend, .label { font-weight: 600; font-size: .9rem; margin-bottom: 6px; padding: 0; display: block; }
 .hint { color: var(--muted); font-size: .82rem; }
-.presets { display: grid; gap: 6px; }
-.preset { display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; background: var(--surface); }
-.preset:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.preset input { margin-top: 3px; accent-color: var(--accent); }
-.preset span strong { display: block; font-size: .9rem; }
-.preset span small { color: var(--text-2); font-size: .8rem; line-height: 1.35; display: block; }
-.slider { display: grid; gap: 2px; }
-.slider .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-.slider output { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: .85rem; }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
+.presets { display: grid; gap: 4px; }
+.preset { display: flex; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; background: var(--surface); font-size: .9rem; }
+.preset:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.preset input { margin: 0; accent-color: var(--accent); }
+.blurb { color: var(--text-2); font-size: .82rem; margin: 6px 0 0; line-height: 1.4; }
+.slider { display: grid; gap: 0; }
+.slider .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; font-size: .9rem; }
+.slider output { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: .84rem; text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 4px 0; }
 select, input[type="number"], input[type="text"] {
-  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 8px; min-width: 0;
+  font: inherit; font-size: .9rem; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px; min-width: 0; max-width: 100%;
 }
-button {
-  font: inherit; font-size: .88rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 6px 12px; cursor: pointer;
+button, label.button {
+  font: inherit; font-size: .86rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-block; line-height: 1.3;
 }
-button:hover { border-color: var(--muted); }
+button:hover, label.button:hover { border-color: var(--muted); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="file"]:focus-visible + label.button { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0; }
 .tile .t-label { color: var(--text-2); font-size: .82rem; }
-.tile .t-value { font-size: 1.6rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.tile .t-value { font-size: 1.55rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
 .tile .t-sub { color: var(--muted); font-size: .8rem; }
-.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
-.verdict { font-size: 1rem; }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; flex: none; }
+.verdict { font-size: 1rem; margin: 0; }
 .verdict strong { font-weight: 650; }
-.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82rem; color: var(--text-2); }
+.verdict .hint { display: block; margin-top: 6px; }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: .82rem; color: var(--text-2); }
 .legend span { white-space: nowrap; }
+.legend b { font-weight: 600; color: var(--text); margin-right: 2px; }
+.legends { display: grid; gap: 2px; margin-bottom: 6px; }
+.chart { margin-top: 6px; position: relative; }
+.chart:focus-visible { outline-offset: 4px; }
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { fill: var(--text-2); font-size: 11px; font-family: inherit; }
+svg .title { fill: var(--text); font-weight: 600; font-size: 12px; }
+svg .row-label { fill: var(--text); font-size: 12px; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+svg .row-label.focus { font-weight: 650; }
 svg .axis-line { stroke: var(--grid); stroke-width: 1; }
-table { border-collapse: collapse; width: 100%; font-size: .88rem; font-variant-numeric: tabular-nums; }
-th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+svg .zero-line { stroke: var(--muted); stroke-width: 1; }
+table { border-collapse: collapse; width: 100%; font-size: .86rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
 th:first-child, td:first-child { text-align: left; }
-th { color: var(--text-2); font-weight: 600; font-size: .8rem; }
+td:not(:first-child) { white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: .78rem; }
 tr.focus td { background: var(--accent-soft); }
-.table-scroll { overflow-x: auto; }
-.pos { color: var(--good); }
+.table-scroll { overflow-x: auto; margin-top: 8px; }
 .neg { color: var(--bad); }
-.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .tooltip {
   position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .8rem; line-height: 1.45;
-  box-shadow: 0 4px 16px rgba(0,0,0,.15); max-width: 280px; display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: 290px; display: none;
 }
 .tooltip b { font-weight: 650; }
-.week-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.week-controls label { font-size: .85rem; color: var(--text-2); }
+.inline-control { display: flex; gap: 10px; align-items: center; font-size: .88rem; color: var(--text-2); }
+.inline-control input[type="range"] { width: 180px; }
 .errors { background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: 10px 12px; font-size: .88rem; display: none; }
 .errors.show { display: block; }
+.errors ul { margin: 4px 0 0; padding-left: 20px; }
+.stale { opacity: .45; transition: opacity .2s; }
+.pending { color: var(--muted); font-size: .85rem; padding: 40px 0; text-align: center; }
 .jobs { display: grid; gap: 10px; }
 .job { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: grid; grid-template-columns: 2fr repeat(6, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
 .job label { display: grid; gap: 2px; font-size: .75rem; color: var(--text-2); }
 .job input[type="number"], .job input[type="text"] { width: 100%; }
-.job .check { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--text-2); padding-bottom: 6px; }
+.job .check { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--text-2); padding-bottom: 4px; }
+.job .check label { display: inline; font-size: .8rem; }
 .job .slack { font-size: .75rem; color: var(--muted); grid-column: 1 / -1; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.run-controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: .88rem; color: var(--text-2); }
+.run-controls label { display: flex; gap: 8px; align-items: center; }
 .curves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .curves figure { margin: 0; min-width: 0; }
-.curves figcaption { font-weight: 600; font-size: .9rem; margin-bottom: 4px; }
-.curve-box { min-height: 120px; }
-.curve-box .pending { color: var(--muted); font-size: .85rem; padding: 40px 0; text-align: center; }
-.run-controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 6px; font-size: .88rem; color: var(--text-2); }
-.run-controls label { display: flex; gap: 8px; align-items: center; }
-.run-controls select { max-width: 100%; }
-label.button {
-  font-size: .88rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-block;
-}
-label.button:hover { border-color: var(--muted); }
-input[type="file"]:focus-visible + label.button { outline: 2px solid var(--accent); outline-offset: 2px; }
-details summary { cursor: pointer; color: var(--accent); font-size: .88rem; margin-top: 10px; }
-.notes h3 { margin: 14px 0 4px; }
-.notes p, .notes li { color: var(--text-2); max-width: 75ch; }
+.curves figcaption { font-weight: 600; font-size: .9rem; }
+details summary { cursor: pointer; color: var(--accent); font-size: .86rem; margin-top: 10px; }
+.notes h3 { margin: 16px 0 4px; }
+.notes p, .notes li { color: var(--text-2); max-width: 76ch; }
+.notes ul { padding-left: 20px; }
 footer { color: var(--muted); font-size: .8rem; padding: 0 0 30px; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 960px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  aside.controls { position: static; }
+  aside.controls { position: static; max-height: none; }
+  .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  .control-grid.stack > * + * { margin-top: 0; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .curves { grid-template-columns: minmax(0, 1fr); }
   .job { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .job .name { grid-column: 1 / -1; }
 }
+@media (max-width: 640px) {
+  .control-grid { grid-template-columns: minmax(0, 1fr); }
+  .curves { grid-template-columns: minmax(0, 1fr); }
+  .opt { display: none; }
+  header.top { flex-direction: column; }
+}
 @media (max-width: 480px) {
-  h1 { font-size: 1.45rem; }
+  h1 { font-size: 1.5rem; }
+  .panel { padding: 14px 12px; }
+  .tile { padding: 10px 12px; }
   .tile .t-value { font-size: 1.3rem; }
   .job { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  th, td { padding: 6px 5px; }
+  .inline-control input[type="range"] { width: 140px; }
 }
+@media (prefers-reduced-motion: reduce) { .stale { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="kicker">Sustainability and carbon · green forecasting</div>
-    <h1>Clean hours</h1>
-    <p class="lede">When should the AI run? Shift flexible compute jobs, such as fine-tunes, retrains and nightly batch runs, into cleaner hours on an invented grid, then compare the saving you could <strong>report</strong> (average grid intensity) with the saving the grid actually <strong>sees</strong> (the power station that responds to your extra demand).</p>
+    <div>
+      <div class="kicker">Sustainability and carbon · green forecasting</div>
+      <h1>Clean hours</h1>
+      <p class="lede">When should the AI run? Move flexible compute jobs, such as fine-tunes, retrains and nightly batch runs, into cleaner hours on an invented grid. Then compare the saving a carbon report would show with the saving the grid actually sees.</p>
+      <div class="readme-line">
+        <span><i class="key" style="background:var(--avg)"></i><strong>Reported</strong>: average grid intensity, as most carbon reports count it</span>
+        <span><i class="key" style="background:var(--marg)"></i><strong>Real</strong>: the power station that ramps up for your extra load</span>
+      </div>
+    </div>
+    <button type="button" id="themeBtn">Dark theme</button>
   </header>
 
   <div class="layout">
@@ -232,32 +214,35 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 30px; }
       <fieldset>
         <legend>Grid</legend>
         <div class="presets" id="presets"></div>
+        <p class="blurb" id="blurb"></p>
       </fieldset>
-      <div class="slider">
-        <div class="row"><label for="windScale">Wind fleet size</label><output id="windScaleOut" for="windScale"></output></div>
-        <input type="range" id="windScale" min="0.5" max="3" step="0.25" value="1">
-      </div>
-      <div class="slider">
-        <div class="row"><label for="solarScale">Solar fleet size</label><output id="solarScaleOut" for="solarScale"></output></div>
-        <input type="range" id="solarScale" min="0.5" max="3" step="0.25" value="1">
-      </div>
-      <div class="slider">
-        <div class="row"><label for="forecastError">Forecast error</label><output id="forecastErrorOut" for="forecastError"></output></div>
-        <input type="range" id="forecastError" min="0" max="3" step="0.25" value="1">
-        <span class="hint">0 means a perfect forecast; 1 is a typical day-ahead wind forecast.</span>
-      </div>
-      <div class="slider">
-        <div class="row"><label for="slack">Flexibility</label><output id="slackOut" for="slack"></output></div>
-        <input type="range" id="slack" min="0" max="3" step="0.25" value="1">
-        <span class="hint">Scales every job's slack (window minus run time). 0 means nothing can move.</span>
-      </div>
-      <div class="slider">
-        <div class="row"><label for="seed">Weather year</label><output id="seedOut" for="seed"></output></div>
-        <input type="range" id="seed" min="1" max="30" step="1" value="1">
-      </div>
-      <div>
-        <label class="label" for="focus">Scheduler to highlight</label>
-        <select id="focus"></select>
+      <div class="control-grid stack">
+        <div class="slider">
+          <div class="row"><label for="windScale">Wind fleet size</label><output id="windScaleOut" for="windScale"></output></div>
+          <input type="range" id="windScale" min="0.5" max="3" step="0.25" value="1">
+        </div>
+        <div class="slider">
+          <div class="row"><label for="solarScale">Solar fleet size</label><output id="solarScaleOut" for="solarScale"></output></div>
+          <input type="range" id="solarScale" min="0.5" max="3" step="0.25" value="1">
+        </div>
+        <div class="slider">
+          <div class="row"><label for="forecastError">Forecast error</label><output id="forecastErrorOut" for="forecastError"></output></div>
+          <input type="range" id="forecastError" min="0" max="3" step="0.25" value="1" aria-describedby="feHint">
+          <span class="hint" id="feHint">0 is a perfect forecast; 1 is roughly a typical wind forecast.</span>
+        </div>
+        <div class="slider">
+          <div class="row"><label for="slack">Flexibility</label><output id="slackOut" for="slack"></output></div>
+          <input type="range" id="slack" min="0" max="3" step="0.25" value="1" aria-describedby="slackHint">
+          <span class="hint" id="slackHint">Scales every job's slack (window minus run time). 0 means nothing can move.</span>
+        </div>
+        <div class="slider">
+          <div class="row"><label for="seed">Weather year</label><output id="seedOut" for="seed"></output></div>
+          <input type="range" id="seed" min="1" max="30" step="1" value="1">
+        </div>
+        <div>
+          <label class="label" for="focus">Scheduler to highlight</label>
+          <select id="focus"></select>
+        </div>
       </div>
       <div class="btn-row">
         <button type="button" id="saveSettings">Save settings</button>
@@ -269,119 +254,127 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 30px; }
 
     <main class="stack" id="main">
       <div class="errors" id="errors" role="alert"></div>
-      <section aria-labelledby="h-headline" class="stack">
-        <h2 id="h-headline" class="visually-hidden">Headline results</h2>
-        <div class="tiles" id="tiles" aria-live="polite"></div>
-        <p class="verdict panel" id="verdict"></p>
-      </section>
+      <div class="stack" id="results">
+        <section aria-labelledby="h-headline" class="stack">
+          <h2 id="h-headline" class="visually-hidden">Headline results</h2>
+          <div class="tiles" id="tiles"></div>
+          <p class="verdict panel" id="verdict" aria-live="polite"></p>
+        </section>
 
-      <section class="panel" aria-labelledby="h-policies">
-        <div class="chart-head">
-          <h2 id="h-policies">Tonnes of CO₂ saved by each scheduler over the year</h2>
-          <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported (average intensity)</span><span><i class="key" style="background:var(--marg)"></i>Real (marginal emissions)</span></div>
-        </div>
-        <div id="policyChart"></div>
-        <div class="table-scroll"><table id="policyTable"></table></div>
-      </section>
-
-      <section class="panel" aria-labelledby="h-week">
-        <div class="chart-head">
-          <h2 id="h-week">One week on the grid</h2>
-          <div class="week-controls">
-            <label for="week">Week</label>
-            <input type="range" id="week" min="1" max="52" step="1" value="6" aria-describedby="weekOut">
-            <output id="weekOut" for="week"></output>
+        <section class="panel" aria-labelledby="h-policies">
+          <div class="chart-head">
+            <h2 id="h-policies">Tonnes of CO₂ saved by each scheduler in a year</h2>
+            <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported</span><span><i class="key" style="background:var(--marg)"></i>Real</span></div>
           </div>
-        </div>
-        <div class="legend" id="weekLegend"></div>
-        <div id="weekChart"></div>
-      </section>
+          <p class="hint">Against running every job as soon as it is ready. Hover or tap a bar for the percentage.</p>
+          <div class="chart" id="policyChart"></div>
+          <div class="table-scroll"><table id="policyTable"></table></div>
+        </section>
 
-      <section class="panel" aria-labelledby="h-run">
-        <div class="chart-head">
-          <h2 id="h-run">Look inside one run</h2>
-        </div>
-        <div class="run-controls">
-          <label>Job <select id="runJob"></select></label>
-          <label>Run <input type="range" id="runIndex" min="1" max="1" step="1" value="1"></label>
-          <output id="runOut" for="runIndex"></output>
-        </div>
-        <p class="hint" id="runHint"></p>
-        <div class="legend" id="runLegend"></div>
-        <div id="runChart"></div>
-        <div class="table-scroll"><table id="runTable"></table></div>
-      </section>
+        <section class="panel" aria-labelledby="h-week">
+          <div class="chart-head">
+            <h2 id="h-week">One week on the grid</h2>
+            <div class="inline-control">
+              <label for="week">Week</label>
+              <input type="range" id="week" min="1" max="52" step="1" value="10">
+              <output id="weekOut" for="week"></output>
+            </div>
+          </div>
+          <div class="legends" id="weekLegend"></div>
+          <div class="chart" id="weekChart" tabindex="0" aria-describedby="weekHelp"></div>
+          <p class="hint" id="weekHelp">Hover, tap, or focus the chart and use the arrow keys to read any hour (Shift and an arrow moves a day).</p>
+          <p class="visually-hidden" id="weekLive" aria-live="polite"></p>
+          <details><summary>Show this week as a table</summary><div class="table-scroll"><table id="weekTable"></table></div></details>
+        </section>
 
-      <section class="panel" aria-labelledby="h-mix">
-        <div class="chart-head">
-          <h2 id="h-mix">What was on the margin when the jobs ran</h2>
+        <section class="panel" aria-labelledby="h-run">
+          <div class="chart-head">
+            <h2 id="h-run">Look inside one run</h2>
+          </div>
+          <div class="run-controls">
+            <label>Job <select id="runJob"></select></label>
+            <label>Run <input type="range" id="runIndex" min="1" max="1" step="1" value="1"></label>
+            <output id="runOut" for="runIndex"></output>
+          </div>
+          <p class="hint" id="runHint"></p>
+          <div class="legend" id="runLegend"></div>
+          <div class="chart" id="runChart" tabindex="0" aria-describedby="runHelp"></div>
+          <p class="hint" id="runHelp">Faint lines are the forecast each scheduler saw when the job became ready; solid lines are what happened. Focus the chart and use the arrow keys to read any hour.</p>
+          <p class="visually-hidden" id="runLive" aria-live="polite"></p>
+          <div class="table-scroll"><table id="runTable"></table></div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-mix">
+          <div class="chart-head">
+            <h2 id="h-mix">What was on the margin when the jobs ran</h2>
+          </div>
           <div class="legend" id="mixLegend"></div>
-        </div>
-        <p class="hint">Share of the jobs' energy used in hours when each kind of plant would have answered extra demand. Moving energy into hours of spare clean power is what cuts real emissions.</p>
-        <div id="mixChart"></div>
-      </section>
+          <p class="hint">Share of the jobs' energy used in hours when each kind of plant would answer extra demand. Real savings come from moving energy into hours of spare clean power, or out of hours when a dirtier plant is on the margin.</p>
+          <div class="chart" id="mixChart"></div>
+        </section>
 
-      <section class="panel" aria-labelledby="h-curves">
-        <div class="chart-head">
-          <h2 id="h-curves">What would change the answer</h2>
-          <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported saving</span><span><i class="key" style="background:var(--marg)"></i>Real saving</span><span><i class="key" style="background:var(--now-line)"></i>Best possible real saving (hindsight)</span></div>
-        </div>
-        <p class="hint" id="curveHint">Tonnes of CO₂ saved in a year by the highlighted scheduler as one setting changes, with everything else as set. The ringed point is your current setting.</p>
-        <div class="curves">
-          <figure><figcaption>As the wind fleet grows</figcaption><div id="curveWind" class="curve-box"></div></figure>
-          <figure><figcaption>With more flexibility in every job</figcaption><div id="curveSlack" class="curve-box"></div></figure>
-        </div>
-        <details><summary>Show these curves as a table</summary><div class="table-scroll"><table id="curveTable"></table></div></details>
-      </section>
-
-      <section class="panel" aria-labelledby="h-years">
-        <div class="chart-head">
-          <h2 id="h-years">Does it hold in other weather years?</h2>
-          <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported saving</span><span><i class="key" style="background:var(--marg)"></i>Real saving</span></div>
-        </div>
-        <p class="hint">The same grid, jobs and settings in ten different weather years. Each line runs from the worst year to the best; the dot is the median year.</p>
-        <div id="yearsChart" class="curve-box"></div>
-        <div class="table-scroll"><table id="yearsTable"></table></div>
-      </section>
-
-      <section class="panel" aria-labelledby="h-jobs">
-        <div class="chart-head">
-          <h2 id="h-jobs">Your compute jobs</h2>
-          <div class="btn-row">
-            <button type="button" id="addJob">Add a job</button>
-            <button type="button" id="resetJobs">Reset to the example fleet</button>
-            <button type="button" id="saveCsv">Download jobs CSV</button>
-            <input type="file" id="loadCsv" accept=".csv,text/csv" class="visually-hidden">
-            <label class="button" for="loadCsv">Load jobs CSV</label>
+        <section class="panel" aria-labelledby="h-curves">
+          <div class="chart-head">
+            <h2 id="h-curves">What would change the answer</h2>
+            <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported</span><span><i class="key" style="background:var(--marg)"></i>Real</span><span><i class="key" style="background:var(--now-line)"></i>Best possible real (hindsight)</span></div>
           </div>
-        </div>
-        <p class="hint">An invented fleet for a mid-sized AI team. Power is the average draw while running. The window runs from when the job is ready to its deadline; pausable jobs can be split across separate hours.</p>
-        <div class="jobs" id="jobs"></div>
-        <h3 style="margin-top:16px">Results by job for the highlighted scheduler</h3>
-        <div class="table-scroll"><table id="jobTable"></table></div>
-      </section>
+          <p class="hint">Tonnes of CO₂ saved in a year by the highlighted scheduler as one setting changes, with everything else as set. The ringed points are your current setting.</p>
+          <div class="curves">
+            <figure><figcaption>As the wind fleet grows</figcaption><div class="chart" id="curveWind"></div></figure>
+            <figure><figcaption>With more flexibility in every job</figcaption><div class="chart" id="curveSlack"></div></figure>
+          </div>
+          <details><summary>Show these curves as a table</summary><div class="table-scroll"><table id="curveTable"></table></div></details>
+        </section>
 
-      <section class="panel notes" aria-labelledby="h-notes">
-        <h2 id="h-notes">How it works and what it leaves out</h2>
-        <h3>Reported against real</h3>
-        <p>Company carbon reports usually multiply electricity use by the grid's <em>average</em> intensity in each hour (the location-based method). Moving a job into an hour with a lower average makes the reported footprint fall. But the atmosphere only notices the plant that actually ramps up to serve the extra load: the <em>marginal</em> plant. When gas is marginal almost all the time, a cleaner-looking average hour is still a gas hour, so the real saving is small. Real savings come from using power that would otherwise be thrown away (curtailed wind and solar), or from avoiding hours when a dirtier plant is on the margin.</p>
-        <h3>The grid</h3>
-        <p>Each hour of a 52-week year, synthetic demand, wind and solar are dispatched in merit order: nuclear and renewables first, a minimum amount of gas kept running for stability, then thermal plant from cleanest to dirtiest within each fleet. If renewables exceed what is needed, the surplus is curtailed and the marginal intensity is zero. All numbers are invented and loosely shaped, not calibrated to any real country.</p>
-        <h3>The schedulers</h3>
-        <ul id="policyNotes"></ul>
-        <h3>Limits</h3>
-        <ul>
-          <li>Short-run marginal emissions only: the model does not capture longer-run effects, such as flexible demand encouraging more renewables to be built.</li>
-          <li>The jobs are treated as small next to the grid, so they do not change prices or which plant runs.</li>
-          <li>No interconnectors, storage, network constraints or fuel switching with carbon prices.</li>
-          <li>Simplified and illustrative: this is a teaching model, not a carbon accounting tool.</li>
-        </ul>
-      </section>
+        <section class="panel" aria-labelledby="h-years">
+          <div class="chart-head">
+            <h2 id="h-years">Does it hold in other weather years?</h2>
+            <div class="legend"><span><i class="key" style="background:var(--avg)"></i>Reported</span><span><i class="key" style="background:var(--marg)"></i>Real</span></div>
+          </div>
+          <p class="hint">The same grid, jobs and settings in ten weather years. Each line runs from the worst year to the best; the dot is the median.</p>
+          <div class="chart" id="yearsChart"></div>
+          <div class="table-scroll"><table id="yearsTable"></table></div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-jobs">
+          <div class="chart-head">
+            <h2 id="h-jobs">Your compute jobs</h2>
+            <div class="btn-row">
+              <button type="button" id="addJob">Add a job</button>
+              <button type="button" id="resetJobs">Reset to the example</button>
+              <button type="button" id="saveCsv">Download jobs CSV</button>
+              <input type="file" id="loadCsv" accept=".csv,text/csv" class="visually-hidden">
+              <label class="button" for="loadCsv">Load jobs CSV</label>
+            </div>
+          </div>
+          <p class="hint">An invented fleet for a mid-sized AI team. Power is the average draw while running. The window runs from when the job is ready to its deadline; pausable jobs can be split across separate hours. Day 0 is the Monday of week 1. The jobs CSV is the same format the Python companion reads.</p>
+          <div class="jobs" id="jobs"></div>
+          <h3 style="margin-top:16px">Results by job for the highlighted scheduler</h3>
+          <div class="table-scroll"><table id="jobTable"></table></div>
+        </section>
+
+        <section class="panel notes" aria-labelledby="h-notes">
+          <h2 id="h-notes">How it works and what it leaves out</h2>
+          <h3>Reported against real</h3>
+          <p>Company carbon reports usually multiply electricity use by the grid's <em>average</em> intensity (the location-based method). Moving a job into an hour with a lower average makes the reported footprint fall. The atmosphere only notices the plant that actually ramps up to serve the extra load: the <em>marginal</em> plant. When gas is on the margin almost all the time, a cleaner-looking average hour is still a gas hour, so the real saving is small. Real savings come from using power that would otherwise be thrown away (curtailed wind and solar), or from avoiding hours when a dirtier plant is on the margin. Because the marginal plant is usually dirtier than the average, the real saving can also be <em>larger</em> than the report shows.</p>
+          <h3>The grid</h3>
+          <p>Each hour of a 52-week year, synthetic demand, wind and solar are dispatched in merit order: nuclear and renewables first, a minimum amount of thermal plant kept running for stability, then each thermal fleet from its most to its least efficient unit. If renewables exceed what is needed, the surplus is curtailed and the marginal intensity is zero. Forecasts are the true values plus errors that grow with lead time. All numbers are invented and loosely shaped, not calibrated to any real country.</p>
+          <h3>The schedulers</h3>
+          <ul id="policyNotes"></ul>
+          <h3>Limits</h3>
+          <ul>
+            <li>Short-run marginal emissions only. Longer-run effects, such as flexible demand making it easier to build more renewables, are left out; some practitioners argue those effects favour average signals.</li>
+            <li>The jobs are treated as small next to the grid, so they never change which plant runs.</li>
+            <li>No interconnectors, storage, network constraints, or switching between coal and gas as carbon prices change.</li>
+            <li>Simplified and illustrative: a teaching model, not a carbon accounting tool.</li>
+          </ul>
+        </section>
+      </div>
     </main>
   </div>
-  <footer>Clean hours runs entirely in your browser. No data leaves this page.</footer>
+  <footer>Clean hours runs entirely in your browser. Nothing is sent anywhere.</footer>
 </div>
-<div class="tooltip" id="tooltip" role="presentation"></div>
+<div class="tooltip" id="tooltip" aria-hidden="true"></div>
 <script>
 /* MODEL START */
 /*
@@ -1014,7 +1007,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
   var M = CleanHours;
   var DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var BLOCK_VARS = { coal: '--coal', ccgt: '--ccgt', ocgt: '--ocgt' };
+  var MINUS = '−';
 
+  /* ---------- small helpers ---------- */
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function $(id) { return document.getElementById(id); }
   function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -1025,19 +1020,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
   }
   function fmtInt(x) { return Math.round(x).toLocaleString('en-GB'); }
   function fmtPct(x, dp) {
-    var v = (x * 100).toFixed(dp === undefined ? 1 : dp);
-    if (Number(v) === 0) v = (0).toFixed(dp === undefined ? 1 : dp);
-    return v + '%';
+    var d = dp === undefined ? 1 : dp, v = (x * 100).toFixed(d);
+    if (Number(v) === 0) v = (0).toFixed(d);
+    return v.replace('-', MINUS) + '%';
   }
-  function signed(x, dp) { var s = fmtPct(x, dp); return x > 0 && Number(s.slice(0, -1)) !== 0 ? '+' + s : s; }
+  function signed(x, dp) { var s = fmtPct(x, dp); return x > 0 && Number(s.replace(MINUS, '-').slice(0, -1)) !== 0 ? '+' + s : s; }
+  function signedT(x) { var v = Math.round(x); return (v > 0 ? '+' : v < 0 ? MINUS : '') + fmtInt(Math.abs(v)) + ' t'; }
+  function tonnes(x) { return fmtInt(x) + ' t'; }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
   function hourLabel(t) {
-    var d = Math.floor(t / 24), h = t % 24;
-    return 'Week ' + (Math.floor(d / 7) + 1) + ', ' + DAY_NAMES[d % 7] + ' ' + (h < 10 ? '0' : '') + h + ':00';
+    var d = Math.floor(t / 24);
+    return 'Week ' + (Math.floor(d / 7) + 1) + ', ' + DAY_NAMES[d % 7] + ' ' + pad2(t % 24) + ':00';
+  }
+  function policy(key) { return M.POLICIES.filter(function (p) { return p.key === key; })[0]; }
+  function chartWidth(el) { return Math.max(300, Math.min(800, Math.round(el.clientWidth || 720))); }
+  function svgOpen(W, H, label) {
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(label) + '">';
+  }
+
+  // Axis ticks that start at or below lo and end at or above hi.
+  function ticks(lo, hi, target) {
+    var range = hi - lo || 1, raw = range / (target || 4);
+    var mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    var step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+    var out = [], v = Math.floor(lo / step + 1e-9) * step;
+    for (; v < hi + step - 1e-9; v += step) {
+      out.push(Math.abs(v) < 1e-9 ? 0 : v);
+      if (v >= hi - 1e-9) break;
+    }
+    return out;
   }
 
   var state = {
     preset: 'windy', seed: 1, windScale: 1, solarScale: 1, forecastError: 1, slack: 1,
-    focus: 'avg', week: 6, jobs: clone(M.DEFAULT_JOBS)
+    focus: 'avg', week: 10, jobs: clone(M.DEFAULT_JOBS)
   };
   var last = null;
 
@@ -1050,30 +1066,82 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
 
   /* ---------- tooltip ---------- */
   var tip = $('tooltip');
-  function showTip(html, ev) {
+  function showTipAt(html, cx, cy) {
     tip.innerHTML = html;
     tip.style.display = 'block';
     var w = tip.offsetWidth, h = tip.offsetHeight;
-    var x = ev.clientX + 14, y = ev.clientY + 14;
-    if (x + w > window.innerWidth - 8) x = ev.clientX - w - 14;
+    var x = cx + 14, y = cy + 14;
+    if (x + w > window.innerWidth - 8) x = cx - w - 14;
     if (x < 8) x = 8;
-    if (y + h > window.innerHeight - 8) y = ev.clientY - h - 14;
+    if (y + h > window.innerHeight - 8) y = cy - h - 14;
+    if (y < 8) y = 8;
     tip.style.left = x + 'px';
     tip.style.top = y + 'px';
   }
   function hideTip() { tip.style.display = 'none'; }
 
+  document.addEventListener('pointermove', function (ev) {
+    var t = ev.target.closest && ev.target.closest('[data-tip]');
+    if (t) {
+      var parts = t.getAttribute('data-tip').split('|');
+      showTipAt('<b>' + esc(parts[0]) + '</b><br>' + esc(parts[1]), ev.clientX, ev.clientY);
+    } else if (!(ev.target.closest && ev.target.closest('.scrub'))) {
+      hideTip();
+    }
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    var t = ev.target.closest && ev.target.closest('[data-tip]');
+    if (t) {
+      var parts = t.getAttribute('data-tip').split('|');
+      showTipAt('<b>' + esc(parts[0]) + '</b><br>' + esc(parts[1]), ev.clientX, ev.clientY);
+    }
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  // Hover, touch and keyboard reading for charts with an hourly x axis.
+  function scrubber(box, opts) {
+    var svg = box.querySelector('svg'), hit = svg.querySelector('.scrub'), line = svg.querySelector('.xhair');
+    var idx = -1;
+    function show(i, fromKey) {
+      idx = Math.max(0, Math.min(opts.n - 1, i));
+      var xx = opts.x(idx);
+      line.setAttribute('x1', xx); line.setAttribute('x2', xx); line.style.display = '';
+      var r = svg.getBoundingClientRect(), scale = r.width / opts.W;
+      var html = opts.html(idx);
+      showTipAt(html, r.left + xx * scale, fromKey ? r.top + 30 : opts.lastY || r.top + 30);
+      if (fromKey && opts.live) opts.live.textContent = html.replace(/<br>/g, '. ').replace(/<[^>]+>/g, '');
+    }
+    function fromEvent(ev) {
+      var r = svg.getBoundingClientRect();
+      opts.lastY = ev.clientY;
+      return opts.index((ev.clientX - r.left) / r.width * opts.W);
+    }
+    hit.addEventListener('pointermove', function (ev) { show(fromEvent(ev)); });
+    hit.addEventListener('pointerdown', function (ev) { show(fromEvent(ev)); });
+    hit.addEventListener('pointerleave', function () { line.style.display = 'none'; hideTip(); });
+    box.onkeydown = function (ev) {
+      var step = ev.shiftKey ? 24 : 1, i = idx < 0 ? 0 : idx;
+      if (ev.key === 'ArrowRight') i += step;
+      else if (ev.key === 'ArrowLeft') i -= step;
+      else if (ev.key === 'Home') i = 0;
+      else if (ev.key === 'End') i = opts.n - 1;
+      else if (ev.key === 'Escape') { line.style.display = 'none'; hideTip(); return; }
+      else return;
+      ev.preventDefault();
+      show(i, true);
+    };
+    box.onblur = function () { line.style.display = 'none'; hideTip(); };
+  }
+
   /* ---------- controls ---------- */
   function buildControls() {
     var html = '';
     Object.keys(M.PRESETS).forEach(function (k) {
-      var p = M.PRESETS[k];
-      html += '<label class="preset"><input type="radio" name="preset" value="' + k + '"' + (k === state.preset ? ' checked' : '') +
-        '><span><strong>' + esc(p.label) + '</strong><small>' + esc(p.blurb) + '</small></span></label>';
+      html += '<label class="preset"><input type="radio" name="preset" value="' + k + '"' + (k === state.preset ? ' checked' : '') + '> ' + esc(M.PRESETS[k].label) + '</label>';
     });
     $('presets').innerHTML = html;
     $('presets').addEventListener('change', function (e) {
-      if (e.target.name === 'preset') { state.preset = e.target.value; schedule(); }
+      if (e.target.name === 'preset') { state.preset = e.target.value; updateOutputs(); schedule(); }
     });
     var opts = '';
     M.POLICIES.forEach(function (p) {
@@ -1086,25 +1154,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
       el.value = state[id];
       el.addEventListener('input', function () { state[id] = Number(el.value); updateOutputs(); schedule(); });
     });
+    $('week').value = state.week;
     $('week').addEventListener('input', function () { state.week = Number(this.value); updateOutputs(); renderWeek(); });
     $('addJob').addEventListener('click', function () {
       state.jobs.push({ name: 'New job', mw: 2, hours: 6, everyDays: 7, firstDay: 0, releaseHour: 9, window: 48, pausable: true });
       buildJobs(); schedule();
+      var boxes = document.querySelectorAll('.job');
+      var inp = boxes[boxes.length - 1].querySelector('input');
+      inp.focus(); inp.select();
     });
     $('resetJobs').addEventListener('click', function () { state.jobs = clone(M.DEFAULT_JOBS); buildJobs(); schedule(); });
-    var notes = '';
-    M.POLICIES.forEach(function (p) { notes += '<li><strong>' + esc(p.label) + '.</strong> ' + esc(p.about) + '</li>'; });
-    $('policyNotes').innerHTML = notes;
+    $('policyNotes').innerHTML = M.POLICIES.map(function (p) { return '<li><strong>' + esc(p.label) + '.</strong> ' + esc(p.about) + '</li>'; }).join('');
     updateOutputs();
   }
 
   function updateOutputs() {
+    $('blurb').textContent = M.PRESETS[state.preset].blurb;
     $('windScaleOut').textContent = Math.round(state.windScale * 100) + '% of normal';
     $('solarScaleOut').textContent = Math.round(state.solarScale * 100) + '% of normal';
     $('forecastErrorOut').textContent = state.forecastError === 0 ? 'perfect' : state.forecastError + '× typical';
-    $('slackOut').textContent = state.slack === 0 ? 'none' : state.slack + '× the windows set';
+    $('slackOut').textContent = state.slack === 0 ? 'none' : state.slack + '× as set';
     $('seedOut').textContent = 'year ' + state.seed;
-    $('weekOut').textContent = 'week ' + state.week;
+    $('weekOut').textContent = state.week + ' of 52';
   }
 
   var JOB_FIELDS = [
@@ -1122,10 +1193,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
       html += '<div class="job" data-i="' + i + '">';
       html += '<label class="name">Job name<input type="text" data-k="name" value="' + esc(j.name) + '"></label>';
       JOB_FIELDS.forEach(function (f) {
-        html += '<label>' + f.label + '<input type="number" data-k="' + f.key + '" step="' + f.step + '" min="' + f.min + '" value="' + j[f.key] + '"></label>';
+        html += '<label>' + f.label + '<input type="number" data-k="' + f.key + '" step="' + f.step + '" min="' + f.min + '" value="' + (isFinite(j[f.key]) ? j[f.key] : '') + '"></label>';
       });
       html += '<div class="check"><input type="checkbox" id="pause' + i + '" data-k="pausable"' + (j.pausable ? ' checked' : '') +
-        '><label for="pause' + i + '">Pausable</label> <button type="button" data-remove="' + i + '" aria-label="Remove ' + esc(j.name) + '">Remove</button></div>';
+        '><label for="pause' + i + '">Pausable</label> <button type="button" data-remove="' + i + '" aria-label="Remove ' + esc(j.name || 'job ' + (i + 1)) + '">Remove</button></div>';
       html += '<div class="slack">' + slackText(j) + '</div>';
       html += '</div>';
     });
@@ -1133,7 +1204,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
   }
 
   function slackText(j) {
-    if (!(j.window >= j.hours)) return '';
+    if (!(j.window >= j.hours) || !isFinite(j.window)) return '';
     var s = M.scaledWindow(j, state.slack) - j.hours;
     return s === 0 ? 'No slack: this job runs as soon as it is ready.' : 'Slack after scaling: ' + s + ' hour' + (s === 1 ? '' : 's') + '.';
   }
@@ -1153,6 +1224,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     if (!b) return;
     state.jobs.splice(Number(b.dataset.remove), 1);
     buildJobs(); schedule();
+    $('addJob').focus();
   });
 
   /* ---------- running the model ---------- */
@@ -1166,11 +1238,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     var errs = M.validateJobs(state.jobs);
     var box = $('errors');
     if (errs.length) {
-      box.innerHTML = '<strong>Fix these to update the results:</strong><ul>' + errs.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>';
+      box.innerHTML = '<strong>Fix ' + (errs.length === 1 ? 'this' : 'these') + ' to update the results:</strong><ul>' + errs.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>';
       box.classList.add('show');
+      $('results').classList.add('stale');
       return;
     }
     box.classList.remove('show');
+    $('results').classList.remove('stale');
     last = M.run(config());
     document.querySelectorAll('.job').forEach(function (el) {
       var j = state.jobs[Number(el.dataset.i)];
@@ -1185,18 +1259,399 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     renderPolicyChart();
     renderPolicyTable();
     renderWeek();
+    renderRun();
     renderMix();
     renderJobTable();
     renderCurves();
-    renderRun();
     renderYears();
+  }
+
+  /* ---------- headline ---------- */
+  function verdictText(key, R) {
+    var label = esc(policy(key).label), rep = tonnes(R.reportedSavedT), real = tonnes(R.realSavedT);
+    switch (R.verdict) {
+      case 'backfires':
+        return '<strong>' + label + ' looks greener on paper but raises real emissions.</strong> A carbon report would show ' + rep +
+          ' saved, yet in the hours it picks a dirtier plant answers the extra demand, so real emissions rise by ' + tonnes(-R.realSavedT) + '.';
+      case 'worse':
+        return '<strong>' + label + ' raises real emissions.</strong> They go up by ' + tonnes(-R.realSavedT) + ' against running each job as soon as it is ready.';
+      case 'overstates':
+        return '<strong>' + label + ' overstates its benefit.</strong> A carbon report would show ' + rep + ' saved, but the grid sees only ' + real +
+          '. Most of the moved energy lands in hours where the same kind of plant still answers extra demand; the average just has more renewables mixed in.';
+      case 'understates':
+        return '<strong>' + label + ' does more good than the report shows.</strong> The grid sees ' + real + ' saved against ' + rep +
+          ' on paper, because energy moved into hours of spare clean power avoids a whole gas plant\'s output, which an average figure dilutes.';
+      case 'matches':
+        return '<strong>' + label + ' roughly delivers what it reports:</strong> ' + rep + ' on paper and ' + real + ' in reality.';
+      default:
+        return state.slack === 0 ? '<strong>Nothing can move.</strong> With flexibility set to zero every job runs as soon as it is ready.' :
+          '<strong>' + label + ' barely changes anything here.</strong> It moves little energy, or moves it between hours that look alike to the grid.';
+    }
+  }
+
+  function renderTiles() {
+    var F = last.policies[state.focus], gap = F.reportedSavedT - F.realSavedT;
+    var tiles = [
+      { l: '<i class="key" style="background:var(--avg)"></i>Reported saving', v: signedT(F.reportedSavedT), s: signed(F.reportedSaving) + ' of the reported footprint' },
+      { l: '<i class="key" style="background:var(--marg)"></i>Real saving', v: signedT(F.realSavedT), s: signed(F.realSaving) + ' of real emissions' },
+      { l: 'Report minus reality', v: signedT(gap), s: Math.abs(gap) < 0.5 ? 'the report is right' : gap > 0 ? 'the report overstates the saving' : 'the report understates the saving' },
+      { l: 'Average wait', v: F.meanDelay.toFixed(1) + ' h', s: 'extra hours to finish each run' }
+    ];
+    $('tiles').innerHTML = tiles.map(function (t) {
+      return '<div class="tile"><div class="t-label">' + t.l + '</div><div class="t-value">' + t.v + '</div><div class="t-sub">' + t.s + '</div></div>';
+    }).join('');
+    var p = M.PRESETS[state.preset], s = last.summary;
+    $('verdict').innerHTML = verdictText(state.focus, F) + ' <span class="hint">' + esc(p.label) + ', weather year ' + state.seed + ': spare clean power in ' +
+      fmtPct(s.curtailShare, 0) + ' of hours, average intensity ' + fmtInt(s.weightedAvg) + ' g/kWh, marginal intensity ' + fmtInt(s.meanMarg) + ' g/kWh on average.</span>';
+  }
+
+  /* ---------- horizontal bar and range charts ---------- */
+  // Bar with a 4px rounded data end and a square end at the baseline.
+  function barPath(x, y, w, h, positive) {
+    var r = Math.min(4, w / 2, h / 2);
+    if (positive) {
+      return 'M' + x + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
+        'V' + (y + h - r) + 'Q' + (x + w) + ',' + (y + h) + ' ' + (x + w - r) + ',' + (y + h) + 'H' + x + 'Z';
+    }
+    return 'M' + (x + w) + ',' + y + 'H' + (x + r) + 'Q' + x + ',' + y + ' ' + x + ',' + (y + r) +
+      'V' + (y + h - r) + 'Q' + x + ',' + (y + h) + ' ' + (x + r) + ',' + (y + h) + 'H' + (x + w) + 'Z';
+  }
+
+  // Shared layout for one row per scheduler: labels beside the plot when wide, above it when narrow.
+  function rowLayout(el, rows, lo, hi, perRow) {
+    var W = chartWidth(el), narrow = W < 560;
+    var labelW = narrow ? 0 : 200, labelH = narrow ? 18 : 0;
+    var tk = ticks(lo, hi, narrow ? 3 : 5);
+    lo = tk[0]; hi = tk[tk.length - 1];
+    var padL = labelW + (lo < 0 ? 58 : 4), padR = 62, rowH = labelH + perRow + 10, top = 4;
+    var H = top + rows * rowH + 22;
+    return {
+      W: W, H: H, narrow: narrow, tk: tk, top: top, rowH: rowH, labelH: labelH, labelW: labelW,
+      x: function (v) { return padL + (v - lo) / (hi - lo) * (W - padL - padR); }
+    };
+  }
+
+  function axisX(L) {
+    var s = '';
+    L.tk.forEach(function (t) {
+      s += '<line class="axis-line" x1="' + L.x(t) + '" x2="' + L.x(t) + '" y1="' + L.top + '" y2="' + (L.H - 20) + '"/>';
+      s += '<text x="' + L.x(t) + '" y="' + (L.H - 6) + '" text-anchor="middle">' + fmtInt(t) + '</text>';
+    });
+    return s + '<line class="zero-line" x1="' + L.x(0) + '" x2="' + L.x(0) + '" y1="' + L.top + '" y2="' + (L.H - 20) + '"/>';
+  }
+
+  function rowLabel(L, i, p) {
+    var y = L.top + i * L.rowH;
+    return '<text class="row-label' + (p.key === state.focus ? ' focus' : '') + '" x="0" y="' + (L.narrow ? y + 12 : y + L.rowH / 2 + 1) + '">' + esc(p.label) + '</text>';
+  }
+
+  function renderPolicyChart() {
+    var P = last.policies, pols = M.POLICIES.filter(function (p) { return p.key !== 'now'; }), el = $('policyChart');
+    var lo = 0, hi = 1;
+    pols.forEach(function (p) { lo = Math.min(lo, P[p.key].reportedSavedT, P[p.key].realSavedT); hi = Math.max(hi, P[p.key].reportedSavedT, P[p.key].realSavedT); });
+    var L = rowLayout(el, pols.length, lo, hi, 30);
+    var s = svgOpen(L.W, L.H, 'Reported and real tonnes of CO2 saved by each scheduler in a year') + axisX(L);
+    pols.forEach(function (p, i) {
+      s += rowLabel(L, i, p);
+      var y0 = L.top + i * L.rowH + L.labelH + 4;
+      [['reportedSavedT', 'reportedSaving', 'var(--avg)', 'Reported'], ['realSavedT', 'realSaving', 'var(--marg)', 'Real']].forEach(function (m, j) {
+        var v = P[p.key][m[0]], y = y0 + j * 15, w = Math.abs(L.x(v) - L.x(0));
+        s += '<path d="' + barPath(L.x(Math.min(0, v)), y, Math.max(w, 1), 13, v >= 0) + '" fill="' + m[2] + '" data-tip="' +
+          esc(p.label + '|' + m[3] + ' saving: ' + signedT(v) + ' (' + signed(P[p.key][m[1]]) + ')') + '"/>';
+        s += '<text x="' + (v >= 0 ? L.x(v) + 5 : L.x(v) - 5) + '" y="' + (y + 10.5) + '" text-anchor="' + (v >= 0 ? 'start' : 'end') + '">' + signedT(v) + '</text>';
+      });
+    });
+    el.innerHTML = s + '</svg>';
+  }
+
+  function renderPolicyTable() {
+    var P = last.policies;
+    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col" class="opt">Reported t CO₂</th><th scope="col" class="opt">Real t CO₂</th><th scope="col">Reported saving</th><th scope="col">Real saving</th><th scope="col">Average wait</th></tr></thead><tbody>';
+    M.POLICIES.forEach(function (p) {
+      var R = P[p.key], base = p.key === 'now';
+      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td class="opt">' + fmtInt(R.reported) + '</td><td class="opt">' + fmtInt(R.real) +
+        '</td><td>' + (base ? 'baseline' : signedT(R.reportedSavedT) + '<br><span class="hint">' + signed(R.reportedSaving) + '</span>') + '</td><td class="' + (R.realSavedT < -0.5 ? 'neg' : '') + '">' +
+        (base ? 'baseline' : signedT(R.realSavedT) + '<br><span class="hint">' + signed(R.realSaving) + '</span>') + '</td><td>' + R.meanDelay.toFixed(1) + ' h</td></tr>';
+    });
+    $('policyTable').innerHTML = '<caption class="visually-hidden">Emissions by scheduler over the year</caption>' + h + '</tbody>';
+  }
+
+  /* ---------- week explorer ---------- */
+  function weekLoads(key, start) {
+    var load = [];
+    for (var i = 0; i < 168; i++) load.push(0);
+    last.policies[key].placements.forEach(function (pl) {
+      if (pl.release >= start + 168 || pl.release + 700 < start) return;
+      var mw = state.jobs[pl.job].mw;
+      pl.offsets.forEach(function (o) {
+        var t = pl.release + o - start;
+        if (t >= 0 && t < 168) load[t] += mw;
+      });
+    });
+    return load;
+  }
+
+  function stackSeries(g) {
+    var series = [
+      { label: 'Nuclear', color: 'var(--nuclear)', get: function (t) { return g.nuclear[t]; } },
+      { label: 'Wind', color: 'var(--wind)', get: function (t) { return g.wind[t]; } },
+      { label: 'Solar', color: 'var(--solar)', get: function (t) { return g.solar[t]; } }
+    ];
+    g.preset.blocks.forEach(function (b, i) {
+      series.push({ label: b.name, color: 'var(' + BLOCK_VARS[b.key] + ')', get: function (t) { return g.thermal[t][i]; } });
+    });
+    series.push({ label: 'Emergency supply', color: 'var(--reserve)', get: function (t) { return g.shortfall[t]; } });
+    series.push({ label: 'Spare (curtailed)', color: 'var(--spare)', get: function (t) { return g.curtail[t]; } });
+    return series;
+  }
+
+  function hGrid(s, tk, y, x0, x1, fmt) {
+    tk.forEach(function (t) {
+      s.push('<line class="axis-line" x1="' + x0 + '" x2="' + x1 + '" y1="' + y(t) + '" y2="' + y(t) + '"/>');
+      s.push('<text x="' + (x0 - 6) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + fmt(t) + '</text>');
+    });
+  }
+
+  function renderWeek() {
+    if (!last) return;
+    var g = last.grid, start = (state.week - 1) * 168, n = 168, box = $('weekChart');
+    var series = stackSeries(g), W = chartWidth(box), padL = 42, padR = 8, plotW = W - padL - padR;
+    var x = function (i) { return padL + (i + 0.5) / n * plotW; };
+    var h1 = 150, h2 = 100, h3 = 64, gap = 30, top = 18;
+    var y1o = top, y2o = y1o + h1 + gap, y3o = y2o + h2 + gap, H = y3o + h3 + 24;
+    var s = [svgOpen(W, H, 'Generation mix, average and marginal intensity, and AI compute load in week ' + state.week)];
+    // generation
+    var maxG = 0, i;
+    for (i = 0; i < n; i++) {
+      var tot = 0;
+      series.forEach(function (sr) { tot += sr.get(start + i); });
+      maxG = Math.max(maxG, tot);
+    }
+    var tk1 = ticks(0, maxG, 3), top1 = tk1[tk1.length - 1];
+    var y1 = function (v) { return y1o + h1 - v / top1 * h1; };
+    s.push('<text class="title" x="0" y="' + (y1o - 8) + '">Generation (GW)</text>');
+    hGrid(s, tk1, y1, padL, W - padR, function (t) { return t; });
+    var cum = [], shown = [];
+    for (i = 0; i < n; i++) cum.push(0);
+    series.forEach(function (sr) {
+      var any = false, lower = cum.slice(), upper = [];
+      for (var i = 0; i < n; i++) { var v = sr.get(start + i); if (v > 1e-6) any = true; upper.push(lower[i] + v); }
+      if (!any) return;
+      shown.push(sr);
+      var d = 'M' + x(0) + ',' + y1(upper[0]);
+      for (i = 1; i < n; i++) d += 'L' + x(i) + ',' + y1(upper[i]);
+      for (i = n - 1; i >= 0; i--) d += 'L' + x(i) + ',' + y1(lower[i]);
+      s.push('<path d="' + d + 'Z" fill="' + sr.color + '"/>');
+      cum = upper;
+    });
+    // intensity
+    var maxI = 1;
+    for (i = 0; i < n; i++) maxI = Math.max(maxI, g.avg[start + i], g.marg[start + i]);
+    var tk2 = ticks(0, maxI, 3), top2 = tk2[tk2.length - 1];
+    var y2 = function (v) { return y2o + h2 - v / top2 * h2; };
+    s.push('<text class="title" x="0" y="' + (y2o - 8) + '">Grid intensity (g CO₂/kWh)</text>');
+    hGrid(s, tk2, y2, padL, W - padR, fmtInt);
+    [['marg', 'var(--marg)'], ['avg', 'var(--avg)']].forEach(function (m) {
+      var d = '';
+      for (var i = 0; i < n; i++) d += (i ? 'L' : 'M') + x(i) + ',' + y2(g[m[0]][start + i]);
+      s.push('<path d="' + d + '" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+    });
+    // AI load
+    var now = weekLoads('now', start), foc = weekLoads(state.focus, start), maxL = 1;
+    for (i = 0; i < n; i++) maxL = Math.max(maxL, now[i], foc[i]);
+    var tk3 = ticks(0, maxL, 2), top3 = tk3[tk3.length - 1];
+    var y3 = function (v) { return y3o + h3 - v / top3 * h3; };
+    var focShort = policy(state.focus).short;
+    s.push('<text class="title" x="0" y="' + (y3o - 8) + '">AI compute load (MW)</text>');
+    hGrid(s, tk3, y3, padL, W - padR, function (t) { return t; });
+    [[now, 'var(--now-line)'], [foc, 'var(--ink-line)']].forEach(function (m) {
+      var d = '', half = plotW / n / 2;
+      for (var i = 0; i < n; i++) d += (i ? 'L' : 'M') + (x(i) - half) + ',' + y3(m[0][i]) + 'L' + (x(i) + half) + ',' + y3(m[0][i]);
+      s.push('<path d="' + d + '" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linejoin="round"/>');
+    });
+    for (var dd = 0; dd < 7; dd++) {
+      var xx = padL + dd * 24 / n * plotW;
+      s.push('<line class="axis-line" x1="' + xx + '" x2="' + xx + '" y1="' + y1o + '" y2="' + (y3o + h3) + '"/>');
+      s.push('<text x="' + (xx + 3) + '" y="' + (H - 6) + '">' + DAY_NAMES[dd] + '</text>');
+    }
+    s.push('<line class="xhair" x1="0" x2="0" y1="' + y1o + '" y2="' + (y3o + h3) + '" stroke="var(--text-2)" stroke-width="1" style="display:none"/>');
+    s.push('<rect class="scrub" x="' + padL + '" y="' + y1o + '" width="' + plotW + '" height="' + (y3o + h3 - y1o) + '" fill="transparent"/>');
+    s.push('</svg>');
+    box.innerHTML = s.join('');
+
+    $('weekLegend').innerHTML =
+      '<div class="legend"><b>Generation</b>' + shown.map(function (sr) { return '<span><i class="key" style="background:' + sr.color + '"></i>' + esc(sr.label) + '</span>'; }).join('') + '</div>' +
+      '<div class="legend"><b>Intensity</b><span><i class="key" style="background:var(--avg)"></i>Average</span><span><i class="key" style="background:var(--marg)"></i>Marginal</span></div>' +
+      '<div class="legend"><b>AI load</b><span><i class="key" style="background:var(--now-line)"></i>Run now</span><span><i class="key" style="background:var(--ink-line)"></i>' + esc(policy(state.focus).label) + '</span></div>';
+
+    var labels = M.marginLabels(g.preset);
+    scrubber(box, {
+      n: n, W: W, x: x, live: $('weekLive'),
+      index: function (sx) { return Math.floor((sx - padL) / plotW * n); },
+      html: function (i) {
+        var t = start + i;
+        return '<b>' + hourLabel(t) + '</b><br>Demand ' + g.demand[t].toFixed(1) + ' GW, wind ' + g.wind[t].toFixed(1) + ', solar ' + g.solar[t].toFixed(1) +
+          (g.curtail[t] > 0 ? ', spare ' + g.curtail[t].toFixed(1) : '') + '<br>Average ' + fmtInt(g.avg[t]) + ' g/kWh, marginal ' + fmtInt(g.marg[t]) +
+          ' g/kWh<br>On the margin: ' + esc(labels[g.code[t]]) + '<br>AI load: run now ' + now[i].toFixed(1) + ' MW, ' + esc(focShort) + ' ' + foc[i].toFixed(1) + ' MW';
+      }
+    });
+
+    var h = '<thead><tr><th scope="col">Day</th><th scope="col" class="opt">Demand GWh</th><th scope="col">Wind and solar share</th><th scope="col">Hours of spare power</th><th scope="col">Average g/kWh</th><th scope="col">Marginal g/kWh</th><th scope="col" class="opt">AI MWh run now</th><th scope="col" class="opt">AI MWh ' + esc(focShort) + '</th></tr></thead><tbody>';
+    for (var d = 0; d < 7; d++) {
+      var dem = 0, ren = 0, spare = 0, sa = 0, sm = 0, ln = 0, lf = 0;
+      for (var k = 0; k < 24; k++) {
+        var t = start + d * 24 + k;
+        dem += g.demand[t]; ren += g.wind[t] + g.solar[t]; spare += g.curtail[t] > 0 ? 1 : 0;
+        sa += g.avg[t] * g.demand[t]; sm += g.marg[t]; ln += now[d * 24 + k]; lf += foc[d * 24 + k];
+      }
+      h += '<tr><td>' + DAY_NAMES[d] + '</td><td class="opt">' + fmtInt(dem) + '</td><td>' + fmtPct(ren / dem, 0) + '</td><td>' + spare + '</td><td>' + fmtInt(sa / dem) + '</td><td>' + fmtInt(sm / 24) + '</td><td class="opt">' + fmtInt(ln) + '</td><td class="opt">' + fmtInt(lf) + '</td></tr>';
+    }
+    $('weekTable').innerHTML = '<caption class="visually-hidden">Daily summary of week ' + state.week + '</caption>' + h + '</tbody>';
+  }
+
+  /* ---------- look inside one run ---------- */
+  var runState = { job: 3, run: 10 };
+
+  function renderRun() {
+    if (!last) return;
+    if (runState.job >= state.jobs.length) runState.job = 0;
+    $('runJob').innerHTML = state.jobs.map(function (j, i) {
+      return '<option value="' + i + '"' + (i === runState.job ? ' selected' : '') + '>' + esc(j.name || 'Job ' + (i + 1)) + '</option>';
+    }).join('');
+    var all = M.buildInstances(state.jobs, state.slack), mine = [];
+    all.forEach(function (it, i) { if (it.job === runState.job) mine.push(i); });
+    var slider = $('runIndex'), box = $('runChart');
+    if (!mine.length) {
+      $('runOut').textContent = 'no runs fit in the year';
+      slider.disabled = true;
+      box.innerHTML = ''; $('runTable').innerHTML = ''; $('runHint').textContent = ''; $('runLegend').innerHTML = '';
+      return;
+    }
+    slider.disabled = false;
+    runState.run = Math.max(1, Math.min(mine.length, runState.run));
+    slider.max = mine.length; slider.value = runState.run;
+    var ex = M.explainRun(last, mine[runState.run - 1]), it = ex.instance;
+    $('runOut').textContent = 'run ' + runState.run + ' of ' + mine.length;
+    $('runHint').textContent = 'Ready ' + hourLabel(it.release) + ', deadline ' + hourLabel(it.release + it.window) + '. Needs ' + it.hours + ' hour' + (it.hours === 1 ? '' : 's') +
+      ' at ' + it.mw + ' MW' + (it.pausable ? ' and can be paused.' : ' in one block.') + (it.window === it.hours ? ' It has no slack, so every scheduler runs it straight away.' : '');
+    var n = it.window, W = chartWidth(box), narrow = W < 560;
+    var padL = narrow ? 88 : 112, padR = 8, plotW = W - padL - padR, cellW = plotW / n;
+    var x = function (k) { return padL + (k + 0.5) * cellW; };
+    var hI = 80, gap = 30, top = 18, laneH = 15, laneGap = 4, pols = M.POLICIES;
+    var y1o = top, y2o = y1o + hI + gap, y3o = y2o + hI + 16, H = y3o + pols.length * (laneH + laneGap) + 20;
+    var s = [svgOpen(W, H, 'Forecast and actual intensity during this run\'s window, and the hours each scheduler chose')];
+    [['marg', 'Marginal intensity (g/kWh)', 'var(--marg)', y1o], ['avg', 'Average intensity (g/kWh)', 'var(--avg)', y2o]].forEach(function (m) {
+      var key = m[0], yo = m[3], mx = 1;
+      for (var k = 0; k < n; k++) mx = Math.max(mx, ex.forecast[key][k], ex.actual[key][k]);
+      var tk = ticks(0, mx, 3), topV = tk[tk.length - 1];
+      var y = function (v) { return yo + hI - v / topV * hI; };
+      s.push('<text class="title" x="0" y="' + (yo - 8) + '">' + m[1] + '</text>');
+      hGrid(s, tk, y, padL, W - padR, fmtInt);
+      [['forecast', 1.5, 0.45], ['actual', 2, 1]].forEach(function (src) {
+        var d = '';
+        for (var k = 0; k < n; k++) d += (k ? 'L' : 'M') + x(k) + ',' + y(ex[src[0]][key][k]);
+        s.push('<path d="' + d + '" fill="none" stroke="' + m[2] + '" stroke-opacity="' + src[2] + '" stroke-width="' + src[1] + '" stroke-linejoin="round"/>');
+      });
+    });
+    pols.forEach(function (p, i) {
+      var y = y3o + i * (laneH + laneGap);
+      s.push('<text class="row-label' + (p.key === state.focus ? ' focus' : '') + '" x="0" y="' + (y + 11.5) + '" style="font-size:11.5px">' + esc(p.short) + '</text>');
+      s.push('<rect x="' + padL + '" y="' + y + '" width="' + plotW + '" height="' + laneH + '" fill="var(--lane)"/>');
+      var gapPx = cellW > 4 ? 1 : 0;
+      ex.policies[p.key].offsets.forEach(function (o) {
+        s.push('<rect x="' + (padL + o * cellW + gapPx / 2) + '" y="' + y + '" width="' + Math.max(cellW - gapPx, 0.8) + '" height="' + laneH + '" fill="var(--ink-line)"/>');
+      });
+    });
+    var step = n <= 24 ? 6 : n <= 72 ? 12 : n <= 200 ? 24 : 48;
+    if (narrow && n > 72) step *= 2;
+    for (var k = 0; k <= n; k += step) s.push('<text x="' + (padL + k * cellW) + '" y="' + (H - 4) + '" text-anchor="middle">+' + k + 'h</text>');
+    s.push('<line class="xhair" x1="0" x2="0" y1="' + y1o + '" y2="' + (H - 18) + '" stroke="var(--text-2)" stroke-width="1" style="display:none"/>');
+    s.push('<rect class="scrub" x="' + padL + '" y="' + y1o + '" width="' + plotW + '" height="' + (H - 18 - y1o) + '" fill="transparent"/>');
+    s.push('</svg>');
+    box.innerHTML = s.join('');
+    $('runLegend').innerHTML = '<span><i class="key" style="background:var(--marg)"></i>Marginal</span><span><i class="key" style="background:var(--avg)"></i>Average</span>' +
+      '<span><i class="key" style="background:var(--text-2);opacity:.45"></i>Faint: forecast</span><span><i class="key" style="background:var(--ink-line)"></i>Hours chosen</span>';
+    var labels = M.marginLabels(last.grid.preset);
+    scrubber(box, {
+      n: n, W: W, x: x, live: $('runLive'),
+      index: function (sx) { return Math.floor((sx - padL) / cellW); },
+      html: function (k) {
+        var who = pols.filter(function (p) { return ex.policies[p.key].offsets.indexOf(k) >= 0; }).map(function (p) { return p.short; });
+        return '<b>' + hourLabel(it.release + k) + ' (+' + k + 'h)</b><br>Marginal: forecast ' + fmtInt(ex.forecast.marg[k]) + ', actual ' + fmtInt(ex.actual.marg[k]) +
+          ' g/kWh<br>Average: forecast ' + fmtInt(ex.forecast.avg[k]) + ', actual ' + fmtInt(ex.actual.avg[k]) + ' g/kWh<br>On the margin: ' + esc(labels[ex.actual.code[k]]) +
+          '<br>Chosen by: ' + (who.length ? esc(who.join(', ')) : 'none');
+      }
+    });
+    var base = ex.policies.now;
+    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col">Starts</th><th scope="col">Finishes</th><th scope="col" class="opt">Reported kg CO₂</th><th scope="col" class="opt">Real kg CO₂</th><th scope="col">Real saving</th></tr></thead><tbody>';
+    pols.forEach(function (p) {
+      var P = ex.policies[p.key], o = P.offsets, saved = (base.real - P.real) * 1000;
+      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td>+' + o[0] + 'h</td><td>+' + (o[o.length - 1] + 1) + 'h</td><td class="opt">' + fmtInt(P.reported * 1000) +
+        '</td><td class="opt">' + fmtInt(P.real * 1000) + '</td><td class="' + (saved < -0.5 ? 'neg' : '') + '">' +
+        (p.key === 'now' ? 'baseline' : (saved >= 0.5 ? '+' : saved <= -0.5 ? MINUS : '') + fmtInt(Math.abs(saved)) + ' kg') + '</td></tr>';
+    });
+    $('runTable').innerHTML = '<caption class="visually-hidden">This run under each scheduler</caption>' + h + '</tbody>';
+  }
+  $('runJob').addEventListener('change', function () { runState.job = Number(this.value); runState.run = 1; renderRun(); });
+  $('runIndex').addEventListener('input', function () { runState.run = Number(this.value); renderRun(); });
+
+  /* ---------- margin mix ---------- */
+  // White or near-black text inside a coloured fill, whichever contrasts more.
+  function inkOn(varName) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(css(varName));
+    if (!m) return '#ffffff';
+    var n = parseInt(m[1], 16), ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (c) {
+      c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    var L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+    return 1.05 / (L + 0.05) >= (L + 0.05) / 0.0535 ? '#ffffff' : '#0b0b0b';
+  }
+
+  function renderMix() {
+    var P = last.policies, p = last.grid.preset, labels = M.marginLabels(p), keys = M.marginKeys(p), el = $('mixChart');
+    var vars = keys.map(function (k) { return k === 'surplus' ? '--surplus' : k === 'reserve' ? '--reserve' : BLOCK_VARS[k]; });
+    var W = chartWidth(el), narrow = W < 560, labelW = narrow ? 0 : 120, labelH = narrow ? 16 : 0, barH = 20, rowH = labelH + barH + 10;
+    var plotW = W - labelW - 2, H = M.POLICIES.length * rowH + 2;
+    var s = svgOpen(W, H, 'Share of the jobs\' energy by the plant on the margin, for each scheduler'), used = {};
+    M.POLICIES.forEach(function (pol, i) {
+      var R = P[pol.key], tot = 0, y = i * rowH, xx = labelW;
+      R.mix.forEach(function (v) { tot += v; });
+      s += '<text class="row-label' + (pol.key === state.focus ? ' focus' : '') + '" x="0" y="' + (narrow ? y + 11 : y + 14) + '">' + esc(narrow ? pol.label : pol.short) + '</text>';
+      var by = y + labelH;
+      R.mix.forEach(function (v, c) {
+        if (v <= 0) return;
+        used[c] = true;
+        var w = v / tot * plotW;
+        s += '<rect x="' + xx + '" y="' + by + '" width="' + Math.max(w - 2, 0.75) + '" height="' + barH + '" rx="2" fill="var(' + vars[c] + ')" data-tip="' +
+          esc(pol.label + '|' + labels[c] + ': ' + fmtPct(v / tot) + ' of the energy') + '"/>';
+        if (w > 40) s += '<text x="' + (xx + w / 2 - 1) + '" y="' + (by + 14) + '" text-anchor="middle" style="fill:' + inkOn(vars[c]) + '">' + fmtPct(v / tot, 0) + '</text>';
+        xx += w;
+      });
+    });
+    el.innerHTML = s + '</svg>';
+    $('mixLegend').innerHTML = keys.map(function (k, c) {
+      return used[c] ? '<span><i class="key" style="background:var(' + vars[c] + ')"></i>' + esc(labels[c]) + '</span>' : '';
+    }).join('');
+  }
+
+  /* ---------- per-job table ---------- */
+  function renderJobTable() {
+    var F = last.policies[state.focus], B = last.policies.now;
+    var h = '<thead><tr><th scope="col">Job</th><th scope="col" class="opt">Runs</th><th scope="col" class="opt">Energy MWh</th><th scope="col">Reported saving</th><th scope="col">Real saving</th><th scope="col">Average wait</th></tr></thead><tbody>';
+    state.jobs.forEach(function (j, i) {
+      var f = F.perJob[i], b = B.perJob[i];
+      if (!f || !f.n) { h += '<tr><td>' + esc(j.name) + '</td><td class="opt">0</td><td colspan="4">No runs fit in the year</td></tr>'; return; }
+      var ms = b.real - f.real;
+      h += '<tr><td>' + esc(j.name) + '</td><td class="opt">' + f.n + '</td><td class="opt">' + fmtInt(f.mwh) + '</td><td>' + signedT(b.reported - f.reported) + '</td><td class="' + (ms < -0.5 ? 'neg' : '') + '">' + signedT(ms) + '</td><td>' + (f.delay / f.n).toFixed(1) + ' h</td></tr>';
+    });
+    $('jobTable').innerHTML = '<caption class="visually-hidden">Savings by job</caption>' + h + '</tbody>';
   }
 
   /* ---------- what would change the answer ---------- */
   var CURVES = [
-    { id: 'curveWind', field: 'windScale', values: [0.5, 0.75, 1, 1.5, 2, 2.5, 3], name: 'Wind fleet',
+    { id: 'curveWind', field: 'windScale', values: [0.5, 0.75, 1, 1.5, 2, 2.5, 3], labels: [0.5, 1, 1.5, 2, 2.5, 3], name: 'Wind fleet',
       fmt: function (v) { return Math.round(v * 100) + '%'; } },
-    { id: 'curveSlack', field: 'slack', values: [0, 0.25, 0.5, 1, 1.5, 2, 3], name: 'Flexibility',
+    { id: 'curveSlack', field: 'slack', values: [0, 0.25, 0.5, 1, 1.5, 2, 3], labels: [0, 0.5, 1, 1.5, 2, 2.5, 3], name: 'Flexibility',
       fmt: function (v) { return v + '×'; } }
   ];
   var curveCache = {}, curveTimer = null;
@@ -1206,7 +1661,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     Object.keys(c).forEach(function (f) { if (f !== field) k[f] = c[f]; });
     return field + ':' + JSON.stringify(k);
   }
-
   function curveValues(spec) {
     var v = spec.values.slice(), cur = state[spec.field];
     if (v.indexOf(cur) < 0) v.push(cur);
@@ -1219,7 +1673,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     pending.forEach(function (spec) {
       var el = $(spec.id);
       if (!el.querySelector('svg')) el.innerHTML = '<div class="pending">Calculating…</div>';
-      else el.style.opacity = '0.5';
+      else el.classList.add('stale');
     });
     function next() {
       var spec = pending.shift();
@@ -1231,518 +1685,106 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
       CURVES.forEach(drawCurve);
       drawCurveTable();
     }
-    curveTimer = setTimeout(next, pending.length ? 30 : 0);
+    curveTimer = setTimeout(next, pending.length ? 40 : 0);
   }
 
   function drawCurve(spec) {
     var pts = curveCache[curveKey(spec.field)], el = $(spec.id);
     if (!pts) return;
-    el.style.opacity = '';
+    el.classList.remove('stale');
     var key = state.focus, cur = state[spec.field];
     var series = [
-      { color: 'var(--now-line)', w: 1.5, get: function (p) { return p.policies.oracle.realSavedT; } },
-      { color: 'var(--avg)', w: 2, get: function (p) { return p.policies[key].reportedSavedT; } },
-      { color: 'var(--marg)', w: 2, get: function (p) { return p.policies[key].realSavedT; } }
+      { color: 'var(--now-line)', get: function (p) { return p.policies.oracle.realSavedT; } },
+      { color: 'var(--avg)', get: function (p) { return p.policies[key].reportedSavedT; } },
+      { color: 'var(--marg)', get: function (p) { return p.policies[key].realSavedT; } }
     ];
     var lo = 0, hi = 1;
     pts.forEach(function (p) { series.forEach(function (sr) { var v = sr.get(p); lo = Math.min(lo, v); hi = Math.max(hi, v); }); });
     var tk = ticks(lo, hi, 4);
-    lo = Math.min(lo, tk[0]); hi = Math.max(hi, tk[tk.length - 1]);
-    var W = 360, H = 210, padL = 52, padR = 12, padT = 8, padB = 26;
+    lo = tk[0]; hi = tk[tk.length - 1];
+    var W = chartWidth(el), H = 200, padL = 50, padR = 14, padT = 10, padB = 24;
     var x0 = pts[0].value, x1 = pts[pts.length - 1].value;
     var x = function (v) { return padL + (v - x0) / (x1 - x0) * (W - padL - padR); };
     var y = function (v) { return padT + (hi - v) / (hi - lo) * (H - padT - padB); };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(spec.name) + ': reported, real and best possible tonnes saved as the setting changes">';
-    tk.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(t) + '" y2="' + y(t) + '"/>';
-      s += '<text x="' + (padL - 6) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + fmtInt(t) + '</text>';
-    });
-    if (lo < 0) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(0) + '" y2="' + y(0) + '" stroke="var(--muted)" stroke-width="1"/>';
-    spec.values.forEach(function (v) {
-      s += '<text x="' + x(v) + '" y="' + (H - 8) + '" text-anchor="middle">' + spec.fmt(v) + '</text>';
-    });
-    s += '<line x1="' + x(cur) + '" x2="' + x(cur) + '" y1="' + padT + '" y2="' + (H - padB) + '" stroke="var(--border)" stroke-width="1"/>';
-    series.forEach(function (sr) {
+    var s = [svgOpen(W, H, spec.name + ': reported, real and best possible tonnes saved as the setting changes')];
+    hGrid(s, tk, y, padL, W - padR, fmtInt);
+    if (lo < 0) s.push('<line class="zero-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>');
+    spec.labels.forEach(function (v) { s.push('<text x="' + x(v) + '" y="' + (H - 6) + '" text-anchor="middle">' + spec.fmt(v) + '</text>'); });
+    s.push('<line x1="' + x(cur) + '" x2="' + x(cur) + '" y1="' + padT + '" y2="' + (H - padB) + '" stroke="var(--border)" stroke-width="1"/>');
+    series.forEach(function (sr, j) {
       var d = '';
       pts.forEach(function (p, i) { d += (i ? 'L' : 'M') + x(p.value) + ',' + y(sr.get(p)); });
-      s += '<path d="' + d + '" fill="none" stroke="' + sr.color + '" stroke-width="' + sr.w + '" stroke-linejoin="round" stroke-linecap="round"/>';
+      s.push('<path d="' + d + '" fill="none" stroke="' + sr.color + '" stroke-width="' + (j ? 2 : 1.5) + '" stroke-linejoin="round" stroke-linecap="round"/>');
     });
     pts.forEach(function (p) {
       if (p.value !== cur) return;
-      series.forEach(function (sr) {
-        s += '<circle cx="' + x(p.value) + '" cy="' + y(sr.get(p)) + '" r="4.5" fill="' + sr.color + '" stroke="var(--surface)" stroke-width="2"/>';
-      });
+      series.forEach(function (sr) { s.push('<circle cx="' + x(p.value) + '" cy="' + y(sr.get(p)) + '" r="4.5" fill="' + sr.color + '" stroke="var(--surface)" stroke-width="2"/>'); });
     });
     pts.forEach(function (p, i) {
       var a = i ? (x(pts[i - 1].value) + x(p.value)) / 2 : padL, b = i < pts.length - 1 ? (x(p.value) + x(pts[i + 1].value)) / 2 : W - padR;
       var P = p.policies[key];
-      var tipText = spec.name + ' ' + spec.fmt(p.value) + '|Reported ' + signedT(P.reportedSavedT) + ' · real ' + signedT(P.realSavedT) +
-        ' · best possible ' + signedT(p.policies.oracle.realSavedT) + ' · spare clean power in ' + fmtPct(p.curtailShare, 0) + ' of hours · wait ' + P.meanDelay.toFixed(1) + ' h';
-      s += '<rect x="' + a + '" y="' + padT + '" width="' + Math.max(b - a, 1) + '" height="' + (H - padT - padB) + '" fill="transparent" data-tip="' + esc(tipText) + '"/>';
+      s.push('<rect x="' + a + '" y="' + padT + '" width="' + Math.max(b - a, 1) + '" height="' + (H - padT - padB) + '" fill="transparent" data-tip="' + esc(spec.name + ' ' + spec.fmt(p.value) +
+        '|Reported ' + signedT(P.reportedSavedT) + ', real ' + signedT(P.realSavedT) + ', best possible ' + signedT(p.policies.oracle.realSavedT) +
+        '. Spare clean power in ' + fmtPct(p.curtailShare, 0) + ' of hours; average wait ' + P.meanDelay.toFixed(1) + ' h.') + '"/>');
     });
-    s += '</svg>';
-    el.innerHTML = s;
+    s.push('</svg>');
+    el.innerHTML = s.join('');
   }
 
   function drawCurveTable() {
-    var key = state.focus, h = '<thead><tr><th scope="col">Setting</th><th scope="col">Reported saving</th><th scope="col">Real saving</th><th scope="col">Best possible</th><th scope="col">Spare power hours</th><th scope="col">Average wait</th></tr></thead><tbody>';
+    var key = state.focus, h = '<thead><tr><th scope="col">Setting</th><th scope="col">Reported</th><th scope="col">Real</th><th scope="col">Best possible</th><th scope="col" class="opt">Spare power hours</th><th scope="col" class="opt">Average wait</th></tr></thead><tbody>';
     CURVES.forEach(function (spec) {
-      var pts = curveCache[curveKey(spec.field)];
-      if (!pts) return;
-      pts.forEach(function (p) {
+      (curveCache[curveKey(spec.field)] || []).forEach(function (p) {
         var P = p.policies[key];
         h += '<tr' + (p.value === state[spec.field] ? ' class="focus"' : '') + '><td>' + esc(spec.name) + ' ' + spec.fmt(p.value) + '</td><td>' + signedT(P.reportedSavedT) + '</td><td>' + signedT(P.realSavedT) +
-          '</td><td>' + signedT(p.policies.oracle.realSavedT) + '</td><td>' + fmtPct(p.curtailShare, 0) + '</td><td>' + P.meanDelay.toFixed(1) + ' h</td></tr>';
+          '</td><td>' + signedT(p.policies.oracle.realSavedT) + '</td><td class="opt">' + fmtPct(p.curtailShare, 0) + '</td><td class="opt">' + P.meanDelay.toFixed(1) + ' h</td></tr>';
       });
     });
-    $('curveTable').innerHTML = '<caption class="visually-hidden">Savings as wind fleet and flexibility change</caption>' + h + '</tbody>';
+    $('curveTable').innerHTML = '<caption class="visually-hidden">Savings as the wind fleet and flexibility change</caption>' + h + '</tbody>';
   }
-
-  /* ---------- headline ---------- */
-  function policyLabel(key) { return M.POLICIES.filter(function (p) { return p.key === key; })[0].label; }
-  function tonnes(x) { return fmtInt(x) + ' t'; }
-  function signedT(x) { var v = Math.round(x); return (v > 0 ? '+' : v < 0 ? '\u2212' : '') + fmtInt(Math.abs(v)) + ' t'; }
-
-  function verdictText(key, R) {
-    var label = esc(policyLabel(key)), rep = tonnes(R.reportedSavedT), real = tonnes(R.realSavedT);
-    switch (R.verdict) {
-      case 'backfires':
-        return '<strong>' + label + ' looks greener on paper but raises real emissions.</strong> A carbon report would show ' + rep +
-          ' saved, yet in the hours it picks a dirtier plant answers the extra demand, so real emissions rise by ' + tonnes(-R.realSavedT) + '.';
-      case 'worse':
-        return '<strong>' + label + ' raises emissions.</strong> Real emissions go up by ' + tonnes(-R.realSavedT) + ' against running each job as soon as it is ready.';
-      case 'overstates':
-        return '<strong>' + label + ' overstates its benefit.</strong> A carbon report would show ' + rep + ' saved, but the grid sees only ' + real +
-          '. Most of the moved energy lands in hours where the same kind of plant still answers extra demand; the average just has more renewables mixed in.';
-      case 'understates':
-        return '<strong>' + label + ' does more good than the report shows.</strong> The grid sees ' + real + ' saved against ' + rep +
-          ' on paper, because energy moved into hours of spare clean power avoids a whole gas plant\'s output, which an average figure dilutes.';
-      case 'matches':
-        return '<strong>' + label + ' roughly delivers what it reports:</strong> ' + rep + ' on paper and ' + real + ' in reality.';
-      default:
-        return '<strong>Little changes.</strong> With this much flexibility there is almost nothing to gain from moving the jobs.';
-    }
-  }
-
-  function renderTiles() {
-    var P = last.policies, F = P[state.focus];
-    var gap = F.reportedSavedT - F.realSavedT;
-    var tiles = [
-      { l: '<i class="key" style="background:var(--avg)"></i>Reported saving', v: signedT(F.reportedSavedT), s: signed(F.reportedSaving) + ' on average grid intensity' },
-      { l: '<i class="key" style="background:var(--marg)"></i>Real saving', v: signedT(F.realSavedT), s: signed(F.realSaving) + ' of marginal emissions' },
-      { l: 'Report minus reality', v: signedT(gap), s: Math.abs(gap) < 0.5 ? 'the report is right' : gap > 0 ? 'the report overstates the saving' : 'the report understates the saving' },
-      { l: 'Average wait', v: F.meanDelay.toFixed(1) + ' h', s: 'extra hours to finish, per job run' }
-    ];
-    $('tiles').innerHTML = tiles.map(function (t) {
-      return '<div class="tile"><div class="t-label">' + t.l + '</div><div class="t-value">' + t.v + '</div><div class="t-sub">' + t.s + '</div></div>';
-    }).join('');
-    var p = M.PRESETS[state.preset];
-    $('verdict').innerHTML = verdictText(state.focus, F) + ' <span class="hint">' + esc(p.label) + ': ' + fmtPct(last.summary.curtailShare, 0) +
-      ' of hours have spare clean power; average intensity ' + fmtInt(last.summary.weightedAvg) + ' g/kWh.</span>';
-  }
-
-  /* ---------- chart helpers ---------- */
-  function niceStep(range, target) {
-    var raw = range / target, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
-    var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
-    return step * mag;
-  }
-  function ticks(lo, hi, target) {
-    var step = niceStep(hi - lo || 1, target || 4), out = [];
-    for (var v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Math.abs(v) < 1e-9 ? 0 : v);
-    return out;
-  }
-
-  /* ---------- policy chart ---------- */
-  function renderPolicyChart() {
-    var P = last.policies, pols = M.POLICIES.filter(function (p) { return p.key !== 'now'; });
-    var vals = [];
-    pols.forEach(function (p) { vals.push(P[p.key].reportedSavedT, P[p.key].realSavedT); });
-    var lo = Math.min(0, Math.min.apply(null, vals)), hi = Math.max(1, Math.max.apply(null, vals));
-    var tk = ticks(lo, hi, 5);
-    lo = Math.min(lo, tk[0]); hi = Math.max(hi, tk[tk.length - 1]);
-    var W = 720, labelW = 190, padR = 56, rowH = 46, top = 6, H = top + pols.length * rowH + 24;
-    var x = function (v) { return labelW + (v - lo) / (hi - lo) * (W - labelW - padR); };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Reported and real tonnes of CO2 saved by each scheduler, compared with running on release">';
-    tk.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + x(t) + '" x2="' + x(t) + '" y1="' + top + '" y2="' + (H - 20) + '"/>';
-      s += '<text x="' + x(t) + '" y="' + (H - 6) + '" text-anchor="middle">' + fmtInt(t) + '</text>';
-    });
-    s += '<line x1="' + x(0) + '" x2="' + x(0) + '" y1="' + top + '" y2="' + (H - 20) + '" stroke="var(--muted)" stroke-width="1"/>';
-    pols.forEach(function (p, i) {
-      var y0 = top + i * rowH + 6;
-      s += '<text x="0" y="' + (y0 + 18) + '" style="fill:var(--text);font-size:12px' + (p.key === state.focus ? ';font-weight:650' : '') + '">' + esc(p.label) + '</text>';
-      [['reportedSavedT', 'reportedSaving', 'var(--avg)', 'Reported'], ['realSavedT', 'realSaving', 'var(--marg)', 'Real']].forEach(function (m, j) {
-        var v = P[p.key][m[0]], y = y0 + j * 16, x0 = x(Math.min(0, v)), w = Math.abs(x(v) - x(0));
-        s += '<path d="' + barPath(x0, y, Math.max(w, 1), 13, v >= 0) + '" fill="' + m[2] + '" data-tip="' + esc(p.label + '|' + m[3] + ' saving: ' + signedT(v) + ' (' + signed(P[p.key][m[1]]) + ')') + '"/>';
-        var tx = v >= 0 ? x(Math.max(v, 0)) + 5 : x(v) - 5;
-        s += '<text x="' + tx + '" y="' + (y + 10.5) + '" text-anchor="' + (v >= 0 ? 'start' : 'end') + '" style="fill:var(--text-2)">' + signedT(v) + '</text>';
-      });
-    });
-    s += '</svg>';
-    $('policyChart').innerHTML = s;
-  }
-
-  // Horizontal bar with a 4px rounded data end and a square baseline end.
-  function barPath(x, y, w, h, positive) {
-    var r = Math.min(4, w / 2, h / 2);
-    if (positive) {
-      return 'M' + x + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
-        'V' + (y + h - r) + 'Q' + (x + w) + ',' + (y + h) + ' ' + (x + w - r) + ',' + (y + h) + 'H' + x + 'Z';
-    }
-    return 'M' + (x + w) + ',' + y + 'H' + (x + r) + 'Q' + x + ',' + y + ' ' + x + ',' + (y + r) +
-      'V' + (y + h - r) + 'Q' + x + ',' + (y + h) + ' ' + (x + r) + ',' + (y + h) + 'H' + (x + w) + 'Z';
-  }
-
-  function renderPolicyTable() {
-    var P = last.policies;
-    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col">Reported t CO₂</th><th scope="col">Real t CO₂</th><th scope="col">Reported saving</th><th scope="col">Real saving</th><th scope="col">Average wait</th></tr></thead><tbody>';
-    M.POLICIES.forEach(function (p) {
-      var R = P[p.key], base = p.key === 'now';
-      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td>' + fmtInt(R.reported) + '</td><td>' + fmtInt(R.real) +
-        '</td><td>' + (base ? 'baseline' : signedT(R.reportedSavedT) + ' (' + signed(R.reportedSaving) + ')') + '</td><td class="' + (R.realSavedT < -0.5 ? 'neg' : '') + '">' +
-        (base ? 'baseline' : signedT(R.realSavedT) + ' (' + signed(R.realSaving) + ')') + '</td><td>' + R.meanDelay.toFixed(1) + ' h</td></tr>';
-    });
-    h += '</tbody>';
-    $('policyTable').innerHTML = '<caption class="visually-hidden">Emissions by scheduler over the year</caption>' + h;
-  }
-
-  /* ---------- week explorer ---------- */
-  function weekLoads(policy, start) {
-    var load = [];
-    for (var i = 0; i < 168; i++) load.push(0);
-    last.policies[policy].placements.forEach(function (pl) {
-      if (pl.release > start + 168 || pl.release + 700 < start) return;
-      var mw = state.jobs[pl.job].mw;
-      pl.offsets.forEach(function (o) {
-        var t = pl.release + o - start;
-        if (t >= 0 && t < 168) load[t] += mw;
-      });
-    });
-    return load;
-  }
-
-  function stackSeries(g, start) {
-    var p = g.preset, series = [
-      { key: 'nuclear', label: 'Nuclear', color: 'var(--nuclear)', get: function (t) { return g.nuclear[t]; } },
-      { key: 'wind', label: 'Wind', color: 'var(--wind)', get: function (t) { return g.wind[t]; } },
-      { key: 'solar', label: 'Solar', color: 'var(--solar)', get: function (t) { return g.solar[t]; } }
-    ];
-    p.blocks.forEach(function (b, i) {
-      series.push({ key: b.key, label: b.name, color: 'var(' + BLOCK_VARS[b.key] + ')', get: function (t) { return g.thermal[t][i]; } });
-    });
-    series.push({ key: 'reserve', label: 'Emergency supply', color: 'var(--reserve)', get: function (t) { return g.shortfall[t]; } });
-    series.push({ key: 'spare', label: 'Spare (curtailed)', color: 'var(--spare)', get: function (t) { return g.curtail[t]; } });
-    return series;
-  }
-
-  function renderWeek() {
-    if (!last) return;
-    var g = last.grid, start = (state.week - 1) * 168, n = 168;
-    var series = stackSeries(g, start);
-    var W = 720, padL = 44, padR = 10, plotW = W - padL - padR;
-    var x = function (i) { return padL + i / (n - 1) * plotW; };
-    var h1 = 150, h2 = 110, h3 = 70, gap = 26, top = 8;
-    var y1o = top, y2o = y1o + h1 + gap, y3o = y2o + h2 + gap, H = y3o + h3 + 24;
-    // panel 1: generation
-    var totals = [], maxG = 0;
-    for (var i = 0; i < n; i++) {
-      var sum = 0;
-      series.forEach(function (s) { sum += s.get(start + i); });
-      totals.push(sum);
-      if (sum > maxG) maxG = sum;
-    }
-    var tk1 = ticks(0, maxG, 3), top1 = Math.max(maxG, tk1[tk1.length - 1]);
-    var y1 = function (v) { return y1o + h1 - v / top1 * h1; };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Generation mix, average and marginal intensity, and AI compute load in week ' + state.week + '">';
-    s += '<text x="0" y="' + (y1o - 0) + '" dy="-1" style="fill:var(--text);font-weight:600">Generation (GW)</text>';
-    tk1.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y1(t) + '" y2="' + y1(t) + '"/>';
-      s += '<text x="' + (padL - 6) + '" y="' + (y1(t) + 4) + '" text-anchor="end">' + t + '</text>';
-    });
-    var cum = [];
-    for (i = 0; i < n; i++) cum.push(0);
-    var shown = [];
-    series.forEach(function (sr) {
-      var any = false, lower = cum.slice(), upper = [];
-      for (var i = 0; i < n; i++) { var v = sr.get(start + i); if (v > 1e-6) any = true; upper.push(lower[i] + v); }
-      if (!any) { return; }
-      shown.push(sr);
-      var d = 'M' + x(0) + ',' + y1(upper[0]);
-      for (i = 1; i < n; i++) d += 'L' + x(i) + ',' + y1(upper[i]);
-      for (i = n - 1; i >= 0; i--) d += 'L' + x(i) + ',' + y1(lower[i]);
-      s += '<path d="' + d + 'Z" fill="' + sr.color + '" stroke="var(--surface)" stroke-width="0.6"/>';
-      cum = upper;
-    });
-    // panel 2: intensity
-    var maxI = 0;
-    for (i = 0; i < n; i++) maxI = Math.max(maxI, g.avg[start + i], g.marg[start + i]);
-    var tk2 = ticks(0, maxI, 3), top2 = Math.max(maxI, tk2[tk2.length - 1]);
-    var y2 = function (v) { return y2o + h2 - v / top2 * h2; };
-    s += '<text x="0" y="' + (y2o - 6) + '" style="fill:var(--text);font-weight:600">Grid intensity (g CO₂/kWh)</text>';
-    tk2.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y2(t) + '" y2="' + y2(t) + '"/>';
-      s += '<text x="' + (padL - 6) + '" y="' + (y2(t) + 4) + '" text-anchor="end">' + fmtInt(t) + '</text>';
-    });
-    [['marg', 'var(--marg)'], ['avg', 'var(--avg)']].forEach(function (m) {
-      var d = '';
-      for (var i = 0; i < n; i++) d += (i ? 'L' : 'M') + x(i) + ',' + y2(g[m[0]][start + i]);
-      s += '<path d="' + d + '" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-    });
-    // panel 3: AI load
-    var now = weekLoads('now', start), foc = weekLoads(state.focus, start), maxL = 0;
-    for (i = 0; i < n; i++) maxL = Math.max(maxL, now[i], foc[i]);
-    var tk3 = ticks(0, maxL || 1, 2), top3 = Math.max(maxL, tk3[tk3.length - 1]);
-    var y3 = function (v) { return y3o + h3 - v / top3 * h3; };
-    var focLabel = M.POLICIES.filter(function (p) { return p.key === state.focus; })[0].short;
-    s += '<text x="0" y="' + (y3o - 6) + '" style="fill:var(--text);font-weight:600">AI compute load (MW)</text>';
-    tk3.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y3(t) + '" y2="' + y3(t) + '"/>';
-      s += '<text x="' + (padL - 6) + '" y="' + (y3(t) + 4) + '" text-anchor="end">' + t + '</text>';
-    });
-    [[now, 'var(--now-line)'], [foc, 'var(--ink-line)']].forEach(function (m) {
-      var d = '';
-      for (var i = 0; i < n; i++) { d += (i ? 'L' : 'M') + x(i) + ',' + y3(m[0][i]); if (i < n - 1) d += 'L' + x(i + 1) + ',' + y3(m[0][i]); }
-      s += '<path d="' + d + '" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linejoin="round"/>';
-    });
-    // day labels
-    for (var dd = 0; dd < 7; dd++) {
-      var xx = x(dd * 24);
-      s += '<line class="axis-line" x1="' + xx + '" x2="' + xx + '" y1="' + y1o + '" y2="' + (y3o + h3) + '"/>';
-      s += '<text x="' + (xx + 3) + '" y="' + (H - 6) + '">' + DAY_NAMES[dd] + '</text>';
-    }
-    s += '<line id="xhair" x1="0" x2="0" y1="' + y1o + '" y2="' + (y3o + h3) + '" stroke="var(--text-2)" stroke-width="1" style="display:none"/>';
-    s += '<rect id="weekHit" x="' + padL + '" y="' + y1o + '" width="' + plotW + '" height="' + (y3o + h3 - y1o) + '" fill="transparent"/>';
-    s += '</svg>';
-    $('weekChart').innerHTML = s;
-
-    var leg = shown.map(function (sr) { return '<span><i class="key" style="background:' + sr.color + '"></i>' + esc(sr.label) + '</span>'; }).join('');
-    leg += '<span><i class="key" style="background:var(--avg)"></i>Average intensity</span><span><i class="key" style="background:var(--marg)"></i>Marginal intensity</span>';
-    leg += '<span><i class="key" style="background:var(--now-line)"></i>Load: run now</span><span><i class="key" style="background:var(--ink-line)"></i>Load: ' + esc(focLabel) + '</span>';
-    $('weekLegend').innerHTML = leg;
-
-    var svg = $('weekChart').querySelector('svg'), hit = $('weekHit'), xh = $('xhair');
-    var labels = M.marginLabels(g.preset);
-    hit.addEventListener('mousemove', function (ev) {
-      var r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * W;
-      var i = Math.round((sx - padL) / plotW * (n - 1));
-      if (i < 0) i = 0; if (i > n - 1) i = n - 1;
-      var t = start + i;
-      xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.style.display = '';
-      var html = '<b>' + hourLabel(t) + '</b><br>Demand ' + g.demand[t].toFixed(1) + ' GW · wind ' + g.wind[t].toFixed(1) + ' · solar ' + g.solar[t].toFixed(1) +
-        (g.curtail[t] > 0 ? ' · spare ' + g.curtail[t].toFixed(1) : '') + '<br>Average ' + fmtInt(g.avg[t]) + ' g/kWh · marginal ' + fmtInt(g.marg[t]) +
-        ' g/kWh<br>On the margin: ' + esc(labels[g.code[t]]) + '<br>AI load: run now ' + now[i].toFixed(1) + ' MW, ' + esc(focLabel) + ' ' + foc[i].toFixed(1) + ' MW';
-      showTip(html, ev);
-    });
-    hit.addEventListener('mouseleave', function () { xh.style.display = 'none'; hideTip(); });
-  }
-
-  /* ---------- margin mix ---------- */
-  // White or near-black text inside a coloured fill, chosen by the fill's luminance.
-  function inkOn(cssVar) {
-    var hex = css(cssVar.slice(4, -1));
-    var m = /^#?([0-9a-f]{6})$/i.exec(hex);
-    if (!m) return '#ffffff';
-    var n = parseInt(m[1], 16), ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (c) {
-      c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    });
-    var L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-    return (1.05) / (L + 0.05) >= (L + 0.05) / 0.0574 ? '#ffffff' : '#0b0b0b';
-  }
-
-  function renderMix() {
-    var P = last.policies, p = last.grid.preset, labels = M.marginLabels(p), keys = M.marginKeys(p);
-    var colors = keys.map(function (k) { return k === 'surplus' ? 'var(--surplus)' : k === 'reserve' ? 'var(--reserve)' : 'var(' + BLOCK_VARS[k] + ')'; });
-    var W = 720, labelW = 150, padR = 10, rowH = 30, H = M.POLICIES.length * rowH + 4;
-    var plotW = W - labelW - padR;
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Share of the jobs\' energy by the plant on the margin, for each scheduler">';
-    var used = {};
-    M.POLICIES.forEach(function (pol, i) {
-      var R = P[pol.key], tot = 0;
-      R.mix.forEach(function (v) { tot += v; });
-      var y = i * rowH + 6, xx = labelW;
-      s += '<text x="0" y="' + (y + 13) + '" style="fill:var(--text);font-size:12px' + (pol.key === state.focus ? ';font-weight:650' : '') + '">' + esc(pol.short) + '</text>';
-      R.mix.forEach(function (v, c) {
-        if (v <= 0) return;
-        used[c] = true;
-        var w = v / tot * plotW;
-        s += '<rect x="' + xx + '" y="' + y + '" width="' + Math.max(w - 2, 0.5) + '" height="18" rx="2" fill="' + colors[c] + '" data-tip="' + esc(pol.label + '|' + labels[c] + ': ' + fmtPct(v / tot) + ' of energy') + '"/>';
-        if (w > 44) s += '<text x="' + (xx + w / 2 - 1) + '" y="' + (y + 13) + '" text-anchor="middle" style="fill:' + inkOn(colors[c]) + ';font-size:11px">' + fmtPct(v / tot, 0) + '</text>';
-        xx += w;
-      });
-    });
-    s += '</svg>';
-    $('mixChart').innerHTML = s;
-    $('mixLegend').innerHTML = keys.map(function (k, c) {
-      return used[c] ? '<span><i class="key" style="background:' + colors[c] + '"></i>' + esc(labels[c]) + '</span>' : '';
-    }).join('');
-  }
-
-  /* ---------- per-job table ---------- */
-  function renderJobTable() {
-    var F = last.policies[state.focus], B = last.policies.now;
-    var h = '<thead><tr><th scope="col">Job</th><th scope="col">Runs</th><th scope="col">Energy MWh</th><th scope="col">Reported saving</th><th scope="col">Real saving</th><th scope="col">Average wait</th></tr></thead><tbody>';
-    state.jobs.forEach(function (j, i) {
-      var f = F.perJob[i], b = B.perJob[i];
-      if (!f || !f.n) { h += '<tr><td>' + esc(j.name) + '</td><td>0</td><td colspan="4">No runs fit in the year</td></tr>'; return; }
-      var rs = b.reported - f.reported, ms = b.real - f.real;
-      h += '<tr><td>' + esc(j.name) + '</td><td>' + f.n + '</td><td>' + fmtInt(f.mwh) + '</td><td>' + signedT(rs) + '</td><td class="' + (ms < -0.5 ? 'neg' : '') + '">' + signedT(ms) + '</td><td>' + (f.delay / f.n).toFixed(1) + ' h</td></tr>';
-    });
-    $('jobTable').innerHTML = '<caption class="visually-hidden">Savings by job</caption>' + h + '</tbody>';
-  }
-
-  /* ---------- look inside one run ---------- */
-  var runState = { job: 3, run: 6 };
-
-  function runInstances() {
-    var all = M.buildInstances(state.jobs, state.slack), mine = [];
-    all.forEach(function (it, i) { if (it.job === runState.job) mine.push(i); });
-    return { all: all, mine: mine };
-  }
-
-  function renderRun() {
-    if (!last) return;
-    if (runState.job >= state.jobs.length) runState.job = 0;
-    var sel = $('runJob'), opts = '';
-    state.jobs.forEach(function (j, i) { opts += '<option value="' + i + '"' + (i === runState.job ? ' selected' : '') + '>' + esc(j.name || 'Job ' + (i + 1)) + '</option>'; });
-    sel.innerHTML = opts;
-    var ri = runInstances(), slider = $('runIndex');
-    if (!ri.mine.length) {
-      $('runOut').textContent = 'no runs fit in the year';
-      $('runChart').innerHTML = ''; $('runTable').innerHTML = ''; $('runHint').textContent = ''; $('runLegend').innerHTML = '';
-      return;
-    }
-    if (runState.run > ri.mine.length) runState.run = ri.mine.length;
-    if (runState.run < 1) runState.run = 1;
-    slider.max = ri.mine.length; slider.value = runState.run;
-    var idx = ri.mine[runState.run - 1], ex = M.explainRun(last, idx), it = ex.instance;
-    $('runOut').textContent = 'run ' + runState.run + ' of ' + ri.mine.length;
-    $('runHint').textContent = 'Ready ' + hourLabel(it.release) + ', deadline ' + hourLabel(it.release + it.window) + '. Needs ' + it.hours + ' hour' + (it.hours === 1 ? '' : 's') +
-      ' at ' + it.mw + ' MW' + (it.pausable ? ', and can be paused.' : ', in one block.') + (it.window === it.hours ? ' It has no slack, so every scheduler runs it straight away.' : '');
-    var n = it.window, W = 720, padL = 110, padR = 10, plotW = W - padL - padR, cellW = plotW / n;
-    var x = function (k) { return padL + k * cellW; };
-    var hI = 90, gap = 24, top = 18, laneH = 16, laneGap = 4;
-    var pols = M.POLICIES;
-    var y1o = top, y2o = y1o + hI + gap, y3o = y2o + hI + gap, H = y3o + pols.length * (laneH + laneGap) + 22;
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Forecast and actual intensity during this run\'s window, and the hours each scheduler chose">';
-    [['marg', 'Marginal intensity', 'var(--marg)', y1o], ['avg', 'Average intensity', 'var(--avg)', y2o]].forEach(function (m) {
-      var key = m[0], yo = m[3], mx = 1;
-      for (var k = 0; k < n; k++) mx = Math.max(mx, ex.forecast[key][k], ex.actual[key][k]);
-      var tk = ticks(0, mx, 2), topV = Math.max(mx, tk[tk.length - 1]);
-      var y = function (v) { return yo + hI - v / topV * hI; };
-      s += '<text x="0" y="' + (yo - 6) + '" style="fill:var(--text);font-weight:600">' + m[1] + ' (g/kWh)</text>';
-      tk.forEach(function (t) {
-        s += '<line class="axis-line" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(t) + '" y2="' + y(t) + '"/>';
-        s += '<text x="' + (padL - 6) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + fmtInt(t) + '</text>';
-      });
-      [['forecast', 1.5, 0.45], ['actual', 2, 1]].forEach(function (src) {
-        var d = '';
-        for (var k = 0; k < n; k++) d += (k ? 'L' : 'M') + (x(k) + cellW / 2) + ',' + y(ex[src[0]][key][k]);
-        s += '<path d="' + d + '" fill="none" stroke="' + m[2] + '" stroke-opacity="' + src[2] + '" stroke-width="' + src[1] + '" stroke-linejoin="round"/>';
-      });
-    });
-    pols.forEach(function (p, i) {
-      var y = y3o + i * (laneH + laneGap);
-      s += '<text x="0" y="' + (y + 12) + '" style="fill:var(--text);font-size:11.5px' + (p.key === state.focus ? ';font-weight:650' : '') + '">' + esc(p.short) + '</text>';
-      s += '<rect x="' + padL + '" y="' + y + '" width="' + plotW + '" height="' + laneH + '" fill="var(--surface-2)"/>';
-      ex.policies[p.key].offsets.forEach(function (o) {
-        s += '<rect x="' + (x(o) + (cellW > 3 ? 0.5 : 0)) + '" y="' + y + '" width="' + Math.max(cellW - (cellW > 3 ? 1 : 0), 0.8) + '" height="' + laneH + '" fill="var(--ink-line)"/>';
-      });
-    });
-    var step = n <= 24 ? 6 : n <= 72 ? 12 : n <= 200 ? 24 : 48;
-    for (var k = 0; k <= n; k += step) {
-      s += '<text x="' + x(k) + '" y="' + (H - 6) + '" text-anchor="middle">+' + k + 'h</text>';
-    }
-    s += '<rect id="runHit" x="' + padL + '" y="' + y1o + '" width="' + plotW + '" height="' + (H - 22 - y1o) + '" fill="transparent"/>';
-    s += '</svg>';
-    $('runChart').innerHTML = s;
-    $('runLegend').innerHTML = '<span><i class="key" style="background:var(--marg)"></i>Marginal, actual</span><span><i class="key" style="background:var(--marg);opacity:.45"></i>Marginal, forecast</span>' +
-      '<span><i class="key" style="background:var(--avg)"></i>Average, actual</span><span><i class="key" style="background:var(--avg);opacity:.45"></i>Average, forecast</span>' +
-      '<span><i class="key" style="background:var(--ink-line)"></i>Hours chosen</span>';
-    var labels = M.marginLabels(last.grid.preset), svg = $('runChart').querySelector('svg');
-    $('runHit').addEventListener('mousemove', function (ev) {
-      var r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * W;
-      var k = Math.floor((sx - padL) / cellW);
-      if (k < 0) k = 0; if (k > n - 1) k = n - 1;
-      var who = pols.filter(function (p) { return ex.policies[p.key].offsets.indexOf(k) >= 0; }).map(function (p) { return p.short; });
-      showTip('<b>' + hourLabel(it.release + k) + ' (+' + k + 'h)</b><br>Marginal: forecast ' + fmtInt(ex.forecast.marg[k]) + ', actual ' + fmtInt(ex.actual.marg[k]) +
-        ' g/kWh<br>Average: forecast ' + fmtInt(ex.forecast.avg[k]) + ', actual ' + fmtInt(ex.actual.avg[k]) + ' g/kWh<br>On the margin: ' + esc(labels[ex.actual.code[k]]) +
-        '<br>Chosen by: ' + (who.length ? esc(who.join(', ')) : 'none'), ev);
-    });
-    $('runHit').addEventListener('mouseleave', hideTip);
-    var base = ex.policies.now;
-    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col">Starts</th><th scope="col">Finishes</th><th scope="col">Reported kg CO₂</th><th scope="col">Real kg CO₂</th><th scope="col">Real saving</th></tr></thead><tbody>';
-    pols.forEach(function (p) {
-      var P = ex.policies[p.key], o = P.offsets;
-      var saved = base.real - P.real;
-      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td>+' + o[0] + 'h</td><td>+' + (o[o.length - 1] + 1) + 'h</td><td>' + fmtInt(P.reported * 1000) +
-        '</td><td>' + fmtInt(P.real * 1000) + '</td><td class="' + (saved < -0.0005 ? 'neg' : '') + '">' + (p.key === 'now' ? 'baseline' : (saved > 0.0005 ? '+' : saved < -0.0005 ? '\u2212' : '') + fmtInt(Math.abs(saved) * 1000) + ' kg') + '</td></tr>';
-    });
-    $('runTable').innerHTML = '<caption class="visually-hidden">This run under each scheduler</caption>' + h + '</tbody>';
-  }
-
-  $('runJob').addEventListener('change', function () { runState.job = Number(this.value); runState.run = 1; renderRun(); });
-  $('runIndex').addEventListener('input', function () { runState.run = Number(this.value); renderRun(); });
 
   /* ---------- other weather years ---------- */
   var YEARS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   var yearsCache = {}, yearsTimer = null;
-
   function yearsKey() { var c = config(); delete c.seed; return JSON.stringify(c); }
 
   function renderYears() {
     clearTimeout(yearsTimer);
-    var key = yearsKey();
-    if (!yearsCache[key]) {
-      var el = $('yearsChart');
-      if (!el.querySelector('svg')) el.innerHTML = '<div class="pending">Calculating…</div>';
-      else el.style.opacity = '0.5';
-      yearsTimer = setTimeout(function () {
-        yearsCache[key] = M.robustness(config(), YEARS);
-        drawYears(yearsCache[key]);
-      }, 120);
-      return;
-    }
-    drawYears(yearsCache[key]);
+    var key = yearsKey(), el = $('yearsChart');
+    if (yearsCache[key]) { drawYears(yearsCache[key]); return; }
+    if (!el.querySelector('svg')) el.innerHTML = '<div class="pending">Calculating…</div>';
+    else el.classList.add('stale');
+    yearsTimer = setTimeout(function () {
+      yearsCache[key] = M.robustness(config(), YEARS);
+      drawYears(yearsCache[key]);
+    }, 150);
   }
 
   function drawYears(rb) {
-    var el = $('yearsChart');
-    el.style.opacity = '';
-    var pols = M.POLICIES.filter(function (p) { return p.key !== 'now'; });
+    var el = $('yearsChart'), pols = M.POLICIES.filter(function (p) { return p.key !== 'now'; });
+    el.classList.remove('stale');
     var lo = 0, hi = 1;
-    pols.forEach(function (p) {
-      var P = rb.policies[p.key];
-      lo = Math.min(lo, P.minReported, P.minReal); hi = Math.max(hi, P.maxReported, P.maxReal);
-    });
-    var tk = ticks(lo, hi, 5);
-    lo = Math.min(lo, tk[0]); hi = Math.max(hi, tk[tk.length - 1]);
-    var W = 720, labelW = 190, padR = 16, rowH = 40, top = 6, H = top + pols.length * rowH + 22;
-    var x = function (v) { return labelW + (v - lo) / (hi - lo) * (W - labelW - padR); };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Range of reported and real tonnes saved across ten weather years, by scheduler">';
-    tk.forEach(function (t) {
-      s += '<line class="axis-line" x1="' + x(t) + '" x2="' + x(t) + '" y1="' + top + '" y2="' + (H - 20) + '"/>';
-      s += '<text x="' + x(t) + '" y="' + (H - 6) + '" text-anchor="middle">' + fmtInt(t) + '</text>';
-    });
-    s += '<line x1="' + x(0) + '" x2="' + x(0) + '" y1="' + top + '" y2="' + (H - 20) + '" stroke="var(--muted)" stroke-width="1"/>';
+    pols.forEach(function (p) { var P = rb.policies[p.key]; lo = Math.min(lo, P.minReported, P.minReal); hi = Math.max(hi, P.maxReported, P.maxReal); });
+    var L = rowLayout(el, pols.length, lo, hi, 24);
+    var s = svgOpen(L.W, L.H, 'Range of reported and real tonnes saved across ten weather years, by scheduler') + axisX(L);
     pols.forEach(function (p, i) {
-      var P = rb.policies[p.key], y0 = top + i * rowH + 8;
-      s += '<text x="0" y="' + (y0 + 14) + '" style="fill:var(--text);font-size:12px' + (p.key === state.focus ? ';font-weight:650' : '') + '">' + esc(p.label) + '</text>';
+      var P = rb.policies[p.key], y0 = L.top + i * L.rowH + L.labelH + 6;
+      s += rowLabel(L, i, p);
       [['Reported', P.minReported, P.maxReported, P.medianReported, 'var(--avg)'], ['Real', P.minReal, P.maxReal, P.medianReal, 'var(--marg)']].forEach(function (m, j) {
-        var y = y0 + 4 + j * 14;
-        var tipText = p.label + '|' + m[0] + ' saving across ten years: worst ' + signedT(m[1]) + ', median ' + signedT(m[3]) + ', best ' + signedT(m[2]);
-        s += '<line x1="' + x(m[1]) + '" x2="' + x(m[2]) + '" y1="' + y + '" y2="' + y + '" stroke="' + m[4] + '" stroke-width="2" stroke-linecap="round"/>';
-        s += '<circle cx="' + x(m[3]) + '" cy="' + y + '" r="4.5" fill="' + m[4] + '" stroke="var(--surface)" stroke-width="2"/>';
-        s += '<rect x="' + (Math.min(x(m[1]), x(m[2])) - 6) + '" y="' + (y - 7) + '" width="' + (Math.abs(x(m[2]) - x(m[1])) + 12) + '" height="14" fill="transparent" data-tip="' + esc(tipText) + '"/>';
+        var y = y0 + j * 13, a = L.x(m[1]), b = L.x(m[2]);
+        s += '<line x1="' + a + '" x2="' + b + '" y1="' + y + '" y2="' + y + '" stroke="' + m[4] + '" stroke-width="2" stroke-linecap="round"/>';
+        s += '<circle cx="' + L.x(m[3]) + '" cy="' + y + '" r="4.5" fill="' + m[4] + '" stroke="var(--surface)" stroke-width="2"/>';
+        s += '<rect x="' + (Math.min(a, b) - 8) + '" y="' + (y - 6) + '" width="' + (Math.abs(b - a) + 16) + '" height="12" fill="transparent" data-tip="' +
+          esc(p.label + '|' + m[0] + ' saving across ten years: worst ' + signedT(m[1]) + ', median ' + signedT(m[3]) + ', best ' + signedT(m[2])) + '"/>';
       });
     });
-    s += '</svg>';
-    el.innerHTML = s;
-    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col">Median reported</th><th scope="col">Median real</th><th scope="col">Worst real year</th><th scope="col">Years real saving below zero</th><th scope="col">Years the report overstates</th></tr></thead><tbody>';
+    el.innerHTML = s + '</svg>';
+    var n = rb.seeds.length;
+    var h = '<thead><tr><th scope="col">Scheduler</th><th scope="col">Median reported</th><th scope="col">Median real</th><th scope="col" class="opt">Worst real year</th><th scope="col">Years real saving below zero</th><th scope="col" class="opt">Years the report overstates</th></tr></thead><tbody>';
     pols.forEach(function (p) {
       var P = rb.policies[p.key];
-      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td>' + signedT(P.medianReported) + '</td><td>' + signedT(P.medianReal) + '</td><td class="' + (P.minReal < -0.5 ? 'neg' : '') + '">' +
-        signedT(P.minReal) + '</td><td>' + P.negativeYears + ' of ' + rb.seeds.length + '</td><td>' + P.overstatedYears + ' of ' + rb.seeds.length + '</td></tr>';
+      h += '<tr' + (p.key === state.focus ? ' class="focus"' : '') + '><td>' + esc(p.label) + '</td><td>' + signedT(P.medianReported) + '</td><td>' + signedT(P.medianReal) + '</td><td class="opt' + (P.minReal < -0.5 ? ' neg' : '') + '">' +
+        signedT(P.minReal) + '</td><td>' + P.negativeYears + ' of ' + n + '</td><td class="opt">' + P.overstatedYears + ' of ' + n + '</td></tr>';
     });
     $('yearsTable').innerHTML = '<caption class="visually-hidden">Savings across ten weather years</caption>' + h + '</tbody>';
   }
@@ -1768,18 +1810,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
   var LIMITS = { seed: [1, 30], windScale: [0.5, 3], solarScale: [0.5, 3], forecastError: [0, 3], slack: [0, 3], week: [1, 52] };
 
   function applySettings(obj) {
-    if (!obj || typeof obj !== 'object' || obj.app !== 'clean-hours') return 'This is not a Clean hours settings file.';
-    if (obj.preset !== undefined && !M.PRESETS[obj.preset]) return 'Unknown grid "' + obj.preset + '".';
-    if (obj.focus !== undefined && !M.POLICIES.some(function (p) { return p.key === obj.focus && p.key !== 'now'; })) return 'Unknown scheduler "' + obj.focus + '".';
+    if (!obj || typeof obj !== 'object' || obj.app !== 'clean-hours') return 'this is not a Clean hours settings file.';
+    if (obj.preset !== undefined && !M.PRESETS.hasOwnProperty(obj.preset)) return 'unknown grid "' + obj.preset + '".';
+    if (obj.focus !== undefined && !M.POLICIES.some(function (p) { return p.key === obj.focus && p.key !== 'now'; })) return 'unknown scheduler "' + obj.focus + '".';
     for (var k in LIMITS) {
-      if (obj[k] !== undefined && !(typeof obj[k] === 'number' && obj[k] >= LIMITS[k][0] && obj[k] <= LIMITS[k][1])) return 'Setting "' + k + '" is out of range.';
+      if (obj[k] !== undefined && !(typeof obj[k] === 'number' && obj[k] >= LIMITS[k][0] && obj[k] <= LIMITS[k][1])) return 'the setting "' + k + '" is out of range.';
     }
+    if (obj.seed !== undefined && Math.floor(obj.seed) !== obj.seed) return 'the weather year must be a whole number.';
+    if (obj.week !== undefined && Math.floor(obj.week) !== obj.week) return 'the week must be a whole number.';
     if (obj.jobs !== undefined) {
+      if (!Array.isArray(obj.jobs)) return 'jobs must be a list.';
       var errs = M.validateJobs(obj.jobs);
       if (errs.length) return errs[0];
     }
     SETTINGS_KEYS.forEach(function (k) { if (obj[k] !== undefined) state[k] = obj[k]; });
-    if (obj.jobs) state.jobs = clone(obj.jobs);
+    if (obj.jobs) state.jobs = obj.jobs.map(function (j) {
+      return { name: String(j.name || ''), mw: j.mw, hours: j.hours, everyDays: j.everyDays, firstDay: j.firstDay, releaseHour: j.releaseHour, window: j.window, pausable: !!j.pausable };
+    });
     syncControls();
     buildJobs();
     recompute();
@@ -1803,14 +1850,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
   $('loadSettings').addEventListener('change', function () {
     readFile(this, function (text, name) {
       var obj;
-      try { obj = JSON.parse(text); } catch (e) { fileMsg('Could not read ' + name + ': it is not valid JSON.'); return; }
+      try { obj = JSON.parse(text); } catch (e) { fileMsg('Could not load ' + name + ': it is not valid JSON.'); return; }
       var err = applySettings(obj);
       fileMsg(err ? 'Could not load ' + name + ': ' + err : 'Loaded settings from ' + name + '.');
     });
   });
   $('saveCsv').addEventListener('click', function () {
     download('jobs.csv', M.formatJobsCsv(state.jobs), 'text/csv');
-    fileMsg('Jobs saved as jobs.csv. The Python companion reads this file with --jobs.');
+    fileMsg('Jobs saved as jobs.csv. The Python companion reads it with --jobs.');
   });
   $('loadCsv').addEventListener('change', function () {
     readFile(this, function (text, name) {
@@ -1822,16 +1869,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     });
   });
 
-  /* ---------- bar tooltips ---------- */
-  document.addEventListener('mousemove', function (ev) {
-    var t = ev.target.closest && ev.target.closest('[data-tip]');
-    if (!t) { if (!ev.target.closest || !ev.target.closest('#weekHit, #runHit')) hideTip(); return; }
-    var parts = t.getAttribute('data-tip').split('|');
-    showTip('<b>' + esc(parts[0]) + '</b><br>' + esc(parts[1]), ev);
+  /* ---------- theme and resizing ---------- */
+  function isDark() {
+    var t = document.documentElement.getAttribute('data-theme');
+    return t ? t === 'dark' : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function themeLabel() { $('themeBtn').textContent = isDark() ? 'Light theme' : 'Dark theme'; }
+  $('themeBtn').addEventListener('click', function () {
+    document.documentElement.setAttribute('data-theme', isDark() ? 'light' : 'dark');
+    themeLabel();
+    render();
+  });
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', function () { themeLabel(); render(); });
+  }
+  var lastWidth = window.innerWidth, resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 150);
   });
 
   buildControls();
   buildJobs();
+  themeLabel();
   recompute();
 })();
 </script>

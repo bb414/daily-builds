@@ -35,6 +35,13 @@ def describe_config(cfg):
                cfg["slack"], len(cfg["jobs"])))
 
 
+def grid_line(result):
+    s = result["summary"]
+    return ("Grid: spare clean power in %.0f%% of hours, average intensity %d g/kWh, "
+            "marginal intensity %d g/kWh on average, wind and solar meet %.0f%% of demand."
+            % (100 * s["curtailShare"], round(s["weightedAvg"]), round(s["meanMarg"]), 100 * s["renewableShare"]))
+
+
 def policy_rows(result):
     rows = []
     for p in model.POLICIES:
@@ -69,12 +76,9 @@ def headline(result, key="avg"):
 
 
 def markdown(result):
-    cfg, s = result["config"], result["summary"]
+    cfg = result["config"]
     p = model.PRESETS[cfg["preset"]]
-    out = ["# Clean hours run", "", describe_config(cfg) + ".", ""]
-    out.append("Grid: %s of hours have spare clean power; demand-weighted average intensity %d g/kWh; "
-               "mean marginal intensity %d g/kWh; wind and solar meet %.0f%% of demand."
-               % ("%.0f%%" % (s["curtailShare"] * 100), round(s["weightedAvg"]), round(s["meanMarg"]), s["renewableShare"] * 100))
+    out = ["# Clean hours run", "", describe_config(cfg) + ".", "", grid_line(result)]
     out += ["", "## Schedulers", "",
             "| Scheduler | Reported t CO2 | Real t CO2 | Reported saving | Real saving | Mean wait | Verdict |",
             "|---|---:|---:|---:|---:|---:|---|"]

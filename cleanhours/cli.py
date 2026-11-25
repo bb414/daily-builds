@@ -65,6 +65,7 @@ def cmd_run(args):
            "forecastError": args.forecast_error, "slack": args.slack, "jobs": _load_jobs(args.jobs)}
     result = model.run(cfg)
     print("Clean hours: " + report.describe_config(cfg))
+    print(report.grid_line(result))
     print()
     print(report.text_table(result))
     print()
