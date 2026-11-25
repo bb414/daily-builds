@@ -40,7 +40,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-colo
 nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
 main { padding: 20px 0 40px; }
 .panel[hidden] { display: none; }
-.grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; }
+.grid { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 18px; align-items: start; }
 .col { display: grid; gap: 18px; min-width: 0; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
 .card h2 { font-size: 1.08rem; margin: 0 0 4px; }
@@ -80,7 +80,7 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px s
 .plan .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
 .effort { height: 8px; border-radius: 5px; background: var(--line); overflow: hidden; }
 .effort span { display: block; height: 100%; background: var(--accent); }
-.btn { display: inline-block; appearance: none; font: inherit; font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.btn { display: inline-block; white-space: nowrap; appearance: none; font: inherit; font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
 .btn.ghost { background: transparent; color: var(--accent); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .empty { padding: 14px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
@@ -99,10 +99,16 @@ th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line
 th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tablewrap { overflow-x: auto; }
-.rules td input[type="number"] { width: 64px; }
-.rules td select { width: 76px; }
+.rules th, .rules td { padding: 6px 4px; }
+.rules td input[type="number"] { width: 54px; padding: 5px 6px; }
+.rules td select { width: 68px; padding: 5px 4px; }
+.rules td.cb { text-align: center; }
+.rules input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
 .inline { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 12px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpis .legend { grid-column: 1 / -1; margin-top: 0; }
+.short { display: none; }
+.tablecap { margin: 8px 0 0; }
 .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); }
 .kpi .lab { font-size: 0.84rem; color: var(--muted); }
 .kpi .vals { display: flex; gap: 14px; align-items: baseline; margin-top: 4px; flex-wrap: wrap; }
@@ -122,15 +128,30 @@ table.matrix td.hot { background: var(--accent-soft); font-weight: 700; }
 .hold.ok { background: var(--yes-soft); color: var(--yes); }
 .hold.bad { background: var(--no-soft); color: var(--no); }
 .prose p, .prose li { margin: 0 0 10px; }
-footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
+footer.foot { color: var(--muted); font-size: 0.85rem; padding-bottom: 30px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
+  /* On narrow screens the two columns merge so the routes follow the applicant. */
+  .grid > .col { display: contents; }
+  #card-applicant { order: 1; }
+  #card-plans { order: 2; }
+  #card-why { order: 3; }
+  #card-map { order: 4; }
+  #card-notice { order: 5; }
+  #card-rules { order: 6; }
+  #card-setup { order: 7; }
 }
 @media (max-width: 520px) {
   h1 { font-size: 1.35rem; }
   .card { padding: 14px; }
-  nav.tabs button { padding: 8px 10px; }
+  nav.tabs { gap: 0; }
+  nav.tabs button { padding: 8px 7px; font-size: 0.9rem; }
+  .long { display: none; }
+  .short { display: inline; }
+  table { font-size: 0.86rem; }
+  th, td { padding: 6px 4px; }
+  table.matrix td.num { min-width: 0; }
 }
 </style>
 </head>
@@ -142,10 +163,10 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
       <p class="tag">Counterfactual explanations for an automated shortlisting model: what a rejected applicant could realistically change, what it would cost them, and who ends up with the longer road.</p>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" id="tab-applicant" aria-controls="panel-applicant" aria-selected="true">One applicant</button>
-      <button role="tab" id="tab-cohort" aria-controls="panel-cohort" aria-selected="false" tabindex="-1">Whole cohort</button>
+      <button role="tab" id="tab-applicant" aria-controls="panel-applicant" aria-selected="true"><span class="long">One applicant</span><span class="short">Applicant</span></button>
+      <button role="tab" id="tab-cohort" aria-controls="panel-cohort" aria-selected="false" tabindex="-1"><span class="long">Whole cohort</span><span class="short">Cohort</span></button>
       <button role="tab" id="tab-hold" aria-controls="panel-hold" aria-selected="false" tabindex="-1">Will it hold?</button>
-      <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">How it works</button>
+      <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1"><span class="long">How it works</span><span class="short">About</span></button>
     </nav>
   </div>
 </header>
@@ -154,7 +175,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
   <section class="panel" id="panel-applicant" role="tabpanel" aria-labelledby="tab-applicant">
     <div class="grid">
       <div class="col">
-        <section class="card" aria-labelledby="h-applicant">
+        <section class="card" id="card-applicant" aria-labelledby="h-applicant">
           <h2 id="h-applicant">Applicant</h2>
           <p class="hint">An invented graduate-scheme applicant. Change any value and everything updates.</p>
           <label class="preset">Start from an example
@@ -163,12 +184,12 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
           <div id="fields"></div>
           <div id="decision" class="decision" aria-live="polite"></div>
         </section>
-        <section class="card" aria-labelledby="h-rules">
+        <section class="card" id="card-rules" aria-labelledby="h-rules">
           <h2 id="h-rules">What counts as a realistic change</h2>
           <p class="hint">Which features a person could change within about a year, by how much, and how hard each one is. Effort weight 2 makes a feature twice as costly.</p>
           <div class="tablewrap">
             <table class="rules">
-              <thead><tr><th scope="col">Feature</th><th scope="col">Can change</th><th scope="col" class="num">By up to</th><th scope="col" class="num">Effort weight</th></tr></thead>
+              <thead><tr><th scope="col">Feature</th><th scope="col">Can change</th><th scope="col">By up to</th><th scope="col">Effort weight</th></tr></thead>
               <tbody id="rules"></tbody>
             </table>
           </div>
@@ -181,7 +202,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
             </label>
           </div>
         </section>
-        <section class="card" aria-labelledby="h-setup">
+        <section class="card" id="card-setup" aria-labelledby="h-setup">
           <h2 id="h-setup">Save or share this setup</h2>
           <p class="hint">The applicant, the rules and the retrain settings. The file also works with the Python companion.</p>
           <div class="btnrow">
@@ -194,18 +215,18 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
         </section>
       </div>
       <div class="col">
-        <section class="card" aria-labelledby="h-plans">
+        <section class="card" id="card-plans" aria-labelledby="h-plans">
           <h2 id="h-plans">Ways to get shortlisted</h2>
           <p class="hint">Each route is the cheapest exact plan whose biggest change is a different feature. Effort is measured in percentile points: moving from the 40th to the 55th percentile of applicants on a feature costs 15, times its effort weight.</p>
           <div id="plans"></div>
         </section>
-        <section class="card" aria-labelledby="h-why">
+        <section class="card" id="card-why" aria-labelledby="h-why">
           <h2 id="h-why">Why the model scored them this way</h2>
           <p class="hint">Exact Shapley values: how much each feature moves this applicant's score away from the average score of a reference group of 64 applicants.</p>
           <div class="chartwrap" id="shap"></div>
           <p class="note" id="shapNote"></p>
         </section>
-        <section class="card" aria-labelledby="h-map">
+        <section class="card" id="card-map" aria-labelledby="h-map">
           <h2 id="h-map">Decision map</h2>
           <p class="hint">The model's answer for every combination of two features, holding the others at this applicant's values.</p>
           <div class="mapctl">
@@ -215,7 +236,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
           <canvas id="map" height="320" role="img" aria-label="Decision map"></canvas>
           <div class="legend" id="mapLegend"></div>
         </section>
-        <section class="card" aria-labelledby="h-notice">
+        <section class="card" id="card-notice" aria-labelledby="h-notice">
           <h2 id="h-notice">What the applicant would be told</h2>
           <p class="hint">A plain-English notice built from the score, the Shapley values and the routes above, including how firm the routes are.</p>
           <pre class="notice" id="notice" tabindex="0" aria-label="Notice to the applicant"></pre>
@@ -238,6 +259,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
         <div class="kpis" id="gapKpis"></div>
         <h3>Biggest drag (rows) against where the cheapest route puts most of its effort (columns), all rejected applicants</h3>
         <div class="tablewrap"><table id="gapMatrix" class="matrix"></table></div>
+        <p class="small tablecap">Counts of rejected applicants. Shaded cells are routes whose main effort goes on the biggest drag. Elsewhere the advice points away from the explanation; the figure above counts the routes that leave the biggest drag alone entirely.</p>
       </section>
       <section class="card" aria-labelledby="h-hist">
         <h2 id="h-hist">Effort of the cheapest route, rejected applicants only</h2>
@@ -247,6 +269,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
       <section class="card" aria-labelledby="h-levers">
         <h2 id="h-levers">What the cheapest routes ask people to change</h2>
         <div class="tablewrap"><table id="levers"></table></div>
+        <p class="small tablecap">Share of cheapest routes that change each feature. A route can change more than one.</p>
       </section>
     </div>
   </section>
@@ -1115,17 +1138,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     FEATURES.forEach(function (f, j) {
       const tr = el('tr');
       tr.appendChild(el('th', { scope: 'row' }, f.short));
-      const td1 = el('td');
+      const td1 = el('td', { class: 'cb' });
       const cb = el('input', { type: 'checkbox', id: 'act-' + j, 'aria-label': 'Allow ' + f.short + ' to change' });
       cb.checked = state.settings[j].actionable;
       td1.appendChild(cb);
       tr.appendChild(td1);
-      const td2 = el('td', { class: 'num' });
+      const td2 = el('td');
       const cap = el('input', { type: 'number', min: 0, max: f.max - f.min, step: 1, id: 'cap-' + j, 'aria-label': (f.dir > 0 ? 'Largest increase in ' : 'Largest decrease in ') + f.short });
       cap.value = String(state.settings[j].cap);
       td2.appendChild(cap);
       tr.appendChild(td2);
-      const td3 = el('td', { class: 'num' });
+      const td3 = el('td');
       const w = el('select', { id: 'w-' + j, 'aria-label': 'Effort weight for ' + f.short });
       [0.5, 1, 1.5, 2, 3].forEach(function (v) { w.appendChild(el('option', { value: String(v) }, v + 'x')); });
       w.value = String(state.settings[j].weight);
@@ -1199,7 +1222,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     }
     if (res.options.length === 0) {
       const msg = res.status === 'limit' ? 'The search hit its safety limit before finding a route.' :
-        'No route within these limits. Nothing this applicant could change, by the amounts allowed, lifts the score to 0.50. Try allowing bigger changes or more features in the rules below the applicant.';
+        'No route within these limits. Nothing this applicant could change, by the amounts allowed, lifts the score to the target. Try allowing bigger changes or more features under \u201cWhat counts as a realistic change\u201d.';
       box.appendChild(el('div', { class: 'empty' }, msg));
       return [];
     }
@@ -1279,6 +1302,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     svg.appendChild(sv('text', { x: x0 + 6, y: H - 8, 'font-size': 11, class: 'muted' }, 'raises score'));
     svg.setAttribute('aria-label', 'Shapley values. Average score ' + sh.base.toFixed(2) + '. ' + desc.join('; ') + '. Applicant score ' + fmtScore(sh.value) + '.');
     box.appendChild(svg);
+    const leg = el('div', { class: 'legend' });
+    [['--helps', 1, 'Raises the score'], ['--hurts', 1, 'Lowers the score'], ['--hurts', 0.55, 'Faded: cannot change under the current rules']].forEach(function (L) {
+      const sp = el('span');
+      const i = el('i');
+      i.style.background = cssVar(L[0]);
+      i.style.opacity = String(L[1]);
+      sp.appendChild(i);
+      sp.appendChild(document.createTextNode(L[2]));
+      leg.appendChild(sp);
+    });
+    box.appendChild(leg);
 
     const note = $('shapNote');
     const sum = sh.phi.reduce(function (a, b) { return a + b; }, 0);
@@ -1372,8 +1406,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     ctx.fillStyle = cssVar('--muted');
     ctx.font = '11px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    const ticks = function (F, n) { const step = Math.max(1, Math.ceil((F.max - F.min) / n)); const out = []; for (let v = F.min; v <= F.max; v += step) out.push(v); return out; };
-    ticks(FX, 6).forEach(function (v) { ctx.fillText(FX.levels ? FX.levels[v - FX.min] : String(v), padL + (v - FX.min + 0.5) * cw, cssH - padB + 14); });
+    // Round-number ticks: the smallest of 1, 2, 5, 10, 20, 25, 50 that gives at most n of them.
+    const ticks = function (F, n) {
+      if (F.levels) return F.levels.map(function (x, k) { return F.min + k; });
+      const steps = [1, 2, 5, 10, 20, 25, 50];
+      let step = steps[steps.length - 1];
+      for (let k = 0; k < steps.length; k++) if ((F.max - F.min) / steps[k] <= n) { step = steps[k]; break; }
+      const out = [];
+      for (let v = Math.ceil(F.min / step) * step; v <= F.max; v += step) out.push(v);
+      return out;
+    };
+    ticks(FX, cssW < 500 ? 4 : 8).forEach(function (v) { ctx.fillText(FX.levels ? FX.levels[v - FX.min] : String(v), padL + (v - FX.min + 0.5) * cw, cssH - padB + 14); });
     ctx.fillText(FX.label + (FX.unit && !FX.levels ? ' (' + FX.unit + ')' : ''), padL + pw / 2, cssH - 4);
     ctx.textAlign = 'right';
     ticks(FY, 5).forEach(function (v) { ctx.fillText(FY.levels ? FY.levels[v - FY.min] : String(v), padL - 6, padT + (ny - 1 - (v - FY.min) + 0.5) * ch + 4); });
@@ -1385,29 +1428,42 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     ctx.restore();
     const px = function (v) { return padL + (v - FX.min + 0.5) * cw; };
     const py = function (v) { return padT + (ny - 1 - (v - FY.min) + 0.5) * ch; };
-    // routes that only move the two plotted features
+    // Routes that only move the two plotted features: a dashed arrow to a small
+    // dot, with the route's letter placed beyond the dot so it clears the applicant.
     let shown = 0;
+    const ax = px(state.x[fx]);
+    const ay = py(state.x[fy]);
     options.forEach(function (o, k) {
       const others = o.changes.some(function (c) { return c.j !== fx && c.j !== fy; });
       if (others) return;
       shown += 1;
+      const ex = px(o.values[fx]);
+      const ey = py(o.values[fy]);
       ctx.strokeStyle = cssVar('--ink');
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.moveTo(px(state.x[fx]), py(state.x[fy]));
-      ctx.lineTo(px(o.values[fx]), py(o.values[fy]));
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ex, ey);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = cssVar('--surface');
-      ctx.beginPath();
-      ctx.arc(px(o.values[fx]), py(o.values[fy]), 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
       ctx.fillStyle = cssVar('--ink');
+      ctx.beginPath();
+      ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      let dx = ex - ax;
+      let dy = ey - ay;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      dx /= len;
+      dy /= len;
+      const lx = Math.min(padL + pw - 8, Math.max(padL + 8, ex + dx * 13));
+      const ly = Math.min(padT + ph - 4, Math.max(padT + 12, ey + dy * 13 + 4));
+      ctx.font = 'bold 12px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.font = 'bold 10px system-ui, sans-serif';
-      ctx.fillText(String.fromCharCode(65 + k), px(o.values[fx]), py(o.values[fy]) + 3.5);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = cssVar('--surface');
+      ctx.strokeText(String.fromCharCode(65 + k), lx, ly);
+      ctx.fillText(String.fromCharCode(65 + k), lx, ly);
     });
     ctx.fillStyle = cssVar('--accent');
     ctx.strokeStyle = cssVar('--surface');
@@ -1424,7 +1480,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     item(yesC, 'Shortlisted');
     item(noC, 'Not shortlisted');
     item(cssVar('--accent'), 'This applicant');
-    if (options.length > shown) leg.appendChild(el('span', null, (options.length - shown) + ' route' + (options.length - shown === 1 ? '' : 's') + ' also change other features, so not drawn here.'));
+    if (shown) leg.appendChild(el('span', null, 'Letters: where each route ends'));
+    const hidden = options.length - shown;
+    if (hidden > 0) leg.appendChild(el('span', null, hidden === 1 ? 'One route also changes other features, so it is not drawn here.' : hidden + ' routes also change other features, so they are not drawn here.'));
   }
 
   // ---- Applicant render ----
@@ -1504,13 +1562,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     const thead = el('thead');
     const hr = el('tr');
     hr.appendChild(el('th', { scope: 'col' }, 'Biggest drag'));
-    cols.forEach(function (j) { hr.appendChild(el('th', { scope: 'col', class: 'num' }, j === D ? 'No route' : FEATURES[j].short)); });
+    const SHORT = ['Test', 'Exp.', 'Proj.', 'Certs', 'Deg.', 'Gap', 'None'];
+    cols.forEach(function (j) {
+      const th = el('th', { scope: 'col', class: 'num' });
+      th.appendChild(el('span', { class: 'long' }, j === D ? 'No route' : FEATURES[j].short));
+      th.appendChild(el('span', { class: 'short', 'aria-hidden': 'true' }, SHORT[j]));
+      hr.appendChild(th);
+    });
     thead.appendChild(hr);
     t.appendChild(thead);
     const body = el('tbody');
     rows.forEach(function (r) {
       const tr = el('tr');
-      tr.appendChild(el('th', { scope: 'row' }, r === D ? 'None (average is below the line)' : FEATURES[r].short + (state.settings[r].actionable ? '' : ' (fixed)')));
+      tr.appendChild(el('th', { scope: 'row' }, r === D ? 'None (the average is below the line)' : FEATURES[r].short + (state.settings[r].actionable ? '' : ' (fixed)')));
       cols.forEach(function (c) {
         const v = gap[2].matrix[r][c];
         tr.appendChild(el('td', { class: 'num' + (r === c ? ' hot' : '') }, String(v)));
@@ -1518,8 +1582,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       body.appendChild(tr);
     });
     t.appendChild(body);
-    t.appendChild(el('caption', { class: 'small', style: 'caption-side: bottom; text-align: left; padding-top: 8px;' },
-      'Counts of rejected applicants. Shaded cells are routes whose main effort goes on the biggest drag. Elsewhere the advice points away from the explanation; the figure above counts the routes that leave the biggest drag alone entirely.'));
   }
   function renderHist(a) {
     const box = $('hist');
@@ -1582,8 +1644,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       body.appendChild(tr);
     });
     t.appendChild(body);
-    const cap = el('caption', { class: 'small', style: 'caption-side: bottom; text-align: left; padding-top: 8px;' }, 'Share of cheapest routes that change each feature. A route can change more than one.');
-    t.appendChild(cap);
   }
 
   // ---- Notice ----
@@ -1811,7 +1871,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       svg.appendChild(sv('text', { x: padL - 6, y: Y(t) + 4, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, Math.round(t * 100) + '%'));
     });
     svg.appendChild(sv('line', { x1: padL, x2: W - padR, y1: Y(0.9), y2: Y(0.9), stroke: cssVar('--muted'), 'stroke-dasharray': '4 4' }));
-    svg.appendChild(sv('text', { x: W - padR, y: Y(0.9) - 5, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, '90%'));
+    svg.appendChild(sv('text', { x: padL + 4, y: Y(0.9) - 5, 'font-size': 11, class: 'muted' }, '90% of routes'));
     MARGINS.forEach(function (m, k) {
       svg.appendChild(sv('text', { x: X(k), y: H - padB + 16, 'font-size': 11, 'text-anchor': 'middle', class: 'muted' }, m === 0 ? '0' : '+' + m));
     });
@@ -1840,8 +1900,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     t.innerHTML = '';
     const thead = el('thead');
     const tr = el('tr');
-    ['Safety margin', 'Rejected with a route', 'Median effort', 'Still working: all', GROUPS[0], GROUPS[1]].forEach(function (c, k) {
-      tr.appendChild(el('th', { scope: 'col', class: k ? 'num' : '' }, c));
+    [['Safety margin', 'Margin'], ['Rejected with a route', 'Has a route'], ['Median effort', 'Effort'], ['Still working: all', 'Works: all'],
+      ['Others', 'Others'], ['First in family', '1st in family']].forEach(function (c, k) {
+      const th = el('th', { scope: 'col', class: k ? 'num' : '' });
+      th.appendChild(el('span', { class: 'long' }, c[0]));
+      th.appendChild(el('span', { class: 'short', 'aria-hidden': 'true' }, c[1]));
+      tr.appendChild(th);
     });
     thead.appendChild(tr);
     t.appendChild(thead);
