@@ -67,9 +67,9 @@ What you can do in it:
 - **Compare two set-ups.** Pin one as A, change anything, and compare.
 - **Save and share.** Settings live in the page's address, so "Copy link" shares an exact set-up; "Save settings" writes a JSON file that the Python version also reads.
 
-On a phone the tables turn into cards, charts redraw at the screen's width, and a bar at the bottom keeps the three headline numbers in view while you move the sliders. It follows the system's light or dark setting.
+On a phone the tables turn into cards, charts redraw at the screen's width, and a bar at the bottom keeps the three headline numbers in view while you move the sliders. The look borrows from an athletics track and a coach's training log: the habits are lanes and hurdles, the headline numbers are race bibs and the results sit on grid-paper log pages.
 
-<img src="docs/phone-dark.png" alt="The app on a phone in dark mode with the Quarter-end chaos preset" width="300">
+<img src="docs/phone-dark.png" alt="The app on a phone with the Quarter-end chaos preset" width="300">
 
 | Which habit to fix first | The honest back-test |
 |---|---|
@@ -124,7 +124,7 @@ The parity tests run the app's model block in Node.js and check that every numbe
 
 | Part | Language | Roughly | What it does |
 |------|----------|---------|--------------|
-| `app/index.html` | HTML and CSS | 360 lines | Layout, light and dark themes, the phone layout |
+| `app/index.html` | HTML and CSS | 740 lines | Layout, the track and training-log styling, embedded fonts, the phone layout |
 | `app/index.html`, model block | JavaScript | 750 lines | The world, the six habits, the model, the audit, the repairs, the fix ranking, robustness |
 | `app/index.html`, interface | JavaScript | 690 lines | Controls, charts drawn as SVG, tables, links, saving and loading, comparison |
 | `fittotrain/model.py` | Python | 800 lines | A line-for-line port of the model block |
