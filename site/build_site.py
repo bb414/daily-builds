@@ -289,10 +289,12 @@ def page(title, body, depth, description, config, current=""):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s</title>
 <meta name="description" content="%(desc)s">
-<meta name="theme-color" content="#fafaf9">
+<meta name="theme-color" content="#08090c">
+<meta name="color-scheme" content="dark">
 <link rel="preload" href="%(up)sstatic/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="%(up)sstatic/style.css">
 <link rel="icon" href="%(up)sstatic/icon.svg" type="image/svg+xml">
+<script src="%(up)sstatic/ui.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -331,7 +333,7 @@ def topic_html(cats, cid):
 def card_html(p, cats, up=""):
     shot = ('<img src="%s%s" alt="" loading="lazy" width="960" height="600">' % (up, esc(p["cover"]))
             if p.get("cover") else '<span class="no-shot" aria-hidden="true">%s</span>' % esc(p["name"][:1]))
-    return ('<article class="card"><a class="card-link" href="%(up)s%(url)s">'
+    return ('<article class="card" style="--c:%(color)s"><a class="card-link" href="%(up)s%(url)s">'
             '<div class="shot" style="--c:%(color)s">%(shot)s</div><div class="card-body">'
             '<p class="card-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time></p>'
             '<h3>%(name)s</h3><p class="tag">%(tag)s</p>%(topic)s</div></a></article>') % {
@@ -394,7 +396,7 @@ def build(out, config, cache=None):
         shot = first_image(readme_text, published)
         cover = None
         if shot:
-            key = "cover-%s-%s.jpg" % (blob_id(ref, shot), color.lstrip("#"))
+            key = "cover-dark-%s-%s.jpg" % (blob_id(ref, shot), color.lstrip("#"))
             cover_cache = os.path.join(cache, key) if cache else None
             target = os.path.join(dest, "cover.jpg")
             if cover_cache and os.path.exists(cover_cache):
@@ -470,49 +472,58 @@ def site_size(out):
     return total
 
 
-def _mix(hex_color, amount):
-    """Blend a #rrggbb colour with white: amount 0 is white, 1 is the colour."""
-    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
-    return tuple(round(255 + (c - 255) * amount) for c in (r, g, b))
+def _rgb(hex_color):
+    return tuple(int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _blend(a, b, t):
+    """Blend colour a towards colour b by t (0 to 1)."""
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+
+BASE = (11, 12, 16)
 
 
 def make_cover(src, dest, color, size=(960, 600)):
-    """A product shot: the top of the screenshot in a rounded window on a soft tinted backdrop."""
+    """A product shot: the top of the screenshot in a window, lit by its topic's colour on a dark backdrop."""
     if Image is None:
         return False
     try:
         from PIL import ImageDraw, ImageFilter
         W, H = size
-        top, bottom = _mix(color, 0.10), _mix(color, 0.30)
-        bg = Image.new("RGB", size, top)
-        grad = Image.linear_gradient("L").resize(size)
-        bg = Image.composite(Image.new("RGB", size, bottom), bg, grad)
+        col = _rgb(color)
+        bg = Image.new("RGB", size, BASE)
+        glow = Image.radial_gradient("L").resize((int(W * 1.6), int(H * 1.6)))
+        glow = glow.point(lambda v: 255 - v)               # bright in the middle
+        glow = glow.crop((int(W * 0.15), int(H * 0.55), int(W * 0.15) + W, int(H * 0.55) + H))
+        glow = glow.point(lambda v: int(v * 0.55))
+        bg = Image.composite(Image.new("RGB", size, _blend(BASE, col, 0.85)), bg, glow)
         with Image.open(src) as im:
             im = im.convert("RGB")
             if im.height > im.width * 1.3:      # a phone screenshot: show it like a phone
                 w = 300
                 shot = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
-                x, y, radius = (W - w) // 2, 56, 28
+                x, y, radius = (W - w) // 2, 64, 30
             else:                               # a desktop screenshot: the top-left corner, legibly
                 cw = min(im.width, 1120)
                 crop = im.crop((0, 0, cw, min(im.height, round(cw * 0.72))))
-                w = 840
+                w = 820
                 shot = crop.resize((w, round(crop.height * w / crop.width)), Image.LANCZOS)
-                x, y, radius = 60, 60, 14
+                x, y, radius = (W - w) // 2, 72, 14
         h = min(shot.height, H - y + radius)
         shot = shot.crop((0, 0, shot.width, h))
+        shadow = Image.new("L", size, 0)
+        ImageDraw.Draw(shadow).rounded_rectangle((x - 6, y + 6, x + shot.width + 6, y + shot.height + 60), radius=radius, fill=150)
+        shadow = shadow.filter(ImageFilter.GaussianBlur(24))
+        bg = Image.composite(Image.new("RGB", size, (0, 0, 0)), bg, shadow)
+        frame = Image.new("RGB", (shot.width + 2, shot.height + 2), _blend(BASE, (255, 255, 255), 0.22))
+        fmask = Image.new("L", frame.size, 0)
+        ImageDraw.Draw(fmask).rounded_rectangle((0, 0, frame.width - 1, frame.height + radius), radius=radius + 1, fill=255)
+        bg.paste(frame, (x - 1, y - 1), fmask)
         mask = Image.new("L", shot.size, 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, shot.width - 1, shot.height + radius), radius=radius, fill=255)
-        shadow = Image.new("L", size, 0)
-        ImageDraw.Draw(shadow).rounded_rectangle((x, y + 10, x + shot.width, y + shot.height + 40), radius=radius, fill=70)
-        shadow = shadow.filter(ImageFilter.GaussianBlur(18))
-        bg = Image.composite(Image.new("RGB", size, _mix(color, 0.75)), bg, shadow)
-        border = Image.new("RGB", (shot.width + 2, shot.height + 2), _mix(color, 0.35))
-        bmask = Image.new("L", border.size, 0)
-        ImageDraw.Draw(bmask).rounded_rectangle((0, 0, border.width - 1, border.height + radius), radius=radius + 1, fill=255)
-        bg.paste(border, (x - 1, y - 1), bmask)
         bg.paste(shot, (x, y), mask)
-        bg.save(dest, "JPEG", quality=84, optimize=True, progressive=True)
+        bg.save(dest, "JPEG", quality=86, optimize=True, progressive=True)
         return True
     except (OSError, ValueError):
         return False
@@ -586,11 +597,11 @@ def write_project(out, p, newer, older, cats, config):
         actions.append('<a class="btn" href="%s" target="_blank" rel="noopener">Open full screen %s</a>' % (esc(p["app"]), EXTERNAL))
     if p["findings"]:
         actions.append('<a class="btn" href="#findings">Read the findings</a>')
-    head = ('<section class="p-hero"><div class="wrap">'
+    head = ('<section class="p-hero" style="--c:%(color)s"><div class="wrap">'
             '<nav class="crumbs" aria-label="Breadcrumb"><a href="%(up)sindex.html#archive">Projects</a><span aria-hidden="true">/</span><a href="%(up)sindex.html#category=%(cid)s">%(cat)s</a></nav>'
             '<p class="p-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time>%(topic)s</p>'
             '<h1>%(name)s</h1><p class="lede">%(tag)s</p><div class="actions">%(actions)s</div></div></section>') % {
-        "up": up, "cid": esc(p["category"]), "cat": esc(cat["name"]), "num": p["number"], "date": esc(p["date"]),
+        "up": up, "color": esc(cat_color(cats, p["category"])), "cid": esc(p["category"]), "cat": esc(cat["name"]), "num": p["number"], "date": esc(p["date"]),
         "nice": esc(fmt_date(p["date"])), "topic": topic_html(cats, p["category"]), "name": esc(p["name"]),
         "tag": esc(p["tagline"]), "actions": "".join(actions)}
     nav = '<nav class="prev-next" aria-label="More projects">'
@@ -645,6 +656,21 @@ def year_grid(projects, config, today=None):
     return html_out, day_no
 
 
+def wall_html(projects, rows=3, per_row=14):
+    """The moving wall of project covers at the top of the home page (decorative; the archive is the way in)."""
+    pool = [p for p in projects if p.get("cover")][:60]
+    if not pool:
+        return ""
+    out = []
+    for r in range(rows):
+        order = pool[r * 5 % len(pool):] + pool[:r * 5 % len(pool)]
+        row = (order * (per_row // len(order) + 1))[:max(per_row, len(order))]
+        tiles = "".join('<a class="tile" href="%s" tabindex="-1"><img src="%s" alt="" loading="%s" width="480" height="300"></a>' % (
+            esc(p["url"]), esc(p["cover"]), "eager" if r == 0 else "lazy") for p in row)
+        out.append('<div class="wall-row%s"><div class="wall-track">%s%s</div></div>' % (" rev" if r % 2 else "", tiles, tiles))
+    return '<div class="wall" aria-hidden="true"><div class="wall-tilt">%s</div></div>' % "".join(out)
+
+
 def write_index(out, projects, cats, config):
     counts = {}
     for p in projects:
@@ -653,53 +679,88 @@ def write_index(out, projects, cats, config):
     first = min((p["date"] for p in projects), default=None)
     days = (datetime.date.today() - datetime.date.fromisoformat(first)).days + 1 if first else 0
     by_branch = {p["branch"]: p for p in projects}
-    featured = [by_branch[b] for b in config.get("featured", []) if b in by_branch][:3]
     latest = projects[0] if projects else None
-    grid, _day = year_grid(projects, config)
+    featured = [by_branch[b] for b in config.get("featured", []) if b in by_branch and by_branch[b] is not latest][:3]
+    for p in projects[1:]:                      # top up with recent projects so the row is always full
+        if len(featured) >= 3:
+            break
+        if p not in featured:
+            featured.append(p)
+    grid, day_no = year_grid(projects, config)
     data = [{"n": p["number"], "date": p["date"], "name": p["name"], "tag": p["tagline"], "what": p["what"], "theme": p["theme"],
              "cat": p["category"], "url": p["url"], "cover": p["cover"]} for p in projects]
 
-    actions = '<a class="btn primary" href="#archive">Browse the projects %s</a>' % ARROW
+    hero = ('<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="wrap hero-copy">'
+            '<a class="pill" href="#archive"><span class="live" aria-hidden="true"></span>%(count)d projects so far<span class="pill-sep" aria-hidden="true"></span>a new one every day %(arrow)s</a>'
+            '<h1>%(title)s</h1><p class="lede">%(tag)s</p>'
+            '<div class="actions center"><a class="btn primary" href="#archive">Explore the projects %(arrow)s</a>%(latest)s</div></div>'
+            '%(wall)s</section>') % {
+        "count": len(projects), "arrow": ARROW, "title": title_html(config["title"]), "tag": esc(config["tagline"]),
+        "latest": ('<a class="btn ghost" href="%s">Try the latest: %s</a>' % (esc(latest["url"]), esc(latest["name"]))) if latest else "",
+        "wall": wall_html(projects)}
+    stats = ('<section class="stats-strip"><div class="wrap stats">'
+             '<div><span class="stat">%d</span><span class="stat-label">projects built</span></div>'
+             '<div><span class="stat">%d</span><span class="stat-label">topics covered</span></div>'
+             '<div><span class="stat">%d</span><span class="stat-label">%s since %s</span></div>'
+             '<div><span class="stat">0</span><span class="stat-label">installs needed to try one</span></div>'
+             '</div></section>') % (len(projects), len(used), days, "day" if days == 1 else "days", esc(fmt_date(first, True)) if first else "")
+
+    spot = ""
     if latest:
-        actions += '<a class="btn" href="%s">Latest: %s</a>' % (esc(latest["url"]), esc(latest["name"]))
-    hero = ('<section class="hero"><div class="wrap hero-grid"><div class="hero-copy">'
-            '<p class="eyebrow"><span class="live" aria-hidden="true"></span>%s</p>'
-            '<h1>%s</h1><p class="lede">%s</p><div class="actions">%s</div></div>%s</div></section>') % (
-        esc("New every day · %d projects so far" % len(projects)), esc(config["title"]), esc(config["tagline"]), actions, grid)
-    stats = ('<section class="band"><div class="wrap stats">'
-             '<div><span class="stat">%d</span><span class="stat-label">projects</span></div>'
-             '<div><span class="stat">%d</span><span class="stat-label">topics</span></div>'
-             '<div><span class="stat">%d</span><span class="stat-label">days so far, since %s</span></div>'
-             '<div><span class="stat">100%%</span><span class="stat-label">run in your browser</span></div>'
-             '</div></section>') % (len(projects), len(used), days, esc(fmt_date(first, True)) if first else "")
+        spot = ('<section class="section reveal" aria-labelledby="h-latest"><div class="wrap">'
+                '<div class="section-head"><div><p class="kicker">Latest</p><h2 id="h-latest">The newest project</h2></div></div>'
+                '<a class="spotlight" href="%(url)s" style="--c:%(color)s"><div class="spot-shot"><img src="%(cover)s" alt="" width="960" height="600"></div>'
+                '<div class="spot-body"><p class="card-meta"><span class="num">No. %(num)03d</span><time datetime="%(date)s">%(nice)s</time></p>'
+                '<h3>%(name)s</h3><p class="spot-tag">%(tag)s</p>%(topic)s<span class="btn primary small">Try it live %(arrow)s</span></div></a>'
+                '</div></section>') % {
+            "url": esc(latest["url"]), "color": esc(cat_color(cats, latest["category"])), "cover": esc(latest["cover"] or ""),
+            "num": latest["number"], "date": esc(latest["date"]), "nice": esc(fmt_date(latest["date"])), "name": esc(latest["name"]),
+            "tag": esc(latest["tagline"]), "topic": topic_html(cats, latest["category"]), "arrow": ARROW}
     feat = ""
     if featured:
-        feat = ('<section class="section" aria-labelledby="h-feat"><div class="wrap"><div class="section-head"><div><h2 id="h-feat">Start here</h2>'
-                '<p>A few favourites to try first.</p></div></div><div class="grid feat">%s</div></div></section>') % "".join(card_html(p, cats) for p in featured)
+        feat = ('<section class="section reveal" aria-labelledby="h-feat"><div class="wrap"><div class="section-head"><div><p class="kicker">Start here</p>'
+                '<h2 id="h-feat">A few favourites</h2></div></div><div class="grid feat">%s</div></div></section>') % "".join(card_html(p, cats) for p in featured)
+    tiles = "".join(('<a class="topic-tile" href="#category=%s" style="--c:%s"><span class="tt-count">%d</span>'
+                     '<span class="tt-name">%s</span><span class="tt-blurb">%s</span></a>') % (
+        esc(c["id"]), esc(c.get("color", "#64748b")), counts[c["id"]], esc(c["name"]), esc(c.get("blurb", ""))) for c in used)
+    topics = ('<section class="section reveal" aria-labelledby="h-topics"><div class="wrap"><div class="section-head"><div><p class="kicker">Topics</p>'
+              '<h2 id="h-topics">What the projects are about</h2></div><p class="head-note">From why AI stalls at the pilot stage to markets, retail and carbon.</p></div>'
+              '<div class="topic-grid">%s</div></div></section>') % tiles
+
     chips = '<button type="button" class="chip" data-cat="" aria-pressed="true">All <span>%d</span></button>' % len(projects)
     chips += "".join('<button type="button" class="chip" data-cat="%s" aria-pressed="false"><span class="dot" style="--c:%s"></span>%s <span>%d</span></button>' % (
         esc(c["id"]), esc(c.get("color", "#64748b")), esc(c["name"]), counts[c["id"]]) for c in used)
     archive = ('<section class="section archive" id="archive" aria-labelledby="h-arch"><div class="wrap">'
-               '<div class="section-head"><div><h2 id="h-arch">All projects</h2><p>Open any project to try it right here in your browser.</p></div>'
+               '<div class="section-head"><div><p class="kicker">Archive</p><h2 id="h-arch">Every project</h2></div>'
                '<p class="count" id="count" role="status" aria-live="polite">%d projects</p></div>'
                '<div class="filters"><label class="search">%s<span class="sr-only">Search projects</span>'
-               '<input type="search" id="q" placeholder="Search, for example forecasting or AI Act" autocomplete="off"></label>'
+               '<input type="search" id="q" placeholder="Search projects, for example forecasting or AI Act" autocomplete="off"></label>'
                '<label class="select"><span class="sr-only">Sort</span><select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option></select></label>'
                '<div class="view" role="group" aria-label="Layout"><button type="button" id="view-grid" aria-pressed="true">Grid</button><button type="button" id="view-list" aria-pressed="false">List</button></div></div>'
                '<div class="chips" role="group" aria-label="Filter by topic">%s</div>'
                '<p class="cat-blurb" id="cat-blurb"></p>'
                '<div class="grid" id="grid">%s</div>'
                '<p class="empty" id="empty" hidden>No projects match. Try another word or topic.</p>'
-               '<div class="more"><button type="button" class="btn" id="more" hidden>Show more</button></div>'
+               '<div class="more"><button type="button" class="btn ghost" id="more" hidden>Show more</button></div>'
                '<noscript><p><a href="archive.html">See every project in the archive</a>.</p></noscript>'
                '</div></section>') % (len(projects), SEARCH, chips, "".join(card_html(p, cats) for p in projects[:24]))
+    challenge = ('<section class="section reveal" aria-labelledby="h-chal"><div class="wrap challenge"><div class="chal-copy"><p class="kicker">The challenge</p>'
+                 '<h2 id="h-chal">One project a day, for a year</h2><p>%s</p><p><a class="text-link" href="about.html">How these are made %s</a></p></div>%s</div></section>') % (
+        esc(config["how"]), ARROW, grid)
     cat_data = {c["id"]: {"name": c["name"], "blurb": c.get("blurb", ""), "color": c.get("color", "#64748b")} for c in used}
-    how = ('<section class="section how"><div class="wrap how-grid"><div><p class="eyebrow">How these are made</p><h2>A daily habit, built in the open</h2></div>'
-           '<div><p>%s</p><p><a class="text-link" href="about.html">More about this project %s</a></p></div></div></section>') % (esc(config["how"]), ARROW)
     script = ('<script type="application/json" id="data">%s</script><script type="application/json" id="cats">%s</script>'
               '<script src="static/site.js"></script>') % (json.dumps(data).replace("</", "<\\/"), json.dumps(cat_data).replace("</", "<\\/"))
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
-        f.write(page("%s: %s" % (config["name"], config["title"]), hero + stats + feat + archive + how + script, 0, config["tagline"], config, "projects"))
+        f.write(page("%s: %s" % (config["name"], config["title"]), hero + stats + spot + feat + topics + archive + challenge + script,
+                     0, config["tagline"], config, "projects"))
+
+
+def title_html(title):
+    """Highlight the last two words of the headline (\"every day\") with the accent gradient."""
+    words = title.split()
+    if len(words) < 3:
+        return esc(title)
+    return '%s <span class="grad">%s</span>' % (esc(" ".join(words[:-2])), esc(" ".join(words[-2:])))
 
 
 def write_archive(out, projects, cats, config):

@@ -38,7 +38,7 @@
     var cat = cats[p.cat] || { name: 'Other', color: '#64748b' };
     var shot = p.cover ? '<img src="' + esc(p.cover) + '" alt="" loading="lazy" width="960" height="600">'
       : '<span class="no-shot" aria-hidden="true">' + esc(p.name.charAt(0)) + '</span>';
-    return '<article class="card"><a class="card-link" href="' + esc(p.url) + '">' +
+    return '<article class="card" style="--c:' + esc(cat.color) + '"><a class="card-link" href="' + esc(p.url) + '">' +
       '<div class="shot" style="--c:' + esc(cat.color) + '">' + shot + '</div><div class="card-body">' +
       '<p class="card-meta"><span class="num">No. ' + pad(p.n) + '</span><time datetime="' + esc(p.date) + '">' + esc(shortDate(p.date)) + '</time></p>' +
       '<h3>' + esc(p.name) + '</h3><p class="tag">' + esc(p.tag) + '</p>' +
@@ -122,12 +122,18 @@
     if (next) { var link = next.querySelector('a'); if (link) link.focus(); }
   });
 
-  if (readHash()) {
-    q.value = state.q;
-    sort.value = state.sort;
-    render();
-    document.getElementById('archive').scrollIntoView();
-  } else {
-    render();
+  function applyHash() {
+    if (readHash()) {
+      q.value = state.q;
+      sort.value = state.sort;
+      state.shown = PAGE;
+      render();
+      document.getElementById('archive').scrollIntoView();
+      return true;
+    }
+    return false;
   }
+  // Topic tiles higher up the page link to #category=..., so follow the address as it changes.
+  window.addEventListener('hashchange', applyHash);
+  if (!applyHash()) render();
 })();

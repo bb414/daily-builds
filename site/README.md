@@ -29,7 +29,7 @@ Everything you might want to edit is in `site.json`:
 
 ## How it looks
 
-One typeface (Inter, bundled in `static/fonts` under the SIL Open Font License, so the site makes no outside requests), a neutral palette and one colour per topic. Each project gets a cover image made from its first screenshot, framed on a backdrop in its topic's colour, and a number counting up from the first project. The home page shows the first year as a grid of 365 days that fills in as projects arrive. Topic colours live in `site.json`.
+A dark, quiet design so the projects carry the colour: one typeface (Inter, bundled in `static/fonts` under the SIL Open Font License, so the site makes no outside requests), one accent gradient and one colour per topic, set in `site.json`. The home page opens with a moving, tilted wall of every project so far, then the latest project, a few favourites, the topics, the full archive and the year-long calendar that fills in one day at a time. Each project gets a cover image made from its first screenshot, lit in its topic's colour, and a number counting up from the first project. Motion is switched off for visitors who ask their system for reduced motion.
 
 ## Building it on your own computer
 
