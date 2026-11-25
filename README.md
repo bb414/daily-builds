@@ -47,7 +47,7 @@ What you can do in it:
 - **Test whether it holds** in 10 other organisations of exactly the same shape.
 - **Save and share**: copy a link that holds every setting, including your picks, or download the settings as a file that the Python version can read.
 
-It works on a phone as well as a desktop, every control can be used with a keyboard, and it supports dark mode. Long checks run in small steps, so the page stays responsive even at the largest settings.
+It works on a phone as well as a desktop, and every control can be used with a keyboard. It is laid out like a seed packet and a gardener's notebook: people in the network start as seeds and grow a leaf once they use the tool. Long checks run in small steps, so the page stays responsive even at the largest settings.
 
 <img src="docs/phone.png" alt="Champion Seeding on a phone" width="260">
 
@@ -107,12 +107,14 @@ The `examples/` folder holds the default synthetic organisation in that format (
 
 | Part | Language | Lines (approx.) | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML and CSS | 220 | Layout, styling, light and dark themes, phone layout |
+| `app/index.html` | HTML and CSS | 520 | Layout, styling, the illustrations, embedded fonts, phone layout |
 | `app/index.html` (model block) | JavaScript | 630 | The organisation, the five strategies, the rollouts, the what-if sweep, the robustness test, explanations, settings links and files |
-| `app/index.html` (interface) | JavaScript | 690 | Controls, the network view, charts, tables, picking champions, running heavy work in small chunks |
+| `app/index.html` (interface) | JavaScript | 700 | Controls, the network view, charts, tables, picking champions, running heavy work in small chunks |
 | `champion_seeding/model.py` | Python | 680 | A line-for-line port of the model block |
 | `champion_seeding/network_io.py`, `cli.py` | Python | 350 | Loading and exporting CSV networks, the command-line tool, text, JSON and CSV output |
 | `tests/` | JavaScript and Python | 880 | Model tests in Node.js, Python tests, a parity test and browser tests |
+
+The two typefaces, Young Serif and Work Sans, are embedded in the file under the SIL Open Font License (see `app/FONT-LICENCE.txt`).
 
 **Both versions agree exactly.** They use the same random number generator (Mulberry32) and draw random numbers in the same order. The random decisions use only basic arithmetic, not library maths functions that can differ between platforms. `tests/test_parity.py` runs the browser app's own model code in Node.js and checks that it matches Python for:
 
