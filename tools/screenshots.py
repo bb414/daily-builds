@@ -45,7 +45,7 @@ def main(argv):
         for name, ctx, preset, register, anchor in shots:
             if only and name not in only:
                 continue
-            context = browser.new_context(locale="en-GB", **ctx)
+            context = browser.new_context(locale="en-GB", reduced_motion="reduce", **ctx)
             page = context.new_page()
             prepare(page, preset, register)
             if anchor:

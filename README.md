@@ -54,14 +54,14 @@ The parity tests need Node.js and the UI tests need Playwright for Python with C
 |---|---|
 | ![Answers that would lighten the load or add to it, each with a Try it button](docs/pivots.png) | ![Nine example systems with classification, duties, next deadline and maximum fine](docs/register.png) |
 
-Dark mode follows the system setting: ![The benefits example in dark mode](docs/dark.png)
+The page has one colour scheme, parchment pages and cloth bindings, and keeps it when the system is set to dark mode: ![The benefits example for a council, taken with the system set to dark mode](docs/dark.png)
 
 ## Which language does what
 
 | Part | Language | Lines | What it does |
 |---|---|---:|---|
 | `app/index.html`: rules engine (between `MODEL START` and `MODEL END`) | JavaScript | 681 | Normalises answers, classifies, lists duties and dates, pivots, register roadmap, notes on odd input, CSV reading and writing. Includes the 98-line embedded copy of the rules |
-| `app/index.html`: interface | JavaScript, HTML, CSS | 737 | Questions, results, timeline and roadmap charts (inline SVG), register, downloads and imports |
+| `app/index.html`: interface | JavaScript, HTML, CSS | 1315 | Questions, results, timeline and roadmap charts (inline SVG), register, downloads and imports, plus the styling, the embedded fonts (licence in `app/FONT-LICENCE.txt`) and the header illustration |
 | `ai_act_triage/rules.json` | JSON | 709 | The rules as data: dates, bans, Annex III areas, exemptions, 37 duties, fines, UK notes, labels, examples. Copied into the app by `tools/sync_rules.py` |
 | `ai_act_triage/model.py` | Python | 648 | A line-for-line port of the rules engine |
 | `ai_act_triage/register.py`, `__main__.py` | Python | 366 | Register files (CSV and JSON), reports, and the command line |
