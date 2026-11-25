@@ -32,8 +32,9 @@ class StatementTest(unittest.TestCase):
             self.assertIsInstance(t["pennies"], int)
             self.assertGreaterEqual(t["pennies"], 50)
             self.assertTrue(0 <= t["cat"] < M.C)
-        rent = [t for t in a["tx"] if t["desc"] == "TO J OKAFOR REF RENT"]
-        self.assertEqual([t["date"] for t in rent], ["2026-10-01", "2026-11-01", "2026-12-01"])
+        old = [t["date"] for t in a["tx"] if t["desc"] == "TO J OKAFOR REF RENT"]
+        new = [t["date"] for t in a["tx"] if t["desc"] == "TO R SINGH REF RENT"]
+        self.assertEqual((old, new), (["2026-10-01"], ["2026-11-01", "2026-12-01"]))
 
     def test_unknown_persona(self):
         with self.assertRaises(ValueError):
@@ -50,7 +51,8 @@ class LearningTest(unittest.TestCase):
     def test_correction_teaches_the_merchant(self):
         st = M.generate_statement("graduate", 13, 1)
         s = M.Session(st)
-        rent = [i for i, t in enumerate(st["tx"]) if t["desc"] == "TO J OKAFOR REF RENT"]
+        rent = [i for i, t in enumerate(st["tx"]) if t["desc"].endswith(" REF RENT")]
+        self.assertEqual(len(rent), 3)
         bills = M.CATS.index("Bills")
         self.assertTrue(all(s.reported(i) != bills for i in rent))
         before = s.metrics()["misP"]
@@ -73,6 +75,20 @@ class LearningTest(unittest.TestCase):
             r = M.run_curve(st, sid, checks=len(st["tx"]) + 3)
             self.assertEqual(r["points"][-1]["misPct"], 0)
             self.assertEqual(len(r["points"]), len(st["tx"]) + 1)
+
+    def test_weekly_mode(self):
+        st = M.generate_statement("sixthformer", 8, 3)
+        none = M.run_weekly(st, "none", per_week=4)
+        self.assertEqual(none["checks"], 0)
+        fresh = M.Session(st)
+        for m in none["months"]:
+            idx = [i for i, t in enumerate(st["tx"]) if t["month"] == m["month"]]
+            self.assertEqual(m["misPct"], M.metrics_for(st, fresh.reported_all(), idx)["misPct"])
+        for sid in M.STRATEGY_IDS:
+            self.assertEqual(M.run_weekly(st, sid, per_week=2)["checks"], 16)
+        self.assertEqual(M.run_weekly(st, "risk", per_week=1000)["checks"], len(st["tx"]))
+        self.assertEqual([(m["month"], m["partial"]) for m in none["months"]],
+                         [("2026-09", True), ("2026-10", False), ("2026-11", True)])
 
     def test_checks_to_target(self):
         self.assertEqual(M.checks_to_target([{"misPct": 7}, {"misPct": 5}], 5), 1)

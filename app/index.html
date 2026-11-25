@@ -152,6 +152,14 @@ svg.chart .cross-line { stroke: var(--text-2); stroke-width: 1; }
 .tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 0.82rem; min-width: 190px; display: none; z-index: 2; }
 .tooltip .t-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .tooltip .t-row span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.heat td.cell { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; border-left: 2px solid var(--surface); }
+.heat th.mon { text-align: center; }
+.heat th.mon small { display: block; font-weight: 400; color: var(--muted); }
+.heat th.change { box-shadow: inset 0 -3px 0 var(--s2); }
+.heat .ok-cell { color: var(--good); }
+.keyrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 0.82rem; color: var(--text-2); margin: 10px 0 0; }
+.ramp { display: inline-flex; border-radius: 4px; overflow: hidden; }
+.ramp i { width: 18px; height: 10px; display: inline-block; }
 .insight { margin: 14px 0; padding: 12px 14px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
 .best { font-weight: 700; }
 details { margin-top: 6px; }
@@ -284,6 +292,25 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       </div>
     </section>
 
+
+    <section class="panel" aria-labelledby="weekly-h">
+      <h2 id="weekly-h">Living with it: a few checks a week</h2>
+      <p class="sub">Real people do not check sixty payments on day one. Here the app asks about a handful of each week&rsquo;s payments every Sunday, keeps learning, and each month is scored as the person would have seen it when the month ended. Partway through, the person&rsquo;s habits change.</p>
+      <div class="field" style="max-width:420px">
+        <label class="label" for="perweek">Checks the person answers each week</label>
+        <div class="row"><input type="range" id="perweek" min="0" max="10" step="1" value="3"><output for="perweek" id="perweek-out">3</output></div>
+      </div>
+      <p class="insight" id="weekly-insight"></p>
+      <div class="tablewrap" style="max-height:none">
+        <table class="heat">
+          <caption class="sr-only">Share of each month&rsquo;s spending in the wrong pot when the month ended, for each way of choosing checks</caption>
+          <thead id="weekly-head"></thead>
+          <tbody id="weekly-rows"></tbody>
+        </table>
+      </div>
+      <div class="keyrow" id="weekly-key"></div>
+    </section>
+
     <section class="panel prose" aria-labelledby="how-h">
       <h2 id="how-h">How it works</h2>
       <details open>
@@ -373,6 +400,8 @@ var Mislabelled = (function () {
     {"id": "MOONBEAM", "name": "MOONBEAM CINEMA", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 10},
     {"id": "TICKETHIVE", "name": "TICKETHIVE", "style": "online", "pop": "Fun", "known": true, "suffixes": [], "variants": ["TICKETHIVE #", "TICKETHIVE.COM EVENTS"], "popAmt": 30},
     {"id": "TENPIN", "name": "TENPIN TOWN BOWLING", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 12},
+    {"id": "CRUX", "name": "CRUX CLIMBING", "style": "local", "pop": "Fun", "known": false, "suffixes": [], "variants": [], "popAmt": 9},
+    {"id": "HONEYCOMB", "name": "HONEYCOMB DELI", "style": "local", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 7},
     {"id": "TRANSFER", "name": "", "style": "transfer", "pop": "Transfers", "known": false, "suffixes": [], "variants": [], "popAmt": 20}
   ],
   "population": {
@@ -399,7 +428,8 @@ var Mislabelled = (function () {
     {
       "id": "student",
       "label": "Jess, first-year student",
-      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer.",
+      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer. From mid-October she starts climbing at a new wall and the house switches to a grocery delivery.",
+      "change": {"week": 6, "text": "starts climbing at a new wall and switches to a grocery delivery"},
       "towns": ["BRIGHTON", "HOVE"],
       "monthly": [
         {"m": "HOMESHARE", "cat": "Bills", "day": 1, "amt": 620, "spread": 0},
@@ -412,7 +442,9 @@ var Mislabelled = (function () {
       "habits": [
         {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 19, "spread": 0.35, "days": [1, 1, 1, 1, 1.3, 1.3, 1]},
         {"m": "LARDERLY", "cat": "Fun", "perWeek": 0.35, "amt": 27, "spread": 0.3, "days": [0, 0, 0, 0.2, 1, 1, 0], "note": "pre-drinks shop"},
-        {"m": "THRIFTYCART", "cat": "Groceries", "perWeek": 0.6, "amt": 13, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "THRIFTYCART", "cat": "Groceries", "perWeek": 0.6, "amt": 13, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1], "until": 6},
+        {"m": "DOORSTEP", "cat": "Groceries", "perWeek": 0.7, "amt": 24, "spread": 0.3, "days": [0, 0, 0, 0, 0, 0, 1], "from": 6, "note": "shared grocery delivery"},
+        {"m": "CRUX", "cat": "Fun", "perWeek": 1.2, "amt": 8.5, "spread": 0.25, "days": [0.5, 1, 0.5, 1, 0.3, 1, 0.5], "from": 6, "note": "new climbing wall"},
         {"m": "CORNERMART", "cat": "Fun", "perWeek": 1.3, "amt": 6.5, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "note": "late-night snacks and drinks"},
         {"m": "BEANTHERE", "cat": "Eating out", "perWeek": 2.5, "amt": 3.6, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
         {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 1.1, "amt": 17, "spread": 0.3, "days": [0.6, 0.6, 0.8, 1, 1.4, 1.4, 1.2]},
@@ -438,12 +470,15 @@ var Mislabelled = (function () {
     {
       "id": "graduate",
       "label": "Sam, graduate commuting into London",
-      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun.",
+      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun. Moves flat at the end of October, so the rent goes to a new name and lunch to a new deli.",
+      "change": {"week": 7, "text": "moves flat: rent goes to a new name, energy becomes a direct debit and lunch moves to a new deli"},
       "towns": ["CROYDON", "LONDON"],
       "monthly": [
-        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 750, "spread": 0, "payee": "J OKAFOR", "memos": ["RENT"], "note": "rent paid to a flatmate"},
+        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 750, "spread": 0, "payee": "J OKAFOR", "memos": ["RENT"], "until": 7, "note": "rent paid to a flatmate"},
+        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 820, "spread": 0, "payee": "R SINGH", "memos": ["RENT"], "from": 7, "note": "rent in the new flat"},
         {"m": "PULSEPOINT", "cat": "Bills", "day": 1, "amt": 34.99, "spread": 0, "note": "gym counted as a bill"},
-        {"m": "TRANSFER", "cat": "Bills", "day": 3, "amt": 48, "spread": 0.15, "payee": "J OKAFOR", "memos": ["BILLS"]},
+        {"m": "TRANSFER", "cat": "Bills", "day": 3, "amt": 48, "spread": 0.15, "payee": "J OKAFOR", "memos": ["BILLS"], "until": 7},
+        {"m": "GLOWGRID", "cat": "Bills", "day": 4, "amt": 52, "spread": 0.15, "from": 7},
         {"m": "VIDVAULT", "cat": "Subscriptions", "day": 9, "amt": 10.99, "spread": 0},
         {"m": "CHATTERBOX", "cat": "Bills", "day": 14, "amt": 22, "spread": 0},
         {"m": "TUNEPOOL", "cat": "Subscriptions", "day": 21, "amt": 11.99, "spread": 0},
@@ -455,7 +490,8 @@ var Mislabelled = (function () {
         {"m": "TRACKWISE", "cat": "Transport", "perWeek": 0.4, "amt": 14, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "ZIPCAB", "cat": "Fun", "perWeek": 0.45, "amt": 15, "spread": 0.35, "days": [0, 0, 0, 0.2, 1.2, 1.2, 0.3], "note": "late taxi home after a night out"},
         {"m": "ZIPCAB", "cat": "Transport", "perWeek": 0.25, "amt": 11, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
-        {"m": "KETTLECRUMB", "cat": "Eating out", "perWeek": 2.8, "amt": 6.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "KETTLECRUMB", "cat": "Eating out", "perWeek": 2.8, "amt": 6.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1], "until": 7},
+        {"m": "HONEYCOMB", "cat": "Eating out", "perWeek": 2.8, "amt": 7.4, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1], "from": 7, "note": "lunch near the new flat"},
         {"m": "EMBERS", "cat": "Eating out", "perWeek": 0.6, "amt": 12, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 0.6, "amt": 23, "spread": 0.3, "days": [0.5, 0.5, 0.7, 1, 1.5, 1.5, 1.3]},
         {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 24, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
@@ -477,7 +513,8 @@ var Mislabelled = (function () {
     {
       "id": "sixthformer",
       "label": "Alex, sixth-former with a Saturday job",
-      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun.",
+      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun. Starts weekly driving lessons in October, paid by bank transfer.",
+      "change": {"week": 5, "text": "starts weekly driving lessons, paid by bank transfer"},
       "towns": ["LEWES", "BRIGHTON"],
       "monthly": [
         {"m": "PIXELPASS", "cat": "Fun", "day": 8, "amt": 7.99, "spread": 0, "note": "games pass counted as fun"},
@@ -501,7 +538,8 @@ var Mislabelled = (function () {
         {"m": "HEALTHYHABIT", "cat": "Shopping", "perWeek": 0.25, "amt": 6, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "TRANSFER", "cat": "Eating out", "perWeek": 0.25, "amt": 4.5, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.2, 0.2], "payee": "M NOVAK", "memos": ["LUNCH", "CHIPS"]},
         {"m": "TRANSFER", "cat": "Fun", "perWeek": 0.1, "amt": 9, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "payee": "K BROWN", "memos": ["CINEMA", "BOWLING"]},
-        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.12, "amt": 10, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "BDAY"]}
+        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.12, "amt": 10, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "BDAY"]},
+        {"m": "TRANSFER", "cat": "Transport", "perWeek": 1, "amt": 34, "spread": 0, "days": [0, 0, 0, 0, 0, 0, 1], "payee": "STEERWELL DRIVING", "memos": ["LESSON", "LESSON ALEX"], "from": 5, "note": "driving lessons counted as transport"}
       ]
     }
   ]
@@ -681,7 +719,10 @@ var Mislabelled = (function () {
       var dt = dateOf(day);
       var i;
       for (i = 0; i < p.monthly.length; i++) {
-        if (p.monthly[i].day === dt.d) add(p.monthly[i], monthlyStates[i], day, wd, dt);
+        var mon = p.monthly[i];
+        if (mon.from !== undefined && week < mon.from) continue;
+        if (mon.until !== undefined && week >= mon.until) continue;
+        if (mon.day === dt.d) add(mon, monthlyStates[i], day, wd, dt);
       }
       for (i = 0; i < p.habits.length; i++) {
         var h = p.habits[i];
@@ -973,27 +1014,29 @@ var Mislabelled = (function () {
 
   /* ---------- which transaction should the app ask the user to check next? ---------- */
 
-  function chooseNext(strategy, session, rng) {
+  // `allowed` (optional) limits the choice, for example to payments that arrived this week.
+  function chooseNext(strategy, session, rng, allowed) {
     var model = session.model;
     var tx = session.statement.tx;
     var n = tx.length;
     var t, best = -1;
+    function open(i) { return session.labels[i] < 0 && (!allowed || allowed(i)); }
     if (strategy === 'random') {
-      var open = [];
-      for (t = 0; t < n; t++) if (session.labels[t] < 0) open.push(t);
-      if (open.length === 0) return -1;
-      return open[Math.floor(rng() * open.length)];
+      var pool = [];
+      for (t = 0; t < n; t++) if (open(t)) pool.push(t);
+      if (pool.length === 0) return -1;
+      return pool[Math.floor(rng() * pool.length)];
     }
     if (strategy === 'biggest') {
       for (t = 0; t < n; t++) {
-        if (session.labels[t] >= 0) continue;
+        if (!open(t)) continue;
         if (best < 0 || tx[t].pennies > tx[best].pennies) best = t;
       }
       return best;
     }
     if (strategy === 'unsure') {
       for (t = 0; t < n; t++) {
-        if (session.labels[t] >= 0) continue;
+        if (!open(t)) continue;
         if (best < 0 || model.conf[t] < model.conf[best]) best = t;
       }
       return best;
@@ -1004,7 +1047,7 @@ var Mislabelled = (function () {
       for (t = 0; t < n; t++) if (session.labels[t] >= 0) checkedKeys[model.keys[t]] = true;
       for (t = 0; t < n; t++) {
         k = model.keys[t];
-        if (session.labels[t] >= 0 || checkedKeys[k]) continue;
+        if (!open(t) || checkedKeys[k]) continue;
         if (!stats[k]) { stats[k] = { count: 0, first: t }; order.push(k); }
         stats[k].count += 1;
       }
@@ -1012,12 +1055,12 @@ var Mislabelled = (function () {
       for (var i = 0; i < order.length; i++) {
         if (bestKey === null || stats[order[i]].count > stats[bestKey].count) bestKey = order[i];
       }
-      if (bestKey === null) return chooseNext('unsure', session, rng);
+      if (bestKey === null) return chooseNext('unsure', session, rng, allowed);
       return stats[bestKey].first;
     }
     if (strategy === 'risk') {
       for (t = 0; t < n; t++) {
-        if (session.labels[t] >= 0) continue;
+        if (!open(t)) continue;
         k = model.keys[t];
         var r = tx[t].pennies * (1 - model.conf[t]);
         if (!stats[k]) { stats[k] = { risk: 0, top: t, topRisk: r }; order.push(k); }
@@ -1031,6 +1074,13 @@ var Mislabelled = (function () {
       return bestRiskKey === null ? -1 : stats[bestRiskKey].top;
     }
     throw new Error('unknown strategy ' + strategy);
+  }
+
+  // What the person taps: the true pot, unless a slip sends it to another one.
+  function answer(statement, t, rng, slip) {
+    var truth = statement.tx[t].cat;
+    if (rng() < slip) return (truth + 1 + Math.floor(rng() * (C - 1))) % C;
+    return truth;
   }
 
   function summarise(m) {
@@ -1048,10 +1098,7 @@ var Mislabelled = (function () {
     for (var k = 1; k <= checks; k++) {
       var t = chooseNext(strategy, session, rng);
       if (t < 0) break;
-      var truth = statement.tx[t].cat;
-      var label = truth;
-      if (rng() < slip) label = (truth + 1 + Math.floor(rng() * (C - 1))) % C;
-      session.correct(t, label);
+      session.correct(t, answer(statement, t, rng, slip));
       picks.push(t);
       points.push(summarise(session.metrics()));
     }
@@ -1078,13 +1125,71 @@ var Mislabelled = (function () {
     });
   }
 
+  /* ---------- living with the app: a few checks each week, months go by ---------- */
+
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function metricsFor(statement, reported, indices) {
+    var sub = [], rep = [];
+    for (var i = 0; i < indices.length; i++) { sub.push(statement.tx[indices[i]]); rep.push(reported[indices[i]]); }
+    return metrics({ tx: sub }, rep);
+  }
+
+  // Each Sunday the person answers up to `perWeek` checks about that week's payments.
+  // When a calendar month ends, the app's view of that month is scored as it stood then.
+  function runWeekly(statement, strategy, opts) {
+    opts = opts || {};
+    var perWeek = strategy === 'none' ? 0 : (opts.perWeek !== undefined ? opts.perWeek : 3);
+    var slip = opts.slip || 0;
+    var session = new Session(statement, opts);
+    var rng = mulberry32(seedFor(opts.seed !== undefined ? opts.seed : statement.seed, 'weekly:' + strategy));
+    var tx = statement.tx;
+    var lastDay = statement.weeks * 7 - 1;
+    var months = [];
+    var weekStart = 0;
+    function inWeek(i) { return tx[i].day >= weekStart && tx[i].day <= weekStart + 6; }
+    for (var day = 0; day <= lastDay; day++) {
+      if (day % 7 === 6) {
+        weekStart = day - 6;
+        for (var k = 0; k < perWeek; k++) {
+          var t = chooseNext(strategy, session, rng, inWeek);
+          if (t < 0) break;
+          session.correct(t, answer(statement, t, rng, slip));
+        }
+      }
+      var dt = dateOf(day);
+      if (day === lastDay || dateOf(day + 1).m !== dt.m) {
+        var key = dt.y + '-' + pad2(dt.m);
+        var idx = [];
+        for (var i = 0; i < tx.length; i++) if (tx[i].month === key) idx.push(i);
+        var m = metricsFor(statement, session.reportedAll(), idx);
+        var firstDay = day - dt.d + 1 < 0 ? 0 : day - dt.d + 1;
+        months.push({
+          month: key, name: MONTHS[dt.m - 1], from: dateOf(firstDay).d, to: dt.d,
+          partial: dateOf(firstDay).d > 1 || dt.d < daysInMonth(dt.y, dt.m),
+          misPct: m.misPct, misP: m.misP, totalP: m.totalP, n: m.n, accuracy: m.accuracy, checks: session.checks
+        });
+      }
+    }
+    return { strategy: strategy, months: months, checks: session.checks };
+  }
+
+  function compareWeekly(statement, opts) {
+    var ids = [{ id: 'none', label: 'Never checks' }].concat(STRATEGIES);
+    return ids.map(function (s) {
+      var r = runWeekly(statement, s.id, opts);
+      return { strategy: s.id, label: s.label, months: r.months, checks: r.checks };
+    });
+  }
+
   return {
     DATA: DATA, CATS: CATS, STRATEGIES: STRATEGIES, MERCHANTS: MERCHANTS, PERSONAS: PERSONAS,
     mulberry32: mulberry32, fnv1a: fnv1a, seedFor: seedFor, ln: ln, exp: exp,
     dateOf: dateOf, drawPennies: drawPennies, generateStatement: generateStatement,
     featurise: featurise, amountBand: amountBand, buildPopulation: buildPopulation,
     Model: Model, Session: Session, metrics: metrics, chooseNext: chooseNext,
-    runCurve: runCurve, checksToTarget: checksToTarget, compareStrategies: compareStrategies
+    runCurve: runCurve, checksToTarget: checksToTarget, compareStrategies: compareStrategies,
+    answer: answer, metricsFor: metricsFor, runWeekly: runWeekly, compareWeekly: compareWeekly
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelled;
@@ -1099,7 +1204,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
   var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
   var DASHES = ['', '7 4', '2 3', '10 3 2 3', '4 4'];
   var state = { persona: 'student', weeks: 13, seed: 1, weight: 20, target: 5, checks: 60, slip: 0 };
-  var statement = null, session = null, compare = null, askRng = null;
+  var statement = null, session = null, compare = null, weekly = null, askRng = null;
+  var perWeek = 3;
+  var RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'];
   var filter = 'all', sort = 'date', suggest = 'risk', flashId = -1;
 
   function $(id) { return document.getElementById(id); }
@@ -1184,6 +1291,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     });
     sug.addEventListener('change', function (e) { suggest = e.target.value; });
     $('ask').addEventListener('click', askNext);
+    var pw = $('perweek');
+    pw.addEventListener('input', function () { $('perweek-out').textContent = pw.value; });
+    pw.addEventListener('change', function () { perWeek = Number(pw.value); runWeeklyView(); });
     $('reset').addEventListener('click', function () { newSession(); say('All your checks were undone. The app is back to its day-one guesses.'); });
   }
 
@@ -1408,6 +1518,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       compareTimer = null;
       compare = M.compareStrategies(statement, { checks: state.checks, target: state.target, slip: state.slip / 100, weight: state.weight, seed: state.seed });
       renderCompare();
+      runWeeklyView();
     }, 30);
   }
 
@@ -1460,6 +1571,112 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       body.appendChild(tr);
     });
   }
+
+
+  /* ---------- living with it ---------- */
+  function runWeeklyView() {
+    weekly = M.compareWeekly(statement, { perWeek: perWeek, slip: state.slip / 100, weight: state.weight, seed: state.seed });
+    renderWeekly();
+  }
+
+  function cellColour(v) {
+    if (v <= state.target) return null;
+    var cap = Math.max(40, state.target * 4);
+    var f = Math.min(1, (v - state.target) / (cap - state.target));
+    var i = Math.min(RAMP.length - 1, Math.floor(f * RAMP.length));
+    return { bg: RAMP[i], fg: i >= 3 ? '#ffffff' : '#0b0b0b' };
+  }
+
+  function renderWeekly() {
+    var p = M.PERSONAS[state.persona];
+    var change = p.change;
+    var changeDay = change ? change.week * 7 : -1;
+    var changeDate = change ? M.dateOf(changeDay) : null;
+    var months = weekly[0].months;
+    var head = $('weekly-head');
+    head.textContent = '';
+    var hr = el('tr');
+    hr.appendChild(el('th', { scope: 'col' }, 'Checks chosen by'));
+    months.forEach(function (m) {
+      var th = el('th', { scope: 'col', class: 'mon' });
+      th.appendChild(document.createTextNode(m.name + ' ' + m.month.slice(0, 4)));
+      var sm = el('small', null, m.partial ? m.from + ' to ' + m.to + ' only' : 'whole month');
+      th.appendChild(sm);
+      if (change && changeDate && changeDay < statement.weeks * 7 && m.month === changeDate.iso.slice(0, 7)) {
+        th.className = 'mon change';
+        th.setAttribute('title', 'Habits change from ' + changeDate.d + ' ' + m.name);
+      }
+      hr.appendChild(th);
+    });
+    hr.appendChild(el('th', { scope: 'col', class: 'num' }, 'Checks used'));
+    head.appendChild(hr);
+    var body = $('weekly-rows');
+    body.textContent = '';
+    weekly.forEach(function (r) {
+      var tr = el('tr');
+      var th = el('th', { scope: 'row', style: 'text-align:left;font-weight:' + (r.strategy === 'none' ? '600' : '400') });
+      var si = -1;
+      M.STRATEGIES.forEach(function (s, i) { if (s.id === r.strategy) si = i; });
+      if (si >= 0) {
+        var sw = lineSwatch(si, 22);
+        sw.style.marginRight = '6px';
+        sw.style.verticalAlign = 'middle';
+        th.appendChild(sw);
+      }
+      th.appendChild(document.createTextNode(r.label));
+      tr.appendChild(th);
+      r.months.forEach(function (m) {
+        var col = cellColour(m.misPct);
+        var td = el('td', { class: 'cell' + (col ? '' : ' ok-cell') });
+        if (col) { td.style.background = col.bg; td.style.color = col.fg; }
+        td.textContent = (col ? '' : '\u2713 ') + pct(m.misPct);
+        td.setAttribute('aria-label', m.name + ': ' + pct(m.misPct) + ' in the wrong pot' + (col ? '' : ', within the target'));
+        tr.appendChild(td);
+      });
+      tr.appendChild(el('td', { class: 'num' }, String(r.checks)));
+      body.appendChild(tr);
+    });
+    var key = $('weekly-key');
+    key.textContent = '';
+    key.appendChild(el('span', null, '\u2713 within the ' + state.target + '% target'));
+    var ramp = el('span', { class: 'ramp', 'aria-hidden': 'true' });
+    RAMP.forEach(function (c) { var i = el('i'); i.style.background = c; ramp.appendChild(i); });
+    var rk = el('span');
+    rk.appendChild(document.createTextNode('Above target: '));
+    rk.appendChild(ramp);
+    rk.appendChild(document.createTextNode(' ' + state.target + '% to ' + Math.max(40, state.target * 4) + '% or more'));
+    key.appendChild(rk);
+    if (change && changeDay < statement.weeks * 7) {
+      var ck = el('span');
+      ck.appendChild(el('span', { class: 'sw', style: 'background:var(--s2);height:3px;width:18px;vertical-align:middle', 'aria-hidden': 'true' }));
+      ck.appendChild(document.createTextNode(' month the habits change'));
+      key.appendChild(ck);
+    }
+
+    // insight
+    var full = function (r) { return r.months.filter(function (m) { return !m.partial; }); };
+    var avg = function (ms) { return ms.length ? ms.reduce(function (a, m) { return a + m.misPct; }, 0) / ms.length : NaN; };
+    var none = weekly[0];
+    var rest = weekly.slice(1).map(function (r) { return { r: r, a: avg(full(r)) }; }).sort(function (a, b) { return a.a - b.a; });
+    var parts = [];
+    if (change) {
+      parts.push(change.week < statement.weeks ? 'From ' + changeDate.d + ' ' + monthName(changeDate) + ', ' + firstName() + ' ' + change.text + '.' : 'This statement ends before ' + firstName() + '\u2019s habits change; make it longer than ' + change.week + ' weeks to see it.');
+    }
+    var nf = full(none);
+    if (nf.length >= 2) {
+      parts.push('If ' + firstName() + ' never checks anything, the wrong pot runs at ' + nf.map(function (m) { return pct(m.misPct, 0) + ' in ' + m.name; }).join(', ') + '.');
+    }
+    if (perWeek === 0) {
+      parts.push('With no checks the app never learns, so every row is the same. Move the slider to let the person answer a few questions a week.');
+    } else if (rest.length && !isNaN(rest[0].a)) {
+      parts.push('With ' + perWeek + ' check' + (perWeek === 1 ? '' : 's') + ' a week, ' + rest[0].r.label.toLowerCase() + ' does best, averaging ' + pct(rest[0].a) + ' across whole months; ' + rest[rest.length - 1].r.label.toLowerCase() + ' averages ' + pct(rest[rest.length - 1].a) + '.');
+    } else {
+      parts.push('Make the statement longer to see whole months.');
+    }
+    $('weekly-insight').textContent = parts.join(' ');
+  }
+
+  function monthName(d) { return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.m - 1]; }
 
   var chartGeom = null;
   function drawChart() {

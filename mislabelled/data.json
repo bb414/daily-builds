@@ -42,6 +42,8 @@
     {"id": "MOONBEAM", "name": "MOONBEAM CINEMA", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 10},
     {"id": "TICKETHIVE", "name": "TICKETHIVE", "style": "online", "pop": "Fun", "known": true, "suffixes": [], "variants": ["TICKETHIVE #", "TICKETHIVE.COM EVENTS"], "popAmt": 30},
     {"id": "TENPIN", "name": "TENPIN TOWN BOWLING", "style": "store", "pop": "Fun", "known": true, "suffixes": [], "variants": [], "popAmt": 12},
+    {"id": "CRUX", "name": "CRUX CLIMBING", "style": "local", "pop": "Fun", "known": false, "suffixes": [], "variants": [], "popAmt": 9},
+    {"id": "HONEYCOMB", "name": "HONEYCOMB DELI", "style": "local", "pop": "Eating out", "known": false, "suffixes": [], "variants": [], "popAmt": 7},
     {"id": "TRANSFER", "name": "", "style": "transfer", "pop": "Transfers", "known": false, "suffixes": [], "variants": [], "popAmt": 20}
   ],
   "population": {
@@ -68,7 +70,8 @@
     {
       "id": "student",
       "label": "Jess, first-year student",
-      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer.",
+      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer. From mid-October she starts climbing at a new wall and the house switches to a grocery delivery.",
+      "change": {"week": 6, "text": "starts climbing at a new wall and switches to a grocery delivery"},
       "towns": ["BRIGHTON", "HOVE"],
       "monthly": [
         {"m": "HOMESHARE", "cat": "Bills", "day": 1, "amt": 620, "spread": 0},
@@ -81,7 +84,9 @@
       "habits": [
         {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 19, "spread": 0.35, "days": [1, 1, 1, 1, 1.3, 1.3, 1]},
         {"m": "LARDERLY", "cat": "Fun", "perWeek": 0.35, "amt": 27, "spread": 0.3, "days": [0, 0, 0, 0.2, 1, 1, 0], "note": "pre-drinks shop"},
-        {"m": "THRIFTYCART", "cat": "Groceries", "perWeek": 0.6, "amt": 13, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
+        {"m": "THRIFTYCART", "cat": "Groceries", "perWeek": 0.6, "amt": 13, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1], "until": 6},
+        {"m": "DOORSTEP", "cat": "Groceries", "perWeek": 0.7, "amt": 24, "spread": 0.3, "days": [0, 0, 0, 0, 0, 0, 1], "from": 6, "note": "shared grocery delivery"},
+        {"m": "CRUX", "cat": "Fun", "perWeek": 1.2, "amt": 8.5, "spread": 0.25, "days": [0.5, 1, 0.5, 1, 0.3, 1, 0.5], "from": 6, "note": "new climbing wall"},
         {"m": "CORNERMART", "cat": "Fun", "perWeek": 1.3, "amt": 6.5, "spread": 0.4, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "note": "late-night snacks and drinks"},
         {"m": "BEANTHERE", "cat": "Eating out", "perWeek": 2.5, "amt": 3.6, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
         {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 1.1, "amt": 17, "spread": 0.3, "days": [0.6, 0.6, 0.8, 1, 1.4, 1.4, 1.2]},
@@ -107,12 +112,15 @@
     {
       "id": "graduate",
       "label": "Sam, graduate commuting into London",
-      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun.",
+      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun. Moves flat at the end of October, so the rent goes to a new name and lunch to a new deli.",
+      "change": {"week": 7, "text": "moves flat: rent goes to a new name, energy becomes a direct debit and lunch moves to a new deli"},
       "towns": ["CROYDON", "LONDON"],
       "monthly": [
-        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 750, "spread": 0, "payee": "J OKAFOR", "memos": ["RENT"], "note": "rent paid to a flatmate"},
+        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 750, "spread": 0, "payee": "J OKAFOR", "memos": ["RENT"], "until": 7, "note": "rent paid to a flatmate"},
+        {"m": "TRANSFER", "cat": "Bills", "day": 1, "amt": 820, "spread": 0, "payee": "R SINGH", "memos": ["RENT"], "from": 7, "note": "rent in the new flat"},
         {"m": "PULSEPOINT", "cat": "Bills", "day": 1, "amt": 34.99, "spread": 0, "note": "gym counted as a bill"},
-        {"m": "TRANSFER", "cat": "Bills", "day": 3, "amt": 48, "spread": 0.15, "payee": "J OKAFOR", "memos": ["BILLS"]},
+        {"m": "TRANSFER", "cat": "Bills", "day": 3, "amt": 48, "spread": 0.15, "payee": "J OKAFOR", "memos": ["BILLS"], "until": 7},
+        {"m": "GLOWGRID", "cat": "Bills", "day": 4, "amt": 52, "spread": 0.15, "from": 7},
         {"m": "VIDVAULT", "cat": "Subscriptions", "day": 9, "amt": 10.99, "spread": 0},
         {"m": "CHATTERBOX", "cat": "Bills", "day": 14, "amt": 22, "spread": 0},
         {"m": "TUNEPOOL", "cat": "Subscriptions", "day": 21, "amt": 11.99, "spread": 0},
@@ -124,7 +132,8 @@
         {"m": "TRACKWISE", "cat": "Transport", "perWeek": 0.4, "amt": 14, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "ZIPCAB", "cat": "Fun", "perWeek": 0.45, "amt": 15, "spread": 0.35, "days": [0, 0, 0, 0.2, 1.2, 1.2, 0.3], "note": "late taxi home after a night out"},
         {"m": "ZIPCAB", "cat": "Transport", "perWeek": 0.25, "amt": 11, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
-        {"m": "KETTLECRUMB", "cat": "Eating out", "perWeek": 2.8, "amt": 6.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1]},
+        {"m": "KETTLECRUMB", "cat": "Eating out", "perWeek": 2.8, "amt": 6.8, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1], "until": 7},
+        {"m": "HONEYCOMB", "cat": "Eating out", "perWeek": 2.8, "amt": 7.4, "spread": 0.2, "days": [1, 1, 1, 1, 1, 0.1, 0.1], "from": 7, "note": "lunch near the new flat"},
         {"m": "EMBERS", "cat": "Eating out", "perWeek": 0.6, "amt": 12, "spread": 0.3, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "MUNCHBOX", "cat": "Eating out", "perWeek": 0.6, "amt": 23, "spread": 0.3, "days": [0.5, 0.5, 0.7, 1, 1.5, 1.5, 1.3]},
         {"m": "LARDERLY", "cat": "Groceries", "perWeek": 1.4, "amt": 24, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
@@ -146,7 +155,8 @@
     {
       "id": "sixthformer",
       "label": "Alex, sixth-former with a Saturday job",
-      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun.",
+      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun. Starts weekly driving lessons in October, paid by bank transfer.",
+      "change": {"week": 5, "text": "starts weekly driving lessons, paid by bank transfer"},
       "towns": ["LEWES", "BRIGHTON"],
       "monthly": [
         {"m": "PIXELPASS", "cat": "Fun", "day": 8, "amt": 7.99, "spread": 0, "note": "games pass counted as fun"},
@@ -170,7 +180,8 @@
         {"m": "HEALTHYHABIT", "cat": "Shopping", "perWeek": 0.25, "amt": 6, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1]},
         {"m": "TRANSFER", "cat": "Eating out", "perWeek": 0.25, "amt": 4.5, "spread": 0.3, "days": [1, 1, 1, 1, 1, 0.2, 0.2], "payee": "M NOVAK", "memos": ["LUNCH", "CHIPS"]},
         {"m": "TRANSFER", "cat": "Fun", "perWeek": 0.1, "amt": 9, "spread": 0.3, "days": [0.3, 0.3, 0.4, 0.6, 1.5, 1.8, 0.8], "payee": "K BROWN", "memos": ["CINEMA", "BOWLING"]},
-        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.12, "amt": 10, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "BDAY"]}
+        {"m": "TRANSFER", "cat": "Transfers", "perWeek": 0.12, "amt": 10, "spread": 0.4, "days": [1, 1, 1, 1, 1, 1, 1], "payee": "S EVANS", "memos": ["THANKS", "BDAY"]},
+        {"m": "TRANSFER", "cat": "Transport", "perWeek": 1, "amt": 34, "spread": 0, "days": [0, 0, 0, 0, 0, 0, 1], "payee": "STEERWELL DRIVING", "memos": ["LESSON", "LESSON ALEX"], "from": 5, "note": "driving lessons counted as transport"}
       ]
     }
   ]

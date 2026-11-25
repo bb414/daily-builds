@@ -101,6 +101,20 @@ class CliTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run(["compare", "--persona", "nobody"])
 
+    def test_weekly_prints_months_and_writes_csv(self):
+        code, text = run(["weekly", "--persona", "student", "--seeds", "2", "--weeks", "9", "--per-week", "2",
+                          "--out", self.path("w.csv")])
+        self.assertEqual(code, 0)
+        self.assertIn("Never checks", text)
+        self.assertIn("Sep*", text)
+        self.assertIn("Habits change in week 7", text)
+        with open(self.path("w.csv"), newline="") as fh:
+            rows = list(csv.DictReader(fh))
+        self.assertEqual(len(rows), 2 * 6 * 3)  # seeds x (strategies + never) x months
+        self.assertEqual({r["part_month"] for r in rows}, {"yes", "no"})
+        with self.assertRaises(SystemExit):
+            run(["weekly", "--per-week", "-1"])
+
     def test_seed_list_forms(self):
         self.assertEqual(cli._seed_list("3"), [1, 2, 3])
         self.assertEqual(cli._seed_list("5-7"), [5, 6, 7])

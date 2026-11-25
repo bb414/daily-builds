@@ -2,6 +2,7 @@
 
     python -m mislabelled sample      write an invented statement as CSV
     python -m mislabelled compare     replay the five strategies over many statements
+    python -m mislabelled weekly      a few checks each week: month-by-month results
     python -m mislabelled categorise  run the app's model on your own CSV
 """
 
@@ -164,6 +165,65 @@ def cmd_compare(args, out):
     return 0
 
 
+
+# ---------- weekly ----------
+
+def run_weekly_batch(personas, seeds, weeks, per_week, slip, weight):
+    rows = []
+    for pid in personas:
+        for seed in seeds:
+            st = M.generate_statement(pid, weeks, seed)
+            for r in M.compare_weekly(st, per_week=per_week, slip=slip, weight=weight):
+                for m in r["months"]:
+                    rows.append({"persona": pid, "seed": seed, "strategy": r["strategy"], "label": r["label"],
+                                 "month": m["month"], "name": m["name"], "partial": m["partial"],
+                                 "misPct": m["misPct"], "checks": m["checks"]})
+    return rows
+
+
+def format_weekly(rows, personas, per_week):
+    lines = []
+    for pid in personas:
+        mine = [r for r in rows if r["persona"] == pid]
+        months = []
+        for r in mine:
+            if (r["month"], r["name"], r["partial"]) not in months:
+                months.append((r["month"], r["name"], r["partial"]))
+        p = M.PERSONAS[pid]
+        lines.append("")
+        lines.append("%s, %d check%s a week (median %% of each month's spending in the wrong pot)" % (
+            p["label"], per_week, "" if per_week == 1 else "s"))
+        if p.get("change"):
+            lines.append("  Habits change in week %d: %s." % (p["change"]["week"] + 1, p["change"]["text"]))
+        header = "  %-30s" % "Checks chosen by" + "".join(
+            "%10s" % (name + ("*" if partial else "")) for _, name, partial in months)
+        lines.append(header)
+        for sid, label in [("none", "Never checks")] + [(s["id"], s["label"]) for s in M.STRATEGIES]:
+            cells = []
+            for key, _, _ in months:
+                vals = [r["misPct"] for r in mine if r["strategy"] == sid and r["month"] == key]
+                cells.append("%9.1f%%" % _quantile(vals, 0.5))
+            lines.append("  %-30s" % label + "".join(cells))
+    lines.append("")
+    lines.append("  * part month: the statement starts or ends partway through it.")
+    return "\n".join(lines) + "\n"
+
+
+def cmd_weekly(args, out):
+    rows = run_weekly_batch(args.persona, args.seeds, args.weeks, args.per_week, args.slip / 100, args.weight)
+    out.write("Each Sunday the person answers up to %d check(s) about that week's payments; %d statement(s) per person, "
+              "%d weeks each.\n" % (args.per_week, len(args.seeds), args.weeks))
+    out.write(format_weekly(rows, args.persona, args.per_week))
+    if args.out:
+        with open(args.out, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["persona", "seed", "strategy", "month", "part_month", "wrong_pot_pct", "checks_so_far"])
+            for r in rows:
+                w.writerow([r["persona"], r["seed"], r["strategy"], r["month"], "yes" if r["partial"] else "no",
+                            "%.4f" % r["misPct"], r["checks"]])
+        out.write("\nWrote %s\n" % args.out)
+    return 0
+
 # ---------- categorise ----------
 
 def _parse_date(text):
@@ -308,6 +368,15 @@ def build_parser():
     c.add_argument("--weight", type=int, default=M.DATA["model"]["weight"])
     c.add_argument("--out", help="folder for curves.csv, summary.csv and report.html")
 
+    k = sub.add_parser("weekly", help="a few checks each week: how each month looks as the app learns")
+    k.add_argument("--persona", type=_personas, default=_personas("all"))
+    k.add_argument("--seeds", type=_seed_list, default=_seed_list("20"))
+    k.add_argument("--weeks", type=int, default=13)
+    k.add_argument("--per-week", type=int, default=3, help="checks answered each Sunday (default 3)")
+    k.add_argument("--slip", type=float, default=0.0)
+    k.add_argument("--weight", type=int, default=M.DATA["model"]["weight"])
+    k.add_argument("--out", help="CSV file for every month of every run")
+
     g = sub.add_parser("categorise", help="run the app's model on your own CSV (date, description, amount, category)")
     g.add_argument("input")
     g.add_argument("-o", "--output", help="output CSV (or HTML report with --replay)")
@@ -322,9 +391,9 @@ def build_parser():
 
 
 def _check_ranges(args):
-    for name, lo, hi in (("weeks", 1, 52), ("checks", 1, 2000), ("weight", 1, 1000)):
+    for name, lo, hi in (("weeks", 1, 52), ("checks", 1, 2000), ("weight", 1, 1000), ("per_week", 0, 500)):
         if hasattr(args, name) and not lo <= getattr(args, name) <= hi:
-            return "--%s must be between %d and %d" % (name, lo, hi)
+            return "--%s must be between %d and %d" % (name.replace("_", "-"), lo, hi)
     if hasattr(args, "slip") and not 0 <= args.slip <= 100:
         return "--slip must be between 0 and 100"
     if hasattr(args, "target") and not 0 <= args.target <= 100:
@@ -343,4 +412,6 @@ def main(argv=None, out=None):
         return cmd_sample(args, out)
     if args.command == "compare":
         return cmd_compare(args, out)
+    if args.command == "weekly":
+        return cmd_weekly(args, out)
     return cmd_categorise(args, out)

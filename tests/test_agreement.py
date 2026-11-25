@@ -10,9 +10,9 @@ from mislabelled import model as M
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CASES = [
-    {"persona": "student", "weeks": 13, "seed": 1, "checks": 40, "target": 5, "slip": 0, "weight": 20},
-    {"persona": "graduate", "weeks": 9, "seed": 77, "checks": 30, "target": 3, "slip": 0.15, "weight": 8},
-    {"persona": "sixthformer", "weeks": 26, "seed": 4242, "checks": 25, "target": 10, "slip": 0.3, "weight": 45},
+    {"persona": "student", "weeks": 13, "seed": 1, "checks": 40, "target": 5, "slip": 0, "weight": 20, "perWeek": 3},
+    {"persona": "graduate", "weeks": 9, "seed": 77, "checks": 30, "target": 3, "slip": 0.15, "weight": 8, "perWeek": 1},
+    {"persona": "sixthformer", "weeks": 26, "seed": 4242, "checks": 25, "target": 10, "slip": 0.3, "weight": 45, "perWeek": 6},
 ]
 
 
@@ -49,6 +49,8 @@ class AgreementTest(unittest.TestCase):
                     self.assertEqual(a["picks"], b["picks"])
                     self.assertEqual(a["toTarget"], b["toTarget"])
                     self.assertEqual(a["points"], json.loads(json.dumps(b["points"])))
+                weekly = M.compare_weekly(st, per_week=case["perWeek"], slip=case["slip"], weight=case["weight"])
+                self.assertEqual(js["weekly"], json.loads(json.dumps(weekly)))
 
 
 if __name__ == "__main__":

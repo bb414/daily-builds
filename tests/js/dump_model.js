@@ -16,7 +16,8 @@ const out = {
       tx: st.tx.map((t) => [t.date, t.desc, t.pennies, t.cat, t.wd]),
       dayOne: { pred: session.model.pred, conf: session.model.conf },
       compare: M.compareStrategies(st, { checks: c.checks, target: c.target, slip: c.slip, weight: c.weight })
-        .map((r) => ({ strategy: r.strategy, toTarget: r.toTarget, picks: r.picks, points: r.points }))
+        .map((r) => ({ strategy: r.strategy, toTarget: r.toTarget, picks: r.picks, points: r.points })),
+      weekly: M.compareWeekly(st, { perWeek: c.perWeek, slip: c.slip, weight: c.weight })
     };
   })
 };

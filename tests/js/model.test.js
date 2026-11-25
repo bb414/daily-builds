@@ -108,7 +108,8 @@ test('metrics count each misplaced pound once', () => {
 test('one correction re-files the same merchant elsewhere in the statement', () => {
   const st = M.generateStatement('graduate', 13, 1);
   const s = new M.Session(st, {});
-  const rent = st.tx.map((t, i) => i).filter((i) => st.tx[i].desc === 'TO J OKAFOR REF RENT');
+  // rent to the old flatmate, then (after the move) to a new name: the word RENT carries the lesson across
+  const rent = st.tx.map((t, i) => i).filter((i) => / REF RENT$/.test(st.tx[i].desc));
   assert.equal(rent.length, 3);
   assert.ok(rent.every((i) => s.reported(i) !== 3)); // the generic model calls rent to a person a transfer
   s.correct(rent[0], 3);
@@ -176,4 +177,46 @@ test('compareStrategies reports checks to target consistently', () => {
   }
   assert.equal(M.checksToTarget([{ misPct: 9 }, { misPct: 4 }], 5), 1);
   assert.equal(M.checksToTarget([{ misPct: 9 }], 5), null);
+});
+
+test('habit changes start and stop on time', () => {
+  const st = M.generateStatement('graduate', 13, 1);
+  const oldRent = st.tx.filter((t) => t.desc === 'TO J OKAFOR REF RENT').map((t) => t.date);
+  const newRent = st.tx.filter((t) => t.desc === 'TO R SINGH REF RENT').map((t) => t.date);
+  assert.deepEqual(oldRent, ['2026-10-01']);
+  assert.deepEqual(newRent, ['2026-11-01', '2026-12-01']);
+  const alex = M.generateStatement('sixthformer', 13, 1);
+  const lessons = alex.tx.filter((t) => t.desc.startsWith('TO STEERWELL'));
+  assert.ok(lessons.length >= 7 && lessons.every((t) => t.day >= 35 && t.wd === 6));
+});
+
+test('weekly mode: no checks means day-one guesses every month', () => {
+  const st = M.generateStatement('student', 13, 2);
+  const none = M.runWeekly(st, 'none', { perWeek: 5 });
+  assert.equal(none.checks, 0);
+  const fresh = new M.Session(st, {});
+  for (const m of none.months) {
+    const idx = st.tx.map((t, i) => i).filter((i) => st.tx[i].month === m.month);
+    assert.equal(m.misPct, M.metricsFor(st, fresh.reportedAll(), idx).misPct);
+  }
+  assert.deepEqual(none.months.map((m) => [m.month, m.partial]),
+    [['2026-09', true], ['2026-10', false], ['2026-11', false], ['2026-12', true]]);
+  assert.deepEqual([none.months[0].from, none.months[0].to, none.months[3].from, none.months[3].to], [7, 30, 1, 6]);
+});
+
+test('weekly mode respects the weekly allowance and only asks about that week', () => {
+  const st = M.generateStatement('sixthformer', 8, 3);
+  for (const s of M.STRATEGIES) {
+    const r = M.runWeekly(st, s.id, { perWeek: 2 });
+    assert.equal(r.checks, 16);
+    const last = r.months[r.months.length - 1];
+    assert.equal(last.checks, 16);
+  }
+  const all = M.runWeekly(st, 'risk', { perWeek: 1000 });
+  assert.equal(all.checks, st.tx.length);
+  // with an allowance only for this week, the first Sunday can only check week-one payments
+  const s = new M.Session(st, {});
+  const t = M.chooseNext('biggest', s, M.mulberry32(1), (i) => st.tx[i].day <= 6);
+  assert.ok(st.tx[t].day <= 6);
+  assert.equal(M.chooseNext('biggest', s, M.mulberry32(1), () => false), -1);
 });

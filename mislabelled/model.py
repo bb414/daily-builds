@@ -210,6 +210,10 @@ def generate_statement(persona_id, weeks, seed):
         week = day // 7
         dt = date_of(day)
         for i, mon in enumerate(p["monthly"]):
+            if "from" in mon and week < mon["from"]:
+                continue
+            if "until" in mon and week >= mon["until"]:
+                continue
             if mon["day"] == dt["d"]:
                 add(mon, monthly_states[i], day, wd, dt)
         for i, h in enumerate(p["habits"]):
@@ -487,27 +491,32 @@ def metrics(statement, reported):
 
 # ---------- which transaction should the app ask the user to check next? ----------
 
-def choose_next(strategy, session, rng):
+def choose_next(strategy, session, rng, allowed=None):
+    """Pick the next payment to ask about. `allowed` optionally limits the choice."""
     model = session.model
     tx = session.statement["tx"]
     labels = session.labels
     n = len(tx)
     best = -1
+
+    def is_open(i):
+        return labels[i] < 0 and (allowed is None or allowed(i))
+
     if strategy == "random":
-        open_ = [t for t in range(n) if labels[t] < 0]
-        if not open_:
+        pool = [t for t in range(n) if is_open(t)]
+        if not pool:
             return -1
-        return open_[math.floor(rng() * len(open_))]
+        return pool[math.floor(rng() * len(pool))]
     if strategy == "biggest":
         for t in range(n):
-            if labels[t] >= 0:
+            if not is_open(t):
                 continue
             if best < 0 or tx[t]["pennies"] > tx[best]["pennies"]:
                 best = t
         return best
     if strategy == "unsure":
         for t in range(n):
-            if labels[t] >= 0:
+            if not is_open(t):
                 continue
             if best < 0 or model.conf[t] < model.conf[best]:
                 best = t
@@ -518,7 +527,7 @@ def choose_next(strategy, session, rng):
         checked_keys = {model.keys[t] for t in range(n) if labels[t] >= 0}
         for t in range(n):
             k = model.keys[t]
-            if labels[t] >= 0 or k in checked_keys:
+            if not is_open(t) or k in checked_keys:
                 continue
             if k not in stats:
                 stats[k] = {"count": 0, "first": t}
@@ -529,11 +538,11 @@ def choose_next(strategy, session, rng):
             if best_key is None or stats[k]["count"] > stats[best_key]["count"]:
                 best_key = k
         if best_key is None:
-            return choose_next("unsure", session, rng)
+            return choose_next("unsure", session, rng, allowed)
         return stats[best_key]["first"]
     if strategy == "risk":
         for t in range(n):
-            if labels[t] >= 0:
+            if not is_open(t):
                 continue
             k = model.keys[t]
             r = tx[t]["pennies"] * (1 - model.conf[t])
@@ -552,6 +561,14 @@ def choose_next(strategy, session, rng):
     raise ValueError("unknown strategy " + str(strategy))
 
 
+def answer(statement, t, rng, slip):
+    """What the person taps: the true pot, unless a slip sends it to another one."""
+    truth = statement["tx"][t]["cat"]
+    if rng() < slip:
+        return (truth + 1 + math.floor(rng() * (C - 1))) % C
+    return truth
+
+
 def summarise(m):
     return {"misPct": m["misPct"], "misP": m["misP"], "accuracy": m["accuracy"], "valueAccuracy": m["valueAccuracy"]}
 
@@ -565,11 +582,7 @@ def run_curve(statement, strategy, checks=60, slip=0, seed=None, weight=None, te
         t = choose_next(strategy, session, rng)
         if t < 0:
             break
-        truth = statement["tx"][t]["cat"]
-        label = truth
-        if rng() < slip:
-            label = (truth + 1 + math.floor(rng() * (C - 1))) % C
-        session.correct(t, label)
+        session.correct(t, answer(statement, t, rng, slip))
         picks.append(t)
         points.append(summarise(session.metrics()))
     return {"strategy": strategy, "points": points, "picks": picks}
@@ -594,4 +607,60 @@ def compare_strategies(statement, checks=60, target=5, slip=0, seed=None, weight
             "picks": curve["picks"],
             "toTarget": checks_to_target(curve["points"], target),
         })
+    return out
+
+
+# ---------- living with the app: a few checks each week, months go by ----------
+
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def metrics_for(statement, reported, indices):
+    return metrics({"tx": [statement["tx"][i] for i in indices]}, [reported[i] for i in indices])
+
+
+def run_weekly(statement, strategy, per_week=3, slip=0, seed=None, weight=None, temperature=None):
+    """Each Sunday the person answers up to per_week checks about that week's payments.
+    When a calendar month ends, the app's view of that month is scored as it stood then."""
+    if strategy == "none":
+        per_week = 0
+    session = Session(statement, weight=weight, temperature=temperature)
+    rng = mulberry32(seed_for(statement["seed"] if seed is None else seed, "weekly:" + strategy))
+    tx = statement["tx"]
+    last_day = statement["weeks"] * 7 - 1
+    months = []
+    week_start = [0]
+
+    def in_week(i):
+        return week_start[0] <= tx[i]["day"] <= week_start[0] + 6
+
+    for day in range(last_day + 1):
+        if day % 7 == 6:
+            week_start[0] = day - 6
+            for _ in range(per_week):
+                t = choose_next(strategy, session, rng, in_week)
+                if t < 0:
+                    break
+                session.correct(t, answer(statement, t, rng, slip))
+        dt = date_of(day)
+        if day == last_day or date_of(day + 1)["m"] != dt["m"]:
+            key = "%d-%02d" % (dt["y"], dt["m"])
+            idx = [i for i, t in enumerate(tx) if t["month"] == key]
+            m = metrics_for(statement, session.reported_all(), idx)
+            first_day = max(0, day - dt["d"] + 1)
+            months.append({
+                "month": key, "name": MONTHS[dt["m"] - 1], "from": date_of(first_day)["d"], "to": dt["d"],
+                "partial": date_of(first_day)["d"] > 1 or dt["d"] < days_in_month(dt["y"], dt["m"]),
+                "misPct": m["misPct"], "misP": m["misP"], "totalP": m["totalP"], "n": m["n"],
+                "accuracy": m["accuracy"], "checks": session.checks,
+            })
+    return {"strategy": strategy, "months": months, "checks": session.checks}
+
+
+def compare_weekly(statement, per_week=3, slip=0, seed=None, weight=None, temperature=None):
+    out = []
+    for s in [{"id": "none", "label": "Never checks"}] + STRATEGIES:
+        r = run_weekly(statement, s["id"], per_week=per_week, slip=slip, seed=seed, weight=weight,
+                       temperature=temperature)
+        out.append({"strategy": s["id"], "label": s["label"], "months": r["months"], "checks": r["checks"]})
     return out
