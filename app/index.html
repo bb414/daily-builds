@@ -1040,7 +1040,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CleanHours
     return 'Week ' + (Math.floor(d / 7) + 1) + ', ' + DAY_NAMES[d % 7] + ' ' + pad2(t % 24) + ':00';
   }
   function policy(key) { return M.POLICIES.filter(function (p) { return p.key === key; })[0]; }
-  function chartWidth(el) { return Math.max(300, Math.min(800, Math.round(el.clientWidth || 720))); }
+  function chartWidth(el) { return Math.max(240, Math.min(800, Math.round(el.clientWidth || 720))); }
   function svgOpen(W, H, label) {
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(label) + '">';
   }
