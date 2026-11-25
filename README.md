@@ -4,7 +4,7 @@
 
 Everything is synthetic and runs offline. It is a learning tool about explanations of automated decisions, not a hiring tool.
 
-![The one-applicant view: routes to being shortlisted, Shapley values and the decision map](docs/applicant.png)
+![The one-applicant view, styled as an application dossier: the applicant's form on the left and four routes to being shortlisted, each on a clipped slip with the changes highlighted and a check against next year's retrain](docs/applicant.png)
 
 ## Why it matters
 
@@ -24,7 +24,7 @@ Download or clone this branch, then double-click `app/index.html`. It opens in a
 - **Explanation versus advice:** for every rejected applicant, the feature with the most negative Shapley value set against what the cheapest route changes. With the default rules about 30% of cheapest routes never touch the applicant's biggest drag, and for about 9% the biggest drag is something they cannot change.
 - **Will it hold?** A route is a promise about this year's model. The tool retrains the model on next year's applicants (the same kind of pool, or a stronger one, with the same quota) and checks how many routes still work, at seven safety margins. With no margin only about a third of the cheapest routes survive a routine retrain; it takes a margin of +0.25 to keep 90% of them on average, which nearly doubles the median effort and leaves a third of rejected applicants with no route at all. Each route card on the first tab also says whether it survives.
 
-![The cohort view: shortlist rates, route effort and levers by group](docs/cohort.png)
+![The cohort view: shortlist rates, routes and route effort by group, then how often the biggest Shapley drag matches what the cheapest route changes](docs/cohort.png)
 
 ## What it shows (default rules, synthetic data)
 
@@ -39,7 +39,7 @@ Download or clone this branch, then double-click `app/index.html`. It opens in a
 
 Across 20 retrains on a same-sized fresh pool, 34% of the cheapest routes still work on average (between 24% and 45%). A safety margin of +0.25 keeps 93% on average, but the median effort rises from 33.5 to 60.6 and the share of rejected applicants with any route falls from 90% to 66%. If next year's pool is two test points stronger, even +0.3 keeps only 87%. These come from `python3 -m whatwouldittake audit` and `hold`. The audit figures match the app's cohort tab exactly; the app's "Will it hold?" tab shows one retrain at a time (the first keeps 33% with no margin).
 
-![The app on a phone](docs/phone.png)
+![The app on a phone: the folder cover, the applicant's form and its "Not shortlisted" stamp](docs/phone.png)
 
 ## Run the Python companion
 
@@ -68,16 +68,16 @@ node --test                          # the app's model, run in Node.js
 python3 -m unittest discover -s tests   # Python, JavaScript/Python agreement, browser UI
 ```
 
-Node.js 18 or later runs the JavaScript tests. The agreement tests run the app's model in Node.js and check that the Python port gives identical numbers, and one UI test checks that the notice in the app matches the Python notice word for word. The UI tests need Playwright for Python and are skipped without it. `python3 docs/make_screenshots.py` regenerates the screenshots.
+Node.js 18 or later runs the JavaScript tests. The agreement tests run the app's model in Node.js and check that the Python port gives identical numbers, and one UI test checks that the notice in the app matches the Python notice word for word. The UI tests need Playwright for Python and are skipped without it. `python3 docs/make_screenshots.py` regenerates the screenshots (it needs Playwright and Pillow).
 
 ## Which language does what
 
 | Part | Language | Lines (approx.) | Does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | 2,020 (about 740 of model logic, 150 of CSS, the rest layout and drawing) | The whole interactive tool, offline. Model logic sits between `MODEL START` and `MODEL END` so Node.js can run it. |
+| `app/index.html` | HTML, CSS, JavaScript | 2,390 (about 740 of model logic, 440 of CSS, the rest layout and drawing) | The whole interactive tool, offline, with its two typefaces (Fraunces and IBM Plex Mono, see `app/FONT-LICENCE.txt`) embedded. Model logic sits between `MODEL START` and `MODEL END` so Node.js can run it. |
 | `whatwouldittake/` | Python (standard library) | 1,390 (740 model, 640 command line) | The same model, line for line, plus batch routes and notices for a CSV of applicants, audit reports and the many-retrain `hold` analysis. |
 | `tests/` | JavaScript and Python | 990 | Exactness against brute force, Shapley against the textbook definition, the score bound, cross-language agreement, the command line and the browser UI. |
-| `docs/make_screenshots.py` | Python (Playwright) | 40 | Regenerates the screenshots. |
+| `docs/make_screenshots.py` | Python (Playwright, Pillow) | 45 | Regenerates the screenshots. |
 
 The browser app is for exploring one applicant and one retrain at a time. Python does the batch work: a CSV of applicants in, a CSV of routes and one notice per person out, and the 20-retrain robustness check, which the browser would only do one retrain at a time.
 

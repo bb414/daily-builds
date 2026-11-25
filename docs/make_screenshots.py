@@ -1,10 +1,12 @@
-"""Regenerates the README screenshots with headless Chromium (Playwright).
+"""Regenerates the README screenshots with headless Chromium (Playwright) and
+Pillow.
 
     python3 docs/make_screenshots.py
 """
 
 import os
 
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,8 +34,11 @@ def main():
                 page.select_option("#preset", label=preset)
             page.click(tab)
             page.wait_for_timeout(300)
-            page.screenshot(path=os.path.join(OUT, name), full_page=full)
+            path = os.path.join(OUT, name)
+            page.screenshot(path=path, full_page=full)
             page.close()
+            # The paper grain makes full-colour PNGs large; 256 colours keep them small.
+            Image.open(path).convert("RGB").quantize(256, method=Image.Quantize.FASTOCTREE).save(path, optimize=True)
             print("Wrote docs/" + name)
         browser.close()
 
