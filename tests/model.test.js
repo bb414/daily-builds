@@ -28,11 +28,17 @@ test('inherent risk adds answers and caps at 5', function () {
   const fair = r.find(function (x) { return x.id === 'fairness'; });
   // 1 + 0.5 (signs off) + 1.5 (ML) + 0.5 (personal) + 0.5 (outputs only) + 0.5 (retrained)
   assert.strictEqual(fair.L, 4.5);
-  // 1 + 2.5 (decides access) + 1 (public) + 0.5 (roll-out), capped at 5
-  assert.strictEqual(fair.I, 5);
-  assert.strictEqual(fair.score, 22.5);
+  // 1 + 2.5 (decides access) + 1 (public) + 0 (limited roll-out)
+  assert.strictEqual(fair.I, 4.5);
+  assert.strictEqual(fair.score, 20.25);
+  // full scale adds 1 more, capped at 5; a pilot takes 1 off
+  const atScale = M.inherentRisk(M.normaliseInput({ answers: Object.assign({}, ex('shortlister').answers, { stage: 'scale' }) }));
+  assert.strictEqual(atScale.find(function (x) { return x.id === 'fairness'; }).I, 5);
+  const pilot = M.inherentRisk(M.normaliseInput({ answers: Object.assign({}, ex('shortlister').answers, { stage: 'pilot' }) }));
+  assert.strictEqual(pilot.find(function (x) { return x.id === 'fairness'; }).I, 3.5);
   assert.strictEqual(fair.band, 'Very high');
   const low = M.inherentRisk(M.normaliseInput({ answers: { stakes: 'advisory', autonomy: 'suggests', model: 'rules', data: 'none', affected: 'staff', source: 'inhouse', change: 'fixed', stage: 'pilot' } }));
+  // a pilot's minus one cannot take impact below 1
   assert.deepStrictEqual(low.map(function (x) { return x.score; }), [1.5, 1, 1.5, 1, 1]);
 });
 
@@ -186,4 +192,41 @@ test('the catalogue is consistent', function () {
     assert.ok(Number.isInteger(t.cost) && t.cost > 0);
   }
   for (const e of D.examples) for (const q of D.questions) assert.ok(q.options.some(function (o) { return o.id === e.answers[q.id]; }));
+});
+
+test('techniques already done cost nothing, take no time and stay in the plan', function () {
+  const r = M.analyse({ answers: ex('fraud').answers, done: ['risk', 'aia'] });
+  for (const id of ['risk', 'aia']) assert.ok(r.cheapest.ids.indexOf(id) >= 0);
+  const fresh = M.evaluatePlan({ answers: ex('fraud').answers }, r.cheapest.ids);
+  assert.strictEqual(r.cheapest.cost, fresh.cost - 4 - 9);
+  assert.strictEqual(M.schedule(['risk', 'aia', 'aims'], ['risk', 'aia']).goLive, 14);
+  const both = M.normaliseInput({ done: ['docs'], exclude: ['docs'] });
+  assert.deepStrictEqual(both.exclude, []);
+  assert.ok(both.notes.some(function (n) { return /kept as done/.test(n); }));
+});
+
+test('the pilot-to-scale ladder builds on each stage', function () {
+  for (const e of D.examples) {
+    const L = M.ladder({ answers: e.answers });
+    const steps = L.stepwise.steps;
+    assert.deepStrictEqual(steps.map(function (s) { return s.stage; }), ['pilot', 'rollout', 'scale']);
+    const seen = [];
+    let total = 0;
+    for (const s of steps) {
+      for (const id of s.added) { assert.ok(seen.indexOf(id) < 0, 'added once'); seen.push(id); }
+      for (const id of seen) assert.ok(s.ids.indexOf(id) >= 0, 'earlier work kept');
+      total += s.cost;
+    }
+    assert.strictEqual(total, L.stepwise.total);
+    // planned for scale: ends at the cheapest full-scale plan, and never costs more
+    const atScale = M.analyse({ answers: Object.assign({}, e.answers, { stage: 'scale' }) });
+    assert.strictEqual(L.planned.total, atScale.cheapest.cost);
+    assert.deepStrictEqual(L.planned.target, atScale.cheapest.ids);
+    assert.ok(L.premium >= 0);
+    // the stepwise route's final plan meets appetite at full scale
+    assert.ok(M.evaluatePlan({ answers: Object.assign({}, e.answers, { stage: 'scale' }) }, L.stepwise.final).meets);
+  }
+  const grant = M.ladder({ answers: ex('grant').answers });
+  assert.strictEqual(grant.premium, 5);
+  assert.deepStrictEqual(grant.extra, ['docs', 'compliance']);
 });

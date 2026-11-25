@@ -88,8 +88,8 @@
       "id": "stage",
       "label": "How far is it being rolled out?",
       "options": [
-        {"id": "pilot", "label": "Pilot: a few hundred cases, closely watched", "L": {}, "I": {}},
-        {"id": "rollout", "label": "Limited roll-out: thousands of cases", "L": {}, "I": {"safety": 0.5, "transparency": 0.5, "fairness": 0.5, "accountability": 0.5, "contestability": 0.5}},
+        {"id": "pilot", "label": "Pilot: a few hundred cases, closely watched", "L": {}, "I": {"safety": -1, "transparency": -1, "fairness": -1, "accountability": -1, "contestability": -1}},
+        {"id": "rollout", "label": "Limited roll-out: thousands of cases", "L": {}, "I": {}},
         {"id": "scale", "label": "Full scale: hundreds of thousands of cases", "L": {}, "I": {"safety": 1, "transparency": 1, "fairness": 1, "accountability": 1, "contestability": 1}}
       ]
     }

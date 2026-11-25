@@ -83,8 +83,10 @@ class ReportAndCliTests(unittest.TestCase):
     def test_plan_report_example(self):
         code, out = run_cli("plan", "--example", "shortlister")
         self.assertEqual(code, 0)
-        self.assertIn("Cheapest plan that meets your appetite: £143k, 12 techniques, live in 12 weeks", out)
+        self.assertIn("Cheapest plan that meets your appetite: £105k, 11 techniques, live in 9 weeks", out)
         self.assertIn("Not legal advice".lower(), out.lower())
+        self.assertIn("From pilot to scale", out)
+        self.assertIn("Limited roll-out (now)", out)
 
     def test_plan_file_and_overrides(self):
         with tempfile.TemporaryDirectory() as d:

@@ -91,7 +91,48 @@ def _plan_block(title, plan, res, markdown):
     return lines
 
 
-def plan_report(res, title="Assurance mix", markdown=False):
+STAGE_NAME = {"pilot": "Pilot", "rollout": "Limited roll-out", "scale": "Full scale"}
+
+
+def ladder_lines(L, current, weeks, markdown=False):
+    """The pilot-to-scale comparison as report lines."""
+    h2 = "## " if markdown else ""
+    lines = [h2 + "From pilot to scale", ""]
+    rows = []
+    cum = 0
+    for st in L["stepwise"]["steps"]:
+        cum += st["cost"]
+        name = STAGE_NAME[st["stage"]] + (" (now)" if st["stage"] == current else "")
+        if not st["fits"]:
+            rows.append([name, "-", "-", "-", "No plan goes live within %s" % weeks_text(weeks)])
+            continue
+        added = ", ".join(model.TECHNIQUES[i]["name"] for i in st["added"]) or "nothing new"
+        rows.append([name, "+" + money(st["cost"]), money(cum), sc(st["worst"]) + ("" if st["reachable"] else " (above appetite)"),
+                     added])
+    lines.append(_table(["Stage", "Adds", "Total so far", "Worst after", "Techniques added"], rows, markdown,
+                        ["l", "r", "r", "r", "l"]))
+    lines.append("")
+    steps = L["stepwise"]["steps"]
+    total = L["stepwise"]["total"]
+    if steps[0]["fits"] and total > 0:
+        if steps[0]["cost"] == 0:
+            lines.append("The pilot needs no extra assurance, but full scale needs %s." % money(total))
+        else:
+            ratio = total / steps[0]["cost"]
+            lines.append("The pilot needs %s of assurance; full scale needs %s in all%s." % (
+                money(steps[0]["cost"]), money(total), ", %s times as much" % model.js_num_str(model.js_round(ratio * 10) / 10) if ratio >= 1.5 else ""))
+    if L["planned"]:
+        if L["premium"] > 0:
+            extra = " and ".join(model.TECHNIQUES[i]["name"].lower() for i in L["extra"])
+            lines.append("Planning each stage on its own costs %s more than planning for full scale first%s." % (
+                money(L["premium"]), (": it buys " + extra + ", which the cheapest full-scale plan does without") if extra else ""))
+        else:
+            lines.append("Planning each stage on its own costs nothing extra here.")
+    lines.append("")
+    return lines
+
+
+def plan_report(res, title="Assurance mix", markdown=False, ladder=None):
     """A full report on one system's analysis."""
     inp = res["input"]
     h1, h2 = ("# ", "## ") if markdown else ("", "")
@@ -136,6 +177,8 @@ def plan_report(res, title="Assurance mix", markdown=False):
              for p in res["frontier"]]
     lines.append(_table(["Cost", "Worst score", "Techniques"], frows, markdown, ["r", "r", "l"]))
     lines.append("")
+    if ladder is not None:
+        lines += ladder_lines(ladder, inp["answers"]["stage"], inp["weeks"], markdown)
     unusable = [s for s in res["techniques"] if not s["available"]]
     if unusable:
         lines.append(h2 + "Techniques that cannot be used here")

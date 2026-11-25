@@ -18,7 +18,7 @@ class ModelTests(unittest.TestCase):
     def test_inherent_risk(self):
         r = M.inherent_risk(M.normalise_input({"answers": EX["shortlister"]["answers"]}))
         fair = next(x for x in r if x["id"] == "fairness")
-        self.assertEqual((fair["L"], fair["I"], fair["score"], fair["band"]), (4.5, 5, 22.5, "Very high"))
+        self.assertEqual((fair["L"], fair["I"], fair["score"], fair["band"]), (4.5, 4.5, 20.25, "Very high"))
 
     def test_cheapest_plan_needs_every_technique(self):
         for e in M.DATA["examples"]:

@@ -29,6 +29,8 @@ def random_input(rng):
     if rng.random() < 0.3:
         inp["exclude"] = rng.sample(TECH_IDS, rng.randint(1, 3))
     if rng.random() < 0.2:
+        inp["done"] = rng.sample(TECH_IDS, rng.randint(1, 3))
+    if rng.random() < 0.2:
         p = rng.choice(M.PRINCIPLES)
         inp["overrides"] = {"L": {p: rng.choice([1, 2.5, 5, "3"])}, "I": {rng.choice(M.PRINCIPLES): rng.uniform(1, 5)}}
     if rng.random() < 0.1:
@@ -62,6 +64,14 @@ class ParityTests(unittest.TestCase):
         for inp, j in zip(inputs, js):
             py = json.loads(json.dumps(M.analyse(inp)))
             diff = first_difference(j, py)
+            self.assertIsNone(diff, "input %s: %s" % (json.dumps(inp), diff))
+
+    def test_pilot_to_scale_ladder(self):
+        rng = random.Random(42)
+        inputs = [{"answers": e["answers"]} for e in M.DATA["examples"]] + [random_input(rng) for _ in range(30)]
+        js = run_js([{"kind": "ladder", "input": i} for i in inputs])
+        for inp, j in zip(inputs, js):
+            diff = first_difference(j, json.loads(json.dumps(M.ladder(inp))))
             self.assertIsNone(diff, "input %s: %s" % (json.dumps(inp), diff))
 
     def test_hand_built_plans(self):

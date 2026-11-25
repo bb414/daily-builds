@@ -170,6 +170,11 @@ def normalise_input(raw):
 
     must = id_list(raw.get("must"), "must")
     exclude = id_list(raw.get("exclude"), "exclude")
+    done = id_list(raw.get("done"), "done")
+    done_and_out = [x for x in exclude if x in done]
+    if done_and_out:
+        notes.append("Listed as both done and ruled out: %s; kept as done." % ", ".join(done_and_out))
+        exclude = [x for x in exclude if x not in done]
     both = [x for x in exclude if x in must]
     if both:
         notes.append("Listed as both a must and ruled out: %s; kept as a must." % ", ".join(both))
@@ -187,7 +192,7 @@ def normalise_input(raw):
                 continue
             overrides[kind][p] = clamp(n, 1, 5)
     return {"answers": answers, "appetite": appetite, "budget": budget, "weeks": weeks, "legalMust": legal_must,
-            "must": must, "exclude": exclude, "overrides": overrides, "notes": notes}
+            "must": must, "exclude": exclude, "done": done, "overrides": overrides, "notes": notes}
 
 
 def inherent_risk(inp):
@@ -237,9 +242,10 @@ def technique_status(inp):
         coverage = {p: t["coverage"][p] * f for p in PRINCIPLES}
         required = bool(inp["legalMust"] and t.get("needsData") and a["data"] != "none")
         ruled_out = t["id"] in inp["exclude"]
+        done = t["id"] in inp["done"]
         status.append({"id": t["id"], "factor": f, "available": f > 0, "reason": reason, "coverage": coverage,
-                       "required": required, "must": required or t["id"] in inp["must"],
-                       "excluded": ruled_out and not required, "overruled": ruled_out and required})
+                       "required": required, "must": required or done or t["id"] in inp["must"],
+                       "excluded": ruled_out and not required, "overruled": ruled_out and required, "done": done})
     by_id = {s["id"]: s for s in status}
     changed = True
     while changed:
@@ -285,7 +291,7 @@ def prepare(inp):
         t = TECHNIQUES[tid]
         s = by_id[tid]
         miss.append([1 - s["coverage"][p] for p in PRINCIPLES])
-        cost.append(t["cost"])
+        cost.append(0 if s["done"] else t["cost"])
         if s["must"]:
             must_mask |= 1 << i
         rm = 0
@@ -336,9 +342,11 @@ def mask_feasible(prep, m):
     return True
 
 
-def schedule(ids):
+def schedule(ids, done=None):
     """Weeks from the start of design work. Stages run in order; techniques in a stage
-    run side by side; a technique starts only when its prerequisites finish."""
+    run side by side; a technique starts only when its prerequisites finish. Techniques
+    already done take no time."""
+    done = done or []
     finish, rows = {}, []
     stage_start = 0
     for st in DATA["stages"]:
@@ -350,8 +358,9 @@ def schedule(ids):
             for r in t.get("requires", []):
                 if r in finish and finish[r] > start:
                     start = finish[r]
-            finish[t["id"]] = start + t["weeks"]
-            rows.append({"id": t["id"], "stage": st["id"], "start": start, "end": start + t["weeks"]})
+            w = 0 if t["id"] in done else t["weeks"]
+            finish[t["id"]] = start + w
+            rows.append({"id": t["id"], "stage": st["id"], "start": start, "end": start + w})
             if finish[t["id"]] > stage_end:
                 stage_end = finish[t["id"]]
         if st["id"] != "live":
@@ -370,7 +379,7 @@ def _search(prep, en, worst, total, feasible):
 
     def weeks_ok(m):
         if m not in weeks_cache:
-            weeks_cache[m] = schedule(mask_ids(prep, m))["goLive"] <= inp["weeks"]
+            weeks_cache[m] = schedule(mask_ids(prep, m), inp["done"])["goLive"] <= inp["weeks"]
         return weeks_cache[m]
 
     cost, cnt = en["cost"], en["cnt"]
@@ -413,7 +422,7 @@ def describe(prep, en, m):
     for r in residual:
         r["band"] = band(r["score"])
         r["meets"] = r["score"] <= appetite + EPS
-    sched = schedule(ids)
+    sched = schedule(ids, prep["input"]["done"])
     return {"ids": ids, "cost": en["cost"][m], "weeks": sched["goLive"], "schedule": sched["rows"],
             "residual": residual, "worst": worst, "worstId": worst_id, "sum": total,
             "meets": worst <= appetite + EPS, "withinBudget": en["cost"][m] <= prep["input"]["budget"], "mask": m}
@@ -484,7 +493,7 @@ def analyse(raw_input):
     if best is None:
         must_ids = mask_ids(prep, prep["mustMask"])
         notes.append("No plan fits in %s: the techniques that must be included take %s on their own."
-                     % (weeks_phrase(inp["weeks"]), weeks_phrase(schedule(must_ids)["goLive"])))
+                     % (weeks_phrase(inp["weeks"]), weeks_phrase(schedule(must_ids, inp["done"])["goLive"])))
     inherent_worst = 0
     for r in risk:
         if r["score"] > inherent_worst:
@@ -548,8 +557,60 @@ def evaluate_plan(raw_input, ids):
     for i in range(prep["n"]):
         if (m >> i) & 1:
             cost += prep["cost"][i]
-    sched = schedule(mask_ids(prep, m))
+    sched = schedule(mask_ids(prep, m), inp["done"])
     return {"ids": mask_ids(prep, m), "cost": cost, "weeks": sched["goLive"], "schedule": sched["rows"],
             "residual": residual, "worst": worst, "worstId": worst_id, "sum": total,
             "meets": worst <= inp["appetite"] + EPS, "withinBudget": cost <= inp["budget"],
             "fitsDeadline": sched["goLive"] <= inp["weeks"], "mask": m, "notes": notes}
+
+
+# From pilot to scale. Two ways to buy assurance as a system grows: plan each stage on
+# its own (what was done before is kept and costs nothing again), or work out the
+# cheapest plan for full scale first and phase it in, buying at each stage only the
+# part of that plan the stage needs.
+ROLLOUT = ["pilot", "rollout", "scale"]
+
+
+def _step_input(base, stage, done, exclude):
+    answers = dict(base["answers"])
+    answers["stage"] = stage
+    return {"answers": answers, "appetite": base["appetite"], "budget": base["budget"], "weeks": base["weeks"],
+            "legalMust": base["legalMust"], "must": list(base["must"]), "exclude": list(exclude), "done": list(done),
+            "overrides": base["overrides"]}
+
+
+def _ladder_path(base, exclude):
+    steps = []
+    done = list(base["done"])
+    total = 0
+    for st in ROLLOUT:
+        r = analyse(_step_input(base, st, done, exclude))
+        p = r["cheapest"] or r["best"]
+        if not p:
+            steps.append({"stage": st, "fits": False, "reachable": False, "cost": 0, "weeks": 0, "added": [],
+                          "ids": list(done), "worst": None, "worstId": None})
+            continue
+        added = [i for i in p["ids"] if i not in done]
+        steps.append({"stage": st, "fits": True, "reachable": r["cheapest"] is not None, "cost": p["cost"],
+                      "weeks": p["weeks"], "added": added, "ids": list(p["ids"]), "worst": p["worst"],
+                      "worstId": p["worstId"]})
+        total += p["cost"]
+        done = list(p["ids"])
+    return {"steps": steps, "total": total, "final": done}
+
+
+def ladder(raw_input):
+    """Compare planning each roll-out stage on its own with planning for full scale from the start."""
+    base = normalise_input(raw_input)
+    stepwise = _ladder_path(base, base["exclude"])
+    at_scale = analyse(_step_input(base, "scale", base["done"], base["exclude"]))
+    target = at_scale["cheapest"] or at_scale["best"]
+    planned = None
+    if target:
+        outside = [t["id"] for t in DATA["techniques"] if t["id"] not in target["ids"] and t["id"] not in base["done"]]
+        planned = _ladder_path(base, outside)
+        planned["target"] = list(target["ids"])
+    extra = [i for i in stepwise["final"] if i not in planned["target"]] if planned else []
+    return {"stepwise": stepwise, "planned": planned,
+            "premium": stepwise["total"] - planned["total"] if planned else None, "extra": extra,
+            "scaleReachable": at_scale["cheapest"] is not None}

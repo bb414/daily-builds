@@ -219,6 +219,18 @@ details.alt summary { cursor: pointer; color: var(--accent-ink); }
 .custom-list label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 4px 0; }
 .custom-list input { margin-top: 3px; width: 16px; height: 16px; flex: none; }
 .custom-list .cost { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.rung { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; position: relative; }
+.rung.here { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.rung h3 { font-size: 13px; margin: 0 0 6px; color: var(--ink-2); font-weight: 600; }
+.rung .here-tag { position: absolute; top: -9px; right: 10px; font-size: 11px; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 8px; }
+.rung .big { font-size: 24px; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; }
+.rung .sub { font-size: 12px; color: var(--ink-2); margin: 2px 0 8px; }
+.rung ul { margin: 0; padding-left: 16px; font-size: 13px; }
+.rung li { margin-bottom: 2px; }
+.cum { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin: 6px 0 4px; }
+.cum i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.ladder-says { font-size: 14px; color: var(--ink-2); margin: 0 0 6px; }
 .notes { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
 .notes li { margin-bottom: 4px; }
 .prose { font-size: 14px; color: var(--ink-2); max-width: 900px; }
@@ -237,6 +249,9 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
   aside.controls { position: static; max-height: none; }
   header.top { padding: 16px; }
   .summary { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .ladder { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
   h1 { font-size: 22px; }
@@ -338,6 +353,14 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
       </div>
     </section>
 
+    <section class="card panel" aria-labelledby="ladder-title">
+      <div class="card-head">
+        <h2 id="ladder-title">From pilot to scale</h2>
+        <p>The same system at each roll-out stage, building on what was already done.</p>
+      </div>
+      <div id="ladder" aria-live="polite"><div class="empty">Working out each stage...</div></div>
+    </section>
+
     <section class="card panel" aria-labelledby="frontier-title">
       <div class="card-head">
         <h2 id="frontier-title">What each extra pound buys</h2>
@@ -402,7 +425,7 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12p
 /* MODEL START */
 // Assurance mix: the model. Everything the app calculates lives in this block,
 // so it can be run and tested in Node.js outside the browser.
-const DATA = /* DATA START */{"version":1,"principles":[{"id":"safety","short":"Safety","name":"Safety, security and robustness"},{"id":"transparency","short":"Transparency","name":"Appropriate transparency and explainability"},{"id":"fairness","short":"Fairness","name":"Fairness"},{"id":"accountability","short":"Accountability","name":"Accountability and governance"},{"id":"contestability","short":"Contestability","name":"Contestability and redress"}],"likelihood":{"scores":[0,1,2,3,4,5],"probabilities":[0,0.025,0.125,0.35,0.65,0.9],"bands":["under 5%","5 to 20%","20 to 50%","50 to 80%","over 80%"]},"riskBands":[{"max":4,"label":"Low"},{"max":9,"label":"Medium"},{"max":15,"label":"High"},{"max":25,"label":"Very high"}],"questions":[{"id":"stakes","label":"What does its output decide?","options":[{"id":"advisory","label":"Nothing about individuals (back-office work or general advice)","L":{},"I":{}},{"id":"shapes","label":"It shapes decisions about people (ranking, pricing, flagging)","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1.5,"accountability":1,"contestability":1}},{"id":"significant","label":"It decides access to jobs, credit, housing or services","L":{},"I":{"safety":1,"transparency":2,"fairness":2.5,"accountability":2,"contestability":2.5}},{"id":"safety","label":"It could cause physical harm (equipment, vehicles, health)","L":{},"I":{"safety":3,"transparency":1,"fairness":1,"accountability":2.5,"contestability":1}}]},{"id":"autonomy","label":"How much does a person check?","options":[{"id":"suggests","label":"A person decides; the system only suggests","L":{},"I":{}},{"id":"approves","label":"A person signs off each output, usually quickly","L":{"safety":0.5,"transparency":0.5,"fairness":0.5,"contestability":0.5},"I":{}},{"id":"automated","label":"Fully automated, with no person in the loop","L":{"safety":1,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1.5},"I":{}}]},{"id":"model","label":"What kind of model is it?","options":[{"id":"rules","label":"Rules or simple statistics","L":{"safety":0.5,"fairness":0.5},"I":{}},{"id":"ml","label":"A machine-learning model","L":{"safety":1,"transparency":1.5,"fairness":1.5,"accountability":0.5},"I":{}},{"id":"genai","label":"A general-purpose or generative model","L":{"safety":2,"transparency":2,"fairness":1.5,"accountability":1,"contestability":0.5},"I":{}}]},{"id":"data","label":"What data does it use?","options":[{"id":"none","label":"No personal data","L":{},"I":{}},{"id":"personal","label":"Personal data","L":{"transparency":0.5,"fairness":0.5,"accountability":0.5},"I":{"transparency":0.5}},{"id":"special","label":"Special category data (for example health or ethnicity)","L":{"transparency":0.5,"fairness":1,"accountability":1},"I":{"safety":0.5,"transparency":0.5,"fairness":1}}]},{"id":"affected","label":"Who is affected?","options":[{"id":"staff","label":"Staff only","L":{},"I":{}},{"id":"customers","label":"Customers who chose to deal with you","L":{},"I":{"transparency":0.5,"fairness":0.5,"contestability":0.5}},{"id":"public","label":"The public, including people in vulnerable circumstances","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1}}]},{"id":"source","label":"Where does it come from?","options":[{"id":"inhouse","label":"Built in-house","L":{},"I":{}},{"id":"full","label":"Bought in, with full access to the model and data","L":{"accountability":0.5},"I":{}},{"id":"outputs","label":"Bought in, outputs only: you can test it but not look inside","L":{"transparency":1,"fairness":0.5,"accountability":1},"I":{}},{"id":"docs","label":"Bought in, documentation only: no testing before go-live","L":{"safety":0.5,"transparency":1.5,"fairness":1,"accountability":1.5},"I":{}}]},{"id":"change","label":"Does it change after go-live?","options":[{"id":"fixed","label":"No, it is fixed once deployed","L":{},"I":{}},{"id":"retrained","label":"It is retrained from time to time","L":{"safety":0.5,"fairness":0.5,"accountability":0.5},"I":{}},{"id":"learning","label":"It keeps learning from live data","L":{"safety":1,"transparency":0.5,"fairness":1,"accountability":1},"I":{}}]},{"id":"stage","label":"How far is it being rolled out?","options":[{"id":"pilot","label":"Pilot: a few hundred cases, closely watched","L":{},"I":{}},{"id":"rollout","label":"Limited roll-out: thousands of cases","L":{},"I":{"safety":0.5,"transparency":0.5,"fairness":0.5,"accountability":0.5,"contestability":0.5}},{"id":"scale","label":"Full scale: hundreds of thousands of cases","L":{},"I":{"safety":1,"transparency":1,"fairness":1,"accountability":1,"contestability":1}}]}],"stages":[{"id":"design","label":"Design"},{"id":"test","label":"Before go-live"},{"id":"live","label":"In operation"}],"techniques":[{"id":"risk","name":"Risk assessment","source":"DSIT","stage":"design","spectrum":0.15,"independent":false,"cost":4,"weeks":2,"coverage":{"safety":0.25,"transparency":0.15,"fairness":0.2,"accountability":0.3,"contestability":0.15},"blurb":"A structured look at what could go wrong in development and use: bias, privacy, misuse, reputation."},{"id":"aia","name":"Algorithmic impact assessment","source":"DSIT","stage":"design","spectrum":0.2,"independent":false,"cost":9,"weeks":4,"coverage":{"safety":0.15,"transparency":0.2,"fairness":0.35,"accountability":0.2,"contestability":0.3},"blurb":"Anticipates wider effects on people, equality and rights, ideally with input from those affected."},{"id":"dpia","name":"Data protection impact assessment","source":"UK GDPR","stage":"design","spectrum":0.25,"independent":false,"cost":6,"weeks":3,"coverage":{"safety":0.1,"transparency":0.3,"fairness":0.2,"accountability":0.3,"contestability":0.25},"needsData":true,"blurb":"The UK GDPR assessment for processing likely to be high risk to people; the ICO expects one for most AI that uses personal data."},{"id":"docs","name":"Model and data documentation","source":"Common practice","stage":"design","spectrum":0.45,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0.1,"transparency":0.4,"fairness":0.1,"accountability":0.3,"contestability":0.1},"access":{"full":1,"outputs":0.6,"docs":0.6},"blurb":"Model cards and data sheets: what the system is for, how it was built and tested, and its known limits."},{"id":"supplier","name":"Supplier due diligence","source":"Common practice","stage":"design","spectrum":0.3,"independent":false,"cost":5,"weeks":2,"coverage":{"safety":0.15,"transparency":0.25,"fairness":0.15,"accountability":0.35,"contestability":0.15},"boughtInOnly":true,"blurb":"Questions, evidence and contract terms for a bought-in system: testing rights, incident notice, audit access."},{"id":"aims","name":"Certified AI management system (ISO/IEC 42001)","source":"Standard","stage":"design","spectrum":0.4,"independent":true,"cost":45,"weeks":14,"coverage":{"safety":0.1,"transparency":0.1,"fairness":0.1,"accountability":0.5,"contestability":0.2},"requires":["risk","aia"],"blurb":"Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."},{"id":"biasInternal","name":"Internal bias audit","source":"DSIT","stage":"test","spectrum":0.75,"independent":false,"cost":10,"weeks":3,"coverage":{"safety":0,"transparency":0.05,"fairness":0.4,"accountability":0,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"Your own team tests inputs and outputs for unfair differences between groups."},{"id":"biasIndependent","name":"Independent bias audit","source":"DSIT","stage":"test","spectrum":0.8,"independent":true,"cost":24,"weeks":5,"coverage":{"safety":0,"transparency":0.1,"fairness":0.55,"accountability":0.1,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"An external assurer tests for unfair bias. Needs access to data and outputs."},{"id":"performance","name":"Performance and robustness testing","source":"Common practice","stage":"test","spectrum":0.85,"independent":false,"cost":12,"weeks":3,"coverage":{"safety":0.4,"transparency":0.05,"fairness":0.1,"accountability":0,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Accuracy, error rates and behaviour on hard or shifted cases, measured against agreed thresholds."},{"id":"redteam","name":"Independent red teaming","source":"Common practice","stage":"test","spectrum":0.6,"independent":true,"cost":28,"weeks":4,"coverage":{"safety":0.45,"transparency":0.05,"fairness":0.15,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":0.5,"ml":0.8,"genai":1},"blurb":"Outside specialists try to make the system fail, leak or misbehave."},{"id":"formal","name":"Formal verification","source":"DSIT","stage":"test","spectrum":1,"independent":false,"cost":55,"weeks":10,"coverage":{"safety":0.6,"transparency":0,"fairness":0.05,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":0,"docs":0},"model":{"rules":1,"ml":0.4,"genai":0},"blurb":"Mathematical proof that the system meets specific requirements. Practical for rules and small models only."},{"id":"explain","name":"Explainability testing","source":"Common practice","stage":"test","spectrum":0.55,"independent":false,"cost":9,"weeks":3,"coverage":{"safety":0.05,"transparency":0.45,"fairness":0.1,"accountability":0.05,"contestability":0.25},"access":{"full":1,"outputs":0.6,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Checks that explanations are faithful to the model and that the people who get them understand them."},{"id":"compliance","name":"Compliance audit","source":"DSIT","stage":"test","spectrum":0.5,"independent":false,"cost":14,"weeks":3,"coverage":{"safety":0.1,"transparency":0.15,"fairness":0.15,"accountability":0.4,"contestability":0.2},"blurb":"Reviews adherence to internal policies, regulations and legal requirements."},{"id":"conformity","name":"Independent conformity assessment","source":"DSIT","stage":"test","spectrum":0.7,"independent":true,"cost":38,"weeks":8,"coverage":{"safety":0.3,"transparency":0.25,"fairness":0.2,"accountability":0.35,"contestability":0.1},"access":{"full":1,"outputs":0.7,"docs":0.4},"requires":["docs"],"blurb":"Shows whether the system meets a set of requirements, such as a standard, before it goes live. Needs documentation."},{"id":"appeals","name":"Appeal and redress test","source":"Common practice","stage":"test","spectrum":0.35,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0,"transparency":0.1,"fairness":0.1,"accountability":0.15,"contestability":0.55},"blurb":"Walks real cases through the route for challenging an outcome and getting human review and a remedy."},{"id":"monitor","name":"Live monitoring and incident response","source":"Common practice","stage":"live","spectrum":0.9,"independent":false,"cost":15,"weeks":0,"coverage":{"safety":0.3,"transparency":0.05,"fairness":0.25,"accountability":0.15,"contestability":0.3},"access":{"full":1,"outputs":0.8,"docs":0.8},"blurb":"Watches drift, errors and complaints after go-live, with a plan for when something goes wrong. Cost is the first year."}],"defaults":{"answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"},"appetite":8,"budget":150,"weeks":20,"legalMust":true},"appetitePresets":[{"value":4,"label":"Cautious"},{"value":8,"label":"Balanced"},{"value":12,"label":"Tolerant"}],"examples":[{"id":"shortlister","name":"CV shortlister","blurb":"A bought-in model that ranks job applicants for a national retailer's recruiters.","answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"}},{"id":"billing","name":"Billing assistant","blurb":"A generative chat assistant that answers customers' billing questions for an energy supplier.","answers":{"stakes":"shapes","autonomy":"automated","model":"genai","data":"personal","affected":"customers","source":"outputs","change":"fixed","stage":"scale"}},{"id":"maintenance","name":"Predictive maintenance","blurb":"An in-house model that tells engineers which machines on a production line to service first.","answers":{"stakes":"safety","autonomy":"suggests","model":"ml","data":"none","affected":"staff","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"fraud","name":"Payment fraud flags","blurb":"An in-house model that holds suspicious card payments for a lender's review team.","answers":{"stakes":"shapes","autonomy":"approves","model":"ml","data":"personal","affected":"customers","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"policy","name":"Policy search assistant","blurb":"A generative assistant, still in pilot, that helps staff find and summarise internal policies.","answers":{"stakes":"advisory","autonomy":"suggests","model":"genai","data":"personal","affected":"staff","source":"outputs","change":"fixed","stage":"pilot"}},{"id":"grant","name":"Hardship grant checker","blurb":"Rules that decide eligibility for a local authority's hardship grant from application answers.","answers":{"stakes":"significant","autonomy":"automated","model":"rules","data":"special","affected":"public","source":"full","change":"fixed","stage":"scale"}}]}/* DATA END */;
+const DATA = /* DATA START */{"version":1,"principles":[{"id":"safety","short":"Safety","name":"Safety, security and robustness"},{"id":"transparency","short":"Transparency","name":"Appropriate transparency and explainability"},{"id":"fairness","short":"Fairness","name":"Fairness"},{"id":"accountability","short":"Accountability","name":"Accountability and governance"},{"id":"contestability","short":"Contestability","name":"Contestability and redress"}],"likelihood":{"scores":[0,1,2,3,4,5],"probabilities":[0,0.025,0.125,0.35,0.65,0.9],"bands":["under 5%","5 to 20%","20 to 50%","50 to 80%","over 80%"]},"riskBands":[{"max":4,"label":"Low"},{"max":9,"label":"Medium"},{"max":15,"label":"High"},{"max":25,"label":"Very high"}],"questions":[{"id":"stakes","label":"What does its output decide?","options":[{"id":"advisory","label":"Nothing about individuals (back-office work or general advice)","L":{},"I":{}},{"id":"shapes","label":"It shapes decisions about people (ranking, pricing, flagging)","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1.5,"accountability":1,"contestability":1}},{"id":"significant","label":"It decides access to jobs, credit, housing or services","L":{},"I":{"safety":1,"transparency":2,"fairness":2.5,"accountability":2,"contestability":2.5}},{"id":"safety","label":"It could cause physical harm (equipment, vehicles, health)","L":{},"I":{"safety":3,"transparency":1,"fairness":1,"accountability":2.5,"contestability":1}}]},{"id":"autonomy","label":"How much does a person check?","options":[{"id":"suggests","label":"A person decides; the system only suggests","L":{},"I":{}},{"id":"approves","label":"A person signs off each output, usually quickly","L":{"safety":0.5,"transparency":0.5,"fairness":0.5,"contestability":0.5},"I":{}},{"id":"automated","label":"Fully automated, with no person in the loop","L":{"safety":1,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1.5},"I":{}}]},{"id":"model","label":"What kind of model is it?","options":[{"id":"rules","label":"Rules or simple statistics","L":{"safety":0.5,"fairness":0.5},"I":{}},{"id":"ml","label":"A machine-learning model","L":{"safety":1,"transparency":1.5,"fairness":1.5,"accountability":0.5},"I":{}},{"id":"genai","label":"A general-purpose or generative model","L":{"safety":2,"transparency":2,"fairness":1.5,"accountability":1,"contestability":0.5},"I":{}}]},{"id":"data","label":"What data does it use?","options":[{"id":"none","label":"No personal data","L":{},"I":{}},{"id":"personal","label":"Personal data","L":{"transparency":0.5,"fairness":0.5,"accountability":0.5},"I":{"transparency":0.5}},{"id":"special","label":"Special category data (for example health or ethnicity)","L":{"transparency":0.5,"fairness":1,"accountability":1},"I":{"safety":0.5,"transparency":0.5,"fairness":1}}]},{"id":"affected","label":"Who is affected?","options":[{"id":"staff","label":"Staff only","L":{},"I":{}},{"id":"customers","label":"Customers who chose to deal with you","L":{},"I":{"transparency":0.5,"fairness":0.5,"contestability":0.5}},{"id":"public","label":"The public, including people in vulnerable circumstances","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1}}]},{"id":"source","label":"Where does it come from?","options":[{"id":"inhouse","label":"Built in-house","L":{},"I":{}},{"id":"full","label":"Bought in, with full access to the model and data","L":{"accountability":0.5},"I":{}},{"id":"outputs","label":"Bought in, outputs only: you can test it but not look inside","L":{"transparency":1,"fairness":0.5,"accountability":1},"I":{}},{"id":"docs","label":"Bought in, documentation only: no testing before go-live","L":{"safety":0.5,"transparency":1.5,"fairness":1,"accountability":1.5},"I":{}}]},{"id":"change","label":"Does it change after go-live?","options":[{"id":"fixed","label":"No, it is fixed once deployed","L":{},"I":{}},{"id":"retrained","label":"It is retrained from time to time","L":{"safety":0.5,"fairness":0.5,"accountability":0.5},"I":{}},{"id":"learning","label":"It keeps learning from live data","L":{"safety":1,"transparency":0.5,"fairness":1,"accountability":1},"I":{}}]},{"id":"stage","label":"How far is it being rolled out?","options":[{"id":"pilot","label":"Pilot: a few hundred cases, closely watched","L":{},"I":{"safety":-1,"transparency":-1,"fairness":-1,"accountability":-1,"contestability":-1}},{"id":"rollout","label":"Limited roll-out: thousands of cases","L":{},"I":{}},{"id":"scale","label":"Full scale: hundreds of thousands of cases","L":{},"I":{"safety":1,"transparency":1,"fairness":1,"accountability":1,"contestability":1}}]}],"stages":[{"id":"design","label":"Design"},{"id":"test","label":"Before go-live"},{"id":"live","label":"In operation"}],"techniques":[{"id":"risk","name":"Risk assessment","source":"DSIT","stage":"design","spectrum":0.15,"independent":false,"cost":4,"weeks":2,"coverage":{"safety":0.25,"transparency":0.15,"fairness":0.2,"accountability":0.3,"contestability":0.15},"blurb":"A structured look at what could go wrong in development and use: bias, privacy, misuse, reputation."},{"id":"aia","name":"Algorithmic impact assessment","source":"DSIT","stage":"design","spectrum":0.2,"independent":false,"cost":9,"weeks":4,"coverage":{"safety":0.15,"transparency":0.2,"fairness":0.35,"accountability":0.2,"contestability":0.3},"blurb":"Anticipates wider effects on people, equality and rights, ideally with input from those affected."},{"id":"dpia","name":"Data protection impact assessment","source":"UK GDPR","stage":"design","spectrum":0.25,"independent":false,"cost":6,"weeks":3,"coverage":{"safety":0.1,"transparency":0.3,"fairness":0.2,"accountability":0.3,"contestability":0.25},"needsData":true,"blurb":"The UK GDPR assessment for processing likely to be high risk to people; the ICO expects one for most AI that uses personal data."},{"id":"docs","name":"Model and data documentation","source":"Common practice","stage":"design","spectrum":0.45,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0.1,"transparency":0.4,"fairness":0.1,"accountability":0.3,"contestability":0.1},"access":{"full":1,"outputs":0.6,"docs":0.6},"blurb":"Model cards and data sheets: what the system is for, how it was built and tested, and its known limits."},{"id":"supplier","name":"Supplier due diligence","source":"Common practice","stage":"design","spectrum":0.3,"independent":false,"cost":5,"weeks":2,"coverage":{"safety":0.15,"transparency":0.25,"fairness":0.15,"accountability":0.35,"contestability":0.15},"boughtInOnly":true,"blurb":"Questions, evidence and contract terms for a bought-in system: testing rights, incident notice, audit access."},{"id":"aims","name":"Certified AI management system (ISO/IEC 42001)","source":"Standard","stage":"design","spectrum":0.4,"independent":true,"cost":45,"weeks":14,"coverage":{"safety":0.1,"transparency":0.1,"fairness":0.1,"accountability":0.5,"contestability":0.2},"requires":["risk","aia"],"blurb":"Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."},{"id":"biasInternal","name":"Internal bias audit","source":"DSIT","stage":"test","spectrum":0.75,"independent":false,"cost":10,"weeks":3,"coverage":{"safety":0,"transparency":0.05,"fairness":0.4,"accountability":0,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"Your own team tests inputs and outputs for unfair differences between groups."},{"id":"biasIndependent","name":"Independent bias audit","source":"DSIT","stage":"test","spectrum":0.8,"independent":true,"cost":24,"weeks":5,"coverage":{"safety":0,"transparency":0.1,"fairness":0.55,"accountability":0.1,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"An external assurer tests for unfair bias. Needs access to data and outputs."},{"id":"performance","name":"Performance and robustness testing","source":"Common practice","stage":"test","spectrum":0.85,"independent":false,"cost":12,"weeks":3,"coverage":{"safety":0.4,"transparency":0.05,"fairness":0.1,"accountability":0,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Accuracy, error rates and behaviour on hard or shifted cases, measured against agreed thresholds."},{"id":"redteam","name":"Independent red teaming","source":"Common practice","stage":"test","spectrum":0.6,"independent":true,"cost":28,"weeks":4,"coverage":{"safety":0.45,"transparency":0.05,"fairness":0.15,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":0.5,"ml":0.8,"genai":1},"blurb":"Outside specialists try to make the system fail, leak or misbehave."},{"id":"formal","name":"Formal verification","source":"DSIT","stage":"test","spectrum":1,"independent":false,"cost":55,"weeks":10,"coverage":{"safety":0.6,"transparency":0,"fairness":0.05,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":0,"docs":0},"model":{"rules":1,"ml":0.4,"genai":0},"blurb":"Mathematical proof that the system meets specific requirements. Practical for rules and small models only."},{"id":"explain","name":"Explainability testing","source":"Common practice","stage":"test","spectrum":0.55,"independent":false,"cost":9,"weeks":3,"coverage":{"safety":0.05,"transparency":0.45,"fairness":0.1,"accountability":0.05,"contestability":0.25},"access":{"full":1,"outputs":0.6,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Checks that explanations are faithful to the model and that the people who get them understand them."},{"id":"compliance","name":"Compliance audit","source":"DSIT","stage":"test","spectrum":0.5,"independent":false,"cost":14,"weeks":3,"coverage":{"safety":0.1,"transparency":0.15,"fairness":0.15,"accountability":0.4,"contestability":0.2},"blurb":"Reviews adherence to internal policies, regulations and legal requirements."},{"id":"conformity","name":"Independent conformity assessment","source":"DSIT","stage":"test","spectrum":0.7,"independent":true,"cost":38,"weeks":8,"coverage":{"safety":0.3,"transparency":0.25,"fairness":0.2,"accountability":0.35,"contestability":0.1},"access":{"full":1,"outputs":0.7,"docs":0.4},"requires":["docs"],"blurb":"Shows whether the system meets a set of requirements, such as a standard, before it goes live. Needs documentation."},{"id":"appeals","name":"Appeal and redress test","source":"Common practice","stage":"test","spectrum":0.35,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0,"transparency":0.1,"fairness":0.1,"accountability":0.15,"contestability":0.55},"blurb":"Walks real cases through the route for challenging an outcome and getting human review and a remedy."},{"id":"monitor","name":"Live monitoring and incident response","source":"Common practice","stage":"live","spectrum":0.9,"independent":false,"cost":15,"weeks":0,"coverage":{"safety":0.3,"transparency":0.05,"fairness":0.25,"accountability":0.15,"contestability":0.3},"access":{"full":1,"outputs":0.8,"docs":0.8},"blurb":"Watches drift, errors and complaints after go-live, with a plan for when something goes wrong. Cost is the first year."}],"defaults":{"answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"},"appetite":8,"budget":150,"weeks":20,"legalMust":true},"appetitePresets":[{"value":4,"label":"Cautious"},{"value":8,"label":"Balanced"},{"value":12,"label":"Tolerant"}],"examples":[{"id":"shortlister","name":"CV shortlister","blurb":"A bought-in model that ranks job applicants for a national retailer's recruiters.","answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"}},{"id":"billing","name":"Billing assistant","blurb":"A generative chat assistant that answers customers' billing questions for an energy supplier.","answers":{"stakes":"shapes","autonomy":"automated","model":"genai","data":"personal","affected":"customers","source":"outputs","change":"fixed","stage":"scale"}},{"id":"maintenance","name":"Predictive maintenance","blurb":"An in-house model that tells engineers which machines on a production line to service first.","answers":{"stakes":"safety","autonomy":"suggests","model":"ml","data":"none","affected":"staff","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"fraud","name":"Payment fraud flags","blurb":"An in-house model that holds suspicious card payments for a lender's review team.","answers":{"stakes":"shapes","autonomy":"approves","model":"ml","data":"personal","affected":"customers","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"policy","name":"Policy search assistant","blurb":"A generative assistant, still in pilot, that helps staff find and summarise internal policies.","answers":{"stakes":"advisory","autonomy":"suggests","model":"genai","data":"personal","affected":"staff","source":"outputs","change":"fixed","stage":"pilot"}},{"id":"grant","name":"Hardship grant checker","blurb":"Rules that decide eligibility for a local authority's hardship grant from application answers.","answers":{"stakes":"significant","autonomy":"automated","model":"rules","data":"special","affected":"public","source":"full","change":"fixed","stage":"scale"}}]}/* DATA END */;
 
 const EPS = 1e-9;
 const PRINCIPLES = DATA.principles.map(function (p) { return p.id; });
@@ -496,6 +519,12 @@ function normaliseInput(raw) {
   }
   const must = idList(raw.must, 'must');
   let exclude = idList(raw.exclude, 'exclude');
+  const done = idList(raw.done, 'done');
+  const doneAndOut = exclude.filter(function (x) { return done.indexOf(x) >= 0; });
+  if (doneAndOut.length) {
+    notes.push('Listed as both done and ruled out: ' + doneAndOut.join(', ') + '; kept as done.');
+    exclude = exclude.filter(function (x) { return done.indexOf(x) < 0; });
+  }
   const both = exclude.filter(function (x) { return must.indexOf(x) >= 0; });
   if (both.length) {
     notes.push('Listed as both a must and ruled out: ' + both.join(', ') + '; kept as a must.');
@@ -513,7 +542,7 @@ function normaliseInput(raw) {
     }
   }
   return { answers: answers, appetite: appetite, budget: budget, weeks: weeks, legalMust: legalMust,
-    must: must, exclude: exclude, overrides: overrides, notes: notes };
+    must: must, exclude: exclude, done: done, overrides: overrides, notes: notes };
 }
 
 // Inherent risk for each principle: likelihood and impact start at 1 and each
@@ -557,9 +586,10 @@ function techniqueStatus(input) {
     for (const p of PRINCIPLES) coverage[p] = t.coverage[p] * f;
     const required = !!(input.legalMust && t.needsData && a.data !== 'none');
     const ruledOut = input.exclude.indexOf(t.id) >= 0;
+    const done = input.done.indexOf(t.id) >= 0;
     // A legal requirement overrides the user ruling a technique out.
     status.push({ id: t.id, factor: f, available: f > 0, reason: reason, coverage: coverage, required: required,
-      must: required || input.must.indexOf(t.id) >= 0, excluded: ruledOut && !required, overruled: ruledOut && required });
+      must: required || done || input.must.indexOf(t.id) >= 0, excluded: ruledOut && !required, overruled: ruledOut && required, done: done });
   }
   // A technique whose prerequisite is unavailable or ruled out cannot be used either.
   let changed = true;
@@ -612,7 +642,7 @@ function prepare(input) {
     const t = techniqueById(act[i]);
     const s = status.find(function (x) { return x.id === act[i]; });
     miss.push(PRINCIPLES.map(function (p) { return 1 - s.coverage[p]; }));
-    cost.push(t.cost);
+    cost.push(s.done ? 0 : t.cost);
     if (s.must) mustMask |= (1 << i);
     let rm = 0;
     for (const r of t.requires || []) rm |= (1 << act.indexOf(r));
@@ -659,7 +689,8 @@ function maskFeasible(prep, m) {
 
 // Weeks from the start of design work: stages run in order, techniques in a stage
 // run side by side, and a technique starts only when its prerequisites finish.
-function schedule(ids) {
+function schedule(ids, done) {
+  done = done || [];
   const finish = {}, rows = [];
   let stageStart = 0;
   for (const st of DATA.stages) {
@@ -668,8 +699,9 @@ function schedule(ids) {
       if (t.stage !== st.id || ids.indexOf(t.id) < 0) continue;
       let start = stageStart;
       for (const r of t.requires || []) if (finish[r] !== undefined && finish[r] > start) start = finish[r];
-      finish[t.id] = start + t.weeks;
-      rows.push({ id: t.id, stage: st.id, start: start, end: start + t.weeks });
+      const w = done.indexOf(t.id) >= 0 ? 0 : t.weeks;
+      finish[t.id] = start + w;
+      rows.push({ id: t.id, stage: st.id, start: start, end: start + w });
       if (finish[t.id] > stageEnd) stageEnd = finish[t.id];
     }
     if (st.id !== 'live') stageStart = stageEnd;
@@ -697,7 +729,7 @@ function search(prep, en, worst, sum, feasible) {
   let cheap = null, cheapKey = null, inBudget = null, budgetKey = null, best = null, bestKey = null;
   const weeksCache = {};
   function weeksOk(m) {
-    if (weeksCache[m] === undefined) weeksCache[m] = schedule(maskIds(prep, m)).goLive <= input.weeks;
+    if (weeksCache[m] === undefined) weeksCache[m] = schedule(maskIds(prep, m), input.done).goLive <= input.weeks;
     return weeksCache[m];
   }
   for (let m = 0; m < en.N; m++) {
@@ -732,7 +764,7 @@ function describe(prep, en, m) {
   let worst = 0, sum = 0, worstId = residual[0].id;
   for (const r of residual) { sum += r.score; if (r.score > worst) { worst = r.score; worstId = r.id; } }
   for (const r of residual) { r.band = band(r.score); r.meets = r.score <= prep.input.appetite + EPS; }
-  const sched = schedule(ids);
+  const sched = schedule(ids, prep.input.done);
   return { ids: ids, cost: en.cost[m], weeks: sched.goLive, schedule: sched.rows, residual: residual,
     worst: worst, worstId: worstId, sum: sum, meets: worst <= prep.input.appetite + EPS,
     withinBudget: en.cost[m] <= prep.input.budget, mask: m };
@@ -788,7 +820,7 @@ function analyse(rawInput) {
   const best = plan(found.best);
   if (best === null) {
     const mustIds = maskIds(prep, prep.mustMask);
-    notes.push('No plan fits in ' + weeksPhrase(input.weeks) + ': the techniques that must be included take ' + weeksPhrase(schedule(mustIds).goLive) + ' on their own.');
+    notes.push('No plan fits in ' + weeksPhrase(input.weeks) + ': the techniques that must be included take ' + weeksPhrase(schedule(mustIds, input.done).goLive) + ' on their own.');
   }
   let inherentWorst = 0;
   for (const r of prep.risk) if (r.score > inherentWorst) inherentWorst = r.score;
@@ -843,15 +875,64 @@ function evaluatePlan(rawInput, ids) {
   let worst = 0, sum = 0, worstId = residual[0].id, cost = 0;
   for (const r of residual) { sum += r.score; if (r.score > worst) { worst = r.score; worstId = r.id; } r.band = band(r.score); r.meets = r.score <= input.appetite + EPS; }
   for (let i = 0; i < prep.n; i++) if ((m >> i) & 1) cost += prep.cost[i];
-  const sched = schedule(maskIds(prep, m));
+  const sched = schedule(maskIds(prep, m), input.done);
   return { ids: maskIds(prep, m), cost: cost, weeks: sched.goLive, schedule: sched.rows, residual: residual, worst: worst,
     worstId: worstId, sum: sum, meets: worst <= input.appetite + EPS, withinBudget: cost <= input.budget,
     fitsDeadline: sched.goLive <= input.weeks, mask: m, notes: notes };
 }
 
+// From pilot to scale. Two ways to buy assurance as a system grows: plan each stage
+// on its own (what was done before is kept and costs nothing again), or work out the
+// cheapest plan for full scale first and phase it in, buying at each stage only the
+// part of that plan the stage needs.
+const ROLLOUT = ['pilot', 'rollout', 'scale'];
+
+function stepInput(base, stage, done, exclude) {
+  return { answers: Object.assign({}, base.answers, { stage: stage }), appetite: base.appetite, budget: base.budget,
+    weeks: base.weeks, legalMust: base.legalMust, must: base.must.slice(), exclude: exclude.slice(), done: done.slice(),
+    overrides: base.overrides };
+}
+
+function ladderPath(base, exclude) {
+  const steps = [];
+  let done = base.done.slice(), total = 0;
+  for (const st of ROLLOUT) {
+    const r = analyse(stepInput(base, st, done, exclude));
+    const p = r.cheapest || r.best;
+    if (!p) {
+      steps.push({ stage: st, fits: false, reachable: false, cost: 0, weeks: 0, added: [], ids: done.slice(), worst: null, worstId: null });
+      continue;
+    }
+    const added = p.ids.filter(function (id) { return done.indexOf(id) < 0; });
+    steps.push({ stage: st, fits: true, reachable: r.cheapest !== null, cost: p.cost, weeks: p.weeks, added: added,
+      ids: p.ids.slice(), worst: p.worst, worstId: p.worstId });
+    total += p.cost;
+    done = p.ids.slice();
+  }
+  return { steps: steps, total: total, final: done };
+}
+
+function ladder(rawInput) {
+  const base = normaliseInput(rawInput);
+  const stepwise = ladderPath(base, base.exclude);
+  const atScale = analyse(stepInput(base, 'scale', base.done, base.exclude));
+  const target = atScale.cheapest || atScale.best;
+  let planned = null;
+  if (target) {
+    const outside = DATA.techniques.map(function (t) { return t.id; }).filter(function (id) {
+      return target.ids.indexOf(id) < 0 && base.done.indexOf(id) < 0;
+    });
+    planned = ladderPath(base, outside);
+    planned.target = target.ids.slice();
+  }
+  const extra = planned ? stepwise.final.filter(function (id) { return planned.target.indexOf(id) < 0; }) : [];
+  return { stepwise: stepwise, planned: planned, premium: planned ? stepwise.total - planned.total : null, extra: extra,
+    scaleReachable: atScale.cheapest !== null };
+}
+
 const AssuranceMix = { DATA: DATA, PRINCIPLES: PRINCIPLES, EPS: EPS, toProb: toProb, fromProb: fromProb, band: band,
   normaliseInput: normaliseInput, inherentRisk: inherentRisk, techniqueStatus: techniqueStatus, schedule: schedule,
-  analyse: analyse, evaluatePlan: evaluatePlan };
+  analyse: analyse, evaluatePlan: evaluatePlan, ladder: ladder };
 if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceMix;
 /* MODEL END */
 
@@ -880,7 +961,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     view: 'cheapest',
     custom: null
   };
-  let result = null, custom = null;
+  let result = null, custom = null, ladderTimer = null;
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
@@ -1034,6 +1115,52 @@ if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceM
     custom = M.evaluatePlan(input(), state.custom);
     state.custom = custom.ids.slice();
     render();
+    // The ladder runs six more searches, so it is drawn just after the main results.
+    clearTimeout(ladderTimer);
+    ladderTimer = setTimeout(function () { renderLadder(M.ladder(input())); }, 30);
+  }
+
+  const STAGE_NAME = { pilot: 'Pilot', rollout: 'Limited roll-out', scale: 'Full scale' };
+  function renderLadder(L) {
+    const box = $('ladder');
+    const steps = L.stepwise.steps;
+    const total = L.stepwise.total;
+    let cum = 0;
+    const rungs = steps.map(function (st) {
+      cum += st.cost;
+      const here = st.stage === state.answers.stage;
+      let body;
+      if (!st.fits) body = '<p class="sub">No plan goes live within ' + weeksText(state.weeks) + '.</p>';
+      else {
+        const added = st.added.length ? '<ul>' + st.added.map(function (id) { return '<li>' + esc(TECH[id].name) + '</li>'; }).join('') + '</ul>' : '<p class="sub">Nothing new needed.</p>';
+        body = '<p class="sub">' + (st.added.length ? 'Adds ' + plural(st.added.length, 'technique', 'techniques') + ', ' + weeksText(st.weeks) + ' before this stage goes live' : 'Already covered') +
+          '. Worst principle ' + sc(st.worst) + (st.reachable ? '' : ', above appetite') + '.</p>' + added;
+      }
+      const share = total > 0 ? cum / total * 100 : 0;
+      return '<div class="rung' + (here ? ' here' : '') + '">' + (here ? '<span class="here-tag">This system now</span>' : '') +
+        '<h3>' + STAGE_NAME[st.stage] + '</h3><p class="big">+' + money(st.cost) + '</p>' +
+        '<div class="cum" role="img" aria-label="' + esc(money(cum) + ' spent by the end of this stage, ' + Math.round(share) + '% of the total') + '"><i style="width:' + share.toFixed(1) + '%"></i></div>' +
+        '<p class="sub">' + money(cum) + ' in total so far</p>' + body + '</div>';
+    });
+    const pilot = steps[0], scaleCum = total;
+    let says = '';
+    if (pilot.fits && scaleCum > 0) {
+      if (pilot.cost === 0) says = 'The pilot needs no extra assurance, but full scale needs ' + money(scaleCum) + '. A business case that only prices the pilot will meet the whole bill at roll-out.';
+      else {
+        const ratio = scaleCum / pilot.cost;
+        says = 'The pilot needs ' + money(pilot.cost) + ' of assurance; full scale needs ' + money(scaleCum) + ' in all' +
+          (ratio >= 1.5 ? ', ' + (Math.round(ratio * 10) / 10) + ' times as much. Budget only for the pilot\'s assurance and the jump arrives just as the system tries to scale.' : '.');
+      }
+    }
+    if (!L.scaleReachable) says += ' At full scale no combination reaches your appetite, so the last stage shows the lowest-risk plan.';
+    let planned = '';
+    if (L.planned) {
+      if (L.premium > 0) planned = 'Planning each stage on its own costs ' + money(L.premium) + ' more than working out the full-scale plan first and phasing it in' +
+        (L.extra.length ? ': it buys ' + L.extra.map(function (id) { return TECH[id].name.toLowerCase(); }).join(' and ') + ', which the cheapest full-scale plan does without.' : '.');
+      else if (L.extra.length) planned = 'Planning each stage on its own costs the same in total here, but ends with a different mix from the cheapest full-scale plan.';
+      else planned = 'Here, planning each stage on its own ends at the cheapest full-scale plan anyway, so phasing costs nothing extra.';
+    }
+    box.innerHTML = '<div class="ladder">' + rungs.join('') + '</div><p class="ladder-says">' + esc(says) + '</p><p class="ladder-says">' + esc(planned) + '</p>';
   }
 
   function currentPlan() {

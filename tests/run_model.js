@@ -10,6 +10,7 @@ process.stdin.on('end', function () {
   const out = jobs.map(function (job) {
     if (job.kind === 'analyse') return M.analyse(job.input);
     if (job.kind === 'evaluate') return M.evaluatePlan(job.input, job.ids);
+    if (job.kind === 'ladder') return M.ladder(job.input);
     if (job.kind === 'toProb') return job.values.map(M.toProb);
     if (job.kind === 'fromProb') return job.values.map(M.fromProb);
     if (job.kind === 'catalogue') return M.DATA;

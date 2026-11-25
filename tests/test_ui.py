@@ -45,10 +45,13 @@ class UiTests(unittest.TestCase):
 
     def test_loads_with_the_first_example(self):
         page = self.open()
-        self.assertIn("£143k", page.inner_text("#summary"))
+        self.assertIn("£105k", page.inner_text("#summary"))
         self.assertEqual(page.locator("#risk .risk-row").count(), 5)
         self.assertGreater(page.locator("#frontier svg circle").count(), 5)
         self.assertEqual(page.title(), "Assurance mix")
+        page.wait_for_selector("#ladder .rung")
+        self.assertEqual(page.locator("#ladder .rung").count(), 3)
+        self.assertIn("This system now", page.inner_text("#ladder"))
         page.close()
 
     def test_every_control_has_a_label(self):
