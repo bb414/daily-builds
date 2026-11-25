@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missing minutes</title>
+<meta name="description" content="Where do the minutes an AI pilot saves at one desk go once the whole process runs? A queueing simulator.">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #17202b; --muted: #5b6775; --line: #dde2e8; --soft: #eef1f5;
+  --accent: #0f6e78; --accent-soft: #d7ecee; --save: #1f6fb2; --save-soft: #d6e6f5; --cost: #c2541b; --cost-soft: #f7e0d3;
+  --before: #8a96a5; --warn-bg: #fff4e0; --warn-ink: #7a4a00; --focus: #f0b429;
+  --radius: 10px; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161c; --panel: #19212a; --ink: #e8edf2; --muted: #9aa6b3; --line: #2c3743; --soft: #222c37;
+    --accent: #4fb7c2; --accent-soft: #19393d; --save: #6aaee8; --save-soft: #1c3346; --cost: #ef8a55; --cost-soft: #44291b;
+    --before: #7d8a99; --warn-bg: #3a2c12; --warn-ink: #f4cf86; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 48px; }
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; margin-bottom: 18px; }
+header.top h1 { font-size: 28px; letter-spacing: -0.01em; }
+header.top p { margin: 4px 0 0; color: var(--muted); max-width: 720px; }
+.layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; min-width: 0; }
+.panel + .panel { margin-top: 16px; }
+.panel h2 { font-size: 17px; margin-bottom: 4px; }
+.panel .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 12px; }
+.field { margin: 12px 0; }
+.field label, .field .lab { display: block; font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+.field .hint { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+input[type=number], input[type=text], select { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); min-height: 36px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.range-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.range-head output { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); }
+.btn { border: 1px solid var(--line); background: var(--soft); border-radius: 7px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.small { padding: 4px 9px; min-height: 30px; font-size: 13px; }
+.muted { color: var(--muted); }
+details.steps-edit summary { cursor: pointer; font-weight: 600; }
+.step-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 10px; background: var(--bg); }
+.step-card .head { display: flex; gap: 8px; align-items: center; }
+.step-card .head .idx { font-weight: 700; color: var(--muted); width: 18px; flex: none; }
+.days { display: flex; flex-wrap: wrap; gap: 6px; }
+.days label { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; font-size: 13.5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; background: var(--panel); }
+.errors { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.errors ul { margin: 4px 0 0; padding-left: 18px; }
+.headline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .headline { grid-template-columns: minmax(0, 1fr); } }
+.stat { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: var(--bg); }
+.stat .k { font-size: 13px; color: var(--muted); font-weight: 600; }
+.stat .v { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; margin: 2px 0; }
+.stat .d { font-size: 13px; color: var(--muted); }
+.stat.good .v { color: var(--save); }
+.stat.bad .v { color: var(--cost); }
+.verdict { margin: 14px 0 0; font-size: 15.5px; }
+.chart { width: 100%; overflow: hidden; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { fill: var(--ink); font-size: 12px; }
+.chart .ax { stroke: var(--line); }
+.chart .lbl { fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+table.data th:first-child, table.data td:first-child { text-align: left; }
+table.data thead th { color: var(--muted); font-weight: 600; font-size: 13px; }
+.table-scroll { overflow-x: auto; }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; vertical-align: 1px; margin-left: 4px; }
+.badge.ai { background: var(--accent-soft); color: var(--accent); }
+.badge.bn { background: var(--cost-soft); color: var(--cost); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.5em; }
+footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
+.wf-row { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr) 84px; gap: 10px; align-items: center; padding: 4px 0; }
+.wf-row.total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; font-weight: 700; }
+.wf-label { font-size: 14px; }
+.wf-track { position: relative; height: 18px; }
+.wf-zero { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--muted); opacity: .6; }
+.wf-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+.wf-bar.save { background: var(--save); }
+.wf-bar.cost { background: var(--cost); }
+.wf-val { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.wf-val.save { color: var(--save); }
+.wf-val.cost { color: var(--cost); }
+@media (max-width: 560px) {
+  .wf-row { grid-template-columns: minmax(0, 1fr) 76px; }
+  .wf-label { grid-column: 1 / -1; margin-bottom: -4px; }
+}
+.sc-row { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.sc-row:last-child { border-bottom: 0; }
+.sc-name { font-weight: 600; font-size: 14px; }
+.sc-busy { font-weight: 400; color: var(--muted); font-size: 13px; }
+.sc-bar { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 2px 8px; align-items: center; margin: 2px 0; }
+.sc-tag { font-size: 12.5px; color: var(--muted); }
+.sc-track { display: flex; height: 12px; background: transparent; }
+.sc-touch { background: var(--ink); height: 100%; }
+.sc-touch.after { background: var(--accent); }
+.sc-wait { background: var(--line); height: 100%; }
+.sc-wait.after { background: var(--accent-soft); }
+.sc-val { grid-column: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .sc-row { grid-template-columns: minmax(0, 1fr); } }
+.side { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.stat .v.small { font-size: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Missing minutes</h1>
+      <p>Your AI pilot saved minutes at one desk. Follow them through the whole process to see whether customers get their answer any sooner.</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside aria-label="Settings">
+      <section class="panel" aria-labelledby="h-process">
+        <h2 id="h-process">The process</h2>
+        <p class="sub" id="blurb"></p>
+        <div class="field">
+          <label for="preset">Example process</label>
+          <select id="preset"></select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="arrivals">Cases a day</label>
+            <input id="arrivals" type="number" min="0.5" max="400" step="0.5" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="sla">Target (working days)</label>
+            <input id="sla" type="number" min="0.5" max="200" step="0.5" inputmode="decimal">
+          </div>
+        </div>
+        <details class="steps-edit" id="steps-edit">
+          <summary>Edit the steps</summary>
+          <div id="steps"></div>
+          <div style="margin-top:10px"><button type="button" class="btn small" id="add-step">Add a step</button></div>
+        </details>
+      </section>
+
+      <section class="panel" aria-labelledby="h-ai">
+        <h2 id="h-ai">The AI assistant</h2>
+        <p class="sub">What the pilot measured, and what happens once everyone has it.</p>
+        <div class="field">
+          <label for="ai-step">It helps with</label>
+          <select id="ai-step"></select>
+        </div>
+        <div class="field">
+          <div class="range-head"><label for="ai-saving">Time it saves on a case</label><output id="ai-saving-out" for="ai-saving"></output></div>
+          <input id="ai-saving" type="range" min="0" max="90" step="5">
+        </div>
+        <div class="field">
+          <div class="range-head"><label for="ai-adoption">Cases where it is used</label><output id="ai-adoption-out" for="ai-adoption"></output></div>
+          <input id="ai-adoption" type="range" min="0" max="100" step="5">
+        </div>
+        <div class="field">
+          <label for="ai-check">Minutes to check its work</label>
+          <input id="ai-check" type="number" min="0" max="600" step="1" inputmode="decimal">
+        </div>
+        <div class="field">
+          <div class="range-head"><label for="ai-error">Cases it gets wrong</label><output id="ai-error-out" for="ai-error"></output></div>
+          <input id="ai-error" type="range" min="0" max="30" step="1">
+        </div>
+        <div class="field">
+          <div class="range-head"><label for="ai-catch">Errors a later check catches</label><output id="ai-catch-out" for="ai-catch"></output></div>
+          <input id="ai-catch" type="range" min="0" max="100" step="5">
+        </div>
+        <div class="field">
+          <label for="seed">Random seed</label>
+          <input id="seed" type="number" min="1" max="999999" step="1">
+          <div class="hint">Both runs, with and without the AI, use the same cases and the same luck.</div>
+        </div>
+      </section>
+    </aside>
+
+    <main id="results" aria-live="polite">
+    </main>
+  </div>
+  <footer>Invented processes and synthetic data. A thinking tool, not a forecast. Runs entirely in your browser.</footer>
+</div>
+<script>
+/* MODEL START */
+(function (root) {
+  'use strict';
+
+  // Time is measured in working minutes. A working day is 7.5 hours and a
+  // working week is five days, so nights and weekends are simply skipped.
+  var DAY = 450;
+  var WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  var ARRIVE = 0, DONE = 1, BATCH = 2;
+
+  // ---------------------------------------------------------------------
+  // Random numbers. Everything uses 32-bit integer arithmetic so the Python
+  // companion reproduces exactly the same streams.
+  // ---------------------------------------------------------------------
+  function mix(h, v) {
+    h = Math.imul((h ^ v) >>> 0, 0x85ebca6b) >>> 0;
+    h = (h ^ (h >>> 13)) >>> 0;
+    h = Math.imul(h, 0xc2b2ae35) >>> 0;
+    h = (h ^ (h >>> 16)) >>> 0;
+    return h;
+  }
+
+  function Rng(seed) { this.s = seed >>> 0; }
+  Rng.prototype.next = function () {
+    this.s = (this.s + 0x6D2B79F5) >>> 0;
+    var t = this.s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    t = (t ^ (t >>> 14)) >>> 0;
+    return (t + 0.5) / 4294967296;
+  };
+
+  // One stream per visit of a case to a step, so the run without the AI and
+  // the run with it see exactly the same luck (common random numbers).
+  function visitRng(seed, caseId, step, visit) {
+    return new Rng(mix(mix(mix(mix(seed >>> 0, 0xCA5E), caseId), step), visit));
+  }
+
+  // Lognormal multiplier with mean 1 and the given coefficient of variation.
+  function spread(cv, u1, u2) {
+    if (cv <= 0) return 1;
+    var s2 = Math.log(1 + cv * cv);
+    var z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return Math.exp(-s2 / 2 + Math.sqrt(s2) * z);
+  }
+
+  // ---------------------------------------------------------------------
+  // Presets: three invented processes, each with an AI assistant on one
+  // step. None of them describes a real organisation.
+  //   team:  a group of people working cases first come, first served
+  //   batch: a meeting or run that clears waiting cases on set weekdays
+  //   delay: waiting on someone outside the team (no staff time used)
+  // ---------------------------------------------------------------------
+  var PRESETS = {
+    claims: {
+      name: 'Home insurance claims',
+      blurb: 'An invented insurer. The AI drafts the claim assessment for the handler; a quality check sends some claims back.',
+      arrivalsPerDay: 40, slaDays: 5,
+      steps: [
+        { name: 'Register claim', kind: 'team', staff: 2, minutes: 9, cv: 0.5 },
+        { name: 'Assess claim', kind: 'team', staff: 5, minutes: 50, cv: 0.7 },
+        { name: 'Quality check', kind: 'team', staff: 2, minutes: 15, cv: 0.6, reworkTo: 1, reworkRate: 0.08 },
+        { name: 'Await repair quote', kind: 'delay', share: 0.6, minutes: 675, cv: 0.8 },
+        { name: 'Payment run', kind: 'batch', batchDays: [0, 1, 2, 3, 4], capacity: 200, minutes: 1, cv: 0 },
+        { name: 'Write to customer', kind: 'team', staff: 2, minutes: 10, cv: 0.5 }
+      ],
+      ai: { step: 1, saving: 0.4, adoption: 0.75, checkMinutes: 5, errorRate: 0.06, catchRate: 0.9 }
+    },
+    loans: {
+      name: 'Small business loans',
+      blurb: 'An invented lender. The AI summarises the accounts for the credit analyst; the credit committee meets on Tuesdays and Thursdays.',
+      arrivalsPerDay: 12, slaDays: 8,
+      steps: [
+        { name: 'Check documents', kind: 'team', staff: 2, minutes: 25, cv: 0.6 },
+        { name: 'Await missing documents', kind: 'delay', share: 0.4, minutes: 1350, cv: 0.7 },
+        { name: 'Analyse credit', kind: 'team', staff: 4, minutes: 95, cv: 0.6 },
+        { name: 'Credit committee', kind: 'batch', batchDays: [1, 3], capacity: 40, minutes: 6, cv: 0.4, reworkTo: 2, reworkRate: 0.08 },
+        { name: 'Issue offer', kind: 'team', staff: 2, minutes: 20, cv: 0.5 }
+      ],
+      ai: { step: 2, saving: 0.45, adoption: 0.85, checkMinutes: 10, errorRate: 0.05, catchRate: 0.9 }
+    },
+    complaints: {
+      name: 'Customer complaints',
+      blurb: 'An invented utility company. The AI drafts the reply to the customer; one team leader signs every reply off.',
+      arrivalsPerDay: 30, slaDays: 8,
+      steps: [
+        { name: 'Log and acknowledge', kind: 'team', staff: 2, minutes: 8, cv: 0.5 },
+        { name: 'Investigate', kind: 'team', staff: 6, minutes: 60, cv: 0.9 },
+        { name: 'Await customer evidence', kind: 'delay', share: 0.35, minutes: 1800, cv: 0.8 },
+        { name: 'Draft reply', kind: 'team', staff: 3, minutes: 30, cv: 0.6 },
+        { name: 'Team leader sign-off', kind: 'team', staff: 1, minutes: 12, cv: 0.5, reworkTo: 3, reworkRate: 0.1 },
+        { name: 'Send and close', kind: 'team', staff: 1, minutes: 6, cv: 0.4 }
+      ],
+      ai: { step: 3, saving: 0.5, adoption: 0.8, checkMinutes: 4, errorRate: 0.08, catchRate: 0.9 }
+    }
+  };
+
+  var DEFAULTS = { warmupDays: 20, measureDays: 120, drainDays: 80, reworkEffort: 0.5 };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function num(v, d) {
+    if (v === undefined || v === null || v === '' || typeof v === 'boolean') return d;
+    var x = Number(v);
+    return isFinite(x) ? x : d;
+  }
+
+  function presetConfig(key) {
+    var p = PRESETS[key];
+    if (!p) throw new Error('Unknown preset: ' + key);
+    var c = clone(p);
+    delete c.blurb;
+    c.preset = key;
+    return normalise(c);
+  }
+
+  // Fill in defaults so both languages always work from the same full config.
+  function normalise(cfg) {
+    var c = clone(cfg || {});
+    var out = {
+      name: typeof c.name === 'string' && c.name.trim() ? c.name.trim() : 'Custom process',
+      arrivalsPerDay: num(c.arrivalsPerDay, 20),
+      slaDays: num(c.slaDays, 10),
+      warmupDays: num(c.warmupDays, DEFAULTS.warmupDays),
+      measureDays: num(c.measureDays, DEFAULTS.measureDays),
+      drainDays: num(c.drainDays, DEFAULTS.drainDays),
+      reworkEffort: num(c.reworkEffort, DEFAULTS.reworkEffort),
+      steps: [],
+      ai: {}
+    };
+    if (typeof c.preset === 'string') out.preset = c.preset;
+    var steps = Array.isArray(c.steps) ? c.steps : [];
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i] || {};
+      var kind = s.kind === 'batch' || s.kind === 'delay' ? s.kind : 'team';
+      var st = {
+        name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : 'Step ' + (i + 1),
+        kind: kind,
+        staff: kind === 'team' ? Math.round(num(s.staff, 1)) : 0,
+        minutes: num(s.minutes, 10),
+        cv: num(s.cv, 0.5),
+        reworkTo: Math.round(num(s.reworkTo, -1)),
+        reworkRate: num(s.reworkRate, 0)
+      };
+      if (st.reworkTo < 0) { st.reworkTo = -1; st.reworkRate = 0; }
+      if (kind === 'batch') {
+        var days = Array.isArray(s.batchDays) ? s.batchDays : [2];
+        st.batchDays = days.map(function (d) { return Math.round(num(d, -1)); })
+          .filter(function (d, j, a) { return d >= 0 && d <= 4 && a.indexOf(d) === j; })
+          .sort(function (a, b) { return a - b; });
+        st.capacity = Math.round(num(s.capacity, 30));
+      }
+      if (kind === 'delay') st.share = num(s.share, 1);
+      out.steps.push(st);
+    }
+    var a = c.ai || {};
+    out.ai = {
+      step: Math.round(num(a.step, -1)),
+      saving: num(a.saving, 0.3),
+      adoption: num(a.adoption, 0.8),
+      checkMinutes: num(a.checkMinutes, 0),
+      errorRate: num(a.errorRate, 0),
+      catchRate: num(a.catchRate, 0.9)
+    };
+    if (out.ai.step < 0) out.ai.step = -1;
+    return out;
+  }
+
+  // Returns a list of plain-English problems; an empty list means the config can run.
+  function validate(cfg) {
+    var e = [];
+    function check(v, lo, hi, label) {
+      if (!(typeof v === 'number' && isFinite(v)) || v < lo || v > hi) e.push(label + ' must be between ' + lo + ' and ' + hi + '.');
+    }
+    check(cfg.arrivalsPerDay, 0.5, 400, 'Cases per day');
+    check(cfg.slaDays, 0.5, 200, 'Target days');
+    check(cfg.warmupDays, 0, 200, 'Warm-up days');
+    check(cfg.measureDays, 10, 500, 'Measured days');
+    check(cfg.drainDays, 0, 500, 'Drain days');
+    check(cfg.reworkEffort, 0.05, 2, 'Rework effort');
+    if (!cfg.steps.length) e.push('Add at least one step.');
+    if (cfg.steps.length > 8) e.push('Use at most eight steps.');
+    if (cfg.arrivalsPerDay * (cfg.warmupDays + cfg.measureDays) > 60000) e.push('That is too many cases to simulate quickly: lower the cases per day or the number of days.');
+    cfg.steps.forEach(function (s, i) {
+      var l = s.name;
+      if (s.kind === 'team') check(s.staff, 1, 60, l + ': people');
+      check(s.minutes, s.kind === 'delay' ? 0 : 0.1, s.kind === 'delay' ? 45000 : 2400, l + (s.kind === 'delay' ? ': length of the wait (minutes)' : ': minutes per case'));
+      check(s.cv, 0, 3, l + ': variability');
+      if (s.reworkTo >= 0) {
+        if (s.reworkTo >= i) e.push(l + ': cases can only be sent back to an earlier step.');
+        else if (s.kind === 'delay') e.push(l + ': a wait cannot send cases back.');
+        check(s.reworkRate, 0, 0.6, l + ': share sent back');
+      }
+      if (s.kind === 'batch') {
+        if (!s.batchDays.length) e.push(l + ': pick at least one day.');
+        check(s.capacity, 1, 2000, l + ': cases per session');
+      }
+      if (s.kind === 'delay') check(s.share, 0, 1, l + ': share of cases that wait');
+    });
+    var a = cfg.ai;
+    if (a.step >= cfg.steps.length) e.push('The AI must sit on one of the steps.');
+    else if (a.step >= 0 && cfg.steps[a.step].kind === 'delay') e.push('The AI cannot sit on a wait for someone outside the team.');
+    check(a.saving, 0, 0.95, 'Time the AI saves');
+    check(a.adoption, 0, 1, 'Share of cases that use the AI');
+    check(a.checkMinutes, 0, 600, 'Minutes spent checking the AI');
+    check(a.errorRate, 0, 0.5, 'AI error rate');
+    check(a.catchRate, 0, 1, 'Share of AI errors caught');
+    return e;
+  }
+
+  // ---------------------------------------------------------------------
+  // Binary heap of events ordered by (time, sequence number).
+  // ---------------------------------------------------------------------
+  function Heap() { this.a = []; }
+  Heap.prototype.less = function (x, y) { return x.t < y.t || (x.t === y.t && x.q < y.q); };
+  Heap.prototype.push = function (ev) {
+    var a = this.a; a.push(ev); var i = a.length - 1;
+    while (i > 0) {
+      var p = (i - 1) >> 1;
+      if (!this.less(a[i], a[p])) break;
+      var tmp = a[i]; a[i] = a[p]; a[p] = tmp; i = p;
+    }
+  };
+  Heap.prototype.pop = function () {
+    var a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last; var i = 0, n = a.length;
+      for (;;) {
+        var l = 2 * i + 1, r = l + 1, m = i;
+        if (l < n && this.less(a[l], a[m])) m = l;
+        if (r < n && this.less(a[r], a[m])) m = r;
+        if (m === i) break;
+        var tmp = a[i]; a[i] = a[m]; a[m] = tmp; i = m;
+      }
+    }
+    return top;
+  };
+
+  function nextBatchDay(days, after) {
+    for (var d = after + 1; ; d++) if (days.indexOf(d % 5) >= 0) return d;
+  }
+
+  // Nearest-rank quantile of an already sorted list.
+  function quantile(sorted, p) {
+    if (!sorted.length) return 0;
+    var i = Math.floor(p * sorted.length);
+    if (i > sorted.length - 1) i = sorted.length - 1;
+    return sorted[i];
+  }
+
+  // ---------------------------------------------------------------------
+  // The discrete-event simulation of one process for one seed.
+  // ---------------------------------------------------------------------
+  function simulate(cfgIn, seedIn, opts) {
+    var cfg = normalise(cfgIn);
+    opts = opts || {};
+    var seed = (seedIn === undefined ? 1 : seedIn) >>> 0;
+    var steps = cfg.steps, n = steps.length;
+    var ai = cfg.ai, aiStep = opts.noAi ? -1 : ai.step;
+    var lam = cfg.arrivalsPerDay / DAY;
+    var W = cfg.warmupDays * DAY, E = W + cfg.measureDays * DAY, CAP = E + cfg.drainDays * DAY;
+    var heap = new Heap(), seq = 0;
+    function push(t, type, a, b) { heap.push({ t: t, q: seq++, type: type, a: a, b: b }); }
+
+    var busy = [], queues = [], heads = [], busyMin = [], maxQ = [], sessions = [], cleared = [], entries = [];
+    var i, k;
+    for (k = 0; k < n; k++) { busy.push(0); queues.push([]); heads.push(0); busyMin.push(0); maxQ.push(0); sessions.push(0); cleared.push(0); entries.push(0); }
+
+    var cases = [];
+    var tracked = 0, open = 0, arrivalsDone = false;
+    var lead = [], touchSum = [], waitSum = [], visitSum = [];
+    for (k = 0; k < n; k++) { touchSum.push(0); waitSum.push(0); visitSum.push(0); }
+    var withinSla = 0, slaMin = cfg.slaDays * DAY;
+    var reworked = 0, aiSendBacks = 0, baseSendBacks = 0, escaped = 0, aiUsed = 0;
+    var aiSaved = 0, aiLost = 0, aiCheck = 0;
+
+    function inWindow(t) { return t >= W && t < E; }
+    function overlap(s, e) { var a = s > W ? s : W, b = e < E ? e : E; return b > a ? b - a : 0; }
+
+    function enter(c, k, t) {
+      c.enq = t;
+      if (c.reworking && k === c.reworkCheck) c.reworking = false;
+      if (inWindow(t)) entries[k]++;
+      var st = steps[k];
+      if (st.kind === 'delay') { startDelay(c, k, t); return; }
+      if (st.kind === 'team' && busy[k] < st.staff) { start(c, k, t); return; }
+      queues[k].push(c);
+      var ql = queues[k].length - heads[k];
+      if (inWindow(t) && ql > maxQ[k]) maxQ[k] = ql;
+    }
+
+    // Draws this visit's random numbers and returns the hands-on minutes.
+    function serviceTime(c, k, t) {
+      var st = steps[k];
+      var v = c.visits[k]++;
+      var r = visitRng(seed, c.id, k, v);
+      var u1 = r.next(), u2 = r.next(), uAdopt = r.next(), uErr = r.next();
+      c.uBack = r.next(); c.uCatch = r.next();
+      var base = st.minutes * spread(st.cv, u1, u2);
+      var dur = base;
+      if (c.reworking) {
+        dur = base * cfg.reworkEffort;
+      } else if (k === aiStep) {
+        var potential = base * ai.saving;
+        if (uAdopt < ai.adoption) {
+          dur = base - potential + ai.checkMinutes;
+          if (uErr < ai.errorRate) c.defect = true;
+          if (c.tracked) { aiSaved += potential; aiCheck += ai.checkMinutes; c.ai = true; }
+        } else if (c.tracked) {
+          aiLost += potential;
+        }
+      }
+      if (c.tracked) { c.wait[k] += t - c.enq; c.touch[k] += dur; }
+      return dur;
+    }
+
+    function startDelay(c, k, t) {
+      var st = steps[k];
+      var v = c.visits[k]++;
+      var r = visitRng(seed, c.id, k, v);
+      var u1 = r.next(), u2 = r.next(), uShare = r.next();
+      var dur = uShare < st.share ? st.minutes * spread(st.cv, u1, u2) : 0;
+      if (c.tracked) c.wait[k] += dur;
+      push(t + dur, DONE, c.id, k);
+    }
+
+    function start(c, k, t) {
+      busy[k]++;
+      var dur = serviceTime(c, k, t);
+      busyMin[k] += overlap(t, t + dur);
+      push(t + dur, DONE, c.id, k);
+    }
+
+    function finish(c, k, t) {
+      var st = steps[k];
+      if (st.reworkTo >= 0) {
+        var catchable = c.defect && aiStep >= st.reworkTo && aiStep < k;
+        var back = false;
+        if (catchable && c.uCatch < ai.catchRate) { c.defect = false; back = true; if (c.tracked) aiSendBacks++; }
+        else if (c.uBack < st.reworkRate) { back = true; if (c.tracked) baseSendBacks++; }
+        if (back) {
+          c.reworking = true; c.reworkCheck = k; c.reworks++;
+          enter(c, st.reworkTo, t);
+          return;
+        }
+      }
+      if (k === n - 1) leave(c, t); else enter(c, k + 1, t);
+    }
+
+    function leave(c, t) {
+      if (!c.tracked) return;
+      open--;
+      var lt = t - c.arr;
+      lead.push(lt);
+      if (lt <= slaMin) withinSla++;
+      for (var j = 0; j < n; j++) { touchSum[j] += c.touch[j]; waitSum[j] += c.wait[j]; visitSum[j] += c.visits[j]; }
+      if (c.reworks > 0) reworked++;
+      if (c.defect) escaped++;
+      if (c.ai) aiUsed++;
+    }
+
+    function compact(k) {
+      if (heads[k] > 1024 && heads[k] * 2 > queues[k].length) { queues[k] = queues[k].slice(heads[k]); heads[k] = 0; }
+    }
+
+    function startNext(k, t) {
+      var st = steps[k];
+      while (busy[k] < st.staff && heads[k] < queues[k].length) {
+        var c = queues[k][heads[k]]; queues[k][heads[k]] = null; heads[k]++;
+        start(c, k, t);
+      }
+      compact(k);
+    }
+
+    // A batch session works through waiting cases one after another, oldest first.
+    function session(k, t) {
+      var st = steps[k];
+      if (inWindow(t)) sessions[k]++;
+      var clock = t, count = 0;
+      while (count < st.capacity && heads[k] < queues[k].length) {
+        var c = queues[k][heads[k]]; queues[k][heads[k]] = null; heads[k]++;
+        var dur = serviceTime(c, k, clock);
+        busyMin[k] += overlap(clock, clock + dur);
+        clock += dur;
+        push(clock, DONE, c.id, k);
+        count++;
+      }
+      if (inWindow(t)) cleared[k] += count;
+      compact(k);
+    }
+
+    // Seed the event list: the first arrival and each batch step's first session.
+    var arrRng = new Rng(mix(mix(seed, 0xA77), 1));
+    var t0 = -Math.log(arrRng.next()) / lam;
+    if (t0 < E) push(t0, ARRIVE, 0, 0); else arrivalsDone = true;
+    for (k = 0; k < n; k++) if (steps[k].kind === 'batch') push(nextBatchDay(steps[k].batchDays, -1) * DAY, BATCH, k, 0);
+
+    var now = 0;
+    while (heap.a.length) {
+      var ev = heap.pop();
+      if (ev.t > CAP) break;
+      now = ev.t;
+      if (ev.type === ARRIVE) {
+        var c = { id: cases.length, arr: now, tracked: inWindow(now), enq: now, reworking: false, reworkCheck: -1, reworks: 0, defect: false, ai: false, uBack: 0, uCatch: 0, visits: [], touch: [], wait: [] };
+        for (k = 0; k < n; k++) { c.visits.push(0); c.touch.push(0); c.wait.push(0); }
+        cases.push(c);
+        if (c.tracked) { tracked++; open++; }
+        enter(c, 0, now);
+        var nt = now - Math.log(arrRng.next()) / lam;
+        if (nt < E) push(nt, ARRIVE, 0, 0); else arrivalsDone = true;
+      } else if (ev.type === DONE) {
+        var kind = steps[ev.b].kind;
+        if (kind === 'team') busy[ev.b]--;
+        finish(cases[ev.a], ev.b, now);
+        if (kind === 'team') startNext(ev.b, now);
+      } else {
+        session(ev.a, now);
+        push(nextBatchDay(steps[ev.a].batchDays, Math.round(now / DAY)) * DAY, BATCH, ev.a, 0);
+      }
+      if (arrivalsDone && open === 0) break;
+    }
+
+    // Summaries over the tracked cases that finished.
+    var done = lead.length;
+    var sorted = lead.slice().sort(function (a, b) { return a - b; });
+    var leadTotal = 0;
+    for (i = 0; i < done; i++) leadTotal += lead[i];
+    var stepOut = [], span = E - W, touchTotal = 0, waitTotal = 0;
+    for (k = 0; k < n; k++) {
+      var st = steps[k];
+      var tm = done ? touchSum[k] / done : 0, wm = done ? waitSum[k] / done : 0;
+      touchTotal += tm; waitTotal += wm;
+      var util = 0;
+      if (st.kind === 'team') util = busyMin[k] / (st.staff * span);
+      else if (st.kind === 'batch') util = sessions[k] ? cleared[k] / (sessions[k] * st.capacity) : 0;
+      stepOut.push({
+        name: st.name, kind: st.kind, staff: st.staff,
+        touch: tm, wait: wm, visits: done ? visitSum[k] / done : 0,
+        utilisation: util, maxQueue: maxQ[k], perDay: entries[k] / cfg.measureDays,
+        busyHoursPerDay: busyMin[k] / 60 / cfg.measureDays
+      });
+    }
+    var leadMean = done ? leadTotal / done : 0;
+    return {
+      seed: seed, aiStep: aiStep,
+      tracked: tracked, done: done, open: open,
+      leadMean: leadMean,
+      leadP50: quantile(sorted, 0.5), leadP85: quantile(sorted, 0.85), leadP95: quantile(sorted, 0.95),
+      leadMax: done ? sorted[done - 1] : 0,
+      withinSla: tracked ? withinSla / tracked : 0,
+      touchTotal: touchTotal, waitTotal: waitTotal,
+      flowEfficiency: leadMean > 0 ? touchTotal / leadMean : 0,
+      throughputPerDay: done / cfg.measureDays,
+      reworkedShare: done ? reworked / done : 0,
+      aiSendBacksPer100: done ? 100 * aiSendBacks / done : 0,
+      baseSendBacksPer100: done ? 100 * baseSendBacks / done : 0,
+      escapedPer100: done ? 100 * escaped / done : 0,
+      aiUsedShare: done ? aiUsed / done : 0,
+      aiSavedPerCase: done ? aiSaved / done : 0,
+      aiLostPerCase: done ? aiLost / done : 0,
+      aiCheckPerCase: done ? aiCheck / done : 0,
+      steps: stepOut,
+      leadDays: opts.keepLeadTimes ? sorted.map(function (x) { return x / DAY; }) : null
+    };
+  }
+
+  function bottleneck(r) {
+    var best = -1, bu = -1;
+    r.steps.forEach(function (s, k) { if (s.kind === 'team' && s.utilisation > bu) { bu = s.utilisation; best = k; } });
+    return best;
+  }
+
+  // ---------------------------------------------------------------------
+  // Without the AI against with it, and where the saved minutes went.
+  // ---------------------------------------------------------------------
+  function compare(cfgIn, seed, opts) {
+    var cfg = normalise(cfgIn);
+    opts = opts || {};
+    var base = simulate(cfg, seed, { noAi: true, keepLeadTimes: opts.keepLeadTimes });
+    var withAi = simulate(cfg, seed, { keepLeadTimes: opts.keepLeadTimes });
+    var potential = -(withAi.aiSavedPerCase + withAi.aiLostPerCase);
+    var lost = withAi.aiLostPerCase;
+    var check = withAi.aiCheckPerCase;
+    var dTouch = withAi.touchTotal - base.touchTotal;
+    var rework = dTouch - (potential + lost + check);
+    var total = withAi.leadMean - base.leadMean;
+    var parts = [
+      { key: 'saved', label: 'Time the AI saves if everyone uses it', value: potential },
+      { key: 'lost', label: 'Cases where it is not used', value: lost },
+      { key: 'check', label: 'Checking the AI\'s work', value: check },
+      { key: 'rework', label: 'Reworking cases sent back', value: rework }
+    ];
+    base.steps.forEach(function (s, k) {
+      parts.push({ key: 'wait' + k, label: (s.kind === 'delay' ? '' : 'Waiting at ') + s.name, value: withAi.steps[k].wait - s.wait, step: k });
+    });
+    return {
+      config: cfg, base: base, ai: withAi,
+      pilotClaim: cfg.ai.step >= 0 ? cfg.steps[cfg.ai.step].minutes * cfg.ai.saving : 0,
+      parts: parts, total: total,
+      complete: base.open === 0 && withAi.open === 0,
+      leverage: potential < 0 ? total / potential : 0,
+      netTouch: dTouch,
+      fteFreed: -dTouch * cfg.arrivalsPerDay / DAY,
+      bottleneckBefore: bottleneck(base), bottleneckAfter: bottleneck(withAi)
+    };
+  }
+
+  function fmtDuration(min) {
+    var a = Math.abs(min), sign = min < 0 ? '-' : '';
+    if (a < 59.5) return sign + Math.round(a) + ' min';
+    if (a < DAY - 0.5) return sign + (a / 60).toFixed(1) + ' h';
+    return sign + (a / DAY).toFixed(1) + ' days';
+  }
+
+  var api = {
+    DAY: DAY, WEEKDAYS: WEEKDAYS, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
+    mix: mix, Rng: Rng, spread: spread,
+    presetConfig: presetConfig, normalise: normalise, validate: validate,
+    simulate: simulate, compare: compare, bottleneck: bottleneck,
+    quantile: quantile, fmtDuration: fmtDuration
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.MissingMinutes = api;
+})(typeof window !== 'undefined' ? window : this);
+/* MODEL END */
+</script>
+<script>
+(function () {
+  'use strict';
+  var M = window.MissingMinutes;
+  var DAY = M.DAY;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { cfg: M.presetConfig('claims'), seed: 42, timer: null, last: null };
+
+  var CV_CHOICES = [[0, 'None'], [0.3, 'Low'], [0.5, 'Moderate'], [0.7, 'High'], [1, 'Very high']];
+  var KIND_LABEL = { team: 'A team works cases', batch: 'A meeting or run on set days', delay: 'Waiting on someone outside' };
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pct(x, d) { return (x * 100).toFixed(d || 0) + '%'; }
+  function dur(min) { return Math.abs(min) < 0.5 ? '0 min' : M.fmtDuration(min); }
+  function signed(min) { return Math.abs(min) < 0.5 ? '0 min' : (min > 0 ? '+' : '') + M.fmtDuration(min); }
+  function parseNum(v) { return v === '' || v === null ? NaN : Number(v); }
+
+  // ---------------------------------------------------------------- controls
+  function fillPresets() {
+    var sel = $('preset');
+    sel.innerHTML = Object.keys(M.PRESETS).map(function (k) { return '<option value="' + k + '">' + esc(M.PRESETS[k].name) + '</option>'; }).join('') +
+      '<option value="custom">Your own process</option>';
+  }
+
+  function syncControls() {
+    var c = state.cfg;
+    $('preset').value = c.preset && M.PRESETS[c.preset] ? c.preset : 'custom';
+    $('blurb').textContent = c.preset && M.PRESETS[c.preset] ? M.PRESETS[c.preset].blurb : 'Your own version of the process. Edit the steps below.';
+    $('arrivals').value = c.arrivalsPerDay;
+    $('sla').value = c.slaDays;
+    $('ai-saving').value = Math.round(c.ai.saving * 100);
+    $('ai-adoption').value = Math.round(c.ai.adoption * 100);
+    $('ai-check').value = c.ai.checkMinutes;
+    $('ai-error').value = Math.round(c.ai.errorRate * 100);
+    $('ai-catch').value = Math.round(c.ai.catchRate * 100);
+    $('seed').value = state.seed;
+    syncOutputs();
+    renderAiStep();
+    renderSteps();
+  }
+
+  function syncOutputs() {
+    var c = state.cfg;
+    $('ai-saving-out').textContent = pct(c.ai.saving);
+    $('ai-adoption-out').textContent = pct(c.ai.adoption);
+    $('ai-error-out').textContent = pct(c.ai.errorRate);
+    $('ai-catch-out').textContent = pct(c.ai.catchRate);
+  }
+
+  function renderAiStep() {
+    var c = state.cfg;
+    $('ai-step').innerHTML = c.steps.map(function (s, k) {
+      if (s.kind === 'delay') return '';
+      return '<option value="' + k + '">' + esc((k + 1) + '. ' + s.name) + '</option>';
+    }).join('');
+    $('ai-step').value = String(c.ai.step);
+  }
+
+  function cvSelect(id, value) {
+    var opts = CV_CHOICES.slice();
+    if (!opts.some(function (o) { return o[0] === value; })) opts.push([value, 'Custom (' + value + ')']);
+    return '<select id="' + id + '">' + opts.map(function (o) {
+      return '<option value="' + o[0] + '"' + (o[0] === value ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('') + '</select>';
+  }
+
+  function renderSteps() {
+    var c = state.cfg;
+    var html = c.steps.map(function (s, i) {
+      var p = 's' + i + '-';
+      var h = '<div class="step-card" data-i="' + i + '">';
+      h += '<div class="head"><span class="idx" aria-hidden="true">' + (i + 1) + '</span>' +
+        '<label class="sr-only" for="' + p + 'name">Name of step ' + (i + 1) + '</label>' +
+        '<input type="text" id="' + p + 'name" value="' + esc(s.name) + '" maxlength="40">' +
+        (c.steps.length > 1 ? '<button type="button" class="btn small" data-remove="' + i + '" aria-label="Remove step ' + (i + 1) + '">Remove</button>' : '') + '</div>';
+      h += '<div class="field"><label for="' + p + 'kind">Type</label><select id="' + p + 'kind">' +
+        ['team', 'batch', 'delay'].map(function (k) { return '<option value="' + k + '"' + (k === s.kind ? ' selected' : '') + '>' + KIND_LABEL[k] + '</option>'; }).join('') + '</select></div>';
+      if (s.kind === 'team') {
+        h += '<div class="row2"><div class="field"><label for="' + p + 'staff">People</label><input type="number" id="' + p + 'staff" min="1" max="60" step="1" value="' + s.staff + '"></div>' +
+          '<div class="field"><label for="' + p + 'minutes">Minutes a case</label><input type="number" id="' + p + 'minutes" min="0.1" max="2400" step="1" value="' + s.minutes + '"></div></div>';
+      } else if (s.kind === 'batch') {
+        h += '<div class="field"><span class="lab" id="' + p + 'days-l">Days it happens</span><div class="days" role="group" aria-labelledby="' + p + 'days-l">' +
+          M.WEEKDAYS.map(function (d, j) { return '<label><input type="checkbox" data-day="' + j + '" id="' + p + 'day' + j + '"' + (s.batchDays.indexOf(j) >= 0 ? ' checked' : '') + '>' + d + '</label>'; }).join('') + '</div></div>';
+        h += '<div class="row2"><div class="field"><label for="' + p + 'capacity">Cases a session</label><input type="number" id="' + p + 'capacity" min="1" max="2000" step="1" value="' + s.capacity + '"></div>' +
+          '<div class="field"><label for="' + p + 'minutes">Minutes a case</label><input type="number" id="' + p + 'minutes" min="0.1" max="2400" step="1" value="' + s.minutes + '"></div></div>';
+      } else {
+        h += '<div class="row2"><div class="field"><label for="' + p + 'share">Cases that wait (%)</label><input type="number" id="' + p + 'share" min="0" max="100" step="5" value="' + Math.round(s.share * 100) + '"></div>' +
+          '<div class="field"><label for="' + p + 'days">Average wait (days)</label><input type="number" id="' + p + 'days" min="0" max="100" step="0.5" value="' + +(s.minutes / DAY).toFixed(2) + '"></div></div>';
+      }
+      h += '<div class="field"><label for="' + p + 'cv">How much cases vary</label>' + cvSelect(p + 'cv', s.cv) + '</div>';
+      if (s.kind !== 'delay' && i > 0) {
+        h += '<div class="row2"><div class="field"><label for="' + p + 'back">Sends cases back to</label><select id="' + p + 'back"><option value="-1">Nowhere</option>' +
+          c.steps.slice(0, i).map(function (t, j) { return t.kind === 'delay' ? '' : '<option value="' + j + '"' + (j === s.reworkTo ? ' selected' : '') + '>' + esc((j + 1) + '. ' + t.name) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="field"><label for="' + p + 'rate">Share sent back (%)</label><input type="number" id="' + p + 'rate" min="0" max="60" step="1" value="' + Math.round(s.reworkRate * 100) + '"' + (s.reworkTo < 0 ? ' disabled' : '') + '></div></div>';
+      }
+      return h + '</div>';
+    }).join('');
+    $('steps').innerHTML = html;
+  }
+
+  function onStepInput(e) {
+    var card = e.target.closest('.step-card');
+    if (!card) return;
+    var i = Number(card.getAttribute('data-i'));
+    var s = state.cfg.steps[i];
+    var id = e.target.id.replace('s' + i + '-', '');
+    var v = e.target.value;
+    var structural = false;
+    if (id === 'name') { s.name = v.trim() || 'Step ' + (i + 1); renderAiStep(); }
+    else if (id === 'kind') {
+      s.kind = v;
+      if (v === 'team') { s.staff = s.staff || 1; delete s.batchDays; delete s.capacity; delete s.share; }
+      if (v === 'batch') { s.batchDays = [2]; s.capacity = 30; s.staff = 0; delete s.share; }
+      if (v === 'delay') { s.share = 1; s.staff = 0; s.minutes = DAY; s.reworkTo = -1; s.reworkRate = 0; delete s.batchDays; delete s.capacity; }
+      state.cfg.steps.forEach(function (t) { if (v === 'delay' && t.reworkTo === i) { t.reworkTo = -1; t.reworkRate = 0; } });
+      if (v === 'delay' && state.cfg.ai.step === i) state.cfg.ai.step = firstWorkStep();
+      structural = true;
+    }
+    else if (id === 'staff') s.staff = parseNum(v);
+    else if (id === 'minutes') s.minutes = parseNum(v);
+    else if (id === 'capacity') s.capacity = parseNum(v);
+    else if (id === 'share') s.share = parseNum(v) / 100;
+    else if (id === 'days') s.minutes = parseNum(v) * DAY;
+    else if (id === 'cv') s.cv = Number(v);
+    else if (id === 'back') { s.reworkTo = Number(v); if (s.reworkTo < 0) s.reworkRate = 0; else if (!s.reworkRate) s.reworkRate = 0.05; structural = true; }
+    else if (id === 'rate') s.reworkRate = parseNum(v) / 100;
+    else if (/^day\d$/.test(id)) {
+      s.batchDays = M.WEEKDAYS.map(function (d, j) { return $('s' + i + '-day' + j).checked ? j : -1; }).filter(function (j) { return j >= 0; });
+    }
+    markCustom();
+    if (structural) { renderAiStep(); renderSteps(); var el = $(e.target.id); if (el) el.focus(); }
+    schedule();
+  }
+
+  function firstWorkStep() {
+    for (var k = 0; k < state.cfg.steps.length; k++) if (state.cfg.steps[k].kind !== 'delay') return k;
+    return -1;
+  }
+
+  function removeStep(i) {
+    var c = state.cfg;
+    c.steps.splice(i, 1);
+    c.steps.forEach(function (s) {
+      if (s.reworkTo === i) { s.reworkTo = -1; s.reworkRate = 0; }
+      else if (s.reworkTo > i) s.reworkTo--;
+    });
+    if (c.ai.step === i) c.ai.step = firstWorkStep();
+    else if (c.ai.step > i) c.ai.step--;
+    markCustom();
+    renderAiStep(); renderSteps();
+    schedule();
+  }
+
+  function markCustom() {
+    if (state.cfg.preset) { delete state.cfg.preset; state.cfg.name = 'Your own process'; }
+    $('preset').value = 'custom';
+    $('blurb').textContent = 'Your own version of the process. Edit the steps below.';
+  }
+
+  function bind() {
+    $('preset').addEventListener('change', function () {
+      var v = $('preset').value;
+      if (v === 'custom') { markCustom(); $('steps-edit').open = true; return; }
+      state.cfg = M.presetConfig(v);
+      syncControls();
+      schedule(0);
+    });
+    $('arrivals').addEventListener('input', function () { state.cfg.arrivalsPerDay = parseNum(this.value); markCustomIfEdited(); schedule(); });
+    $('sla').addEventListener('input', function () { state.cfg.slaDays = parseNum(this.value); schedule(); });
+    $('ai-step').addEventListener('change', function () { state.cfg.ai.step = Number(this.value); schedule(); });
+    $('ai-saving').addEventListener('input', function () { state.cfg.ai.saving = Number(this.value) / 100; syncOutputs(); schedule(); });
+    $('ai-adoption').addEventListener('input', function () { state.cfg.ai.adoption = Number(this.value) / 100; syncOutputs(); schedule(); });
+    $('ai-check').addEventListener('input', function () { state.cfg.ai.checkMinutes = parseNum(this.value); schedule(); });
+    $('ai-error').addEventListener('input', function () { state.cfg.ai.errorRate = Number(this.value) / 100; syncOutputs(); schedule(); });
+    $('ai-catch').addEventListener('input', function () { state.cfg.ai.catchRate = Number(this.value) / 100; syncOutputs(); schedule(); });
+    $('seed').addEventListener('input', function () { var v = parseNum(this.value); if (v >= 1 && v <= 999999 && v === Math.floor(v)) { state.seed = v; schedule(); } });
+    $('steps').addEventListener('change', onStepInput);
+    $('steps').addEventListener('input', function (e) { if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') onStepInput(e); });
+    $('steps').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-remove]');
+      if (b) removeStep(Number(b.getAttribute('data-remove')));
+    });
+    $('add-step').addEventListener('click', function () {
+      if (state.cfg.steps.length >= 8) return;
+      state.cfg.steps.push({ name: 'New step', kind: 'team', staff: 1, minutes: 10, cv: 0.5, reworkTo: -1, reworkRate: 0 });
+      markCustom(); renderAiStep(); renderSteps(); schedule();
+      var el = $('s' + (state.cfg.steps.length - 1) + '-name'); if (el) el.focus();
+    });
+    var rt = null;
+    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (state.last) drawHistogram(state.last); }, 150); });
+  }
+
+  function markCustomIfEdited() { /* changing demand keeps the preset's steps, so the name stays */ }
+
+  // ---------------------------------------------------------------- running
+  function schedule(delay) {
+    clearTimeout(state.timer);
+    state.timer = setTimeout(run, delay === undefined ? 250 : delay);
+  }
+
+  function run() {
+    var errs = M.validate(state.cfg);
+    var out = $('results');
+    if (errs.length) {
+      out.innerHTML = '<section class="panel"><div class="errors" role="alert"><strong>Fix these to see results:</strong><ul>' +
+        errs.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div></section>';
+      state.last = null;
+      return;
+    }
+    if (state.cfg.ai.step < 0) {
+      out.innerHTML = '<section class="panel"><div class="errors" role="alert">Choose a step for the AI to help with.</div></section>';
+      state.last = null;
+      return;
+    }
+    var r = M.compare(state.cfg, state.seed, { keepLeadTimes: true });
+    state.last = r;
+    renderResults(r);
+  }
+
+  // ---------------------------------------------------------------- results
+  function verdict(r) {
+    var cfg = r.config, k = cfg.ai.step, st = cfg.steps[k];
+    var b = r.base.steps[k], a = r.ai.steps[k];
+    var saved = -r.parts[0].value, realised = -r.total;
+    var bits = [];
+    if (!r.complete) {
+      return 'Some cases never finished: at least one step has more work than people, so its queue keeps growing. Add people, lower the demand or move the AI to that step.';
+    }
+    if (r.leverage >= 1.2) {
+      bits.push('Each minute saved at the desk took ' + r.leverage.toFixed(1) + ' minutes off the end-to-end time. ' + esc(st.name) + ' was ' + pct(b.utilisation) +
+        ' busy, so freeing time there shrank its queue: the wait before it fell from ' + dur(b.wait) + ' to ' + dur(a.wait) + ' a case.');
+    } else if (r.leverage >= 0.6) {
+      bits.push('Most of the saved time reached the customer: ' + dur(realised) + ' of the ' + dur(saved) + ' a case the AI could save.');
+    } else {
+      var worst = r.parts.filter(function (p) { return p.key !== 'saved' && p.value > 0.5; }).sort(function (x, y) { return y.value - x.value; });
+      var where = worst.slice(0, 2).map(function (p) { return p.label.charAt(0).toLowerCase() + p.label.slice(1) + ' (' + signed(p.value) + ')'; }).join(' and ');
+      if (r.total > 0.5) bits.push('With the AI, cases take longer end to end, by ' + dur(r.total) + '. The saving was swallowed by ' + where + '.');
+      else bits.push('Only ' + dur(Math.max(realised, 0)) + ' of the ' + dur(saved) + ' a case reached the customer. ' + (where ? 'The rest went on ' + where + '.' : ''));
+    }
+    if (r.bottleneckAfter !== r.bottleneckBefore && r.bottleneckAfter >= 0) {
+      bits.push(esc(cfg.steps[r.bottleneckAfter].name) + ' is now the busiest step (' + pct(r.ai.steps[r.bottleneckAfter].utilisation) + ' busy).');
+    }
+    return bits.join(' ');
+  }
+
+  function renderResults(r) {
+    var cfg = r.config, k = cfg.ai.step;
+    var html = '';
+    var saved = -r.parts[0].value;
+    var good = r.total < -0.5, bad = r.total > 0.5;
+    html += '<section class="panel" aria-labelledby="h-head"><h2 id="h-head" class="sr-only">Headline</h2><div class="headline">' +
+      '<div class="stat"><div class="k">The pilot\'s promise</div><div class="v">' + dur(r.pilotClaim) + '</div><div class="d">saved on each case at ' + esc(cfg.steps[k].name) + ' (' + pct(cfg.ai.saving) + ' of ' + dur(cfg.steps[k].minutes) + ')</div></div>' +
+      '<div class="stat ' + (good ? 'good' : bad ? 'bad' : '') + '"><div class="k">End to end</div><div class="v">' + (good ? dur(-r.total) + ' sooner' : bad ? dur(r.total) + ' later' : 'No change') + '</div><div class="d">average time from arrival to close: ' + dur(r.base.leadMean) + ' without the AI, ' + dur(r.ai.leadMean) + ' with it</div></div>' +
+      '<div class="stat ' + (r.leverage >= 1 ? 'good' : r.leverage < 0 ? 'bad' : '') + '"><div class="k">Minutes that reached the customer</div><div class="v">' + (saved > 0.05 ? r.leverage.toFixed(2) + '&times;' : 'n/a') + '</div><div class="d">end-to-end time saved for each minute the AI saves at the desk</div></div>' +
+      '</div><p class="verdict">' + verdict(r) + '</p></section>';
+
+    html += '<section class="panel" aria-labelledby="h-wf"><h2 id="h-wf">Where the minutes went</h2><p class="sub">Average change per case, from the time the AI saves at the desk to the change in end-to-end time. Blue bars save time; orange bars add it.</p>' + waterfall(r) + '</section>';
+
+    html += '<section class="panel" aria-labelledby="h-steps"><h2 id="h-steps">Step by step</h2><p class="sub">Hands-on time and waiting per case at each step, without and with the AI, and how busy each step is.</p>' + stepsChart(r) + '</section>';
+
+    html += '<section class="panel" aria-labelledby="h-lt"><h2 id="h-lt">How long cases take</h2><p class="sub">Working days from arrival to close for the ' + r.base.done.toLocaleString('en-GB') + ' cases that arrived in the ' + cfg.measureDays + ' measured working days.</p><div class="chart" id="hist"></div>' +
+      '<div class="legend"><span style="--c:var(--before)">Without the AI</span><span style="--c:var(--accent)">With the AI</span><span style="--c:var(--cost)">Target</span></div>' + leadTable(r) + '</section>';
+
+    html += '<section class="panel" aria-labelledby="h-side"><h2 id="h-side">Side effects</h2>' + sideEffects(r) + '</section>';
+    $('results').innerHTML = html;
+    drawHistogram(r);
+  }
+
+  function waterfall(r) {
+    var rows = [], other = 0, otherAny = false;
+    r.parts.forEach(function (p) {
+      if (p.key === 'saved' || p.key === 'lost' || p.key === 'check' || p.key === 'rework') { if (p.key === 'saved' || Math.abs(p.value) >= 0.05) rows.push(p); }
+      else if (Math.abs(p.value) >= 0.5) rows.push(p);
+      else { other += p.value; otherAny = true; }
+    });
+    if (otherAny && Math.abs(other) >= 0.05) rows.push({ key: 'other', label: 'Waiting elsewhere', value: other });
+    var cum = 0, lo = 0, hi = 0;
+    var bars = rows.map(function (p) { var s = cum; cum += p.value; lo = Math.min(lo, s, cum); hi = Math.max(hi, s, cum); return { p: p, from: s, to: cum }; });
+    lo = Math.min(lo, r.total); hi = Math.max(hi, r.total);
+    var span = (hi - lo) || 1;
+    function x(v) { return ((v - lo) / span * 100); }
+    var zero = x(0);
+    var h = '<div class="wf" role="list">';
+    bars.forEach(function (b) {
+      var left = Math.min(x(b.from), x(b.to)), w = Math.max(Math.abs(x(b.to) - x(b.from)), 0.4);
+      var cls = b.p.value < 0 ? 'save' : 'cost';
+      h += '<div class="wf-row" role="listitem"><div class="wf-label">' + esc(b.p.label) + '</div><div class="wf-track" aria-hidden="true"><div class="wf-zero" style="left:' + zero.toFixed(2) + '%"></div><div class="wf-bar ' + cls + '" style="left:' + left.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></div></div><div class="wf-val ' + cls + '">' + signed(b.p.value) + '</div></div>';
+    });
+    var tl = Math.min(x(0), x(r.total)), tw = Math.max(Math.abs(x(r.total) - x(0)), 0.4);
+    h += '<div class="wf-row total" role="listitem"><div class="wf-label">Change in end-to-end time</div><div class="wf-track" aria-hidden="true"><div class="wf-zero" style="left:' + zero.toFixed(2) + '%"></div><div class="wf-bar ' + (r.total < 0 ? 'save' : 'cost') + '" style="left:' + tl.toFixed(2) + '%;width:' + tw.toFixed(2) + '%"></div></div><div class="wf-val">' + signed(r.total) + '</div></div>';
+    return h + '</div>';
+  }
+
+  function stepsChart(r) {
+    var cfg = r.config, max = 0;
+    r.base.steps.forEach(function (s, k) { max = Math.max(max, s.touch + s.wait, r.ai.steps[k].touch + r.ai.steps[k].wait); });
+    max = max || 1;
+    var h = '<div class="steps-chart">';
+    r.base.steps.forEach(function (s, k) {
+      var a = r.ai.steps[k];
+      var badges = (k === cfg.ai.step ? '<span class="badge ai">AI</span>' : '') + (k === r.bottleneckBefore ? '<span class="badge bn">Busiest without AI</span>' : '') + (k === r.bottleneckAfter && r.bottleneckAfter !== r.bottleneckBefore ? '<span class="badge bn">Busiest with AI</span>' : '');
+      var busy = s.kind === 'team' ? pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' busy' : s.kind === 'batch' ? 'sessions ' + pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' full' : 'outside the team';
+      h += '<div class="sc-row"><div class="sc-name">' + esc((k + 1) + '. ' + s.name) + badges + '<div class="sc-busy">' + busy + '</div></div><div class="sc-bars">';
+      [['Without AI', s, 'before'], ['With AI', a, 'after']].forEach(function (x) {
+        var d = x[1];
+        h += '<div class="sc-bar"><span class="sc-tag">' + x[0] + '</span><div class="sc-track" aria-hidden="true"><div class="sc-touch ' + x[2] + '" style="width:' + (d.touch / max * 100).toFixed(2) + '%"></div><div class="sc-wait ' + x[2] + '" style="width:' + (d.wait / max * 100).toFixed(2) + '%"></div></div><span class="sc-val">' + dur(d.touch) + ' hands-on, ' + dur(d.wait) + ' waiting</span></div>';
+      });
+      h += '</div></div>';
+    });
+    h += '</div><div class="legend"><span style="--c:var(--ink)">Hands-on time</span><span style="--c:var(--line)">Waiting</span></div>';
+    return h;
+  }
+
+  function leadTable(r) {
+    var b = r.base, a = r.ai;
+    function row(label, x, y, f) { return '<tr><td>' + label + '</td><td>' + f(x) + '</td><td>' + f(y) + '</td></tr>'; }
+    var d = function (m) { return (m / DAY).toFixed(2) + ' days'; };
+    return '<div class="table-scroll"><table class="data"><thead><tr><th scope="col">Cases</th><th scope="col">Without AI</th><th scope="col">With AI</th></tr></thead><tbody>' +
+      row('Average', b.leadMean, a.leadMean, d) + row('Median', b.leadP50, a.leadP50, d) + row('85th percentile', b.leadP85, a.leadP85, d) + row('95th percentile', b.leadP95, a.leadP95, d) +
+      row('Closed within ' + r.config.slaDays + ' days', b.withinSla, a.withinSla, function (v) { return pct(v, 1); }) + '</tbody></table></div>';
+  }
+
+  function sideEffects(r) {
+    var b = r.base, a = r.ai, cfg = r.config;
+    var items = [
+      ['Staff time freed', r.fteFreed.toFixed(2) + ' people', 'full-time equivalents across the process, after checking and rework'],
+      ['Hands-on share of the wait', pct(b.flowEfficiency, 1) + ' to ' + pct(a.flowEfficiency, 1), 'of the time from arrival to close, someone is working on the case'],
+      ['Cases sent back', (b.aiSendBacksPer100 + b.baseSendBacksPer100).toFixed(1) + ' to ' + (a.aiSendBacksPer100 + a.baseSendBacksPer100).toFixed(1), 'per 100 cases; ' + a.aiSendBacksPer100.toFixed(1) + ' of them caused by AI errors'],
+      ['AI errors that reach customers', a.escapedPer100.toFixed(1), 'per 100 cases, not caught by any later check']
+    ];
+    return '<div class="side">' + items.map(function (x) { return '<div class="stat"><div class="k">' + x[0] + '</div><div class="v small">' + x[1] + '</div><div class="d">' + x[2] + '</div></div>'; }).join('') + '</div>';
+  }
+
+  function drawHistogram(r) {
+    var el = $('hist');
+    if (!el) return;
+    var W = Math.max(280, el.clientWidth || 600), H = 220, m = { l: 40, r: 12, t: 12, b: 34 };
+    var b = r.base.leadDays, a = r.ai.leadDays;
+    var maxX = Math.max(M.quantile(b, 0.99), M.quantile(a, 0.99), r.config.slaDays) * 1.05;
+    var bins = 36, bw = maxX / bins;
+    function counts(list) {
+      var c = new Array(bins).fill(0);
+      list.forEach(function (x) { var i = Math.floor(x / bw); if (i < bins) c[i]++; });
+      return c.map(function (v) { return v / list.length; });
+    }
+    var cb = counts(b), ca = counts(a);
+    var maxY = Math.max.apply(null, cb.concat(ca)) || 1;
+    var iw = W - m.l - m.r, ih = H - m.t - m.b;
+    function X(v) { return m.l + v / maxX * iw; }
+    function Y(v) { return m.t + ih - v / maxY * ih; }
+    function path(c) {
+      var d = 'M' + X(0).toFixed(1) + ',' + Y(0).toFixed(1);
+      c.forEach(function (v, i) { d += 'L' + X(i * bw).toFixed(1) + ',' + Y(v).toFixed(1) + 'L' + X((i + 1) * bw).toFixed(1) + ',' + Y(v).toFixed(1); });
+      return d + 'L' + X(bins * bw).toFixed(1) + ',' + Y(0).toFixed(1);
+    }
+    var step = maxX > 20 ? 5 : maxX > 8 ? 2 : maxX > 4 ? 1 : 0.5;
+    var ticks = '';
+    for (var t = 0; t <= maxX + 1e-9; t += step) ticks += '<line class="ax" x1="' + X(t).toFixed(1) + '" x2="' + X(t).toFixed(1) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih + 4) + '"/><text class="lbl" x="' + X(t).toFixed(1) + '" y="' + (m.t + ih + 17) + '" text-anchor="middle">' + (+t.toFixed(1)) + '</text>';
+    var sla = X(r.config.slaDays);
+    var desc = 'Histogram of working days to close. Median ' + (r.base.leadP50 / DAY).toFixed(1) + ' days without the AI and ' + (r.ai.leadP50 / DAY).toFixed(1) + ' with it.';
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(desc) + '">' +
+      '<line class="ax" x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih) + '"/>' + ticks +
+      '<text class="lbl" x="' + (m.l + iw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Working days from arrival to close</text>' +
+      '<path d="' + path(cb) + 'Z" fill="var(--before)" fill-opacity="0.35" stroke="var(--before)" stroke-width="1.5"/>' +
+      '<path d="' + path(ca) + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
+      '<line x1="' + sla.toFixed(1) + '" x2="' + sla.toFixed(1) + '" y1="' + m.t + '" y2="' + (m.t + ih) + '" stroke="var(--cost)" stroke-dasharray="4 3" stroke-width="1.5"/>' +
+      '<text x="' + (sla - 4).toFixed(1) + '" y="' + (m.t + 10) + '" text-anchor="end" class="lbl">Target</text>' +
+      '<text class="lbl" x="4" y="' + (m.t + 10) + '">Share</text>' +
+      '</svg>';
+  }
+
+  fillPresets();
+  syncControls();
+  bind();
+  run();
+})();
+</script>
+</body>
+</html>
