@@ -136,13 +136,13 @@ def format_summary(summary, target, checks):
         if s["persona"] != current:
             current = s["persona"]
             lines.append("")
-            lines.append("%s  (day one: %.1f%% of spending in the wrong pot, median)" % (
+            lines.append("%s: on day one a median %.1f%% of spending is in the wrong pot" % (
                 M.PERSONAS[current]["label"], s["dayOne"]))
             lines.append("  %-30s %10s %18s %16s %14s" % ("Strategy", "fastest", "median checks to", "share reaching",
                                                            "median after"))
             lines.append("  %-30s %10s %18s %16s %14s" % ("", "on", "%g%% target" % target, "target", "10 checks"))
         med = "not reached" if s["medianChecks"] is None else "%g" % s["medianChecks"]
-        wins = ("%.1f" % s["wins"]).replace(".0", "") + "/" + str(s["runs"])
+        wins = report.fmt_count(s["wins"]) + "/" + str(s["runs"])
         lines.append("  %-30s %10s %18s %15.0f%% %13.1f%%" % (
             s["label"], wins, med, s["reachedShare"] * 100, s["curve"][min(10, checks)][1]))
     lines.append("")
@@ -155,8 +155,8 @@ def cmd_compare(args, out):
                               args.slip / 100, args.weight)
     meta = {"weeks": args.weeks, "seeds": args.seeds, "checks": args.checks, "target": args.target,
             "slip": args.slip, "weight": args.weight}
-    out.write("Replayed 5 strategies on %d statement(s) per person, %d weeks each, up to %d checks.\n" % (
-        len(args.seeds), args.weeks, args.checks))
+    out.write("Replayed 5 strategies on %s per person, %d weeks each, up to %d checks.\n" % (
+        report.plural(len(args.seeds), "statement"), args.weeks, args.checks))
     out.write(format_summary(summary, args.target, args.checks))
     if args.out:
         write_batch(rows, summary, args.out, meta)
@@ -210,8 +210,8 @@ def format_weekly(rows, personas, per_week):
 
 def cmd_weekly(args, out):
     rows = run_weekly_batch(args.persona, args.seeds, args.weeks, args.per_week, args.slip / 100, args.weight)
-    out.write("Each Sunday the person answers up to %d check(s) about that week's payments; %d statement(s) per person, "
-              "%d weeks each.\n" % (args.per_week, len(args.seeds), args.weeks))
+    out.write("Each Sunday the person answers up to %s about that week's payments; %s per person, %d weeks each.\n" % (
+        report.plural(args.per_week, "check"), report.plural(len(args.seeds), "statement"), args.weeks))
     out.write(format_weekly(rows, args.persona, args.per_week))
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as fh:

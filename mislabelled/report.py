@@ -11,7 +11,7 @@ STYLE = """
 body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #16150f;
        background: #f6f5f1; margin: 0; padding: 24px; }
 main { max-width: 980px; margin: 0 auto; }
-h1 { font-size: 1.8rem; margin: 0 0 6px; } h2 { font-size: 1.2rem; margin: 28px 0 6px; }
+h1 { font-size: 1.8rem; margin: 0 0 6px; } h2 { font-size: 1.2rem; margin: 0 0 6px; }
 p { color: #4d4b45; max-width: 75ch; }
 .card { background: #fcfcfb; border: 1px solid #dcdad3; border-radius: 12px; padding: 18px; margin-top: 16px; }
 table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin-top: 10px; }
@@ -19,9 +19,20 @@ th, td { padding: 6px 8px; border-top: 1px solid #e6e4dd; text-align: right; }
 th:first-child, td:first-child { text-align: left; }
 thead th { background: #f0efea; border-top: 0; }
 svg text { fill: #4d4b45; font-size: 12px; font-family: inherit; }
+svg text.halo { paint-order: stroke; stroke: #fcfcfb; stroke-width: 4px; stroke-linejoin: round; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: #4d4b45; padding: 0; list-style: none; }
 .note { font-size: 0.85rem; color: #6b6961; }
 """
+
+
+def plural(n, word):
+    return "%d %s%s" % (n, word, "" if n == 1 else "s")
+
+
+def fmt_count(x):
+    """1 decimal place, without a trailing .0 (2.0 -> '2', 2.5 -> '2.5')."""
+    text = "%.1f" % x
+    return text[:-2] if text.endswith(".0") else text
 
 
 def _swatch(i):
@@ -70,15 +81,15 @@ def line_chart(series, target, title, bands=None, width=760, height=320):
         for i, band in enumerate(bands):
             pts = ["%.1f,%.1f" % (x(k), y(hi)) for k, (_, hi) in enumerate(band)]
             pts += ["%.1f,%.1f" % (x(k), y(lo)) for k, (lo, _) in reversed(list(enumerate(band)))]
-            out.append('<polygon points="%s" fill="%s" fill-opacity="0.10"/>' % (" ".join(pts), COLOURS[i]))
+            out.append('<polygon points="%s" fill="%s" fill-opacity="0.06"/>' % (" ".join(pts), COLOURS[i]))
     out.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#4d4b45" stroke-dasharray="2 4" stroke-width="1.5"/>' % (
         L, width - R, y(target), y(target)))
-    out.append('<text x="%d" y="%.1f" text-anchor="end">Target %g%%</text>' % (width - R, y(target) - 6, target))
     for i, s in enumerate(series):
         d = " ".join(("M" if k == 0 else "L") + "%.1f %.1f" % (x(k), y(v)) for k, v in enumerate(s))
         dash = ' stroke-dasharray="%s"' % DASHES[i] if DASHES[i] else ""
         out.append('<path d="%s" fill="none" stroke="%s" stroke-width="2" stroke-linejoin="round"%s/>' % (
             d, COLOURS[i], dash))
+    out.append('<text class="halo" x="%d" y="%.1f" text-anchor="end">Target %g%%</text>' % (width - R, y(target) - 6, target))
     out.append("</svg>")
     return "\n".join(out)
 
@@ -96,10 +107,11 @@ def _page(title, body):
 
 def write_compare_report(path, summary, meta):
     parts = ["<h1>Mislabelled: which checks fix a budgeting app fastest?</h1>",
-             "<p>Five ways for a budgeting app to choose which payments to ask about, replayed on %d invented "
-             "statement(s) per person (%d weeks each, up to %d checks, correction weight %d, slips %g%%). Lines are "
-             "medians; shaded bands run from the 10th to the 90th percentile.</p>" % (
-                 len(meta["seeds"]), meta["weeks"], meta["checks"], meta["weight"], meta["slip"]),
+             "<p>Five ways for a budgeting app to choose which payments to ask about, replayed on %s per person "
+             "(%d weeks each, up to %d checks, correction weight %d, slips %g%%). Lines are medians; shaded bands "
+             "run from the 10th to the 90th percentile.</p>" % (
+                 plural(len(meta["seeds"]), "invented statement"), meta["weeks"], meta["checks"], meta["weight"],
+                 meta["slip"]),
              '<p class="note">Invented people, shops and amounts. Educational, not financial advice.</p>']
     personas = []
     for s in summary:
@@ -113,14 +125,17 @@ def write_compare_report(path, summary, meta):
         parts.append(line_chart([[c[1] for c in s["curve"]] for s in mine], meta["target"],
                                 "Wrong pot after each check for " + M.PERSONAS[pid]["label"],
                                 bands=[[(c[0], c[2]) for c in s["curve"]] for s in mine]))
-        parts.append("<table><thead><tr><th>Strategy</th><th>Median checks to %g%%</th><th>Runs reaching it</th>"
-                     "<th>Median after 10</th><th>Median at the end</th></tr></thead><tbody>" % meta["target"])
+        parts.append("<table><thead><tr><th>Strategy</th><th>Fastest on</th><th>Median checks to %g%%</th>"
+                     "<th>Runs reaching it</th><th>Median after 10</th><th>Median at the end</th></tr></thead>"
+                     "<tbody>" % meta["target"])
         for s in mine:
             med = "not reached" if s["medianChecks"] is None else "%g" % s["medianChecks"]
-            parts.append("<tr><td>%s</td><td>%s</td><td>%.0f%%</td><td>%.1f%%</td><td>%.1f%%</td></tr>" % (
-                html.escape(s["label"]), med, s["reachedShare"] * 100,
+            parts.append("<tr><td>%s</td><td>%s of %d</td><td>%s</td><td>%.0f%%</td><td>%.1f%%</td><td>%.1f%%</td></tr>" % (
+                html.escape(s["label"]), fmt_count(s["wins"]), s["runs"], med, s["reachedShare"] * 100,
                 s["curve"][min(10, len(s["curve"]) - 1)][1], s["curve"][-1][1]))
-        parts.append("</tbody></table></section>")
+        parts.append("</tbody></table>")
+        parts.append('<p class="note">Fastest on: statements where the strategy reached the target in the fewest '
+                     'checks; a tie is shared, so counts can be fractions.</p></section>')
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(_page("Mislabelled strategy report", "\n".join(parts)))
 

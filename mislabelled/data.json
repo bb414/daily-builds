@@ -70,7 +70,7 @@
     {
       "id": "student",
       "label": "Jess, first-year student",
-      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer. From mid-October she starts climbing at a new wall and the house switches to a grocery delivery.",
+      "blurb": "Shared house in Brighton. Lots of small card payments, takeaways and nights out, with food split by bank transfer.",
       "change": {"week": 6, "text": "starts climbing at a new wall and switches to a grocery delivery"},
       "towns": ["BRIGHTON", "HOVE"],
       "monthly": [
@@ -112,7 +112,7 @@
     {
       "id": "graduate",
       "label": "Sam, graduate commuting into London",
-      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun. Moves flat at the end of October, so the rent goes to a new name and lunch to a new deli.",
+      "blurb": "First job in London. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun.",
       "change": {"week": 7, "text": "moves flat: rent goes to a new name, energy becomes a direct debit and lunch moves to a new deli"},
       "towns": ["CROYDON", "LONDON"],
       "monthly": [
@@ -155,7 +155,7 @@
     {
       "id": "sixthformer",
       "label": "Alex, sixth-former with a Saturday job",
-      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun. Starts weekly driving lessons in October, paid by bank transfer.",
+      "blurb": "Lives at home near Lewes. Buses, lunches, snacks and games; counts a meal deal as eating out and in-game spending as fun.",
       "change": {"week": 5, "text": "starts weekly driving lessons, paid by bank transfer"},
       "towns": ["LEWES", "BRIGHTON"],
       "monthly": [

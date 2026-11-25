@@ -81,12 +81,20 @@ section .sub { margin: 0 0 16px; color: var(--text-2); max-width: 70ch; }
 fieldset { border: 0; padding: 0; margin: 0 0 18px; }
 legend, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 6px; }
 .hint { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 2px; font-weight: 400; }
-.persona { display: grid; gap: 8px; }
-.persona label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--surface); }
-.persona label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.persona input { margin: 3px 0 0; accent-color: var(--accent); }
-.persona strong { font-size: 0.95rem; }
-.persona span { grid-column: 2; font-size: 0.82rem; color: var(--text-2); }
+.people { margin: 0 0 20px; }
+.people legend { font-size: 1rem; margin-bottom: 8px; }
+.persona { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.persona label { display: grid; grid-template-columns: auto 1fr; align-content: start; gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--surface); box-shadow: var(--shadow); }
+.persona label:hover { border-color: var(--accent); }
+.persona label.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.persona input { margin: 4px 0 0; accent-color: var(--accent); }
+.persona strong { font-size: 0.98rem; }
+.persona span { grid-column: 2; font-size: 0.84rem; color: var(--text-2); }
+.persona span.later { color: var(--muted); font-size: 0.8rem; }
+details.more > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::after { content: "Show"; font-size: 0.82rem; font-weight: 400; color: var(--accent); }
+details.more[open] > summary::after { content: "Hide"; }
 .field { margin-bottom: 16px; }
 .field .row { display: flex; align-items: center; gap: 10px; }
 .field output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -112,6 +120,7 @@ button.primary:hover { filter: brightness(1.08); }
 .sw.real { background: transparent; border: 2px solid var(--real); }
 .bars { display: grid; gap: 10px; }
 .bar-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 92px; gap: 12px; align-items: center; }
+.diff.small { color: var(--muted); font-weight: 400; }
 .bar-row .name { font-size: 0.92rem; font-weight: 600; }
 .bar-track { display: grid; gap: 3px; }
 .bar { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
@@ -130,7 +139,11 @@ button.primary:hover { filter: brightness(1.08); }
 .tablewrap { position: relative; max-height: 540px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 thead th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--text-2); padding: 8px 10px; z-index: 1; }
-tbody td { padding: 7px 10px; border-top: 1px solid var(--grid); vertical-align: middle; }
+tbody td { padding: 6px 10px; border-top: 1px solid var(--grid); vertical-align: middle; }
+.tx td.c-date { white-space: nowrap; color: var(--text-2); }
+.tx td.c-desc { min-width: 180px; }
+.tx select { padding: 4px 6px; font-size: 0.88rem; }
+.tx button { padding: 5px 12px; font-size: 0.86rem; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr.wrong td { background: var(--bad-soft); }
 tbody tr.checked td { background: var(--good-soft); }
@@ -146,6 +159,7 @@ tbody tr.flash td { animation: flash 1.6s ease-out; }
 .chartbox { position: relative; }
 svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
 svg.chart text { fill: var(--text-2); font-size: 12px; font-family: inherit; }
+svg.chart text.halo { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
 svg.chart .gridline { stroke: var(--grid); stroke-width: 1; }
 svg.chart .axis { stroke: var(--border); }
 svg.chart .target { stroke: var(--text-2); stroke-dasharray: 2 4; stroke-width: 1.5; }
@@ -153,7 +167,8 @@ svg.chart .cross-line { stroke: var(--text-2); stroke-width: 1; }
 .tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 0.82rem; min-width: 190px; display: none; z-index: 2; }
 .tooltip .t-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .tooltip .t-row span:first-child { display: inline-flex; align-items: center; gap: 6px; }
-.heat td.cell { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; border-left: 2px solid var(--surface); }
+.heat td.cell { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; border-left: 2px solid var(--surface); white-space: nowrap; }
+.mini td + td { white-space: nowrap; }
 .heat th.mon { text-align: center; }
 .heat th.mon small { display: block; font-weight: 400; color: var(--muted); }
 .heat th.change { box-shadow: inset 0 -3px 0 var(--s2); }
@@ -177,17 +192,53 @@ details { margin-top: 6px; }
 summary { cursor: pointer; font-weight: 600; }
 .prose p, .prose li { max-width: 72ch; color: var(--text-2); }
 footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
+.lab-short { display: none; }
+.flexlab { display: inline-flex; align-items: center; gap: 6px; }
+.flexlab svg { flex: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (max-width: 980px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   aside.settings { position: static; max-height: none; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media (max-width: 760px) {
+  .persona { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .persona label { padding: 10px 12px; }
+}
 @media (max-width: 560px) {
-  .wrap { padding: 0 14px; }
-  .bar-row { grid-template-columns: 88px minmax(0, 1fr) 70px; gap: 8px; }
+  .wrap { padding: 0 16px; }
+  header.hero { padding: 24px 0 14px; }
+  .lede { font-size: 1rem; }
+  .panel { padding: 16px; }
+  .bar-row { grid-template-columns: 96px minmax(0, 1fr) 64px; gap: 8px; }
+  .bar-row .name { font-size: 0.84rem; }
   .kpi .v { font-size: 1.3rem; }
   .hide-sm { display: none; }
+  .lab-full { display: none; }
+  .lab-short { display: inline; }
+  .heat td.cell { font-size: 0.8rem; padding: 6px 4px; }
+  .heat th { padding: 6px 6px; }
+  .hbar { width: 36px; }
+  .toolbar > div { flex: 1 1 100%; }
+  .toolbar select { width: 100%; }
+  .tablewrap.txwrap { max-height: 620px; }
+  .tx thead { display: none; }
+  .tx, .tx tbody { display: block; }
+  .tx tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "desc amt" "date conf" "pot act" "real real"; gap: 4px 10px; padding: 10px 12px; border-top: 1px solid var(--grid); }
+  .tx tr:first-child { border-top: 0; }
+  .tx td { display: block; padding: 0; border: 0; background: transparent !important; }
+  .tx tr.wrong { background: var(--bad-soft); }
+  .tx tr.checked { background: var(--good-soft); }
+  .tx td.c-desc { grid-area: desc; min-width: 0; overflow-wrap: anywhere; }
+  .tx td.c-amt { grid-area: amt; font-weight: 600; }
+  .tx td.c-date { grid-area: date; font-size: 0.82rem; }
+  .tx td.c-conf { grid-area: conf; font-size: 0.82rem; text-align: right; }
+  .tx td.c-pot { grid-area: pot; }
+  .tx td.c-pot select { width: 100%; }
+  .tx td.c-act { grid-area: act; }
+  .tx td.c-real { grid-area: real; font-size: 0.86rem; color: var(--text-2); }
+  .tx td.c-real::before { content: "Really: "; }
+  .tx td.c-empty { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { tbody tr.flash td { animation: none; } }
 </style>
@@ -203,14 +254,18 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
   </div>
 </header>
 
+<div class="wrap">
+  <fieldset class="people">
+    <legend class="label">Whose statement?</legend>
+    <div class="persona" id="personas"></div>
+  </fieldset>
+</div>
+
 <div class="wrap layout">
   <aside class="panel settings" aria-labelledby="settings-h">
-    <h2 id="settings-h">Settings</h2>
-    <p class="hint" style="margin:0 0 14px">Changing anything here starts a fresh statement, so any corrections you have made are cleared.</p>
-    <fieldset>
-      <legend>Whose statement?</legend>
-      <div class="persona" id="personas"></div>
-    </fieldset>
+    <details class="more" id="more" open>
+    <summary><h2 id="settings-h">Settings</h2></summary>
+    <p class="hint" style="margin:0 0 14px">Changing a setting, or the person, starts a fresh statement, so any corrections you have made are cleared.</p>
     <div class="field">
       <label class="label" for="weeks">Statement length</label>
       <div class="row"><input type="range" id="weeks" min="4" max="26" step="1" value="13"><output for="weeks" id="weeks-out">13 wks</output></div>
@@ -240,6 +295,7 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       <div class="btnrow"><button type="button" id="copylink">Copy link</button><button type="button" id="savefile">Save file</button><label class="filebtn">Load file<input type="file" id="loadfile" accept=".json,application/json" class="sr-only"></label></div>
       <p class="hint" id="keep-msg" role="status" aria-live="polite"></p>
     </div>
+    </details>
   </aside>
 
   <main class="content" id="main">
@@ -284,10 +340,10 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
           <select id="suggest"></select></div>
         <div class="btnrow"><button type="button" class="primary" id="ask">Show the next check</button><button type="button" id="reset">Undo all my checks</button></div>
       </div>
-      <div class="tablewrap" id="tablewrap">
-        <table>
+      <div class="tablewrap txwrap" id="tablewrap">
+        <table class="tx">
           <caption class="sr-only">Transactions with the app's pot, its confidence and the real pot</caption>
-          <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col" class="num">Amount</th><th scope="col">App's pot</th><th scope="col" class="hide-sm">Confidence</th><th scope="col">Really</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+          <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col" class="num">Amount</th><th scope="col">App's pot</th><th scope="col">Confidence</th><th scope="col">Really</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -309,7 +365,7 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       <div class="tablewrap" style="max-height:none;margin-top:16px">
         <table>
           <caption class="sr-only">Strategy results</caption>
-          <thead><tr><th scope="col">Strategy</th><th scope="col" class="num">Checks to reach target</th><th scope="col" class="num">Wrong pot after 10</th><th scope="col" class="num">After 30</th><th scope="col" class="num">At the end</th><th scope="col" class="num hide-sm">Payments filed right at the end</th></tr></thead>
+          <thead><tr><th scope="col">Strategy</th><th scope="col" class="num">Checks to reach target</th><th scope="col" class="num">Wrong pot after 10 checks</th><th scope="col" class="num hide-sm">After 30</th><th scope="col" class="num">At the end</th><th scope="col" class="num hide-sm">Payments filed right at the end</th></tr></thead>
           <tbody id="strat-rows"></tbody>
         </table>
       </div>
@@ -463,7 +519,7 @@ var Mislabelled = (function () {
     {
       "id": "student",
       "label": "Jess, first-year student",
-      "blurb": "Lives in a shared house in Brighton. Lots of small card payments, takeaways, nights out and bills split with housemates by bank transfer. From mid-October she starts climbing at a new wall and the house switches to a grocery delivery.",
+      "blurb": "Shared house in Brighton. Lots of small card payments, takeaways and nights out, with food split by bank transfer.",
       "change": {"week": 6, "text": "starts climbing at a new wall and switches to a grocery delivery"},
       "towns": ["BRIGHTON", "HOVE"],
       "monthly": [
@@ -505,7 +561,7 @@ var Mislabelled = (function () {
     {
       "id": "graduate",
       "label": "Sam, graduate commuting into London",
-      "blurb": "First job after university. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun. Moves flat at the end of October, so the rent goes to a new name and lunch to a new deli.",
+      "blurb": "First job in London. Pays rent to a flatmate by bank transfer, counts the gym as a bill and late taxis home as fun.",
       "change": {"week": 7, "text": "moves flat: rent goes to a new name, energy becomes a direct debit and lunch moves to a new deli"},
       "towns": ["CROYDON", "LONDON"],
       "monthly": [
@@ -548,7 +604,7 @@ var Mislabelled = (function () {
     {
       "id": "sixthformer",
       "label": "Alex, sixth-former with a Saturday job",
-      "blurb": "Lives at home near Lewes. Small amounts: buses, lunches, snacks and games. Counts a supermarket meal deal as eating out and in-game spending as fun. Starts weekly driving lessons in October, paid by bank transfer.",
+      "blurb": "Lives at home near Lewes. Buses, lunches, snacks and games; counts a meal deal as eating out and in-game spending as fun.",
       "change": {"week": 5, "text": "starts weekly driving lessons, paid by bank transfer"},
       "towns": ["LEWES", "BRIGHTON"],
       "monthly": [
@@ -1368,13 +1424,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       var lab = el('label');
       var input = el('input', { type: 'radio', name: 'persona', value: p.id });
       if (p.id === state.persona) input.checked = true;
-      input.addEventListener('change', function () { state.persona = p.id; rebuild(); });
+      input.addEventListener('change', function () { state.persona = p.id; markPersona(); rebuild(); });
       lab.appendChild(input);
       lab.appendChild(el('strong', null, p.label));
       lab.appendChild(el('span', null, p.blurb));
+      if (p.change) lab.appendChild(el('span', { class: 'later' }, 'Later: ' + p.change.text + ' (from ' + shortDate(M.dateOf(p.change.week * 7)) + ').'));
       box.appendChild(lab);
     });
+    markPersona();
   }
+
+  function markPersona() {
+    document.querySelectorAll('.persona label').forEach(function (lab) {
+      lab.classList.toggle('on', lab.querySelector('input').value === state.persona);
+    });
+  }
+
+  var MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function shortDate(d) { return d.d + ' ' + MONTHS_SHORT[d.m - 1]; }
+  function isoShort(iso) { return Number(iso.slice(8, 10)) + ' ' + MONTHS_SHORT[Number(iso.slice(5, 7)) - 1]; }
+  function isoLong(iso) { return isoShort(iso) + ' ' + iso.slice(0, 4); }
 
   function bindRange(id, key, fmt) {
     var input = $(id), out = $(id + '-out');
@@ -1463,6 +1532,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
 
   function syncInputs() {
     document.querySelectorAll('input[name=persona]').forEach(function (r) { r.checked = r.value === state.persona; });
+    markPersona();
     ['weeks', 'weight', 'target', 'checks', 'slip'].forEach(function (k) {
       $(k).value = state[k];
       $(k).dispatchEvent(new Event('input'));
@@ -1610,7 +1680,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       if (sel) sel.focus({ preventScroll: true });
     }
     var tx = statement.tx[t];
-    say('The app would ask about ' + tx.desc + ' (' + money(tx.pennies) + ', ' + tx.date + '). It is highlighted below: pick the right pot or press Fix.');
+    say('The app would ask about ' + tx.desc + ' (' + money(tx.pennies) + ', ' + isoShort(tx.date) + '). It is highlighted below: pick the right pot, or press Fix or Confirm.');
   }
 
   /* ---------- day one ---------- */
@@ -1637,7 +1707,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       kp.appendChild(d);
     });
     $('dayone-sub').textContent = (session.checks === 0 ? 'Day one: ' : 'After your ' + session.checks + ' check' + (session.checks === 1 ? '' : 's') + ': ') +
-      'the app’s pots for ' + firstName() + '’s ' + state.weeks + '-week statement (' + statement.tx[0].date + ' to ' + statement.tx[statement.tx.length - 1].date + '), against how ' + firstName() + ' would file the same payments.';
+      'the app’s pots for ' + firstName() + '’s ' + state.weeks + '-week statement (' + isoShort(statement.tx[0].date) + ' to ' + isoLong(statement.tx[statement.tx.length - 1].date) + '), against how ' + firstName() + ' would file the same payments.';
 
     var bars = $('bars');
     bars.textContent = '';
@@ -1657,7 +1727,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       track.appendChild(r);
       track.appendChild(el('div', { class: 'bar-vals' }, 'App ' + money0(m.appTotals[c]) + ' · really ' + money0(m.trueTotals[c])));
       row.appendChild(track);
-      var cls = Math.abs(diff) < 100 ? 'ok' : (diff > 0 ? 'over' : 'under');
+      // small gaps (under 10 pounds or under 5% of the pot) are shown quietly
+      var small = Math.abs(diff) < 1000 || Math.abs(diff) < 0.05 * m.trueTotals[c];
+      var cls = Math.abs(diff) < 100 ? 'ok' : (small ? 'small' : (diff > 0 ? 'over' : 'under'));
       var label = Math.abs(diff) < 100 ? 'spot on' : (diff > 0 ? '+' : '−') + money0(Math.abs(diff));
       row.appendChild(el('div', { class: 'diff ' + cls, 'aria-hidden': 'true' }, label));
       bars.appendChild(row);
@@ -1735,7 +1807,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     if (sort === 'conf') idx.sort(function (a, b) { return model.conf[a] - model.conf[b] || a - b; });
     if (idx.length === 0) {
       var tr0 = el('tr');
-      var td0 = el('td', { colspan: '7' }, filter === 'checked' ? 'You have not checked any payments yet.' : 'No payments match this view.');
+      var td0 = el('td', { colspan: '7', class: 'c-empty' }, filter === 'checked' ? 'You have not checked any payments yet.' : 'No payments match this view.');
       tr0.appendChild(td0);
       body.appendChild(tr0);
       return;
@@ -1748,10 +1820,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       var right = rep === tx.cat;
       var tr = el('tr', { 'data-id': String(t) });
       tr.className = (checked ? 'checked' : (right ? '' : 'wrong')) + (t === flashId ? ' flash' : '');
-      tr.appendChild(el('td', null, tx.date.slice(5)));
-      tr.appendChild(el('td', { class: 'mono' }, tx.desc));
-      tr.appendChild(el('td', { class: 'num' }, money(tx.pennies)));
-      var td = el('td');
+      tr.appendChild(el('td', { class: 'c-date' }, isoShort(tx.date)));
+      tr.appendChild(el('td', { class: 'c-desc mono' }, tx.desc));
+      tr.appendChild(el('td', { class: 'c-amt num' }, money(tx.pennies)));
+      var td = el('td', { class: 'c-pot' });
       var sel = el('select', { 'aria-label': 'Pot for ' + tx.desc + ' on ' + tx.date });
       CATS.forEach(function (c, i) {
         var o = el('option', { value: String(i) }, c);
@@ -1761,7 +1833,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       sel.addEventListener('change', function () { applyCheck(t, Number(sel.value)); });
       td.appendChild(sel);
       tr.appendChild(td);
-      var cf = el('td', { class: 'hide-sm' });
+      var cf = el('td', { class: 'c-conf' });
       if (checked) cf.appendChild(el('span', { class: 'conf' }, 'Checked'));
       else {
         var span = el('span', { class: 'conf' });
@@ -1774,12 +1846,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
         cf.appendChild(span);
       }
       tr.appendChild(cf);
-      var really = el('td');
+      var really = el('td', { class: 'c-real' });
       really.appendChild(el('span', { class: right ? 'tick' : 'cross', 'aria-hidden': 'true' }, right ? '✓ ' : '✗ '));
       really.appendChild(document.createTextNode(CATS[tx.cat]));
       really.appendChild(el('span', { class: 'sr-only' }, right ? ' (app is right)' : ' (app is wrong)'));
       tr.appendChild(really);
-      var act = el('td');
+      var act = el('td', { class: 'c-act' });
       if (!checked) {
         var b = el('button', { type: 'button', 'aria-label': (right ? 'Confirm ' : 'Fix ') + tx.desc + ' on ' + tx.date }, right ? 'Confirm' : 'Fix');
         b.addEventListener('click', function () { applyCheck(t, tx.cat); });
@@ -1829,25 +1901,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     if (day1 <= state.target) {
       ins.textContent = 'On day one only ' + pct(day1) + ' of ' + firstName() + '’s spending is in the wrong pot, already inside the ' + state.target + '% target. Try another person or a tighter target.';
     } else {
-      ins.textContent = 'On day one ' + pct(day1) + ' of ' + firstName() + '’s spending is in the wrong pot. To get under ' + state.target + '%, ' + best.label.toLowerCase() + ' ' + describeTo(best) + ', while ' + worst.label.toLowerCase() + ' ' + describeTo(worst) + '.';
+      ins.textContent = 'On day one ' + pct(day1) + ' of ' + firstName() + '’s spending is in the wrong pot. On this statement, to get under ' + state.target + '%, ' + best.label.toLowerCase() + ' ' + describeTo(best) + ', while ' + worst.label.toLowerCase() + ' ' + describeTo(worst) + '. One statement can be lucky: the replay below checks.';
     }
     var body = $('strat-rows');
     body.textContent = '';
     compare.forEach(function (r, i) {
       var tr = el('tr');
       var th = el('th', { scope: 'row' });
-      var sw = lineSwatch(i, 22);
-      sw.style.marginRight = '6px';
-      sw.style.verticalAlign = 'middle';
-      th.appendChild(sw);
-      th.appendChild(document.createTextNode(r.label));
+      var wrapLab = el('span', { class: 'flexlab' });
+      wrapLab.appendChild(lineSwatch(i, 22));
+      wrapLab.appendChild(el('span', { class: 'lab-full' }, r.label));
+      wrapLab.appendChild(el('span', { class: 'lab-short' }, M.STRATEGIES[i].short));
+      th.appendChild(wrapLab);
       th.style.fontWeight = r === best && day1 > state.target ? '700' : '400';
       th.style.textAlign = 'left';
       tr.appendChild(th);
       var last = r.points[r.points.length - 1];
       tr.appendChild(el('td', { class: 'num' }, r.toTarget === null ? 'Not reached' : String(r.toTarget)));
       tr.appendChild(el('td', { class: 'num' }, r.points.length > 10 ? pct(r.points[10].misPct) : '–'));
-      tr.appendChild(el('td', { class: 'num' }, r.points.length > 30 ? pct(r.points[30].misPct) : '–'));
+      tr.appendChild(el('td', { class: 'num hide-sm' }, r.points.length > 30 ? pct(r.points[30].misPct) : '–'));
       tr.appendChild(el('td', { class: 'num' }, pct(last.misPct)));
       tr.appendChild(el('td', { class: 'num hide-sm' }, pct(last.accuracy * 100, 0)));
       body.appendChild(tr);
@@ -1950,7 +2022,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     hr.appendChild(el('th', { scope: 'col' }, 'Checks chosen by'));
     months.forEach(function (m) {
       var th = el('th', { scope: 'col', class: 'mon' });
-      th.appendChild(document.createTextNode(m.name + ' ' + m.month.slice(0, 4)));
+      th.appendChild(document.createTextNode(m.name));
+      th.appendChild(el('span', { class: 'hide-sm' }, ' ' + m.month.slice(0, 4)));
       var sm = el('small', null, m.partial ? m.from + ' to ' + m.to + ' only' : 'whole month');
       th.appendChild(sm);
       if (change && changeDate && changeDay < statement.weeks * 7 && m.month === changeDate.iso.slice(0, 7)) {
@@ -1959,7 +2032,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       }
       hr.appendChild(th);
     });
-    hr.appendChild(el('th', { scope: 'col', class: 'num' }, 'Checks used'));
+    hr.appendChild(el('th', { scope: 'col', class: 'num hide-sm' }, 'Checks used'));
     head.appendChild(hr);
     var body = $('weekly-rows');
     body.textContent = '';
@@ -1968,13 +2041,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       var th = el('th', { scope: 'row', style: 'text-align:left;font-weight:' + (r.strategy === 'none' ? '600' : '400') });
       var si = -1;
       M.STRATEGIES.forEach(function (s, i) { if (s.id === r.strategy) si = i; });
-      if (si >= 0) {
-        var sw = lineSwatch(si, 22);
-        sw.style.marginRight = '6px';
-        sw.style.verticalAlign = 'middle';
-        th.appendChild(sw);
-      }
-      th.appendChild(document.createTextNode(r.label));
+      var lab = el('span', { class: 'flexlab' });
+      if (si >= 0) lab.appendChild(lineSwatch(si, 22));
+      lab.appendChild(el('span', { class: 'lab-full' }, r.label));
+      lab.appendChild(el('span', { class: 'lab-short' }, si >= 0 ? M.STRATEGIES[si].short : 'Never checks'));
+      th.appendChild(lab);
       tr.appendChild(th);
       r.months.forEach(function (m) {
         var col = cellColour(m.misPct);
@@ -1984,7 +2055,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
         td.setAttribute('aria-label', m.name + ': ' + pct(m.misPct) + ' in the wrong pot' + (col ? '' : ', within the target'));
         tr.appendChild(td);
       });
-      tr.appendChild(el('td', { class: 'num' }, String(r.checks)));
+      tr.appendChild(el('td', { class: 'num hide-sm' }, String(r.checks)));
       body.appendChild(tr);
     });
     var key = $('weekly-key');
@@ -2032,7 +2103,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
   var chartGeom = null;
   function drawChart() {
     var svg = $('chart');
-    var W = 760, H = 340, L = 52, R = 16, T = 14, B = 40;
+    // draw at the box's own width so the text stays readable on a phone
+    var boxW = $('chartbox').clientWidth || 760;
+    var W = Math.max(300, Math.min(760, Math.round(boxW))), H = W < 520 ? 280 : 340, L = W < 520 ? 40 : 52, R = 12, T = 14, B = 40;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var keep = [svg.querySelector('title'), svg.querySelector('desc')];
     svg.textContent = '';
     keep.forEach(function (k) { svg.appendChild(k); });
@@ -2041,7 +2115,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       K = Math.max(K, r.points.length - 1);
       r.points.forEach(function (p) { ymax = Math.max(ymax, p.misPct); });
     });
-    ymax = niceMax(ymax);
+    var ticks = niceTicks(ymax);
+    ymax = ticks.max;
     K = Math.max(K, 1);
     function x(k) { return L + (W - L - R) * k / K; }
     function y(v) { return T + (H - T - B) * (1 - v / ymax); }
@@ -2053,32 +2128,37 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       svg.appendChild(e);
       return e;
     }
-    var step = ymax / 5;
-    for (var i = 0; i <= 5; i++) {
-      var v = step * i;
+    for (var i = 0; i * ticks.step <= ymax + 1e-9; i++) {
+      var v = ticks.step * i;
       add('line', { class: 'gridline', x1: L, x2: W - R, y1: y(v), y2: y(v) });
       add('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end' }, (Math.round(v * 10) / 10) + '%');
     }
-    var xstep = K <= 20 ? 5 : K <= 60 ? 10 : K <= 100 ? 20 : 30;
+    var xstep = K <= 20 ? 5 : K <= 60 ? (W < 520 ? 20 : 10) : K <= 100 ? 20 : 30;
     for (var k = 0; k <= K; k += xstep) add('text', { x: x(k), y: H - B + 18, 'text-anchor': 'middle' }, String(k));
     add('text', { x: L + (W - L - R) / 2, y: H - 4, 'text-anchor': 'middle' }, 'Checks answered');
     add('line', { class: 'axis', x1: L, x2: W - R, y1: y(0), y2: y(0) });
     add('line', { class: 'target', x1: L, x2: W - R, y1: y(state.target), y2: y(state.target) });
-    add('text', { x: W - R, y: y(state.target) - 6, 'text-anchor': 'end' }, 'Target ' + state.target + '%');
+    var targetLabel = add('text', { x: W - R, y: y(state.target) - 6, 'text-anchor': 'end', class: 'halo' }, 'Target ' + state.target + '%');
     compare.forEach(function (r, si) {
       var d = r.points.map(function (p, k2) { return (k2 === 0 ? 'M' : 'L') + x(k2).toFixed(1) + ' ' + y(p.misPct).toFixed(1); }).join(' ');
       add('path', { d: d, fill: 'none', stroke: SERIES[si], 'stroke-width': '2', 'stroke-dasharray': DASHES[si], 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
     });
     var cross = add('line', { class: 'cross-line', x1: 0, x2: 0, y1: T, y2: H - B, visibility: 'hidden' });
+    svg.appendChild(targetLabel); // keep the target label above the lines
     var dots = compare.map(function (r, si) { return add('circle', { r: 4.5, fill: SERIES[si], stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }); });
-    chartGeom = { x: x, y: y, K: K, L: L, R: R, W: W, cross: cross, dots: dots, at: -1 };
+    chartGeom = { x: x, y: y, K: K, L: L, R: R, W: W, cross: cross, dots: dots, at: -1, drawnAt: W };
   }
 
-  function niceMax(v) {
+  // A tidy axis: a step of 1, 2, 2.5 or 5 times a power of ten, with at most six steps.
+  function niceTicks(v) {
+    if (!(v > 0)) v = 1;
+    var mag = Math.pow(10, Math.floor(Math.log(v / 6) / Math.LN10));
     var steps = [1, 2, 2.5, 5, 10];
-    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
-    for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= v) return steps[i] * mag;
-    return 10 * mag;
+    for (var i = 0; i < steps.length; i++) {
+      var step = steps[i] * mag;
+      if (v / step <= 6) return { step: step, max: Math.ceil(v / step - 1e-9) * step };
+    }
+    return { step: 10 * mag, max: Math.ceil(v / (10 * mag)) * 10 * mag };
   }
 
   function showAt(k) {
@@ -2107,7 +2187,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     });
     var box = $('chartbox').getBoundingClientRect();
     var svgBox = $('chart').getBoundingClientRect();
-    var scale = svgBox.width / 760;
+    var scale = svgBox.width / g.W;
     tip.style.display = 'block';
     var left = px * scale + 14;
     if (left + tip.offsetWidth > box.width) left = px * scale - tip.offsetWidth - 14;
@@ -2126,8 +2206,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     var svg = $('chart');
     function fromEvent(ev) {
       var rect = svg.getBoundingClientRect();
-      var sx = (ev.clientX - rect.left) * 760 / rect.width;
       var g = chartGeom;
+      var sx = (ev.clientX - rect.left) * g.W / rect.width;
       return Math.round((sx - g.L) / (g.W - g.L - g.R) * g.K);
     }
     svg.addEventListener('pointermove', function (ev) { if (chartGeom) showAt(fromEvent(ev)); });
@@ -2143,8 +2223,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       else if (ev.key === 'End') { showAt(chartGeom.K); ev.preventDefault(); }
       else if (ev.key === 'Escape') hideTip();
     });
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        if (!compare || !chartGeom) return;
+        var w = Math.max(300, Math.min(760, Math.round($('chartbox').clientWidth)));
+        if (w !== chartGeom.drawnAt) { hideTip(); drawChart(); }
+      }, 150);
+    });
   }
 
+  if (window.matchMedia && window.matchMedia('(max-width: 980px)').matches) $('more').open = false;
   buildPersonas();
   bindSettings();
   bindChart();
