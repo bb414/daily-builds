@@ -28,6 +28,8 @@ FLAGS = {
     "catchUpVol": ("--catch-up-vol", float, "your volatility after going for broke, as a fraction"),
     "checkpoint": ("--checkpoint", float, "how far through the challenge the checkpoint falls, as a fraction"),
     "rivalsCatchUp": ("--rivals-catch-up", float, "share of steady rivals who go for broke when behind"),
+    "volCap": ("--vol-cap", float, "cap every team's volatility at this fraction"),
+    "cost": ("--cost", float, "return lost per year for each 100 per cent of volatility a team runs, as a fraction"),
     "sims": ("--sims", int, "how many challenges to simulate"),
     "seed": ("--seed", int, "luck number: the same number always gives the same results"),
 }
@@ -45,6 +47,10 @@ def add_settings(parser: argparse.ArgumentParser, command: str) -> None:
         if key in UNUSED[command]:
             continue
         lo, hi, _ = RANGES[key]
+        if key == "volCap":
+            parser.add_argument(flag, dest=key, type=kind, default=None, metavar="N",
+                                help=f"{text} ({num(lo)} to {num(hi)}; default no cap)")
+            continue
         parser.add_argument(flag, dest=key, type=kind, default=DEFAULTS[key], metavar="N",
                             help=f"{text} ({num(lo)} to {num(hi)}; default {num(DEFAULTS[key])})")
     if "rule" not in UNUSED[command]:
@@ -60,6 +66,9 @@ def settings(args: argparse.Namespace) -> dict:
     p["rule"] = getattr(args, "rule", DEFAULTS["rule"])
     p["fatTails"] = args.fatTails
     p["catchUp"] = args.catchUp
+    p["leverageCap"] = p["volCap"] is not None
+    if p["volCap"] is None:
+        p["volCap"] = DEFAULTS["volCap"]
     return p
 
 

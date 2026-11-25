@@ -111,6 +111,18 @@ class AppTests(unittest.TestCase):
         other.close()
         self.assertEqual(self.problems, [])
 
+    def test_volatility_cap_preset(self):
+        page = self.open()
+        page.select_option("#preset", label="Volatility capped at 30%")
+        self.wait_for_new_result(page)
+        self.assertIn("the most the cap allows", page.inner_text("#insight"))
+        self.assertTrue(page.is_checked("#leverage-cap"))
+        self.assertEqual(page.input_value("#s-volCap"), "0.3")
+        self.assertIn("Above the 30% cap", page.inner_text("#risk-chart"))
+        self.assertIn("leverageCap=1", page.url)
+        self.assertIn("41.2%", page.inner_text("#winner-bars"))
+        self.assertEqual(self.problems, [])
+
     def test_wording_follows_the_numbers(self):
         page = self.open(url=APP + "#rule=drawdown&drawdownLimit=0.1")
         self.assertIn("knock your team out of 63% of challenges", page.inner_text("#insight"))

@@ -40,6 +40,9 @@ DEFAULTS = {
     "catchUpVol": 0.8,
     "checkpoint": 0.75,
     "rivalsCatchUp": 0,
+    "leverageCap": False,
+    "volCap": 0.4,
+    "cost": 0,
     "sims": 2000,
     "seed": 1,
 }
@@ -59,6 +62,8 @@ RANGES = {
     "catchUpVol": (0.02, 1, False),
     "checkpoint": (0.25, 0.9, False),
     "rivalsCatchUp": (0, 1, False),
+    "volCap": (0.05, 1, False),
+    "cost": (0, 0.5, False),
     "sims": (100, 20000, True),
     "seed": (0, 4294967295, True),
 }
@@ -98,7 +103,7 @@ def normalise(params: dict | None = None) -> dict:
                 raise ValueError(f"rule must be one of {', '.join(RULES)}")
             out[key] = v
             continue
-        if key in ("fatTails", "catchUp"):
+        if key in ("fatTails", "catchUp", "leverageCap"):
             if not isinstance(v, bool):
                 raise ValueError(f"{key} must be true or false")
             out[key] = v
@@ -216,8 +221,15 @@ def finish(acc: Account, p: dict) -> dict:
     }
 
 
-def daily_mean(sharpe: float, vol: float) -> float:
-    return sharpe * vol / DAYS_PER_YEAR
+def daily_mean(sharpe: float, vol: float, cost: float) -> float:
+    """The cost of risk is a return lost per year for each 100% of volatility run, so it lowers every
+    team's Sharpe ratio by the same amount but costs a high-risk team the most."""
+    return (sharpe - cost) * vol / DAYS_PER_YEAR
+
+
+def risk_of(p: dict, vol: float) -> float:
+    """The volatility a team actually runs: what it wants, unless the rules cap it."""
+    return p["volCap"] if p["leverageCap"] and vol > p["volCap"] else vol
 
 
 def daily_sd(vol: float) -> float:
@@ -246,7 +258,8 @@ def ahead_of(scores: list[float], mine: float, skip: int) -> int:
 def run_you(p: dict, c: dict, vol: float, record: bool = False) -> dict:
     """Your team at a given starting risk, switching risk at the checkpoint if going for broke."""
     acc = Account(record)
-    mu = daily_mean(p["yourSharpe"], vol)
+    vol = risk_of(p, vol)
+    mu = daily_mean(p["yourSharpe"], vol, p["cost"])
     sd = daily_sd(vol)
     cp = checkpoint_day(p)
     switch_day = None
@@ -254,8 +267,8 @@ def run_you(p: dict, c: dict, vol: float, record: bool = False) -> dict:
         if t == cp and p["catchUp"]:
             mine = interim_score(acc, p, cp)
             if mine > -math.inf and ahead_of(c["checkpointScores"], mine, -1) >= CATCH_TOP:
-                mu = daily_mean(p["yourSharpe"], p["catchUpVol"])
-                sd = daily_sd(p["catchUpVol"])
+                mu = daily_mean(p["yourSharpe"], risk_of(p, p["catchUpVol"]), p["cost"])
+                sd = daily_sd(risk_of(p, p["catchUpVol"]))
                 switch_day = cp
         acc.step(mu + sd * zt)
     f = finish(acc, p)
@@ -285,14 +298,14 @@ def run_competition(p: dict, k: int, record: bool = False) -> dict:
             "gambler": gambler,
             "catcher": (not gambler) and j - n_gamblers < n_catch,
             "sharpe": p["skillSpread"] * z1,
-            "vol": p["fieldVol"] * (p["gamblerMultiple"] if gambler else 1) * math.exp(VOL_JITTER * z2),
+            "vol": risk_of(p, p["fieldVol"] * (p["gamblerMultiple"] if gambler else 1) * math.exp(VOL_JITTER * z2)),
         })
     market = [shock(g, fat) for _ in range(days)]
     shocks = [[shock(g, fat) for _ in range(days)] for _ in rivals]
     your_z = [a * market[t] + b * shock(g, fat) for t in range(days)]
 
     accs = [Account(record) for _ in rivals]
-    mus = [daily_mean(rv["sharpe"], rv["vol"]) for rv in rivals]
+    mus = [daily_mean(rv["sharpe"], rv["vol"], p["cost"]) for rv in rivals]
     sds = [daily_sd(rv["vol"]) for rv in rivals]
     switch_days = [None] * len(rivals)
     cp = checkpoint_day(p)
@@ -303,8 +316,8 @@ def run_competition(p: dict, k: int, record: bool = False) -> dict:
             for i, rv in enumerate(rivals):
                 if (rv["catcher"] and checkpoint_scores[i] > -math.inf
                         and ahead_of(checkpoint_scores, checkpoint_scores[i], i) >= CATCH_TOP):
-                    mus[i] = daily_mean(rv["sharpe"], rv["vol"] * p["gamblerMultiple"])
-                    sds[i] = daily_sd(rv["vol"] * p["gamblerMultiple"])
+                    mus[i] = daily_mean(rv["sharpe"], risk_of(p, rv["vol"] * p["gamblerMultiple"]), p["cost"])
+                    sds[i] = daily_sd(risk_of(p, rv["vol"] * p["gamblerMultiple"]))
                     switch_days[i] = cp
         m = a * market[day]
         for i in range(len(rivals)):
@@ -462,7 +475,7 @@ class Run:
             "sims": self.done,
             "you": _rates(self.main, n),
             "curve": curve,
-            "bestVol": best["vol"],
+            "bestVol": risk_of(self.params, best["vol"]),
             "bestPWin": best["pWin"],
             "winners": {k: v / n for k, v in self.winners.items()},
             "skillPercentile": skill_percentile(self.params),
@@ -568,7 +581,7 @@ def sample_competition(params: dict | None, k: int) -> list[dict]:
     for i in range(len(numbers) - 1, 0, -1):
         swap = math.floor(namer.uniform() * (i + 1))
         numbers[i], numbers[swap] = numbers[swap], numbers[i]
-    teams = [{"name": "Your team", "you": True, "gambler": False, "sharpe": p["yourSharpe"], "vol": p["yourVol"],
+    teams = [{"name": "Your team", "you": True, "gambler": False, "sharpe": p["yourSharpe"], "vol": risk_of(p, p["yourVol"]),
               "ret": you["ret"], "realisedSharpe": you["sharpe"], "maxDD": you["maxDD"], "bust": you["bust"],
               "out": you["out"], "score": you["score"], "switchDay": you["switchDay"], "path": you["path"]}]
     for j, rv in enumerate(c["rivals"]):

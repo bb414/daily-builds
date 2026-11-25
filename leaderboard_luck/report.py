@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal
 
-from .model import RULE_LABELS, checkpoint_day, normalise, sample_competition
+from .model import RULE_LABELS, checkpoint_day, normalise, risk_of, sample_competition
 
 
 def fixed(x: float, digits: int) -> str:
@@ -62,12 +62,20 @@ def describe(p: dict, every_length: bool = False) -> list[str]:
         first = f"  {p['teams']} teams, {p['days']} trading days, ranked on: {rule_words(p)}"
     lines = [
         first,
-        f"  Your team: true Sharpe {p['yourSharpe']:.2f} at {pct(p['yourVol'], 0)} volatility",
+        f"  Your team: true Sharpe {p['yourSharpe']:.2f} at {pct(p['yourVol'], 0)} volatility"
+        + (f" (held to {pct(p['volCap'], 0)} by the cap)" if risk_of(p, p["yourVol"]) < p["yourVol"] else ""),
         f"  Rivals: skill spread {p['skillSpread']:.2f}, typical risk {pct(p['fieldVol'], 0)}, "
         + (f"{n_gamblers} gambler{'' if n_gamblers == 1 else 's'} at {p['gamblerMultiple']:g}x risk, " if n_gamblers
            else "no gamblers, ")
         + f"market correlation {p['correlation']:.2f}" + (", fat tails" if p["fatTails"] else ""),
     ]
+    limits = []
+    if p["leverageCap"]:
+        limits.append(f"volatility capped at {pct(p['volCap'], 0)}")
+    if p["cost"] > 0:
+        limits.append(f"costs of {pct(p['cost'], 0)} a year per 100% volatility")
+    if limits:
+        lines.append("  Risk rules: " + "; ".join(limits))
     if p["catchUp"] or p["rivalsCatchUp"] > 0:
         when = f"{pct(p['checkpoint'], 0)} of the way through" if every_length else f"day {checkpoint_day(p)}"
         rivals = (f"{pct(p['rivalsCatchUp'], 0)} of steady rivals switch to {p['gamblerMultiple']:g}x their risk"
@@ -107,7 +115,9 @@ def simulate_report(r: dict) -> str:
     if max(chances) - min(chances) < 1e-9:
         lines.append(f"  Your chance of winning is the same at every level of risk: {pct(r['bestPWin'])}")
     else:
-        lines.append(f"  Best chance of winning: {pct(r['bestPWin'])} at {pct(r['bestVol'], 0)} volatility")
+        at_cap = p["leverageCap"] and r["bestVol"] >= p["volCap"] - 1e-9
+        lines.append(f"  Best chance of winning: {pct(r['bestPWin'])} at {pct(r['bestVol'], 0)} volatility"
+                     + (", the most the cap allows" if at_cap else ""))
     return "\n".join(lines)
 
 
@@ -130,7 +140,7 @@ def sample_report(params: dict, k: int, top: int = 10) -> str:
         place = "-" if t["out"] else ordinal(t["rank"])
         risk = pct(t["vol"], 0)
         if t["switchDay"] is not None:
-            after = p["catchUpVol"] if t["you"] else t["vol"] * p["gamblerMultiple"]
+            after = risk_of(p, p["catchUpVol"] if t["you"] else t["vol"] * p["gamblerMultiple"])
             risk += f">{pct(after, 0)}"
         lines.append(f"  {place:<7}{t['name']:<12}{kind:<9}{t['sharpe']:>7.2f}{risk:>9}"
                      f"{signed(t['ret']):>9}{pct(t['maxDD']):>10}  {status}")

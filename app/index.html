@@ -259,9 +259,12 @@ details.about[open] summary::after { content: " \25b4"; }
         <div class="seg" id="rule-seg"></div>
       </fieldset>
       <div id="slider-dd"></div>
+      <label class="check"><input type="checkbox" id="leverage-cap"> Cap every team's volatility</label>
+      <div id="cap-box" class="sub" hidden><div id="sliders-cap"></div></div>
       <details class="more-settings" id="rules-more">
         <summary>More about the markets</summary>
         <label class="check"><input type="checkbox" id="fat-tails"> Fat tails: a few days with moves three times the usual size</label>
+        <div id="sliders-markets"></div>
       </details>
     </form>
   </section>
@@ -380,6 +383,7 @@ details.about[open] summary::after { content: " \25b4"; }
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
       <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
       <p><strong>Going for broke.</strong> Your team, and a share of the steady rivals, can switch to a much higher risk if they are outside the top three at a checkpoint. Rivals judge their position against the other rivals, so their choices do not depend on yours and the risk curve still compares like with like. Studies of fund managers find the same behaviour: managers who are behind part-way through the year tend to raise their risk (Brown, Harlow and Starks, 1996; Chevalier and Ellison, 1997).</p>
+      <p><strong>Capping and costing risk.</strong> With a volatility cap, no team may run more than the cap, whatever it wants: gamblers, teams going for broke and your team included. The cost of risk is a return lost each year in proportion to volatility, so it costs a gambler several times what it costs a steady team. Over a few weeks it is small next to luck, which is why a cap changes the leaderboard far more than a cost.</p>
       <p><strong>Checking a real leaderboard.</strong> Each team's result is turned into a luck-adjusted score: its log return divided by its volatility over the challenge, or its Sharpe ratio scaled to the challenge's length. If no team had any skill, those scores would spread out only as much as luck allows, and how much that is depends on how much teams ride the same market. More spread than that is a sign of skill: a chi-square test gives how often luck alone would produce it, and the excess gives an estimate of how much true skill varies across the field. Each team's estimated edge is its result pulled back towards the field's average by the share of the spread that is luck (a standard allowance for luck known as shrinkage). How often a field with no skill produces a best result as strong as the table's comes from 10,000 simulated luck-only fields. Tested on simulated challenges with no skill anywhere, it finds more spread than luck allows (at the 5% level) in about 5% of them, as a fair test should.</p>
       <p>Two thousand challenges are simulated each time. "New luck" draws a different two thousand, which shows how much the numbers move by chance: usually by less than a point.</p>
       <h3>What it means</h3>
@@ -436,6 +440,9 @@ var LeaderboardModel = (function () {
     catchUpVol: 0.8,
     checkpoint: 0.75,
     rivalsCatchUp: 0,
+    leverageCap: false,
+    volCap: 0.4,
+    cost: 0,
     sims: 2000,
     seed: 1
   };
@@ -455,6 +462,8 @@ var LeaderboardModel = (function () {
     catchUpVol: [0.02, 1, false],
     checkpoint: [0.25, 0.9, false],
     rivalsCatchUp: [0, 1, false],
+    volCap: [0.05, 1, false],
+    cost: [0, 0.5, false],
     sims: [100, 20000, true],
     seed: [0, 4294967295, true]
   };
@@ -492,7 +501,7 @@ var LeaderboardModel = (function () {
         out[key] = v;
         return;
       }
-      if (key === 'fatTails' || key === 'catchUp') {
+      if (key === 'fatTails' || key === 'catchUp' || key === 'leverageCap') {
         if (typeof v !== 'boolean') throw new Error(key + ' must be true or false');
         out[key] = v;
         return;
@@ -594,8 +603,15 @@ var LeaderboardModel = (function () {
     };
   }
 
-  function dailyMean(sharpe, vol) {
-    return sharpe * vol / DAYS_PER_YEAR;
+  // The cost of risk is a return lost per year for each 100% of volatility run, so it lowers
+  // every team's Sharpe ratio by the same amount but costs a high-risk team the most.
+  function dailyMean(sharpe, vol, cost) {
+    return (sharpe - cost) * vol / DAYS_PER_YEAR;
+  }
+
+  // The volatility a team actually runs: what it wants, unless the rules cap it.
+  function riskOf(p, vol) {
+    return p.leverageCap && vol > p.volCap ? p.volCap : vol;
   }
 
   function dailySd(vol) {
@@ -627,7 +643,8 @@ var LeaderboardModel = (function () {
   // three at the checkpoint (compared with the rivals' standings then), you switch risk.
   function runYou(p, c, vol, record) {
     var acc = newAccount(record);
-    var mu = dailyMean(p.yourSharpe, vol);
+    vol = riskOf(p, vol);
+    var mu = dailyMean(p.yourSharpe, vol, p.cost);
     var sd = dailySd(vol);
     var cp = checkpointDay(p);
     var switchDay = null;
@@ -635,8 +652,8 @@ var LeaderboardModel = (function () {
       if (t === cp && p.catchUp) {
         var mine = interimScore(acc, p, cp);
         if (mine > -Infinity && aheadOf(c.checkpointScores, mine, -1) >= CATCH_TOP) {
-          mu = dailyMean(p.yourSharpe, p.catchUpVol);
-          sd = dailySd(p.catchUpVol);
+          mu = dailyMean(p.yourSharpe, riskOf(p, p.catchUpVol), p.cost);
+          sd = dailySd(riskOf(p, p.catchUpVol));
           switchDay = cp;
         }
       }
@@ -666,7 +683,7 @@ var LeaderboardModel = (function () {
         gambler: gambler,
         catcher: !gambler && j - nGamblers < nCatch,
         sharpe: p.skillSpread * z1,
-        vol: p.fieldVol * (gambler ? p.gamblerMultiple : 1) * Math.exp(VOL_JITTER * z2)
+        vol: riskOf(p, p.fieldVol * (gambler ? p.gamblerMultiple : 1) * Math.exp(VOL_JITTER * z2))
       });
     }
     var market = [];
@@ -680,7 +697,7 @@ var LeaderboardModel = (function () {
     for (var t3 = 0; t3 < p.days; t3++) yourZ.push(a * market[t3] + b * shock(g, p.fatTails));
 
     var accs = rivals.map(function () { return newAccount(record); });
-    var mus = rivals.map(function (rv) { return dailyMean(rv.sharpe, rv.vol); });
+    var mus = rivals.map(function (rv) { return dailyMean(rv.sharpe, rv.vol, p.cost); });
     var sds = rivals.map(function (rv) { return dailySd(rv.vol); });
     var switchDays = rivals.map(function () { return null; });
     var cp = checkpointDay(p);
@@ -690,8 +707,8 @@ var LeaderboardModel = (function () {
         checkpointScores = accs.map(function (acc) { return interimScore(acc, p, cp); });
         rivals.forEach(function (rv, i) {
           if (rv.catcher && checkpointScores[i] > -Infinity && aheadOf(checkpointScores, checkpointScores[i], i) >= CATCH_TOP) {
-            mus[i] = dailyMean(rv.sharpe, rv.vol * p.gamblerMultiple);
-            sds[i] = dailySd(rv.vol * p.gamblerMultiple);
+            mus[i] = dailyMean(rv.sharpe, riskOf(p, rv.vol * p.gamblerMultiple), p.cost);
+            sds[i] = dailySd(riskOf(p, rv.vol * p.gamblerMultiple));
             switchDays[i] = cp;
           }
         });
@@ -855,7 +872,7 @@ var LeaderboardModel = (function () {
       sims: state.done,
       you: rates(state.main, n),
       curve: curve,
-      bestVol: bestPoint.vol,
+      bestVol: riskOf(state.p, bestPoint.vol),
       bestPWin: bestPoint.pWin,
       winners: winners,
       skillPercentile: skillPercentile(state.p)
@@ -998,7 +1015,7 @@ var LeaderboardModel = (function () {
         ret: rv.ret, realisedSharpe: rv.realisedSharpe, maxDD: rv.maxDD, bust: rv.bust, out: rv.out,
         score: rv.score, switchDay: rv.switchDay, path: rv.path };
     });
-    teams.unshift({ name: 'Your team', you: true, gambler: false, sharpe: p.yourSharpe, vol: p.yourVol,
+    teams.unshift({ name: 'Your team', you: true, gambler: false, sharpe: p.yourSharpe, vol: riskOf(p, p.yourVol),
       ret: you.ret, realisedSharpe: you.sharpe, maxDD: you.maxDD, bust: you.bust, out: you.out,
       score: you.score, switchDay: you.switchDay, path: you.path });
     var order = teams.map(function (t, i) { return i; });
@@ -1366,6 +1383,7 @@ var LeaderboardModel = (function () {
     VOL_GRID: VOL_GRID,
     CATCH_TOP: CATCH_TOP,
     normalise: normalise,
+    riskOf: riskOf,
     checkpointDay: checkpointDay,
     makeRng: makeRng,
     competitionSeed: competitionSeed,
@@ -1481,7 +1499,10 @@ if (typeof module !== 'undefined' && module.exports) {
       hint: function () { return '0 means no real edge, 1 is very good, 2 is exceptional. Your team is ' + standing(params, M.skillPercentile(params)) + '.'; } },
     { key: 'yourVol', group: 'you', label: 'Risk: your volatility', min: 0.02, max: 1, step: 0.01,
       fmt: function (v) { return pct(v); },
-      hint: function () { return 'Annualised. Leverage scales risk and return together, so it does not change your Sharpe ratio.'; } },
+      hint: function () {
+        return 'Annualised. Leverage scales risk and return together, so it does not change your Sharpe ratio.' +
+          (params.leverageCap && params.yourVol > params.volCap ? ' The rules hold your team to ' + pct(params.volCap) + '.' : '');
+      } },
     { key: 'catchUpVol', group: 'catch', label: 'Risk after switching', min: 0.02, max: 1, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'Your volatility for the rest of the challenge if you are behind.'; } },
@@ -1528,6 +1549,16 @@ if (typeof module !== 'undefined' && module.exports) {
     { key: 'days', group: 'rules', label: 'Length of the challenge', min: 5, max: 250, step: 5,
       fmt: function (v) { return v + ' days'; },
       hint: function () { return 'Trading days: ' + lengthWords(params.days) + '.'; } },
+    { key: 'volCap', group: 'cap', label: 'Maximum volatility', min: 0.05, max: 1, step: 0.05,
+      fmt: function (v) { return pct(v); },
+      hint: function () { return 'No team may run more than this, gamblers and teams going for broke included.'; } },
+    { key: 'cost', group: 'markets', label: 'Cost of risk', min: 0, max: 0.5, step: 0.05,
+      fmt: function (v) { return pct(v) + ' a year'; },
+      hint: function () {
+        return params.cost > 0 ? 'Return lost each year for every 100% of volatility a team runs, for trading and borrowing: ' +
+          pct(params.cost * params.fieldVol, 1) + ' a year at the typical ' + pct(params.fieldVol) + ', ' +
+          pct(params.cost * params.fieldVol * params.gamblerMultiple, 1) + ' for a gambler.' : 'Risk is free: no trading or borrowing costs.';
+      } },
     { key: 'drawdownLimit', group: 'dd', label: 'Drawdown limit', min: 0.02, max: 0.6, step: 0.01,
       fmt: function (v) { return pct(v); },
       hint: function () { return 'A team is out once its account falls this far below its peak.'; } }
@@ -1578,6 +1609,11 @@ if (typeof module !== 'undefined' && module.exports) {
       clearPreset();
       changed();
     });
+    $('#leverage-cap').addEventListener('change', function (e) {
+      params.leverageCap = e.target.checked;
+      clearPreset();
+      changed();
+    });
   }
 
   function syncControls() {
@@ -1593,6 +1629,8 @@ if (typeof module !== 'undefined' && module.exports) {
     $('#fat-tails').checked = params.fatTails;
     $('#catch-up').checked = params.catchUp;
     $('#catch-up-box').hidden = !params.catchUp;
+    $('#leverage-cap').checked = params.leverageCap;
+    $('#cap-box').hidden = !params.leverageCap;
     $('#slider-dd').hidden = params.rule !== 'drawdown';
   }
 
@@ -1607,6 +1645,7 @@ if (typeof module !== 'undefined' && module.exports) {
     { name: 'A society league of eight', note: 'A small internal league over eight weeks.', params: { teams: 8, days: 40 } },
     { name: 'Your team goes for broke when behind', note: 'Steady risk, switching to 80% if you are outside the top 3 at day 15.', params: { catchUp: true } },
     { name: 'Every steady rival chases the lead', note: 'Each steady rival switches to gambler-level risk if behind at the checkpoint.', params: { rivalsCatchUp: 1 } },
+    { name: 'Volatility capped at 30%', note: 'No team may run more than 30% volatility, gamblers included.', params: { leverageCap: true, volCap: 0.3 } },
     { name: 'A full year of trading', note: 'Two hundred and fifty trading days. Is that long enough for skill to win?', params: { days: 250 } }
   ];
 
@@ -1877,8 +1916,9 @@ if (typeof module !== 'undefined' && module.exports) {
       parts.push((p.rule === 'sharpe' ? 'Ranked on Sharpe ratio, extra risk buys nothing: your' : 'Your') +
         ' chance of winning is the same at any volatility, so the only way up is a better strategy.');
     } else if (r.bestVol > p.yourVol + 0.04 && r.bestPWin > r.you.pWin + 0.005) {
-      parts.push('Taking more risk is the quickest way up the table: at ' + pct(r.bestVol) + ' volatility your chance of winning would be ' +
-        pct(r.bestPWin, 1) + '.');
+      var atCap = p.leverageCap && r.bestVol >= p.volCap - 1e-9;
+      parts.push('Taking more risk is the quickest way up the table: at ' + pct(r.bestVol) + ' volatility' +
+        (atCap ? ', the most the cap allows,' : '') + ' your chance of winning would be ' + pct(r.bestPWin, 1) + '.');
       var best = r.curve.filter(function (c) { return c.vol === r.bestVol; })[0];
       if (p.rule === 'drawdown' && best.pOut >= 0.005) {
         parts.push('At that risk the drawdown limit would knock your team out of ' + pct(best.pOut) + ' of challenges' +
@@ -1951,6 +1991,10 @@ if (typeof module !== 'undefined' && module.exports) {
       svgText(s, sx(v), H - m.b + 18, pct(v), { 'text-anchor': 'middle' });
     });
     svgText(s, m.l + (W - m.l - m.r) / 2, H - 4, 'Your volatility (annualised)', { 'text-anchor': 'middle' });
+    if (p.leverageCap && p.volCap < 1) {
+      svgEl('rect', { x: sx(p.volCap), y: m.t, width: sx(1) - sx(p.volCap), height: H - m.t - m.b, fill: 'var(--surface-2)' }, s);
+      svgText(s, (sx(p.volCap) + sx(1)) / 2, H - m.b - 8, 'Above the ' + pct(p.volCap) + ' cap', { 'text-anchor': 'middle' });
+    }
     function line(key, colour, dash) {
       var d = r.curve.map(function (c, k) { return (k ? 'L' : 'M') + sx(c.vol).toFixed(1) + ' ' + sy(c[key]).toFixed(1); }).join(' ');
       svgEl('path', { d: d, fill: 'none', stroke: colour, 'stroke-width': 2.5, 'stroke-dasharray': dash || 'none', 'stroke-linejoin': 'round' }, s);
@@ -2124,7 +2168,7 @@ if (typeof module !== 'undefined' && module.exports) {
       kind.textContent = x.you ? 'You' : (x.gambler ? 'Gambler' : 'Steady');
       tr.appendChild(kind);
       tr.appendChild(el('td', {}, x.sharpe.toFixed(2).replace('-', '\u2212')));
-      var after = x.you ? params.catchUpVol : x.vol * params.gamblerMultiple;
+      var after = M.riskOf(params, x.you ? params.catchUpVol : x.vol * params.gamblerMultiple);
       tr.appendChild(el('td', { class: 'wide-col' }, pct(x.vol) + (x.switchDay !== null ? ' \u2192 ' + pct(after) : '')));
       tr.appendChild(el('td', {}, signed(x.ret)));
       tr.appendChild(el('td', { class: 'wide-col' }, pct(x.maxDD, 1)));

@@ -46,6 +46,9 @@ SETTINGS = [
     {"sims": 100, "catchUp": True, "rivalsCatchUp": 0.5, "rule": "sharpe", "checkpoint": 0.4},
     {"sims": 100, "catchUp": True, "catchUpVol": 1, "rivalsCatchUp": 1, "rule": "drawdown", "drawdownLimit": 0.12,
      "fatTails": True, "teams": 40, "days": 30, "checkpoint": 0.9, "seed": 12},
+    {"sims": 100, "leverageCap": True, "volCap": 0.3, "cost": 0.2, "catchUp": True, "rivalsCatchUp": 1},
+    {"sims": 100, "leverageCap": True, "volCap": 0.05, "yourVol": 1, "rule": "drawdown", "drawdownLimit": 0.03,
+     "cost": 0.5, "days": 60, "seed": 5},
 ]
 
 

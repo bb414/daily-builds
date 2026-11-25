@@ -38,6 +38,8 @@ So a team that is better than nine in ten of its rivals wins less often than a t
 | Your team goes for broke when behind | 8.6% | Switches to 80% volatility if outside the top 3 at day 15, which happens in 92.3% of challenges. Top-3 chance rises to 27.1%. |
 | Every steady rival chases the lead | 0.7% | Every steady rival outside the top 3 at day 15 triples its risk. |
 | Sixty per cent of rivals are gamblers | 0.4% | Gamblers win 94.3% of challenges. |
+| Volatility capped at 30% | 3.0% | Gamblers win 41.2% instead of 72.0%. Your best chance falls to 10.2%, at the cap, and the most skilled team wins 7.3%. |
+| Risk costs 50% a year for each 100% of volatility | 1.6% | Over four weeks the cost barely matters: gamblers still win 67.3%. Over a year they win 48.9% instead of 63.2%. |
 | Twelve weeks (60 days) | 2.4% | The most skilled team wins 9.8%. |
 | A full year (250 days) | 3.4% | The most skilled team wins 19.3%, and the winner has no real edge in 8.0%. |
 
@@ -58,8 +60,8 @@ Download or clone the branch and double-click `app/index.html`. It opens in any 
 
 ![How much risk should your team take, and who actually wins](docs/risk-and-winners.png)
 
-- **Your team, the field and the rules** are three cards of sliders. Secondary settings sit behind "More about the field" (how much rivals' skill varies, typical rival risk, how much riskier gamblers are, market correlation, and how many rivals go for broke when behind) and "More about the markets" (fat tails).
-- **Start from a scenario** loads one of nine presets, from a society league of eight to a full year of trading.
+- **Your team, the field and the rules** are three cards of sliders. Secondary settings sit behind "More about the field" (how much rivals' skill varies, typical rival risk, how much riskier gamblers are, market correlation, and how many rivals go for broke when behind) and "More about the markets" (fat tails, and a cost of risk: return lost each year for every 100% of volatility a team runs). The rules card can also cap every team's volatility, gamblers included; the risk chart then shades the levels above the cap.
+- **Start from a scenario** loads one of ten presets, from a society league of eight to a full year of trading.
 - **New luck** reruns everything with a different random seed. The same settings and luck number always give the same results.
 - **Copy link to these settings** puts the settings in the page address, so you can send a scenario to your team or put it on a seminar slide.
 - **How much risk should your team take?** plots your chances of winning and of a top-3 finish at 20 levels of volatility, all on the same simulated luck, so the curve shows the effect of risk alone. Click the chart to set your risk.
@@ -136,7 +138,7 @@ python -m leaderboard_luck check --example month                          # the 
 python -m leaderboard_luck calibrate                      # does the check work? (about half a minute)
 ```
 
-Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
+Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--vol-cap` (giving it turns the cap on), `--cost`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
 
 `sample` shows the top ten and your team (`--top` to change; `--top 0` shows every team). `design` runs every scoring rule at every length, so it takes no `--rule`, `--days` or `--sims`: that is 21 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
 
@@ -188,6 +190,8 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 **Going for broke.** At a checkpoint (by default three-quarters of the way through), a team outside the top 3 can switch to a much higher level of risk for the rest of the challenge. Your team can do this, and so can a chosen share of steady rivals. This mirrors what Brown, Harlow and Starks (1996) and Chevalier and Ellison (1997) found among mutual fund managers: funds that were behind part-way through the year tended to raise their risk for the rest of it.
 
+**Capping and costing risk.** With a volatility cap, every team runs at most the cap, whatever it wants: gamblers, teams going for broke and your team included. The cost of risk is a return lost per year in proportion to volatility, so a team at 60% volatility pays three times as much as one at 20%. It lowers every team's Sharpe ratio by the same amount, so under the Sharpe ratio rule it changes nothing, but in a return-ranked challenge it costs gamblers the most. Over a few weeks it is small next to luck, which is why a cap does far more than a cost.
+
 **Same luck, different risk.** To draw the risk curve, your team is run at 20 levels of volatility from 5% to 100% inside each simulated challenge, against the same rivals on the same luck. This is known as common random numbers, and it means the curve's shape comes from the risk alone rather than from noise. Rivals decide whether to go for broke by comparing themselves with one another, so their behaviour is the same at every level of your risk.
 
 **Reproducible.** Every challenge has its own seed, worked out from the luck number and the challenge's number, and both languages use the same small random number generator (mulberry32) and the same method for normal draws (Marsaglia's polar method). That is why the app and Python agree to the last decimal place, and why a shared link shows exactly the same results to everyone. Rounding in the Python reports matches the browser's.
@@ -200,7 +204,7 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 - **Skill is a fixed number.** Each team has one true Sharpe ratio for the whole challenge. Real teams learn, change strategy, and do not know their own edge.
 - **Markets are simple.** Returns are normal, or normal with occasional jumps, with constant volatility and one shared market factor. There are no trends, volatility regimes, crowded trades or correlations between particular teams.
-- **Risk is free.** There are no transaction costs, position limits, margin calls or leverage caps beyond the drawdown rule and going bust. Real challenges often cap leverage, which would shrink the gamblers' advantage.
+- **Costs and limits are simple.** The optional cost of risk is proportional to volatility, and the optional cap is a single limit on volatility. There are no per-trade costs, position limits or margin calls beyond those, the drawdown rule and going bust.
 - **One way to go for broke.** Teams switch once, at one checkpoint, if they are outside the top 3. Real teams adjust gradually and react to what they see on the leaderboard.
 - **Daily resolution.** Drawdowns and busts are checked at the close of each day, so intraday moves are ignored.
 - **Sampling error.** Figures come from a finite number of simulated challenges. With 2,000 challenges, a 1.5% chance has a standard error of about 0.3 percentage points; the skill-by-length chart uses 300 challenges per point in the app and 400 in the design report, so neighbouring points can wobble by a percentage point or two.
@@ -211,5 +215,4 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 - **More scoring formats.** Sortino ratio, return over maximum drawdown, and judged components such as a written pitch.
 - **Adaptive strategies.** Let teams adjust risk every day based on their place, and search for the best rule for your team given what rivals do.
-- **Leverage caps and costs.** Add a maximum gross exposure and a cost per trade, and see how much of the gamblers' edge survives.
 - **Team-level skill uncertainty.** Let a team see only a noisy estimate of its own skill from past results, and work out when it should switch strategy.

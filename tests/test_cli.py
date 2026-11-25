@@ -59,6 +59,14 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("ranked on: highest Sharpe ratio", out)
         self.assertNotIn("Best chance of winning", out)
 
+    def test_volatility_cap_and_cost(self):
+        code, out, _ = run(["simulate", "--sims", "200", "--vol-cap", "0.3", "--cost", "0.1", "--your-vol", "0.5"])
+        self.assertEqual(code, 0)
+        self.assertIn("Risk rules: volatility capped at 30%; costs of 10% a year per 100% volatility", out)
+        self.assertIn("at 50% volatility (held to 30% by the cap)", out)
+        code, out, _ = run(["simulate", "--sims", "200", "--json"])
+        self.assertFalse(json.loads(out)["params"]["leverageCap"])
+
     def test_out_of_range_settings_are_pulled_back_with_a_note(self):
         code, out, err = run(["simulate", "--sims", "100", "--gamblers", "20", "--json"])
         self.assertEqual(code, 0)

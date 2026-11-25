@@ -1,6 +1,7 @@
 import math
 import unittest
 
+from leaderboard_luck import model
 from leaderboard_luck.model import (DEFAULTS, VOL_GRID, Rng, Run, competition_seed, norm_cdf, normalise,
                                     sample_competition, simulate, skill_percentile)
 
@@ -158,6 +159,30 @@ class SkillByLengthTests(unittest.TestCase):
 
 
 class NormaliseTests(unittest.TestCase):
+    def test_a_volatility_cap_holds_every_team(self):
+        p = {"leverageCap": True, "volCap": 0.3, "catchUp": True, "rivalsCatchUp": 1, "yourVol": 0.6, "gamblers": 0.5}
+        for k in range(5):
+            for t in model.sample_competition(p, k):
+                self.assertLessEqual(t["vol"], 0.3 + 1e-12)
+                if t["switchDay"] is not None:
+                    self.assertLessEqual(model.risk_of(model.normalise(p), t["vol"] * 3), 0.3)
+        capped = model.simulate({"leverageCap": True, "volCap": 0.3, "sims": 400})
+        free = model.simulate({"sims": 400})
+        self.assertLess(capped["winners"]["gambler"], free["winners"]["gambler"] - 0.15)
+        self.assertEqual(capped["bestVol"], 0.3)
+        # Above the cap, wanting more risk changes nothing.
+        tail = [c["pWin"] for c in capped["curve"] if c["vol"] >= 0.3]
+        self.assertEqual(len(set(tail)), 1)
+
+    def test_a_cost_of_risk_lowers_returns_in_proportion_to_risk(self):
+        self.assertAlmostEqual(model.daily_mean(1.0, 0.5, 0.2), 0.8 * 0.5 / 252)
+        base = model.simulate({"sims": 300, "days": 250})
+        costly = model.simulate({"sims": 300, "days": 250, "cost": 0.5})
+        self.assertLess(costly["winners"]["gambler"], base["winners"]["gambler"])
+        # Under the Sharpe rule a cost lowers everyone's Sharpe ratio equally, so risk still makes no difference.
+        flat = model.simulate({"sims": 200, "rule": "sharpe", "cost": 0.3})
+        self.assertEqual(len({c["pWin"] for c in flat["curve"]}), 1)
+
     def test_clamps_rounds_and_rejects(self):
         p = normalise({"teams": 2.6, "days": 1000, "yourVol": 0, "sims": 100.5})
         self.assertEqual((p["teams"], p["days"], p["yourVol"], p["sims"]), (3, 250, 0.02, 101))
