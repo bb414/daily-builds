@@ -40,7 +40,7 @@ What you can do in it:
 - **Run it as an experiment.** Under "Running this as an experiment? Settings": show the checker's verdict only, add its confidence, or add its reason too; assign one of those at random to each participant; and optionally show the right answer after each checker message.
 - **Keep or share results.** Download your answers as JSON or CSV, open a saved file later, or see an example result without taking the test. If you close the page halfway, it offers to resume.
 
-It works on a phone as well as a desktop, in light and dark mode, and every control can be used with a keyboard.
+It is styled as a detective's case file on a desk at night: each message is an exhibit in a manila folder, the checker's advice is a carbon note pinned to it with red string, and verdicts land as rubber stamps. The two typewriter fonts are embedded in the file (licences in `app/FONT-LICENCE.txt`). It works on a phone as well as a desktop, and every control can be used with a keyboard.
 
 ![An example result](docs/results.png)
 
@@ -79,7 +79,7 @@ The Python suite also runs the Node.js tests. Tests that need Node.js, or Playwr
 
 | Part | Language | Roughly | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | 1,860 lines: 280 of styles, 780 of model (340 of them the message bank), 770 of interface | The whole test, scoring and results, in one offline file |
+| `app/index.html` | HTML, CSS, JavaScript | 2,280 lines: 580 of styles (with the embedded fonts), 780 of model (340 of them the message bank), 770 of interface, 140 of page markup and the header drawing | The whole test, scoring and results, in one offline file |
 | `second_opinion/` | Python | 1,370 lines | Scoring (a line-for-line mirror of the app's), synthetic participants, pooling and statistics, power by simulation, text and HTML reports |
 | `tests/` | Python and JavaScript | 1,320 lines | Unit tests for both, agreement tests, and end-to-end browser tests |
 
