@@ -1,0 +1,22 @@
+{
+  "app": "assurance-mix",
+  "version": 1,
+  "name": "CV shortlister",
+  "answers": {
+    "stakes": "significant",
+    "autonomy": "approves",
+    "model": "ml",
+    "data": "personal",
+    "affected": "public",
+    "source": "outputs",
+    "change": "retrained",
+    "stage": "rollout"
+  },
+  "appetite": 8,
+  "budget": 150,
+  "weeks": 20,
+  "legalMust": true,
+  "must": [],
+  "exclude": [],
+  "done": []
+}

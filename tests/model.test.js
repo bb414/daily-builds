@@ -264,3 +264,30 @@ test('robustness of no assurance is all or nothing', function () {
   const easy = M.planRobustnessFor({ answers: ex('policy').answers, appetite: 25, legalMust: false }, []);
   assert.strictEqual(easy.pAll, 1);
 });
+
+test('a technique already done counts its prerequisites as done', function () {
+  const r = M.analyse({ answers: ex('fraud').answers, done: ['conformity'] });
+  const st = function (id) { return r.techniques.find(function (x) { return x.id === id; }); };
+  assert.strictEqual(st('docs').done, true);
+  for (const id of ['conformity', 'docs']) assert.ok(r.cheapest.ids.indexOf(id) >= 0);
+  const p = M.evaluatePlan({ answers: ex('fraud').answers, done: ['conformity'] }, []);
+  assert.strictEqual(p.cost, 6); // only the required DPIA is paid for
+  const sched = function (id) { return p.schedule.find(function (x) { return x.id === id; }); };
+  assert.strictEqual(sched('docs').end - sched('docs').start, 0);
+  assert.strictEqual(sched('conformity').end - sched('conformity').start, 0);
+});
+
+test('the robust plan is the cheapest that clears the bar (brute force)', function () {
+  const input = { answers: ex('fraud').answers };
+  const r = M.robustness(input, { draws: 120, confidence: 0.8 });
+  assert.ok(r.robust);
+  const a = M.analyse(input);
+  const usable = a.usable;
+  for (let m = 0; m < (1 << usable.length); m++) {
+    const ids = usable.filter(function (_, i) { return (m >> i) & 1; });
+    const p = M.evaluatePlan(input, ids);
+    if (!p.meets || !p.fitsDeadline || p.cost >= r.robust.cost) continue;
+    const q = M.planRobustnessFor(input, p.ids, { draws: 120 });
+    assert.ok(q.pAll < 0.8, 'cheaper plan ' + p.ids.join(',') + ' clears ' + q.pAll);
+  }
+});

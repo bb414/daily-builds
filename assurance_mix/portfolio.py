@@ -55,9 +55,12 @@ def allocate(systems, budget, appetite, weeks=None, legal_must=True):
 
     Returns a dict with the optimal allocation and three simple baselines.
     """
-    budget = int(round(budget))
     rows = []
     notes = []
+    # The same limits as the app: appetite 0.5 to 25, budget 0 to 5,000 (£ thousands).
+    checked = model.normalise_input({"appetite": appetite, "budget": budget})
+    notes += checked["notes"]
+    appetite, budget = checked["appetite"], int(checked["budget"])
     for s in systems:
         raw = dict(s["raw"])
         raw["appetite"] = appetite

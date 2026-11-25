@@ -38,6 +38,10 @@ def _apply_overrides(raw, args):
 
 
 def cmd_plan(args):
+    if not 0 <= args.draws <= 20000:
+        raise SystemExit("--draws must be between 0 and 20000.")
+    if not 0 < args.confidence <= 1:
+        raise SystemExit("--confidence must be more than 0 and at most 1, for example 0.8.")
     raw, name = _load_system(args)
     raw = _apply_overrides(raw, args)
     res = model.analyse(raw)

@@ -13,7 +13,7 @@ STAGE = {s["id"]: s["label"] for s in model.DATA["stages"]}
 
 
 def money(k):
-    return "£{:,}k".format(int(round(k)))
+    return "£{:,}k".format(int(model.js_round(k)))
 
 
 def sc(x):
@@ -55,9 +55,24 @@ def _table(headers, rows, markdown, align=None):
     return "\n".join(out)
 
 
-def why_text(plan, m):
+def locked_text(res, tid):
+    """Why a technique is in every plan, as the app words it."""
+    status = {s["id"]: s for s in res["techniques"]}
+    st = status[tid]
+    if st["done"]:
+        return "Already done"
+    if st["required"]:
+        return "Required: the system uses personal data"
+    if tid in res["input"]["must"]:
+        return "You chose it as a must"
+    by = [t["name"].lower() for t in model.DATA["techniques"]
+          if tid in t.get("requires", []) and status[t["id"]]["must"]]
+    return "Needed for " + " and ".join(by) if by else "Always included"
+
+
+def why_text(plan, m, res=None):
     if m.get("locked"):
-        return "Required"
+        return locked_text(res, m["id"]) if res is not None else "Always included"
     also = ""
     if m["alsoDrops"]:
         also = " (and " + ", ".join(model.TECHNIQUES[x]["name"].lower() for x in m["alsoDrops"]) + ")"
@@ -80,11 +95,13 @@ def _plan_block(title, plan, res, markdown):
                                                      weeks_text(plan["weeks"]), ", ".join(status)))
     lines.append("")
     marg = {m["id"]: m for m in plan.get("marginal", [])}
+    done = {s["id"] for s in res["techniques"] if s["done"]}
     rows = []
     for tid in plan["ids"]:
         t = model.TECHNIQUES[tid]
-        rows.append([t["name"] + (" (independent)" if t["independent"] and not t["name"].startswith("Independent") else ""), STAGE[t["stage"]], money(t["cost"]),
-                     why_text(plan, marg[tid]) if tid in marg else ""])
+        rows.append([t["name"] + (" (independent)" if t["independent"] and not t["name"].startswith("Independent") else ""),
+                     STAGE[t["stage"]], "done" if tid in done else money(t["cost"]),
+                     why_text(plan, marg[tid], res) if tid in marg else ""])
     if rows:
         lines.append(_table(["Technique", "Stage", "Cost", "Why it is there"], rows, markdown, ["l", "l", "r", "l"]))
     else:
@@ -246,6 +263,10 @@ def portfolio_report(alloc, markdown=False):
                                                        sc(alloc["appetite"])))
     lines.append("")
     lines.append(h2 + "How the approaches compare")
+    lines.append("")
+    lines.append("Optimised puts first bringing as many systems as possible within appetite, then the lowest total of "
+                 "their worst scores. Riskiest first funds the riskiest system's cheapest plan within appetite, then the "
+                 "next; the two share-based rules split the budget and buy the lowest-risk plan each share affords.")
     lines.append("")
     rows = []
     for s in [opt] + [alloc["baselines"][k] for k in ("riskiest_first", "proportional", "equal")]:

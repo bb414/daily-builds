@@ -138,7 +138,7 @@
       "cost": 45, "weeks": 14,
       "coverage": {"safety": 0.1, "transparency": 0.1, "fairness": 0.1, "accountability": 0.5, "contestability": 0.2},
       "requires": ["risk", "aia"],
-      "blurb": "Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."
+      "blurb": "Organisation-wide AI governance, certified against the standard by an independent body. Builds on risk and impact assessment."
     },
     {
       "id": "biasInternal", "name": "Internal bias audit", "source": "DSIT", "stage": "test", "spectrum": 0.75, "independent": false,

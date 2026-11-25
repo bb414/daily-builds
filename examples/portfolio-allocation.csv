@@ -1,0 +1,33 @@
+system,approach,spend_k,worst_before,worst_after,within_appetite,techniques
+CV shortlister,Optimised,24,20.3,12.0,no,risk;aia;dpia;supplier
+Billing assistant,Optimised,30,20.0,10.4,no,risk;aia;dpia;docs;supplier
+Predictive maintenance,Optimised,31,12.5,7.5,yes,risk;performance;monitor
+Payment fraud flags,Optimised,59,16.0,6.6,yes,risk;dpia;docs;biasInternal;biasIndependent;explain
+Policy search assistant,Optimised,6,4.5,3.6,yes,dpia
+Hardship grant checker,Optimised,49,17.5,7.7,yes,risk;aia;dpia;supplier;biasInternal;monitor
+Delivery route planner,Optimised,13,7.0,5.2,yes,risk;aia
+Tenancy arrears predictor,Optimised,35,12.3,6.6,yes,risk;aia;dpia;docs;biasInternal
+CV shortlister,Riskiest first,105,20.3,7.9,yes,risk;aia;dpia;docs;supplier;biasInternal;biasIndependent;performance;explain;compliance;appeals
+Billing assistant,Riskiest first,107,20.0,7.8,yes,risk;aia;dpia;docs;supplier;biasInternal;explain;compliance;conformity;appeals
+Predictive maintenance,Riskiest first,0,12.5,12.5,no,
+Payment fraud flags,Riskiest first,6,16.0,14.3,no,dpia
+Policy search assistant,Riskiest first,6,4.5,3.6,yes,dpia
+Hardship grant checker,Riskiest first,6,17.5,15.8,no,dpia
+Delivery route planner,Riskiest first,0,7.0,7.0,yes,
+Tenancy arrears predictor,Riskiest first,6,12.3,11.1,no,dpia
+CV shortlister,Shares by inherent risk,46,20.3,10.2,no,risk;aia;dpia;docs;supplier;biasInternal;appeals
+Billing assistant,Shares by inherent risk,44,20.0,9.7,no,risk;aia;dpia;docs;supplier;compliance
+Predictive maintenance,Shares by inherent risk,25,12.5,8.3,no,risk;aia;performance
+Payment fraud flags,Shares by inherent risk,35,16.0,8.4,no,risk;aia;dpia;docs;biasInternal
+Policy search assistant,Shares by inherent risk,10,4.5,3.4,yes,risk;dpia
+Hardship grant checker,Shares by inherent risk,34,17.5,9.1,no,risk;aia;dpia;supplier;biasInternal
+Delivery route planner,Shares by inherent risk,13,7.0,5.2,yes,risk;aia
+Tenancy arrears predictor,Shares by inherent risk,26,12.3,7.7,yes,risk;dpia;docs;biasInternal
+CV shortlister,Equal shares,30,20.3,11.5,no,risk;aia;dpia;supplier;appeals
+Billing assistant,Equal shares,30,20.0,10.4,no,risk;aia;dpia;docs;supplier
+Predictive maintenance,Equal shares,31,12.5,7.5,yes,risk;performance;monitor
+Payment fraud flags,Equal shares,31,16.0,9.0,no,aia;dpia;docs;biasInternal
+Policy search assistant,Equal shares,30,4.5,2.4,yes,risk;aia;dpia;docs;supplier
+Hardship grant checker,Equal shares,29,17.5,10.0,no,risk;aia;dpia;biasInternal
+Delivery route planner,Equal shares,30,7.0,4.5,yes,risk;aia;docs;supplier;appeals
+Tenancy arrears predictor,Equal shares,31,12.3,7.2,yes,aia;dpia;docs;biasInternal

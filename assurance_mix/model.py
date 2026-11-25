@@ -247,6 +247,19 @@ def technique_status(inp):
                        "required": required, "must": required or done or t["id"] in inp["must"],
                        "excluded": ruled_out and not required, "overruled": ruled_out and required, "done": done})
     by_id = {s["id"]: s for s in status}
+    # Something already done implies its prerequisites were done too.
+    changed = True
+    while changed:
+        changed = False
+        for s in status:
+            if not s["done"]:
+                continue
+            for r in TECHNIQUES[s["id"]].get("requires", []):
+                rs = by_id[r]
+                if not rs["done"]:
+                    rs["done"], rs["must"], rs["excluded"] = True, True, False
+                    changed = True
+    # A technique whose prerequisite is unavailable or ruled out cannot be used either.
     changed = True
     while changed:
         changed = False
@@ -298,8 +311,9 @@ def prepare(inp):
         for r in t.get("requires", []):
             rm |= 1 << act.index(r)
         req_mask.append(rm)
+    done = [s["id"] for s in status if s["done"]]
     return {"input": inp, "risk": risk, "status": status, "notes": notes, "ids": act, "n": len(act),
-            "miss": miss, "cost": cost, "mustMask": must_mask, "reqMask": req_mask}
+            "miss": miss, "cost": cost, "mustMask": must_mask, "reqMask": req_mask, "done": done}
 
 
 def enumerate_plans(prep):
@@ -379,7 +393,7 @@ def _search(prep, en, worst, total, feasible):
 
     def weeks_ok(m):
         if m not in weeks_cache:
-            weeks_cache[m] = schedule(mask_ids(prep, m), inp["done"])["goLive"] <= inp["weeks"]
+            weeks_cache[m] = schedule(mask_ids(prep, m), prep["done"])["goLive"] <= inp["weeks"]
         return weeks_cache[m]
 
     cost, cnt = en["cost"], en["cnt"]
@@ -422,7 +436,7 @@ def describe(prep, en, m):
     for r in residual:
         r["band"] = band(r["score"])
         r["meets"] = r["score"] <= appetite + EPS
-    sched = schedule(ids, prep["input"]["done"])
+    sched = schedule(ids, prep["done"])
     return {"ids": ids, "cost": en["cost"][m], "weeks": sched["goLive"], "schedule": sched["rows"],
             "residual": residual, "worst": worst, "worstId": worst_id, "sum": total,
             "meets": worst <= appetite + EPS, "withinBudget": en["cost"][m] <= prep["input"]["budget"], "mask": m}
@@ -501,7 +515,7 @@ def analyse(raw_input):
     if best is None:
         must_ids = mask_ids(prep, prep["mustMask"])
         notes.append("No plan fits in %s: the techniques that must be included take %s on their own."
-                     % (weeks_phrase(inp["weeks"]), weeks_phrase(schedule(must_ids, inp["done"])["goLive"])))
+                     % (weeks_phrase(inp["weeks"]), weeks_phrase(schedule(must_ids, prep["done"])["goLive"])))
     inherent_worst = 0
     for r in risk:
         if r["score"] > inherent_worst:
@@ -565,7 +579,7 @@ def evaluate_plan(raw_input, ids):
     for i in range(prep["n"]):
         if (m >> i) & 1:
             cost += prep["cost"][i]
-    sched = schedule(mask_ids(prep, m), inp["done"])
+    sched = schedule(mask_ids(prep, m), prep["done"])
     return {"ids": mask_ids(prep, m), "cost": cost, "weeks": sched["goLive"], "schedule": sched["rows"],
             "residual": residual, "worst": worst, "worstId": worst_id, "sum": total,
             "meets": worst <= inp["appetite"] + EPS, "withinBudget": cost <= inp["budget"],
@@ -670,12 +684,47 @@ def _quantile(sorted_values, q):
     return sorted_values[math.floor(q * (len(sorted_values) - 1))]
 
 
+def _chosen_coverage(prep, m):
+    """Coverage of each chosen technique for each principle, in search order."""
+    by_id = {s["id"]: s for s in prep["status"]}
+    chosen = [prep["ids"][i] for i in range(prep["n"]) if (m >> i) & 1]
+    return chosen, [[by_id[t]["coverage"][p] for p in PRINCIPLES] for t in chosen]
+
+
+def _draw_score(prep, chosen, covs, row, p):
+    prod = 1
+    for k, t in enumerate(chosen):
+        prod = prod * (1 - min(MAX_COVERAGE, covs[k][p] * row[t]))
+    return from_prob(prep["risk"][p]["prob"] * prod) * prep["risk"][p]["I"]
+
+
+def _clears_confidence(prep, mults, m, confidence):
+    """Quick yes or no, stopping as soon as the answer is certain."""
+    chosen, covs = _chosen_coverage(prep, m)
+    D = len(mults)
+    appetite = prep["input"]["appetite"] + EPS
+    fails = passes = 0
+    for row in mults:
+        ok = True
+        for p in range(len(PRINCIPLES)):
+            if _draw_score(prep, chosen, covs, row, p) > appetite:
+                ok = False
+                break
+        if ok:
+            passes += 1
+        else:
+            fails += 1
+        if (D - fails) / D < confidence - EPS:
+            return False
+        if passes / D >= confidence - EPS:
+            return True
+    return passes / D >= confidence - EPS
+
+
 def plan_robustness(prep, mults, m):
     inp = prep["input"]
     P = len(PRINCIPLES)
-    by_id = {s["id"]: s for s in prep["status"]}
-    chosen = [prep["ids"][i] for i in range(prep["n"]) if (m >> i) & 1]
-    covs = [[by_id[t]["coverage"][p] for p in PRINCIPLES] for t in chosen]
+    chosen, covs = _chosen_coverage(prep, m)
     appetite = inp["appetite"] + EPS
     all_ok = 0
     per = [0] * P
@@ -683,10 +732,7 @@ def plan_robustness(prep, mults, m):
     for row in mults:
         w, ok = 0, True
         for p in range(P):
-            prod = 1
-            for k, t in enumerate(chosen):
-                prod = prod * (1 - min(MAX_COVERAGE, covs[k][p] * row[t]))
-            score = from_prob(prep["risk"][p]["prob"] * prod) * prep["risk"][p]["I"]
+            score = _draw_score(prep, chosen, covs, row, p)
             if score <= appetite:
                 per[p] += 1
             else:
@@ -702,7 +748,7 @@ def plan_robustness(prep, mults, m):
             "low": _quantile(worsts, 0.1), "median": _quantile(worsts, 0.5), "high": _quantile(worsts, 0.9)}
 
 
-def robustness(raw_input, draws=400, seed=2026, confidence=0.8, max_candidates=2000):
+def robustness(raw_input, draws=400, seed=2026, confidence=0.8, max_candidates=3000):
     """How often each key plan stays within appetite when coverages are uncertain, and the
     cheapest plan that does so in at least `confidence` of the draws."""
     inp = normalise_input(raw_input)
@@ -724,13 +770,12 @@ def robustness(raw_input, draws=400, seed=2026, confidence=0.8, max_candidates=2
     for m in cand:
         if checked >= max_candidates:
             break
-        if schedule(mask_ids(prep, m), inp["done"])["goLive"] > inp["weeks"]:
+        if schedule(mask_ids(prep, m), prep["done"])["goLive"] > inp["weeks"]:
             continue
         checked += 1
-        r = plan_robustness(prep, mults, m)
-        if r["pAll"] >= confidence - EPS:
+        if _clears_confidence(prep, mults, m, confidence):
             robust = describe(prep, en, m)
-            robust["robustness"] = r
+            robust["robustness"] = plan_robustness(prep, mults, m)
             break
     return {"draws": draws, "seed": seed, "confidence": confidence, "spread": dict(SPREAD),
             "cheapest": report(found["cheapest"]), "inBudget": report(found["inBudget"]), "robust": robust,

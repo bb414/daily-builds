@@ -71,6 +71,13 @@ class PortfolioTests(unittest.TestCase):
                 self.assertLessEqual(b["cost"], budget + 1e-9)
                 self.assertLessEqual((o["above"], round(o["totalWorst"], 9)), (b["above"], round(b["totalWorst"], 9)))
 
+    def test_out_of_range_limits_are_repaired(self):
+        systems, _ = portfolio.read_inventory(INVENTORY)
+        alloc = portfolio.allocate(systems[:2], -5, 100)
+        self.assertEqual(alloc["budget"], 0)
+        self.assertEqual(alloc["appetite"], 25)
+        self.assertTrue(any("outside" in n for n in alloc["notes"]))
+
     def test_budget_too_small(self):
         systems, _ = portfolio.read_inventory(INVENTORY)
         alloc = portfolio.allocate(systems, 5, 8)
@@ -108,6 +115,10 @@ class ReportAndCliTests(unittest.TestCase):
     def test_bad_inputs(self):
         with self.assertRaises(SystemExit):
             run_cli("plan", "--example", "nope")
+        with self.assertRaises(SystemExit):
+            run_cli("plan", "--example", "policy", "--draws", "-1")
+        with self.assertRaises(SystemExit):
+            run_cli("plan", "--example", "policy", "--confidence", "1.5")
         with self.assertRaises(SystemExit):
             run_cli("plan", str(ROOT / "missing.json"))
 
