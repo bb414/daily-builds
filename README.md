@@ -18,8 +18,8 @@ There are two ways to use it, built on the same model:
 The question behind this project is why AI so often stalls at the pilot stage. Research interviews with senior executives keep returning to the same blockers: **unclear ROI and benefits that are hard to measure**. This tool makes one of the mechanisms concrete.
 
 - **The same minutes can be worth very different amounts.** Saved at a step that is 92% busy, 20 minutes a case took over an hour off the end-to-end time. Saved before a committee that meets twice a week, 43 minutes a case were absorbed by the calendar, and the AI's errors made things slower.
-- **The pilot measures the best case.** In a pilot everyone uses the tool and nobody counts the minutes spent checking it or the cases sent back. At scale those come off the saving first.
-- **A cost saving and a speed gain are not the same saving.** Banking the pilot's "1.8 people" as a headcount cut turns a two-day claims process into one that takes over three weeks, because the AI really frees 0.9 people at that step.
+- **The pilot measures the best case.** In a pilot, keen users try the tool on every case, and the minutes spent checking it or the cases sent back are rarely counted. At scale those come off the saving first.
+- **A cost saving and a speed gain are not the same saving.** Banking the pilot's "1.8 people" as a headcount cut turns a two-day claims process into one that takes more than four working weeks, because the AI really frees 0.9 people at that step.
 - **Where you put the AI matters as much as how good it is.** The options appraisal often finds that one more person at the real bottleneck beats the AI, or that the fastest place for the AI is one with no check after it, so its errors go straight to customers.
 
 It sits across two of the brief's themes: AI adoption and scaling beyond the pilot, and the consulting toolkit (process mapping, bottlenecks, business cases).
@@ -36,7 +36,7 @@ start app\index.html       # Windows
 
 What you can do in it:
 
-- **Pick an example process** (home insurance claims, small business loans, customer complaints) or build your own of up to eight steps. A step can be a team working cases first come, first served; a meeting or run on set weekdays (a credit committee, a payment run); or a wait on someone outside the team (a repairer's quote, a customer's documents). Any step can send a share of cases back to an earlier one.
+- **Pick an example process** (home insurance claims, small business loans, customer complaints) or build your own of up to eight steps. A step can be a team working cases first come, first served; a meeting or run on set weekdays (a credit committee, a payment run); or a wait on someone outside the team (a repairer's quote, a customer's documents). A team or a meeting can send a share of cases back to an earlier step, as a quality check does.
 - **Set up the AI**: which step it helps with, how much hands-on time it saves, how many cases it is used on, how long checking its work takes, how often it is wrong and how many of its errors a later check catches.
 - **Read the headline**: the pilot's promise, the change in end-to-end time, and how many end-to-end minutes each minute saved at the desk is worth, with a check against 10 runs of different luck.
 - **See where the minutes went**: a waterfall from the time saved at the desk, through non-use, checking and rework, to the change in waiting at every step.

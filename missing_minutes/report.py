@@ -2,7 +2,7 @@
 
 import html as html_lib
 
-from .model import DAY, fmt_duration
+from .model import DAY, WEEKDAYS, fmt_duration
 
 
 def _pct(x, d=0):
@@ -206,7 +206,8 @@ def html_report(r, bank, options, seeds=None, sens=None):
         if s["kind"] == "team":
             busy = "%s to %s" % (_pct(s["utilisation"]), _pct(t["utilisation"]))
         elif s["kind"] == "batch":
-            busy = "%s to %s full" % (_pct(s["utilisation"]), _pct(t["utilisation"]))
+            days = ", ".join(WEEKDAYS[d] for d in cfg["steps"][i]["batchDays"])
+            busy = "%s; sessions %s to %s full" % (days, _pct(s["utilisation"]), _pct(t["utilisation"]))
         else:
             busy = "outside the team"
         hands_on = "none" if s["kind"] == "delay" else "%s to %s" % (_dur(s["touch"]), _dur(t["touch"]))

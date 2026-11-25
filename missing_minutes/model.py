@@ -880,6 +880,3 @@ def load_setup(path):
         seed = None
     return normalise(raw), seed
 
-
-def load_config(path):
-    return load_setup(path)[0]
