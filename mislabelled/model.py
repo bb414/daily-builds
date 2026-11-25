@@ -410,9 +410,11 @@ class Model:
         self.conf[t] = 1 / z
         self.probs[t] = [ex[c] / z for c in range(C)]
 
-    def learn(self, t, c):
+    def learn(self, t, c, sign=1):
+        """Count a checked payment's features `weight` times towards category c.
+        sign=-1 takes a lesson back out (used when a checked payment is re-filed)."""
         ids = self.fids[t]
-        w = self.weight
+        w = -self.weight if sign == -1 else self.weight
         row = self.counts[c]
         for fid in ids:
             row[fid] += w
@@ -441,6 +443,7 @@ class Session:
         self.model = Model(statement, weight=weight, temperature=temperature)
         self.labels = [-1] * len(statement["tx"])
         self.checks = 0
+        self.order = []
 
     def reported(self, t):
         return self.labels[t] if self.labels[t] >= 0 else self.model.pred[t]
@@ -449,8 +452,15 @@ class Session:
         return [self.reported(t) for t in range(len(self.labels))]
 
     def correct(self, t, label):
+        before = self.labels[t]
+        if before >= 0:
+            # re-filing a payment already checked: forget the old lesson, keep one check
+            self.model.learn(t, before, -1)
+            self.order.remove(t)
+        else:
+            self.checks += 1
         self.labels[t] = label
-        self.checks += 1
+        self.order.append(t)
         self.model.learn(t, label)
 
     def metrics(self):
@@ -664,3 +674,80 @@ def compare_weekly(statement, per_week=3, slip=0, seed=None, weight=None, temper
                        temperature=temperature)
         out.append({"strategy": s["id"], "label": s["label"], "months": r["months"], "checks": r["checks"]})
     return out
+
+
+# ---------- explanations and robustness ----------
+
+BANDS = [(0, 0.5, "Under 50% sure"), (0.5, 0.8, "50 to 80% sure"), (0.8, 0.95, "80 to 95% sure"),
+         (0.95, 2, "95% sure or more")]
+
+
+def confidence_bands(session):
+    """How often the app is right at each level of confidence, and how much misfiled money it was sure about.
+    Only payments the person has not checked are included."""
+    tx = session.statement["tx"]
+    model = session.model
+    out = [{"lo": lo, "hi": hi, "label": label, "n": 0, "right": 0, "totalP": 0, "wrongP": 0} for lo, hi, label in BANDS]
+    wrong_p = 0
+    sure_wrong_p = 0
+    for t in range(len(tx)):
+        if session.labels[t] >= 0:
+            continue
+        c = model.conf[t]
+        b = 0
+        while b < len(out) - 1 and c >= out[b]["hi"]:
+            b += 1
+        band = out[b]
+        band["n"] += 1
+        band["totalP"] += tx[t]["pennies"]
+        if model.pred[t] == tx[t]["cat"]:
+            band["right"] += 1
+        else:
+            band["wrongP"] += tx[t]["pennies"]
+            wrong_p += tx[t]["pennies"]
+            if c >= 0.8:
+                sure_wrong_p += tx[t]["pennies"]
+    return {"bands": out, "wrongP": wrong_p, "sureWrongP": sure_wrong_p,
+            "sureShare": sure_wrong_p / wrong_p if wrong_p > 0 else 0}
+
+
+def winners(results):
+    """Strategies that did best on one statement: fewest checks to the target or, if none got there,
+    the lowest wrong pot at the end. Ties share the win."""
+    reached = [r for r in results if r["toTarget"] is not None]
+    if reached:
+        best = min(r["toTarget"] for r in reached)
+        return [r["strategy"] for r in reached if r["toTarget"] == best]
+    low = min(r["points"][-1]["misPct"] for r in results)
+    return [r["strategy"] for r in results if r["points"][-1]["misPct"] == low]
+
+
+def quantile(values, q):
+    """Linear-interpolation quantile (the common 'type 7' definition)."""
+    xs = sorted(values)
+    if not xs:
+        return None
+    pos = (len(xs) - 1) * q
+    lo = math.floor(pos)
+    hi = min(lo + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+
+
+def robustness(persona_id, weeks, seeds, checks=60, target=5, slip=0, weight=None):
+    """Replay every strategy on several statements for the same person. Unreached runs count as checks + 1."""
+    rows = [{"strategy": s["id"], "label": s["label"], "wins": 0, "reached": 0, "toTargets": []} for s in STRATEGIES]
+    for seed in seeds:
+        st = generate_statement(persona_id, weeks, seed)
+        res = compare_strategies(st, checks=checks, target=target, slip=slip, seed=seed, weight=weight)
+        w = winners(res)
+        for i, r in enumerate(res):
+            if r["strategy"] in w:
+                rows[i]["wins"] += 1 / len(w)
+            if r["toTarget"] is not None:
+                rows[i]["reached"] += 1
+            rows[i]["toTargets"].append(checks + 1 if r["toTarget"] is None else r["toTarget"])
+    for r in rows:
+        med = quantile(r["toTargets"], 0.5)
+        r["median"] = None if med > checks else med
+        r["runs"] = len(seeds)
+    return rows

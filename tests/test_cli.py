@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -43,6 +44,7 @@ class CliTest(unittest.TestCase):
         with open(os.path.join(self.path("out"), "summary.csv"), newline="") as fh:
             summary = list(csv.DictReader(fh))
         self.assertEqual(len(summary), 5)
+        self.assertAlmostEqual(sum(float(r["fastest_on"]) for r in summary), 2.0, places=6)
         self.assertIn("Sam, graduate", text)
         with open(os.path.join(self.path("out"), "curves.csv"), newline="") as fh:
             self.assertEqual(sum(1 for _ in fh), 1 + 2 * 5 * 16)
@@ -121,9 +123,27 @@ class CliTest(unittest.TestCase):
         self.assertEqual(cli._seed_list("2,9"), [2, 9])
 
     def test_quantile(self):
-        self.assertEqual(cli._quantile([1, 2, 3, 4], 0.5), 2.5)
-        self.assertEqual(cli._quantile([5], 0.9), 5)
-        self.assertIsNone(cli._quantile([], 0.5))
+        self.assertEqual(M.quantile([1, 2, 3, 4], 0.5), 2.5)
+        self.assertEqual(M.quantile([5], 0.9), 5)
+        self.assertIsNone(M.quantile([], 0.5))
+
+    def test_settings_file_from_the_app(self):
+        settings = {"persona": "sixthformer", "weeks": 5, "seed": 9, "weight": 12, "target": 8, "checks": 20,
+                    "slip": 0, "perweek": 2}
+        with open(self.path("saved.json"), "w") as fh:
+            json.dump({"app": "mislabelled", "version": 1, "settings": settings, "checks": []}, fh)
+        code, text = run(["compare", "--settings", self.path("saved.json"), "--seeds", "2"])
+        self.assertEqual(code, 0)
+        self.assertIn("Alex, sixth-former", text)
+        self.assertNotIn("Jess", text)
+        self.assertIn("5 weeks each, up to 20 checks", text)
+        self.assertIn("8% target", text)
+        code, text = run(["weekly", "--settings", self.path("saved.json"), "--seeds", "1", "--per-week", "4"])
+        self.assertIn("4 checks a week", text)
+        with open(self.path("not.json"), "w") as fh:
+            fh.write("{}")
+        with self.assertRaises(SystemExit):
+            run(["compare", "--settings", self.path("not.json")])
 
 
 if __name__ == "__main__":

@@ -75,7 +75,7 @@ test('weeks are clamped to 1..52', () => {
 test('featurise reads channel, merchant key, words, amount band and day type', () => {
   const card = M.featurise('TAP*BEAN THERE CAFE BRIGHTON', 360, 2);
   assert.equal(card.key, 'BEAN THERE');
-  assert.deepEqual(card.feats, ['c:CARD', 'm:BEAN THERE', 'w:BEAN', 'w:THERE', 'w:CAFE', 'a:1', 'd:wd']);
+  assert.deepEqual(card.feats, ['c:TERMINAL', 'm:BEAN THERE', 'w:BEAN', 'w:THERE', 'w:CAFE', 'a:1', 'd:wd']);
   const tr = M.featurise('TO L CHEN REF PIZZA', 1100, 5);
   assert.equal(tr.key, 'L CHEN');
   assert.deepEqual(tr.feats, ['c:TRANSFER', 'm:L CHEN', 'w:CHEN', 'w:PIZZA', 'a:2', 'd:we']);
@@ -219,4 +219,47 @@ test('weekly mode respects the weekly allowance and only asks about that week', 
   const t = M.chooseNext('biggest', s, M.mulberry32(1), (i) => st.tx[i].day <= 6);
   assert.ok(st.tx[t].day <= 6);
   assert.equal(M.chooseNext('biggest', s, M.mulberry32(1), () => false), -1);
+});
+
+test('re-filing a checked payment takes the old lesson back out', () => {
+  const st = M.generateStatement('student', 6, 4);
+  const a = new M.Session(st, {});
+  const b = new M.Session(st, {});
+  a.correct(3, 5);
+  a.correct(3, st.tx[3].cat);
+  b.correct(3, st.tx[3].cat);
+  assert.equal(a.checks, 1);
+  assert.deepEqual(a.order, [3]);
+  assert.deepEqual(a.model.conf, b.model.conf);
+  assert.deepEqual(a.model.counts, b.model.counts);
+});
+
+test('confidence bands cover every unchecked payment', () => {
+  const st = M.generateStatement('graduate', 13, 1);
+  const s = new M.Session(st, {});
+  let cb = M.confidenceBands(s);
+  assert.equal(cb.bands.reduce((a, b) => a + b.n, 0), st.tx.length);
+  const wrong = st.tx.reduce((a, t, i) => a + (s.model.pred[i] !== t.cat ? t.pennies : 0), 0);
+  assert.equal(cb.wrongP, wrong);
+  assert.ok(cb.sureWrongP > 0 && cb.sureWrongP <= cb.wrongP);
+  s.correct(0, st.tx[0].cat);
+  cb = M.confidenceBands(s);
+  assert.equal(cb.bands.reduce((a, b) => a + b.n, 0), st.tx.length - 1);
+});
+
+test('winners share ties and fall back to the lowest end point', () => {
+  const pts = (v) => [{ misPct: 50 }, { misPct: v }];
+  assert.deepEqual(M.winners([{ strategy: 'a', toTarget: 4, points: pts(1) }, { strategy: 'b', toTarget: 4, points: pts(2) },
+    { strategy: 'c', toTarget: 9, points: pts(1) }]), ['a', 'b']);
+  assert.deepEqual(M.winners([{ strategy: 'a', toTarget: null, points: pts(8) }, { strategy: 'b', toTarget: null, points: pts(6) }]), ['b']);
+  assert.equal(M.quantile([3, 1, 2], 0.5), 2);
+  assert.equal(M.quantile([], 0.5), null);
+});
+
+test('robustness adds up across statements', () => {
+  const rows = M.robustness('sixthformer', 4, [1, 2, 3], { checks: 20, target: 5 });
+  assert.equal(rows.length, 5);
+  const wins = rows.reduce((a, r) => a + r.wins, 0);
+  assert.ok(Math.abs(wins - 3) < 1e-9);
+  rows.forEach((r) => { assert.equal(r.toTargets.length, 3); assert.equal(r.runs, 3); });
 });

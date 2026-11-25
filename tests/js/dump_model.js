@@ -17,7 +17,9 @@ const out = {
       dayOne: { pred: session.model.pred, conf: session.model.conf },
       compare: M.compareStrategies(st, { checks: c.checks, target: c.target, slip: c.slip, weight: c.weight })
         .map((r) => ({ strategy: r.strategy, toTarget: r.toTarget, picks: r.picks, points: r.points })),
-      weekly: M.compareWeekly(st, { perWeek: c.perWeek, slip: c.slip, weight: c.weight })
+      weekly: M.compareWeekly(st, { perWeek: c.perWeek, slip: c.slip, weight: c.weight }),
+      bands: M.confidenceBands(session),
+      robust: M.robustness(c.persona, 4, [c.seed, c.seed + 1], { checks: 15, target: c.target, slip: c.slip, weight: c.weight })
     };
   })
 };

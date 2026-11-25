@@ -90,6 +90,28 @@ class LearningTest(unittest.TestCase):
         self.assertEqual([(m["month"], m["partial"]) for m in none["months"]],
                          [("2026-09", True), ("2026-10", False), ("2026-11", True)])
 
+    def test_refiling_undoes_the_old_lesson(self):
+        st = M.generate_statement("student", 6, 4)
+        a = M.Session(st)
+        b = M.Session(st)
+        a.correct(3, 5)
+        a.correct(3, st["tx"][3]["cat"])
+        b.correct(3, st["tx"][3]["cat"])
+        self.assertEqual((a.checks, a.order), (1, [3]))
+        self.assertEqual(a.model.conf, b.model.conf)
+
+    def test_confidence_bands_and_winners(self):
+        st = M.generate_statement("graduate", 13, 1)
+        s = M.Session(st)
+        cb = M.confidence_bands(s)
+        self.assertEqual(sum(b["n"] for b in cb["bands"]), len(st["tx"]))
+        self.assertTrue(0 < cb["sureWrongP"] <= cb["wrongP"])
+        pts = [{"misPct": 50}, {"misPct": 3}]
+        self.assertEqual(M.winners([{"strategy": "a", "toTarget": 2, "points": pts},
+                                    {"strategy": "b", "toTarget": 2, "points": pts}]), ["a", "b"])
+        rows = M.robustness("sixthformer", 4, [1, 2, 3], checks=20)
+        self.assertAlmostEqual(sum(r["wins"] for r in rows), 3)
+
     def test_checks_to_target(self):
         self.assertEqual(M.checks_to_target([{"misPct": 7}, {"misPct": 5}], 5), 1)
         self.assertIsNone(M.checks_to_target([{"misPct": 7}], 5))

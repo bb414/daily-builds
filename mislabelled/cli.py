@@ -9,22 +9,12 @@
 import argparse
 import csv
 import datetime
+import json
 import os
 import sys
 
 from . import model as M
 from . import report
-
-
-def _quantile(values, q):
-    """Linear-interpolation quantile (the common 'type 7' definition)."""
-    xs = sorted(values)
-    if not xs:
-        return None
-    pos = (len(xs) - 1) * q
-    lo = int(pos)
-    hi = min(lo + 1, len(xs) - 1)
-    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
 
 
 def _seed_list(text):
@@ -79,9 +69,12 @@ def run_batch(personas, seeds, weeks, checks, target, slip, weight):
     for pid in personas:
         for seed in seeds:
             st = M.generate_statement(pid, weeks, seed)
-            for res in M.compare_strategies(st, checks=checks, target=target, slip=slip, weight=weight):
+            results = M.compare_strategies(st, checks=checks, target=target, slip=slip, weight=weight)
+            won = M.winners(results)
+            for res in results:
                 rows.append({"persona": pid, "seed": seed, "strategy": res["strategy"],
-                             "points": res["points"], "toTarget": res["toTarget"], "n": len(st["tx"])})
+                             "points": res["points"], "toTarget": res["toTarget"], "n": len(st["tx"]),
+                             "win": 1 / len(won) if res["strategy"] in won else 0})
     summary = summarise_batch(rows, personas, checks)
     return rows, summary
 
@@ -99,16 +92,17 @@ def summarise_batch(rows, personas, checks):
             curve = []
             for k in range(checks + 1):
                 vals = [r["points"][min(k, len(r["points"]) - 1)]["misPct"] for r in mine]
-                curve.append((_quantile(vals, 0.1), _quantile(vals, 0.5), _quantile(vals, 0.9)))
-            med = _quantile(padded, 0.5)
+                curve.append((M.quantile(vals, 0.1), M.quantile(vals, 0.5), M.quantile(vals, 0.9)))
+            med = M.quantile(padded, 0.5)
             summary.append({
                 "persona": pid,
                 "strategy": s["id"],
                 "label": s["label"],
                 "runs": len(mine),
                 "reachedShare": len(reached) / len(mine),
+                "wins": sum(r["win"] for r in mine),
                 "medianChecks": None if med > checks else med,
-                "dayOne": _quantile([r["points"][0]["misPct"] for r in mine], 0.5),
+                "dayOne": M.quantile([r["points"][0]["misPct"] for r in mine], 0.5),
                 "curve": curve,
             })
     return summary
@@ -125,10 +119,11 @@ def write_batch(rows, summary, outdir, meta):
                             "%.4f" % p["misPct"], "%.4f" % (p["accuracy"] * 100)])
     with open(os.path.join(outdir, "summary.csv"), "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["persona", "strategy", "runs", "day_one_wrong_pot_pct", "share_reaching_target",
+        w.writerow(["persona", "strategy", "runs", "fastest_on", "day_one_wrong_pot_pct", "share_reaching_target",
                     "median_checks_to_target", "median_wrong_pot_pct_after_10", "median_wrong_pot_pct_at_end"])
         for s in summary:
-            w.writerow([s["persona"], s["strategy"], s["runs"], "%.2f" % s["dayOne"], "%.3f" % s["reachedShare"],
+            w.writerow([s["persona"], s["strategy"], s["runs"], "%.2f" % s["wins"], "%.2f" % s["dayOne"],
+                        "%.3f" % s["reachedShare"],
                         "" if s["medianChecks"] is None else "%g" % s["medianChecks"],
                         "%.2f" % s["curve"][min(10, len(s["curve"]) - 1)][1], "%.2f" % s["curve"][-1][1]])
     report.write_compare_report(os.path.join(outdir, "report.html"), summary, meta)
@@ -143,11 +138,15 @@ def format_summary(summary, target, checks):
             lines.append("")
             lines.append("%s  (day one: %.1f%% of spending in the wrong pot, median)" % (
                 M.PERSONAS[current]["label"], s["dayOne"]))
-            lines.append("  %-30s %18s %16s %14s" % ("Strategy", "median checks to", "share reaching", "median after"))
-            lines.append("  %-30s %18s %16s %14s" % ("", "%g%% target" % target, "target", "10 checks"))
+            lines.append("  %-30s %10s %18s %16s %14s" % ("Strategy", "fastest", "median checks to", "share reaching",
+                                                           "median after"))
+            lines.append("  %-30s %10s %18s %16s %14s" % ("", "on", "%g%% target" % target, "target", "10 checks"))
         med = "not reached" if s["medianChecks"] is None else "%g" % s["medianChecks"]
-        lines.append("  %-30s %18s %15.0f%% %13.1f%%" % (
-            s["label"], med, s["reachedShare"] * 100, s["curve"][min(10, checks)][1]))
+        wins = ("%.1f" % s["wins"]).replace(".0", "") + "/" + str(s["runs"])
+        lines.append("  %-30s %10s %18s %15.0f%% %13.1f%%" % (
+            s["label"], wins, med, s["reachedShare"] * 100, s["curve"][min(10, checks)][1]))
+    lines.append("")
+    lines.append("  Fastest on: statements where the strategy reached the target in the fewest checks (ties shared).")
     return "\n".join(lines) + "\n"
 
 
@@ -202,7 +201,7 @@ def format_weekly(rows, personas, per_week):
             cells = []
             for key, _, _ in months:
                 vals = [r["misPct"] for r in mine if r["strategy"] == sid and r["month"] == key]
-                cells.append("%9.1f%%" % _quantile(vals, 0.5))
+                cells.append("%9.1f%%" % M.quantile(vals, 0.5))
             lines.append("  %-30s" % label + "".join(cells))
     lines.append("")
     lines.append("  * part month: the statement starts or ends partway through it.")
@@ -297,9 +296,13 @@ def cmd_categorise(args, out):
         results = M.compare_strategies(st, checks=args.checks, target=args.target,
                                        slip=args.slip / 100, weight=args.weight)
         day1 = results[0]["points"][0]
+        bands = M.confidence_bands(M.Session(st, weight=args.weight))
         out.write("Day one: the generic model files %.0f%% of your %d payments correctly; "
                   "%.1f%% of your spending is in the wrong pot.\n" % (day1["accuracy"] * 100, len(st["tx"]),
                                                                        day1["misPct"]))
+        if bands["wrongP"] > 0:
+            out.write("Of the \u00a3%s in misfiled payments, %.0f%% was filed with at least 80%% confidence.\n" % (
+                _money(bands["wrongP"]), bands["sureShare"] * 100))
         for r in results:
             if r["toTarget"] is None:
                 to = "never under %g%%" % args.target
@@ -367,6 +370,7 @@ def build_parser():
     c.add_argument("--slip", type=float, default=0.0, help="%% of corrections filed in the wrong pot")
     c.add_argument("--weight", type=int, default=M.DATA["model"]["weight"])
     c.add_argument("--out", help="folder for curves.csv, summary.csv and report.html")
+    c.add_argument("--settings", help="a file saved by the browser app; its settings become the defaults")
 
     k = sub.add_parser("weekly", help="a few checks each week: how each month looks as the app learns")
     k.add_argument("--persona", type=_personas, default=_personas("all"))
@@ -376,6 +380,7 @@ def build_parser():
     k.add_argument("--slip", type=float, default=0.0)
     k.add_argument("--weight", type=int, default=M.DATA["model"]["weight"])
     k.add_argument("--out", help="CSV file for every month of every run")
+    k.add_argument("--settings", help="a file saved by the browser app; its settings become the defaults")
 
     g = sub.add_parser("categorise", help="run the app's model on your own CSV (date, description, amount, category)")
     g.add_argument("input")
@@ -387,6 +392,7 @@ def build_parser():
     g.add_argument("--target", type=float, default=5.0)
     g.add_argument("--slip", type=float, default=0.0)
     g.add_argument("--seed", type=int, default=1, help="seed for the random strategy")
+    p.subcommands = {"sample": s, "compare": c, "weekly": k, "categorise": g}
     return p
 
 
@@ -401,9 +407,46 @@ def _check_ranges(args):
     return None
 
 
+SETTING_FLAGS = {"weeks": "weeks", "weight": "weight", "target": "target", "checks": "checks", "slip": "slip",
+                 "perweek": "per_week"}
+
+
+def load_settings(path):
+    """Read a file saved by the browser app ('Save file') and return its settings."""
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict) or data.get("app") != "mislabelled" or not isinstance(data.get("settings"), dict):
+        raise ValueError("not a file saved by Mislabelled")
+    return data["settings"]
+
+
+def apply_settings(parser, argv, command):
+    """Use the app's saved settings as defaults; anything typed on the command line still wins."""
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--settings")
+    known, _ = pre.parse_known_args(argv)
+    if not known.settings:
+        return
+    try:
+        settings = load_settings(known.settings)
+    except (OSError, ValueError) as exc:
+        parser.error("could not read --settings: %s" % exc)
+    sub = parser.subcommands[command]
+    defaults = {}
+    if settings.get("persona") in M.PERSONAS:
+        defaults["persona"] = [settings["persona"]]
+    for key, dest in SETTING_FLAGS.items():
+        if key in settings and isinstance(settings[key], (int, float)) and not isinstance(settings[key], bool):
+            defaults[dest] = settings[key]
+    sub.set_defaults(**defaults)
+
+
 def main(argv=None, out=None):
     out = out or sys.stdout
     parser = build_parser()
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in ("compare", "weekly"):
+        apply_settings(parser, argv[1:], argv[0])
     args = parser.parse_args(argv)
     problem = _check_ranges(args)
     if problem:

@@ -51,6 +51,10 @@ class AgreementTest(unittest.TestCase):
                     self.assertEqual(a["points"], json.loads(json.dumps(b["points"])))
                 weekly = M.compare_weekly(st, per_week=case["perWeek"], slip=case["slip"], weight=case["weight"])
                 self.assertEqual(js["weekly"], json.loads(json.dumps(weekly)))
+                self.assertEqual(js["bands"], json.loads(json.dumps(M.confidence_bands(session))))
+                robust = M.robustness(case["persona"], 4, [case["seed"], case["seed"] + 1], checks=15,
+                                      target=case["target"], slip=case["slip"], weight=case["weight"])
+                self.assertEqual(js["robust"], json.loads(json.dumps(robust)))
 
 
 if __name__ == "__main__":

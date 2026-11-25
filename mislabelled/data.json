@@ -4,7 +4,7 @@
   "start": [2026, 9, 7],
   "model": {"alpha": 1, "weight": 20, "temperature": 2},
   "cardPrefixes": ["TAP*", "CRD*", "PAYPT*"],
-  "channels": {"TAP": "CARD", "CRD": "CARD", "PAYPT": "CARD", "PAYWALLET": "WALLET", "DD": "DD", "TO": "TRANSFER"},
+  "channels": {"TAP": "TERMINAL", "CRD": "TERMINAL", "PAYPT": "TERMINAL", "PAYWALLET": "WALLET", "DD": "DD", "TO": "TRANSFER"},
   "noise": ["REF", "COM", "WWW", "GB", "UK", "LTD", "THE", "AND", "OF"],
   "towns": ["BRIGHTON", "HOVE", "LEWES", "LONDON", "CROYDON", "READING", "LEEDS", "BRISTOL", "LEICESTER", "YORK"],
   "amountBands": [3, 8, 20, 50, 120],

@@ -76,7 +76,8 @@ h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.1; let
 aside.settings { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
 aside h2, section h2 { margin: 0 0 4px; font-size: 1.25rem; letter-spacing: -0.01em; }
 section .sub { margin: 0 0 16px; color: var(--text-2); max-width: 70ch; }
-.content { display: grid; gap: 24px; min-width: 0; }
+.content { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; }
+.panel { min-width: 0; }
 fieldset { border: 0; padding: 0; margin: 0 0 18px; }
 legend, .label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 6px; }
 .hint { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 2px; font-weight: 400; }
@@ -160,6 +161,16 @@ svg.chart .cross-line { stroke: var(--text-2); stroke-width: 1; }
 .keyrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 0.82rem; color: var(--text-2); margin: 10px 0 0; }
 .ramp { display: inline-flex; border-radius: 4px; overflow: hidden; }
 .ramp i { width: 18px; height: 10px; display: inline-block; }
+.subhead { margin: 26px 0 4px; font-size: 1.05rem; }
+.mini { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.mini th, .mini td { padding: 6px 8px; border-top: 1px solid var(--grid); text-align: right; font-variant-numeric: tabular-nums; }
+.mini th:first-child, .mini td:first-child { text-align: left; }
+.mini thead th { border-top: 0; color: var(--text-2); font-weight: 600; font-size: 0.8rem; }
+.hbar { display: inline-block; width: 70px; height: 8px; border-radius: 4px; background: var(--grid); vertical-align: middle; margin-right: 6px; position: relative; overflow: hidden; }
+.hbar b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--app); border-radius: 4px; }
+.filebtn { display: inline-flex; align-items: center; font-size: 0.92rem; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.filebtn:hover { background: var(--surface-2); }
+.filebtn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .insight { margin: 14px 0; padding: 12px 14px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
 .best { font-weight: 700; }
 details { margin-top: 6px; }
@@ -224,6 +235,11 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       <label class="label" for="slip">Slips: corrections filed in the wrong pot<span class="hint">How often a tired thumb picks the wrong category.</span></label>
       <div class="row"><input type="range" id="slip" min="0" max="30" step="1" value="0"><output for="slip" id="slip-out">0%</output></div>
     </div>
+    <div class="field">
+      <span class="label">Keep or share<span class="hint">The link holds these settings. The file also holds your checks, and the Python companion can read it.</span></span>
+      <div class="btnrow"><button type="button" id="copylink">Copy link</button><button type="button" id="savefile">Save file</button><label class="filebtn">Load file<input type="file" id="loadfile" accept=".json,application/json" class="sr-only"></label></div>
+      <p class="hint" id="keep-msg" role="status" aria-live="polite"></p>
+    </div>
   </aside>
 
   <main class="content" id="main">
@@ -238,6 +254,13 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       <div class="bars" id="bars" role="list" aria-label="Spending per pot: the app's figure against the real one"></div>
       <h3 style="margin:22px 0 4px;font-size:1.02rem">Biggest mix-ups right now</h3>
       <ul class="mixups" id="mixups"></ul>
+      <h3 class="subhead">Should you trust its confidence?</h3>
+      <p class="sub" id="conf-sub" style="margin-bottom:8px"></p>
+      <table class="mini">
+        <caption class="sr-only">How often the app is right at each level of confidence, for payments you have not checked</caption>
+        <thead><tr><th scope="col">The app was</th><th scope="col">Payments</th><th scope="col">Filed right</th><th scope="col">Money misfiled</th></tr></thead>
+        <tbody id="conf-rows"></tbody>
+      </table>
     </section>
 
     <section class="panel" aria-labelledby="teach-h">
@@ -290,6 +313,18 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
           <tbody id="strat-rows"></tbody>
         </table>
       </div>
+      <h3 class="subhead">Is this ranking a fluke?</h3>
+      <p class="sub" style="margin-bottom:10px">The chart is one invented statement. Replay the same settings on 20 more statements for the same person and see how often each strategy comes out fastest.</p>
+      <div class="btnrow"><button type="button" class="primary" id="robust-run">Replay on 20 more statements</button></div>
+      <p class="status" id="robust-progress" role="status" aria-live="polite"></p>
+      <div id="robust-out" hidden>
+        <table class="mini">
+          <caption class="sr-only">Strategy results across 20 more statements</caption>
+          <thead><tr><th scope="col">Strategy</th><th scope="col">Fastest on</th><th scope="col">Median checks to target</th><th scope="col">Reached the target</th></tr></thead>
+          <tbody id="robust-rows"></tbody>
+        </table>
+        <p class="insight" id="robust-insight"></p>
+      </div>
     </section>
 
 
@@ -319,7 +354,7 @@ footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.85rem; }
       </details>
       <details>
         <summary>The app's model</summary>
-        <p>The app is a naive Bayes text classifier, the classic technique behind early spam filters and many transaction categorisers. It reads the payment channel, a merchant key (the first two meaningful words), every word in the description, an amount band and weekday or weekend. Before you touch it, it has learned from about 1,360 invented payments filed the way most people file them. Each payment you check is added to its training data, counted as many times as the weight setting says, so your own habits soon outweigh the crowd's.</p>
+        <p>The app is a naive Bayes text classifier, the classic technique behind early spam filters and many transaction categorisers. It reads the payment channel (card terminal, other card payment, wallet, direct debit or transfer), a merchant key (the first two meaningful words), every word in the description, an amount band and weekday or weekend. Before you touch it, it has learned from about 1,360 invented payments filed the way most people file them. Each payment you check is added to its training data, counted as many times as the weight setting says, so your own habits soon outweigh the crowd's.</p>
       </details>
       <details>
         <summary>Why the app gets things wrong</summary>
@@ -362,7 +397,7 @@ var Mislabelled = (function () {
   "start": [2026, 9, 7],
   "model": {"alpha": 1, "weight": 20, "temperature": 2},
   "cardPrefixes": ["TAP*", "CRD*", "PAYPT*"],
-  "channels": {"TAP": "CARD", "CRD": "CARD", "PAYPT": "CARD", "PAYWALLET": "WALLET", "DD": "DD", "TO": "TRANSFER"},
+  "channels": {"TAP": "TERMINAL", "CRD": "TERMINAL", "PAYPT": "TERMINAL", "PAYWALLET": "WALLET", "DD": "DD", "TO": "TRANSFER"},
   "noise": ["REF", "COM", "WWW", "GB", "UK", "LTD", "THE", "AND", "OF"],
   "towns": ["BRIGHTON", "HOVE", "LEWES", "LONDON", "CROYDON", "READING", "LEEDS", "BRISTOL", "LEICESTER", "YORK"],
   "amountBands": [3, 8, 20, 50, 120],
@@ -931,9 +966,10 @@ var Mislabelled = (function () {
   };
 
   // Learn from one checked transaction: its features count `weight` times towards category c.
-  Model.prototype.learn = function (t, c) {
+  // A negative sign takes a lesson back out (used when a checked payment is re-filed).
+  Model.prototype.learn = function (t, c, sign) {
     var ids = this.fids[t];
-    var w = this.weight;
+    var w = sign === -1 ? -this.weight : this.weight;
     for (var j = 0; j < ids.length; j++) this.counts[c][ids[j]] += w;
     this.docs[c] += w;
     this.totals[c] += w * ids.length;
@@ -962,6 +998,7 @@ var Mislabelled = (function () {
     this.labels = [];
     for (var t = 0; t < statement.tx.length; t++) this.labels.push(-1);
     this.checks = 0;
+    this.order = [];
   }
 
   Session.prototype.reported = function (t) {
@@ -975,8 +1012,16 @@ var Mislabelled = (function () {
   };
 
   Session.prototype.correct = function (t, label) {
+    var before = this.labels[t];
+    if (before >= 0) {
+      // re-filing a payment already checked: forget the old lesson, keep one check
+      this.model.learn(t, before, -1);
+      this.order.splice(this.order.indexOf(t), 1);
+    } else {
+      this.checks += 1;
+    }
     this.labels[t] = label;
-    this.checks += 1;
+    this.order.push(t);
     this.model.learn(t, label);
   };
 
@@ -1182,6 +1227,83 @@ var Mislabelled = (function () {
     });
   }
 
+  /* ---------- explanations and robustness ---------- */
+
+  var BANDS = [[0, 0.5, 'Under 50% sure'], [0.5, 0.8, '50 to 80% sure'], [0.8, 0.95, '80 to 95% sure'], [0.95, 2, '95% sure or more']];
+
+  // How often the app is right at each level of confidence, and how much misfiled money it was sure about.
+  // Only payments the person has not checked are included.
+  function confidenceBands(session) {
+    var tx = session.statement.tx, model = session.model;
+    var out = BANDS.map(function (b) { return { lo: b[0], hi: b[1], label: b[2], n: 0, right: 0, totalP: 0, wrongP: 0 }; });
+    var wrongP = 0, sureWrongP = 0;
+    for (var t = 0; t < tx.length; t++) {
+      if (session.labels[t] >= 0) continue;
+      var c = model.conf[t];
+      var b = 0;
+      while (b < out.length - 1 && c >= out[b].hi) b++;
+      var band = out[b];
+      band.n += 1;
+      band.totalP += tx[t].pennies;
+      if (model.pred[t] === tx[t].cat) band.right += 1;
+      else {
+        band.wrongP += tx[t].pennies;
+        wrongP += tx[t].pennies;
+        if (c >= 0.8) sureWrongP += tx[t].pennies;
+      }
+    }
+    return { bands: out, wrongP: wrongP, sureWrongP: sureWrongP, sureShare: wrongP > 0 ? sureWrongP / wrongP : 0 };
+  }
+
+  // Which strategies did best on one statement: fewest checks to the target, or if none got there,
+  // the lowest wrong pot at the end. Ties share the win.
+  function winners(results) {
+    var reached = results.filter(function (r) { return r.toTarget !== null; });
+    var ids = [];
+    if (reached.length > 0) {
+      var best = Infinity;
+      reached.forEach(function (r) { if (r.toTarget < best) best = r.toTarget; });
+      reached.forEach(function (r) { if (r.toTarget === best) ids.push(r.strategy); });
+    } else {
+      var low = Infinity;
+      results.forEach(function (r) { var v = r.points[r.points.length - 1].misPct; if (v < low) low = v; });
+      results.forEach(function (r) { if (r.points[r.points.length - 1].misPct === low) ids.push(r.strategy); });
+    }
+    return ids;
+  }
+
+  function quantile(values, q) {
+    var xs = values.slice().sort(function (a, b) { return a - b; });
+    if (xs.length === 0) return null;
+    var pos = (xs.length - 1) * q;
+    var lo = Math.floor(pos);
+    var hi = Math.min(lo + 1, xs.length - 1);
+    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo);
+  }
+
+  // Replays every strategy on several statements for the same person. Unreached runs count as checks + 1.
+  function robustness(personaId, weeks, seeds, opts) {
+    opts = opts || {};
+    var checks = opts.checks !== undefined ? opts.checks : 60;
+    var rows = STRATEGIES.map(function (s) { return { strategy: s.id, label: s.label, wins: 0, reached: 0, toTargets: [] }; });
+    seeds.forEach(function (seed) {
+      var st = generateStatement(personaId, weeks, seed);
+      var res = compareStrategies(st, { checks: checks, target: opts.target, slip: opts.slip, weight: opts.weight, seed: seed });
+      var w = winners(res);
+      res.forEach(function (r, i) {
+        if (w.indexOf(r.strategy) >= 0) rows[i].wins += 1 / w.length;
+        if (r.toTarget !== null) rows[i].reached += 1;
+        rows[i].toTargets.push(r.toTarget === null ? checks + 1 : r.toTarget);
+      });
+    });
+    rows.forEach(function (r) {
+      var med = quantile(r.toTargets, 0.5);
+      r.median = med > checks ? null : med;
+      r.runs = seeds.length;
+    });
+    return rows;
+  }
+
   return {
     DATA: DATA, CATS: CATS, STRATEGIES: STRATEGIES, MERCHANTS: MERCHANTS, PERSONAS: PERSONAS,
     mulberry32: mulberry32, fnv1a: fnv1a, seedFor: seedFor, ln: ln, exp: exp,
@@ -1189,7 +1311,8 @@ var Mislabelled = (function () {
     featurise: featurise, amountBand: amountBand, buildPopulation: buildPopulation,
     Model: Model, Session: Session, metrics: metrics, chooseNext: chooseNext,
     runCurve: runCurve, checksToTarget: checksToTarget, compareStrategies: compareStrategies,
-    answer: answer, metricsFor: metricsFor, runWeekly: runWeekly, compareWeekly: compareWeekly
+    answer: answer, metricsFor: metricsFor, runWeekly: runWeekly, compareWeekly: compareWeekly,
+    confidenceBands: confidenceBands, winners: winners, quantile: quantile, robustness: robustness
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelled;
@@ -1291,6 +1414,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     });
     sug.addEventListener('change', function (e) { suggest = e.target.value; });
     $('ask').addEventListener('click', askNext);
+    $('robust-run').addEventListener('click', runRobust);
+    $('copylink').addEventListener('click', copyLink);
+    $('savefile').addEventListener('click', saveFile);
+    $('loadfile').addEventListener('change', loadFile);
     var pw = $('perweek');
     pw.addEventListener('input', function () { $('perweek-out').textContent = pw.value; });
     pw.addEventListener('change', function () { perWeek = Number(pw.value); runWeeklyView(); });
@@ -1302,7 +1429,134 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     statement = M.generateStatement(state.persona, state.weeks, state.seed);
     newSession();
     say('');
+    clearRobust();
+    writeHash();
     scheduleCompare();
+  }
+
+  /* ---------- keep or share ---------- */
+  var LIMITS = { weeks: [4, 26], seed: [1, 99999], weight: [1, 60], target: [1, 20], checks: [10, 150], slip: [0, 30], perweek: [0, 10] };
+
+  function clampSetting(key, v, fallback) {
+    v = Math.round(Number(v));
+    if (!isFinite(v)) return fallback;
+    var lim = LIMITS[key];
+    if (key === 'checks') v = Math.round(v / 10) * 10;
+    return Math.max(lim[0], Math.min(lim[1], v));
+  }
+
+  function currentSettings() {
+    return { persona: state.persona, weeks: state.weeks, seed: state.seed, weight: state.weight, target: state.target,
+      checks: state.checks, slip: state.slip, perweek: perWeek };
+  }
+
+  // Applies settings from a link or a file. Unknown or out-of-range values fall back safely.
+  function applySettings(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    if (typeof obj.persona === 'string' && M.PERSONAS[obj.persona]) state.persona = obj.persona;
+    ['weeks', 'seed', 'weight', 'target', 'checks', 'slip'].forEach(function (k) {
+      if (obj[k] !== undefined && obj[k] !== '') state[k] = clampSetting(k, obj[k], state[k]);
+    });
+    if (obj.perweek !== undefined && obj.perweek !== '') perWeek = clampSetting('perweek', obj.perweek, perWeek);
+    syncInputs();
+  }
+
+  function syncInputs() {
+    document.querySelectorAll('input[name=persona]').forEach(function (r) { r.checked = r.value === state.persona; });
+    ['weeks', 'weight', 'target', 'checks', 'slip'].forEach(function (k) {
+      $(k).value = state[k];
+      $(k).dispatchEvent(new Event('input'));
+    });
+    $('seed').value = state.seed;
+    $('perweek').value = perWeek;
+    $('perweek-out').textContent = String(perWeek);
+  }
+
+  function readHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return;
+    var obj = {};
+    h.split('&').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i > 0) {
+        try { obj[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1)); } catch (e) { /* ignore a malformed pair */ }
+      }
+    });
+    applySettings(obj);
+  }
+
+  function hashString() {
+    var s = currentSettings();
+    return '#' + Object.keys(s).map(function (k) { return k + '=' + encodeURIComponent(s[k]); }).join('&');
+  }
+
+  function writeHash() {
+    try { history.replaceState(null, '', hashString()); } catch (e) { /* some browsers block this for local files */ }
+  }
+
+  function keepMsg(text) { $('keep-msg').textContent = text; }
+
+  function copyLink() {
+    writeHash();
+    var url = location.href.split('#')[0] + hashString();
+    function fallback() {
+      var ta = el('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      keepMsg(ok ? 'Link copied. It opens this page with the same settings.' : 'Copy this link: ' + url);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { keepMsg('Link copied. It opens this page with the same settings.'); }, fallback);
+    } else fallback();
+  }
+
+  function saveFile() {
+    var checks = [];
+    for (var t = 0; t < session.labels.length; t++) {
+      if (session.labels[t] >= 0) checks.push({ id: t, desc: statement.tx[t].desc, pot: CATS[session.labels[t]] });
+    }
+    checks.sort(function (a, b) { return session.order.indexOf(a.id) - session.order.indexOf(b.id); });
+    var data = { app: 'mislabelled', version: 1, settings: currentSettings(), checks: checks };
+    var blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+    var a = el('a', { href: URL.createObjectURL(blob), download: 'mislabelled-' + state.persona + '-' + state.seed + '.json' });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 0);
+    keepMsg('Saved the settings and ' + checks.length + ' check' + (checks.length === 1 ? '' : 's') + '.');
+  }
+
+  function loadFile(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(String(reader.result)); } catch (e) { keepMsg('That file is not valid JSON, so nothing was loaded.'); return; }
+      if (!data || data.app !== 'mislabelled' || typeof data.settings !== 'object') { keepMsg('That file was not saved by Mislabelled, so nothing was loaded.'); return; }
+      applySettings(data.settings);
+      rebuild();
+      var applied = 0, skipped = 0;
+      (Array.isArray(data.checks) ? data.checks : []).forEach(function (c) {
+        var t = c && Number(c.id);
+        var label = c ? CATS.indexOf(c.pot) : -1;
+        if (!(t >= 0 && t < statement.tx.length) || statement.tx[t].desc !== c.desc || label < 0 || session.labels[t] >= 0) { skipped += 1; return; }
+        session.correct(t, label);
+        applied += 1;
+      });
+      renderDayOne();
+      renderTable();
+      keepMsg('Loaded the settings and ' + applied + ' check' + (applied === 1 ? '' : 's') + (skipped ? '; skipped ' + skipped + ' that did not match this statement.' : '.'));
+    };
+    reader.onerror = function () { keepMsg('The file could not be read.'); };
+    reader.readAsText(file);
+    ev.target.value = '';
   }
 
   function newSession() {
@@ -1433,6 +1687,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       li.appendChild(document.createTextNode(' filed as ' + CATS[g.app] + ', really ' + CATS[g.real] + '.'));
       ul.appendChild(li);
     });
+    renderConfidence();
+  }
+
+  function renderConfidence() {
+    var cb = M.confidenceBands(session);
+    var body = $('conf-rows');
+    body.textContent = '';
+    cb.bands.forEach(function (b) {
+      var tr = el('tr');
+      tr.appendChild(el('td', null, b.label));
+      tr.appendChild(el('td', null, String(b.n)));
+      var td = el('td');
+      if (b.n > 0) {
+        var share = b.right / b.n;
+        var bar = el('span', { class: 'hbar', 'aria-hidden': 'true' });
+        var fill = el('b');
+        fill.style.width = Math.round(share * 100) + '%';
+        bar.appendChild(fill);
+        td.appendChild(bar);
+        td.appendChild(document.createTextNode(pct(share * 100, 0)));
+      } else td.textContent = '\u2013';
+      tr.appendChild(td);
+      tr.appendChild(el('td', null, money0(b.wrongP)));
+      body.appendChild(tr);
+    });
+    var sub = $('conf-sub');
+    if (cb.wrongP === 0) sub.textContent = 'Every payment you have not checked is filed correctly, whatever the app\u2019s confidence.';
+    else sub.textContent = 'Of the ' + money0(cb.wrongP) + ' in misfiled payments you have not checked, ' + money0(cb.sureWrongP) + ' (' + pct(cb.sureShare * 100, 0) + ') was filed with at least 80% confidence. Those are the mistakes an app that only asks when it is unsure will never raise: usually your own conventions, not unfamiliar shops.';
   }
 
   /* ---------- the statement table ---------- */
@@ -1572,6 +1854,75 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     });
   }
 
+
+  /* ---------- robustness ---------- */
+  var robustJob = 0;
+  function clearRobust() {
+    robustJob += 1;
+    $('robust-out').hidden = true;
+    $('robust-progress').textContent = '';
+    $('robust-progress').className = 'status';
+    $('robust-run').disabled = false;
+  }
+
+  function runRobust() {
+    var job = ++robustJob;
+    var seeds = [];
+    for (var i = 1; i <= 20; i++) seeds.push(((state.seed - 1 + i) % 99999) + 1);
+    var rows = M.STRATEGIES.map(function (s) { return { strategy: s.id, label: s.label, wins: 0, reached: 0, toTargets: [] }; });
+    var done = 0;
+    var btn = $('robust-run');
+    btn.disabled = true;
+    $('robust-out').hidden = true;
+    var prog = $('robust-progress');
+    prog.className = 'status show';
+    function step() {
+      if (job !== robustJob) return;
+      var part = M.robustness(state.persona, state.weeks, [seeds[done]], { checks: state.checks, target: state.target, slip: state.slip / 100, weight: state.weight });
+      part.forEach(function (p, j) { rows[j].wins += p.wins; rows[j].reached += p.reached; rows[j].toTargets.push(p.toTargets[0]); });
+      done += 1;
+      prog.textContent = 'Replayed ' + done + ' of ' + seeds.length + ' statements\u2026';
+      if (done < seeds.length) { setTimeout(step, 0); return; }
+      rows.forEach(function (r) {
+        var med = M.quantile(r.toTargets, 0.5);
+        r.median = med > state.checks ? null : med;
+      });
+      btn.disabled = false;
+      prog.textContent = 'Replayed statements ' + seeds[0] + ' to ' + seeds[seeds.length - 1] + ' for ' + firstName() + '.';
+      renderRobust(rows, seeds.length);
+    }
+    setTimeout(step, 0);
+  }
+
+  function fmtWins(w) { return (Math.round(w * 10) / 10).toString().replace(/\.0$/, ''); }
+
+  function renderRobust(rows, runs) {
+    var body = $('robust-rows');
+    body.textContent = '';
+    var top = rows.slice().sort(function (a, b) { return b.wins - a.wins; })[0];
+    rows.forEach(function (r, i) {
+      var tr = el('tr');
+      var th = el('td');
+      var sw = lineSwatch(i, 22);
+      sw.style.marginRight = '6px';
+      sw.style.verticalAlign = 'middle';
+      th.appendChild(sw);
+      th.appendChild(document.createTextNode(r.label));
+      if (r === top) th.style.fontWeight = '700';
+      tr.appendChild(th);
+      tr.appendChild(el('td', null, fmtWins(r.wins) + ' of ' + runs));
+      tr.appendChild(el('td', null, r.median === null ? 'Not reached' : fmtWins(r.median)));
+      tr.appendChild(el('td', null, r.reached + ' of ' + runs));
+      body.appendChild(tr);
+    });
+    var mine = compare ? M.winners(compare) : [];
+    var mineLabels = M.STRATEGIES.filter(function (s) { return mine.indexOf(s.id) >= 0; }).map(function (s) { return s.label.toLowerCase(); });
+    var text = 'Across ' + runs + ' more statements, ' + top.label.toLowerCase() + ' was fastest most often (' + fmtWins(top.wins) + ' of ' + runs + ').';
+    if (mineLabels.length) text += mine.indexOf(top.strategy) >= 0 ? ' That matches the statement above.' : ' On the statement above the winner was ' + mineLabels.join(' and ') + ', so that result was partly luck.';
+    if (rows.some(function (r) { return Math.abs(r.wins - Math.round(r.wins)) > 1e-9; })) text += ' Fractions mean a tie was shared.';
+    $('robust-insight').textContent = text;
+    $('robust-out').hidden = false;
+  }
 
   /* ---------- living with it ---------- */
   function runWeeklyView() {
@@ -1797,6 +2148,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
   buildPersonas();
   bindSettings();
   bindChart();
+  readHash();
   rebuild();
 })();
 </script>
