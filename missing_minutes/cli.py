@@ -6,7 +6,7 @@ import json
 import sys
 
 from . import model
-from .report import comparison_text, options_text, robust_text
+from .report import comparison_text, html_report, options_text, robust_text
 
 SWEEP_PARAMS = {
     "saving": ("ai", "saving"),
@@ -61,6 +61,11 @@ def _parse_values(text):
     return [float(x) for x in text.split(",") if x.strip()]
 
 
+def _r(x, places):
+    """Round to a float so every CSV value has the same shape."""
+    return round(float(x), places)
+
+
 def cmd_run(args):
     cfg = _load(args)
     r = model.compare(cfg, args.seed)
@@ -84,7 +89,8 @@ def cmd_rank(args):
             w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             w.writeheader()
             for row in rows:
-                w.writerow({k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()})
+                w.writerow({k: (_r(v, 4) if isinstance(v, (int, float)) and not isinstance(v, bool) and k not in ("step",) else v)
+                            for k, v in row.items()})
         print("Wrote %d options to %s" % (len(rows), args.out))
 
 
@@ -105,19 +111,20 @@ def cmd_sweep(args):
         r = model.compare(c, args.seed)
         rows.append({
             args.param: v,
-            "pilot_claim_min": round(r["pilotClaim"], 3),
-            "saved_if_all_use_min": round(-r["parts"][0]["value"], 3),
-            "lead_without_ai_days": round(r["base"]["leadMean"] / model.DAY, 4),
-            "lead_with_ai_days": round(r["ai"]["leadMean"] / model.DAY, 4),
-            "change_min": round(r["total"], 3),
-            "leverage": round(r["leverage"], 4),
-            "p85_with_ai_days": round(r["ai"]["leadP85"] / model.DAY, 4),
-            "within_target_with_ai": round(r["ai"]["withinSla"], 4),
-            "fte_freed": round(r["fteFreed"], 3),
-            "sent_back_per_100": round(r["ai"]["aiSendBacksPer100"] + r["ai"]["baseSendBacksPer100"], 3),
-            "errors_reaching_customers_per_100": round(r["ai"]["escapedPer100"], 3),
+            "pilot_claim_min": _r(r["pilotClaim"], 3),
+            "saved_if_all_use_min": _r(-r["parts"][0]["value"], 3),
+            "lead_without_ai_days": _r(r["base"]["leadMean"] / model.DAY, 4),
+            "lead_with_ai_days": _r(r["ai"]["leadMean"] / model.DAY, 4),
+            "change_min": _r(r["total"], 3),
+            "leverage": _r(r["leverage"], 4),
+            "p85_with_ai_days": _r(r["ai"]["leadP85"] / model.DAY, 4),
+            "within_target_with_ai": _r(r["ai"]["withinSla"], 4),
+            "fte_freed": _r(r["fteFreed"], 3),
+            "sent_back_per_100": _r(r["ai"]["aiSendBacksPer100"] + r["ai"]["baseSendBacksPer100"], 3),
+            "errors_reaching_customers_per_100": _r(r["ai"]["escapedPer100"], 3),
             "busiest_step_with_ai": c["steps"][r["bottleneckAfter"]]["name"] if r["bottleneckAfter"] >= 0 else "",
             "all_cases_finished": r["complete"],
+            "no_queue_keeps_growing": r["stable"],
         })
     out = open(args.out, "w", newline="", encoding="utf-8") if args.out else sys.stdout
     try:
@@ -136,6 +143,20 @@ def cmd_robust(args):
     seeds = model.robustness(cfg, args.seed, args.runs)
     sens = model.sensitivity(cfg, args.seed)
     print(robust_text(r, seeds, sens))
+
+
+def cmd_report(args):
+    cfg = _load(args)
+    r = model.compare(cfg, args.seed)
+    bank = model.bank_savings(cfg, args.seed, r)
+    options = model.placements(cfg, args.seed, r["base"])
+    seeds = sens = None
+    if not args.skip_robustness:
+        seeds = model.robustness(cfg, args.seed, args.runs)
+        sens = model.sensitivity(cfg, args.seed)
+    with open(args.out, "w", encoding="utf-8") as f:
+        f.write(html_report(r, bank, options, seeds, sens))
+    print("Wrote " + args.out)
 
 
 def cmd_export(args):
@@ -176,6 +197,13 @@ def build_parser():
     _add_source(b)
     b.add_argument("--runs", type=int, default=10, help="number of seeds to try (default: 10, as in the app)")
     b.set_defaults(func=cmd_robust)
+
+    h = sub.add_parser("report", help="write a self-contained HTML report to share")
+    _add_source(h)
+    h.add_argument("--out", default="missing-minutes-report.html", help="file to write (default: missing-minutes-report.html)")
+    h.add_argument("--runs", type=int, default=10, help="seeds for the robustness check (default: 10)")
+    h.add_argument("--skip-robustness", action="store_true", help="leave out the robustness check and the tornado (faster)")
+    h.set_defaults(func=cmd_report)
 
     e = sub.add_parser("export", help="write an example process as JSON to edit and load with --config")
     e.add_argument("--preset", default="claims", choices=sorted(model.PRESETS))

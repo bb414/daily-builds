@@ -68,6 +68,7 @@ details.steps-edit summary { cursor: pointer; font-weight: 600; }
 .verdict { margin: 14px 0 0; font-size: 15.5px; }
 .chart { width: 100%; overflow: hidden; }
 .chart svg { display: block; width: 100%; height: auto; }
+.chart svg.fixed { width: auto; max-width: 100%; }
 .chart text { fill: var(--ink); font-size: 12px; }
 .chart .ax { stroke: var(--line); }
 .chart .lbl { fill: var(--muted); }
@@ -112,22 +113,42 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 .sc-wait.after { background: var(--accent-soft); }
 .sc-val { grid-column: 2; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .sc-row { grid-template-columns: minmax(0, 1fr); } }
-.side { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .side { grid-template-columns: minmax(0, 1fr); } }
 .stat .v.small { font-size: 20px; }
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.tools .status { flex-basis: 100%; text-align: right; }
+.tools .status { flex-basis: 100%; text-align: right; min-height: 0; }
+.tools .status:empty { display: none; }
+@media (max-width: 980px) { .tools .status { text-align: left; } }
 .wf-row.opt { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .wf-row.opt:last-child { border-bottom: 0; }
 .field.inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .field.inline label { margin: 0; }
 .field.inline select { width: auto; min-width: 72px; }
 .bank-result.bad strong { color: var(--cost); }
-.robust { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin: 8px 0 0; min-height: 26px; }
+.robust { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin: 10px 0 0; min-height: 38px; padding-top: 10px; border-top: 1px solid var(--line); }
+.robust .robust-text { flex: 1 1 320px; }
 .robust .strip { flex: none; }
+.legend span.hollow::before { background: transparent; border: 2px solid var(--c); width: 7px; height: 7px; }
+.errors.warn { margin-bottom: 12px; }
+.about summary { cursor: pointer; list-style: none; }
+.about summary::-webkit-details-marker { display: none; }
+.about summary h2 { display: inline; }
+.about summary::before { content: "\25B8"; display: inline-block; margin-right: 8px; color: var(--muted); transition: transform .15s; }
+.about details[open] summary::before { transform: rotate(90deg); }
+.about ul { margin: 12px 0 0; padding-left: 20px; }
+.about li { margin: 6px 0; }
+.jump { display: none; }
+@media (max-width: 980px) { .jump { display: inline-block; margin: 0 0 12px; } }
+@media (max-width: 560px) {
+  .stat { padding: 10px 12px; }
+  .stat .v { font-size: 22px; }
+  .panel { padding: 14px; }
+}
 .wf-bar.range { background: var(--soft); border: 1px solid var(--line); }
 .tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; border-radius: 2px; }
-.tick.low { background: var(--muted); }
-.tick.high { background: var(--ink); }
+.tick.low { background: var(--panel); border: 2px solid var(--muted); width: 9px; margin-left: -4px; top: 3px; bottom: 3px; }
+.tick.high { background: var(--ink); width: 9px; margin-left: -4px; top: 3px; bottom: 3px; }
 .tick.base { background: var(--accent); width: 2px; top: -3px; bottom: -3px; }
 .hs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .hs { margin: 0; }
@@ -154,6 +175,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   <div class="layout">
     <aside aria-label="Settings">
+      <a class="jump btn small" href="#results">Skip to the results</a>
       <section class="panel" aria-labelledby="h-process">
         <h2 id="h-process">The process</h2>
         <p class="sub" id="blurb"></p>
@@ -213,9 +235,10 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       </section>
     </aside>
 
-    <main id="results" aria-live="polite">
+    <main id="results" tabindex="-1">
     </main>
   </div>
+  <p class="sr-only" aria-live="polite" id="announce"></p>
   <footer>Invented processes and synthetic data. A thinking tool, not a forecast. Runs entirely in your browser.</footer>
 </div>
 <script>
@@ -948,8 +971,10 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function pct(x, d) { return (x * 100).toFixed(d || 0) + '%'; }
-  function dur(min) { return Math.abs(min) < 0.5 ? '0 min' : M.fmtDuration(min); }
-  function signed(min) { return Math.abs(min) < 0.5 ? '0 min' : (min > 0 ? '+' : '') + M.fmtDuration(min); }
+  // Display a duration with a proper minus sign; tiny values show as 0 min.
+  function minus(t) { return t.charAt(0) === '-' ? '\u2212' + t.slice(1) : t; }
+  function dur(min) { return Math.abs(min) < 0.5 ? '0 min' : minus(M.fmtDuration(min)); }
+  function signed(min) { return Math.abs(min) < 0.5 ? '0 min' : (min > 0 ? '+' : '') + minus(M.fmtDuration(min)); }
   function parseNum(v) { return v === '' || v === null ? NaN : Number(v); }
 
   // ---------------------------------------------------------------- controls
@@ -1010,7 +1035,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
         '<label class="sr-only" for="' + p + 'name">Name of step ' + (i + 1) + '</label>' +
         '<input type="text" id="' + p + 'name" value="' + esc(s.name) + '" maxlength="40">' +
         (c.steps.length > 1 ? '<button type="button" class="btn small" data-remove="' + i + '" aria-label="Remove step ' + (i + 1) + '">Remove</button>' : '') + '</div>';
-      h += '<div class="field"><label for="' + p + 'kind">Type</label><select id="' + p + 'kind">' +
+      h += '<div class="field"><label for="' + p + 'kind">Type of step</label><select id="' + p + 'kind">' +
         ['team', 'batch', 'delay'].map(function (k) { return '<option value="' + k + '"' + (k === s.kind ? ' selected' : '') + '>' + KIND_LABEL[k] + '</option>'; }).join('') + '</select></div>';
       if (s.kind === 'team') {
         h += '<div class="row2"><div class="field"><label for="' + p + 'staff">People</label><input type="number" id="' + p + 'staff" min="1" max="60" step="1" value="' + s.staff + '"></div>' +
@@ -1249,9 +1274,10 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var W = 220, H = 26;
     function X(v) { return 8 + (v - lo) / span * (W - 16); }
     var dots = sum.runs.map(function (x) { return '<circle cx="' + X(x.total).toFixed(1) + '" cy="13" r="4" fill="' + (x.total < 0 ? 'var(--save)' : 'var(--cost)') + '" fill-opacity="0.75"/>'; }).join('');
-    var svg = '<svg class="strip" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" aria-hidden="true"><line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="2" y2="24" stroke="var(--muted)"/>' + dots + '</svg>';
+    var svg = '<svg class="strip" viewBox="0 0 ' + W + ' ' + (H + 12) + '" width="' + W + '" height="' + (H + 12) + '" aria-hidden="true"><line x1="8" x2="' + (W - 8) + '" y1="13" y2="13" stroke="var(--line)"/><line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="2" y2="24" stroke="var(--muted)"/>' + dots +
+      '<text x="' + X(0).toFixed(1) + '" y="' + (H + 10) + '" text-anchor="' + (X(0) > W - 30 ? 'end' : X(0) < 30 ? 'start' : 'middle') + '" font-size="10" fill="var(--muted)">no change</text></svg>';
     var verdictText = sum.helped === sum.n ? 'the AI made cases faster in all ' + sum.n : sum.hurt === sum.n ? 'the AI made cases slower in all ' + sum.n : 'the AI made cases faster in ' + sum.helped + ', slower in ' + sum.hurt + (sum.n - sum.helped - sum.hurt ? ' and made no real difference in ' + (sum.n - sum.helped - sum.hurt) : '');
-    el.innerHTML = svg + '<span>With ' + sum.n + ' different runs of luck, ' + verdictText + '. The change ranged from ' + signed(sum.min) + ' to ' + signed(sum.max) + ' (average ' + signed(sum.mean) + ').' + (sum.stable ? '' : ' Some runs had a queue that kept growing.') + '</span>';
+    el.innerHTML = '<span class="robust-text">With ' + sum.n + ' different runs of luck, ' + verdictText + '. The change ranged from ' + signed(sum.min) + ' to ' + signed(sum.max) + ' (average ' + signed(sum.mean) + ').' + (sum.stable ? '' : ' Some runs had a queue that kept growing.') + '</span>' + svg;
   }
 
   function renderTornado(rows, r) {
@@ -1269,7 +1295,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
         '<div class="tick low" style="left:' + x(t.low).toFixed(2) + '%"></div><div class="tick high" style="left:' + x(t.high).toFixed(2) + '%"></div><div class="tick base" style="left:' + x(r.total).toFixed(2) + '%"></div></div>' +
         '<div class="wf-val">' + dur(t.swing) + '</div></div>';
     });
-    box.innerHTML = h + '</div><div class="legend"><span style="--c:var(--muted)">Lower setting</span><span style="--c:var(--ink)">Higher setting</span><span style="--c:var(--accent)">Your setting (' + signed(r.total) + ')</span></div>';
+    box.innerHTML = h + '</div><div class="legend"><span class="hollow" style="--c:var(--muted)">Lower setting</span><span style="--c:var(--ink)">Higher setting</span><span style="--c:var(--accent)">Your setting (' + signed(r.total) + ')</span></div>';
   }
 
   function renderOptions(rows, r) {
@@ -1326,10 +1352,6 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var b = r.base.steps[k], a = r.ai.steps[k];
     var saved = -r.parts[0].value, realised = -r.total;
     var bits = [];
-    if (!r.stable) {
-      var over = r.base.overloaded.concat(r.ai.overloaded).filter(function (x, i, a) { return a.indexOf(x) === i; }).map(function (x) { return cfg.steps[x].name; });
-      return 'At least one step has more work than people' + (over.length ? ' (' + esc(over.join(', ')) + ')' : '') + ', so its queue keeps growing for as long as the work keeps arriving and the averages here depend on how long the simulation runs. Add people, lower the demand or move the AI there.';
-    }
     if (r.leverage >= 1.2) {
       bits.push('Each minute saved at the desk took ' + r.leverage.toFixed(1) + ' minutes off the end-to-end time. ' + esc(st.name) + ' was ' + pct(b.utilisation) +
         ' busy, so freeing time there shrank its queue: the wait before it fell from ' + dur(b.wait) + ' to ' + dur(a.wait) + ' a case.');
@@ -1347,35 +1369,62 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     return bits.join(' ');
   }
 
+  function overloadNote(r) {
+    var names = function (list) { return list.map(function (x) { return esc(r.config.steps[x].name); }).join(', '); };
+    var b = r.base.overloaded, a = r.ai.overloaded;
+    if (r.base.stable && r.ai.stable) return '';
+    var msg;
+    if (!r.base.stable && r.ai.stable) msg = 'Without the AI, ' + (names(b) || 'one step') + ' cannot keep up: its queue grows for as long as work keeps arriving. With the AI the process copes, so the gain is real but its size depends on how long the simulation runs.';
+    else if (r.base.stable && !r.ai.stable) msg = 'With the AI, ' + (names(a) || 'one step') + ' cannot keep up: its queue grows for as long as work keeps arriving, so the extra delay depends on how long the simulation runs.';
+    else msg = 'Even without the AI, ' + (names(b.concat(a.filter(function (x) { return b.indexOf(x) < 0; }))) || 'one step') + ' cannot keep up, so queues grow in both runs and the averages depend on how long the simulation runs. Add people or lower the demand.';
+    return '<div class="errors warn" role="note"><strong>A queue keeps growing.</strong> ' + msg + '</div>';
+  }
+
   function renderResults(r) {
     var cfg = r.config, k = cfg.ai.step;
     var html = '';
     var saved = -r.parts[0].value;
     var good = r.total < -0.5, bad = r.total > 0.5;
-    html += '<section class="panel" aria-labelledby="h-head"><h2 id="h-head" class="sr-only">Headline</h2><div class="headline">' +
+    html += '<section class="panel" aria-labelledby="h-head"><h2 id="h-head" class="sr-only">Headline</h2>' + overloadNote(r) + '<div class="headline">' +
       '<div class="stat"><div class="k">The pilot\'s promise</div><div class="v">' + dur(r.pilotClaim) + '</div><div class="d">saved on each case at ' + esc(cfg.steps[k].name) + ' (' + pct(cfg.ai.saving) + ' of ' + dur(cfg.steps[k].minutes) + ')</div></div>' +
       '<div class="stat ' + (good ? 'good' : bad ? 'bad' : '') + '"><div class="k">End to end</div><div class="v">' + (good ? dur(-r.total) + ' sooner' : bad ? dur(r.total) + ' later' : 'No change') + '</div><div class="d">average time from arrival to close: ' + dur(r.base.leadMean) + ' without the AI, ' + dur(r.ai.leadMean) + ' with it</div></div>' +
-      '<div class="stat ' + (r.leverage >= 1 ? 'good' : r.leverage < 0 ? 'bad' : '') + '"><div class="k">Minutes that reached the customer</div><div class="v">' + (saved > 0.05 ? r.leverage.toFixed(2) + '&times;' : 'n/a') + '</div><div class="d">end-to-end time saved for each minute the AI saves at the desk</div></div>' +
-      '</div><p class="verdict">' + verdict(r) + '</p><p class="robust" id="robust" role="status"></p></section>';
+      '<div class="stat ' + (r.leverage >= 1 ? 'good' : r.leverage < 0 ? 'bad' : '') + '"><div class="k">Minutes that reached the customer</div><div class="v">' + (saved > 0.05 ? minus(r.leverage.toFixed(2)) + '&times;' : 'n/a') + '</div><div class="d">end-to-end minutes saved for each minute the AI saves at the desk' + (r.stable ? '' : ' (inflated by the growing queue)') + '</div></div>' +
+      '</div><p class="verdict">' + verdict(r) + '</p><div class="robust" id="robust" role="status"></div></section>';
 
     html += '<section class="panel" aria-labelledby="h-wf"><h2 id="h-wf">Where the minutes went</h2><p class="sub">Average change per case, from the time the AI saves at the desk to the change in end-to-end time. Blue bars save time; orange bars add it.</p>' + waterfall(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-steps"><h2 id="h-steps">Step by step</h2><p class="sub">Hands-on time and waiting per case at each step, without and with the AI, and how busy each step is.</p>' + stepsChart(r) + '</section>';
 
-    html += '<section class="panel" aria-labelledby="h-opt"><h2 id="h-opt">Where else could the time come from?</h2><p class="sub">The same AI on each other step (saving the same share of hands-on time, with checking that takes the same share of the step and the same error rate), against one more person at each team step. Each line is the change in end-to-end time against the process without the AI.</p><div id="options"></div></section>';
-
-    html += '<section class="panel" aria-labelledby="h-tor"><h2 id="h-tor">What moves the answer</h2><p class="sub">The change in end-to-end time when one assumption is set lower and then higher, everything else as you set it. The widest bars matter most; the figure on the right is the gap between the two.</p><div id="tornado"></div></section>';
-
-    html += '<section class="panel" aria-labelledby="h-hs"><h2 id="h-hs">Why busy steps matter</h2><p class="sub">Queueing theory: how long a case waits at a team, as a multiple of its hands-on time, depending on how busy the team is. The curve is the standard Allen-Cunneen approximation; the dots are this simulation.</p>' + hockey(r) + '</section>';
+    html += '<section class="panel" aria-labelledby="h-hs"><h2 id="h-hs">Why busy steps matter</h2><p class="sub">How long a case waits at a team, as a multiple of its hands-on time, depending on how busy the team is. The curve is the standard queueing-theory approximation (Allen-Cunneen); the dots are this simulation. Near the right-hand end, a small cut in work makes a big cut in waiting.</p>' + hockey(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-lt"><h2 id="h-lt">How long cases take</h2><p class="sub">Working days from arrival to close for the ' + r.base.done.toLocaleString('en-GB') + ' cases that arrived in the ' + cfg.measureDays + ' measured working days.</p><div class="chart" id="hist"></div>' +
       '<div class="legend"><span style="--c:var(--before)">Without the AI</span><span style="--c:var(--accent)">With the AI</span><span style="--c:var(--cost)">Target</span></div>' + leadTable(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-side"><h2 id="h-side">Side effects</h2>' + sideEffects(r) + '</section>';
+
+    html += '<section class="panel" aria-labelledby="h-opt"><h2 id="h-opt">Where else could the time come from?</h2><p class="sub">The same AI on each other step (saving the same share of hands-on time, with checking that takes the same share of the step and the same error rate), against one more person at each team step. Each line is the change in end-to-end time against the process without the AI.</p><div id="options"></div></section>';
+
     html += '<section class="panel" aria-labelledby="h-bank"><h2 id="h-bank">Bank the saving as a headcount cut?</h2><p class="sub">Finance often takes a pilot\'s saving as fewer people. Here is what that does to the queue.</p><div id="bank"></div></section>';
+
+    html += '<section class="panel" aria-labelledby="h-tor"><h2 id="h-tor">What moves the answer</h2><p class="sub">The change in end-to-end time when one assumption is set lower and then higher, everything else as you set it. The widest bars matter most; the figure on the right is the gap between the two.</p><div id="tornado"></div></section>';
+
+    html += '<section class="panel about" aria-labelledby="h-about"><details><summary><h2 id="h-about">How the model works</h2></summary>' + about() + '</details></section>';
     $('results').innerHTML = html;
     drawHistogram(r);
+    $('announce').textContent = 'End to end, cases are ' + (good ? dur(-r.total) + ' sooner' : bad ? dur(r.total) + ' later' : 'no faster') + ' with the AI. ' + (saved > 0.05 ? minus(r.leverage.toFixed(2)) + ' minutes reach the customer for each minute saved at the desk.' : '');
   }
+
+  function about() {
+    return '<ul>' +
+      '<li><strong>Cases and steps.</strong> Cases arrive at random (a Poisson process) and pass through the steps in order. A team works cases first come, first served; a meeting or run clears waiting cases, oldest first, on set weekdays at the start of the day; a wait on someone outside the team takes time but nobody\'s effort.</li>' +
+      '<li><strong>Working time.</strong> A day is 7.5 working hours and a week five days, so nights and weekends are skipped. Hands-on times vary around their average (a lognormal spread).</li>' +
+      '<li><strong>The AI.</strong> On a share of cases it cuts the hands-on time by the set percentage and adds a fixed check. A share of the cases it touches carry an error; a later step that sends cases back catches most of them, and a caught case goes back to be fixed by hand at half the usual effort. Errors with no later check reach the customer.</li>' +
+      '<li><strong>A fair comparison.</strong> The runs with and without the AI use exactly the same cases and the same luck (common random numbers), so the difference is the AI, not chance. The first ' + DAY_WARMUP + ' days warm the queues up and are not counted.</li>' +
+      '<li><strong>Where the minutes went.</strong> Each case\'s time from arrival to close is its hands-on time plus its waiting, step by step, so the parts add up exactly to the change in end-to-end time.</li>' +
+      '<li><strong>Limits.</strong> Invented processes and synthetic numbers; no priorities, breaks, sickness or people moving between steps; demand is steady. It is a thinking tool for where a saving lands, not a forecast.</li>' +
+      '</ul>';
+  }
+  var DAY_WARMUP = M.DEFAULTS.warmupDays;
 
   function waterfall(r) {
     var rows = [], other = 0, otherAny = false;
@@ -1410,11 +1459,15 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     r.base.steps.forEach(function (s, k) {
       var a = r.ai.steps[k];
       var badges = (k === cfg.ai.step ? '<span class="badge ai">AI</span>' : '') + (k === r.bottleneckBefore ? '<span class="badge bn">Busiest without AI</span>' : '') + (k === r.bottleneckAfter && r.bottleneckAfter !== r.bottleneckBefore ? '<span class="badge bn">Busiest with AI</span>' : '');
-      var busy = s.kind === 'team' ? pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' busy' : s.kind === 'batch' ? 'sessions ' + pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' full' : 'outside the team';
+      var cs = cfg.steps[k];
+      var busy = s.kind === 'team' ? cs.staff + (cs.staff === 1 ? ' person, ' : ' people, ') + pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' busy'
+        : s.kind === 'batch' ? cs.batchDays.map(function (d) { return M.WEEKDAYS[d]; }).join(', ') + '; sessions ' + pct(s.utilisation) + ' to ' + pct(a.utilisation) + ' full'
+        : 'outside the team; ' + pct(cs.share) + ' of cases wait';
       h += '<div class="sc-row"><div class="sc-name">' + esc((k + 1) + '. ' + s.name) + badges + '<div class="sc-busy">' + busy + '</div></div><div class="sc-bars">';
       [['Without AI', s, 'before'], ['With AI', a, 'after']].forEach(function (x) {
         var d = x[1];
-        h += '<div class="sc-bar"><span class="sc-tag">' + x[0] + '</span><div class="sc-track" aria-hidden="true"><div class="sc-touch ' + x[2] + '" style="width:' + (d.touch / max * 100).toFixed(2) + '%"></div><div class="sc-wait ' + x[2] + '" style="width:' + (d.wait / max * 100).toFixed(2) + '%"></div></div><span class="sc-val">' + dur(d.touch) + ' hands-on, ' + dur(d.wait) + ' waiting</span></div>';
+        var txt = s.kind === 'delay' ? dur(d.wait) + ' waiting on average' : dur(d.touch) + ' hands-on, ' + dur(d.wait) + ' waiting';
+        h += '<div class="sc-bar"><span class="sc-tag">' + x[0] + '</span><div class="sc-track" aria-hidden="true"><div class="sc-touch ' + x[2] + '" style="width:' + (d.touch / max * 100).toFixed(2) + '%"></div><div class="sc-wait ' + x[2] + '" style="width:' + (d.wait / max * 100).toFixed(2) + '%"></div></div><span class="sc-val">' + txt + '</span></div>';
       });
       h += '</div></div>';
     });
@@ -1436,7 +1489,8 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       var st = r.config.steps[k], b = r.base.steps[k], a = r.ai.steps[k];
       function point(s) { var per = s.visits ? s.touch / s.visits : 0; return { u: s.utilisation, m: per > 0 ? (s.wait / s.visits) / per : 0, w: s.visits ? s.wait / s.visits : 0 }; }
       var pb = point(b), pa = point(a);
-      var W = 300, H = 190, m = { l: 34, r: 10, t: 10, b: 32 };
+      var avail = ($('results') && $('results').clientWidth) || 800;
+      var W = Math.max(260, Math.min(380, avail - 34)), H = 210, m = { l: 36, r: 20, t: 10, b: 34 };
       var yMax = Math.max(2, Math.ceil(Math.max(pb.m, pa.m, M.waitMultiple(st.staff, st.cv, 0.9)) * 1.25));
       var iw = W - m.l - m.r, ih = H - m.t - m.b;
       function X(u) { return m.l + u * iw; }
@@ -1452,7 +1506,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       [0, yMax / 2, yMax].forEach(function (t) { ticks += '<text class="lbl" x="' + (m.l - 5) + '" y="' + (Y(t) + 4).toFixed(1) + '" text-anchor="end">' + (+t.toFixed(1)) + '&times;</text>'; });
       var label = 'Waiting at ' + st.name + ' against how busy it is: ' + pct(pb.u) + ' busy and ' + pb.m.toFixed(2) + ' times the hands-on time without the AI, ' + pct(pa.u) + ' and ' + pa.m.toFixed(2) + ' times with it.';
       h += '<figure class="hs"><figcaption><strong>' + esc(st.name) + '</strong> (' + st.staff + ' ' + (st.staff === 1 ? 'person' : 'people') + ')</figcaption>' +
-        '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label) + '">' +
+        '<div class="chart"><svg class="fixed" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(label) + '">' +
         '<line class="ax" x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih) + '"/><line class="ax" x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + (m.t + ih) + '"/>' + ticks +
         '<text class="lbl" x="' + (m.l + iw / 2) + '" y="' + (H - 3) + '" text-anchor="middle">How busy the team is</text>' +
         '<path d="' + d + '" fill="none" stroke="var(--muted)" stroke-width="1.5"/>' +
@@ -1477,7 +1531,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var b = r.base, a = r.ai, cfg = r.config;
     var items = [
       ['Staff time freed', r.fteFreed.toFixed(2) + ' people', 'full-time equivalents across the process, after checking and rework'],
-      ['Hands-on share of the wait', pct(b.flowEfficiency, 1) + ' to ' + pct(a.flowEfficiency, 1), 'of the time from arrival to close, someone is working on the case'],
+      ['Flow efficiency', pct(b.flowEfficiency, 1) + ' to ' + pct(a.flowEfficiency, 1), 'share of the time from arrival to close that someone is working on the case'],
       ['Cases sent back', (b.aiSendBacksPer100 + b.baseSendBacksPer100).toFixed(1) + ' to ' + (a.aiSendBacksPer100 + a.baseSendBacksPer100).toFixed(1), 'per 100 cases; ' + a.aiSendBacksPer100.toFixed(1) + ' of them caused by AI errors'],
       ['AI errors that reach customers', a.escapedPer100.toFixed(1), 'per 100 cases, not caught by any later check']
     ];
@@ -1487,7 +1541,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   function drawHistogram(r) {
     var el = $('hist');
     if (!el) return;
-    var W = Math.max(280, el.clientWidth || 600), H = 220, m = { l: 40, r: 12, t: 12, b: 34 };
+    var W = Math.max(280, el.clientWidth || 600), H = 236, m = { l: 12, r: 12, t: 28, b: 34 };
     var b = r.base.leadDays, a = r.ai.leadDays;
     var maxX = Math.max(M.quantile(b, 0.99), M.quantile(a, 0.99), r.config.slaDays) * 1.05;
     var bins = 36, bw = maxX / bins;
@@ -1518,7 +1572,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       '<path d="' + path(ca) + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
       '<line x1="' + sla.toFixed(1) + '" x2="' + sla.toFixed(1) + '" y1="' + m.t + '" y2="' + (m.t + ih) + '" stroke="var(--cost)" stroke-dasharray="4 3" stroke-width="1.5"/>' +
       '<text x="' + (sla - 4).toFixed(1) + '" y="' + (m.t + 10) + '" text-anchor="end" class="lbl">Target</text>' +
-      '<text class="lbl" x="4" y="' + (m.t + 10) + '">Share</text>' +
+      '<text class="lbl" x="' + m.l + '" y="12">Share of cases in each band</text>' +
       '</svg>';
   }
 

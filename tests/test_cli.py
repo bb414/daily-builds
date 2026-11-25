@@ -81,6 +81,18 @@ class Cli(unittest.TestCase):
             out = json.loads(run("run", "--config", path, "--seed", "3", "--json"))
             self.assertEqual(out["base"]["seed"], 3)
 
+    def test_report_writes_self_contained_html(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "report.html")
+            run("report", "--preset", "loans", "--out", path, "--skip-robustness")
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+        self.assertIn("Where the minutes went", text)
+        self.assertIn("Credit committee", text)
+        self.assertNotIn("http://", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("\u2014", text)
+
     def test_bad_config_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "bad.json")
