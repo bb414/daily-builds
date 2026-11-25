@@ -132,7 +132,33 @@ def ladder_lines(L, current, weeks, markdown=False):
     return lines
 
 
-def plan_report(res, title="Assurance mix", markdown=False, ladder=None):
+def robustness_lines(rob, markdown=False):
+    """How sure the key plans are, as report lines."""
+    h2 = "## " if markdown else ""
+    sp = rob["spread"]
+    lines = [h2 + "How sure is this plan?", "",
+             "%d draws, each scaling every technique's coverage by up to %d%% either way (%d%% for independent assurers)."
+             % (rob["draws"], model.js_round(sp["internal"] * 100), model.js_round(sp["independent"] * 100)), ""]
+    rows = []
+    for label, p in (("Cheapest that meets appetite", rob["cheapest"]), ("Lowest risk within budget", rob["inBudget"]),
+                     ("Cheapest that clears %d%% of draws" % model.js_round(rob["confidence"] * 100), rob["robust"])):
+        if p is None:
+            rows.append([label, "-", "-", "-", "none found"])
+            continue
+        r = p["robustness"]
+        rows.append([label, money(p["cost"]), pct(r["pAll"]), "%s to %s" % (sc(r["low"]), sc(r["high"])),
+                     ", ".join(model.TECHNIQUES[i]["name"] for i in p["ids"]) or "(none)"])
+    lines.append(_table(["Plan", "Cost", "Draws within appetite", "Worst score, middle 80%", "Techniques"], rows, markdown,
+                        ["l", "r", "r", "l", "l"]))
+    lines.append("")
+    if rob["cheapest"] and rob["robust"] and rob["robust"]["cost"] > rob["cheapest"]["cost"]:
+        lines.append("Clearing %s of draws costs %s more than the cheapest plan." % (
+            pct(rob["confidence"]), money(rob["robust"]["cost"] - rob["cheapest"]["cost"])))
+        lines.append("")
+    return lines
+
+
+def plan_report(res, title="Assurance mix", markdown=False, ladder=None, robust=None):
     """A full report on one system's analysis."""
     inp = res["input"]
     h1, h2 = ("# ", "## ") if markdown else ("", "")
@@ -177,6 +203,8 @@ def plan_report(res, title="Assurance mix", markdown=False, ladder=None):
              for p in res["frontier"]]
     lines.append(_table(["Cost", "Worst score", "Techniques"], frows, markdown, ["r", "r", "l"]))
     lines.append("")
+    if robust is not None:
+        lines += robustness_lines(robust, markdown)
     if ladder is not None:
         lines += ladder_lines(ladder, inp["answers"]["stage"], inp["weeks"], markdown)
     unusable = [s for s in res["techniques"] if not s["available"]]

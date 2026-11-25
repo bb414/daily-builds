@@ -230,3 +230,37 @@ test('the pilot-to-scale ladder builds on each stage', function () {
   assert.strictEqual(grant.premium, 5);
   assert.deepStrictEqual(grant.extra, ['docs', 'compliance']);
 });
+
+test('the random number generator is reproducible', function () {
+  const a = M.mulberry32(2026), b = M.mulberry32(2026);
+  for (let i = 0; i < 50; i++) {
+    const x = a();
+    assert.strictEqual(x, b());
+    assert.ok(x >= 0 && x < 1);
+  }
+});
+
+test('robustness: the robust plan clears the confidence bar and costs at least the cheapest', function () {
+  for (const e of D.examples) {
+    for (const conf of [0.7, 0.9]) {
+      const r = M.robustness({ answers: e.answers }, { draws: 200, confidence: conf });
+      assert.ok(r.cheapest.robustness.pAll >= 0 && r.cheapest.robustness.pAll <= 1);
+      if (!r.robust) continue;
+      assert.ok(r.robust.robustness.pAll >= conf - 1e-9);
+      assert.ok(r.robust.meets);
+      assert.ok(r.robust.cost >= r.cheapest.cost);
+      if (r.cheapest.robustness.pAll >= conf) assert.strictEqual(r.robust.cost, r.cheapest.cost);
+      const q = r.robust.robustness;
+      assert.ok(q.low <= q.median && q.median <= q.high);
+    }
+  }
+});
+
+test('robustness of no assurance is all or nothing', function () {
+  // With no techniques the coverages do not matter, so every draw gives the same answer.
+  const p = M.planRobustnessFor({ answers: ex('shortlister').answers, legalMust: false }, []);
+  assert.strictEqual(p.pAll, 0);
+  assert.strictEqual(p.low, p.high);
+  const easy = M.planRobustnessFor({ answers: ex('policy').answers, appetite: 25, legalMust: false }, []);
+  assert.strictEqual(easy.pAll, 1);
+});

@@ -455,9 +455,8 @@ def marginal(prep, en, m):
     return out
 
 
-def analyse(raw_input):
-    """Search every combination of usable techniques and report the plans that matter."""
-    inp = normalise_input(raw_input)
+def core(inp):
+    """Score every combination once; analyse() and robustness() both build on this."""
     prep = prepare(inp)
     en = enumerate_plans(prep)
     N = en["N"]
@@ -480,6 +479,15 @@ def analyse(raw_input):
         total[m] = s
     feasible = [mask_feasible(prep, m) for m in range(N)]
     found = _search(prep, en, worst, total, feasible)
+    return {"input": inp, "prep": prep, "en": en, "worst": worst, "sum": total, "feasible": feasible, "found": found}
+
+
+def analyse(raw_input):
+    """Search every combination of usable techniques and report the plans that matter."""
+    inp = normalise_input(raw_input)
+    c = core(inp)
+    prep, en, worst, feasible, found = c["prep"], c["en"], c["worst"], c["feasible"], c["found"]
+    risk = prep["risk"]
 
     def plan(m):
         if m is None:
@@ -614,3 +622,124 @@ def ladder(raw_input):
     return {"stepwise": stepwise, "planned": planned,
             "premium": stepwise["total"] - planned["total"] if planned else None, "extra": extra,
             "scaleReachable": at_scale["cheapest"] is not None}
+
+
+# How sure is a plan? Each technique's coverage is a judgement, so each draw scales every
+# technique's coverage by a random factor: up to 25% either way for work done in-house,
+# 40% for independent assurers, whose quality is harder to judge. The same draws are used
+# for every plan, so plans are compared on equal terms.
+SPREAD = {"internal": 0.25, "independent": 0.4}
+MAX_COVERAGE = 0.95
+
+
+def _int32(x):
+    x &= 0xFFFFFFFF
+    return x - 0x100000000 if x & 0x80000000 else x
+
+
+def _imul(a, b):
+    return _int32((a * b) & 0xFFFFFFFF)
+
+
+def mulberry32(seed):
+    """The same small random number generator as the app, bit for bit."""
+    state = [_int32(seed)]
+
+    def rng():
+        a = _int32(state[0] + 0x6D2B79F5)
+        state[0] = a
+        t = _imul(a ^ ((a & 0xFFFFFFFF) >> 15), 1 | a)
+        t = _int32((t + _imul(t ^ ((t & 0xFFFFFFFF) >> 7), 61 | t)) ^ t)
+        return ((t ^ ((t & 0xFFFFFFFF) >> 14)) & 0xFFFFFFFF) / 4294967296
+    return rng
+
+
+def draw_multipliers(draws, seed):
+    rng = mulberry32(seed)
+    out = []
+    for _ in range(draws):
+        row = {}
+        for t in DATA["techniques"]:
+            spread = SPREAD["independent"] if t["independent"] else SPREAD["internal"]
+            row[t["id"]] = 1 + spread * (2 * rng() - 1)
+        out.append(row)
+    return out
+
+
+def _quantile(sorted_values, q):
+    return sorted_values[math.floor(q * (len(sorted_values) - 1))]
+
+
+def plan_robustness(prep, mults, m):
+    inp = prep["input"]
+    P = len(PRINCIPLES)
+    by_id = {s["id"]: s for s in prep["status"]}
+    chosen = [prep["ids"][i] for i in range(prep["n"]) if (m >> i) & 1]
+    covs = [[by_id[t]["coverage"][p] for p in PRINCIPLES] for t in chosen]
+    appetite = inp["appetite"] + EPS
+    all_ok = 0
+    per = [0] * P
+    worsts = []
+    for row in mults:
+        w, ok = 0, True
+        for p in range(P):
+            prod = 1
+            for k, t in enumerate(chosen):
+                prod = prod * (1 - min(MAX_COVERAGE, covs[k][p] * row[t]))
+            score = from_prob(prep["risk"][p]["prob"] * prod) * prep["risk"][p]["I"]
+            if score <= appetite:
+                per[p] += 1
+            else:
+                ok = False
+            if score > w:
+                w = score
+        if ok:
+            all_ok += 1
+        worsts.append(w)
+    worsts.sort()
+    D = len(mults)
+    return {"pAll": all_ok / D, "perPrinciple": {p: per[i] / D for i, p in enumerate(PRINCIPLES)},
+            "low": _quantile(worsts, 0.1), "median": _quantile(worsts, 0.5), "high": _quantile(worsts, 0.9)}
+
+
+def robustness(raw_input, draws=400, seed=2026, confidence=0.8, max_candidates=2000):
+    """How often each key plan stays within appetite when coverages are uncertain, and the
+    cheapest plan that does so in at least `confidence` of the draws."""
+    inp = normalise_input(raw_input)
+    c = core(inp)
+    prep, en, found = c["prep"], c["en"], c["found"]
+    mults = draw_multipliers(draws, seed)
+
+    def report(m):
+        if m is None:
+            return None
+        d = describe(prep, en, m)
+        d["robustness"] = plan_robustness(prep, mults, m)
+        return d
+
+    cost, worst, cnt = en["cost"], c["worst"], en["cnt"]
+    cand = [m for m in range(en["N"]) if c["feasible"][m] and worst[m] <= inp["appetite"] + EPS]
+    cand.sort(key=lambda m: (cost[m], worst[m], cnt[m], m))
+    robust, checked = None, 0
+    for m in cand:
+        if checked >= max_candidates:
+            break
+        if schedule(mask_ids(prep, m), inp["done"])["goLive"] > inp["weeks"]:
+            continue
+        checked += 1
+        r = plan_robustness(prep, mults, m)
+        if r["pAll"] >= confidence - EPS:
+            robust = describe(prep, en, m)
+            robust["robustness"] = r
+            break
+    return {"draws": draws, "seed": seed, "confidence": confidence, "spread": dict(SPREAD),
+            "cheapest": report(found["cheapest"]), "inBudget": report(found["inBudget"]), "robust": robust,
+            "candidatesChecked": checked, "searchCapped": robust is None and checked >= max_candidates}
+
+
+def plan_robustness_for(raw_input, ids, draws=400, seed=2026):
+    """Robustness of a hand-built plan, with the same draws."""
+    inp = normalise_input(raw_input)
+    prep = prepare(inp)
+    p = evaluate_plan(raw_input, ids)
+    return plan_robustness(prep, draw_multipliers(draws, seed), p["mask"])

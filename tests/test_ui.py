@@ -29,13 +29,15 @@ class UiTests(unittest.TestCase):
         cls.browser.close()
         cls.pw.stop()
 
-    def open(self, width=1280):
-        page = self.browser.new_page(viewport={"width": width, "height": 900})
+    def setUp(self):
         self.errors, self.requests = [], []
+
+    def open(self, width=1280, suffix=""):
+        page = self.browser.new_page(viewport={"width": width, "height": 900})
         page.on("console", lambda m: self.errors.append(m.text) if m.type in ("error", "warning") else None)
         page.on("pageerror", lambda e: self.errors.append(str(e)))
-        page.on("request", lambda r: self.requests.append(r.url) if not r.url.startswith(("file:", "data:")) else None)
-        page.goto(URL)
+        page.on("request", lambda r: self.requests.append(r.url) if not r.url.startswith(("file:", "data:", "blob:")) else None)
+        page.goto(URL + suffix)
         page.wait_for_selector("#summary .tile")
         return page
 
@@ -113,6 +115,74 @@ class UiTests(unittest.TestCase):
         self.assertNotIn("Independent bias audit", page.inner_text("#plan-table"))
         page.check("input[name='c-redteam'][value='must']", force=True)
         self.assertIn("Independent red teaming", page.inner_text("#plan-table"))
+        page.close()
+
+    def test_robustness_card(self):
+        page = self.open()
+        page.wait_for_selector("#robust .prob-row")
+        self.assertIn("59%", page.inner_text("#robust"))
+        page.click("#confidence button[data-v='0.7']")
+        page.wait_for_timeout(300)
+        page.click("#use-robust")
+        page.wait_for_timeout(300)
+        self.assertEqual(page.get_attribute("#tab-custom", "aria-selected"), "true")
+        page.close()
+
+    def test_done_option(self):
+        page = self.open()
+        page.check("input[name='c-conformity'][value='done']", force=True)
+        page.wait_for_timeout(200)
+        self.assertIn("Already done", page.inner_text("#catalogue"))
+        # documentation is a prerequisite of a done conformity assessment, so it is always included
+        self.assertIn("Independent conformity assessment", page.inner_text("#plan-table"))
+        page.close()
+
+    def test_save_open_and_share(self):
+        page = self.open()
+        page.select_option("#example", "fraud")
+        page.fill("#budget", "77")
+        page.wait_for_timeout(300)
+        with page.expect_download() as dl:
+            page.click("#save")
+        path = dl.value.path()
+        import json
+        from assurance_mix import model as M
+        saved = json.loads(open(path, encoding="utf-8").read())
+        self.assertEqual(saved["budget"], 77)
+        # the Python companion reads the same file and finds the same cheapest plan
+        cheapest = page.inner_text("#summary").split("\n")[2]
+        self.assertEqual(cheapest, "£%dk" % M.analyse(saved)["cheapest"]["cost"])
+        # open it again in a fresh page
+        page2 = self.open()
+        page2.set_input_files("#open-file", path)
+        page2.wait_for_timeout(400)
+        self.assertEqual(page2.input_value("#example"), "fraud")
+        self.assertEqual(page2.input_value("#budget"), "77")
+        self.assertIn("Opened", page2.inner_text("#file-status"))
+        # a broken file changes nothing
+        page2.set_input_files("#open-file", files=[{"name": "bad.json", "mimeType": "application/json", "buffer": b"{not json"}])
+        page2.wait_for_timeout(300)
+        self.assertIn("not valid JSON", page2.inner_text("#file-status"))
+        self.assertEqual(page2.input_value("#budget"), "77")
+        page2.close()
+        # share link round trip
+        page.click("#share")
+        url = page.input_value("#share-url")
+        self.assertIn("#settings=", url)
+        page3 = self.open(suffix="#" + url.split("#", 1)[1])
+        self.assertEqual(page3.input_value("#budget"), "77")
+        self.assertEqual(page3.input_value("#example"), "fraud")
+        page3.close()
+        page.close()
+
+    def test_bad_share_link(self):
+        page = self.open(suffix="#settings=%7Bbroken")
+        self.assertIn("could not be read", page.inner_text("#file-status"))
+        page.close()
+        odd = "%7B%22answers%22%3A%7B%22stakes%22%3A%22nope%22%7D%2C%22budget%22%3A%22x%22%7D"
+        page = self.open(suffix="#settings=" + odd)
+        self.assertIn("Unknown answer", page.inner_text("#file-status"))
+        self.assertEqual(page.input_value("#budget"), "150")
         page.close()
 
     def test_phone_width_has_no_sideways_scroll(self):

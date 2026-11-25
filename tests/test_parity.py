@@ -74,6 +74,29 @@ class ParityTests(unittest.TestCase):
             diff = first_difference(j, json.loads(json.dumps(M.ladder(inp))))
             self.assertIsNone(diff, "input %s: %s" % (json.dumps(inp), diff))
 
+    def test_random_numbers(self):
+        seeds = [0, 1, 2026, -5, 4294967295, 2 ** 31, 123456789]
+        js = run_js([{"kind": "rng", "seed": s, "n": 500} for s in seeds])
+        for s, j in zip(seeds, js):
+            r = M.mulberry32(s)
+            self.assertEqual(j, [r() for _ in range(500)], "seed %d" % s)
+
+    def test_robustness(self):
+        rng = random.Random(99)
+        inputs = [{"answers": e["answers"]} for e in M.DATA["examples"]] + [random_input(rng) for _ in range(20)]
+        opts = [{"draws": rng.choice([50, 200, 400]), "seed": rng.randint(0, 10 ** 6),
+                 "confidence": rng.choice([0.6, 0.8, 0.95])} for _ in inputs]
+        js = run_js([{"kind": "robustness", "input": i, "options": o} for i, o in zip(inputs, opts)])
+        for inp, o, j in zip(inputs, opts, js):
+            py = M.robustness(inp, draws=o["draws"], seed=o["seed"], confidence=o["confidence"])
+            diff = first_difference(j, json.loads(json.dumps(py)))
+            self.assertIsNone(diff, "input %s %s: %s" % (json.dumps(inp), o, diff))
+        jobs = [{"kind": "planRobustness", "input": random_input(rng), "ids": rng.sample(TECH_IDS, rng.randint(0, 6)),
+                 "options": {"draws": 100, "seed": 5}} for _ in range(40)]
+        for job, j in zip(jobs, run_js(jobs)):
+            py = M.plan_robustness_for(job["input"], job["ids"], draws=100, seed=5)
+            self.assertIsNone(first_difference(j, json.loads(json.dumps(py))), json.dumps(job))
+
     def test_hand_built_plans(self):
         rng = random.Random(7)
         jobs = []

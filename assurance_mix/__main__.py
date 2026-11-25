@@ -42,14 +42,18 @@ def cmd_plan(args):
     raw = _apply_overrides(raw, args)
     res = model.analyse(raw)
     lad = None if args.no_ladder else model.ladder(raw)
+    rob = None if args.draws == 0 else model.robustness(raw, draws=args.draws, seed=args.seed, confidence=args.confidence)
     if args.json:
         if lad is not None:
             res["ladder"] = lad
+        if rob is not None:
+            res["robustness"] = rob
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0
-    print(report.plan_report(res, "Assurance mix: " + name, ladder=lad))
+    title = "Assurance mix: " + name
+    print(report.plan_report(res, title, ladder=lad, robust=rob))
     if args.markdown:
-        Path(args.markdown).write_text(report.plan_report(res, "Assurance mix: " + name, markdown=True, ladder=lad),
+        Path(args.markdown).write_text(report.plan_report(res, title, markdown=True, ladder=lad, robust=rob),
                                        encoding="utf-8")
         print("Wrote %s" % args.markdown)
     return 0
@@ -102,6 +106,10 @@ def main(argv=None):
     pp.add_argument("--markdown", help="also write a Markdown report to this file")
     pp.add_argument("--json", action="store_true", help="print the full analysis as JSON")
     pp.add_argument("--no-ladder", action="store_true", help="skip the pilot-to-scale comparison")
+    pp.add_argument("--draws", type=int, default=400, help="draws for the robustness check (0 to skip; default 400)")
+    pp.add_argument("--confidence", type=float, default=0.8,
+                    help="share of draws a robust plan must stay within appetite in (default 0.8)")
+    pp.add_argument("--seed", type=int, default=2026, help="random seed for the draws (default 2026, as in the app)")
     pp.set_defaults(func=cmd_plan)
 
     pf = sub.add_parser("portfolio", help="share one budget across an inventory of systems")
