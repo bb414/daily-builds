@@ -52,17 +52,17 @@ python -m unittest discover -s tests
 
 ## Screenshots
 
-| One year up close (tight budget, never raiding savings) | The tuning map | On a phone, dark mode |
+| One year up close (tight budget, never raiding savings) | The tuning map | On a phone |
 |---|---|---|
-| ![A year where the savings pot reaches £2,565 while the current account falls to minus £3,531](docs/one-year.png) | ![The tuning map for the smart saver on a tight budget](docs/tuning-map.png) | ![The app on a phone in dark mode](docs/phone-dark.png) |
+| ![A year where the savings pot reaches £2,565 while the current account falls to minus £3,531](docs/one-year.png) | ![The tuning map for the smart saver on a tight budget](docs/tuning-map.png) | ![The app on a phone, with the verdict under the header](docs/phone-dark.png) |
 
 ## Which language does what
 
 | Part | Language | Lines | What it does |
 |---|---|---|---|
 | `app/index.html` (model) | JavaScript | 514 | The engine: synthetic years, the six rules, rescues, interest, stress test, tuning sweep, settings links |
-| `app/index.html` (interface) | JavaScript | 525 | Controls, verdict, results table, the year chart, the tuning map, saving, opening and sharing settings |
-| `app/index.html` (layout) | HTML and CSS | 219 | Light and dark themes, the phone layout, accessible markup |
+| `app/index.html` (interface) | JavaScript | 527 | Controls, verdict, results table, the year chart, the tuning map, saving, opening and sharing settings |
+| `app/index.html` (layout) | HTML and CSS | 456 | The nautical look (navy, sea teal and lifebuoy red, rope, signal flags and waves), the header illustration, two embedded typefaces, the phone layout, accessible markup |
 | `saveorsink/model.py` | Python | 619 | The same engine, line for line, so both give identical answers |
 | `saveorsink/report.py`, `__main__.py` and `__init__.py` | Python | 325 | Plain-text reports, CSV and JSON output, and the command line |
 | `tests/` | Python and JavaScript | 851 | Parity between the two engines, the model's rules, the command line, and the app in a real browser |
