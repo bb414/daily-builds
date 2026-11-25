@@ -11,9 +11,12 @@ from . import jobs_csv, model, report
 
 def _floats(text):
     try:
-        return [float(x) for x in text.split(",") if x.strip()]
+        out = [float(x) for x in text.split(",") if x.strip()]
     except ValueError:
         raise argparse.ArgumentTypeError("expected comma-separated numbers, got %r" % text)
+    if not out:
+        raise argparse.ArgumentTypeError("expected at least one number")
+    return out
 
 
 def _seeds(text):
@@ -176,6 +179,8 @@ def cmd_curves(args):
 
 
 def cmd_years(args):
+    _range_check("--wind", [args.wind], 0, 5)
+    _range_check("--solar", [args.solar], 0, 5)
     _range_check("--slack", [args.slack], 0, 5)
     _range_check("--forecast-error", [args.forecast_error], 0, 5)
     cfg = {"preset": args.preset, "seed": 1, "windScale": args.wind, "solarScale": args.solar,
@@ -232,7 +237,7 @@ def build_parser():
     r.add_argument("--slack", type=float, default=1, help="multiply every job's slack (default 1)")
     r.add_argument("--highlight", choices=[p["key"] for p in model.POLICIES if p["key"] != "now"], default="avg",
                    help="scheduler for the one-line verdict (default avg)")
-    r.add_argument("--out", help="folder to write summary.md, schedulers.csv, jobs.csv and grid_hours.csv")
+    r.add_argument("--out", help="folder to write summary.md, schedulers.csv, job_results.csv and grid_hours.csv")
     r.set_defaults(func=cmd_run)
 
     s = sub.add_parser("sweep", help="batch runs across grids, weather years and settings")

@@ -169,9 +169,12 @@ def dispatch(p, D, W, S):
         curtail = R - used
         wind_used = used * W / R if R > 0 else 0
         solar_used = used - wind_used
+        thermal = M
         if residual < 0:
             nuclear = N + residual
-        thermal = M
+        if nuclear < 0:
+            thermal = M + nuclear
+            nuclear = 0
     else:
         curtail = 0
         wind_used, solar_used = W, S
@@ -294,6 +297,9 @@ def validate_jobs(jobs):
     if not jobs:
         errors.append("Add at least one job.")
     for i, j in enumerate(jobs or []):
+        if not isinstance(j, dict):
+            errors.append("Job %d: is not a job." % (i + 1))
+            continue
         n = "Job %d%s" % (i + 1, " (%s)" % j["name"] if j.get("name") else "")
         if not _num(j.get("mw")) or j["mw"] <= 0 or j["mw"] > 1000:
             errors.append(n + ": power must be above 0 and at most 1,000 MW.")
@@ -338,12 +344,14 @@ def choose_hours(values, hours, window, pausable):
     if pausable:
         idx = sorted(range(window), key=lambda k: (values[k], k))
         return sorted(idx[:hours])
-    best, best_sum = -1, 0
-    for s in range(window - hours + 1):
-        total = 0
-        for k in range(s, s + hours):
-            total += values[k]
-        if best < 0 or total < best_sum:
+    # Cheapest block of consecutive hours, using running totals so long windows stay fast.
+    pre = [0]
+    for k in range(window):
+        pre.append(pre[k] + values[k])
+    best, best_sum = 0, pre[hours]
+    for s in range(1, window - hours + 1):
+        total = pre[s + hours] - pre[s]
+        if total < best_sum:
             best, best_sum = s, total
     return list(range(best, best + hours))
 
@@ -362,9 +370,12 @@ def spare_hours(values, hours, window, pausable):
             if k not in taken:
                 out.append(k)
         return sorted(out)
+    pre = [0]
+    for k in range(window):
+        pre.append(pre[k] + (1 if values[k] <= 0 else 0))
     best, best_count = 0, 0
     for s in range(window - hours + 1):
-        count = sum(1 for k in range(s, s + hours) if values[k] <= 0)
+        count = pre[s + hours] - pre[s]
         if count > best_count:
             best, best_count = s, count
     return list(range(best, best + hours))

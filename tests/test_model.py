@@ -80,12 +80,27 @@ class ModelTests(unittest.TestCase):
         for key in model.POLICY_KEYS:
             self.assertEqual(pts[1]["policies"][key]["realSavedT"], full["policies"][key]["realSavedT"])
 
+    def test_contiguous_matches_brute_force(self):
+        r = model.mulberry32(99)
+        for _ in range(200):
+            win = 2 + int(r() * 40)
+            hours = 1 + int(r() * (win - 1))
+            vals = [int(r() * 50) for _ in range(win)]
+            sums = [sum(vals[s:s + hours]) for s in range(win - hours + 1)]
+            self.assertEqual(model.choose_hours(vals, hours, win, False)[0], sums.index(min(sums)))
+
+    def test_demand_below_must_run(self):
+        o = model.dispatch(model.PRESETS["windy"], 2, 10, 0)
+        self.assertGreaterEqual(o["nuclear"], 0)
+        self.assertAlmostEqual(o["nuclear"] + o["wind"] + o["solar"] + sum(o["thermal"]), 2, places=9)
+
     def test_validation(self):
         self.assertEqual(model.validate_jobs(model.DEFAULT_JOBS), [])
         self.assertTrue(model.validate_jobs([]))
         bad = dict(model.DEFAULT_JOBS[1], hours=10, window=5)
         self.assertIn("window", model.validate_jobs([bad])[0])
         self.assertTrue(model.validate_jobs([dict(model.DEFAULT_JOBS[1], mw=True)]))
+        self.assertEqual(len(model.validate_jobs([None, 3, model.DEFAULT_JOBS[0]])), 2)
 
 
 class JobsCsvTests(unittest.TestCase):
@@ -106,6 +121,13 @@ class JobsCsvTests(unittest.TestCase):
         with self.assertRaises(jobs_csv.JobsError):
             jobs_csv.parse_jobs(header + "\nA,2,4,1,0,18,3,yes\n")
 
+    def test_strict_numbers(self):
+        header = ",".join(jobs_csv.COLUMNS)
+        for bad in ["1_000", "0x10", "inf", "nan", " "]:
+            with self.assertRaises(jobs_csv.JobsError, msg=bad):
+                jobs_csv.parse_jobs(header + "\nA,%s,4,1,0,18,14,yes\n" % bad)
+        self.assertEqual(jobs_csv.parse_jobs(header + "\nA,1e0,4.0,1,0,18,14,yes\n")[0]["hours"], 4)
+
     def test_blank_lines_and_bom(self):
         header = ",".join(jobs_csv.COLUMNS)
         jobs = jobs_csv.parse_jobs("﻿" + header + "\nA,2,4,1,0,18,14,Yes\n,,,,,,,\n")
@@ -125,7 +147,7 @@ class CliTests(unittest.TestCase):
             code, out = self.run_cli("run", "--preset", "sunny", "--out", d)
             self.assertEqual(code, 0)
             self.assertIn("overstates its benefit", out)
-            for f in ["summary.md", "schedulers.csv", "jobs.csv", "grid_hours.csv"]:
+            for f in ["summary.md", "schedulers.csv", "job_results.csv", "grid_hours.csv"]:
                 self.assertTrue(os.path.exists(os.path.join(d, f)), f)
             with open(os.path.join(d, "grid_hours.csv")) as fh:
                 self.assertEqual(sum(1 for _ in fh), model.HOURS + 1)
@@ -166,6 +188,16 @@ class CliTests(unittest.TestCase):
         self.assertEqual(model.median([4, 1, 3, 2]), 2.5)
         self.assertEqual(model.median([]), 0)
 
+    def test_run_never_overwrites_the_jobs_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "jobs.csv")
+            self.run_cli("template", "--out", path)
+            with open(path) as fh:
+                before = fh.read()
+            self.run_cli("run", "--jobs", path, "--out", d)
+            with open(path) as fh:
+                self.assertEqual(fh.read(), before)
+
     def test_bad_input_exits_cleanly(self):
         with self.assertRaises(SystemExit):
             self.run_cli("run", "--jobs", "/no/such/file.csv")
@@ -175,6 +207,12 @@ class CliTests(unittest.TestCase):
             self.run_cli("run", "--seed", "0")
         with self.assertRaises(SystemExit):
             self.run_cli("sweep", "--presets", "mars")
+        with self.assertRaises(SystemExit):
+            self.run_cli("sweep", "--wind", ",")
+        with self.assertRaises(SystemExit):
+            self.run_cli("years", "--wind", "9")
+        with self.assertRaises(SystemExit):
+            self.run_cli("curves", "--seed", "0")
 
     def test_formatting(self):
         self.assertEqual(report.tonnes(1234.4), "+1,234 t")

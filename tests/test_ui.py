@@ -119,6 +119,33 @@ class UiTests(unittest.TestCase):
         self.assertEqual(page.locator(".job").count(), 2)
         self.assertEqual(self.problems, [])
 
+    def test_invalid_jobs_do_not_break_other_controls(self):
+        # Regression: with a job removed and another invalid, moving the week or
+        # changing the highlighted scheduler used to read jobs that no longer existed.
+        page = self.open()
+        page.click("button[data-remove='5']")
+        page.locator(".job[data-i='1'] input[data-k='window']").fill("1")
+        page.wait_for_selector("#errors.show")
+        page.fill("#week", "30")
+        page.select_option("#focus", "spare")
+        page.select_option("#runJob", "4")
+        self.assertEqual(self.problems, [])
+        self.assertIn("stale", page.get_attribute("#results", "class"))
+
+    def test_bad_settings_files_are_refused(self):
+        page = self.open()
+        cases = [
+            ("not json", "not valid JSON"),
+            ('{"app": "other"}', "not a Clean hours settings file"),
+            ('{"app": "clean-hours", "slack": 1.1}', "multiple of 0.25"),
+            ('{"app": "clean-hours", "preset": "toString"}', "unknown grid"),
+            ('{"app": "clean-hours", "jobs": [null]}', "not a job"),
+        ]
+        for text, expect in cases:
+            page.set_input_files("#loadSettings", files=[{"name": "s.json", "mimeType": "application/json", "buffer": text.encode()}])
+            page.wait_for_function("t => document.getElementById('fileMsg').innerText.includes(t)", arg=expect)
+        self.assertEqual(self.problems, [])
+
     def test_fits_a_phone_screen(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
@@ -127,7 +154,15 @@ class UiTests(unittest.TestCase):
         page = self.open()
         for sel, value in [("#windScale", "3"), ("#solarScale", "3"), ("#slack", "3"), ("#forecastError", "3")]:
             page.fill(sel, value)
-        page.wait_for_timeout(400)
+        page.wait_for_function("document.querySelector('#slackOut').textContent.startsWith('3')")
+        # The heaviest legal job: 336 hours in one block, every day, with a four-week window.
+        page.locator(".job[data-i='0'] input[data-k='window']").fill("672")
+        page.locator(".job[data-i='0'] input[data-k='hours']").fill("336")
+        start = page.evaluate("performance.now()")
+        page.wait_for_function("document.getElementById('verdict').innerText.length > 0 && !document.getElementById('errors').classList.contains('show')")
+        page.wait_for_timeout(300)
+        elapsed = page.evaluate("performance.now()") - start
+        self.assertLess(elapsed, 8000)
         self.assertEqual(page.locator("#tiles .tile").count(), 4)
         self.assertEqual(self.problems, [])
 

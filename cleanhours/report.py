@@ -133,7 +133,7 @@ def write_run(result, out_dir):
                 "reported_saved_t": JB["reported"] - J["reported"], "real_saved_t": JB["real"] - J["real"],
                 "mean_wait_h": J["delay"] / J["n"] if J["n"] else 0,
             })
-    write_csv(os.path.join(out_dir, "jobs.csv"), job_rows,
+    write_csv(os.path.join(out_dir, "job_results.csv"), job_rows,
               ["scheduler", "job", "runs", "energy_mwh", "reported_t", "real_t", "reported_saved_t", "real_saved_t", "mean_wait_h"])
 
     g = result["grid"]
@@ -148,4 +148,4 @@ def write_run(result, out_dir):
 
     with open(os.path.join(out_dir, "summary.md"), "w", encoding="utf-8") as fh:
         fh.write(markdown(result))
-    return ["summary.md", "schedulers.csv", "jobs.csv", "grid_hours.csv"]
+    return ["summary.md", "schedulers.csv", "job_results.csv", "grid_hours.csv"]

@@ -195,3 +195,54 @@ test('curves reuse the grid for settings that do not change it, and match full r
   const wind = M.curve(c, 'windScale', [0.5, 2]);
   assert.ok(wind[1].curtailShare > wind[0].curtailShare, 'more wind, more spare power');
 });
+
+test('a worst-case custom job (long, daily, in one block) still runs quickly', () => {
+  const heavy = { name: 'Heavy', mw: 5, hours: 336, everyDays: 1, firstDay: 0, releaseHour: 0, window: 672, pausable: false };
+  assert.deepEqual(M.validateJobs([heavy]), []);
+  const t0 = Date.now();
+  const r = M.run(cfg({ jobs: [heavy, Object.assign({}, heavy, { pausable: true })] }));
+  assert.ok(Date.now() - t0 < 5000, 'took ' + (Date.now() - t0) + ' ms');
+  assert.ok(r.instances > 0);
+});
+
+test('contiguous choice with running totals matches a brute-force search', () => {
+  const r = M.mulberry32(99);
+  for (let trial = 0; trial < 200; trial++) {
+    const win = 2 + Math.floor(r() * 40), hours = 1 + Math.floor(r() * (win - 1));
+    const vals = [];
+    for (let k = 0; k < win; k++) vals.push(Math.floor(r() * 50));   // whole numbers: exact sums, real ties
+    let best = 0, bestSum = Infinity;
+    for (let s = 0; s + hours <= win; s++) {
+      let sum = 0;
+      for (let k = s; k < s + hours; k++) sum += vals[k];
+      if (sum < bestSum) { best = s; bestSum = sum; }
+    }
+    assert.equal(M.chooseHours(vals, hours, win, false)[0], best);
+  }
+});
+
+test('validation survives things that are not jobs', () => {
+  const errs = M.validateJobs([null, 3, M.DEFAULT_JOBS[0]]);
+  assert.equal(errs.length, 2);
+  assert.ok(errs[0].includes('not a job'));
+});
+
+test('dispatch copes with demand below the must-run plant', () => {
+  const p = M.PRESETS.windy;
+  const o = M.dispatch(p, 2, 10, 0);
+  assert.ok(o.nuclear >= 0 && o.thermal[0] >= 0);
+  const gen = o.nuclear + o.wind + o.solar + o.thermal.reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(gen - 2) < 1e-9);
+});
+
+test('jobs CSV: round trip, quoting and strict numbers', () => {
+  const jobs = M.DEFAULT_JOBS.concat([{ name: 'Has, comma "and" quotes', mw: 0.5, hours: 2, everyDays: 3, firstDay: 1, releaseHour: 4, window: 9, pausable: false }]);
+  const text = M.formatJobsCsv(jobs);
+  assert.deepEqual(M.parseJobsCsv(text).jobs, jobs);
+  assert.deepEqual(M.parseJobsCsv(text.replace(/\n/g, '\r\n')).jobs, jobs);
+  const head = 'name,mw,hours,every_days,first_day,release_hour,window,pausable\n';
+  assert.ok(M.parseJobsCsv(head + 'A,0x10,4,1,0,18,14,yes\n').error.includes('mw'));
+  assert.ok(M.parseJobsCsv(head + 'A,2,4,1,0,18,,yes\n').error.includes('window'));
+  assert.ok(M.parseJobsCsv('name,mw\nA,2\n').error.includes('Missing column'));
+  assert.ok(M.parseJobsCsv('').error);
+});

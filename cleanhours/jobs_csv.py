@@ -2,6 +2,7 @@
 
 import csv
 import io
+import re
 
 from . import model
 
@@ -15,11 +16,13 @@ class JobsError(ValueError):
     """Raised when a jobs file cannot be read or fails validation."""
 
 
+_DECIMAL = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
+
+
 def _number(text, column, line):
-    try:
-        value = float(text)
-    except (TypeError, ValueError):
+    if not _DECIMAL.match(text or ""):
         raise JobsError("line %d: %s must be a number, not %r" % (line, column, text))
+    value = float(text)
     return int(value) if value.is_integer() and column != "mw" else value
 
 
