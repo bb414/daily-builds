@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fit to train: is your CRM ready for an AI win-probability model?</title>
+<meta name="description" content="A synthetic CRM lab: six everyday data habits and how each one makes an AI sales pilot look better than it will be live.">
+<style>
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --ink: #1b2130;
+  --muted: #5a6273;
+  --line: #e1e4ea;
+  --accent: #3f51b5;
+  --accent-ink: #ffffff;
+  --backtest: #7b4fc9;
+  --live: #d9480f;
+  --ceiling: #1c7c74;
+  --green: #2b8a3e;
+  --amber: #b26a00;
+  --red: #c92a2a;
+  --green-bg: #e6f4ea;
+  --amber-bg: #fff3d6;
+  --red-bg: #fde8e8;
+  --diff-bg: #fff1c2;
+  --shadow: 0 1px 2px rgba(20, 28, 45, 0.06), 0 2px 8px rgba(20, 28, 45, 0.05);
+  --radius: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11141b;
+    --surface: #1a1f29;
+    --surface-2: #202634;
+    --ink: #e7eaf0;
+    --muted: #a3abba;
+    --line: #2e3544;
+    --accent: #8c9eff;
+    --accent-ink: #10131a;
+    --backtest: #b197fc;
+    --live: #ff8a50;
+    --ceiling: #4fd1c5;
+    --green: #69db7c;
+    --amber: #ffc94d;
+    --red: #ff8787;
+    --green-bg: #183323;
+    --amber-bg: #3a2f12;
+    --red-bg: #3d1d1f;
+    --diff-bg: #4a3d12;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+p { margin: 0 0 0.6em; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+header.top { padding: 28px 0 18px; }
+header.top h1 { font-size: 28px; letter-spacing: -0.01em; }
+header.top .lede { color: var(--muted); max-width: 760px; margin-top: 6px; font-size: 16px; }
+.layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; padding-bottom: 40px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+aside.controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+aside h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 4px 0 10px; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+button { font: inherit; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 8px; padding: 7px 10px; font-size: 14px; }
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.defect { padding: 10px 0; border-top: 1px solid var(--line); }
+.defect .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.defect label { font-weight: 600; }
+.defect output { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); }
+.kind { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; margin-left: 6px; font-weight: 600; vertical-align: 1px; }
+.defect p { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+.world { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
+.world .field { margin-bottom: 10px; }
+.world label { font-weight: 600; display: block; }
+.seed-row { display: flex; gap: 8px; }
+input[type="number"] { font: inherit; width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); }
+main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.verdict { border-left: 5px solid var(--live); }
+.verdict h2 { font-size: 19px; margin-bottom: 6px; }
+.verdict p { color: var(--muted); margin: 0; }
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+.card .lbl { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.card .num { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin-top: 2px; }
+.card .sub { font-size: 13px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.backtest { background: var(--backtest); }
+.dot.live { background: var(--live); }
+.dot.ceiling { background: var(--ceiling); }
+section.panel h2 { font-size: 18px; margin-bottom: 4px; }
+section.panel .intro { color: var(--muted); margin-bottom: 12px; max-width: 760px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+.chart .val { fill: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart .axis { stroke: var(--line); }
+.chart .grid { stroke: var(--line); stroke-dasharray: 2 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.stat-line { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.stat-line b { color: var(--ink); }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 700; }
+.pill.green { background: var(--green-bg); color: var(--green); }
+.pill.amber { background: var(--amber-bg); color: var(--amber); }
+.pill.red { background: var(--red-bg); color: var(--red); }
+td.diff { background: var(--diff-bg); }
+.was { display: block; color: var(--muted); font-size: 12px; }
+.tag { display: inline-block; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; margin: 1px 2px 1px 0; color: var(--muted); white-space: nowrap; }
+caption { text-align: left; color: var(--muted); font-size: 13px; padding-bottom: 6px; }
+footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside.controls { position: static; max-height: none; }
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .two { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .wrap { padding: 0 12px; }
+  header.top h1 { font-size: 24px; }
+  .card .num { font-size: 24px; }
+  th, td { padding: 6px 6px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Fit to train</h1>
+    <p class="lede">Is your CRM ready to train an AI win-probability model? Turn up six everyday data habits and watch the pilot's back-test pull away from what the same model does once it goes live.</p>
+  </header>
+
+  <div class="layout">
+    <aside class="panel controls" aria-label="Settings">
+      <h2>Start from</h2>
+      <div class="presets" id="presets" role="group" aria-label="Presets"></div>
+      <h2>How the CRM is kept</h2>
+      <div id="defects"></div>
+      <div class="world">
+        <h2>The synthetic sales team</h2>
+        <div class="field">
+          <div class="row" style="display:flex;justify-content:space-between"><label for="deals">Deals over two years</label><output id="deals-out" for="deals"></output></div>
+          <input type="range" id="deals" min="1000" max="8000" step="500">
+        </div>
+        <div class="field">
+          <label for="seed">World number</label>
+          <div class="seed-row">
+            <input type="number" id="seed" min="0" step="1" inputmode="numeric">
+            <button class="btn" id="new-world" type="button">New world</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main id="results">
+      <section class="panel verdict" aria-live="polite">
+        <h2 id="verdict-title">Working it out&hellip;</h2>
+        <p id="verdict-text"></p>
+      </section>
+
+      <div class="cards" id="cards"></div>
+
+      <section class="panel">
+        <h2>What the pilot promised, and what go-live delivered</h2>
+        <p class="intro">The pilot team trains on closed deals and tests on a random quarter of them, as most pilots do. The live numbers score every deal created after go-live, three weeks in, against how it really ended. The clean ceiling is the same method on a perfectly kept CRM.</p>
+        <div class="chart" id="promise-chart"></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="dot backtest"></i>Pilot back-test</span>
+          <span><i class="dot live"></i>Live after go-live</span>
+          <span><i class="dot ceiling"></i>Clean-data ceiling</span>
+        </div>
+      </section>
+
+      <div class="two">
+        <section class="panel">
+          <h2>Are the probabilities honest?</h2>
+          <p class="intro">Live deals sorted into ten equal groups by predicted chance of winning. Dots on the diagonal mean "a 40% deal wins 40% of the time".</p>
+          <div class="chart" id="calib-chart"></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="dot live"></i>Model trained on this CRM</span>
+            <span><i class="dot ceiling"></i>Model trained on a clean CRM</span>
+          </div>
+          <p class="stat-line" id="calib-text"></p>
+        </section>
+        <section class="panel">
+          <h2>What the model learned</h2>
+          <p class="intro">How much each field multiplies the odds of winning, as learned from this CRM and from a clean one. Bars right of the line help a deal; bars left of it hurt.</p>
+          <div class="chart" id="coef-chart"></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="dot live"></i>This CRM</span>
+            <span><i class="dot ceiling"></i>Clean CRM</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>The data-quality audit</h2>
+        <p class="intro">What a CRM owner can check today, without knowing how any deal really went, next to what actually happened in this synthetic world.</p>
+        <div class="table-wrap"><table id="audit-table"></table></div>
+      </section>
+
+      <section class="panel">
+        <h2>Ten records, as entered and as they really were</h2>
+        <p class="intro">Highlighted cells differ from the truth. Every name and number is invented.</p>
+        <div class="table-wrap"><table id="records-table"></table></div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <p>Synthetic data only: every team, account, deal and number is generated in your browser from the world number. Nothing is sent anywhere. Simplified and illustrative, not a substitute for testing a real model on real data.</p>
+  </footer>
+</div>
+
+<script>
+/* MODEL START */
+var FitToTrain = (function () {
+  'use strict';
+
+  // ---- Fixed world constants -------------------------------------------
+  var GO_LIVE = 540;        // day the model goes live (month 18)
+  var END_DAY = 720;        // last day deals are created (month 24)
+  var SCORE_DAY = 21;       // deals are scored three weeks after creation
+  var N_REPS = 12;
+  var LAMBDA = 1.0;         // ridge penalty on every coefficient except the intercept
+  var TEST_SHARE = 0.25;    // the pilot's random hold-out
+  var BASE_DATE_UTC = Date.UTC(2024, 0, 1);
+
+  var SEGMENTS = ['SMB', 'Mid-market', 'Enterprise'];
+  var SOURCES = ['Inbound', 'Outbound', 'Partner', 'Event'];
+  var SEG_MEDIAN = [12000, 45000, 160000];
+  var PLACEHOLDER = [10000, 50000, 150000];
+  var STAKE_BASE = [1.6, 2.6, 3.6];
+  var MEET_BASE = [2.2, 2.8, 3.2];
+  var CHAMP_BASE = [0.30, 0.40, 0.45];
+  var COMP_BASE = [0.30, 0.40, 0.55];
+  var CYCLE_BASE = [40, 70, 110];
+  var SEG_EFF = [0.2, 0, -0.4];
+  var SRC_EFF = [0.3, -0.3, 0.4, 0];
+
+  var FIELDS = ['stakeholders', 'meetings', 'champion', 'competitor', 'discount', 'daysToFirst'];
+  var FIELD_LABELS = {
+    stakeholders: 'Stakeholders engaged',
+    meetings: 'Meetings in first 3 weeks',
+    champion: 'Champion identified',
+    competitor: 'Competitor present',
+    discount: 'Discount asked (%)',
+    daysToFirst: 'Days to first meeting'
+  };
+  var FEATURES = ['Intercept', 'Stakeholders engaged', 'Meetings in first 3 weeks', 'Champion identified',
+    'Competitor present', 'Discount asked (per 10 points)', 'Days to first meeting (per 10)',
+    'Deal size (log of amount / 10k)', 'Mid-market', 'Enterprise', 'Outbound', 'Partner', 'Event'];
+
+  var STEMS = ['Quillon', 'Marrowby', 'Tessaly', 'Brackwen', 'Ondrava', 'Velloran', 'Corvane', 'Haldmere',
+    'Pinmoor', 'Arkenby', 'Sallowin', 'Dravik', 'Elmbrae', 'Fodrin', 'Gastrell', 'Hollinby', 'Ivarre',
+    'Jastow', 'Kelmont', 'Lunwick', 'Mossgarth', 'Nellory', 'Orrinby', 'Pellisand', 'Quarrow', 'Ravensill',
+    'Stelloway', 'Tamberly', 'Ulvane', 'Varrick', 'Wendlow', 'Yarrowfen', 'Zelbury', 'Ashcombe Vale',
+    'Brindlow', 'Cadwyn', 'Dunlarrow', 'Esterby', 'Felloway', 'Grenmoor'];
+  var SUFFIXES = ['Foods', 'Logistics', 'Health', 'Analytics', 'Retail', 'Energy', 'Works', 'Systems',
+    'Studios', 'Partners', 'Supply', 'Labs'];
+
+  var DEFECTS = [
+    { key: 'blanks', label: 'Blank fields', kind: 'Missing data', max: 0.6,
+      what: 'Share of the six scoring fields left empty when a deal is entered.',
+      harm: 'Blanks are filled with the average, which blurs every signal a little, before and after go-live.',
+      fix: 'Make the scoring fields required at the stage they matter, with an explicit "unknown" option.' },
+    { key: 'retrofill', label: 'Fields edited after the outcome', kind: 'Leakage', max: 0.8,
+      what: 'Share of closed deals whose champion, stakeholder or competitor fields were updated after the deal closed (win reviews, loss reasons).',
+      harm: 'The history "knows" the outcome. The back-test rewards it, but live deals are scored before anyone knows.',
+      fix: 'Train on field values as they stood at the scoring point (field history or weekly snapshots), not on today’s values.' },
+    { key: 'zombies', label: 'Zombie deals', kind: 'Missing labels', max: 0.8,
+      what: 'Share of lost deals never closed out, left open with a close date in the past.',
+      harm: 'Those losses never reach the training set, so the model learns a world with more wins than the real one.',
+      fix: 'Auto-close deals 60 days past their close date with no activity, and keep them in training as losses.' },
+    { key: 'recreated', label: 'Re-created deals', kind: 'Wrong labels', max: 0.5,
+      what: 'Share of won deals that stalled and were re-entered as a new opportunity, with the old record closed as lost.',
+      harm: 'Each one adds a fake loss that looks exactly like a win, so strong signals look weaker and wins look rarer.',
+      fix: 'Merge re-created opportunities and give them a "duplicate" close reason that keeps them out of training.' },
+    { key: 'placeholders', label: 'Placeholder amounts', kind: 'Biased values', max: 0.8,
+      what: 'Share of deals entered with a round placeholder amount, corrected only if the deal is won.',
+      harm: 'In the history, round amounts mostly mean "lost"; live, winners carry them too. The pipeline value is wrong as well.',
+      fix: 'Require a sized amount by the proposal stage and flag round numbers in pipeline reviews.' },
+    { key: 'loggingShift', label: 'Meetings logged by hand', kind: 'Drift', max: 0.7,
+      what: 'Share of meetings that hand logging missed before calendar sync switched on at go-live.',
+      harm: 'After go-live every meeting is logged, so live deals look busier than any deal in the history.',
+      fix: 'Backfill historical meetings from calendars, or retrain once calendar sync has run for a quarter.' }
+  ];
+
+  var PRESETS = {
+    clean: { label: 'Spotless', blanks: 0, retrofill: 0, zombies: 0, recreated: 0, placeholders: 0, loggingShift: 0 },
+    tidy: { label: 'Tidy team', blanks: 0.1, retrofill: 0.05, zombies: 0.05, recreated: 0.03, placeholders: 0.1, loggingShift: 0.1 },
+    typical: { label: 'Typical CRM', blanks: 0.3, retrofill: 0.35, zombies: 0.35, recreated: 0.15, placeholders: 0.35, loggingShift: 0.35 },
+    chaos: { label: 'Quarter-end chaos', blanks: 0.5, retrofill: 0.65, zombies: 0.65, recreated: 0.35, placeholders: 0.65, loggingShift: 0.55 }
+  };
+
+  var DEFAULTS = { seed: 2026, deals: 4000, blanks: 0.3, retrofill: 0.35, zombies: 0.35, recreated: 0.15, placeholders: 0.35, loggingShift: 0.35 };
+
+  // ---- Deterministic random numbers (identical in the Python version) ---
+  function mulberry32(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function mix(a, b) {
+    var h = Math.imul((a ^ 0x9E3779B9) | 0, 0x85EBCA6B | 0) ^ (b | 0);
+    h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35 | 0);
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+
+  function normal(r) {
+    var s = 0;
+    for (var i = 0; i < 12; i++) s += r();
+    return s - 6;
+  }
+
+  function sigmoid(z) {
+    if (z >= 0) return 1 / (1 + Math.exp(-z));
+    var e = Math.exp(z);
+    return e / (1 + e);
+  }
+
+  function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+
+  // ---- Settings ----------------------------------------------------------
+  function normaliseSettings(input) {
+    var s = {};
+    var src = input || {};
+    var seed = Number(src.seed);
+    s.seed = Number.isFinite(seed) ? (Math.floor(Math.abs(seed)) % 4294967296) : DEFAULTS.seed;
+    var deals = Number(src.deals);
+    s.deals = Number.isFinite(deals) ? clamp(Math.round(deals), 1000, 8000) : DEFAULTS.deals;
+    for (var i = 0; i < DEFECTS.length; i++) {
+      var d = DEFECTS[i];
+      var v = Number(src[d.key]);
+      s[d.key] = Number.isFinite(v) ? clamp(v, 0, d.max) : DEFAULTS[d.key];
+    }
+    return s;
+  }
+
+  function accountName(k) {
+    var base = STEMS[k % STEMS.length] + ' ' + SUFFIXES[Math.floor(k / STEMS.length) % SUFFIXES.length];
+    return k % 3 === 0 ? base + ' Ltd' : base;
+  }
+
+  function twinName(name, u) {
+    if (u < 0.25) return name;
+    if (u < 0.5) return name.toUpperCase();
+    if (u < 0.75) return name.slice(-4) === ' Ltd' ? name.slice(0, -4) + ' Limited' : name + ' Ltd';
+    return name + ' - new';
+  }
+
+  function normName(name) {
+    var n = name.toLowerCase();
+    if (n.slice(-6) === ' - new') n = n.slice(0, -6);
+    if (n.slice(-8) === ' limited') n = n.slice(0, -8);
+    if (n.slice(-4) === ' ltd') n = n.slice(0, -4);
+    return n.replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // ---- The true world ---------------------------------------------------
+  function generateWorld(settings) {
+    var s = normaliseSettings(settings);
+    var N = s.deals;
+    var w = mulberry32(mix(s.seed, 1));
+    var repSkill = [];
+    for (var r = 0; r < N_REPS; r++) repSkill.push(0.35 * normal(w));
+    var nAccounts = Math.min(STEMS.length * SUFFIXES.length, Math.max(40, Math.floor(N / 4)));
+    var deals = [];
+    for (var i = 0; i < N; i++) {
+      var created = Math.floor((i + w()) * END_DAY / N);
+      var rep = Math.floor(w() * N_REPS);
+      var account = Math.floor(w() * nAccounts);
+      var u = w();
+      var seg = u < 0.5 ? 0 : (u < 0.85 ? 1 : 2);
+      var v = w();
+      var src = v < 0.35 ? 0 : (v < 0.65 ? 1 : (v < 0.85 ? 2 : 3));
+      var amount = Math.max(1000, Math.floor(SEG_MEDIAN[seg] * Math.exp(0.5 * normal(w)) / 100 + 0.5) * 100);
+      var stakeholders = clamp(Math.floor(STAKE_BASE[seg] + normal(w) + 0.5), 1, 8);
+      var meetings = clamp(Math.floor(MEET_BASE[seg] + 1.3 * normal(w) + 0.5), 0, 10);
+      var champion = w() < CHAMP_BASE[seg] + (src === 2 ? 0.1 : 0) ? 1 : 0;
+      var competitor = w() < COMP_BASE[seg] ? 1 : 0;
+      var discount = clamp(Math.floor(8 + 5 * normal(w) + 0.5), 0, 30);
+      var daysToFirst = clamp(1 + Math.floor(w() * 21) + (src === 1 ? 5 : 0), 1, 30);
+      var z = -1.0 + 0.32 * (stakeholders - 2.5) + 0.28 * (meetings - 2.7) + 1.0 * champion - 0.65 * competitor
+        - 0.04 * (discount - 8) - 0.03 * (daysToFirst - 11) + SEG_EFF[seg] + SRC_EFF[src]
+        - 0.2 * Math.log(amount / SEG_MEDIAN[seg]) + repSkill[rep];
+      var pWin = sigmoid(z);
+      var won = w() < pWin;
+      var cycle = Math.floor(CYCLE_BASE[seg] * (0.7 + 0.8 * w()) * (won ? 1 : 0.85));
+      deals.push({ id: i, created: created, close: created + cycle, rep: rep, account: account, seg: seg, src: src,
+        amount: amount, stakeholders: stakeholders, meetings: meetings, champion: champion, competitor: competitor,
+        discount: discount, daysToFirst: daysToFirst, pWin: pWin, won: won });
+    }
+    return { settings: s, deals: deals, nAccounts: nAccounts, repSkill: repSkill };
+  }
+
+  // ---- The CRM as it was recorded -----------------------------------------
+  function buildCrm(world) {
+    var s = world.settings;
+    var streams = [];
+    for (var k = 0; k < DEFECTS.length; k++) streams.push(mulberry32(mix(s.seed, 101 + k)));
+    var rB = streams[0], rR = streams[1], rZ = streams[2], rD = streams[3], rP = streams[4], rL = streams[5];
+    var history = [], twins = [], live = [];
+    for (var i = 0; i < world.deals.length; i++) {
+      var d = world.deals[i];
+      var isLive = d.created >= GO_LIVE;
+      var kept = 0;
+      for (var j = 0; j < 10; j++) {
+        var ul = rL();
+        if (j < d.meetings && ul >= s.loggingShift) kept++;
+      }
+      var placeholder = rP() < s.placeholders;
+      var rec = {
+        id: d.id, dealId: d.id, account: accountName(d.account), rep: d.rep, seg: d.seg, src: d.src,
+        created: d.created, close: d.close, status: 'open', amount: d.amount,
+        stakeholders: d.stakeholders, meetings: isLive ? d.meetings : kept, champion: d.champion,
+        competitor: d.competitor, discount: d.discount, daysToFirst: d.daysToFirst,
+        editedAfterClose: false, twin: false, zombie: false, placeholder: placeholder, live: isLive,
+        truth: d
+      };
+      for (var f = 0; f < FIELDS.length; f++) {
+        if (rB() < s.blanks) rec[FIELDS[f]] = null;
+      }
+      var uz = rZ();
+      var ud = rD(), ud2 = rD(), ud3 = rD();
+      var ur = rR();
+      if (!isLive && d.close < GO_LIVE) {
+        if (d.won) {
+          rec.status = 'won';
+        } else {
+          var pz = Math.min(1, s.zombies * (d.meetings <= 2 ? 1.4 : 0.7));
+          if (uz < pz) { rec.zombie = true; } else { rec.status = 'lost'; }
+        }
+      }
+      if (rec.status === 'won' && ud < s.recreated) {
+        var tw = {};
+        for (var key in rec) tw[key] = rec[key];
+        tw.id = 1000000 + d.id;
+        tw.account = twinName(rec.account, ud3);
+        tw.created = Math.max(0, d.created - (15 + Math.floor(ud2 * 30)));
+        tw.close = d.created;
+        tw.status = 'lost';
+        tw.twin = true;
+        tw.amount = placeholder ? PLACEHOLDER[d.seg] : d.amount;
+        twins.push(tw);
+      }
+      if ((rec.status === 'won' || rec.status === 'lost') && ur < s.retrofill) {
+        if (rec.status === 'won') {
+          rec.champion = 1;
+          rec.stakeholders = Math.max(d.stakeholders, 4);
+        } else {
+          rec.competitor = 1;
+          rec.champion = 0;
+        }
+        rec.editedAfterClose = true;
+      }
+      if (placeholder && rec.status !== 'won') rec.amount = PLACEHOLDER[d.seg];
+      if (isLive) live.push(rec); else history.push(rec);
+    }
+    return { history: history.concat(twins), live: live };
+  }
+
+  // ---- Logistic regression (ridge-penalised Newton steps) ----------------
+  function fieldMeans(recs) {
+    var means = {};
+    for (var f = 0; f < FIELDS.length; f++) {
+      var sum = 0, n = 0;
+      for (var i = 0; i < recs.length; i++) {
+        var v = recs[i][FIELDS[f]];
+        if (v !== null) { sum += v; n++; }
+      }
+      means[FIELDS[f]] = n > 0 ? sum / n : 0;
+    }
+    return means;
+  }
+
+  function featureRow(rec, means) {
+    function g(f) { return rec[f] === null ? means[f] : rec[f]; }
+    return [1, g('stakeholders'), g('meetings'), g('champion'), g('competitor'), g('discount') / 10,
+      g('daysToFirst') / 10, Math.log(rec.amount / 10000), rec.seg === 1 ? 1 : 0, rec.seg === 2 ? 1 : 0,
+      rec.src === 1 ? 1 : 0, rec.src === 2 ? 1 : 0, rec.src === 3 ? 1 : 0];
+  }
+
+  function solve(A, b) {
+    var n = b.length;
+    var M = [];
+    for (var i = 0; i < n; i++) M.push(A[i].slice().concat([b[i]]));
+    for (var c = 0; c < n; c++) {
+      var piv = c;
+      for (var r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      if (piv !== c) { var t = M[c]; M[c] = M[piv]; M[piv] = t; }
+      var dg = M[c][c];
+      for (var r2 = c + 1; r2 < n; r2++) {
+        var fct = M[r2][c] / dg;
+        if (fct !== 0) for (var k = c; k <= n; k++) M[r2][k] -= fct * M[c][k];
+      }
+    }
+    var x = new Array(n);
+    for (var i2 = n - 1; i2 >= 0; i2--) {
+      var s = M[i2][n];
+      for (var k2 = i2 + 1; k2 < n; k2++) s -= M[i2][k2] * x[k2];
+      x[i2] = s / M[i2][i2];
+    }
+    return x;
+  }
+
+  function fitLogistic(X, y) {
+    var n = X.length, p = X[0].length;
+    var beta = [];
+    for (var j0 = 0; j0 < p; j0++) beta.push(0);
+    var iterations = 0;
+    for (var it = 0; it < 50; it++) {
+      iterations = it + 1;
+      var H = [], g = [];
+      for (var a = 0; a < p; a++) { g.push(0); var row = []; for (var b2 = 0; b2 < p; b2++) row.push(0); H.push(row); }
+      for (var i = 0; i < n; i++) {
+        var x = X[i];
+        var z = 0;
+        for (var j = 0; j < p; j++) z += x[j] * beta[j];
+        var pr = sigmoid(z);
+        var wgt = pr * (1 - pr);
+        if (wgt < 1e-9) wgt = 1e-9;
+        var resid = y[i] - pr;
+        for (var j2 = 0; j2 < p; j2++) {
+          g[j2] += x[j2] * resid;
+          var wx = wgt * x[j2];
+          for (var k = j2; k < p; k++) H[j2][k] += wx * x[k];
+        }
+      }
+      for (var j3 = 0; j3 < p; j3++) for (var k3 = 0; k3 < j3; k3++) H[j3][k3] = H[k3][j3];
+      for (var j4 = 1; j4 < p; j4++) { H[j4][j4] += LAMBDA; g[j4] -= LAMBDA * beta[j4]; }
+      var step = solve(H, g);
+      var biggest = 0;
+      for (var j5 = 0; j5 < p; j5++) {
+        beta[j5] += step[j5];
+        if (Math.abs(step[j5]) > biggest) biggest = Math.abs(step[j5]);
+      }
+      if (biggest < 1e-10) break;
+    }
+    return { beta: beta, iterations: iterations };
+  }
+
+  function predict(beta, X) {
+    var out = [];
+    for (var i = 0; i < X.length; i++) {
+      var z = 0;
+      for (var j = 0; j < beta.length; j++) z += X[i][j] * beta[j];
+      out.push(sigmoid(z));
+    }
+    return out;
+  }
+
+  // ---- Metrics -------------------------------------------------------------
+  function auc(scores, labels) {
+    var n = scores.length;
+    var idx = [];
+    for (var i = 0; i < n; i++) idx.push(i);
+    idx.sort(function (a, b) { return (scores[a] - scores[b]) || (a - b); });
+    var nPos = 0, nNeg = 0, rankSum = 0;
+    var start = 0;
+    while (start < n) {
+      var end = start;
+      while (end + 1 < n && scores[idx[end + 1]] === scores[idx[start]]) end++;
+      var avgRank = (start + end) / 2 + 1;
+      for (var q = start; q <= end; q++) {
+        if (labels[idx[q]]) { nPos++; rankSum += avgRank; } else nNeg++;
+      }
+      start = end + 1;
+    }
+    if (nPos === 0 || nNeg === 0) return null;
+    return (rankSum - nPos * (nPos + 1) / 2) / (nPos * nNeg);
+  }
+
+  function evaluate(p, y, amountForecast, amountActual) {
+    var n = p.length;
+    var sumP = 0, sumY = 0, brier = 0, fc = 0, act = 0;
+    for (var i = 0; i < n; i++) {
+      sumP += p[i];
+      sumY += y[i];
+      brier += (p[i] - y[i]) * (p[i] - y[i]);
+      fc += p[i] * amountForecast[i];
+      act += y[i] * amountActual[i];
+    }
+    var order = [];
+    for (var i2 = 0; i2 < n; i2++) order.push(i2);
+    order.sort(function (a, b) { return (p[b] - p[a]) || (a - b); });
+    var top = Math.floor(0.2 * n), hit = 0;
+    for (var t = 0; t < top; t++) hit += y[order[t]];
+    var bins = [];
+    for (var bi = 0; bi < 10; bi++) bins.push({ n: 0, p: 0, y: 0 });
+    for (var r = 0; r < n; r++) {
+      var o = order[n - 1 - r];
+      var b = bins[Math.floor(r * 10 / n)];
+      b.n++; b.p += p[o]; b.y += y[o];
+    }
+    var deciles = [];
+    for (var bj = 0; bj < 10; bj++) {
+      var bb = bins[bj];
+      deciles.push({ n: bb.n, predicted: bb.n ? bb.p / bb.n : 0, actual: bb.n ? bb.y / bb.n : 0 });
+    }
+    return {
+      n: n, auc: auc(p, y), brier: n ? brier / n : null,
+      meanPredicted: n ? sumP / n : null, winRate: n ? sumY / n : null,
+      capture20: sumY > 0 ? hit / sumY : null,
+      forecast: fc, actual: act, forecastError: act > 0 ? fc / act - 1 : null,
+      deciles: deciles
+    };
+  }
+
+  function inTestSplit(seed, id) {
+    return mix(mix(seed, 7777), id) / 4294967296 < TEST_SHARE;
+  }
+
+  function labelled(rec) { return rec.status === 'won' || rec.status === 'lost'; }
+
+  // ---- Audit: what a CRM owner can see without knowing the truth ----------
+  function light(v, amber, red) { return v >= red ? 'red' : (v >= amber ? 'amber' : 'green'); }
+
+  function auditCrm(crm) {
+    var h = crm.history, n = h.length;
+    var rows = [];
+    var blankTotal = 0, blankByField = {};
+    for (var f = 0; f < FIELDS.length; f++) {
+      var c = 0;
+      for (var i = 0; i < n; i++) if (h[i][FIELDS[f]] === null) c++;
+      blankByField[FIELDS[f]] = n ? c / n : 0;
+      blankTotal += c;
+    }
+    var blankShare = n ? blankTotal / (n * FIELDS.length) : 0;
+    rows.push({ key: 'blanks', check: 'Blank scoring fields', value: blankShare, light: light(blankShare, 0.05, 0.15),
+      detail: 'of the six scoring fields are empty across ' + n + ' records' });
+
+    var closed = 0, edited = 0;
+    for (var i2 = 0; i2 < n; i2++) if (labelled(h[i2])) { closed++; if (h[i2].editedAfterClose) edited++; }
+    var editedShare = closed ? edited / closed : 0;
+    rows.push({ key: 'retrofill', check: 'Closed deals edited after closing', value: editedShare, light: light(editedShare, 0.05, 0.15),
+      detail: 'of ' + closed + ' closed deals had a scoring field changed after the close date' });
+
+    var open = 0, stale = 0;
+    for (var i3 = 0; i3 < n; i3++) if (h[i3].status === 'open') { open++; if (h[i3].close < GO_LIVE) stale++; }
+    var staleShare = (closed + stale) ? stale / (closed + stale) : 0;
+    rows.push({ key: 'zombies', check: 'Open deals past their close date', value: staleShare, light: light(staleShare, 0.05, 0.15),
+      detail: 'of deals due to close by go-live are still open (' + stale + ' of ' + open + ' open deals)' });
+
+    var groups = {};
+    for (var i4 = 0; i4 < n; i4++) {
+      var key = normName(h[i4].account);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(i4);
+    }
+    var flagged = {};
+    var nFlag = 0;
+    var keys = Object.keys(groups).sort();
+    for (var gk = 0; gk < keys.length; gk++) {
+      var g = groups[keys[gk]];
+      for (var a = 0; a < g.length; a++) {
+        for (var b = a + 1; b < g.length; b++) {
+          var ra = h[g[a]], rb = h[g[b]];
+          var big = Math.max(ra.amount, rb.amount);
+          if (Math.abs(ra.created - rb.created) <= 60 && Math.abs(ra.amount - rb.amount) <= 0.05 * big) {
+            if (!flagged[g[a]]) { flagged[g[a]] = true; nFlag++; }
+            if (!flagged[g[b]]) { flagged[g[b]] = true; nFlag++; }
+          }
+        }
+      }
+    }
+    var dupShare = n ? nFlag / n : 0;
+    rows.push({ key: 'recreated', check: 'Possible duplicate opportunities', value: dupShare, light: light(dupShare, 0.05, 0.15),
+      detail: 'of records share an account, an amount within 5% and a start within 60 days with another record' });
+
+    var round = 0;
+    for (var i5 = 0; i5 < n; i5++) if (h[i5].amount % 10000 === 0) round++;
+    var roundShare = n ? round / n : 0;
+    rows.push({ key: 'placeholders', check: 'Suspiciously round amounts', value: roundShare, light: light(roundShare, 0.05, 0.15),
+      detail: 'of amounts are exact multiples of 10,000' });
+
+    var hm = 0, hn = 0, lm = 0, ln = 0;
+    for (var i6 = 0; i6 < n; i6++) if (!h[i6].twin && h[i6].meetings !== null) { hm += h[i6].meetings; hn++; }
+    for (var i7 = 0; i7 < crm.live.length; i7++) if (crm.live[i7].meetings !== null) { lm += crm.live[i7].meetings; ln++; }
+    var drift = (hn && ln && hm > 0) ? (lm / ln) / (hm / hn) - 1 : 0;
+    rows.push({ key: 'loggingShift', check: 'Meetings per deal, after go-live vs before', value: drift, light: light(Math.abs(drift), 0.05, 0.15),
+      detail: 'change in logged meetings per deal once the model is live (invisible in the history alone)', afterGoLive: true });
+
+    var completeness = 1 - blankShare;
+    return { rows: rows, blankByField: blankByField, completeness: completeness };
+  }
+
+  // ---- What actually happened (only the simulation knows) ---------------
+  function truthCounts(crm) {
+    var h = crm.history;
+    var wins = 0, lost = 0, zombies = 0, twins = 0, retro = 0, closed = 0, plc = 0, meetTrue = 0, meetLogged = 0, nonTwin = 0;
+    for (var i = 0; i < h.length; i++) {
+      var r = h[i];
+      if (r.twin) { twins++; continue; }
+      nonTwin++;
+      if (r.placeholder) plc++;
+      if (r.truth.close < GO_LIVE) {
+        if (r.truth.won) wins++; else lost++;
+        if (r.zombie) zombies++;
+      }
+      if (labelled(r)) { closed++; if (r.editedAfterClose) retro++; }
+      if (r.meetings !== null) { meetTrue += r.truth.meetings; meetLogged += r.meetings; }
+    }
+    return {
+      historyRecords: h.length, liveDeals: crm.live.length, closedWins: wins, closedLosses: lost,
+      zombies: zombies, zombieShare: lost ? zombies / lost : 0,
+      twins: twins, twinShare: wins ? twins / wins : 0,
+      editedShare: closed ? retro / closed : 0,
+      placeholderShare: nonTwin ? plc / nonTwin : 0,
+      meetingsMissed: meetTrue ? 1 - meetLogged / meetTrue : 0
+    };
+  }
+
+  // ---- The whole experiment ---------------------------------------------
+  function runLab(input) {
+    var s = normaliseSettings(input);
+    var world = generateWorld(s);
+    var crm = buildCrm(world);
+    var h = crm.history;
+
+    // Dirty model, as the pilot team would build it: closed records, random 25% hold-out.
+    var train = [], test = [];
+    for (var i = 0; i < h.length; i++) {
+      if (!labelled(h[i])) continue;
+      if (inTestSplit(s.seed, h[i].id)) test.push(h[i]); else train.push(h[i]);
+    }
+    var means = fieldMeans(train);
+    var Xtr = train.map(function (r) { return featureRow(r, means); });
+    var ytr = train.map(function (r) { return r.status === 'won' ? 1 : 0; });
+    var dirty = fitLogistic(Xtr, ytr);
+    var pTest = predict(dirty.beta, test.map(function (r) { return featureRow(r, means); }));
+    var yTest = test.map(function (r) { return r.status === 'won' ? 1 : 0; });
+    var amtTest = test.map(function (r) { return r.amount; });
+    var backtest = evaluate(pTest, yTest, amtTest, amtTest);
+
+    // Live: the same model scores new deals three weeks in; outcomes are the truth.
+    var live = crm.live;
+    var pLive = predict(dirty.beta, live.map(function (r) { return featureRow(r, means); }));
+    var yLive = live.map(function (r) { return r.truth.won ? 1 : 0; });
+    var liveEval = evaluate(pLive, yLive, live.map(function (r) { return r.amount; }), live.map(function (r) { return r.truth.amount; }));
+
+    // Clean ceiling: the same method on a perfectly kept CRM.
+    var cleanTrain = [];
+    for (var c = 0; c < world.deals.length; c++) {
+      var d = world.deals[c];
+      if (d.created < GO_LIVE && d.close < GO_LIVE && !inTestSplit(s.seed, d.id)) cleanTrain.push(d);
+    }
+    var noMeans = fieldMeans(cleanTrain);
+    var cleanFit = fitLogistic(cleanTrain.map(function (d) { return featureRow(d, noMeans); }), cleanTrain.map(function (d) { return d.won ? 1 : 0; }));
+    var liveDeals = live.map(function (r) { return r.truth; });
+    var pClean = predict(cleanFit.beta, liveDeals.map(function (d) { return featureRow(d, noMeans); }));
+    var trueAmt = liveDeals.map(function (d) { return d.amount; });
+    var ceiling = evaluate(pClean, yLive, trueAmt, trueAmt);
+
+    return {
+      settings: s,
+      backtest: backtest,
+      live: liveEval,
+      ceiling: ceiling,
+      illusion: backtest.auc - liveEval.auc,
+      debt: ceiling.auc - liveEval.auc,
+      model: { dirty: dirty.beta, clean: cleanFit.beta, trainSize: train.length, testSize: test.length, cleanTrainSize: cleanTrain.length },
+      audit: auditCrm(crm),
+      truth: truthCounts(crm),
+      crm: crm
+    };
+  }
+
+  function dayToIso(day) {
+    return new Date(BASE_DATE_UTC + day * 86400000).toISOString().slice(0, 10);
+  }
+
+  var api = {
+    GO_LIVE: GO_LIVE, END_DAY: END_DAY, SCORE_DAY: SCORE_DAY, SEGMENTS: SEGMENTS, SOURCES: SOURCES,
+    FIELDS: FIELDS, FIELD_LABELS: FIELD_LABELS, FEATURES: FEATURES, DEFECTS: DEFECTS, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
+    mulberry32: mulberry32, mix: mix, sigmoid: sigmoid, normaliseSettings: normaliseSettings,
+    accountName: accountName, twinName: twinName, normName: normName,
+    generateWorld: generateWorld, buildCrm: buildCrm, fieldMeans: fieldMeans, featureRow: featureRow,
+    solve: solve, fitLogistic: fitLogistic, predict: predict, auc: auc, evaluate: evaluate,
+    inTestSplit: inTestSplit, auditCrm: auditCrm, truthCounts: truthCounts, runLab: runLab, dayToIso: dayToIso
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
+})();
+/* MODEL END */
+
+(function () {
+  'use strict';
+  var M = FitToTrain;
+  var state = Object.assign({}, M.DEFAULTS);
+  var timer = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function f2(x) { return x === null || x === undefined || !isFinite(x) ? 'n/a' : x.toFixed(2); }
+  function pct(x, dp) { return x === null || x === undefined || !isFinite(x) ? 'n/a' : (x * 100).toFixed(dp || 0) + '%'; }
+  function signed(x, dp) { if (x === null || !isFinite(x)) return 'n/a'; var v = x.toFixed(dp === undefined ? 2 : dp); return (x > 0 ? '+' : (x < 0 ? '−' : '')) + v.replace('-', ''); }
+  function money(x) {
+    if (!isFinite(x)) return 'n/a';
+    if (Math.abs(x) >= 1e6) return '£' + (x / 1e6).toFixed(1) + 'm';
+    return '£' + Math.round(x / 1000) + 'k';
+  }
+
+  // ---- Controls ----------------------------------------------------------
+  function buildControls() {
+    var pre = $('presets');
+    Object.keys(M.PRESETS).forEach(function (k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.dataset.preset = k;
+      b.textContent = M.PRESETS[k].label;
+      b.addEventListener('click', function () { applyPreset(k); });
+      pre.appendChild(b);
+    });
+    var box = $('defects');
+    M.DEFECTS.forEach(function (d) {
+      var div = document.createElement('div');
+      div.className = 'defect';
+      div.innerHTML = '<div class="row"><label for="d-' + d.key + '">' + esc(d.label) + '<span class="kind">' + esc(d.kind) + '</span></label>' +
+        '<output id="o-' + d.key + '" for="d-' + d.key + '"></output></div>' +
+        '<input type="range" id="d-' + d.key + '" min="0" max="' + d.max + '" step="0.05" aria-describedby="h-' + d.key + '">' +
+        '<p id="h-' + d.key + '">' + esc(d.what) + '</p>';
+      box.appendChild(div);
+      div.querySelector('input').addEventListener('input', function (e) {
+        state[d.key] = Number(e.target.value);
+        syncControls();
+        schedule();
+      });
+    });
+    $('deals').addEventListener('input', function (e) { state.deals = Number(e.target.value); syncControls(); schedule(); });
+    $('seed').addEventListener('change', function (e) {
+      var v = Number(e.target.value);
+      state.seed = isFinite(v) ? Math.floor(Math.abs(v)) % 4294967296 : M.DEFAULTS.seed;
+      syncControls();
+      schedule();
+    });
+    $('new-world').addEventListener('click', function () {
+      state.seed = (state.seed * 7919 + 104729) % 1000000;
+      syncControls();
+      schedule();
+    });
+  }
+
+  function applyPreset(k) {
+    var p = M.PRESETS[k];
+    M.DEFECTS.forEach(function (d) { state[d.key] = p[d.key]; });
+    syncControls();
+    schedule();
+  }
+
+  function activePreset() {
+    var keys = Object.keys(M.PRESETS);
+    for (var i = 0; i < keys.length; i++) {
+      var p = M.PRESETS[keys[i]], same = true;
+      M.DEFECTS.forEach(function (d) { if (Math.abs(p[d.key] - state[d.key]) > 1e-9) same = false; });
+      if (same) return keys[i];
+    }
+    return null;
+  }
+
+  function syncControls() {
+    M.DEFECTS.forEach(function (d) {
+      $('d-' + d.key).value = state[d.key];
+      $('o-' + d.key).textContent = pct(state[d.key]);
+    });
+    $('deals').value = state.deals;
+    $('deals-out').textContent = state.deals.toLocaleString('en-GB');
+    $('seed').value = state.seed;
+    var ap = activePreset();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.preset === ap ? 'true' : 'false');
+    });
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(render, 120);
+  }
+
+  // ---- Charts ------------------------------------------------------------
+  function svg(w, h, body, label) {
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(label) + '">' + body + '</svg>';
+  }
+
+  function promiseChart(r) {
+    var groups = [
+      { title: 'Ranking score (AUC)', note: '0.5 is a coin toss, 1 is perfect', key: 'auc', fmt: f2, lo: 0.5, hi: 1 },
+      { title: 'Wins found in the top 20% of scores', note: 'share of all wins among the deals scored highest', key: 'capture20', fmt: function (x) { return pct(x); }, lo: 0, hi: 1 }
+    ];
+    var series = [['backtest', 'Pilot back-test', 'var(--backtest)'], ['live', 'Live after go-live', 'var(--live)'], ['ceiling', 'Clean-data ceiling', 'var(--ceiling)']];
+    var W = 640, left = 10, right = 60, barH = 18, gap = 6, groupGap = 30, top = 4;
+    var body = '', y = top;
+    var parts = [];
+    groups.forEach(function (g) {
+      body += '<text x="' + left + '" y="' + (y + 12) + '" style="font-weight:600;fill:var(--ink)">' + esc(g.title) + '</text>';
+      body += '<text x="' + left + '" y="' + (y + 28) + '">' + esc(g.note) + '</text>';
+      y += 38;
+      var x0 = left, x1 = W - right;
+      series.forEach(function (s) {
+        var v = r[s[0]][g.key];
+        var frac = v === null ? 0 : Math.max(0, Math.min(1, (v - g.lo) / (g.hi - g.lo)));
+        body += '<rect x="' + x0 + '" y="' + y + '" width="' + (x1 - x0) + '" height="' + barH + '" rx="4" fill="var(--surface-2)" stroke="var(--line)"/>';
+        body += '<rect x="' + x0 + '" y="' + y + '" width="' + Math.max(2, frac * (x1 - x0)) + '" height="' + barH + '" rx="4" fill="' + s[2] + '"/>';
+        body += '<text class="val" x="' + (x1 + 8) + '" y="' + (y + 13) + '">' + esc(g.fmt(v)) + '</text>';
+        parts.push(s[1] + ' ' + g.title + ' ' + g.fmt(v));
+        y += barH + gap;
+      });
+      body += '<text x="' + x0 + '" y="' + (y + 10) + '">' + esc(g.fmt(g.lo)) + '</text>';
+      body += '<text x="' + x1 + '" y="' + (y + 10) + '" text-anchor="end">' + esc(g.fmt(g.hi)) + '</text>';
+      y += groupGap;
+    });
+    return svg(W, y - 10, body, parts.join('; '));
+  }
+
+  function calibChart(r) {
+    var W = 360, H = 300, l = 44, b = 40, t = 10, rr = 12;
+    var pw = W - l - rr, ph = H - t - b;
+    var maxV = 0;
+    [r.live, r.ceiling].forEach(function (e) { e.deciles.forEach(function (d) { maxV = Math.max(maxV, d.predicted, d.actual); }); });
+    var top = Math.min(1, Math.ceil((maxV + 0.05) * 10) / 10);
+    function X(v) { return l + v / top * pw; }
+    function Y(v) { return t + ph - v / top * ph; }
+    var body = '';
+    for (var g = 0; g <= top + 1e-9; g += 0.2) {
+      body += '<line class="grid" x1="' + l + '" x2="' + (l + pw) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/>';
+      body += '<text x="' + (l - 6) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + Math.round(g * 100) + '%</text>';
+      body += '<text x="' + X(g) + '" y="' + (t + ph + 16) + '" text-anchor="middle">' + Math.round(g * 100) + '%</text>';
+    }
+    body += '<line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(top) + '" y2="' + Y(top) + '" stroke="var(--muted)" stroke-dasharray="4 4"/>';
+    body += '<text x="' + (l + pw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Predicted chance of winning</text>';
+    body += '<text transform="translate(12 ' + (t + ph / 2) + ') rotate(-90)" text-anchor="middle">Actually won</text>';
+    [[r.ceiling, 'var(--ceiling)'], [r.live, 'var(--live)']].forEach(function (pair) {
+      var pts = pair[0].deciles.filter(function (d) { return d.n > 0; });
+      body += '<polyline fill="none" stroke="' + pair[1] + '" stroke-width="1.5" opacity="0.6" points="' + pts.map(function (d) { return X(d.predicted) + ',' + Y(d.actual); }).join(' ') + '"/>';
+      pts.forEach(function (d) { body += '<circle cx="' + X(d.predicted) + '" cy="' + Y(d.actual) + '" r="4.5" fill="' + pair[1] + '"/>'; });
+    });
+    return svg(W, H, body, 'Calibration of live predictions: this CRM predicts ' + pct(r.live.meanPredicted) + ' on average against ' + pct(r.live.winRate) + ' actually won; the clean model predicts ' + pct(r.ceiling.meanPredicted) + '.');
+  }
+
+  var COEF_ROWS = [[3, 'Champion identified'], [4, 'Competitor present'], [1, 'Each extra stakeholder'], [2, 'Each extra meeting'], [5, 'Each 10 points of discount'], [7, 'Doubling the amount']];
+  function coefChart(r) {
+    var W = 360, rowH = 40, l = 150, rr = 46, t = 8;
+    var H = t + COEF_ROWS.length * rowH + 22;
+    var vals = [];
+    COEF_ROWS.forEach(function (c) {
+      var k = c[0] === 7 ? Math.LN2 : 1;
+      vals.push([Math.exp(r.model.dirty[c[0]] * k), Math.exp(r.model.clean[c[0]] * k)]);
+    });
+    var lo = 0.25, hi = 4;
+    vals.forEach(function (v) { v.forEach(function (x) { lo = Math.min(lo, x); hi = Math.max(hi, x); }); });
+    var L0 = Math.log(lo), L1 = Math.log(hi);
+    function X(v) { return l + (Math.log(v) - L0) / (L1 - L0) * (W - l - rr); }
+    var body = '<line x1="' + X(1) + '" x2="' + X(1) + '" y1="' + t + '" y2="' + (H - 20) + '" stroke="var(--muted)"/>';
+    [0.25, 0.5, 1, 2, 4].forEach(function (g) {
+      if (g < lo || g > hi) return;
+      body += '<text x="' + X(g) + '" y="' + (H - 4) + '" text-anchor="middle">×' + g + '</text>';
+    });
+    var parts = [];
+    COEF_ROWS.forEach(function (c, i) {
+      var y = t + i * rowH;
+      body += '<text x="0" y="' + (y + 20) + '" style="fill:var(--ink)">' + esc(c[1]) + '</text>';
+      [[vals[i][0], 'var(--live)', 6], [vals[i][1], 'var(--ceiling)', 20]].forEach(function (pair) {
+        var x = X(pair[0]), x1 = X(1);
+        body += '<rect x="' + Math.min(x, x1) + '" y="' + (y + pair[2]) + '" width="' + Math.max(1.5, Math.abs(x - x1)) + '" height="11" rx="2" fill="' + pair[1] + '"/>';
+        body += '<text class="val" x="' + (Math.max(x, x1) + 4) + '" y="' + (y + pair[2] + 10) + '" style="font-size:11px">×' + pair[0].toFixed(2) + '</text>';
+      });
+      parts.push(c[1] + ': this CRM times ' + vals[i][0].toFixed(2) + ', clean times ' + vals[i][1].toFixed(2));
+    });
+    return svg(W, H, body, 'Odds multipliers learned. ' + parts.join('; '));
+  }
+
+  // ---- Tables -------------------------------------------------------------
+  function auditTable(r) {
+    var truth = r.truth;
+    var real = {
+      blanks: pct(r.settings.blanks) + ' set',
+      retrofill: pct(truth.editedShare) + ' of closed deals',
+      zombies: pct(truth.zombieShare) + ' of lost deals (' + truth.zombies + ')',
+      recreated: pct(truth.twinShare) + ' of wins (' + truth.twins + ' fake losses)',
+      placeholders: pct(truth.placeholderShare) + ' of deals',
+      loggingShift: pct(truth.meetingsMissed) + ' of meetings missed'
+    };
+    var html = '<caption class="sr-only">Data-quality checks</caption><thead><tr><th>Check</th><th class="num">Result</th><th>Flag</th><th>What it means</th><th>What really happened</th></tr></thead><tbody>';
+    r.audit.rows.forEach(function (row) {
+      var v = row.key === 'loggingShift' ? signed(row.value * 100, 0) + '%' : pct(row.value);
+      html += '<tr><td>' + esc(row.check) + '</td><td class="num">' + esc(v) + '</td><td><span class="pill ' + row.light + '">' +
+        ({ green: 'OK', amber: 'Watch', red: 'Fix' })[row.light] + '</span></td><td>' + esc(row.detail) + '</td><td>' + esc(real[row.key]) + '</td></tr>';
+    });
+    html += '</tbody>';
+    return html;
+  }
+
+  function pickRecords(crm) {
+    var h = crm.history, chosen = [], seen = {};
+    var tests = [
+      function (x) { return x.editedAfterClose && x.status === 'won'; },
+      function (x) { return x.zombie; },
+      function (x) { return x.twin; },
+      function (x) { return x.placeholder && x.status !== 'won'; },
+      function (x) { return x.meetings !== null && x.meetings < x.truth.meetings; },
+      function (x) { return x.editedAfterClose && x.status === 'lost'; },
+      function (x) { return M.FIELDS.some(function (f) { return x[f] === null; }); }
+    ];
+    tests.forEach(function (t) {
+      for (var i = 0; i < h.length; i++) if (!seen[h[i].id] && t(h[i])) { seen[h[i].id] = true; chosen.push(h[i]); break; }
+    });
+    for (var j = 0; j < h.length && chosen.length < 10; j++) {
+      if (!seen[h[j].id] && h[j].status !== 'open') { seen[h[j].id] = true; chosen.push(h[j]); }
+    }
+    return chosen.sort(function (a, b) { return a.created - b.created || a.id - b.id; });
+  }
+
+  function recordsTable(r) {
+    var rows = pickRecords(r.crm);
+    var html = '<caption class="sr-only">Sample CRM records compared with the truth</caption><thead><tr><th>Deal</th><th>Account</th><th>Status</th><th class="num">Amount</th><th>Champion</th><th class="num">Stake&shy;holders</th><th class="num">Meetings</th><th>What went wrong</th></tr></thead><tbody>';
+    function cell(rec, f, fmt, cls) {
+      var v = rec[f], t = rec.truth[f];
+      var shown = v === null ? 'blank' : fmt(v);
+      var diff = v !== t;
+      return '<td class="' + (cls || '') + (diff ? ' diff' : '') + '">' + esc(shown) + (diff ? '<span class="was">really ' + esc(fmt(t)) + '</span>' : '') + '</td>';
+    }
+    var yn = function (v) { return v ? 'Yes' : 'No'; };
+    var num = function (v) { return String(v); };
+    rows.forEach(function (rec) {
+      var trueStatus = rec.truth.won ? 'won' : (rec.truth.close < M.GO_LIVE ? 'lost' : 'open');
+      var tags = [];
+      if (rec.twin) tags.push('Re-created deal');
+      if (rec.zombie) tags.push('Zombie');
+      if (rec.editedAfterClose) tags.push('Edited after close');
+      if (rec.placeholder && rec.amount !== rec.truth.amount) tags.push('Placeholder amount');
+      if (rec.meetings !== null && rec.meetings < rec.truth.meetings) tags.push('Meetings missed');
+      if (M.FIELDS.some(function (f) { return rec[f] === null; })) tags.push('Blanks');
+      var statusDiff = rec.status !== trueStatus;
+      html += '<tr><td>' + (rec.twin ? 'R-' : 'D-') + rec.dealId + '</td><td>' + esc(rec.account) + '</td>' +
+        '<td class="' + (statusDiff ? 'diff' : '') + '">' + esc(rec.status) + (statusDiff ? '<span class="was">really ' + esc(trueStatus) + '</span>' : '') + '</td>' +
+        cell(rec, 'amount', function (v) { return '£' + v.toLocaleString('en-GB'); }, 'num') +
+        cell(rec, 'champion', yn) + cell(rec, 'stakeholders', num, 'num') + cell(rec, 'meetings', num, 'num') +
+        '<td>' + (tags.length ? tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') : '<span class="tag">Clean</span>') + '</td></tr>';
+    });
+    return html + '</tbody>';
+  }
+
+  // ---- Render --------------------------------------------------------------
+  function card(cls, label, num, sub) {
+    return '<div class="card"><div class="lbl">' + (cls ? '<i class="dot ' + cls + '"></i>' : '') + esc(label) + '</div><div class="num">' + num + '</div><div class="sub">' + sub + '</div></div>';
+  }
+
+  function render() {
+    var r = M.runLab(state);
+    var ill = r.illusion, debt = r.debt;
+    var title;
+    if (ill > 0.03) title = 'The pilot’s back-test flatters the model by ' + f2(ill) + '.';
+    else if (ill < -0.03) title = 'The back-test undersells the model by ' + f2(-ill) + ' in this world.';
+    else title = 'The back-test is a fair guide to live performance here.';
+    $('verdict-title').textContent = title;
+    $('verdict-text').textContent = 'The pilot reports a ranking score of ' + f2(r.backtest.auc) + '. Live, the same model scores ' + f2(r.live.auc) +
+      (debt > 0.005 ? ', ' + f2(debt) + ' below the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.' : ', in line with the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.');
+    $('cards').innerHTML =
+      card('backtest', 'Pilot back-test', f2(r.backtest.auc), 'ranking score on a random 25% of closed deals') +
+      card('live', 'Live after go-live', f2(r.live.auc), 'on ' + r.live.n.toLocaleString('en-GB') + ' new deals, scored three weeks in') +
+      card('ceiling', 'Clean-data ceiling', f2(r.ceiling.auc), 'the same method on a perfectly kept CRM') +
+      card('', 'Pilot illusion', signed(ill), 'back-test minus live: how much the pilot overpromised');
+    $('promise-chart').innerHTML = promiseChart(r);
+    $('calib-chart').innerHTML = calibChart(r);
+    $('calib-text').innerHTML = 'On live deals the model predicts an average <b>' + pct(r.live.meanPredicted) + '</b> chance of winning; <b>' + pct(r.live.winRate) +
+      '</b> actually won. Expected bookings <b>' + money(r.live.forecast) + '</b> against <b>' + money(r.live.actual) + '</b> actual (' + signed(r.live.forecastError * 100, 0) + '%; the clean model: ' + signed(r.ceiling.forecastError * 100, 0) + '%).';
+    $('coef-chart').innerHTML = coefChart(r);
+    $('audit-table').innerHTML = auditTable(r);
+    $('records-table').innerHTML = recordsTable(r);
+  }
+
+  buildControls();
+  syncControls();
+  render();
+})();
+</script>
+</body>
+</html>
