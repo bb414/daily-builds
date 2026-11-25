@@ -146,7 +146,8 @@ def format_summary(summary, target, checks):
                 M.PERSONAS[current]["label"], s["dayOne"]))
             head = ("Strategy", "fastest", "median checks to", "share reaching", "median after")
             lines.append("  %-30s %10s %18s %16s %14s" % head)
-            lines.append("  %-30s %10s %18s %16s %14s" % ("", "on", "%g%% target" % target, "target", "10 checks"))
+            sub = ("", "on", "%g%% target" % target, "target", report.plural(min(10, checks), "check"))
+            lines.append("  %-30s %10s %18s %16s %14s" % sub)
         med = "not reached" if s["medianChecks"] is None else "%g" % s["medianChecks"]
         wins = report.fmt_count(s["wins"]) + "/" + str(s["runs"])
         lines.append("  %-30s %10s %18s %15.0f%% %13.1f%%" % (
@@ -161,8 +162,9 @@ def cmd_compare(args, out):
                               args.slip / 100, args.weight)
     meta = {"weeks": args.weeks, "seeds": args.seeds, "checks": args.checks, "target": args.target,
             "slip": args.slip, "weight": args.weight}
-    out.write("Replayed 5 strategies on %s per person, %d weeks each, up to %d checks.\n" % (
-        report.plural(len(args.seeds), "statement"), args.weeks, args.checks))
+    out.write("Replayed 5 strategies on %s per person, %s each, up to %s.\n" % (
+        report.plural(len(args.seeds), "statement"), report.plural(args.weeks, "week"),
+        report.plural(args.checks, "check")))
     out.write(format_summary(summary, args.target, args.checks))
     if args.out:
         write_batch(rows, summary, args.out, meta)
@@ -185,7 +187,7 @@ def run_weekly_batch(personas, seeds, weeks, per_week, slip, weight):
     return rows
 
 
-def format_weekly(rows, personas, per_week):
+def format_weekly(rows, personas, per_week, weeks=None):
     lines = []
     for pid in personas:
         mine = [r for r in rows if r["persona"] == pid]
@@ -198,7 +200,11 @@ def format_weekly(rows, personas, per_week):
         lines.append("%s, %d check%s a week (median %% of each month's spending in the wrong pot)" % (
             p["label"], per_week, "" if per_week == 1 else "s"))
         if p.get("change"):
-            lines.append("  Habits change in week %d: %s." % (p["change"]["week"] + 1, p["change"]["text"]))
+            week = p["change"]["week"] + 1
+            if weeks is not None and week > weeks:
+                lines.append("  Habits would change in week %d, after this statement ends." % week)
+            else:
+                lines.append("  Habits change in week %d: %s." % (week, p["change"]["text"]))
         header = "  %-30s" % "Checks chosen by" + "".join(
             "%10s" % (name + ("*" if partial else "")) for _, name, partial in months)
         lines.append(header)
@@ -216,9 +222,10 @@ def format_weekly(rows, personas, per_week):
 
 def cmd_weekly(args, out):
     rows = run_weekly_batch(args.persona, args.seeds, args.weeks, args.per_week, args.slip / 100, args.weight)
-    out.write("Each Sunday the person answers up to %s about that week's payments; %s per person, %d weeks each.\n" % (
-        report.plural(args.per_week, "check"), report.plural(len(args.seeds), "statement"), args.weeks))
-    out.write(format_weekly(rows, args.persona, args.per_week))
+    out.write("Each Sunday the person answers up to %s about that week's payments; %s per person, %s each.\n" % (
+        report.plural(args.per_week, "check"), report.plural(len(args.seeds), "statement"),
+        report.plural(args.weeks, "week")))
+    out.write(format_weekly(rows, args.persona, args.per_week, args.weeks))
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
@@ -247,7 +254,12 @@ def _parse_amount(text):
     cleaned = text.strip().replace("£", "").replace(",", "")
     if cleaned.startswith("(") and cleaned.endswith(")"):
         cleaned = cleaned[1:-1]
-    value = abs(float(cleaned))
+    try:
+        value = abs(float(cleaned))
+    except ValueError:
+        raise ValueError("could not read the amount %r" % text.strip())
+    if value != value or value == float("inf"):  # reject nan and inf
+        raise ValueError("could not read the amount %r" % text.strip())
     return int(value * 100 + 0.5)
 
 
