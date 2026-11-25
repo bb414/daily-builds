@@ -127,6 +127,32 @@ class TestUi(unittest.TestCase):
         page.wait_for_timeout(400)
         self.assertIn("changed since the last test", page.inner_text("#robust-out"))
         self.assertEqual(self.errors, [])
+    def test_phone_layout_stays_readable(self):
+        page = self.open(390, 844)
+        self.assertTrue(page.is_visible("#mini"))
+        self.assertIn("Back-test", page.inner_text("#mini"))
+        display = page.evaluate("getComputedStyle(document.querySelector('#audit-table tbody tr')).display")
+        self.assertEqual(display, "block")
+        labels = page.evaluate("Array.from(document.querySelectorAll('#audit-table td')).every(td => td.dataset.label)")
+        self.assertTrue(labels)
+        width = page.evaluate("document.querySelector('#promise-chart svg').viewBox.baseVal.width")
+        self.assertLessEqual(width, 400)
+        page.set_viewport_size({"width": 1280, "height": 900})
+        page.wait_for_timeout(600)
+        self.assertFalse(page.is_visible("#mini"))
+        self.assertGreater(page.evaluate("document.querySelector('#promise-chart svg').viewBox.baseVal.width"), 600)
+
+    def test_keyboard_users_can_skip_to_results(self):
+        page = self.open()
+        page.keyboard.press("Tab")
+        self.assertEqual(page.evaluate("document.activeElement.className"), "skip")
+        page.keyboard.press("Enter")
+        self.assertEqual(page.evaluate("document.activeElement.id"), "results")
+        self.assertIn("seed=", page.evaluate("location.hash"))
+        page.click(".jump a[href='#fix-section']")
+        self.assertEqual(page.evaluate("document.activeElement.id"), "fix-section")
+        self.assertIn("seed=", page.evaluate("location.hash"))
+
 
 if __name__ == "__main__":
     unittest.main()

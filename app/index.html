@@ -78,7 +78,6 @@ button { font: inherit; cursor: pointer; }
 .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .defect { padding: 10px 0; border-top: 1px solid var(--line); }
-.defect .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .defect label { font-weight: 600; }
 .defect output { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); }
 .kind { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; margin-left: 6px; font-weight: 600; vertical-align: 1px; }
@@ -144,12 +143,56 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
 .btn:disabled { opacity: 0.6; cursor: progress; }
 .file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .file-input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+.world label.btn { display: inline-block; font-weight: 400; }
+.seed-row .btn { white-space: nowrap; }
 .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; min-height: 1.2em; word-break: break-all; }
 .note.error { color: var(--red); }
 #robust-out { margin-top: 12px; }
 .robust-summary { margin-bottom: 8px; }
 td.better { color: var(--green); font-weight: 600; }
 td.worse { color: var(--red); font-weight: 600; }
+.skip { position: absolute; left: -9999px; top: 0; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; border-radius: 0 0 8px 0; z-index: 10; }
+.skip:focus { left: 0; }
+.jump { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 14px; }
+.jump a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+.jump a:hover, .jump a:focus-visible { border-bottom-color: var(--accent); }
+.jump a:focus-visible, main:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+section.panel, .two { scroll-margin-top: 12px; }
+section.panel:focus, .two:focus { outline: none; }
+section.panel:focus-visible, .two:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.defect .row, .world .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.kind { white-space: nowrap; }
+.mini { display: none; }
+td.habit-cell { min-width: 150px; }
+td .stepno { display: inline-block; min-width: 1.6em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.th-sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.acct-inline { display: none; }
+#compare-table td:first-child { min-width: 170px; }
+@media (max-width: 980px) {
+  .mini { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; justify-content: center; gap: 14px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(20, 28, 45, 0.08); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .mini span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .mini b { font-size: 16px; }
+  body { padding-bottom: 56px; }
+}
+@media (max-width: 640px) {
+  table.stack thead { display: none; }
+  table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
+  table.stack tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  table.stack td { border: 0; padding: 3px 0; text-align: left; display: flex; justify-content: space-between; gap: 12px; }
+  table.stack td.num { text-align: right; }
+  table.stack td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; flex: 0 0 auto; max-width: 45%; text-align: left; }
+  table.stack td.lead { font-weight: 600; font-size: 15px; }
+  table.stack td.lead::before { display: none; }
+  table.stack td.wide { display: block; }
+  table.stack td.wide::before { display: block; max-width: none; margin-bottom: 2px; }
+  table.stack td.acct { display: none; }
+  table.stack .acct-inline { display: inline; color: var(--muted); font-weight: 400; }
+  table.stack td > .v { text-align: right; }
+  table.stack td.lead > .v, table.stack td.wide > .v { text-align: left; }
+  table.stack td.diff { background: var(--diff-bg); padding: 3px 6px; border-radius: 4px; }
+  td.habit-cell, #compare-table td:first-child { min-width: 0; }
+  .table-wrap { overflow-x: visible; }
+}
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 980px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -166,10 +209,21 @@ td.worse { color: var(--red); font-weight: 600; }
 </style>
 </head>
 <body>
+<a class="skip" href="#results">Skip to the results</a>
 <div class="wrap">
   <header class="top">
     <h1>Fit to train</h1>
-    <p class="lede">Is your CRM ready to train an AI win-probability model? Turn up six everyday data habits and watch the pilot's back-test pull away from what the same model does once it goes live.</p>
+    <p class="lede">Is your CRM ready to train an AI win-probability model? Turn up six everyday data habits and watch the pilot&rsquo;s back-test pull away from what the same model does once it goes live.</p>
+    <nav class="jump" aria-label="Sections">
+      <a href="#promise-section">Promise vs live</a>
+      <a href="#audit-section">Audit</a>
+      <a href="#fix-section">Fix first</a>
+      <a href="#repair-section">Honest back-test</a>
+      <a href="#why-section">Why</a>
+      <a href="#records-section">Records</a>
+      <a href="#robust-section">How sure</a>
+      <a href="#compare-section">Compare</a>
+    </nav>
   </header>
 
   <div class="layout">
@@ -181,7 +235,7 @@ td.worse { color: var(--red); font-weight: 600; }
       <div class="world">
         <h2>The synthetic sales team</h2>
         <div class="field">
-          <div class="row" style="display:flex;justify-content:space-between"><label for="deals">Deals over two years</label><output id="deals-out" for="deals"></output></div>
+          <div class="row"><label for="deals">Deals over two years</label><output id="deals-out" for="deals"></output></div>
           <input type="range" id="deals" min="1000" max="8000" step="500">
         </div>
         <div class="field">
@@ -204,7 +258,7 @@ td.worse { color: var(--red); font-weight: 600; }
       </div>
     </aside>
 
-    <main id="results">
+    <main id="results" tabindex="-1">
       <section class="panel verdict" aria-live="polite">
         <h2 id="verdict-title">Working it out&hellip;</h2>
         <p id="verdict-text"></p>
@@ -213,7 +267,7 @@ td.worse { color: var(--red); font-weight: 600; }
 
       <div class="cards" id="cards"></div>
 
-      <section class="panel">
+      <section class="panel" id="promise-section">
         <h2>What the pilot promised, and what go-live delivered</h2>
         <p class="intro">The pilot team trains on closed deals and tests on a random quarter of them, as most pilots do. The live numbers score every deal created after go-live, three weeks in, against how it really ended. The clean ceiling is the same method on a perfectly kept CRM.</p>
         <div class="chart" id="promise-chart"></div>
@@ -224,10 +278,16 @@ td.worse { color: var(--red); font-weight: 600; }
         </div>
       </section>
 
+      <section class="panel" id="audit-section">
+        <h2>The data-quality audit</h2>
+        <p class="intro">What a CRM owner can check today, without knowing how any deal really went, next to what actually happened in this synthetic world.</p>
+        <div class="table-wrap"><table id="audit-table" class="stack"></table></div>
+      </section>
+
       <section class="panel" id="fix-section">
         <h2>Which habit to fix first</h2>
         <p class="intro">Each row re-runs the whole pilot with one habit fixed and everything else left as it is. Fixes do different jobs: some make the live model better, others mostly stop the pilot overpromising.</p>
-        <div class="table-wrap"><table id="fix-table"></table></div>
+        <div class="table-wrap"><table id="fix-table" class="stack"></table></div>
         <h3 class="sub-h">Fixing them in that order</h3>
         <div class="chart" id="path-chart"></div>
         <div class="legend" aria-hidden="true">
@@ -249,6 +309,34 @@ td.worse { color: var(--red); font-weight: 600; }
         <p class="stat-line" id="repair-text"></p>
       </section>
 
+      <div class="two" id="why-section">
+        <section class="panel">
+          <h2>Are the probabilities honest?</h2>
+          <p class="intro">Live deals sorted into ten equal groups by predicted chance of winning. Dots on the diagonal mean &ldquo;a 40% deal wins 40% of the time&rdquo;.</p>
+          <div class="chart" id="calib-chart"></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="dot live"></i>Model trained on this CRM</span>
+            <span><i class="dot ceiling"></i>Model trained on a clean CRM</span>
+          </div>
+          <p class="stat-line" id="calib-text"></p>
+        </section>
+        <section class="panel">
+          <h2>What the model learned</h2>
+          <p class="intro">How much each field multiplies the odds of winning, learned from this CRM and from a clean one. Bars right of the line help a deal; bars left of it hurt.</p>
+          <div class="chart" id="coef-chart"></div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="dot live"></i>This CRM</span>
+            <span><i class="dot ceiling"></i>Clean CRM</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel" id="records-section">
+        <h2>Ten records, as entered and as they really were</h2>
+        <p class="intro">Highlighted cells differ from the truth. Every name and number is invented.</p>
+        <div class="table-wrap"><table id="records-table" class="stack"></table></div>
+      </section>
+
       <section class="panel" id="robust-section">
         <h2>How sure is this?</h2>
         <p class="intro">One synthetic world is one draw of luck. Run the same settings on twelve other worlds and see which conclusions hold.</p>
@@ -263,41 +351,7 @@ td.worse { color: var(--red); font-weight: 600; }
           <button class="btn primary" id="pin-a" type="button">Pin current settings as A</button>
           <button class="btn" id="clear-a" type="button" hidden>Clear A</button>
         </div>
-        <div class="table-wrap"><table id="compare-table"></table></div>
-      </section>
-
-      <div class="two">
-        <section class="panel">
-          <h2>Are the probabilities honest?</h2>
-          <p class="intro">Live deals sorted into ten equal groups by predicted chance of winning. Dots on the diagonal mean "a 40% deal wins 40% of the time".</p>
-          <div class="chart" id="calib-chart"></div>
-          <div class="legend" aria-hidden="true">
-            <span><i class="dot live"></i>Model trained on this CRM</span>
-            <span><i class="dot ceiling"></i>Model trained on a clean CRM</span>
-          </div>
-          <p class="stat-line" id="calib-text"></p>
-        </section>
-        <section class="panel">
-          <h2>What the model learned</h2>
-          <p class="intro">How much each field multiplies the odds of winning, as learned from this CRM and from a clean one. Bars right of the line help a deal; bars left of it hurt.</p>
-          <div class="chart" id="coef-chart"></div>
-          <div class="legend" aria-hidden="true">
-            <span><i class="dot live"></i>This CRM</span>
-            <span><i class="dot ceiling"></i>Clean CRM</span>
-          </div>
-        </section>
-      </div>
-
-      <section class="panel">
-        <h2>The data-quality audit</h2>
-        <p class="intro">What a CRM owner can check today, without knowing how any deal really went, next to what actually happened in this synthetic world.</p>
-        <div class="table-wrap"><table id="audit-table"></table></div>
-      </section>
-
-      <section class="panel">
-        <h2>Ten records, as entered and as they really were</h2>
-        <p class="intro">Highlighted cells differ from the truth. Every name and number is invented.</p>
-        <div class="table-wrap"><table id="records-table"></table></div>
+        <div class="table-wrap"><table id="compare-table" class="stack"></table></div>
       </section>
     </main>
   </div>
@@ -306,6 +360,8 @@ td.worse { color: var(--red); font-weight: 600; }
     <p>Synthetic data only: every team, account, deal and number is generated in your browser from the world number. Nothing is sent anywhere. Simplified and illustrative, not a substitute for testing a real model on real data.</p>
   </footer>
 </div>
+
+<div class="mini" id="mini" aria-hidden="true"></div>
 
 <script>
 /* MODEL START */
@@ -423,6 +479,8 @@ var FitToTrain = (function () {
   }
 
   function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+
+  function thousands(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
   // ---- Settings ----------------------------------------------------------
   function normaliseSettings(input) {
@@ -731,19 +789,19 @@ var FitToTrain = (function () {
     }
     var blankShare = n ? blankTotal / (n * FIELDS.length) : 0;
     rows.push({ key: 'blanks', check: 'Blank scoring fields', value: blankShare, light: light(blankShare, 0.05, 0.15),
-      detail: 'of the six scoring fields are empty across ' + n + ' records' });
+      detail: 'of the six scoring fields are empty across ' + thousands(n) + ' records' });
 
     var closed = 0, edited = 0;
     for (var i2 = 0; i2 < n; i2++) if (labelled(h[i2])) { closed++; if (h[i2].editedAfterClose) edited++; }
     var editedShare = closed ? edited / closed : 0;
     rows.push({ key: 'retrofill', check: 'Closed deals edited after closing', value: editedShare, light: light(editedShare, 0.05, 0.15),
-      detail: 'of ' + closed + ' closed deals had a scoring field changed after the close date' });
+      detail: 'of ' + thousands(closed) + ' closed deals had a scoring field changed after the close date' });
 
     var open = 0, stale = 0;
     for (var i3 = 0; i3 < n; i3++) if (h[i3].status === 'open') { open++; if (h[i3].close < GO_LIVE) stale++; }
     var staleShare = (closed + stale) ? stale / (closed + stale) : 0;
     rows.push({ key: 'zombies', check: 'Open deals past their close date', value: staleShare, light: light(staleShare, 0.05, 0.15),
-      detail: 'of deals due to close by go-live are still open (' + stale + ' of ' + open + ' open deals)' });
+      detail: 'of deals due to close by go-live are still open (' + thousands(stale) + ' of ' + thousands(open) + ' open deals)' });
 
     var groups = {};
     for (var i4 = 0; i4 < n; i4++) {
@@ -1035,7 +1093,7 @@ var FitToTrain = (function () {
     GO_LIVE: GO_LIVE, END_DAY: END_DAY, SCORE_DAY: SCORE_DAY, SEGMENTS: SEGMENTS, SOURCES: SOURCES,
     FIELDS: FIELDS, EDITABLE: EDITABLE, FIELD_LABELS: FIELD_LABELS, FEATURES: FEATURES, DEFECTS: DEFECTS, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
     mulberry32: mulberry32, mix: mix, sigmoid: sigmoid, normaliseSettings: normaliseSettings,
-    accountName: accountName, twinName: twinName, normName: normName,
+    accountName: accountName, twinName: twinName, normName: normName, thousands: thousands,
     generateWorld: generateWorld, buildCrm: buildCrm, fieldMeans: fieldMeans, featureRow: featureRow,
     solve: solve, fitLogistic: fitLogistic, predict: predict, auc: auc, evaluate: evaluate,
     inTestSplit: inTestSplit, auditCrm: auditCrm, truthCounts: truthCounts, runLab: runLab, dayToIso: dayToIso,
@@ -1146,6 +1204,16 @@ var FitToTrain = (function () {
   }
 
   // ---- Charts ------------------------------------------------------------
+  // Charts are drawn at the width they will be shown, so their text stays readable on a phone.
+  function cw(id, max) {
+    var el = $(id), w = el ? el.clientWidth : 0;
+    return Math.round(Math.max(300, Math.min(max, w || max)));
+  }
+
+  function td(label, html, cls) {
+    return '<td data-label="' + esc(label) + '"' + (cls ? ' class="' + cls + '"' : '') + '><span class="v">' + html + '</span></td>';
+  }
+
   function svg(w, h, body, label) {
     return '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(label) + '">' + body + '</svg>';
   }
@@ -1156,7 +1224,7 @@ var FitToTrain = (function () {
       { title: 'Wins found in the top 20% of scores', note: 'share of all wins among the deals scored highest', key: 'capture20', fmt: function (x) { return pct(x); }, lo: 0, hi: 1 }
     ];
     var series = [['backtest', 'Pilot back-test', 'var(--backtest)'], ['live', 'Live after go-live', 'var(--live)'], ['ceiling', 'Clean-data ceiling', 'var(--ceiling)']];
-    var W = 640, left = 10, right = 60, barH = 18, gap = 6, groupGap = 30, top = 4;
+    var W = cw('promise-chart', 720), left = 2, right = 52, barH = 18, gap = 6, groupGap = 30, top = 4;
     var body = '', y = top;
     var parts = [];
     groups.forEach(function (g) {
@@ -1181,7 +1249,7 @@ var FitToTrain = (function () {
   }
 
   function calibChart(r) {
-    var W = 360, H = 300, l = 44, b = 40, t = 10, rr = 12;
+    var W = cw('calib-chart', 440), H = Math.round(Math.min(330, Math.max(270, W * 0.78))), l = 58, b = 40, t = 10, rr = 12;
     var pw = W - l - rr, ph = H - t - b;
     var maxV = 0;
     [r.live, r.ceiling].forEach(function (e) { e.deciles.forEach(function (d) { maxV = Math.max(maxV, d.predicted, d.actual); }); });
@@ -1192,11 +1260,11 @@ var FitToTrain = (function () {
     for (var g = 0; g <= top + 1e-9; g += 0.2) {
       body += '<line class="grid" x1="' + l + '" x2="' + (l + pw) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/>';
       body += '<text x="' + (l - 6) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + Math.round(g * 100) + '%</text>';
-      body += '<text x="' + X(g) + '" y="' + (t + ph + 16) + '" text-anchor="middle">' + Math.round(g * 100) + '%</text>';
+      body += '<text x="' + X(g) + '" y="' + (t + ph + 16) + '" text-anchor="' + (g > top - 1e-9 ? 'end' : 'middle') + '">' + Math.round(g * 100) + '%</text>';
     }
     body += '<line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(top) + '" y2="' + Y(top) + '" stroke="var(--muted)" stroke-dasharray="4 4"/>';
     body += '<text x="' + (l + pw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Predicted chance of winning</text>';
-    body += '<text transform="translate(12 ' + (t + ph / 2) + ') rotate(-90)" text-anchor="middle">Actually won</text>';
+    body += '<text transform="translate(13 ' + (t + ph / 2) + ') rotate(-90)" text-anchor="middle">Actually won</text>';
     [[r.ceiling, 'var(--ceiling)'], [r.live, 'var(--live)']].forEach(function (pair) {
       var pts = pair[0].deciles.filter(function (d) { return d.n > 0; });
       body += '<polyline fill="none" stroke="' + pair[1] + '" stroke-width="1.5" opacity="0.6" points="' + pts.map(function (d) { return X(d.predicted) + ',' + Y(d.actual); }).join(' ') + '"/>';
@@ -1207,30 +1275,38 @@ var FitToTrain = (function () {
 
   var COEF_ROWS = [[3, 'Champion identified'], [4, 'Competitor present'], [1, 'Each extra stakeholder'], [2, 'Each extra meeting'], [5, 'Each 10 points of discount'], [7, 'Doubling the amount']];
   function coefChart(r) {
-    var W = 360, rowH = 40, l = 150, rr = 46, t = 8;
+    var W = cw('coef-chart', 440), rowH = 40, l = 150, rr = 52, t = 8;
     var H = t + COEF_ROWS.length * rowH + 22;
     var vals = [];
     COEF_ROWS.forEach(function (c) {
       var k = c[0] === 7 ? Math.LN2 : 1;
       vals.push([Math.exp(r.model.dirty[c[0]] * k), Math.exp(r.model.clean[c[0]] * k)]);
     });
+    // The axis runs from x1/8 to x8; anything beyond is drawn to the edge with its true value printed.
     var lo = 0.25, hi = 4;
-    vals.forEach(function (v) { v.forEach(function (x) { lo = Math.min(lo, x); hi = Math.max(hi, x); }); });
+    vals.forEach(function (v) { v.forEach(function (x) { lo = Math.max(0.125, Math.min(lo, x)); hi = Math.min(8, Math.max(hi, x)); }); });
     var L0 = Math.log(lo), L1 = Math.log(hi);
     function X(v) { return l + (Math.log(v) - L0) / (L1 - L0) * (W - l - rr); }
     var body = '<line x1="' + X(1) + '" x2="' + X(1) + '" y1="' + t + '" y2="' + (H - 20) + '" stroke="var(--muted)"/>';
-    [0.25, 0.5, 1, 2, 4].forEach(function (g) {
+    var lastTick = -Infinity;
+    [1, 0.5, 2, 0.25, 4, 0.125, 8].forEach(function (g) {
       if (g < lo || g > hi) return;
-      body += '<text x="' + X(g) + '" y="' + (H - 4) + '" text-anchor="middle">×' + g + '</text>';
+      var x = X(g);
+      if (g !== 1 && Math.abs(x - X(1)) < 34) return;
+      if (g !== 1 && Math.abs(x - lastTick) < 34) return;
+      if (g === 0.25 || g === 4 || g === 0.125 || g === 8) lastTick = x;
+      body += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle">×' + g + '</text>';
     });
     var parts = [];
     COEF_ROWS.forEach(function (c, i) {
       var y = t + i * rowH;
       body += '<text x="0" y="' + (y + 20) + '" style="fill:var(--ink)">' + esc(c[1]) + '</text>';
       [[vals[i][0], 'var(--live)', 6], [vals[i][1], 'var(--ceiling)', 20]].forEach(function (pair) {
-        var x = X(pair[0]), x1 = X(1);
+        var x = X(Math.max(lo, Math.min(hi, pair[0]))), x1 = X(1);
         body += '<rect x="' + Math.min(x, x1) + '" y="' + (y + pair[2]) + '" width="' + Math.max(1.5, Math.abs(x - x1)) + '" height="11" rx="2" fill="' + pair[1] + '"/>';
-        body += '<text class="val" x="' + (Math.max(x, x1) + 4) + '" y="' + (y + pair[2] + 10) + '" style="font-size:11px">×' + pair[0].toFixed(2) + '</text>';
+        if (pair[0] > hi) body += '<polygon points="' + x + ',' + (y + pair[2] - 2) + ' ' + (x + 7) + ',' + (y + pair[2] + 5.5) + ' ' + x + ',' + (y + pair[2] + 13) + '" fill="' + pair[1] + '"><title>Off the scale</title></polygon>';
+        if (pair[0] < lo) body += '<polygon points="' + x + ',' + (y + pair[2] - 2) + ' ' + (x - 7) + ',' + (y + pair[2] + 5.5) + ' ' + x + ',' + (y + pair[2] + 13) + '" fill="' + pair[1] + '"><title>Off the scale</title></polygon>';
+        body += '<text class="val" x="' + (Math.max(x, x1) + (pair[0] > hi ? 10 : 4)) + '" y="' + (y + pair[2] + 10) + '" style="font-size:11px">×' + pair[0].toFixed(2) + '</text>';
       });
       parts.push(c[1] + ': this CRM times ' + vals[i][0].toFixed(2) + ', clean times ' + vals[i][1].toFixed(2));
     });
@@ -1243,16 +1319,17 @@ var FitToTrain = (function () {
     var real = {
       blanks: pct(r.settings.blanks) + ' set',
       retrofill: pct(truth.editedShare) + ' of closed deals',
-      zombies: pct(truth.zombieShare) + ' of lost deals (' + truth.zombies + ')',
-      recreated: pct(truth.twinShare) + ' of wins (' + truth.twins + ' fake losses)',
+      zombies: pct(truth.zombieShare) + ' of lost deals (' + truth.zombies.toLocaleString('en-GB') + ')',
+      recreated: pct(truth.twinShare) + ' of wins (' + truth.twins.toLocaleString('en-GB') + ' fake losses)',
       placeholders: pct(truth.placeholderShare) + ' of deals',
       loggingShift: pct(truth.meetingsMissed) + ' of meetings missed'
     };
     var html = '<caption class="sr-only">Data-quality checks</caption><thead><tr><th>Check</th><th class="num">Result</th><th>Flag</th><th>What it means</th><th>What really happened</th></tr></thead><tbody>';
     r.audit.rows.forEach(function (row) {
       var v = row.key === 'loggingShift' ? signed(row.value * 100, 0) + '%' : pct(row.value);
-      html += '<tr><td>' + esc(row.check) + '</td><td class="num">' + esc(v) + '</td><td><span class="pill ' + row.light + '">' +
-        ({ green: 'OK', amber: 'Watch', red: 'Fix' })[row.light] + '</span></td><td>' + esc(row.detail) + '</td><td>' + esc(real[row.key]) + '</td></tr>';
+      html += '<tr>' + td('Check', esc(row.check), 'lead') + td('Result', esc(v), 'num') +
+        td('Flag', '<span class="pill ' + row.light + '">' + ({ green: 'OK', amber: 'Watch', red: 'Fix' })[row.light] + '</span>') +
+        td('What it means', esc(row.detail), 'wide') + td('What really happened', esc(real[row.key])) + '</tr>';
     });
     html += '</tbody>';
     return html;
@@ -1281,11 +1358,11 @@ var FitToTrain = (function () {
   function recordsTable(r) {
     var rows = pickRecords(r.crm);
     var html = '<caption class="sr-only">Sample CRM records compared with the truth</caption><thead><tr><th>Deal</th><th>Account</th><th>Status</th><th class="num">Amount</th><th>Champion</th><th class="num">Stake&shy;holders</th><th class="num">Meetings</th><th>What went wrong</th></tr></thead><tbody>';
-    function cell(rec, f, fmt, cls) {
+    function cell(rec, f, label, fmt, cls) {
       var v = rec[f], t = rec.truth[f];
       var shown = v === null ? 'blank' : fmt(v);
       var diff = v !== t;
-      return '<td class="' + (cls || '') + (diff ? ' diff' : '') + '">' + esc(shown) + (diff ? '<span class="was">really ' + esc(fmt(t)) + '</span>' : '') + '</td>';
+      return td(label, '<span>' + esc(shown) + (diff ? '<span class="was">really ' + esc(fmt(t)) + '</span>' : '') + '</span>', ((cls || '') + (diff ? ' diff' : '')).trim());
     }
     var yn = function (v) { return v ? 'Yes' : 'No'; };
     var num = function (v) { return String(v); };
@@ -1297,13 +1374,15 @@ var FitToTrain = (function () {
       if (rec.editedAfterClose) tags.push('Edited after close');
       if (rec.placeholder && rec.amount !== rec.truth.amount) tags.push('Placeholder amount');
       if (rec.meetings !== null && rec.meetings < rec.truth.meetings) tags.push('Meetings missed');
-      if (M.FIELDS.some(function (f) { return rec[f] === null; })) tags.push('Blanks');
+      var blanks = M.FIELDS.filter(function (f) { return rec[f] === null; }).length;
+      if (blanks) tags.push(blanks === 1 ? '1 blank field' : blanks + ' blank fields');
       var statusDiff = rec.status !== trueStatus;
-      html += '<tr><td>' + (rec.twin ? 'R-' : 'D-') + rec.dealId + '</td><td>' + esc(rec.account) + '</td>' +
-        '<td class="' + (statusDiff ? 'diff' : '') + '">' + esc(rec.status) + (statusDiff ? '<span class="was">really ' + esc(trueStatus) + '</span>' : '') + '</td>' +
-        cell(rec, 'amount', function (v) { return '£' + v.toLocaleString('en-GB'); }, 'num') +
-        cell(rec, 'champion', yn) + cell(rec, 'stakeholders', num, 'num') + cell(rec, 'meetings', num, 'num') +
-        '<td>' + (tags.length ? tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') : '<span class="tag">Clean</span>') + '</td></tr>';
+      html += '<tr>' + td('Deal', (rec.twin ? 'R-' : 'D-') + rec.dealId + '<span class="sr-only">, </span><span class="acct-inline"> ' + esc(rec.account) + '</span>', 'lead') +
+        td('Account', esc(rec.account), 'acct') +
+        td('Status', '<span>' + esc(rec.status) + (statusDiff ? '<span class="was">really ' + esc(trueStatus) + '</span>' : '') + '</span>', statusDiff ? 'diff' : '') +
+        cell(rec, 'amount', 'Amount', function (v) { return '£' + v.toLocaleString('en-GB'); }, 'num') +
+        cell(rec, 'champion', 'Champion', yn) + cell(rec, 'stakeholders', 'Stakeholders', num, 'num') + cell(rec, 'meetings', 'Meetings', num, 'num') +
+        td('What went wrong', '<span>' + (tags.length ? tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') : '<span class="tag">Clean</span>') + '</span>') + '</tr>';
     });
     return html + '</tbody>';
   }
@@ -1318,20 +1397,21 @@ var FitToTrain = (function () {
   function fixTable(r) {
     var f = r.fixes;
     if (!f || !f.rows.length) return '<caption>Every habit is already at zero: nothing to fix.</caption>';
-    var html = '<caption class="sr-only">Each habit fixed on its own</caption><thead><tr><th>Habit</th><th class="num">Live score if fixed</th><th class="num">Illusion removed</th><th class="num">Win-rate bias after</th><th>How to fix it</th></tr></thead><tbody>';
-    f.rows.forEach(function (row) {
-      html += '<tr><td><b>' + esc(row.label) + '</b><br><span class="kind" style="margin-left:0">' + esc(row.kind) + '</span></td>' +
-        '<td class="num">' + f2(row.liveAuc) + ' (' + gainSpan(row.gain) + ')</td>' +
-        '<td class="num">' + gainSpan(row.illusionDrop) + '</td>' +
-        '<td class="num">' + signed(row.calibration * 100, 0) + ' pts</td>' +
-        '<td class="fixtext">' + esc(row.fix) + '</td></tr>';
+    var html = '<caption class="sr-only">Each habit fixed on its own, best live gain first. Today: live score ' + f2(r.live.auc) + ', illusion ' + signed(r.illusion) + ', win-rate bias ' + signed((r.live.meanPredicted - r.live.winRate) * 100, 0) + ' points.</caption>' +
+      '<thead><tr><th>Habit</th><th class="num">Live score if fixed</th><th class="num">Illusion removed</th><th class="num">Win-rate bias after<br><span class="th-sub">today ' + signed((r.live.meanPredicted - r.live.winRate) * 100, 0) + ' pts</span></th><th>How to fix it</th></tr></thead><tbody>';
+    f.rows.forEach(function (row, i) {
+      html += '<tr>' + td('Habit', '<span><span class="stepno">' + (i + 1) + '.</span><b>' + esc(row.label) + '</b> <span class="kind">' + esc(row.kind) + '</span></span>', 'lead habit-cell') +
+        td('Live score if fixed', f2(row.liveAuc) + ' (' + gainSpan(row.gain) + ')', 'num') +
+        td('Illusion removed', gainSpan(row.illusionDrop), 'num') +
+        td('Win-rate bias after', signed(row.calibration * 100, 0) + ' pts', 'num') +
+        td('How to fix it', esc(row.fix), 'fixtext wide') + '</tr>';
     });
     return html + '</tbody>';
   }
 
   function pathChart(r) {
     var path = r.fixes.path;
-    var W = 640, H = 250, l = 44, rr = 16, t = 12, b = 64;
+    var W = cw('path-chart', 720), narrow = W < 560, H = narrow ? 220 : 250, l = 44, rr = 16, t = 12, b = narrow ? 30 : 64;
     var vals = [r.ceiling.auc];
     path.forEach(function (p) { vals.push(p.liveAuc, p.backtestAuc); });
     var lo = Math.floor((Math.min.apply(null, vals) - 0.02) * 20) / 20, hi = Math.ceil((Math.max.apply(null, vals) + 0.02) * 20) / 20;
@@ -1349,11 +1429,15 @@ var FitToTrain = (function () {
       path.forEach(function (p, i) { body += '<circle cx="' + X(i) + '" cy="' + Y(p[sr[0]]) + '" r="4.5" fill="' + sr[1] + '"/>'; });
     });
     path.forEach(function (p, i) {
-      var lbl = i === 0 ? 'Today' : '+ ' + p.label;
-      var words = lbl.split(' '), lines = [''], k = 0;
-      words.forEach(function (w) { if ((lines[k] + ' ' + w).trim().length > 12 && lines[k]) { k++; lines[k] = ''; } lines[k] = (lines[k] + ' ' + w).trim(); });
+      var anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+      if (narrow) {
+        body += '<text x="' + X(i) + '" y="' + (t + ph + 18) + '" text-anchor="' + anchor + '">' + (i === 0 ? 'Today' : '+' + i) + '</text>';
+        return;
+      }
+      var words = (i === 0 ? 'Today' : '+' + i + ' ' + p.label).split(' '), lines = [''], k = 0;
+      words.forEach(function (w) { if ((lines[k] + ' ' + w).trim().length > 13 && lines[k]) { k++; lines[k] = ''; } lines[k] = (lines[k] + ' ' + w).trim(); });
       lines.slice(0, 3).forEach(function (ln, j) {
-        body += '<text x="' + X(i) + '" y="' + (t + ph + 16 + j * 13) + '" text-anchor="' + (i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle')) + '">' + esc(ln) + '</text>';
+        body += '<text x="' + X(i) + '" y="' + (t + ph + 16 + j * 13) + '" text-anchor="' + anchor + '">' + esc(ln) + '</text>';
       });
     });
     var desc = path.map(function (p, i) { return (i === 0 ? 'today' : 'after fixing ' + p.label.toLowerCase()) + ': back-test ' + f2(p.backtestAuc) + ', live ' + f2(p.liveAuc); }).join('; ');
@@ -1370,15 +1454,16 @@ var FitToTrain = (function () {
 
   function repairChart(r) {
     var rows = [['As exported', r.backtest.auc, r.live.auc], ['Repaired first', r.repaired.backtest.auc, r.repaired.live.auc]];
-    var W = 640, H = 120, l = 120, rr = 20, t = 14;
+    var W = cw('repair-chart', 720), H = 120, l = W < 420 ? 104 : 120, rr = 20, t = 14;
     var vals = [];
     rows.forEach(function (x) { vals.push(x[1], x[2]); });
     var lo = Math.floor((Math.min.apply(null, vals) - 0.03) * 20) / 20, hi = Math.ceil((Math.max.apply(null, vals) + 0.03) * 20) / 20;
     function X(v) { return l + (v - lo) / (hi - lo) * (W - l - rr); }
     var body = '';
-    for (var g = lo; g <= hi + 1e-9; g += 0.05) {
+    var every = (X(lo + 0.05) - X(lo)) < 36 ? 2 : 1, gi = 0;
+    for (var g = lo; g <= hi + 1e-9; g += 0.05, gi++) {
       body += '<line class="grid" x1="' + X(g) + '" x2="' + X(g) + '" y1="' + t + '" y2="' + (H - 22) + '"/>';
-      body += '<text x="' + X(g) + '" y="' + (H - 6) + '" text-anchor="middle">' + g.toFixed(2) + '</text>';
+      if (gi % every === 0) body += '<text x="' + X(g) + '" y="' + (H - 6) + '" text-anchor="middle">' + g.toFixed(2) + '</text>';
     }
     rows.forEach(function (x, i) {
       var y = t + 14 + i * 38;
@@ -1396,7 +1481,7 @@ var FitToTrain = (function () {
     var vals = [];
     rb.worlds.forEach(function (w) { vals.push(w.illusion, w.repairedGap); });
     var lo = Math.min(-0.1, Math.floor(Math.min.apply(null, vals) * 20) / 20), hi = Math.max(0.1, Math.ceil(Math.max.apply(null, vals) * 20) / 20);
-    var W = 640, l = 10, rr = 14, t = 6, rowH = 54, H = t + rows.length * rowH + 24;
+    var W = cw('robust-out', 720), l = 10, rr = 14, t = 6, rowH = 54, H = t + rows.length * rowH + 24;
     function X(v) { return l + (v - lo) / (hi - lo) * (W - l - rr); }
     var body = '<rect x="' + X(-0.05) + '" y="' + t + '" width="' + (X(0.05) - X(-0.05)) + '" height="' + (rows.length * rowH) + '" fill="var(--green-bg)"/>';
     for (var g = lo; g <= hi + 1e-9; g += 0.05) {
@@ -1422,13 +1507,14 @@ var FitToTrain = (function () {
       '</b> back-tests landed within 0.05 of live, and the repaired model beat the unrepaired one live in <b>' + rb.repairHelped + ' of ' + n + '</b>.</p>';
     html += '<div class="chart">' + stripChart(rb) + '</div>';
     var rows = [['Pilot back-test', 'backtest'], ['Live after go-live', 'live'], ['Clean-data ceiling', 'ceiling'], ['Back-test after repairs', 'repairedBacktest'], ['Live, repaired model', 'repairedLive']];
-    html += '<div class="table-wrap"><table><caption class="sr-only">Ranking scores across worlds</caption><thead><tr><th>Ranking score</th><th class="num">Average</th><th class="num">Lowest</th><th class="num">Highest</th></tr></thead><tbody>';
-    rows.forEach(function (r) {
-      var sm = S[r[1]];
-      html += '<tr><td>' + esc(r[0]) + '</td><td class="num">' + f2(sm.mean) + '</td><td class="num">' + f2(sm.low) + '</td><td class="num">' + f2(sm.high) + '</td></tr>';
-    });
-    html += '<tr><td>Win-rate bias live (predicted minus actual)</td><td class="num">' + signed(S.bias.mean * 100, 0) + ' pts</td><td class="num">' + signed(S.bias.low * 100, 0) + ' pts</td><td class="num">' + signed(S.bias.high * 100, 0) + ' pts</td></tr>';
-    html += '<tr><td>Same, repaired model</td><td class="num">' + signed(S.repairedBias.mean * 100, 0) + ' pts</td><td class="num">' + signed(S.repairedBias.low * 100, 0) + ' pts</td><td class="num">' + signed(S.repairedBias.high * 100, 0) + ' pts</td></tr>';
+    html += '<div class="table-wrap"><table class="stack"><caption class="sr-only">Ranking scores across worlds</caption><thead><tr><th>Ranking score</th><th class="num">Average</th><th class="num">Lowest</th><th class="num">Highest</th></tr></thead><tbody>';
+    function line(name, sm, fmt) {
+      return '<tr>' + td('Measure', esc(name), 'lead') + td('Average', fmt(sm.mean), 'num') + td('Lowest', fmt(sm.low), 'num') + td('Highest', fmt(sm.high), 'num') + '</tr>';
+    }
+    var ptsFmt = function (x) { return signed(x * 100, 0) + ' pts'; };
+    rows.forEach(function (r) { html += line(r[0], S[r[1]], f2); });
+    html += line('Win-rate bias live (predicted minus actual)', S.bias, ptsFmt);
+    html += line('Same, repaired model', S.repairedBias, ptsFmt);
     return html + '</tbody></table></div><p class="note">Worlds ' + rb.worlds[0].seed + ' to ' + rb.worlds[n - 1].seed + ', with every other setting as now.</p>';
   }
 
@@ -1438,6 +1524,7 @@ var FitToTrain = (function () {
     btn.textContent = 'Running 12 worlds…';
     setTimeout(function () {
       var rb = M.robustness(state, 12);
+      lastRobust = rb;
       $('robust-out').innerHTML = robustHtml(rb);
       $('robust-out').dataset.key = JSON.stringify(state);
       btn.disabled = false;
@@ -1478,9 +1565,9 @@ var FitToTrain = (function () {
         cls = good === null ? '' : (good ? 'better' : 'worse');
       }
       var dfmt = (row[1] === 'bias' || row[1] === 'forecastError' || row[1] === 'capture') ? signed(dlt * 100, 0) + ' pts' : signed(dlt);
-      html += '<tr><td>' + esc(row[0]) + '</td><td class="num">' + esc(row[2](a)) + '</td><td class="num">' + esc(row[2](b)) + '</td><td class="num ' + cls + '">' + esc(dfmt) + '</td></tr>';
+      html += '<tr>' + td('Measure', esc(row[0]), 'lead') + td('A (pinned)', esc(row[2](a)), 'num') + td('B (now)', esc(row[2](b)), 'num') + td('B minus A', esc(dfmt), ('num ' + cls).trim()) + '</tr>';
     });
-    html += '<tr><td>Settings</td><td colspan="3" class="fixtext"><b>A:</b> ' + esc(settingsSummary(A.settings)) + '<br><b>B:</b> ' + esc(settingsSummary(B.settings)) + '</td></tr>';
+    html += '<tr>' + td('Settings', 'Settings', 'lead') + '<td colspan="3" data-label="Settings" class="fixtext wide"><span class="v"><b>A:</b> ' + esc(settingsSummary(A.settings)) + '<br><b>B:</b> ' + esc(settingsSummary(B.settings)) + '</span></td></tr>';
     return html + '</tbody>';
   }
 
@@ -1578,7 +1665,7 @@ var FitToTrain = (function () {
     return '<div class="card"><div class="lbl">' + (cls ? '<i class="dot ' + cls + '"></i>' : '') + esc(label) + '</div><div class="num">' + num + '</div><div class="sub">' + sub + '</div></div>';
   }
 
-  var fixTimer = null, renderToken = 0, lastResult = null;
+  var fixTimer = null, renderToken = 0, lastResult = null, lastRobust = null;
 
   function render() {
     var r = M.runLab(state, { fixes: false });
@@ -1610,8 +1697,15 @@ var FitToTrain = (function () {
     $('records-table').innerHTML = recordsTable(r);
     lastResult = r;
     $('compare-table').innerHTML = compareTable(r);
-    if ($('robust-out').innerHTML && $('robust-out').dataset.key !== JSON.stringify(state)) {
-      $('robust-out').innerHTML = '<p class="note">The settings have changed since the last test. Run it again to check them.</p>';
+    $('mini').innerHTML = '<span><i class="dot backtest"></i>Back-test <b>' + f2(r.backtest.auc) + '</b></span><span><i class="dot live"></i>Live <b>' +
+      f2(r.live.auc) + '</b></span><span><i class="dot ceiling"></i>Clean <b>' + f2(r.ceiling.auc) + '</b></span>';
+    if ($('robust-out').innerHTML) {
+      if ($('robust-out').dataset.key !== JSON.stringify(state)) {
+        $('robust-out').innerHTML = '<p class="note">The settings have changed since the last test. Run it again to check them.</p>';
+        lastRobust = null;
+      } else if (lastRobust) {
+        $('robust-out').innerHTML = robustHtml(lastRobust);
+      }
     }
     try { history.replaceState(null, '', toHash(state)); } catch (e) { /* some browsers block this on local files */ }
 
@@ -1660,6 +1754,26 @@ var FitToTrain = (function () {
   window.addEventListener('hashchange', function () {
     var h = fromHash(location.hash);
     if (h && toHash(M.normaliseSettings(Object.assign({}, state, h))) !== toHash(state)) applySettings(h);
+  });
+  // In-page links scroll and move focus without replacing the settings kept in the address.
+  Array.prototype.forEach.call(document.querySelectorAll('a[href^="#"]'), function (a) {
+    a.addEventListener('click', function (e) {
+      var target = document.getElementById(a.getAttribute('href').slice(1));
+      if (!target) return;
+      e.preventDefault();
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+  });
+
+  var lastWidth = window.innerWidth, resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 200);
   });
   syncControls();
   render();

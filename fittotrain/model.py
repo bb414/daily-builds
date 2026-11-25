@@ -457,7 +457,7 @@ def audit_crm(crm, as_of=GO_LIVE):
     blank_share = blank_total / (n * len(FIELDS)) if n else 0
     rows.append({"key": "blanks", "check": "Blank scoring fields", "value": blank_share,
                  "light": light(blank_share, 0.05, 0.15),
-                 "detail": "of the six scoring fields are empty across %d records" % n})
+                 "detail": "of the six scoring fields are empty across {:,} records".format(n)})
 
     closed = edited = 0
     for r in h:
@@ -468,7 +468,7 @@ def audit_crm(crm, as_of=GO_LIVE):
     edited_share = edited / closed if closed else 0
     rows.append({"key": "retrofill", "check": "Closed deals edited after closing", "value": edited_share,
                  "light": light(edited_share, 0.05, 0.15),
-                 "detail": "of %d closed deals had a scoring field changed after the close date" % closed})
+                 "detail": "of {:,} closed deals had a scoring field changed after the close date".format(closed)})
 
     open_n = stale = 0
     for r in h:
@@ -479,7 +479,7 @@ def audit_crm(crm, as_of=GO_LIVE):
     stale_share = stale / (closed + stale) if (closed + stale) else 0
     rows.append({"key": "zombies", "check": "Open deals past their close date", "value": stale_share,
                  "light": light(stale_share, 0.05, 0.15),
-                 "detail": "of deals due to close by go-live are still open (%d of %d open deals)" % (stale, open_n)})
+                 "detail": "of deals due to close by go-live are still open ({:,} of {:,} open deals)".format(stale, open_n)})
 
     groups = {}
     for i, r in enumerate(h):

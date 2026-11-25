@@ -1,5 +1,7 @@
 """Plain-text reports for the command line."""
 
+import textwrap
+
 from . import model
 from .audit import MIN_CLOSED
 
@@ -31,14 +33,21 @@ def money(x):
     return "GBP %dk" % round(x / 1000)
 
 
-def table(headers, rows, align=None):
-    """A simple fixed-width text table."""
+def table(headers, rows, align=None, wrap=None):
+    """A simple fixed-width text table. `wrap` maps a column index to a width to wrap it at."""
     align = align or ["<"] * len(headers)
-    cells = [[str(h) for h in headers]] + [[str(c) for c in r] for r in rows]
-    widths = [max(len(r[i]) for r in cells) for i in range(len(headers))]
+    wrap = wrap or {}
+    cells = [[str(h) for h in headers]]
+    for r in rows:
+        cells.append([textwrap.fill(str(c), wrap[i], break_on_hyphens=False) if i in wrap else str(c) for i, c in enumerate(r)])
+    split = [[c.split("\n") for c in r] for r in cells]
+    widths = [max(len(line) for r in split for line in r[i]) for i in range(len(headers))]
     lines = []
-    for k, r in enumerate(cells):
-        lines.append("  ".join(("{:%s%d}" % (align[i], widths[i])).format(r[i]) for i in range(len(r))).rstrip())
+    for k, r in enumerate(split):
+        height = max(len(c) for c in r)
+        for j in range(height):
+            parts = [c[j] if j < len(c) else "" for c in r]
+            lines.append("  ".join(("{:%s%d}" % (align[i], widths[i])).format(parts[i]) for i in range(len(parts))).rstrip())
         if k == 0:
             lines.append("  ".join("-" * w for w in widths))
     return "\n".join(lines)
@@ -119,7 +128,7 @@ def audit_value(row):
 def audit_table(rows):
     return table(["Check", "Result", "Flag", "What it means"],
                  [[row["check"], audit_value(row), LIGHT_WORDS[row["light"]], row["detail"]] for row in rows],
-                 ["<", ">", "<", "<"])
+                 ["<", ">", "<", "<"], wrap={0: 30, 3: 56})
 
 
 def export_audit_text(a, path):
