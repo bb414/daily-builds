@@ -111,6 +111,20 @@ class AppTests(unittest.TestCase):
         other.close()
         self.assertEqual(self.problems, [])
 
+    def test_sortino_and_return_over_drawdown_rules(self):
+        page = self.open()
+        page.check("input[name=rule][value=sortino]", force=True)
+        self.wait_for_new_result(page)
+        self.assertIn("Ranked on Sortino ratio, extra risk buys nothing", page.inner_text("#insight"))
+        page.check("input[name=rule][value=calmar]", force=True)
+        self.wait_for_new_result(page)
+        self.assertIn("Highest return over worst drawdown", page.inner_text("#risk-rule"))
+        self.assertIn("rule=calmar", page.url)
+        page.wait_for_function("document.getElementById('skill-note').textContent.indexOf('return over worst drawdown') >= 0",
+                               timeout=60000)
+        self.assertEqual(page.locator("#skill-table thead th").count(), 6)
+        self.assertEqual(self.problems, [])
+
     def test_volatility_cap_preset(self):
         page = self.open()
         page.select_option("#preset", label="Volatility capped at 30%")

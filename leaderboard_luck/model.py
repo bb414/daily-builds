@@ -16,11 +16,13 @@ from __future__ import annotations
 import math
 
 DAYS_PER_YEAR = 252
-RULES = ("return", "sharpe", "drawdown")
+RULES = ("return", "sharpe", "drawdown", "sortino", "calmar")
 RULE_LABELS = {
     "return": "Highest return",
     "sharpe": "Highest Sharpe ratio",
     "drawdown": "Highest return, out if the drawdown limit is breached",
+    "sortino": "Highest Sortino ratio",
+    "calmar": "Highest return over worst drawdown",
 }
 
 DEFAULTS = {
@@ -176,7 +178,7 @@ def shock(g: Rng, fat: bool) -> float:
 # ---------- one team's account ----------
 
 class Account:
-    __slots__ = ("wealth", "peak", "max_dd", "total", "total_sq", "bust", "path")
+    __slots__ = ("wealth", "peak", "max_dd", "total", "total_sq", "down_sq", "bust", "path")
 
     def __init__(self, record: bool):
         self.wealth = 1.0
@@ -184,6 +186,7 @@ class Account:
         self.max_dd = 0.0
         self.total = 0.0
         self.total_sq = 0.0
+        self.down_sq = 0.0
         self.bust = False
         self.path = [1.0] if record else None
 
@@ -191,6 +194,8 @@ class Account:
         if not self.bust:
             self.total += r
             self.total_sq += r * r
+            if r < 0:
+                self.down_sq += r * r
             self.wealth *= 1 + r
             if self.wealth <= 0:
                 self.wealth = 0.0
@@ -217,7 +222,7 @@ def finish(acc: Account, p: dict) -> dict:
         "maxDD": acc.max_dd,
         "bust": acc.bust,
         "out": out,
-        "score": -math.inf if out else (sharpe if p["rule"] == "sharpe" else ret),
+        "score": rule_score(acc, p, n),
     }
 
 
@@ -236,15 +241,28 @@ def daily_sd(vol: float) -> float:
     return vol / math.sqrt(DAYS_PER_YEAR)
 
 
-def interim_score(acc: Account, p: dict, n: int) -> float:
-    """The score a team would have on the leaderboard after n days."""
+# Where the Sortino ratio or return over worst drawdown would divide by zero (no losing day, or no
+# fall at all) a tiny floor is used instead, so that team ranks first, by return.
+SCORE_FLOOR = 1e-9
+
+
+def rule_score(acc: Account, p: dict, n: int) -> float:
+    """A team's score on the leaderboard after n days."""
     if acc.bust or (p["rule"] == "drawdown" and acc.max_dd > p["drawdownLimit"]):
         return -math.inf
-    if p["rule"] != "sharpe":
+    if p["rule"] in ("return", "drawdown"):
         return acc.wealth - 1
+    if p["rule"] == "calmar":
+        return (acc.wealth - 1) / max(SCORE_FLOOR, acc.max_dd)
     mean = acc.total / n
+    if p["rule"] == "sortino":
+        return mean / max(SCORE_FLOOR, math.sqrt(acc.down_sq / n)) * math.sqrt(DAYS_PER_YEAR)
     variance = (acc.total_sq - n * mean * mean) / (n - 1) if n > 1 else 0.0
     return mean / math.sqrt(variance) * math.sqrt(DAYS_PER_YEAR) if variance > 0 else 0.0
+
+
+def interim_score(acc: Account, p: dict, n: int) -> float:
+    return rule_score(acc, p, n)
 
 
 def checkpoint_day(p: dict) -> int:

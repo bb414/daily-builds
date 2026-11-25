@@ -34,6 +34,8 @@ So a team that is better than nine in ten of its rivals wins less often than a t
 | Scenario (everything else at the defaults) | Your chance of winning | What changes |
 |---|---|---|
 | Ranked on Sharpe ratio | 5.6% | Gamblers win 18.5% instead of 72.0%. Risk no longer matters: 5.6% at every volatility. |
+| Ranked on Sortino ratio | 5.3% | Gamblers win 17.8%. As with the Sharpe ratio, risk makes no difference at all. |
+| Ranked on return over worst drawdown | 5.3% | Gamblers win 20.1%. Risk barely matters: your best chance is 6.3%, at 100% volatility. |
 | Knocked out at a 10% drawdown | 2.6% | Your team is knocked out of 4.7% of challenges. The best risk falls to 55% volatility (12.9%), even though at that risk your team is knocked out of 63% of them. |
 | Your team goes for broke when behind | 8.6% | Switches to 80% volatility if outside the top 3 at day 15, which happens in 92.3% of challenges. Top-3 chance rises to 27.1%. |
 | Every steady rival chases the lead | 0.7% | Every steady rival outside the top 3 at day 15 triples its risk. |
@@ -45,12 +47,12 @@ So a team that is better than nine in ten of its rivals wins less often than a t
 
 The organiser's view, from `python -m leaderboard_luck design` with 400 challenges for each rule and length (the app's chart uses 300 per point, so its figures differ slightly):
 
-| Length | Ranked on return | Ranked on Sharpe ratio | Return with a 15% drawdown limit |
-|---|---|---|---|
-| 4 weeks | 7.0% (0.22) | 8.3% (0.23) | 7.2% (0.21) |
-| 1 year | 18.5% (0.60) | 26.8% (0.64) | 21.0% (0.33) |
+| Length | Return | Sharpe ratio | Sortino ratio | Return over worst drawdown | Return with a 15% drawdown limit |
+|---|---|---|---|---|---|
+| 4 weeks | 7.0% (0.22) | 8.3% (0.23) | 7.0% (0.23) | 8.0% (0.23) | 7.2% (0.21) |
+| 1 year | 18.5% (0.60) | 26.8% (0.64) | 26.8% (0.64) | 24.5% (0.62) | 21.0% (0.33) |
 
-Each cell is how often the most skilled team wins, with the rank correlation between true skill and final place in brackets (0 is pure luck, 1 is a perfect match). Ranking on Sharpe ratio picked out the most skilled team most often at all seven lengths tested. Over four weeks, gamblers won 69% of return-ranked challenges against 17% of those ranked on Sharpe ratio. Even after a year, the best team wins only about a quarter of the time under the best rule tested.
+Each cell is how often the most skilled team wins, with the rank correlation between true skill and final place in brackets (0 is pure luck, 1 is a perfect match). Ranking on Sharpe ratio picked out the most skilled team at least as often as any other rule at five of the seven lengths tested; the Sortino ratio matched it at twelve weeks and a year and beat it at six months. Over four weeks, gamblers won 69% of return-ranked challenges against 17% of those ranked on Sharpe ratio, 17% on Sortino ratio and 19% on return over worst drawdown. A drawdown limit is the weakest of the risk-aware rules over a year, because it knocks out skilled teams too. Even after a year, the best team wins only about a quarter of the time under the best rule tested.
 
 These are results from a deliberately simple model, not forecasts for any real challenge. They are most useful as a way to start an argument: change a setting you think is unrealistic and see whether the conclusion survives.
 
@@ -138,9 +140,9 @@ python -m leaderboard_luck check --example month                          # the 
 python -m leaderboard_luck calibrate                      # does the check work? (about half a minute)
 ```
 
-Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--vol-cap` (giving it turns the cap on), `--cost`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
+Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown,sortino,calmar}` (`calmar` is return over worst drawdown), `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--vol-cap` (giving it turns the cap on), `--cost`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
 
-`sample` shows the top ten and your team (`--top` to change; `--top 0` shows every team). `design` runs every scoring rule at every length, so it takes no `--rule`, `--days` or `--sims`: that is 21 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
+`sample` shows the top ten and your team (`--top` to change; `--top 0` shows every team). `design` runs every scoring rule at every length, so it takes no `--rule`, `--days` or `--sims`: that is 35 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
 
 `check` reads a CSV or tab-separated file (`-` reads it from the input) and takes `--days`, `--correlation`, `--assume-vol` (the volatility to assume for teams with no volatility or Sharpe ratio), `--sims` and `--seed`, plus `--json`. `calibrate` takes `--challenges`, `--sims` and `--workers`.
 
@@ -167,12 +169,12 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 
 | Part | Language | Lines | What it does |
 |---|---|---|---|
-| `app/index.html`, layout and styles | HTML and CSS | 409 | Page structure, light and dark themes, phone layout |
-| `app/index.html`, model | JavaScript | 988 | The simulation and the leaderboard check, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
-| `app/index.html`, interface | JavaScript | 1,053 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links, the leaderboard check card |
-| `leaderboard_luck/` | Python | 1,645 | A line-for-line port of the model and the leaderboard check, the command line, text and JSON reports, the organiser's design report, and the check's calibration study |
-| `tests/*.py` | Python | 798 | Model, command line, cross-language agreement and browser tests |
-| `tests/*.js` | JavaScript | 241 | Node tests of the app's model, and the harness the agreement tests use |
+| `app/index.html`, layout and styles | HTML and CSS | 416 | Page structure, light and dark themes, phone layout |
+| `app/index.html`, model | JavaScript | 1,016 | The simulation and the leaderboard check, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
+| `app/index.html`, interface | JavaScript | 1,088 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links, the leaderboard check card |
+| `leaderboard_luck/` | Python | 1,715 | A line-for-line port of the model and the leaderboard check, the command line, text and JSON reports, the organiser's design report, and the check's calibration study |
+| `tests/*.py` | Python | 887 | Model, command line, cross-language agreement and browser tests |
+| `tests/*.js` | JavaScript | 252 | Node tests of the app's model, and the harness the agreement tests use |
 
 The browser app is the main product; Python is the companion for batch runs, scripting and the organiser's report.
 
@@ -186,7 +188,7 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 **The field.** Rivals' true Sharpe ratios are drawn from a normal distribution centred on zero, because most student strategies have no lasting edge. Their volatility is spread around the typical level. A share of rivals are gamblers: they run several times the typical risk but are no more skilled than anyone else.
 
-**Scoring.** Teams are ranked on total return, on realised Sharpe ratio (the mean of daily returns divided by their standard deviation, annualised), or on return with a drawdown limit, where any team whose worst fall from a peak exceeds the limit is knocked out. Knocked-out teams share the places at the bottom.
+**Scoring.** Teams are ranked on total return; on realised Sharpe ratio (the mean of daily returns divided by their standard deviation, annualised); on Sortino ratio (the mean of daily returns divided by the downside deviation, the root mean square of the losing days only, annualised); on return over worst drawdown (total return divided by the largest fall from a peak); or on return with a drawdown limit, where any team whose worst fall from a peak exceeds the limit is knocked out. Where a Sortino ratio or return over drawdown would divide by zero (no losing day, or no fall at all), a tiny floor is used instead, so that team ranks first. Knocked-out teams share the places at the bottom.
 
 **Going for broke.** At a checkpoint (by default three-quarters of the way through), a team outside the top 3 can switch to a much higher level of risk for the rest of the challenge. Your team can do this, and so can a chosen share of steady rivals. This mirrors what Brown, Harlow and Starks (1996) and Chevalier and Ellison (1997) found among mutual fund managers: funds that were behind part-way through the year tended to raise their risk for the rest of it.
 
@@ -213,6 +215,6 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 ## Next steps
 
-- **More scoring formats.** Sortino ratio, return over maximum drawdown, and judged components such as a written pitch.
+- **Judged components.** Many challenges add marks for a written pitch or a risk report; model how much a judged score dilutes, or amplifies, the luck in the trading score.
 - **Adaptive strategies.** Let teams adjust risk every day based on their place, and search for the best rule for your team given what rivals do.
 - **Team-level skill uncertainty.** Let a team see only a noisy estimate of its own skill from past results, and work out when it should switch strategy.

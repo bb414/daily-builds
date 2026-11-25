@@ -10,17 +10,25 @@ import csv
 import html
 import io
 
-from .model import DURATIONS, RULE_LABELS, RULES
+from .model import DURATIONS, RULE_LABELS
 from .report import describe, pct
 
-RULE_COLOURS = {"return": "#6250d6", "sharpe": "#008300", "drawdown": "#e87ba4"}
-SHORT_NAMES = {"return": "Return", "sharpe": "Sharpe ratio", "drawdown": "Return with drawdown limit"}
+# Shown in this order: plain return, the two risk-adjusted ratios, then the two drawdown rules. Colour
+# marks the family; a dashed line marks the second rule in a family.
+ORDER = ("return", "sharpe", "sortino", "calmar", "drawdown")
+RULE_COLOURS = {"return": "#6250d6", "sharpe": "#008300", "sortino": "#008300", "calmar": "#e87ba4",
+                "drawdown": "#e87ba4"}
+RULE_DASH = {"sortino": "7 4", "calmar": "7 4"}
+SHORT_NAMES = {"return": "Return", "sharpe": "Sharpe ratio", "sortino": "Sortino ratio", "calmar": "Return/drawdown",
+               "drawdown": "Drawdown limit"}
+IN_A_SENTENCE = {"return": "return", "sharpe": "Sharpe ratio", "sortino": "Sortino ratio",
+                 "calmar": "return over worst drawdown", "drawdown": "return with a drawdown limit"}
 
 
 def short_names(params: dict) -> dict:
-    """Column and legend names, with the drawdown limit that was actually used."""
-    return dict(SHORT_NAMES, drawdown=f"Return, {pct(params['drawdownLimit'], 0)} drawdown limit")
-IN_A_SENTENCE = {"return": "return", "sharpe": "Sharpe ratio", "drawdown": "return with a drawdown limit"}
+    """Legend and column names for the HTML report, with the drawdown limit that was actually used."""
+    return dict(SHORT_NAMES, calmar="Return over worst drawdown",
+                drawdown=f"Return, {pct(params['drawdownLimit'], 0)} drawdown limit")
 
 
 def _by(rows: list[dict]) -> dict:
@@ -36,38 +44,44 @@ def findings(rows: list[dict]) -> list[str]:
     """Plain-English conclusions, worked out from the numbers rather than assumed."""
     by = _by(rows)
     out = []
-    best_rule_each = []
+    # A rule counts at a length if no other rule picked out the most skilled team more often there.
+    winners = {rule: 0 for rule in ORDER}
     for days in DURATIONS:
-        best_rule_each.append(max(RULES, key=lambda rule: (by[(rule, days)]["pBestWins"], -RULES.index(rule))))
-    winners = {rule: best_rule_each.count(rule) for rule in RULES}
-    top = max(RULES, key=lambda rule: winners[rule])
+        best = max(by[(rule, days)]["pBestWins"] for rule in ORDER)
+        for rule in ORDER:
+            if by[(rule, days)]["pBestWins"] == best:
+                winners[rule] += 1
+    top = max(ORDER, key=lambda rule: (winners[rule], -ORDER.index(rule)))
     count = f"all {len(DURATIONS)}" if winners[top] == len(DURATIONS) else f"{winners[top]} of the {len(DURATIONS)}"
-    out.append(f"Ranking on {IN_A_SENTENCE[top]} picked out the most skilled team most often at {count} lengths tested.")
-    year = {rule: by[(rule, DURATIONS[-1])] for rule in RULES}
-    best_year = max(RULES, key=lambda rule: year[rule]["pBestWins"])
+    out.append(f"Ranking on {IN_A_SENTENCE[top]} picked out the most skilled team at least as often as any other rule "
+               f"at {count} lengths tested.")
+    year = {rule: by[(rule, DURATIONS[-1])] for rule in ORDER}
+    best_year = max(ORDER, key=lambda rule: year[rule]["pBestWins"])
     share = year[best_year]["pBestWins"]
     span = "a year" if DURATIONS[-1] == 250 else length_label(DURATIONS[-1])
     out.append(f"Over {span}, the most skilled team won {'only ' if share < 0.5 else ''}"
-               f"{pct(share, 0)} of challenges under the best rule, and final places matched true skill with a "
+               f"{pct(share, 0)} of challenges under the best rule ({IN_A_SENTENCE[best_year]}), and final places matched true skill with a "
                f"rank correlation of {year[best_year]['rankCorr']:.2f} (1 would be perfect).")
-    month = {rule: by[(rule, 20)] for rule in RULES}
+    month = {rule: by[(rule, 20)] for rule in ORDER}
     out.append(f"Over four weeks, gamblers won {pct(month['return']['pGamblerWins'], 0)} of return-ranked "
-               f"challenges against {pct(month['sharpe']['pGamblerWins'], 0)} ranked on Sharpe ratio, and the winner "
+               f"challenges against {pct(month['sharpe']['pGamblerWins'], 0)} ranked on Sharpe ratio, "
+               f"{pct(month['sortino']['pGamblerWins'], 0)} on Sortino ratio and "
+               f"{pct(month['calmar']['pGamblerWins'], 0)} on return over worst drawdown, and the winner "
                f"had no real edge in {pct(month['return']['pNoEdgeWins'], 0)} of return-ranked ones.")
     return out
 
 
 def design_report(params: dict, rows: list[dict], sims_each: int) -> str:
     by = _by(rows)
-    names = short_names(params)
+    head = "  " + f"{'Length':<10}" + "".join(f"{SHORT_NAMES[r]:>17}" for r in ORDER)
     lines = ["Leaderboard luck: how long before skill shows?", ""] + describe(params, every_length=True) + [
         f"  {sims_each:,} simulated challenges for each rule and length, luck number {params['seed']}", "",
-        "  Chance the most skilled team wins (rank correlation between true skill and final place):",
-        "  " + f"{'Length':<10}" + "".join(f"{names[r]:>30}" for r in RULES)]
+        "  Chance the most skilled team wins:", head]
     for days in DURATIONS:
-        cells = "".join(f"{pct(by[(r, days)]['pBestWins']) + ' (' + format(by[(r, days)]['rankCorr'], '.2f') + ')':>30}"
-                        for r in RULES)
-        lines.append(f"  {length_label(days):<10}{cells}")
+        lines.append(f"  {length_label(days):<10}" + "".join(f"{pct(by[(r, days)]['pBestWins']):>17}" for r in ORDER))
+    lines += ["", "  Rank correlation between true skill and final place (1 would be perfect):", head]
+    for days in DURATIONS:
+        lines.append(f"  {length_label(days):<10}" + "".join(f"{by[(r, days)]['rankCorr']:>17.2f}" for r in ORDER))
     lines += [""] + [f"  {f}" for f in findings(rows)]
     return "\n".join(lines)
 
@@ -132,7 +146,7 @@ def _chart(rows: list[dict], key: str, label: str, names: dict) -> str:
         return m["t"] + ph * (1 - v / y_max)
 
     desc = "; ".join(f"{names[r]}: " + ", ".join(f"{length_label(d)} {by[(r, d)][key]:.2f}" for d in DURATIONS)
-                     for r in RULES)
+                     for r in ORDER)
     parts = [f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" aria-label="{html.escape(label + ". " + desc)}">']
     for k in range(ticks + 1):
         v = y_max * k / ticks
@@ -141,9 +155,10 @@ def _chart(rows: list[dict], key: str, label: str, names: dict) -> str:
         parts.append(f'<text x="{m["l"] - 6}" y="{sy(v) + 4:.1f}" text-anchor="end">{text}</text>')
     for i, d in enumerate(DURATIONS):
         parts.append(f'<text x="{sx(i):.1f}" y="{h - 18}" text-anchor="middle">{html.escape(length_label(d))}</text>')
-    for rule in RULES:
+    for rule in ORDER:
         pts = " ".join(f"{'M' if i == 0 else 'L'}{sx(i):.1f} {sy(by[(rule, d)][key]):.1f}" for i, d in enumerate(DURATIONS))
-        parts.append(f'<path d="{pts}" fill="none" stroke="{RULE_COLOURS[rule]}" stroke-width="2.5"/>')
+        dash = f' stroke-dasharray="{RULE_DASH[rule]}"' if rule in RULE_DASH else ""
+        parts.append(f'<path d="{pts}" fill="none" stroke="{RULE_COLOURS[rule]}" stroke-width="2.5"{dash}/>')
         for i, d in enumerate(DURATIONS):
             parts.append(f'<circle cx="{sx(i):.1f}" cy="{sy(by[(rule, d)][key]):.1f}" r="3.5" fill="{RULE_COLOURS[rule]}">'
                          f'<title>{html.escape(names[rule])}, {html.escape(length_label(d))}: '
@@ -155,12 +170,17 @@ def _chart(rows: list[dict], key: str, label: str, names: dict) -> str:
 def design_html(params: dict, rows: list[dict], sims_each: int) -> str:
     by = _by(rows)
     names = short_names(params)
-    legend = "".join(f'<span><i style="background:{RULE_COLOURS[r]}"></i>{html.escape(names[r])}</span>' for r in RULES)
-    head = "".join(f"<th>{html.escape(names[r])}</th>" for r in RULES)
+    def swatch(r):
+        if r in RULE_DASH:
+            c = RULE_COLOURS[r]
+            return f'<i style="background:linear-gradient(90deg,{c} 0 7px,transparent 7px 11px,{c} 11px 18px);width:18px"></i>'
+        return f'<i style="background:{RULE_COLOURS[r]}"></i>'
+    legend = "".join(f'<span>{swatch(r)}{html.escape(names[r])}</span>' for r in ORDER)
+    head = "".join(f"<th>{html.escape(names[r])}</th>" for r in ORDER)
     body = "".join(
         f"<tr><td>{html.escape(length_label(d))}</td>"
         + "".join(f"<td>{pct(by[(r, d)]['pBestWins'])} <span class='note'>({by[(r, d)]['rankCorr']:.2f})</span></td>"
-                  for r in RULES) + "</tr>" for d in DURATIONS)
+                  for r in ORDER) + "</tr>" for d in DURATIONS)
     setting_lines = "".join(f"<li>{html.escape(line.strip())}</li>" for line in describe(params, every_length=True))
     found = "".join(f"<li>{html.escape(f)}</li>" for f in findings(rows))
     return f"""<!DOCTYPE html>
@@ -179,6 +199,6 @@ measures how closely the whole final table follows true skill: 0 is pure luck, 1
 <thead><tr><th>Length</th>{head}</tr></thead><tbody>{body}</tbody></table></div>
 <p class="note">Each cell: chance the most skilled team wins (rank correlation in brackets).</p></div>
 <div class="card"><h2>The field simulated</h2><ul>{setting_lines}</ul>
-<p class="note">Rule names: {html.escape("; ".join(f"{names[r]}: {RULE_LABELS[r]}" for r in RULES))}.</p></div>
+<p class="note">Rule names: {html.escape("; ".join(f"{names[r]}: {RULE_LABELS[r]}" for r in ORDER))}.</p></div>
 </main></body></html>
 """

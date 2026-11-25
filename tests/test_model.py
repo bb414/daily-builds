@@ -152,10 +152,35 @@ class SkillByLengthTests(unittest.TestCase):
         text = design_report(p, rows, 20)
         self.assertIn("how long before skill shows", text)
         self.assertEqual(len(findings(rows)), 3)
-        self.assertEqual(len(design_csv(rows).strip().splitlines()), 22)
+        self.assertEqual(len(design_csv(rows).strip().splitlines()), 36)  # a header, then 5 rules x 7 lengths
         page = design_html(p, rows, 20)
         self.assertTrue(page.startswith("<!DOCTYPE html>"))
         self.assertNotIn("http", page.replace('xmlns="http://www.w3.org/2000/svg"', ""))
+
+
+class NewRulesTests(unittest.TestCase):
+    def test_sortino_and_return_over_drawdown_scores(self):
+        acc = model.Account(False)
+        for r in (0.02, -0.01, 0.03, -0.02):
+            acc.step(r)
+        mean = 0.02 / 4
+        self.assertAlmostEqual(model.rule_score(acc, {"rule": "sortino", "drawdownLimit": 0.1}, 4),
+                               mean / math.sqrt((0.01 ** 2 + 0.02 ** 2) / 4) * math.sqrt(252))
+        self.assertAlmostEqual(model.rule_score(acc, {"rule": "calmar", "drawdownLimit": 0.1}, 4),
+                               (acc.wealth - 1) / acc.max_dd)
+        # With no losing day the floor applies, and the team ranks above any ordinary score.
+        up = model.Account(False)
+        for r in (0.01, 0.02):
+            up.step(r)
+        self.assertGreater(model.rule_score(up, {"rule": "sortino", "drawdownLimit": 0.1}, 2), 1e6)
+        self.assertGreater(model.rule_score(up, {"rule": "calmar", "drawdownLimit": 0.1}, 2), 1e6)
+
+    def test_sortino_makes_risk_irrelevant_and_both_tame_the_gamblers(self):
+        r = simulate({"sims": 300, "rule": "sortino"})
+        self.assertEqual(len({c["pWin"] for c in r["curve"]}), 1)
+        base = simulate({"sims": 300})
+        for rule in ("sortino", "calmar"):
+            self.assertLess(simulate({"sims": 300, "rule": rule})["winners"]["gambler"], base["winners"]["gambler"] / 2)
 
 
 class NormaliseTests(unittest.TestCase):

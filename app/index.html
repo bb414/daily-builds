@@ -155,6 +155,7 @@ legend { font-weight: 600; font-size: 0.9375rem; padding: 0; margin-bottom: 6px;
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
 .sw.line { height: 3px; border-radius: 2px; width: 16px; }
+.sw.line.dashed { width: 18px; border-radius: 0; background: linear-gradient(90deg, var(--c) 0 7px, transparent 7px 11px, var(--c) 11px 18px); }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart text { fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
@@ -320,6 +321,8 @@ details.about[open] summary::after { content: " \25b4"; }
     <div class="legend" aria-hidden="true">
       <span><i class="sw line" style="background:var(--rule-return)"></i>Highest return</span>
       <span><i class="sw line" style="background:var(--rule-sharpe)"></i>Highest Sharpe ratio</span>
+      <span><i class="sw line dashed" style="--c:var(--rule-sharpe)"></i>Highest Sortino ratio</span>
+      <span><i class="sw line dashed" style="--c:var(--rule-drawdown)"></i>Return over worst drawdown</span>
       <span><i class="sw line" style="background:var(--rule-drawdown)"></i><span id="skill-dd-name">Return with a 15% drawdown limit</span></span>
     </div>
     <div class="chart" id="skill-chart"></div>
@@ -381,7 +384,7 @@ details.about[open] summary::after { content: " \25b4"; }
     <summary><h2 id="about-h">How it works</h2></summary>
     <div id="about">
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
-      <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
+      <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; highest Sortino ratio, which divides return by the volatility of losing days only, so upside swings are not penalised; best return over worst drawdown, which divides return by the largest fall from a peak; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
       <p><strong>Going for broke.</strong> Your team, and a share of the steady rivals, can switch to a much higher risk if they are outside the top three at a checkpoint. Rivals judge their position against the other rivals, so their choices do not depend on yours and the risk curve still compares like with like. Studies of fund managers find the same behaviour: managers who are behind part-way through the year tend to raise their risk (Brown, Harlow and Starks, 1996; Chevalier and Ellison, 1997).</p>
       <p><strong>Capping and costing risk.</strong> With a volatility cap, no team may run more than the cap, whatever it wants: gamblers, teams going for broke and your team included. The cost of risk is a return lost each year in proportion to volatility, so it costs a gambler several times what it costs a steady team. Over a few weeks it is small next to luck, which is why a cap changes the leaderboard far more than a cost.</p>
       <p><strong>Checking a real leaderboard.</strong> Each team's result is turned into a luck-adjusted score: its log return divided by its volatility over the challenge, or its Sharpe ratio scaled to the challenge's length. If no team had any skill, those scores would spread out only as much as luck allows, and how much that is depends on how much teams ride the same market. More spread than that is a sign of skill: a chi-square test gives how often luck alone would produce it, and the excess gives an estimate of how much true skill varies across the field. Each team's estimated edge is its result pulled back towards the field's average by the share of the spread that is luck (a standard allowance for luck known as shrinkage). How often a field with no skill produces a best result as strong as the table's comes from 10,000 simulated luck-only fields. Tested on simulated challenges with no skill anywhere, it finds more spread than luck allows (at the 5% level) in about 5% of them, as a fair test should.</p>
@@ -416,11 +419,13 @@ var LeaderboardModel = (function () {
   'use strict';
 
   var DAYS_PER_YEAR = 252;
-  var RULES = ['return', 'sharpe', 'drawdown'];
+  var RULES = ['return', 'sharpe', 'drawdown', 'sortino', 'calmar'];
   var RULE_LABELS = {
     return: 'Highest return',
     sharpe: 'Highest Sharpe ratio',
-    drawdown: 'Highest return, out if the drawdown limit is breached'
+    drawdown: 'Highest return, out if the drawdown limit is breached',
+    sortino: 'Highest Sortino ratio',
+    calmar: 'Highest return over worst drawdown'
   };
 
   var DEFAULTS = {
@@ -567,13 +572,14 @@ var LeaderboardModel = (function () {
   /* ---------- one team's account ---------- */
 
   function newAccount(record) {
-    return { wealth: 1, peak: 1, maxDD: 0, sum: 0, sumSq: 0, bust: false, path: record ? [1] : null };
+    return { wealth: 1, peak: 1, maxDD: 0, sum: 0, sumSq: 0, downSq: 0, bust: false, path: record ? [1] : null };
   }
 
   function step(acc, r) {
     if (!acc.bust) {
       acc.sum += r;
       acc.sumSq += r * r;
+      if (r < 0) acc.downSq += r * r;
       acc.wealth *= 1 + r;
       if (acc.wealth <= 0) {
         acc.wealth = 0;
@@ -599,7 +605,7 @@ var LeaderboardModel = (function () {
       maxDD: acc.maxDD,
       bust: acc.bust,
       out: out,
-      score: out ? -Infinity : (p.rule === 'sharpe' ? sharpe : ret)
+      score: ruleScore(acc, p, n)
     };
   }
 
@@ -618,13 +624,24 @@ var LeaderboardModel = (function () {
     return vol / Math.sqrt(DAYS_PER_YEAR);
   }
 
-  // The score a team would have on the leaderboard after n days.
-  function interimScore(acc, p, n) {
+  // A team's score on the leaderboard after n days. The Sortino ratio divides the average daily
+  // return by the downside deviation (losing days only); return over worst drawdown divides the
+  // total return by the largest fall from a peak. Where either would divide by zero (no losing
+  // day, or no fall at all) a tiny floor is used instead, so that team ranks first, by return.
+  var SCORE_FLOOR = 1e-9;
+
+  function ruleScore(acc, p, n) {
     if (acc.bust || (p.rule === 'drawdown' && acc.maxDD > p.drawdownLimit)) return -Infinity;
-    if (p.rule !== 'sharpe') return acc.wealth - 1;
+    if (p.rule === 'return' || p.rule === 'drawdown') return acc.wealth - 1;
+    if (p.rule === 'calmar') return (acc.wealth - 1) / Math.max(SCORE_FLOOR, acc.maxDD);
     var mean = acc.sum / n;
+    if (p.rule === 'sortino') return mean / Math.max(SCORE_FLOOR, Math.sqrt(acc.downSq / n)) * Math.sqrt(DAYS_PER_YEAR);
     var variance = n > 1 ? (acc.sumSq - n * mean * mean) / (n - 1) : 0;
     return variance > 0 ? mean / Math.sqrt(variance) * Math.sqrt(DAYS_PER_YEAR) : 0;
+  }
+
+  function interimScore(acc, p, n) {
+    return ruleScore(acc, p, n);
   }
 
   function checkpointDay(p) {
@@ -1485,7 +1502,10 @@ if (typeof module !== 'undefined' && module.exports) {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
-  var SHORT_RULE = { return: 'Highest return', sharpe: 'Highest Sharpe ratio', drawdown: 'Return, with a drawdown limit' };
+  var SHORT_RULE = { return: 'Highest return', sharpe: 'Highest Sharpe ratio', sortino: 'Highest Sortino ratio',
+    calmar: 'Return over worst drawdown', drawdown: 'Return, with a drawdown limit' };
+  // The order the rules are shown in: plain return, the two risk-adjusted ratios, then the two drawdown rules.
+  var RULE_ORDER = ['return', 'sharpe', 'sortino', 'calmar', 'drawdown'];
 
   var params = Object.assign({}, M.DEFAULTS);
   var lastResult = null;
@@ -1584,7 +1604,7 @@ if (typeof module !== 'undefined' && module.exports) {
       $(target).appendChild(wrap);
     });
     var seg = $('#rule-seg');
-    M.RULES.forEach(function (r) {
+    RULE_ORDER.forEach(function (r) {
       var lab = el('label');
       var input = el('input', { type: 'radio', name: 'rule', value: r });
       input.checked = params.rule === r;
@@ -1717,7 +1737,10 @@ if (typeof module !== 'undefined' && module.exports) {
   var lastSkill = null;
   var LENGTH_LABELS = { 5: '1 week', 10: '2 weeks', 20: '4 weeks', 40: '8 weeks', 60: '12 weeks', 120: '6 months', 250: '1 year' };
   var SHORT_LENGTHS = { 5: '1 wk', 10: '2 wk', 20: '4 wk', 40: '8 wk', 60: '12 wk', 120: '6 mo', 250: '1 yr' };
-  var RULE_COLOUR = { return: 'var(--rule-return)', sharpe: 'var(--rule-sharpe)', drawdown: 'var(--rule-drawdown)' };
+  // Colour marks the family (return, risk-adjusted ratio, drawdown); a dashed line marks the second rule in a family.
+  var RULE_COLOUR = { return: 'var(--rule-return)', sharpe: 'var(--rule-sharpe)', sortino: 'var(--rule-sharpe)',
+    calmar: 'var(--rule-drawdown)', drawdown: 'var(--rule-drawdown)' };
+  var RULE_DASH = { sortino: '7 4', calmar: '7 4' };
 
   function startSkillRun(token) {
     var run = M.createSkillRun(params, SKILL_SIMS);
@@ -1758,7 +1781,7 @@ if (typeof module !== 'undefined' && module.exports) {
     var sy = function (v) { return H - m.b - (H - m.t - m.b) * v / yMax; };
     var get = function (rule, days) { return rows.filter(function (r) { return r.rule === rule && r.days === days; })[0]; };
     var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
-      'aria-label': 'Chance the most skilled team wins by challenge length. ' + M.RULES.map(function (rule) {
+      'aria-label': 'Chance the most skilled team wins by challenge length. ' + RULE_ORDER.map(function (rule) {
         return skillRuleName(rule) + ': ' + D.map(function (d) { return LENGTH_LABELS[d] + ' ' + pct(get(rule, d).pBestWins); }).join(', ');
       }).join('. ') });
     for (var i = 0; i <= axis.ticks; i++) {
@@ -1775,9 +1798,10 @@ if (typeof module !== 'undefined' && module.exports) {
     if (current >= 0) {
       svgEl('line', { x1: sx(current), x2: sx(current), y1: m.t, y2: H - m.b, stroke: 'var(--ink-2)', 'stroke-dasharray': '3 3' }, s);
     }
-    M.RULES.forEach(function (rule) {
+    RULE_ORDER.forEach(function (rule) {
       var d = D.map(function (days, k) { return (k ? 'L' : 'M') + sx(k).toFixed(1) + ' ' + sy(get(rule, days).pBestWins).toFixed(1); }).join(' ');
-      svgEl('path', { d: d, fill: 'none', stroke: RULE_COLOUR[rule], 'stroke-width': rule === params.rule ? 3.5 : 2, 'stroke-linejoin': 'round' }, s);
+      svgEl('path', { d: d, fill: 'none', stroke: RULE_COLOUR[rule], 'stroke-width': rule === params.rule ? 3.5 : 2,
+        'stroke-dasharray': RULE_DASH[rule] || 'none', 'stroke-linejoin': 'round' }, s);
       D.forEach(function (days, k) {
         svgEl('circle', { cx: sx(k), cy: sy(get(rule, days).pBestWins), r: 3.5, fill: RULE_COLOUR[rule] }, s);
       });
@@ -1788,14 +1812,14 @@ if (typeof module !== 'undefined' && module.exports) {
     var head = el('thead');
     var hr = el('tr');
     hr.appendChild(el('th', { scope: 'col' }, 'Length'));
-    M.RULES.forEach(function (rule) { hr.appendChild(el('th', { scope: 'col' }, skillRuleName(rule))); });
+    RULE_ORDER.forEach(function (rule) { hr.appendChild(el('th', { scope: 'col' }, skillRuleName(rule))); });
     head.appendChild(hr);
     table.appendChild(head);
     var body = el('tbody');
     D.forEach(function (days) {
       var tr = el('tr');
       tr.appendChild(el('th', { scope: 'row' }, LENGTH_LABELS[days]));
-      M.RULES.forEach(function (rule) {
+      RULE_ORDER.forEach(function (rule) {
         var r = get(rule, days);
         tr.appendChild(el('td', {}, pct(r.pBestWins, 1) + ' (rank correlation ' + r.rankCorr.toFixed(2) + ')'));
       });
@@ -1804,7 +1828,8 @@ if (typeof module !== 'undefined' && module.exports) {
     table.appendChild(body);
     var year = get(params.rule, 250);
     var month = get(params.rule, 20);
-    var ruleWords = { return: 'return', sharpe: 'Sharpe ratio', drawdown: 'return with a ' + pct(params.drawdownLimit) + ' drawdown limit' };
+    var ruleWords = { return: 'return', sharpe: 'Sharpe ratio', sortino: 'Sortino ratio', calmar: 'return over worst drawdown',
+      drawdown: 'return with a ' + pct(params.drawdownLimit) + ' drawdown limit' };
     var rc = year.rankCorr;
     var follow = rc >= 0.8 ? 'After a year, final places follow true skill closely' :
       'Even after a year, final places follow true skill ' + (rc >= 0.5 ? 'only partly' : 'only loosely');
@@ -1913,7 +1938,8 @@ if (typeof module !== 'undefined' && module.exports) {
     var chances = r.curve.map(function (c) { return c.pWin; });
     var flat = Math.max.apply(null, chances) - Math.min.apply(null, chances) < 1e-9;
     if (flat) {
-      parts.push((p.rule === 'sharpe' ? 'Ranked on Sharpe ratio, extra risk buys nothing: your' : 'Your') +
+      var ratio = { sharpe: 'Sharpe ratio', sortino: 'Sortino ratio' }[p.rule];
+      parts.push((ratio ? 'Ranked on ' + ratio + ', extra risk buys nothing: your' : 'Your') +
         ' chance of winning is the same at any volatility, so the only way up is a better strategy.');
     } else if (r.bestVol > p.yourVol + 0.04 && r.bestPWin > r.you.pWin + 0.005) {
       var atCap = p.leverageCap && r.bestVol >= p.volCap - 1e-9;

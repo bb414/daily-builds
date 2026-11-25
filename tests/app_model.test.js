@@ -210,3 +210,14 @@ test('the leaderboard check tells a month of luck from a year of skill', () => {
   assert.ok(r2.truthCorrelation > 0.5);
   r2.rows.forEach((row) => assert.ok(row.edgeLow < row.edge && row.edge < row.edgeHigh));
 });
+
+test('Sortino ratio, like Sharpe ratio, makes risk irrelevant; return over drawdown nearly does', () => {
+  const sortino = M.simulate({ sims: 300, rule: 'sortino' });
+  assert.equal(new Set(sortino.curve.map((c) => c.pWin)).size, 1);
+  const calmar = M.simulate({ sims: 300, rule: 'calmar' });
+  const wins = calmar.curve.map((c) => c.pWin);
+  assert.ok(Math.max(...wins) - Math.min(...wins) < 0.05);
+  const rows = M.skillByLength({ teams: 8 }, 4);
+  assert.equal(rows.length, 35);
+  assert.deepEqual([...new Set(rows.map((r) => r.rule))], M.RULES);
+});
