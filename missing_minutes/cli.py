@@ -6,7 +6,7 @@ import json
 import sys
 
 from . import model
-from .report import comparison_text, options_text
+from .report import comparison_text, options_text, robust_text
 
 SWEEP_PARAMS = {
     "saving": ("ai", "saving"),
@@ -20,10 +20,17 @@ SWEEP_PARAMS = {
 
 
 def _load(args):
+    """Load the preset or setup file; a seed saved in the file is used unless --seed is given."""
+    file_seed = None
     if getattr(args, "config", None):
-        cfg = model.load_config(args.config)
+        try:
+            cfg, file_seed = model.load_setup(args.config)
+        except (OSError, ValueError) as exc:
+            raise SystemExit("Could not read %s: %s" % (args.config, exc))
     else:
         cfg = model.preset_config(args.preset)
+    if args.seed is None:
+        args.seed = file_seed if file_seed is not None else 42
     errs = model.validate(cfg)
     if errs:
         raise SystemExit("The configuration has problems:\n  " + "\n  ".join(errs))
@@ -34,7 +41,7 @@ def _add_source(p):
     g = p.add_mutually_exclusive_group()
     g.add_argument("--preset", default="claims", choices=sorted(model.PRESETS), help="one of the example processes (default: claims)")
     g.add_argument("--config", help="a JSON file saved from the app or written by 'export'")
-    p.add_argument("--seed", type=int, default=42, help="random seed (default: 42, as in the app)")
+    p.add_argument("--seed", type=int, help="random seed (default: the one saved in --config, otherwise 42 as in the app)")
 
 
 def _parse_values(text):
@@ -123,6 +130,14 @@ def cmd_sweep(args):
             print("Wrote %d rows to %s" % (len(rows), args.out))
 
 
+def cmd_robust(args):
+    cfg = _load(args)
+    r = model.compare(cfg, args.seed)
+    seeds = model.robustness(cfg, args.seed, args.runs)
+    sens = model.sensitivity(cfg, args.seed)
+    print(robust_text(r, seeds, sens))
+
+
 def cmd_export(args):
     cfg = model.preset_config(args.preset)
     text = json.dumps(cfg, indent=2)
@@ -156,6 +171,11 @@ def build_parser():
     s.add_argument("--values", required=True, help="comma-separated values, or start:stop:step")
     s.add_argument("--out", help="CSV file to write (default: print to the screen)")
     s.set_defaults(func=cmd_sweep)
+
+    b = sub.add_parser("robust", help="re-run with other luck and nudge each assumption down and up")
+    _add_source(b)
+    b.add_argument("--runs", type=int, default=10, help="number of seeds to try (default: 10, as in the app)")
+    b.set_defaults(func=cmd_robust)
 
     e = sub.add_parser("export", help="write an example process as JSON to edit and load with --config")
     e.add_argument("--preset", default="claims", choices=sorted(model.PRESETS))

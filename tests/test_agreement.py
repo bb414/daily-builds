@@ -94,6 +94,15 @@ class Agreement(unittest.TestCase):
         for js, p in zip(run_js(jobs), py):
             assert_close(self, js, p)
 
+    def test_robustness_tornado_and_theory_agree(self):
+        cfg = M.preset_config("complaints")
+        js = run_js([{"fn": "robustness", "config": cfg, "seed": 5, "n": 3},
+                     {"fn": "sensitivity", "config": cfg, "seed": 5},
+                     {"fn": "theory", "cases": [[1, 0.5, 0.3], [5, 1, 0.9], [12, 0.7, 0.97], [3, 0, 0.5]]}])
+        assert_close(self, js[0], M.robustness(cfg, 5, 3))
+        assert_close(self, js[1], M.sensitivity(cfg, 5))
+        assert_close(self, js[2], [M.wait_multiple(c, cv, rho) for c, cv, rho in [[1, 0.5, 0.3], [5, 1, 0.9], [12, 0.7, 0.97], [3, 0, 0.5]]])
+
     def test_normalise_and_validate_agree(self):
         odd = [
             {"steps": []},

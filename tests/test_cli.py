@@ -65,6 +65,22 @@ class Cli(unittest.TestCase):
         out = run("run", "--preset", "claims", "--cut", "1")
         self.assertIn("Cut 1 of 5 people", out)
 
+    def test_robust_reports_luck_and_assumptions(self):
+        out = run("robust", "--preset", "loans", "--runs", "3")
+        self.assertIn("seed 44", out)
+        self.assertIn("Cases it gets wrong", out)
+
+    def test_saved_setup_seed_is_used_unless_overridden(self):
+        cfg = M.preset_config("claims")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "setup.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"app": "missing-minutes", "version": 1, "seed": 9, "config": cfg}, f)
+            out = json.loads(run("run", "--config", path, "--json"))
+            self.assertEqual(out["base"]["seed"], 9)
+            out = json.loads(run("run", "--config", path, "--seed", "3", "--json"))
+            self.assertEqual(out["base"]["seed"], 3)
+
     def test_bad_config_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "bad.json")

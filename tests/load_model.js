@@ -26,6 +26,9 @@ if (require.main === module) {
     if (job.fn === 'simulate') return M.simulate(job.config, job.seed, job.opts || {});
     if (job.fn === 'placements') return M.placements(job.config, job.seed);
     if (job.fn === 'bank') return M.bankSavings(job.config, job.seed, undefined, job.cut === null ? undefined : job.cut);
+    if (job.fn === 'robustness') return M.robustness(job.config, job.seed, job.n);
+    if (job.fn === 'sensitivity') return M.sensitivity(job.config, job.seed);
+    if (job.fn === 'theory') return job.cases.map((c) => M.waitMultiple(c[0], c[1], c[2]));
     if (job.fn === 'validate') return M.validate(M.normalise(job.config));
     if (job.fn === 'normalise') return M.normalise(job.config);
     throw new Error('Unknown function ' + job.fn);

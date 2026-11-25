@@ -728,6 +728,114 @@ def bank_savings(cfg_in, seed=1, cmp=None, cut=None):
     return out
 
 
+# ---------------------------------------------------------------------------
+# Robustness: different luck, and each assumption nudged down and up
+# ---------------------------------------------------------------------------
+
+def seed_list(seed, n):
+    return [((seed & MASK) + i) & MASK for i in range(n)]
+
+
+def seed_summary(cfg_in, seed):
+    r = compare(cfg_in, seed)
+    return {"seed": seed, "total": r["total"], "leverage": r["leverage"], "saved": -r["parts"][0]["value"], "stable": r["stable"]}
+
+
+def summarise_seeds(rows):
+    totals = sorted(r["total"] for r in rows)
+    s = 0
+    for r in rows:
+        s += r["total"]
+    return {
+        "n": len(rows), "runs": rows,
+        "mean": s / len(rows) if rows else 0,
+        "min": totals[0] if totals else 0, "max": totals[-1] if totals else 0,
+        "helped": sum(1 for r in rows if r["total"] < -0.5),
+        "hurt": sum(1 for r in rows if r["total"] > 0.5),
+        "stable": all(r["stable"] for r in rows),
+    }
+
+
+def robustness(cfg_in, seed=1, n=10):
+    return summarise_seeds([seed_summary(cfg_in, s) for s in seed_list(seed, n)])
+
+
+SENSITIVITY = [
+    {"key": "arrivalsPerDay", "label": "Cases a day", "low": "10% fewer", "high": "10% more"},
+    {"key": "saving", "label": "Time the AI saves", "low": "10 points less", "high": "10 points more"},
+    {"key": "adoption", "label": "Cases where it is used", "low": "20 points fewer", "high": "20 points more"},
+    {"key": "checkMinutes", "label": "Minutes to check its work", "low": "half", "high": "double"},
+    {"key": "errorRate", "label": "Cases it gets wrong", "low": "half", "high": "double"},
+]
+_SENS_ORDER = {f["key"]: i for i, f in enumerate(SENSITIVITY)}
+
+
+def _clamp(x, lo, hi):
+    return min(hi, max(lo, x))
+
+
+def variant_config(cfg_in, key, direction):
+    c = normalise(cfg_in)
+    a = c["ai"]
+    if key == "arrivalsPerDay":
+        c["arrivalsPerDay"] = c["arrivalsPerDay"] * (0.9 if direction < 0 else 1.1)
+    elif key == "saving":
+        a["saving"] = _clamp(a["saving"] + 0.1 * direction, 0, 0.95)
+    elif key == "adoption":
+        a["adoption"] = _clamp(a["adoption"] + 0.2 * direction, 0, 1)
+    elif key == "checkMinutes":
+        a["checkMinutes"] = a["checkMinutes"] * (0.5 if direction < 0 else 2)
+    elif key == "errorRate":
+        a["errorRate"] = _clamp(a["errorRate"] * (0.5 if direction < 0 else 2), 0, 0.5)
+    else:
+        raise KeyError("Unknown setting: " + key)
+    return c
+
+
+def sensitivity_row(cfg_in, seed, f):
+    lo = compare(variant_config(cfg_in, f["key"], -1), seed)
+    hi = compare(variant_config(cfg_in, f["key"], 1), seed)
+    return {"key": f["key"], "label": f["label"], "lowLabel": f["low"], "highLabel": f["high"],
+            "low": lo["total"], "high": hi["total"], "swing": abs(hi["total"] - lo["total"]),
+            "stable": lo["stable"] and hi["stable"]}
+
+
+def sort_sensitivity(rows):
+    return sorted(rows, key=lambda r: (-r["swing"], _SENS_ORDER[r["key"]]))
+
+
+def sensitivity(cfg_in, seed=1):
+    return sort_sensitivity([sensitivity_row(cfg_in, seed, f) for f in SENSITIVITY])
+
+
+# ---------------------------------------------------------------------------
+# Queueing theory for the explainer (Allen-Cunneen approximation)
+# ---------------------------------------------------------------------------
+
+def erlang_c(c, a):
+    """Probability that a case has to wait at a team of c people with offered load a."""
+    if a <= 0:
+        return 0
+    if a >= c:
+        return 1
+    term = 1
+    total = 1
+    for k in range(1, c):
+        term = term * a / k
+        total += term
+    top = term * a / c * c / (c - a)
+    return top / (total + top)
+
+
+def wait_multiple(staff, cv, rho):
+    """Mean wait as a multiple of the hands-on time, at utilisation rho."""
+    if rho <= 0:
+        return 0
+    if rho >= 1:
+        return math.inf
+    return erlang_c(staff, rho * staff) / (staff * (1 - rho)) * (1 + cv * cv) / 2
+
+
 def fmt_duration(minutes):
     """Same rounding as the app: minutes, hours or working days."""
     a = abs(minutes)
@@ -739,6 +847,23 @@ def fmt_duration(minutes):
     return "%s%.1f days" % (sign, a / DAY)
 
 
-def load_config(path):
+def load_setup(path):
+    """Read a setup saved by the app ({app, version, seed, config}) or a bare config.
+
+    Returns (config, seed); seed is None when the file does not carry one.
+    """
     with open(path, encoding="utf-8") as f:
-        return normalise(json.load(f))
+        obj = json.load(f)
+    if not isinstance(obj, dict):
+        raise ValueError("That file is not a setup.")
+    raw = obj["config"] if isinstance(obj.get("config"), dict) else obj
+    if not isinstance(raw.get("steps"), list):
+        raise ValueError("That file has no process steps.")
+    seed = obj.get("seed")
+    if not (isinstance(seed, int) and not isinstance(seed, bool) and 1 <= seed <= 999999):
+        seed = None
+    return normalise(raw), seed
+
+
+def load_config(path):
+    return load_setup(path)[0]

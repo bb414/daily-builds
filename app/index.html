@@ -114,12 +114,25 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) { .sc-row { grid-template-columns: minmax(0, 1fr); } }
 .side { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .stat .v.small { font-size: 20px; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tools .status { flex-basis: 100%; text-align: right; }
 .wf-row.opt { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .wf-row.opt:last-child { border-bottom: 0; }
 .field.inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .field.inline label { margin: 0; }
 .field.inline select { width: auto; min-width: 72px; }
 .bank-result.bad strong { color: var(--cost); }
+.robust { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin: 8px 0 0; min-height: 26px; }
+.robust .strip { flex: none; }
+.wf-bar.range { background: var(--soft); border: 1px solid var(--line); }
+.tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; border-radius: 2px; }
+.tick.low { background: var(--muted); }
+.tick.high { background: var(--ink); }
+.tick.base { background: var(--accent); width: 2px; top: -3px; bottom: -3px; }
+.hs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.hs { margin: 0; }
+.hs figcaption { font-size: 14px; margin-bottom: 4px; }
+.hs-note { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
 .bank-result.good strong { color: var(--save); }
 </style>
 </head>
@@ -129,6 +142,13 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     <div>
       <h1>Missing minutes</h1>
       <p>Your AI pilot saved minutes at one desk. Follow them through the whole process to see whether customers get their answer any sooner.</p>
+    </div>
+    <div class="tools" role="group" aria-label="Save and share">
+      <button type="button" class="btn small" id="save">Save setup</button>
+      <button type="button" class="btn small" id="open">Open setup</button>
+      <button type="button" class="btn small" id="link">Copy link</button>
+      <input type="file" id="file" accept=".json,application/json" class="sr-only" tabindex="-1" aria-hidden="true">
+      <span class="status" id="tool-status" role="status"></span>
     </div>
   </header>
 
@@ -800,6 +820,97 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     return out;
   }
 
+  // ---------------------------------------------------------------------
+  // Robustness: the same comparison with different luck, and with each
+  // assumption nudged down and up (a tornado).
+  // ---------------------------------------------------------------------
+  function seedList(seed, n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(((seed >>> 0) + i) >>> 0);
+    return out;
+  }
+
+  function seedSummary(cfgIn, seed) {
+    var r = compare(cfgIn, seed);
+    return { seed: seed, total: r.total, leverage: r.leverage, saved: -r.parts[0].value, stable: r.stable };
+  }
+
+  function summariseSeeds(rows) {
+    var totals = rows.map(function (r) { return r.total; }).sort(function (a, b) { return a - b; });
+    var sum = 0;
+    totals.forEach(function (t) { sum += t; });
+    return {
+      n: rows.length, runs: rows,
+      mean: rows.length ? sum / rows.length : 0,
+      min: totals.length ? totals[0] : 0, max: totals.length ? totals[totals.length - 1] : 0,
+      helped: rows.filter(function (r) { return r.total < -0.5; }).length,
+      hurt: rows.filter(function (r) { return r.total > 0.5; }).length,
+      stable: rows.every(function (r) { return r.stable; })
+    };
+  }
+
+  function robustness(cfgIn, seed, n) {
+    return summariseSeeds(seedList(seed, n || 10).map(function (s) { return seedSummary(cfgIn, s); }));
+  }
+
+  var SENSITIVITY = [
+    { key: 'arrivalsPerDay', label: 'Cases a day', low: '10% fewer', high: '10% more' },
+    { key: 'saving', label: 'Time the AI saves', low: '10 points less', high: '10 points more' },
+    { key: 'adoption', label: 'Cases where it is used', low: '20 points fewer', high: '20 points more' },
+    { key: 'checkMinutes', label: 'Minutes to check its work', low: 'half', high: 'double' },
+    { key: 'errorRate', label: 'Cases it gets wrong', low: 'half', high: 'double' }
+  ];
+
+  function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+  function variantConfig(cfgIn, key, dir) {
+    var c = normalise(cfgIn), a = c.ai;
+    if (key === 'arrivalsPerDay') c.arrivalsPerDay = c.arrivalsPerDay * (dir < 0 ? 0.9 : 1.1);
+    else if (key === 'saving') a.saving = clamp(a.saving + 0.1 * dir, 0, 0.95);
+    else if (key === 'adoption') a.adoption = clamp(a.adoption + 0.2 * dir, 0, 1);
+    else if (key === 'checkMinutes') a.checkMinutes = a.checkMinutes * (dir < 0 ? 0.5 : 2);
+    else if (key === 'errorRate') a.errorRate = clamp(a.errorRate * (dir < 0 ? 0.5 : 2), 0, 0.5);
+    else throw new Error('Unknown setting: ' + key);
+    return c;
+  }
+
+  function sensitivityRow(cfgIn, seed, f) {
+    var lo = compare(variantConfig(cfgIn, f.key, -1), seed), hi = compare(variantConfig(cfgIn, f.key, 1), seed);
+    return { key: f.key, label: f.label, lowLabel: f.low, highLabel: f.high, low: lo.total, high: hi.total,
+      swing: Math.abs(hi.total - lo.total), stable: lo.stable && hi.stable };
+  }
+
+  function sortSensitivity(rows) {
+    return rows.slice().sort(function (a, b) { return (b.swing - a.swing) || (SENSITIVITY_ORDER[a.key] - SENSITIVITY_ORDER[b.key]); });
+  }
+  var SENSITIVITY_ORDER = {};
+  SENSITIVITY.forEach(function (f, i) { SENSITIVITY_ORDER[f.key] = i; });
+
+  function sensitivity(cfgIn, seed) {
+    return sortSensitivity(SENSITIVITY.map(function (f) { return sensitivityRow(cfgIn, seed, f); }));
+  }
+
+  // ---------------------------------------------------------------------
+  // Queueing theory for the explainer: the Allen-Cunneen approximation to
+  // the mean wait at a team of identical people (Erlang C times a
+  // variability factor), with Poisson-like arrivals.
+  // ---------------------------------------------------------------------
+  function erlangC(c, a) {
+    if (a <= 0) return 0;
+    if (a >= c) return 1;
+    var term = 1, sum = 1;
+    for (var k = 1; k < c; k++) { term = term * a / k; sum += term; }
+    var top = term * a / c * c / (c - a);
+    return top / (sum + top);
+  }
+
+  // Mean wait as a multiple of the hands-on time, at utilisation rho.
+  function waitMultiple(staff, cv, rho) {
+    if (rho <= 0) return 0;
+    if (rho >= 1) return Infinity;
+    return erlangC(staff, rho * staff) / (staff * (1 - rho)) * (1 + cv * cv) / 2;
+  }
+
   function fmtDuration(min) {
     var a = Math.abs(min), sign = min < 0 ? '-' : '';
     if (a < 59.5) return sign + Math.round(a) + ' min';
@@ -814,6 +925,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     simulate: simulate, compare: compare, bottleneck: bottleneck,
     optionList: optionList, evaluateOption: evaluateOption, sortOptions: sortOptions,
     placements: placements, bankSavings: bankSavings,
+    SENSITIVITY: SENSITIVITY, seedList: seedList, seedSummary: seedSummary, summariseSeeds: summariseSeeds,
+    robustness: robustness, variantConfig: variantConfig, sensitivityRow: sensitivityRow,
+    sortSensitivity: sortSensitivity, sensitivity: sensitivity, erlangC: erlangC, waitMultiple: waitMultiple,
     quantile: quantile, fmtDuration: fmtDuration
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -1016,6 +1130,67 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
 
   function markCustomIfEdited() { /* changing demand keeps the preset's steps, so the name stays */ }
 
+  // ---------------------------------------------------------------- save and share
+  function setupObject() { return { app: 'missing-minutes', version: 1, seed: state.seed, config: state.cfg }; }
+
+  // Accepts a saved setup ({app, version, seed, config}) or a bare config.
+  function applySetup(obj) {
+    if (!obj || typeof obj !== 'object') throw new Error('That file is not a setup.');
+    var raw = obj.config && typeof obj.config === 'object' ? obj.config : obj;
+    if (!Array.isArray(raw.steps)) throw new Error('That file has no process steps.');
+    var cfg = M.normalise(raw);
+    var errs = M.validate(cfg);
+    if (errs.length) throw new Error(errs[0]);
+    state.cfg = cfg;
+    var sd = Number(obj.seed);
+    if (sd >= 1 && sd <= 999999 && sd === Math.floor(sd)) state.seed = sd;
+    state.cut = null;
+    syncControls();
+    schedule(0);
+  }
+
+  function say(msg) { $('tool-status').textContent = msg; }
+
+  function bindTools() {
+    $('save').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify(setupObject(), null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'missing-minutes-setup.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      say('Saved missing-minutes-setup.json. Open it here later, or run it with the Python version.');
+    });
+    $('open').addEventListener('click', function () { $('file').click(); });
+    $('file').addEventListener('change', function () {
+      var f = this.files && this.files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try { applySetup(JSON.parse(reader.result)); say('Opened ' + f.name + '.'); }
+        catch (e) { say('Could not open ' + f.name + ': ' + e.message); }
+      };
+      reader.readAsText(f);
+      this.value = '';
+    });
+    $('link').addEventListener('click', function () {
+      var hash = '#setup=' + encodeURIComponent(JSON.stringify({ seed: state.seed, config: state.cfg }));
+      history.replaceState(null, '', hash);
+      var url = location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { say('Link copied. Anyone opening this file with it sees the same setup.'); },
+          function () { say('The link to this setup is now in the address bar.'); });
+      } else say('The link to this setup is now in the address bar.');
+    });
+  }
+
+  function loadFromHash() {
+    var h = location.hash;
+    if (h.indexOf('#setup=') !== 0) return false;
+    try { applySetup(JSON.parse(decodeURIComponent(h.slice(7)))); say('Loaded the setup from the link.'); return true; }
+    catch (e) { say('The link did not contain a usable setup: ' + e.message); return false; }
+  }
+
   // ---------------------------------------------------------------- running
   function schedule(delay) {
     clearTimeout(state.timer);
@@ -1042,26 +1217,59 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     runOptions(r);
   }
 
-  // The options appraisal runs one simulation per tick so the page stays responsive.
+  // The slower analyses (options, other luck, the tornado) run one piece per
+  // tick so the page stays responsive; a newer run cancels an older one.
   function runOptions(r) {
     var gen = ++state.gen;
     var cfg = r.config, seed = state.seed;
-    var jobs = M.optionList(cfg), rows = [], i = 0;
-    var box = $('options');
-    if (box) box.innerHTML = '<p class="status" role="status">Testing ' + jobs.length + ' options&hellip;</p>';
+    var options = M.optionList(cfg), seeds = M.seedList(seed, 10), factors = M.SENSITIVITY;
+    var optRows = [], seedRows = [], sensRows = [];
+    var jobs = [];
+    options.forEach(function (o) { jobs.push(function () { optRows.push(M.evaluateOption(cfg, seed, o, r.base)); }); });
+    jobs.push(function () { renderOptions(M.sortOptions(optRows), r); renderBank(r); });
+    seeds.forEach(function (sd) { jobs.push(function () { seedRows.push(M.seedSummary(cfg, sd)); }); });
+    jobs.push(function () { renderRobust(M.summariseSeeds(seedRows), r); });
+    factors.forEach(function (f) { jobs.push(function () { sensRows.push(M.sensitivityRow(cfg, seed, f)); }); });
+    jobs.push(function () { renderTornado(M.sortSensitivity(sensRows), r); });
+    var i = 0;
+    ['options', 'tornado'].forEach(function (id) { var b = $(id); if (b) b.innerHTML = '<p class="status">Working it out\u2026</p>'; });
+    var rb = $('robust'); if (rb) rb.textContent = 'Checking the result with other luck\u2026';
     function next() {
-      if (gen !== state.gen) return;
-      if (i < jobs.length) {
-        rows.push(M.evaluateOption(cfg, seed, jobs[i++], r.base));
-        var st = $('options-status'); if (st) st.textContent = 'Testing option ' + i + ' of ' + jobs.length + '\u2026';
-        setTimeout(next, 0);
-        return;
-      }
-      renderOptions(M.sortOptions(rows), r);
-      renderBank(r);
+      if (gen !== state.gen || i >= jobs.length) return;
+      jobs[i++]();
+      setTimeout(next, 0);
     }
-    if (box) box.innerHTML = '<p class="status" role="status" id="options-status">Testing ' + jobs.length + ' options\u2026</p>';
     setTimeout(next, 0);
+  }
+
+  function renderRobust(sum, r) {
+    var el = $('robust');
+    if (!el) return;
+    var lo = Math.min(sum.min, 0), hi = Math.max(sum.max, 0), span = (hi - lo) || 1;
+    var W = 220, H = 26;
+    function X(v) { return 8 + (v - lo) / span * (W - 16); }
+    var dots = sum.runs.map(function (x) { return '<circle cx="' + X(x.total).toFixed(1) + '" cy="13" r="4" fill="' + (x.total < 0 ? 'var(--save)' : 'var(--cost)') + '" fill-opacity="0.75"/>'; }).join('');
+    var svg = '<svg class="strip" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" aria-hidden="true"><line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="2" y2="24" stroke="var(--muted)"/>' + dots + '</svg>';
+    var verdictText = sum.helped === sum.n ? 'the AI made cases faster in all ' + sum.n : sum.hurt === sum.n ? 'the AI made cases slower in all ' + sum.n : 'the AI made cases faster in ' + sum.helped + ', slower in ' + sum.hurt + (sum.n - sum.helped - sum.hurt ? ' and made no real difference in ' + (sum.n - sum.helped - sum.hurt) : '');
+    el.innerHTML = svg + '<span>With ' + sum.n + ' different runs of luck, ' + verdictText + '. The change ranged from ' + signed(sum.min) + ' to ' + signed(sum.max) + ' (average ' + signed(sum.mean) + ').' + (sum.stable ? '' : ' Some runs had a queue that kept growing.') + '</span>';
+  }
+
+  function renderTornado(rows, r) {
+    var box = $('tornado');
+    if (!box) return;
+    var lo = Math.min(0, r.total), hi = Math.max(0, r.total);
+    rows.forEach(function (x) { lo = Math.min(lo, x.low, x.high); hi = Math.max(hi, x.low, x.high); });
+    var span = (hi - lo) || 1;
+    function x(v) { return (v - lo) / span * 100; }
+    var h = '<div class="wf" role="list">';
+    rows.forEach(function (t) {
+      var a = Math.min(x(t.low), x(t.high)), w = Math.max(Math.abs(x(t.high) - x(t.low)), 0.6);
+      h += '<div class="wf-row opt" role="listitem"><div class="wf-label">' + esc(t.label) + '<div class="sc-busy">' + esc(t.lowLabel) + ': ' + signed(t.low) + '; ' + esc(t.highLabel) + ': ' + signed(t.high) + (t.stable ? '' : '; a queue keeps growing') + '</div></div>' +
+        '<div class="wf-track" aria-hidden="true"><div class="wf-zero" style="left:' + x(0).toFixed(2) + '%"></div><div class="wf-bar range" style="left:' + a.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></div>' +
+        '<div class="tick low" style="left:' + x(t.low).toFixed(2) + '%"></div><div class="tick high" style="left:' + x(t.high).toFixed(2) + '%"></div><div class="tick base" style="left:' + x(r.total).toFixed(2) + '%"></div></div>' +
+        '<div class="wf-val">' + dur(t.swing) + '</div></div>';
+    });
+    box.innerHTML = h + '</div><div class="legend"><span style="--c:var(--muted)">Lower setting</span><span style="--c:var(--ink)">Higher setting</span><span style="--c:var(--accent)">Your setting (' + signed(r.total) + ')</span></div>';
   }
 
   function renderOptions(rows, r) {
@@ -1148,13 +1356,17 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       '<div class="stat"><div class="k">The pilot\'s promise</div><div class="v">' + dur(r.pilotClaim) + '</div><div class="d">saved on each case at ' + esc(cfg.steps[k].name) + ' (' + pct(cfg.ai.saving) + ' of ' + dur(cfg.steps[k].minutes) + ')</div></div>' +
       '<div class="stat ' + (good ? 'good' : bad ? 'bad' : '') + '"><div class="k">End to end</div><div class="v">' + (good ? dur(-r.total) + ' sooner' : bad ? dur(r.total) + ' later' : 'No change') + '</div><div class="d">average time from arrival to close: ' + dur(r.base.leadMean) + ' without the AI, ' + dur(r.ai.leadMean) + ' with it</div></div>' +
       '<div class="stat ' + (r.leverage >= 1 ? 'good' : r.leverage < 0 ? 'bad' : '') + '"><div class="k">Minutes that reached the customer</div><div class="v">' + (saved > 0.05 ? r.leverage.toFixed(2) + '&times;' : 'n/a') + '</div><div class="d">end-to-end time saved for each minute the AI saves at the desk</div></div>' +
-      '</div><p class="verdict">' + verdict(r) + '</p></section>';
+      '</div><p class="verdict">' + verdict(r) + '</p><p class="robust" id="robust" role="status"></p></section>';
 
     html += '<section class="panel" aria-labelledby="h-wf"><h2 id="h-wf">Where the minutes went</h2><p class="sub">Average change per case, from the time the AI saves at the desk to the change in end-to-end time. Blue bars save time; orange bars add it.</p>' + waterfall(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-steps"><h2 id="h-steps">Step by step</h2><p class="sub">Hands-on time and waiting per case at each step, without and with the AI, and how busy each step is.</p>' + stepsChart(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-opt"><h2 id="h-opt">Where else could the time come from?</h2><p class="sub">The same AI on each other step (saving the same share of hands-on time, with checking that takes the same share of the step and the same error rate), against one more person at each team step. Each line is the change in end-to-end time against the process without the AI.</p><div id="options"></div></section>';
+
+    html += '<section class="panel" aria-labelledby="h-tor"><h2 id="h-tor">What moves the answer</h2><p class="sub">The change in end-to-end time when one assumption is set lower and then higher, everything else as you set it. The widest bars matter most; the figure on the right is the gap between the two.</p><div id="tornado"></div></section>';
+
+    html += '<section class="panel" aria-labelledby="h-hs"><h2 id="h-hs">Why busy steps matter</h2><p class="sub">Queueing theory: how long a case waits at a team, as a multiple of its hands-on time, depending on how busy the team is. The curve is the standard Allen-Cunneen approximation; the dots are this simulation.</p>' + hockey(r) + '</section>';
 
     html += '<section class="panel" aria-labelledby="h-lt"><h2 id="h-lt">How long cases take</h2><p class="sub">Working days from arrival to close for the ' + r.base.done.toLocaleString('en-GB') + ' cases that arrived in the ' + cfg.measureDays + ' measured working days.</p><div class="chart" id="hist"></div>' +
       '<div class="legend"><span style="--c:var(--before)">Without the AI</span><span style="--c:var(--accent)">With the AI</span><span style="--c:var(--cost)">Target</span></div>' + leadTable(r) + '</section>';
@@ -1208,6 +1420,48 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     });
     h += '</div><div class="legend"><span style="--c:var(--ink)">Hands-on time</span><span style="--c:var(--line)">Waiting</span></div>';
     return h;
+  }
+
+  function hockeySteps(r) {
+    var ks = [];
+    [r.config.ai.step, r.bottleneckBefore, r.bottleneckAfter].forEach(function (k) { if (k >= 0 && r.config.steps[k].kind === 'team' && ks.indexOf(k) < 0) ks.push(k); });
+    return ks;
+  }
+
+  function hockey(r) {
+    var ks = hockeySteps(r);
+    if (!ks.length) return '<p class="muted">The AI is not on a team step, so there is no queue of people to explain.</p>';
+    var h = '<div class="hs-grid">';
+    ks.forEach(function (k) {
+      var st = r.config.steps[k], b = r.base.steps[k], a = r.ai.steps[k];
+      function point(s) { var per = s.visits ? s.touch / s.visits : 0; return { u: s.utilisation, m: per > 0 ? (s.wait / s.visits) / per : 0, w: s.visits ? s.wait / s.visits : 0 }; }
+      var pb = point(b), pa = point(a);
+      var W = 300, H = 190, m = { l: 34, r: 10, t: 10, b: 32 };
+      var yMax = Math.max(2, Math.ceil(Math.max(pb.m, pa.m, M.waitMultiple(st.staff, st.cv, 0.9)) * 1.25));
+      var iw = W - m.l - m.r, ih = H - m.t - m.b;
+      function X(u) { return m.l + u * iw; }
+      function Y(v) { return m.t + ih - Math.min(v, yMax) / yMax * ih; }
+      var d = '';
+      for (var u = 0; u <= 0.995; u += 0.005) {
+        var v = M.waitMultiple(st.staff, st.cv, u);
+        d += (d ? 'L' : 'M') + X(u).toFixed(1) + ',' + Y(v).toFixed(1);
+        if (v > yMax) break;
+      }
+      var ticks = '';
+      [0, 0.25, 0.5, 0.75, 1].forEach(function (t) { ticks += '<text class="lbl" x="' + X(t).toFixed(1) + '" y="' + (m.t + ih + 15) + '" text-anchor="middle">' + Math.round(t * 100) + '%</text>'; });
+      [0, yMax / 2, yMax].forEach(function (t) { ticks += '<text class="lbl" x="' + (m.l - 5) + '" y="' + (Y(t) + 4).toFixed(1) + '" text-anchor="end">' + (+t.toFixed(1)) + '&times;</text>'; });
+      var label = 'Waiting at ' + st.name + ' against how busy it is: ' + pct(pb.u) + ' busy and ' + pb.m.toFixed(2) + ' times the hands-on time without the AI, ' + pct(pa.u) + ' and ' + pa.m.toFixed(2) + ' times with it.';
+      h += '<figure class="hs"><figcaption><strong>' + esc(st.name) + '</strong> (' + st.staff + ' ' + (st.staff === 1 ? 'person' : 'people') + ')</figcaption>' +
+        '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label) + '">' +
+        '<line class="ax" x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih) + '"/><line class="ax" x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + (m.t + ih) + '"/>' + ticks +
+        '<text class="lbl" x="' + (m.l + iw / 2) + '" y="' + (H - 3) + '" text-anchor="middle">How busy the team is</text>' +
+        '<path d="' + d + '" fill="none" stroke="var(--muted)" stroke-width="1.5"/>' +
+        '<line x1="' + X(pb.u).toFixed(1) + '" y1="' + Y(pb.m).toFixed(1) + '" x2="' + X(pa.u).toFixed(1) + '" y2="' + Y(pa.m).toFixed(1) + '" stroke="var(--accent)" stroke-dasharray="3 3"/>' +
+        '<circle cx="' + X(pb.u).toFixed(1) + '" cy="' + Y(pb.m).toFixed(1) + '" r="5" fill="var(--before)"/>' +
+        '<circle cx="' + X(pa.u).toFixed(1) + '" cy="' + Y(pa.m).toFixed(1) + '" r="5" fill="var(--accent)"/>' +
+        '</svg></div><p class="hs-note">Without the AI: ' + pct(pb.u) + ' busy, a case waits ' + dur(pb.w) + ' (' + pb.m.toFixed(1) + '&times; its hands-on time). With it: ' + pct(pa.u) + ' busy, ' + dur(pa.w) + ' (' + pa.m.toFixed(1) + '&times;).</p></figure>';
+    });
+    return h + '</div><div class="legend"><span style="--c:var(--before)">Without the AI</span><span style="--c:var(--accent)">With the AI</span><span style="--c:var(--muted)">Theory</span></div>';
   }
 
   function leadTable(r) {
@@ -1271,7 +1525,8 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   fillPresets();
   syncControls();
   bind();
-  run();
+  bindTools();
+  if (!loadFromHash()) run();
 })();
 </script>
 </body>

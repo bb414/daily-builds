@@ -125,3 +125,23 @@ def options_text(r, rows):
 
 def _fmt(x):
     return str(int(x)) if float(x) == int(x) else str(x)
+
+
+def robust_text(r, seeds, sens):
+    """Robustness to luck and to each assumption."""
+    cfg = r["config"]
+    lines = ["How robust is it? (%s, seed %d)" % (cfg["name"], r["base"]["seed"]), ""]
+    lines.append("With %d runs of different luck (seeds %d to %d):" % (seeds["n"], seeds["runs"][0]["seed"], seeds["runs"][-1]["seed"]))
+    lines.append("  the AI made cases faster in %d, slower in %d; change from %s to %s, average %s." % (
+        seeds["helped"], seeds["hurt"], _signed(seeds["min"]), _signed(seeds["max"]), _signed(seeds["mean"])))
+    for run in seeds["runs"]:
+        lines.append("    seed %-8d %10s  (%.2f minutes reach the customer per minute saved)%s" % (
+            run["seed"], _signed(run["total"]), run["leverage"], "" if run["stable"] else "  queue grows"))
+    lines.append("")
+    lines.append("What moves the answer (your setting: %s)" % _signed(r["total"]))
+    lines.append("  %-28s %-18s %10s   %-18s %10s" % ("Assumption", "Lower", "", "Higher", ""))
+    for t in sens:
+        lines.append("  %-28s %-18s %10s   %-18s %10s%s" % (
+            t["label"], t["lowLabel"], _signed(t["low"]), t["highLabel"], _signed(t["high"]),
+            "" if t["stable"] else "  queue grows"))
+    return "\n".join(lines)

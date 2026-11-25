@@ -1,5 +1,6 @@
 """Tests for the Python model. Run from the repository root: python -m unittest discover -s tests"""
 
+import math
 import os
 import sys
 import unittest
@@ -122,3 +123,33 @@ class Options(unittest.TestCase):
         self.assertEqual(b["cut"], 2)
         self.assertFalse(b["stable"])
         self.assertFalse(M.bank_savings(cfg, 42, cmp, 0)["possible"])
+
+
+class Robustness(unittest.TestCase):
+    def test_seeds_and_tornado(self):
+        cfg = M.preset_config("complaints")
+        rb = M.robustness(cfg, 7, 3)
+        self.assertEqual([x["seed"] for x in rb["runs"]], [7, 8, 9])
+        self.assertEqual(rb["runs"][0]["total"], M.compare(cfg, 7)["total"])
+        rows = M.sensitivity(cfg, 7)
+        self.assertEqual([r["swing"] for r in rows], sorted((r["swing"] for r in rows), reverse=True))
+
+    def test_erlang_c(self):
+        self.assertAlmostEqual(M.erlang_c(2, 1), 1 / 3)
+        self.assertAlmostEqual(M.wait_multiple(1, 1, 0.8), 4)
+        self.assertEqual(M.wait_multiple(3, 1, 1), math.inf)
+
+
+class Setups(unittest.TestCase):
+    def test_wrapper_and_bare_config(self):
+        import json
+        import tempfile
+        cfg = M.preset_config("loans")
+        with tempfile.TemporaryDirectory() as d:
+            a, b = os.path.join(d, "a.json"), os.path.join(d, "b.json")
+            with open(a, "w") as f:
+                json.dump({"app": "missing-minutes", "version": 1, "seed": 77, "config": cfg}, f)
+            with open(b, "w") as f:
+                json.dump(cfg, f)
+            self.assertEqual(M.load_setup(a), (cfg, 77))
+            self.assertEqual(M.load_setup(b), (cfg, None))

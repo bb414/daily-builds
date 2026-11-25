@@ -219,3 +219,45 @@ test('an overloaded team is flagged even when every case eventually finishes', (
   assert.equal(r.stable, false);
   assert.ok(M.simulate(M.presetConfig('claims'), 1).stable);
 });
+
+test('robustness re-runs the comparison with consecutive seeds', () => {
+  const cfg = M.presetConfig('claims');
+  const rb = M.robustness(cfg, 42, 4);
+  assert.deepEqual(rb.runs.map((x) => x.seed), [42, 43, 44, 45]);
+  assert.equal(rb.runs[0].total, M.compare(cfg, 42).total);
+  assert.ok(rb.min <= rb.mean && rb.mean <= rb.max);
+  assert.ok(rb.helped + rb.hurt <= rb.n);
+  assert.equal(rb.helped, 4);
+});
+
+test('the tornado nudges one assumption at a time and sorts by swing', () => {
+  const cfg = M.presetConfig('loans');
+  const lo = M.variantConfig(cfg, 'adoption', -1), hi = M.variantConfig(cfg, 'errorRate', 1);
+  assert.ok(Math.abs(lo.ai.adoption - 0.65) < 1e-12);
+  assert.equal(lo.ai.saving, cfg.ai.saving);
+  assert.equal(hi.ai.errorRate, 0.1);
+  assert.equal(M.variantConfig(cfg, 'saving', 1).ai.saving, 0.55);
+  const full = M.normalise(cfg); full.ai.adoption = 0.95;
+  assert.equal(M.variantConfig(full, 'adoption', 1).ai.adoption, 1);
+  const rows = M.sensitivity(cfg, 42);
+  assert.equal(rows.length, M.SENSITIVITY.length);
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i - 1].swing >= rows[i].swing);
+  // More errors caught at the committee cost a full committee cycle each.
+  const err = rows.find((x) => x.key === 'errorRate');
+  assert.ok(err.high > err.low);
+});
+
+test('Erlang C and the Allen-Cunneen wait', () => {
+  assert.ok(Math.abs(M.erlangC(1, 0.7) - 0.7) < 1e-12);
+  assert.ok(Math.abs(M.erlangC(2, 1) - 1 / 3) < 1e-12);
+  assert.equal(M.erlangC(3, 3), 1);
+  assert.ok(Math.abs(M.waitMultiple(1, 1, 0.8) - 4) < 1e-9);
+  assert.equal(M.waitMultiple(4, 0.5, 1), Infinity);
+  // The approximation is close to the simulation for a team of five.
+  const cfg = M.normalise({ arrivalsPerDay: 45, measureDays: 400, steps: [{ name: 'Team', kind: 'team', staff: 5, minutes: 45, cv: 1 }], ai: { step: -1 } });
+  let wait = 0, util = 0;
+  [1, 2, 3].forEach((s) => { const r = M.simulate(cfg, s, { noAi: true }); wait += r.steps[0].wait / 3; util += r.steps[0].utilisation / 3; });
+  const theory = M.waitMultiple(5, 1, 0.9) * 45;
+  assert.ok(Math.abs(util - 0.9) < 0.02, String(util));
+  assert.ok(Math.abs(wait - theory) / theory < 0.2, wait + ' vs ' + theory);
+});
