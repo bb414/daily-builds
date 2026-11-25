@@ -126,10 +126,10 @@ The parity tests run the app's model block in Node.js and check that every numbe
 |------|----------|---------|--------------|
 | `app/index.html` | HTML and CSS | 360 lines | Layout, light and dark themes, the phone layout |
 | `app/index.html`, model block | JavaScript | 750 lines | The world, the six habits, the model, the audit, the repairs, the fix ranking, robustness |
-| `app/index.html`, interface | JavaScript | 680 lines | Controls, charts drawn as SVG, tables, links, saving and loading, comparison |
+| `app/index.html`, interface | JavaScript | 690 lines | Controls, charts drawn as SVG, tables, links, saving and loading, comparison |
 | `fittotrain/model.py` | Python | 800 lines | A line-for-line port of the model block |
 | `fittotrain/` (other modules) | Python | 900 lines | Command line, CSV import and export, audit of real exports, batches, sweeps, text and HTML reports |
-| `tests/` | Python and JavaScript | 910 lines | Unit, parity, command-line and browser tests |
+| `tests/` | Python and JavaScript | 950 lines | Unit, parity, command-line, browser and repository checks |
 
 The browser app does everything the lab needs on its own. Python adds what a browser is poor at: reading your own CRM export from disk, many worlds at once with the fix ranking for each, sweeps, and files you can keep.
 
