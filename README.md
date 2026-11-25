@@ -53,7 +53,7 @@ What you can do in it:
 - **See where disagreements go**: how often the AI could have misled people and did, and how often it could have rescued them and did.
 - **Save and share**: copy a link that holds every setting, or download the settings as a file that the Python version can read.
 
-It works on a phone as well as a desktop, every control can be used with a keyboard, and it supports dark mode. On a phone the settings fold away into sections so the verdict is never far down the page.
+It works on a phone as well as a desktop, and every control can be used with a keyboard. On a phone the settings fold away into sections so the verdict is never far down the page. It is laid out like a pencil sketchbook: graphite lines on toothy paper, red ink for the AI, and a header study of the same eye drawn five times with less and less practice. The two typefaces (Caveat and Literata, under the SIL Open Font License, see `app/FONT-LICENCE.txt`) are built into the file, so it still needs no internet connection.
 
 <img src="docs/phone.png" alt="Skill Fade on a phone" width="260">
 
@@ -116,7 +116,7 @@ The accuracy gain during training is obvious (about +17 points, p < 0.001), but 
 
 | Part | Language | Lines (approx.) | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML and CSS | 270 | Layout, styling, light and dark themes, phone layout |
+| `app/index.html` | HTML and CSS | 630 | Layout, sketchbook styling and drawings, embedded fonts, phone layout |
 | `app/index.html` (model block) | JavaScript | 550 | The simulation, verdicts, explanations, robustness check, settings links and files |
 | `app/index.html` (interface) | JavaScript | 600 | Controls, charts, tables, chunked running so large simulations never freeze the page |
 | `skill_fade/model.py` | Python | 640 | A line-for-line port of the model block |
