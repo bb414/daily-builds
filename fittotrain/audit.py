@@ -1,9 +1,10 @@
 """Readiness audit for a real (anonymised) CRM export.
 
 Without knowing the truth, it runs the same checks as the browser app, then
-fits the same win-probability model two ways (random and time-ordered
-hold-outs) and looks for fields that only predict well on records edited
-after the deal closed.
+fits the same win-probability model three ways (a random hold-out, the newest
+closed deals, and a random hold-out after the four repairs in
+model.repair_crm) and looks for fields that only predict well on records
+edited after the deal closed.
 """
 
 from datetime import timedelta
@@ -105,4 +106,5 @@ def audit_export(records, info, as_of=None, seed=2026):
         "missingFields": missing_fields,
         "backtests": backtests(records, seed, as_of_day),
         "fieldSignal": field_signal(records) if info.get("has_edit_flag") else None,
+        "hasEditFlag": bool(info.get("has_edit_flag")),
     }

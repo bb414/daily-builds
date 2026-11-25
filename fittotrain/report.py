@@ -166,6 +166,8 @@ def export_audit_text(a, path):
                 out.append("  The two hold-outs agree within 0.03.")
         out.append("  Repairs made before the last row:")
         out.append(steps_text(bt["steps"]))
+        if not a.get("hasEditFlag", True):
+            out.append("  (Step 1 needs an edited_after_close column from field history; without it nothing was blanked.)")
         if bt["random"] and ev and bt["random"]["auc"] is not None and ev["auc"] is not None and bt["random"]["auc"] - ev["auc"] > 0.03:
             out.append("  Repairing the export lowers the back-test by %.2f: the raw figure is likely to overpromise." % (bt["random"]["auc"] - ev["auc"]))
     if a["fieldSignal"] is not None:

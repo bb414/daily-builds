@@ -111,8 +111,9 @@ def write_csv(path, columns, rows):
 
 # ---- Reading a user's export -----------------------------------------------------
 def _parse_date(text, line, col):
+    """YYYY-MM-DD, optionally followed by a time (which is ignored)."""
     try:
-        return date.fromisoformat(text.strip())
+        return date.fromisoformat(text.strip()[:10])
     except ValueError:
         raise CsvProblem("line %d: %s %r is not a date in YYYY-MM-DD form" % (line, col, text))
 
@@ -148,10 +149,15 @@ def _parse_status(text, line):
     raise CsvProblem("line %d: status %r should be won, lost or open" % (line, text))
 
 
+def _letters(text):
+    return re.sub(r"[^a-z]", "", (text or "").lower())
+
+
 def _index(options, text):
-    t = (text or "").strip().lower()
+    """Match a segment or source name loosely: "mid market", "Mid-Market" and "mid" all find Mid-market."""
+    t = _letters(text)
     for i, o in enumerate(options):
-        if t == o.lower() or (len(t) >= 3 and o.lower().startswith(t)):
+        if t == _letters(o) or (len(t) >= 3 and _letters(o).startswith(t)):
             return i
     return None
 

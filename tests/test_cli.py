@@ -92,7 +92,7 @@ class TestCli(unittest.TestCase):
             "opportunity_id,account_name,created_date,close_date,status,amount\n"
             "A1,North Co,2025-01-01,2025-02-01,Closed Won,\"12,000\"\n"
             "A2,North Co,2025-01-05,2025-02-10,closed_lost,\n"
-            "A3,South Co,2025-01-09,2025-01-20,open,0\n"
+            "A3,South Co,2025-01-09T10:30:00,2025-01-20 17:00,open,0\n"
             ",,,,,\n", encoding="utf-8")
         records, info = crmcsv.read_export(p)
         self.assertEqual(len(records), 3)
@@ -112,6 +112,34 @@ class TestCli(unittest.TestCase):
         self.assertEqual(crmcsv.record_key("OPP-0001"), crmcsv.record_key("OPP-0001"))
         self.assertNotEqual(crmcsv.record_key("OPP-0001"), crmcsv.record_key("OPP-0002"))
         self.assertTrue(0 <= crmcsv.record_key("\u00e9t\u00e9-7") < 2 ** 32)
+
+    def test_export_with_only_the_required_columns(self):
+        full = self.dir / "full.csv"
+        run_cli("generate", "--seed", "8", "--deals", "1500", "-o", str(full))
+        slim = self.dir / "slim.csv"
+        with open(full, newline="") as fh, open(slim, "w", newline="") as out:
+            reader = csv.DictReader(fh)
+            w = csv.DictWriter(out, fieldnames=crmcsv.REQUIRED)
+            w.writeheader()
+            for row in reader:
+                w.writerow({k: row[k] for k in crmcsv.REQUIRED})
+        records, info = crmcsv.read_export(slim)
+        a = audit.audit_export(records, info)
+        self.assertEqual(len(a["missingFields"]), 6)
+        self.assertIsNotNone(a["backtests"]["random"])
+        self.assertIsNotNone(a["backtests"]["repaired"])
+        self.assertIsNone(a["fieldSignal"])
+        text = run_cli("audit", str(slim))
+        self.assertIn("Step 1 needs an edited_after_close column", text)
+        self.assertIn("add an edited_after_close column", text)
+
+    def test_loose_segment_names(self):
+        self.assertEqual(crmcsv._index(model.SEGMENTS, "mid market"), 1)
+        self.assertEqual(crmcsv._index(model.SEGMENTS, "ENTERPRISE"), 2)
+        self.assertEqual(crmcsv._index(model.SEGMENTS, "Ent"), 2)
+        self.assertIsNone(crmcsv._index(model.SEGMENTS, "Public sector"))
+        self.assertEqual(crmcsv._index(model.SOURCES, "partner referral"), None)
+        self.assertEqual(crmcsv._index(model.SOURCES, "partner"), 2)
 
     def test_unreadable_exports_fail_clearly(self):
         bad = self.dir / "bad.csv"

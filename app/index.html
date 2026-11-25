@@ -163,7 +163,8 @@ section.panel:focus-visible, .two:focus-visible { outline: 3px solid var(--accen
 .defect .row, .world .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .kind { white-space: nowrap; }
 .mini { display: none; }
-td.habit-cell { min-width: 150px; }
+td.habit-cell { min-width: 190px; }
+.harm { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 3px; }
 td .stepno { display: inline-block; min-width: 1.6em; color: var(--muted); font-variant-numeric: tabular-nums; }
 .th-sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .acct-inline { display: none; }
@@ -483,16 +484,24 @@ var FitToTrain = (function () {
   function thousands(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
   // ---- Settings ----------------------------------------------------------
+  // Only plain numbers and decimal strings count; anything else falls back to the default.
+  var NUMERIC = /^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$/;
+  function toNumber(v) {
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string' && NUMERIC.test(v)) return Number(v);
+    return NaN;
+  }
+
   function normaliseSettings(input) {
     var s = {};
     var src = input || {};
-    var seed = Number(src.seed);
+    var seed = toNumber(src.seed);
     s.seed = Number.isFinite(seed) ? (Math.floor(Math.abs(seed)) % 4294967296) : DEFAULTS.seed;
-    var deals = Number(src.deals);
+    var deals = toNumber(src.deals);
     s.deals = Number.isFinite(deals) ? clamp(Math.round(deals), 1000, 8000) : DEFAULTS.deals;
     for (var i = 0; i < DEFECTS.length; i++) {
       var d = DEFECTS[i];
-      var v = Number(src[d.key]);
+      var v = toNumber(src[d.key]);
       s[d.key] = Number.isFinite(v) ? clamp(v, 0, d.max) : DEFAULTS[d.key];
     }
     return s;
@@ -806,6 +815,7 @@ var FitToTrain = (function () {
     var groups = {};
     for (var i4 = 0; i4 < n; i4++) {
       var key = normName(h[i4].account);
+      if (!key) continue;
       if (!groups[key]) groups[key] = [];
       groups[key].push(i4);
     }
@@ -862,8 +872,11 @@ var FitToTrain = (function () {
       if (labelled(r)) { closed++; if (r.editedAfterClose) retro++; }
       if (r.meetings !== null) { meetTrue += r.truth.meetings; meetLogged += r.meetings; }
     }
+    var liveBlanks = 0;
+    for (var j = 0; j < crm.live.length; j++) for (var f = 0; f < FIELDS.length; f++) if (crm.live[j][FIELDS[f]] === null) liveBlanks++;
     return {
       historyRecords: h.length, liveDeals: crm.live.length, closedWins: wins, closedLosses: lost,
+      blanksAtEntry: crm.live.length ? liveBlanks / (crm.live.length * FIELDS.length) : 0,
       zombies: zombies, zombieShare: lost ? zombies / lost : 0,
       twins: twins, twinShare: wins ? twins / wins : 0,
       editedShare: closed ? retro / closed : 0,
@@ -929,6 +942,7 @@ var FitToTrain = (function () {
     var groups = {};
     for (var i = 0; i < h.length; i++) {
       var key = normName(h[i].account);
+      if (!key) continue;
       if (!groups[key]) groups[key] = [];
       groups[key].push(i);
     }
@@ -1040,7 +1054,7 @@ var FitToTrain = (function () {
       debt: ceiling.auc - base.live.auc,
       repaired: { backtest: repaired.backtest, live: repaired.live, steps: rep.steps, trainSize: repaired.trainSize, testSize: repaired.testSize },
       fixes: opts.fixes === false ? null : fixFirst(world, s, base),
-      model: { dirty: base.fit.beta, clean: cleanFit.beta, repaired: repaired.fit.beta, trainSize: base.trainSize, testSize: base.testSize, cleanTrainSize: cleanTrain.length },
+      model: { features: FEATURES, dirty: base.fit.beta, clean: cleanFit.beta, repaired: repaired.fit.beta, trainSize: base.trainSize, testSize: base.testSize, cleanTrainSize: cleanTrain.length },
       audit: auditCrm(crm),
       truth: truthCounts(crm),
       crm: crm
@@ -1058,7 +1072,7 @@ var FitToTrain = (function () {
 
   function robustness(input, nWorlds) {
     var s = normaliseSettings(input);
-    var n = clamp(Math.floor(Number(nWorlds) || 12), 1, 60);
+    var n = clamp(Math.floor(toNumber(nWorlds) || 12), 1, 60);
     var worlds = [];
     for (var k = 0; k < n; k++) {
       var sk = copyRecord(s);
@@ -1317,7 +1331,7 @@ var FitToTrain = (function () {
   function auditTable(r) {
     var truth = r.truth;
     var real = {
-      blanks: pct(r.settings.blanks) + ' set',
+      blanks: pct(truth.blanksAtEntry) + ' at entry (some filled in later by retro-edits)',
       retrofill: pct(truth.editedShare) + ' of closed deals',
       zombies: pct(truth.zombieShare) + ' of lost deals (' + truth.zombies.toLocaleString('en-GB') + ')',
       recreated: pct(truth.twinShare) + ' of wins (' + truth.twins.toLocaleString('en-GB') + ' fake losses)',
@@ -1394,13 +1408,16 @@ var FitToTrain = (function () {
     return '<span class="' + (good ? 'gain-pos' : (bad ? 'gain-neg' : '')) + '">' + signed(x) + '</span>';
   }
 
+  var HARM = {};
+  M.DEFECTS.forEach(function (d) { HARM[d.key] = d.harm; });
+
   function fixTable(r) {
     var f = r.fixes;
     if (!f || !f.rows.length) return '<caption>Every habit is already at zero: nothing to fix.</caption>';
     var html = '<caption class="sr-only">Each habit fixed on its own, best live gain first. Today: live score ' + f2(r.live.auc) + ', illusion ' + signed(r.illusion) + ', win-rate bias ' + signed((r.live.meanPredicted - r.live.winRate) * 100, 0) + ' points.</caption>' +
       '<thead><tr><th>Habit</th><th class="num">Live score if fixed</th><th class="num">Illusion removed</th><th class="num">Win-rate bias after<br><span class="th-sub">today ' + signed((r.live.meanPredicted - r.live.winRate) * 100, 0) + ' pts</span></th><th>How to fix it</th></tr></thead><tbody>';
     f.rows.forEach(function (row, i) {
-      html += '<tr>' + td('Habit', '<span><span class="stepno">' + (i + 1) + '.</span><b>' + esc(row.label) + '</b> <span class="kind">' + esc(row.kind) + '</span></span>', 'lead habit-cell') +
+      html += '<tr>' + td('Habit', '<span class="stepno">' + (i + 1) + '.</span><b>' + esc(row.label) + '</b> <span class="kind">' + esc(row.kind) + '</span><span class="harm">' + esc(HARM[row.key]) + '</span>', 'lead habit-cell') +
         td('Live score if fixed', f2(row.liveAuc) + ' (' + gainSpan(row.gain) + ')', 'num') +
         td('Illusion removed', gainSpan(row.illusionDrop), 'num') +
         td('Win-rate bias after', signed(row.calibration * 100, 0) + ' pts', 'num') +
@@ -1552,7 +1569,7 @@ var FitToTrain = (function () {
     var A = pinned, B = headline(cur);
     var rows = [
       ['Pilot back-test', 'backtest', f2, 0], ['Live after go-live', 'live', f2, 1], ['Clean-data ceiling', 'ceiling', f2, 1],
-      ['Pilot illusion', 'illusion', signed, -1], ['Back-test after repairs', 'repairedBacktest', f2, 0], ['Live, repaired model', 'repairedLive', f2, 1],
+      ['Pilot illusion', 'illusion', signed, -2], ['Back-test after repairs', 'repairedBacktest', f2, 0], ['Live, repaired model', 'repairedLive', f2, 1],
       ['Wins in the top 20% live', 'capture', function (x) { return pct(x); }, 1],
       ['Win-rate bias live', 'bias', function (x) { return signed(x * 100, 0) + ' pts'; }, -2],
       ['Bookings forecast error live', 'forecastError', function (x) { return signed(x * 100, 0) + '%'; }, -2]
@@ -1582,7 +1599,11 @@ var FitToTrain = (function () {
     var out = {}, found = false;
     (hash || '').replace(/^#/, '').split('&').forEach(function (part) {
       var kv = part.split('=');
-      if (kv.length === 2 && HASH_KEYS.indexOf(kv[0]) >= 0 && kv[1] !== '') { out[kv[0]] = Number(decodeURIComponent(kv[1])); found = true; }
+      if (kv.length !== 2 || HASH_KEYS.indexOf(kv[0]) < 0 || kv[1] === '') return;
+      var text;
+      try { text = decodeURIComponent(kv[1]); } catch (e) { return; }
+      out[kv[0]] = text;
+      found = true;
     });
     return found ? out : null;
   }

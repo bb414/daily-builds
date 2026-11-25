@@ -89,6 +89,13 @@ class TestUi(unittest.TestCase):
         page.wait_for_timeout(300)
         self.assertIn("zombies=0&", page.evaluate("location.hash"))
 
+    def test_broken_links_fall_back_safely(self):
+        page = self.open(hash_="#seed=%E0%A4%A&deals=abc&zombies=0x10&blanks=0.5")
+        self.assertEqual(self.errors, [])
+        self.assertEqual(page.inner_text("#o-blanks"), "50%")
+        self.assertEqual(page.inner_text("#deals-out"), "4,000")
+        self.assertEqual(page.inner_text("#o-zombies"), "35%")
+
     def test_save_and_load_settings_files(self):
         import json, tempfile, os
         page = self.browser.new_page(accept_downloads=True)

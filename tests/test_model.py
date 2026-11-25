@@ -74,6 +74,11 @@ class TestSettings(unittest.TestCase):
         self.assertEqual(s["deals"], 4000)
         self.assertEqual(s["retrofill"], model.DEFAULTS["retrofill"])
         self.assertEqual(s["seed"], model.DEFAULTS["seed"])
+        s = model.normalise_settings({"deals": "", "blanks": "0x10", "zombies": " 0.5 ", "retrofill": True,
+                                      "recreated": "1e-1", "placeholders": [0.2], "seed": "\u0661\u0662"})
+        self.assertEqual((s["deals"], s["blanks"], s["zombies"]), (4000, model.DEFAULTS["blanks"], 0.5))
+        self.assertEqual((s["retrofill"], s["recreated"]), (model.DEFAULTS["retrofill"], 0.1))
+        self.assertEqual((s["placeholders"], s["seed"]), (model.DEFAULTS["placeholders"], model.DEFAULTS["seed"]))
 
 
 class TestWorld(unittest.TestCase):
@@ -246,6 +251,21 @@ class TestRemedies(unittest.TestCase):
         before = [dict(r) for r in crm["history"]]
         model.repair_crm(crm, model.GO_LIVE)
         self.assertEqual(before, crm["history"])
+
+    def test_blank_account_names_are_never_duplicates(self):
+        base = {"twin": False, "editedAfterClose": False, "seg": 0, "src": 0, "amount": 12000, "stakeholders": None,
+                "meetings": None, "champion": None, "competitor": None, "discount": None, "daysToFirst": None}
+        h = [dict(base, id=i, account="  ", created=i, close=i + 30, status="won" if i % 2 else "lost") for i in range(6)]
+        crm = {"history": h, "live": []}
+        dup = [r for r in model.audit_crm(crm)["rows"] if r["key"] == "recreated"][0]
+        self.assertEqual(dup["value"], 0)
+        self.assertEqual(model.repair_crm(crm, 100)["steps"]["duplicates"], 0)
+
+    def test_truth_reports_blanks_at_entry(self):
+        r = model.run_lab({"seed": 3, "blanks": 0.4, "retrofill": 0.8})
+        self.assertAlmostEqual(r["truth"]["blanksAtEntry"], 0.4, delta=0.03)
+        self.assertEqual(r["model"]["features"][0], "Intercept")
+        self.assertEqual(len(r["model"]["features"]), len(r["model"]["dirty"]))
 
     def test_median_and_round_amounts(self):
         self.assertEqual(model.median([5, 1, 3]), 3)

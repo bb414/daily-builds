@@ -22,6 +22,9 @@ CASES = [
     dict(model.PRESETS["tidy"], seed=123456),
     dict(model.PRESETS["chaos"], seed=4294967295, deals=2500),
     {"seed": -42.7, "deals": "3333", "zombies": 9, "blanks": -1, "retrofill": "nonsense"},
+    {"seed": None, "deals": "", "blanks": "0x10", "zombies": " 0.5 ", "retrofill": True, "recreated": "1e-1",
+     "placeholders": [0.2], "loggingShift": "Infinity"},
+    {"seed": 1e20, "deals": 7999.5, "blanks": "  ", "zombies": ".25"},
 ]
 
 

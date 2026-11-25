@@ -130,10 +130,18 @@ def _js_round(x):
 
 
 # ---- Settings ----------------------------------------------------------------
+NUMERIC = re.compile(r"^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$")
+
+
 def _finite(v):
-    try:
+    """Only plain numbers and decimal strings count, exactly as in the browser app."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
         f = float(v)
-    except (TypeError, ValueError):
+    elif isinstance(v, str) and NUMERIC.match(v) and v.strip().isascii():
+        f = float(v)
+    else:
         return None
     return f if math.isfinite(f) else None
 
@@ -483,7 +491,9 @@ def audit_crm(crm, as_of=GO_LIVE):
 
     groups = {}
     for i, r in enumerate(h):
-        groups.setdefault(norm_name(r["account"]), []).append(i)
+        key = norm_name(r["account"])
+        if key:
+            groups.setdefault(key, []).append(i)
     flagged = set()
     for key in sorted(groups):
         g = groups[key]
@@ -552,8 +562,10 @@ def truth_counts(crm):
         if r["meetings"] is not None:
             meet_true += t["meetings"]
             meet_logged += r["meetings"]
+    live_blanks = sum(1 for r in crm["live"] for f in FIELDS if r[f] is None)
     return {
         "historyRecords": len(h), "liveDeals": len(crm["live"]), "closedWins": wins, "closedLosses": lost,
+        "blanksAtEntry": live_blanks / (len(crm["live"]) * len(FIELDS)) if crm["live"] else 0,
         "zombies": zombies, "zombieShare": zombies / lost if lost else 0,
         "twins": twins, "twinShare": twins / wins if wins else 0,
         "editedShare": retro / closed if closed else 0,
@@ -613,7 +625,9 @@ def repair_crm(crm, as_of):
     h = crm["history"]
     groups = {}
     for i, r in enumerate(h):
-        groups.setdefault(norm_name(r["account"]), []).append(i)
+        key = norm_name(r["account"])
+        if key:
+            groups.setdefault(key, []).append(i)
     dup_loss = set()
     for key in sorted(groups):
         g = groups[key]
@@ -731,7 +745,7 @@ def run_lab(settings=None, fixes=True):
         "repaired": {"backtest": repaired["backtest"], "live": repaired["live"], "steps": rep["steps"],
                      "trainSize": repaired["trainSize"], "testSize": repaired["testSize"]},
         "fixes": fix_first(world, s, base) if fixes else None,
-        "model": {"dirty": base["fit"]["beta"], "clean": clean_fit["beta"], "repaired": repaired["fit"]["beta"],
+        "model": {"features": FEATURES, "dirty": base["fit"]["beta"], "clean": clean_fit["beta"], "repaired": repaired["fit"]["beta"],
                   "trainSize": base["trainSize"], "testSize": base["testSize"], "cleanTrainSize": len(clean_train)},
         "audit": audit_crm(crm),
         "truth": truth_counts(crm),
