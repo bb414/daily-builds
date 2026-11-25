@@ -42,7 +42,7 @@ What you can do in it:
 - **Test the forecast.** A grid showing how much profit the plan loses when true demand is 60% to 150% of your forecast and price sensitivity is 60% to 140% of yours, against the plan you would make knowing the truth, with the cases where it does worse than never discounting marked.
 - **Keep or share a plan.** The page address always holds the current settings, so a bookmark or a copied link opens exactly the same plan.
 
-It works on a phone and in dark mode, and every control can be used with a keyboard and has a label for screen readers.
+It is dressed as a traditional sweet shop window: a striped awning, jars on the shelf, the discount levels as price tags on string, the forecast check as a box of fondants and the shelf card as a shelf-edge label. It works on a phone, and every control can be used with a keyboard and has a label for screen readers.
 
 ## Run the Python companion
 
@@ -79,7 +79,7 @@ Two groups of Python tests need extra tools and are skipped without them: the ag
 
 | Part | Language | Roughly | What it does |
 | --- | --- | --- | --- |
-| `app/index.html` | HTML, CSS, JavaScript | 1,050 lines: 140 CSS, 300 model, 490 interface, 120 markup | The whole browser app. The model sits between `MODEL START` and `MODEL END` and also runs in Node.js. |
+| `app/index.html` | HTML, CSS, JavaScript | 1,500 lines: 260 CSS, 300 model, 490 interface, 420 markup and illustration | The whole browser app. The model sits between `MODEL START` and `MODEL END` and also runs in Node.js. |
 | `markdown_ladder/` | Python (standard library) | 700 lines | The same model, the command line, the robustness check, range planning and the reports. |
 | `tests/` | JavaScript and Python | 200 JavaScript, 400 Python | Model tests in Node.js, Python tests, agreement tests between the two languages, and browser tests. |
 | `tools/` | Python | 45 lines | Regenerates the screenshots in `docs/`. |
@@ -131,6 +131,7 @@ So with price sensitivity 2, a 20% discount lifts demand by 1 / 0.8² = 1.56, or
 
 ```
 app/index.html               the browser app (one self-contained file)
+app/FONT-LICENCE.txt         the licence for the two typefaces embedded in it
 markdown_ladder/             the Python companion
   model.py                   the model (mirrors the app's model)
   report.py                  text, Markdown and CSV output, and range planning
