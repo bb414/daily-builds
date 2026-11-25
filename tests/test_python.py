@@ -139,6 +139,28 @@ class CliTest(unittest.TestCase):
                 run_cli("plans", src)
             self.assertIn("line 2", str(e.exception))
 
+    def test_hold_report_and_raw_csv(self):
+        with tempfile.TemporaryDirectory() as d:
+            rep = os.path.join(d, "hold.md")
+            raw = os.path.join(d, "raw.csv")
+            code, _ = run_cli("hold", "--retrains", "2", "--points", "0", "3", "--out", rep, "--raw", raw)
+            self.assertEqual(code, 0)
+            with open(rep, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn("+1.5 months of experience", text)
+            self.assertIn("| +0.3 |", text)
+            with open(raw, newline="", encoding="utf-8") as fh:
+                rows = list(csv.DictReader(fh))
+            self.assertEqual(len(rows), 2 * 2 * len(M.MARGINS) * 3)
+            for row in rows:
+                self.assertLessEqual(int(row["kept"]), int(row["routes"]))
+                self.assertLessEqual(int(row["routes"]), int(row["rejected"]))
+
+    def test_hold_rejects_bad_arguments(self):
+        for argv in (["--retrains", "0"], ["--points", "9"], ["--target", "1.5"]):
+            with self.assertRaises(SystemExit):
+                run_cli("hold", *argv)
+
     def test_audit_synthetic(self):
         code, out = run_cli("audit", "--n", "120")
         self.assertEqual(code, 0)

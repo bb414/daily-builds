@@ -108,6 +108,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .kpi .v { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
 .prose { max-width: 760px; }
+.holdctl { display: grid; gap: 6px; margin: 4px 0 14px; max-width: 560px; }
+.holdctl input[type="range"] { width: 100%; accent-color: var(--accent); }
+.holdctl .inline { margin-top: 4px; }
+.hold { font-size: 0.86rem; padding: 6px 8px; border-radius: 8px; }
+.hold.ok { background: var(--yes-soft); color: var(--yes); }
+.hold.bad { background: var(--no-soft); color: var(--no); }
 .prose p, .prose li { margin: 0 0 10px; }
 footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
@@ -131,6 +137,7 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" id="tab-applicant" aria-controls="panel-applicant" aria-selected="true">One applicant</button>
       <button role="tab" id="tab-cohort" aria-controls="panel-cohort" aria-selected="false" tabindex="-1">Whole cohort</button>
+      <button role="tab" id="tab-hold" aria-controls="panel-hold" aria-selected="false" tabindex="-1">Will it hold?</button>
       <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1">How it works</button>
     </nav>
   </div>
@@ -161,6 +168,9 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
           <div class="inline">
             <label>Most features changed at once
               <select id="maxLevers"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="6" selected>No limit</option></select>
+            </label>
+            <label>Safety margin
+              <select id="margin"></select>
             </label>
           </div>
         </section>
@@ -210,6 +220,34 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
     </div>
   </section>
 
+  <section class="panel" id="panel-hold" role="tabpanel" aria-labelledby="tab-hold" hidden>
+    <div class="col">
+      <section class="card" aria-labelledby="h-hold">
+        <h2 id="h-hold">A route is a promise. Does it survive the next retrain?</h2>
+        <p class="hint">"Raise your test score to 66 and the model will say yes" is a promise about this year's model. Next year the model is retrained on a fresh batch of applicants with the same 38% quota, so the line moves. Every rejected applicant's cheapest route is checked against the retrained model.</p>
+        <div class="holdctl">
+          <label for="points" class="name">How much stronger next year's applicants are: <output id="pointsOut" for="points"></output></label>
+          <input type="range" id="points" min="0" max="6" step="1" value="0">
+          <div class="inline">
+            <span>Retrain <strong id="retrainOut">1</strong> of 20</span>
+            <button type="button" class="btn ghost" id="retrainPrev">Previous retrain</button>
+            <button type="button" class="btn ghost" id="retrainNext">Another retrain</button>
+          </div>
+        </div>
+        <div class="kpis" id="holdKpis"></div>
+      </section>
+      <section class="card" aria-labelledby="h-holdchart">
+        <h2 id="h-holdchart">Routes still working after the retrain, by safety margin</h2>
+        <p class="hint">A safety margin makes every route aim above 0.50. Higher margins keep more promises but ask more of every applicant, and leave more with no route at all.</p>
+        <div class="chartwrap" id="holdChart"></div>
+      </section>
+      <section class="card" aria-labelledby="h-holdtable">
+        <h2 id="h-holdtable">The trade-off in numbers</h2>
+        <div class="tablewrap"><table id="holdTable"></table></div>
+      </section>
+    </div>
+  </section>
+
   <section class="panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
     <section class="card prose" aria-labelledby="h-about">
       <h2 id="h-about">How it works</h2>
@@ -223,6 +261,8 @@ footer.foot { color: var(--muted); font-size: 0.85rem; padding: 0 0 30px; }
       <p>Effort is the percentile shift each change needs among past applicants, times an effort weight you choose. Moving from a common value to a rare one costs more than the same number of units in a crowded range.</p>
       <h3>Why the model scored them this way</h3>
       <p>Shapley values split the gap between the average score and this applicant's score fairly between the six features, by trying every one of the 64 combinations of "this applicant's value" and "a reference applicant's value". They explain the score, but they do not say what to change: the feature that hurts most is often one nobody can change.</p>
+      <h3>Will it hold?</h3>
+      <p>The cheapest route lands just over the line by design, so it is fragile. The tool trains next year's model on 1,600 new applicants (optionally stronger on average, with the same quota, so the bar rises) and checks whether each route still reaches 0.50. A safety margin asks routes to aim higher, at the cost of more effort. One search answers every margin at once: the order in which the search visits plans does not depend on the target, so it simply notes the first plan that clears each margin.</p>
     </section>
   </section>
 </main>
@@ -495,11 +535,18 @@ function heapPop(h) {
 // splits, so each feature only needs its current value plus the first value
 // past each split point in the allowed direction. Uniform-cost search over
 // those values returns the cheapest plan that reaches the target score.
-function findRecourse(model, tables, x, settings, opts) {
-  const o = Object.assign({ margin: 0, maxLevers: D, allowed: null, maxStates: 200000 }, opts || {});
+// The order states are visited in does not depend on the target, so one
+// search answers several safety margins at once, exactly as separate
+// searches would.
+function searchRoutes(model, tables, x, settings, opts, margins) {
+  const o = Object.assign({ maxLevers: D, allowed: null, maxStates: 200000 }, opts || {});
   const score0 = predict(model, x);
-  if (score0 >= model.threshold) return { status: 'already', score: score0, cost: 0, values: x.slice(), changes: [], explored: 0 };
-  const target = model.threshold + o.margin;
+  if (score0 >= model.threshold) {
+    return margins.map(function () { return { status: 'already', score: score0, cost: 0, values: x.slice(), changes: [], explored: 0 }; });
+  }
+  const results = margins.map(function () { return null; });
+  const targets = margins.map(function (m) { return model.threshold + m; });
+  let open = margins.length;
   const lists = [];
   for (let j = 0; j < D; j++) {
     const ok = o.allowed ? o.allowed[j] : true;
@@ -513,37 +560,55 @@ function findRecourse(model, tables, x, settings, opts) {
     for (let j = 0; j < D; j++) c += unitCost[j][idx[j]];
     return c;
   }
-  const start = new Array(D).fill(0);
+  // Each combination of candidate positions gets a number (mixed radix), so
+  // the visited check is a typed-array lookup rather than a string.
+  const strides = [];
+  let total = 1;
+  for (let j = 0; j < D; j++) { strides.push(total); total *= lists[j].length; }
+  const seen = total <= 4000000 ? new Uint8Array(total) : null;
+  const seenSet = seen ? null : new Set();
   const heap = [];
-  const seen = new Set([start.join(',')]);
+  if (seen) seen[0] = 1; else seenSet.add(0);
   let seq = 0;
-  heapPush(heap, { c: 0, seq: seq++, idx: start });
+  heapPush(heap, { c: 0, seq: seq++, idx: new Array(D).fill(0), key: 0 });
   let explored = 0;
+  const vals = new Array(D);
+  function finish(status) {
+    return results.map(function (r) { return r || { status: status, score: score0, cost: null, values: null, changes: [], explored: explored }; });
+  }
   while (heap.length > 0) {
     const e = heapPop(heap);
     explored += 1;
-    const vals = e.idx.map(function (k, j) { return lists[j][k]; });
+    for (let j = 0; j < D; j++) vals[j] = lists[j][e.idx[j]];
     const sc = predict(model, vals);
-    if (sc >= target) {
+    for (let k = 0; k < margins.length; k++) {
+      if (results[k] || sc < targets[k]) continue;
       const changes = [];
       for (let j = 0; j < D; j++) if (vals[j] !== x[j]) changes.push({ j: j, from: x[j], to: vals[j], cost: unitCost[j][e.idx[j]] });
-      return { status: 'found', score: sc, cost: e.c, values: vals, changes: changes, explored: explored };
+      results[k] = { status: 'found', score: sc, cost: e.c, values: vals.slice(), changes: changes, explored: explored };
+      open -= 1;
     }
-    if (explored >= o.maxStates) return { status: 'limit', score: score0, cost: null, values: null, changes: [], explored: explored };
+    if (open === 0) return results;
+    if (explored >= o.maxStates) return finish('limit');
     let levers = 0;
     for (let j = 0; j < D; j++) if (e.idx[j] > 0) levers += 1;
     for (let j = 0; j < D; j++) {
       if (e.idx[j] + 1 >= lists[j].length) continue;
       if (e.idx[j] === 0 && levers >= o.maxLevers) continue;
+      const key = e.key + strides[j];
+      if (seen ? seen[key] : seenSet.has(key)) continue;
+      if (seen) seen[key] = 1; else seenSet.add(key);
       const nidx = e.idx.slice();
       nidx[j] += 1;
-      const key = nidx.join(',');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      heapPush(heap, { c: costOf(nidx), seq: seq++, idx: nidx });
+      heapPush(heap, { c: costOf(nidx), seq: seq++, idx: nidx, key: key });
     }
   }
-  return { status: 'none', score: score0, cost: null, values: null, changes: [], explored: explored };
+  return finish('none');
+}
+
+function findRecourse(model, tables, x, settings, opts) {
+  const margin = opts && opts.margin ? opts.margin : 0;
+  return searchRoutes(model, tables, x, settings, opts, [margin])[0];
 }
 
 function mainLever(plan) {
@@ -670,10 +735,61 @@ function audit(model, tables, cohort, settings, opts) {
   return { groups: summary, rows: rows };
 }
 
+// ---- Will it hold? Routes against a retrained model ----
+const MARGINS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3];
+
+// Next year's model: same hidden rule and quota, a fresh sample of applicants
+// who are, on average, stronger by `strength` (0 to 1).
+function nextModel(strength, retrain) {
+  return trainModel(generateCohort(DEFAULTS.nTrain, DEFAULTS.nextSeed + retrain - 1, strength));
+}
+
+// The cheapest route for every applicant at every safety margin. Routes only
+// depend on this year's model, so they are computed once and then checked
+// against as many retrained models as needed.
+function routeTable(model, tables, cohort, settings, opts, margins) {
+  const table = margins.map(function () { return []; });
+  cohort.forEach(function (row) {
+    const res = searchRoutes(model, tables, row.x, settings, opts, margins);
+    res.forEach(function (r, k) { table[k].push({ status: r.status, values: r.values, cost: r.cost }); });
+  });
+  return table;
+}
+
+function summariseHold(acc) {
+  const sorted = acc.costs.slice().sort(function (a, b) { return a - b; });
+  return {
+    rejected: acc.rejected, routes: acc.routes, kept: acc.kept,
+    routeShare: acc.rejected ? acc.routes / acc.rejected : null,
+    keptShare: acc.routes ? acc.kept / acc.routes : null,
+    medianCost: median(sorted), meanCost: mean(acc.costs)
+  };
+}
+
+function holdSummary(model2, cohort, table, margins) {
+  return margins.map(function (m, k) {
+    const acc = [0, 1, 2].map(function () { return { rejected: 0, routes: 0, kept: 0, costs: [] }; });
+    table[k].forEach(function (r, i) {
+      if (r.status === 'already') return;
+      const targets = [acc[cohort[i].g], acc[2]];
+      targets.forEach(function (a) { a.rejected += 1; });
+      if (r.status !== 'found') return;
+      const kept = predict(model2, r.values) >= model2.threshold;
+      targets.forEach(function (a) {
+        a.routes += 1;
+        a.costs.push(r.cost);
+        if (kept) a.kept += 1;
+      });
+    });
+    return { margin: m, groups: [summariseHold(acc[0]), summariseHold(acc[1])], all: summariseHold(acc[2]) };
+  });
+}
+
 const API = {
   FEATURES, D, THRESHOLD, DEFAULTS, PRESETS, mulberry32, irwinHall, clampRound, generateCohort, bestSplit, growNode,
   leafValue, collectSplits, trainModel, predict, costTables, defaultSettings, featureCost, candidates,
-  findRecourse, mainLever, recourseOptions, backgroundSample, shapley, median, mean, audit
+  searchRoutes, findRecourse, mainLever, recourseOptions, backgroundSample, shapley, median, mean, audit,
+  MARGINS, nextModel, routeTable, summariseHold, holdSummary
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 /* MODEL END */
@@ -690,7 +806,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   const background = backgroundSample(train, 64);
   const cohort = generateCohort(DEFAULTS.nAudit, DEFAULTS.auditSeed);
 
-  const state = { x: PRESETS[0].x.slice(), settings: defaultSettings(), maxLevers: D, mapX: 0, mapY: 1 };
+  const state = { x: PRESETS[0].x.slice(), settings: defaultSettings(), maxLevers: D, margin: 0, mapX: 0, mapY: 1, points: 0, retrain: 1 };
+  const RETRAINS = 20;
 
   function el(tag, attrs, text) {
     const e = document.createElement(tag);
@@ -806,12 +923,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       w.addEventListener('change', function () { state.settings[j].weight = Number(w.value); rulesChanged(); });
     });
     $('maxLevers').addEventListener('change', function () { state.maxLevers = Number($('maxLevers').value); rulesChanged(); });
+    const ms = $('margin');
+    MARGINS.forEach(function (m) { ms.appendChild(el('option', { value: String(m) }, m === 0 ? 'None (aim for 0.50)' : '+' + m + ' (aim for ' + (0.5 + m).toFixed(3).replace(/0$/, '') + ')')); });
+    ms.value = String(state.margin);
+    ms.addEventListener('change', function () { state.margin = Number(ms.value); rulesChanged(); });
   }
   let cohortDirty = true;
+  let holdTable = null;
   function rulesChanged() {
     cohortDirty = true;
+    holdTable = null;
     renderApplicant();
     if (!$('panel-cohort').hidden) renderCohort();
+    if (!$('panel-hold').hidden) renderHold();
+  }
+
+  // Next year's model, cached by pool strength and retrain number.
+  const nextCache = {};
+  function currentNext() {
+    const key = state.points + ':' + state.retrain;
+    if (!nextCache[key]) nextCache[key] = nextModel(state.points / 6, state.retrain);
+    return nextCache[key];
+  }
+  function strengthText(points) {
+    if (points === 0) return 'not at all (a fresh sample of the same kind of pool)';
+    return '+' + points + ' test point' + (points === 1 ? '' : 's') + ' and +' + (points / 2) + ' month' + (points === 2 ? '' : 's') + ' of experience on average';
   }
 
   // ---- Decision ----
@@ -867,6 +1003,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
       span.style.width = (maxCost > 0 ? o.cost / maxCost * 100 : 0) + '%';
       eff.appendChild(span);
       card.appendChild(eff);
+      const m2 = currentNext();
+      const s2 = predict(m2, o.values);
+      const holds = s2 >= m2.threshold;
+      card.appendChild(el('div', { class: 'hold ' + (holds ? 'ok' : 'bad') },
+        (holds ? 'Still works' : 'Breaks') + ' after next year\u2019s retrain (score ' + fmtScore(s2) + ')'));
       const foot = el('div', { class: 'foot' });
       foot.appendChild(el('span', { class: 'small' }, 'Effort ' + o.cost.toFixed(1) + ', new score ' + fmtScore(o.score)));
       const btn = el('button', { class: 'btn ghost', type: 'button', 'aria-label': 'Apply route ' + letter + ' to the applicant' }, 'Try this');
@@ -1070,7 +1211,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   function renderApplicant() {
     const score = predict(model, state.x);
     renderDecision(score);
-    const res = recourseOptions(model, tables, state.x, state.settings, { maxLevers: state.maxLevers });
+    const res = recourseOptions(model, tables, state.x, state.settings, { maxLevers: state.maxLevers, margin: state.margin });
     lastOptions = renderPlans(res);
     renderShap(shapley(model, state.x, background), lastOptions);
     renderMap(lastOptions);
@@ -1081,7 +1222,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   function groupColour(g) { return cssVar(g ? '--g1' : '--g0'); }
   function pct(v) { return v === null ? 'n/a' : Math.round(v * 100) + '%'; }
   function renderCohort() {
-    const a = audit(model, tables, cohort, state.settings, { maxLevers: state.maxLevers });
+    const a = audit(model, tables, cohort, state.settings, { maxLevers: state.maxLevers, margin: state.margin });
     cohortDirty = false;
     const k = $('kpis');
     k.innerHTML = '';
@@ -1176,6 +1317,113 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     t.appendChild(cap);
   }
 
+  // ---- Will it hold? ----
+  function buildHold() {
+    const pts = $('points');
+    const sync = function () {
+      $('pointsOut').textContent = strengthText(state.points);
+      $('retrainOut').textContent = String(state.retrain);
+      $('retrainPrev').disabled = state.retrain <= 1;
+      $('retrainNext').disabled = state.retrain >= RETRAINS;
+    };
+    pts.addEventListener('input', function () { state.points = Number(pts.value); sync(); });
+    pts.addEventListener('change', function () { state.points = Number(pts.value); sync(); renderHold(); });
+    $('retrainPrev').addEventListener('click', function () { if (state.retrain > 1) { state.retrain -= 1; sync(); renderHold(); } });
+    $('retrainNext').addEventListener('click', function () { if (state.retrain < RETRAINS) { state.retrain += 1; sync(); renderHold(); } });
+    sync();
+  }
+  function renderHold() {
+    if (!holdTable) holdTable = routeTable(model, tables, cohort, state.settings, { maxLevers: state.maxLevers }, MARGINS);
+    const h = holdSummary(currentNext(), cohort, holdTable, MARGINS);
+    const k = $('holdKpis');
+    k.innerHTML = '';
+    const tile = function (label, value, sub) {
+      const box = el('div', { class: 'kpi' });
+      box.appendChild(el('div', { class: 'lab' }, label));
+      const vals = el('div', { class: 'vals' });
+      vals.appendChild(el('span', { class: 'v' }, value));
+      box.appendChild(vals);
+      if (sub) box.appendChild(el('div', { class: 'small' }, sub));
+      k.appendChild(box);
+    };
+    const h0 = h[0];
+    tile('Cheapest routes still working', pct(h0.all.keptShare), h0.all.routes + ' routes, no safety margin');
+    const target = 0.9;
+    const ok = h.filter(function (r) { return r.all.keptShare !== null && r.all.keptShare >= target; })[0];
+    tile('Smallest margin keeping 90% of routes', ok ? '+' + ok.margin : 'None', ok ? 'Margins up to +0.3 tried' : 'Even +0.3 keeps only ' + pct(h[h.length - 1].all.keptShare));
+    if (ok) {
+      tile('Extra effort that margin asks for', '+' + (ok.all.medianCost - h0.all.medianCost).toFixed(1), 'Median, percentile points');
+      tile('Rejected applicants left with no route', pct(1 - ok.all.routeShare), 'Up from ' + pct(1 - h0.all.routeShare) + ' with no margin');
+    } else {
+      tile('Rejected applicants with a route at +0.3', pct(h[h.length - 1].all.routeShare), 'Compared with ' + pct(h0.all.routeShare) + ' with no margin');
+    }
+    renderHoldChart(h);
+    renderHoldTable(h);
+  }
+  function renderHoldChart(h) {
+    const box = $('holdChart');
+    box.innerHTML = '';
+    const W = Math.max(300, box.clientWidth || 600);
+    const H = 250;
+    const padL = 40, padR = 12, padT = 12, padB = 42;
+    const pw = W - padL - padR;
+    const ph = H - padT - padB;
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+    const X = function (k) { return padL + k / (MARGINS.length - 1) * pw; };
+    const Y = function (v) { return padT + ph - v * ph; };
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (t) {
+      svg.appendChild(sv('line', { x1: padL, x2: W - padR, y1: Y(t), y2: Y(t), stroke: cssVar('--line') }));
+      svg.appendChild(sv('text', { x: padL - 6, y: Y(t) + 4, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, Math.round(t * 100) + '%'));
+    });
+    svg.appendChild(sv('line', { x1: padL, x2: W - padR, y1: Y(0.9), y2: Y(0.9), stroke: cssVar('--muted'), 'stroke-dasharray': '4 4' }));
+    svg.appendChild(sv('text', { x: W - padR, y: Y(0.9) - 5, 'font-size': 11, 'text-anchor': 'end', class: 'muted' }, '90%'));
+    MARGINS.forEach(function (m, k) {
+      svg.appendChild(sv('text', { x: X(k), y: H - padB + 16, 'font-size': 11, 'text-anchor': 'middle', class: 'muted' }, m === 0 ? '0' : '+' + m));
+    });
+    svg.appendChild(sv('text', { x: padL + pw / 2, y: H - 6, 'font-size': 11, 'text-anchor': 'middle', class: 'muted' }, 'Safety margin added to the 0.50 line'));
+    const series = [
+      { name: 'All rejected applicants', get: function (r) { return r.all.keptShare; }, color: cssVar('--ink'), width: 2.5 },
+      { name: GROUPS[0], get: function (r) { return r.groups[0].keptShare; }, color: groupColour(0), width: 2 },
+      { name: GROUPS[1], get: function (r) { return r.groups[1].keptShare; }, color: groupColour(1), width: 2 }
+    ];
+    const desc = [];
+    series.forEach(function (S) {
+      let d = '';
+      h.forEach(function (r, k) { const v = S.get(r); if (v === null) return; d += (d ? 'L' : 'M') + X(k).toFixed(1) + ' ' + Y(v).toFixed(1); });
+      svg.appendChild(sv('path', { d: d, fill: 'none', stroke: S.color, 'stroke-width': S.width, 'stroke-linejoin': 'round' }));
+      h.forEach(function (r, k) { const v = S.get(r); if (v === null) return; svg.appendChild(sv('circle', { cx: X(k), cy: Y(v), r: 3, fill: S.color })); });
+      desc.push(S.name + ': ' + h.map(function (r) { return pct(S.get(r)); }).join(', '));
+    });
+    svg.setAttribute('aria-label', 'Share of routes still working after the retrain at margins ' + MARGINS.join(', ') + '. ' + desc.join('. ') + '.');
+    box.appendChild(svg);
+    const legend = el('div', { class: 'legend' });
+    series.forEach(function (S) { const sp = el('span'); const i = el('i'); i.style.background = S.color; sp.appendChild(i); sp.appendChild(document.createTextNode(S.name)); legend.appendChild(sp); });
+    box.appendChild(legend);
+  }
+  function renderHoldTable(h) {
+    const t = $('holdTable');
+    t.innerHTML = '';
+    const thead = el('thead');
+    const tr = el('tr');
+    ['Safety margin', 'Rejected with a route', 'Median effort', 'Still working: all', GROUPS[0], GROUPS[1]].forEach(function (c, k) {
+      tr.appendChild(el('th', { scope: 'col', class: k ? 'num' : '' }, c));
+    });
+    thead.appendChild(tr);
+    t.appendChild(thead);
+    const body = el('tbody');
+    h.forEach(function (r) {
+      const row = el('tr');
+      row.appendChild(el('th', { scope: 'row' }, r.margin === 0 ? 'None' : '+' + r.margin));
+      row.appendChild(el('td', { class: 'num' }, pct(r.all.routeShare)));
+      row.appendChild(el('td', { class: 'num' }, r.all.medianCost === null ? 'n/a' : r.all.medianCost.toFixed(1)));
+      row.appendChild(el('td', { class: 'num' }, pct(r.all.keptShare)));
+      row.appendChild(el('td', { class: 'num' }, pct(r.groups[0].keptShare)));
+      row.appendChild(el('td', { class: 'num' }, pct(r.groups[1].keptShare)));
+      body.appendChild(row);
+    });
+    t.appendChild(body);
+  }
+
   // ---- Tabs ----
   function buildTabs() {
     const tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs [role="tab"]'));
@@ -1187,6 +1435,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
         $(t.getAttribute('aria-controls')).hidden = !on;
       });
       if (tab.id === 'tab-cohort' && cohortDirty) renderCohort();
+      if (tab.id === 'tab-hold') renderHold();
       if (tab.id === 'tab-applicant') renderApplicant();
     }
     tabs.forEach(function (t, k) {
@@ -1208,6 +1457,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
     resizeTimer = setTimeout(function () {
       if (!$('panel-applicant').hidden) renderApplicant();
       if (!$('panel-cohort').hidden) renderCohort();
+      if (!$('panel-hold').hidden) renderHold();
     }, 150);
   });
 
@@ -1215,6 +1465,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
   buildFields();
   buildRules();
   buildMapControls();
+  buildHold();
   buildTabs();
   syncFields();
   renderApplicant();

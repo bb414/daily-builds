@@ -39,6 +39,12 @@ const out = {
   }),
   shapley: M.PRESETS.map(function (p) { return M.shapley(model, p.x, background); }),
   audit: M.audit(model, tables, cohort, settings).groups,
-  auditTight: M.audit(model, tables, cohort, tight, { maxLevers: 2, margin: 0.04 }).groups
+  auditTight: M.audit(model, tables, cohort, tight, { maxLevers: 2, margin: 0.04 }).groups,
+  margins: M.MARGINS,
+  nextSplits: M.nextModel(3 / 6, 2).splits,
+  hold: (function () {
+    const table = M.routeTable(model, tables, cohort.slice(0, 200), tight, { maxLevers: 3 }, M.MARGINS);
+    return M.holdSummary(M.nextModel(3 / 6, 2), cohort.slice(0, 200), table, M.MARGINS);
+  })()
 };
 process.stdout.write(JSON.stringify(out));

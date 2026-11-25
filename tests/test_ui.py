@@ -92,20 +92,41 @@ class UiTest(unittest.TestCase):
         self.assertTrue(page.is_hidden("#panel-applicant"))
         self.assertEqual(page.locator("#kpis .kpi").count(), 4)
         self.assertEqual(page.locator("#hist svg rect").count(), 14)
+        page.keyboard.press("ArrowRight")
+        self.assertFalse(page.is_hidden("#panel-hold"))
         page.keyboard.press("End")
         self.assertFalse(page.is_hidden("#panel-about"))
         page.close()
 
+    def test_hold_tab_and_route_checks(self):
+        page = self.open()
+        cards = page.locator("#plans .plan .hold")
+        self.assertGreater(cards.count(), 0)
+        self.assertRegex(cards.first.inner_text(), "^(Still works|Breaks) after next year")
+        page.click("#tab-hold")
+        self.assertEqual(page.locator("#holdTable tbody tr").count(), 7)
+        before = page.inner_text("#holdTable")
+        page.click("#retrainNext")
+        self.assertEqual(page.inner_text("#retrainOut"), "2")
+        self.assertNotEqual(before, page.inner_text("#holdTable"))
+        page.fill("#points", "4")
+        page.dispatch_event("#points", "change")
+        self.assertIn("+4 test points", page.inner_text("#pointsOut"))
+        page.click("#tab-applicant")
+        page.select_option("#margin", "0.3")
+        self.assertIn("aim for 0.8", page.inner_text("#margin"))
+        page.close()
+
     def test_every_control_has_a_name(self):
         page = self.open()
-        for tab in ("#tab-applicant", "#tab-cohort", "#tab-about"):
+        for tab in ("#tab-applicant", "#tab-cohort", "#tab-hold", "#tab-about"):
             page.click(tab)
             self.assertEqual(page.evaluate(UNNAMED_CONTROLS), [], tab)
         page.close()
 
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(390)
-        for tab in ("#tab-applicant", "#tab-cohort", "#tab-about"):
+        for tab in ("#tab-applicant", "#tab-cohort", "#tab-hold", "#tab-about"):
             page.click(tab)
             page.wait_for_timeout(50)
             width = page.evaluate("document.documentElement.scrollWidth")

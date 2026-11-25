@@ -281,6 +281,107 @@ def cmd_audit(args):
     return 0
 
 
+def hold_analysis(world, cohort, settings, points_list, retrains, max_levers=M.D):
+    """Check every rejected applicant's cheapest route against many retrained models."""
+    table = M.route_table(world.model, world.tables, cohort, settings, M.MARGINS, max_levers=max_levers)
+    results = []
+    for points in points_list:
+        runs = [M.hold_summary(M.next_model(points / 6, r), cohort, table, M.MARGINS) for r in range(1, retrains + 1)]
+        rows = []
+        for k, m in enumerate(M.MARGINS):
+            kept = [run[k]["all"]["keptShare"] for run in runs if run[k]["all"]["keptShare"] is not None]
+            by_group = []
+            for g in (0, 1):
+                vals = [run[k]["groups"][g]["keptShare"] for run in runs if run[k]["groups"][g]["keptShare"] is not None]
+                by_group.append(M.mean(vals))
+            first = runs[0][k]["all"]
+            rows.append({"margin": m, "routeShare": first["routeShare"], "medianCost": first["medianCost"],
+                         "keptMean": M.mean(kept), "keptMin": min(kept) if kept else None,
+                         "keptMax": max(kept) if kept else None, "keptGroups": by_group})
+        results.append({"points": points, "rows": rows, "runs": runs})
+    return results
+
+
+def hold_markdown(results, retrains, target, title):
+    def pct(v):
+        return "n/a" if v is None else "%d%%" % round(v * 100)
+
+    lines = ["# " + title, ""]
+    lines.append("Each rejected applicant's cheapest route is checked against %d retrained models (fresh samples of "
+                 "1,600 applicants, same 38%% quota). A safety margin makes routes aim above 0.50." % retrains)
+    for res in results:
+        p = res["points"]
+        pool = "a fresh sample of the same kind of pool" if p == 0 else \
+            "+%g test point%s and +%g month%s of experience on average" % (p, "" if p == 1 else "s", p / 2, "" if p == 2 else "s")
+        lines += ["", "## Next year's applicants: %s" % pool, ""]
+        lines.append("| Safety margin | Rejected with a route | Median effort | Still working (mean) | Lowest | Highest | "
+                     + " | ".join(GROUP_NAMES) + " |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for r in res["rows"]:
+            lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
+                "None" if r["margin"] == 0 else "+%g" % r["margin"], pct(r["routeShare"]),
+                "n/a" if r["medianCost"] is None else "%.1f" % r["medianCost"], pct(r["keptMean"]), pct(r["keptMin"]),
+                pct(r["keptMax"]), pct(r["keptGroups"][0]), pct(r["keptGroups"][1])))
+        lines.append("")
+        on_average = [r for r in res["rows"] if r["keptMean"] is not None and r["keptMean"] >= target]
+        worst_case = [r for r in res["rows"] if r["keptMin"] is not None and r["keptMin"] >= target]
+        if on_average:
+            r = on_average[0]
+            lines.append("- Smallest margin keeping %s of routes on average: **+%g**, at a median effort of %.1f "
+                         "(%+.1f on no margin) and leaving %s of rejected applicants with no route."
+                         % (pct(target), r["margin"], r["medianCost"], r["medianCost"] - res["rows"][0]["medianCost"],
+                            pct(1 - r["routeShare"])))
+        else:
+            lines.append("- No margin up to +%g keeps %s of routes on average." % (M.MARGINS[-1], pct(target)))
+        if worst_case:
+            lines.append("- Smallest margin keeping %s even in the worst of the %d retrains: **+%g**."
+                         % (pct(target), retrains, worst_case[0]["margin"]))
+        else:
+            lines.append("- No margin keeps %s in every one of the %d retrains." % (pct(target), retrains))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def cmd_hold(args):
+    if args.retrains < 1 or args.retrains > 200:
+        raise SystemExit("--retrains must be between 1 and 200")
+    if not 0 < args.target <= 1:
+        raise SystemExit("--target must be above 0 and at most 1")
+    for p in args.points:
+        if not 0 <= p <= 6:
+            raise SystemExit("--points must be between 0 and 6")
+    world = World()
+    settings = settings_from_args(args)
+    if args.csv:
+        people = read_applicants(args.csv)
+        cohort = [{"x": p["x"], "g": p["g"] if p["g"] is not None else 0} for p in people]
+        title = "Will the routes hold? %s" % args.csv
+    else:
+        cohort = M.generate_cohort(M.DEFAULTS["nAudit"], M.DEFAULTS["auditSeed"])
+        title = "Will the routes hold? %d synthetic applicants" % len(cohort)
+    results = hold_analysis(world, cohort, settings, args.points, args.retrains, max_levers=args.max_levers)
+    text = hold_markdown(results, args.retrains, args.target, title)
+    if args.raw:
+        with open(args.raw, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["points", "retrain", "margin", "group", "rejected", "routes", "kept", "kept_share", "median_effort"])
+            for res in results:
+                for r, run in enumerate(res["runs"], start=1):
+                    for row in run:
+                        for name, part in (("all", row["all"]), ("others", row["groups"][0]),
+                                           ("first_in_family", row["groups"][1])):
+                            w.writerow([res["points"], r, row["margin"], name, part["rejected"], part["routes"], part["kept"],
+                                        "" if part["keptShare"] is None else "%.4f" % part["keptShare"],
+                                        "" if part["medianCost"] is None else "%.2f" % part["medianCost"]])
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        print("Wrote " + args.out + (" and " + args.raw if args.raw else ""))
+    else:
+        print(text)
+    return 0
+
+
 def cmd_sample(args):
     rows = M.generate_cohort(args.n, args.seed)
     out = open(args.out, "w", newline="", encoding="utf-8") if args.out else sys.stdout
@@ -336,6 +437,17 @@ def build_parser():
     a.add_argument("--out", help="write the Markdown report here (default: print)")
     add_rules(a)
     a.set_defaults(func=cmd_audit)
+
+    h = sub.add_parser("hold", help="check whether routes survive retraining, by safety margin")
+    h.add_argument("--retrains", type=int, default=20, help="retrained models to test against (default 20)")
+    h.add_argument("--points", type=float, nargs="+", default=[0.0],
+                   help="how much stronger next year's pool is, in average test points from 0 to 6 (default 0)")
+    h.add_argument("--target", type=float, default=0.9, help="share of routes that should survive (default 0.9)")
+    h.add_argument("--csv", help="your own applicants instead of the synthetic cohort")
+    h.add_argument("--out", help="write the Markdown report here (default: print)")
+    h.add_argument("--raw", help="also write every retrain's results to this CSV")
+    add_rules(h)
+    h.set_defaults(func=cmd_hold)
 
     s = sub.add_parser("sample", help="write synthetic applicants to CSV, to try the other commands")
     s.add_argument("--n", type=int, default=40, help="how many (default 40)")

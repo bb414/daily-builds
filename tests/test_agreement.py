@@ -85,6 +85,12 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual(self.js["auditTight"],
                          M.audit(self.model, self.tables, self.cohort, self.tight, margin=0.04, max_levers=2)["groups"])
 
+    def test_hold(self):
+        self.assertEqual(self.js["margins"], M.MARGINS)
+        self.assertEqual(self.js["nextSplits"], M.next_model(3 / 6, 2)["splits"])
+        table = M.route_table(self.model, self.tables, self.cohort[:200], self.tight, M.MARGINS, max_levers=3)
+        self.assertEqual(self.js["hold"], M.hold_summary(M.next_model(3 / 6, 2), self.cohort[:200], table, M.MARGINS))
+
 
 if __name__ == "__main__":
     unittest.main()

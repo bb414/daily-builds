@@ -19,6 +19,7 @@ Download or clone this branch, then double-click `app/index.html`. It opens in a
 - **One applicant:** pick an example or set the six features yourself. You get the decision, up to four routes to being shortlisted (each the exact cheapest plan whose biggest change is a different feature), the Shapley values behind the score, and a decision map of any two features with the routes drawn on it. "Try this" applies a route.
 - **What counts as a realistic change:** which features can move, by how much and how hard each is. Degree result and past gaps are fixed by default.
 - **Whole cohort:** 500 new applicants scored by the model, split by whether they are the first in their family at university: shortlist rates, the share of rejected applicants with any route within the limits, the effort of the cheapest route and what the routes ask people to change.
+- **Will it hold?** A route is a promise about this year's model. The tool retrains the model on next year's applicants (the same kind of pool, or a stronger one, with the same quota) and checks how many routes still work, at seven safety margins. With no margin only about a third of the cheapest routes survive a routine retrain; it takes a margin of about +0.25 to keep 90% of them, which asks for much more effort and leaves a third of rejected applicants with no route at all. Each route card on the first tab also says whether it survives.
 
 ![The cohort view: shortlist rates, route effort and levers by group](docs/cohort.png)
 
@@ -32,11 +33,13 @@ python3 -m whatwouldittake explain --test 62 --experience 9 --projects 3 --certs
 python3 -m whatwouldittake sample --n 40 --out applicants.csv
 python3 -m whatwouldittake plans applicants.csv --out plans.csv
 python3 -m whatwouldittake audit --csv applicants.csv --out audit.md
+python3 -m whatwouldittake hold --retrains 20 --points 0 2 --out hold.md --raw hold.csv
 ```
 
 - `explain` prints one applicant's decision, Shapley values and routes.
 - `plans` reads a CSV of applicants (columns `test, experience, projects, certs, degree, gap`, optional `id`) and writes each one's decision, biggest drag and cheapest route to CSV: the batch job a screening team would run.
 - `audit` compares recourse burden between groups, for the synthetic cohort or your own CSV with a `first_in_family` column, and writes a Markdown report.
+- `hold` checks every route against many retrained models (20 by default, `--points 0 2 4` for stronger pools) and reports, for each safety margin, the mean, lowest and highest share of routes that survive, by group, plus the smallest margin that keeps your `--target` share on average and in the worst retrain. `--raw` writes every retrain's numbers to CSV.
 - Every command accepts the same rules as the app: `--allow degree`, `--fix test`, `--cap experience=6`, `--weight test=2`, `--max-levers 2`, `--margin 0.05`.
 
 ## Run the tests
@@ -65,14 +68,14 @@ The agreement tests run the app's model in Node.js and check that the Python por
 5. **Several routes.** For every subset of movable features the tool finds the cheapest plan that uses exactly that subset, then keeps the cheapest plan for each feature that carries most of the cost.
 6. **Shapley values.** Exact interventional Shapley values against 64 reference applicants, over all 64 combinations of features, so they add up exactly to the gap between the average score and this applicant's score.
 7. **Cohort audit.** Runs the cheapest-route search for every rejected applicant and compares groups.
+8. **Will it hold?** Next year's model is trained the same way on 1,600 fresh applicants, optionally stronger on average; with the same quota, a stronger pool raises the bar. The order in which the search visits plans does not depend on the target score, so a single search notes the first plan that clears each of the seven margins, exactly as seven separate searches would (a test checks this).
 
 ## Limitations
 
 - The data, the employer and the hidden rule are invented. The group difference is built into the synthetic data to show the mechanism; it is not an estimate of anything real.
 - Effort as a percentile shift is one reasonable choice among several. It ignores time, money and the fact that some changes depend on others.
-- Routes treat the model as fixed. A real model is retrained, and a route that works today might not work after the next retrain.
+- "Will it hold?" retrains on data from the same hidden rule. Real models also change features, thresholds and quotas, which would break even more routes.
 
 ## What could come next
 
-- Test whether routes survive retraining.
 - Let the user upload their own model as a set of trees.

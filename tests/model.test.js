@@ -211,3 +211,44 @@ test('every example applicant still matches its name', function () {
   assert.equal(byName['No route within a year'].opts.status, 'none');
   assert.ok(byName['Already shortlisted'].score >= 0.5);
 });
+
+test('one search answers every margin exactly as separate searches do', function () {
+  const st = M.defaultSettings();
+  st[5].actionable = true;
+  cohort.slice(0, 150).forEach(function (r) {
+    const multi = M.searchRoutes(model, tables, r.x, st, { maxLevers: 3 }, M.MARGINS);
+    M.MARGINS.forEach(function (m, k) {
+      const one = M.findRecourse(model, tables, r.x, st, { maxLevers: 3, margin: m });
+      assert.equal(multi[k].status, one.status);
+      assert.equal(multi[k].cost, one.cost);
+      assert.deepEqual(multi[k].values, one.values);
+      assert.equal(multi[k].explored, one.explored);
+    });
+  });
+});
+
+test('routes always hold against the model they were made for', function () {
+  const table = M.routeTable(model, tables, cohort, settings, {}, M.MARGINS);
+  const same = M.holdSummary(model, cohort, table, M.MARGINS);
+  same.forEach(function (r) {
+    assert.equal(r.all.kept, r.all.routes);
+    assert.equal(r.groups[0].routes + r.groups[1].routes, r.all.routes);
+    assert.equal(r.groups[0].rejected + r.groups[1].rejected, r.all.rejected);
+  });
+  for (let k = 1; k < M.MARGINS.length; k++) {
+    assert.ok(same[k].all.routes <= same[k - 1].all.routes, 'a higher margin never adds routes');
+    assert.ok(same[k].all.medianCost >= same[k - 1].all.medianCost);
+  }
+});
+
+test('a retrained model breaks many minimal routes and a margin repairs most', function () {
+  const table = M.routeTable(model, tables, cohort, settings, {}, M.MARGINS);
+  const next = M.nextModel(0, 1);
+  assert.notDeepEqual(next.splits, model.splits);
+  const h = M.holdSummary(next, cohort, table, M.MARGINS);
+  h.forEach(function (r) { assert.ok(r.all.kept <= r.all.routes && r.all.routes <= r.all.rejected); });
+  assert.ok(h[0].all.keptShare < 0.6, 'minimal routes are fragile');
+  assert.ok(h[h.length - 1].all.keptShare > 0.85, 'a wide margin keeps most');
+  const stronger = M.holdSummary(M.nextModel(4 / 6, 1), cohort, table, M.MARGINS);
+  assert.ok(stronger[0].all.keptShare < h[0].all.keptShare, 'a stronger pool raises the bar');
+});

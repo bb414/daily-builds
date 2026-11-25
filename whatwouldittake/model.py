@@ -244,12 +244,19 @@ def candidates(model, x, j, setting):
     return out
 
 
-def find_recourse(model, tables, x, settings, margin=0.0, max_levers=D, allowed=None, max_states=200000):
-    """Exact minimum-cost recourse by uniform-cost search over split points."""
+def search_routes(model, tables, x, settings, margins, max_levers=D, allowed=None, max_states=200000):
+    """Exact minimum-cost recourse by uniform-cost search over split points.
+
+    The visiting order does not depend on the target, so one search answers
+    several safety margins at once, exactly as separate searches would.
+    """
     score0 = predict(model, x)
     if score0 >= model["threshold"]:
-        return {"status": "already", "score": score0, "cost": 0, "values": list(x), "changes": [], "explored": 0}
-    target = model["threshold"] + margin
+        return [{"status": "already", "score": score0, "cost": 0, "values": list(x), "changes": [], "explored": 0}
+                for _ in margins]
+    results = [None] * len(margins)
+    targets = [model["threshold"] + m for m in margins]
+    open_count = len(margins)
     lists = []
     for j in range(D):
         ok = allowed[j] if allowed is not None else True
@@ -262,35 +269,57 @@ def find_recourse(model, tables, x, settings, margin=0.0, max_levers=D, allowed=
             c += unit_cost[j][idx[j]]
         return c
 
-    start = (0,) * D
-    heap = [(0, 0, start)]
-    seen = {start}
+    # Each combination of candidate positions gets a number (mixed radix).
+    strides = []
+    total = 1
+    for j in range(D):
+        strides.append(total)
+        total *= len(lists[j])
+    heap = [(0, 0, (0,) * D, 0)]
+    seen = {0}
     seq = 1
     explored = 0
+
+    def finish(status):
+        return [r if r is not None else {"status": status, "score": score0, "cost": None, "values": None,
+                                         "changes": [], "explored": explored} for r in results]
+
     while heap:
-        c, _, idx = heapq.heappop(heap)
+        c, _, idx, key = heapq.heappop(heap)
         explored += 1
         vals = [lists[j][idx[j]] for j in range(D)]
         sc = predict(model, vals)
-        if sc >= target:
+        for k in range(len(margins)):
+            if results[k] is not None or sc < targets[k]:
+                continue
             changes = [{"j": j, "from": x[j], "to": vals[j], "cost": unit_cost[j][idx[j]]}
                        for j in range(D) if vals[j] != x[j]]
-            return {"status": "found", "score": sc, "cost": c, "values": vals, "changes": changes, "explored": explored}
+            results[k] = {"status": "found", "score": sc, "cost": c, "values": list(vals), "changes": changes,
+                          "explored": explored}
+            open_count -= 1
+        if open_count == 0:
+            return results
         if explored >= max_states:
-            return {"status": "limit", "score": score0, "cost": None, "values": None, "changes": [], "explored": explored}
+            return finish("limit")
         levers = sum(1 for k in idx if k > 0)
         for j in range(D):
             if idx[j] + 1 >= len(lists[j]):
                 continue
             if idx[j] == 0 and levers >= max_levers:
                 continue
-            nidx = idx[:j] + (idx[j] + 1,) + idx[j + 1:]
-            if nidx in seen:
+            nkey = key + strides[j]
+            if nkey in seen:
                 continue
-            seen.add(nidx)
-            heapq.heappush(heap, (cost_of(nidx), seq, nidx))
+            seen.add(nkey)
+            nidx = idx[:j] + (idx[j] + 1,) + idx[j + 1:]
+            heapq.heappush(heap, (cost_of(nidx), seq, nidx, nkey))
             seq += 1
-    return {"status": "none", "score": score0, "cost": None, "values": None, "changes": [], "explored": explored}
+    return finish("none")
+
+
+def find_recourse(model, tables, x, settings, margin=0.0, max_levers=D, allowed=None, max_states=200000):
+    return search_routes(model, tables, x, settings, [margin], max_levers=max_levers, allowed=allowed,
+                         max_states=max_states)[0]
 
 
 def main_lever(plan):
@@ -414,3 +443,53 @@ def audit(model, tables, cohort, settings, margin=0.0, max_levers=D):
             "meanExpAdded": mean(G["expAdded"]),
         })
     return {"groups": summary, "rows": rows}
+
+
+# ---- Will it hold? Routes against a retrained model ----
+MARGINS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+
+
+def next_model(strength, retrain):
+    """Next year's model: same hidden rule and quota, a fresh, stronger pool."""
+    return train_model(generate_cohort(DEFAULTS["nTrain"], DEFAULTS["nextSeed"] + retrain - 1, strength))
+
+
+def route_table(model, tables, cohort, settings, margins, max_levers=D):
+    """The cheapest route for every applicant at every safety margin."""
+    table = [[] for _ in margins]
+    for row in cohort:
+        res = search_routes(model, tables, row["x"], settings, margins, max_levers=max_levers)
+        for k, r in enumerate(res):
+            table[k].append({"status": r["status"], "values": r["values"], "cost": r["cost"]})
+    return table
+
+
+def summarise_hold(acc):
+    return {
+        "rejected": acc["rejected"], "routes": acc["routes"], "kept": acc["kept"],
+        "routeShare": acc["routes"] / acc["rejected"] if acc["rejected"] else None,
+        "keptShare": acc["kept"] / acc["routes"] if acc["routes"] else None,
+        "medianCost": median(sorted(acc["costs"])), "meanCost": mean(acc["costs"]),
+    }
+
+
+def hold_summary(model2, cohort, table, margins):
+    out = []
+    for k, m in enumerate(margins):
+        acc = [{"rejected": 0, "routes": 0, "kept": 0, "costs": []} for _ in range(3)]
+        for i, r in enumerate(table[k]):
+            if r["status"] == "already":
+                continue
+            targets = [acc[cohort[i]["g"]], acc[2]]
+            for a in targets:
+                a["rejected"] += 1
+            if r["status"] != "found":
+                continue
+            kept = predict(model2, r["values"]) >= model2["threshold"]
+            for a in targets:
+                a["routes"] += 1
+                a["costs"].append(r["cost"])
+                if kept:
+                    a["kept"] += 1
+        out.append({"margin": m, "groups": [summarise_hold(acc[0]), summarise_hold(acc[1])], "all": summarise_hold(acc[2])})
+    return out
