@@ -184,6 +184,27 @@ table.data tr.you td, table.data tr.you th { background: var(--accent-soft); fon
   #sample-table .status-note { display: block; }
 }
 .kind { display: inline-flex; align-items: center; gap: 6px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.file-btn { position: relative; display: inline-flex; align-items: center; }
+.file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-btn:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.check-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px 24px; margin-top: 12px; }
+@media (max-width: 760px) { .check-grid { grid-template-columns: minmax(0, 1fr); } }
+.textarea { display: block; width: 100%; font: 0.875rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); resize: vertical; }
+.num { display: block; margin-bottom: 12px; }
+.num span { display: block; font-weight: 600; font-size: 0.9375rem; margin-bottom: 4px; }
+.num input { font: inherit; width: 8em; padding: 8px 10px; min-height: 44px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.chart-title { font-size: 1rem; margin: 4px 0 0; }
+#check-status.error { color: var(--gambler); font-weight: 600; }
+#check-table tr.picked td, #check-table tr.picked th { background: var(--accent-soft); font-weight: 700; }
+.edge-range { color: var(--ink-2); }
+@media (max-width: 600px) {
+  #check-table .wide-col { display: none; }
+  #check-table td, #check-table th { padding: 6px 4px; }
+  #check-table thead th, #check-table td:nth-child(2) { white-space: normal; }
+  #check-table .edge-range { display: block; font-size: 0.75rem; }
+}
 .status-note { display: none; font-size: 0.8125rem; font-weight: 400; color: var(--ink-2); white-space: normal; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .stale #results, .stale-chart { opacity: 0.55; transition: opacity 0.2s; }
@@ -305,12 +326,61 @@ details.about[open] summary::after { content: " \25b4"; }
     </details>
   </section>
 
+  <section class="card" id="check-card" aria-labelledby="check-h">
+    <div class="chart-head"><h3 id="check-h">Check a real leaderboard</h3><span class="hint">Nothing you paste leaves this page.</span></div>
+    <p class="hint">Paste the final table from a past challenge, or open a CSV file: one row per team, with a header row naming the columns. The check needs each team's return and, ideally, its volatility or Sharpe ratio, so that teams that took more risk are judged fairly. It then asks how much of the table luck alone could explain.</p>
+    <div class="check-grid">
+      <div>
+        <label class="field-label" for="check-text">Final table</label>
+        <textarea id="check-text" class="textarea" rows="9" spellcheck="false" autocomplete="off" placeholder="Team, Return, Volatility&#10;Team A, 8.4%, 21%&#10;Team B, 4.0%, 23%&#10;Team C, 2.7%, 14%"></textarea>
+        <div class="btn-row" style="margin-top: 10px">
+          <button type="button" class="btn primary" id="check-run">Check this table</button>
+          <label class="btn file-btn">Open a CSV file<input type="file" id="check-file" accept=".csv,.tsv,.txt,text/csv,text/plain"></label>
+        </div>
+        <p class="hint" style="margin-top: 12px">Or try a simulated example, where every team's true skill is known:</p>
+        <div class="btn-row" style="margin-top: 6px">
+          <button type="button" class="btn" id="check-example-month">Four weeks</button>
+          <button type="button" class="btn" id="check-example-year">A year</button>
+        </div>
+      </div>
+      <div>
+        <label class="num"><span>Trading days the challenge lasted</span><input type="number" id="check-days" min="5" max="250" step="1" value="20" inputmode="numeric"></label>
+        <label class="num"><span>How much every team rides the same market</span><input type="number" id="check-corr" min="0" max="0.9" step="0.05" value="0.3" inputmode="decimal"></label>
+        <label class="num"><span>Volatility to assume when the table gives none (%)</span><input type="number" id="check-vol" min="2" max="100" step="1" value="20" inputmode="decimal"></label>
+        <p class="hint">Market correlation runs from 0 to 0.9: higher when teams trade the same markets in the same direction. If unsure, 0.3 is a middling guess. A higher value leaves less room for luck, so the check finds skill more readily.</p>
+      </div>
+    </div>
+    <p class="hint" id="check-status" role="status" aria-live="polite"></p>
+    <div id="check-results" class="stack" style="margin-top: 16px" hidden>
+      <p class="insight" id="check-verdict"></p>
+      <div class="tiles" id="check-tiles"></div>
+      <div>
+        <h4 class="chart-title">Each team's luck-adjusted lead, in finishing order</h4>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw" style="background:var(--surface-2); border: 1px solid var(--line-strong)"></i>Where 90% of teams with no skill finish</span>
+          <span><i class="sw" style="background:var(--accent); border-radius: 50%"></i>Lead in this table</span>
+          <span id="check-truth-key" hidden><i class="sw" style="border: 2px solid var(--steady); transform: rotate(45deg); width: 10px; height: 10px"></i>Where true skill alone would put the team</span>
+        </div>
+        <div class="chart" id="check-chart"></div>
+        <p class="hint" id="check-chart-note"></p>
+      </div>
+      <div class="btn-row">
+        <label class="field-label" for="check-team" style="margin: 0">Look at one team</label>
+        <select id="check-team" class="select" style="max-width: 320px"></select>
+      </div>
+      <p id="check-team-note" hidden></p>
+      <div class="table-wrap"><table class="data" id="check-table"></table></div>
+      <p class="hint" id="check-notes"></p>
+    </div>
+  </section>
+
   <details class="card prose about" id="about-box" open>
     <summary><h2 id="about-h">How it works</h2></summary>
     <div id="about">
       <p>Each simulated challenge draws a fresh field. Your rivals' true skill (the Sharpe ratio their strategy would earn over a long run) is spread around zero, because most student strategies have no lasting edge. A share of them are <strong>gamblers</strong> who run several times the usual risk but are no more skilled than anyone else. Every team's daily return is its skill times its risk plus luck, and part of the luck is a market move that everyone shares.</p>
       <p>Your team is then run at your chosen risk and at twenty levels from 5% to 100% volatility on <em>exactly the same luck</em>, so the risk curve shows the effect of risk alone. Teams are ranked by the rule you choose: highest return; highest Sharpe ratio, which divides return by volatility so leverage cannot help; or highest return with any team whose account falls further than the limit below its peak knocked out. A team that loses everything is out under any rule.</p>
       <p><strong>Going for broke.</strong> Your team, and a share of the steady rivals, can switch to a much higher risk if they are outside the top three at a checkpoint. Rivals judge their position against the other rivals, so their choices do not depend on yours and the risk curve still compares like with like. Studies of fund managers find the same behaviour: managers who are behind part-way through the year tend to raise their risk (Brown, Harlow and Starks, 1996; Chevalier and Ellison, 1997).</p>
+      <p><strong>Checking a real leaderboard.</strong> Each team's result is turned into a luck-adjusted score: its log return divided by its volatility over the challenge, or its Sharpe ratio scaled to the challenge's length. If no team had any skill, those scores would spread out only as much as luck allows, and how much that is depends on how much teams ride the same market. More spread than that is a sign of skill: a chi-square test gives how often luck alone would produce it, and the excess gives an estimate of how much true skill varies across the field. Each team's estimated edge is its result pulled back towards the field's average by the share of the spread that is luck (a standard allowance for luck known as shrinkage). How often a field with no skill produces a best result as strong as the table's comes from 10,000 simulated luck-only fields. Tested on simulated challenges with no skill anywhere, it finds more spread than luck allows (at the 5% level) in about 5% of them, as a fair test should.</p>
       <p>Two thousand challenges are simulated each time. "New luck" draws a different two thousand, which shows how much the numbers move by chance: usually by less than a point.</p>
       <h3>What it means</h3>
       <ul>
@@ -322,6 +392,7 @@ details.about[open] summary::after { content: " \25b4"; }
         <li>Everything is simulated. Real returns have more structure than a normal distribution with an optional fat tail, and real strategies are not equally good every day.</li>
         <li>Apart from one go-for-broke checkpoint, teams keep the same risk all challenge. Real teams adjust all the time.</li>
         <li>The shared market move is a single factor. Real teams overlap in more complicated ways.</li>
+        <li>The leaderboard check treats each team's volatility as its true risk and assumes daily returns behind any Sharpe ratio. If teams' luck is less shared than the correlation you set, it finds skill too readily, so when unsure a lower correlation is the cautious choice.</li>
       </ul>
       <h3>Sources</h3>
       <ul>
@@ -944,6 +1015,348 @@ var LeaderboardModel = (function () {
     });
   }
 
+  /* ---------- checking a real leaderboard ---------- */
+
+  // A final table from a real challenge is compared with what luck alone would produce. Each
+  // team's result becomes a luck-adjusted score z: its Sharpe ratio times sqrt(days / 252), or its
+  // return divided by its volatility over the challenge. With no skill anywhere, z is the market
+  // move everyone shares plus a standard normal of the team's own scaled by sqrt(1 - correlation),
+  // so the spread of z around the field's average tells luck and skill apart.
+
+  var CHECK_DEFAULTS = { days: 20, correlation: 0.3, assumedVol: 0.2, sims: 10000, seed: 1 };
+  var CHECK_RANGES = {
+    days: [5, 250, true],
+    correlation: [0, 0.9, false],
+    assumedVol: [0.02, 1, false],
+    sims: [1000, 100000, true],
+    seed: [0, 4294967295, true]
+  };
+  var CHECK_MAX_TEAMS = 500;
+  var Z90 = 1.6448536269514722;
+  var LOG_FLOOR = 0.001;
+
+  function normaliseCheck(options) {
+    var src = options || {};
+    var out = {};
+    Object.keys(CHECK_DEFAULTS).forEach(function (key) {
+      var v = src[key];
+      if (v === undefined || v === null) v = CHECK_DEFAULTS[key];
+      if (typeof v !== 'number' || !isFinite(v)) throw new Error(key + ' must be a finite number');
+      var r = CHECK_RANGES[key];
+      v = Math.min(r[1], Math.max(r[0], v));
+      out[key] = r[2] ? Math.round(v) : v;
+    });
+    return out;
+  }
+
+  // Splits one line of a table, allowing "quoted, fields".
+  function splitRow(line, delim) {
+    var cells = [];
+    var cell = '';
+    var quoted = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line.charAt(i);
+      if (quoted) {
+        if (ch === '"' && line.charAt(i + 1) === '"') { cell += '"'; i += 1; }
+        else if (ch === '"') quoted = false;
+        else cell += ch;
+      } else if (ch === '"') {
+        quoted = true;
+      } else if (ch === delim) {
+        cells.push(cell.trim());
+        cell = '';
+      } else {
+        cell += ch;
+      }
+    }
+    cells.push(cell.trim());
+    return cells;
+  }
+
+  // "+8.4%", "-3", "(2.1)", "12,5" and a typographic minus all read as numbers.
+  function readNumber(text) {
+    var s = String(text).replace(/−/g, '-').replace(/\s+/g, '');
+    var negative = false;
+    if (/^\(.*\)$/.test(s)) { negative = true; s = s.slice(1, -1); }
+    var percent = s.indexOf('%') >= 0;
+    s = s.replace(/%/g, '');
+    if (s.indexOf(',') >= 0) s = s.indexOf('.') >= 0 ? s.replace(/,/g, '') : s.replace(/,/g, '.');
+    if (!/^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)(e[+-]?[0-9]+)?$/i.test(s)) return null;
+    var v = parseFloat(s);
+    return { value: negative ? -v : v, percent: percent };
+  }
+
+  function columnRole(label) {
+    var h = label.toLowerCase();
+    if (/true|skill/.test(h)) return 'truth';
+    if (/sharpe/.test(h)) return 'sharpe';
+    if (/vol|risk|std|deviation/.test(h)) return 'vol';
+    if (/return|p&l|pnl|profit|perf|gain|result/.test(h)) return 'ret';
+    if (/team|name|player|entrant|fund|portfolio/.test(h)) return 'name';
+    return null;
+  }
+
+  // Reads a final table pasted from a spreadsheet or web page, or opened from a CSV file: one row
+  // per team. A header row names the columns (team, return, volatility, Sharpe ratio); without
+  // one, the columns are taken as team, return and, if present, volatility. Returns and
+  // volatilities are read as percentages unless every value in the column lies between -1 and 1
+  // with no % sign, when they are read as fractions.
+  function parseTable(text) {
+    var lines = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n')
+      .map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 0; });
+    if (!lines.length) throw new Error('The table is empty.');
+    var first = lines[0];
+    var delim = first.indexOf('\t') >= 0 ? '\t' : (first.indexOf(';') >= 0 ? ';' : ',');
+    var rows = lines.map(function (l) { return splitRow(l, delim); });
+    var roles = rows[0].map(columnRole);
+    var header = roles.some(function (r) { return r !== null; }) &&
+      rows[0].every(function (cell) { return cell === '' || readNumber(cell) === null || columnRole(cell) !== null; });
+    var col = { name: -1, ret: -1, vol: -1, sharpe: -1, truth: -1 };
+    if (header) {
+      roles.forEach(function (role, i) { if (role && col[role] < 0) col[role] = i; });
+      if (col.name < 0) {
+        for (var c = 0; c < roles.length; c++) {
+          if (roles[c] === null && !/^(place|rank|position|pos|#|no\.?)$/i.test(rows[0][c])) { col.name = c; break; }
+        }
+      }
+      if (col.ret < 0 && col.sharpe < 0) {
+        throw new Error('No return or Sharpe ratio column found. Name the columns in a header row, for example: Team, Return, Volatility.');
+      }
+    } else {
+      col.name = 0;
+      col.ret = 1;
+      if (rows[0].length > 2) col.vol = 2;
+      if (rows[0].length < 2) throw new Error('Each row needs at least a team name and a return.');
+    }
+    var labels = {};
+    Object.keys(col).forEach(function (key) { labels[key] = col[key] >= 0 && header ? rows[0][col[key]] : null; });
+    var body = header ? rows.slice(1) : rows;
+    var key = col.ret >= 0 ? 'ret' : 'sharpe';
+    var cell = function (r, c) { return c >= 0 && c < r.length ? readNumber(r[c]) : null; };
+    var kept = [];
+    var skipped = 0;
+    body.forEach(function (r, i) {
+      var parsed = { ret: cell(r, col.ret), vol: cell(r, col.vol), sharpe: cell(r, col.sharpe), truth: cell(r, col.truth) };
+      if (parsed[key] === null) { skipped += 1; return; }
+      var name = col.name >= 0 && col.name < r.length ? r[col.name] : '';
+      kept.push({ name: name || 'Row ' + (i + 1), raw: parsed });
+    });
+    var units = {};
+    ['ret', 'vol'].forEach(function (k) {
+      var values = kept.map(function (t) { return t.raw[k]; }).filter(function (x) { return x !== null; });
+      var percent = /%/.test(labels[k] || '') || values.some(function (x) { return x.percent || Math.abs(x.value) > 1; });
+      units[k] = values.length ? (percent ? 'percent' : 'fraction') : null;
+    });
+    var teams = kept.map(function (t) {
+      var read = function (k, scaled) {
+        var x = t.raw[k];
+        if (x === null) return null;
+        return scaled && units[k] === 'percent' ? x.value / 100 : x.value;
+      };
+      var vol = read('vol', true);
+      return { name: t.name, ret: read('ret', true), vol: vol !== null && vol > 0 ? vol : null,
+        sharpe: read('sharpe', false), truth: read('truth', false) };
+    });
+    return { teams: teams, columns: labels, header: header, units: units, skipped: skipped, rankedOn: key };
+  }
+
+  // Natural log of the gamma function (Lanczos), for the chi-square distribution.
+  var LANCZOS = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155,
+    0.1208650973866179e-2, -0.5395239384953e-5];
+
+  function logGamma(x) {
+    var y = x;
+    var tmp = x + 5.5;
+    tmp -= (x + 0.5) * Math.log(tmp);
+    var ser = 1.000000000190015;
+    for (var j = 0; j < LANCZOS.length; j++) {
+      y += 1;
+      ser += LANCZOS[j] / y;
+    }
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  }
+
+  // Upper regularised incomplete gamma function Q(a, x): a series below a + 1, a continued
+  // fraction above it.
+  function gammaQ(a, x) {
+    if (x <= 0) return 1;
+    var front = Math.exp(-x + a * Math.log(x) - logGamma(a));
+    if (x < a + 1) {
+      var ap = a;
+      var term = 1 / a;
+      var sum = term;
+      for (var n = 0; n < 10000; n++) {
+        ap += 1;
+        term *= x / ap;
+        sum += term;
+        if (Math.abs(term) < Math.abs(sum) * 1e-15) break;
+      }
+      return 1 - sum * front;
+    }
+    var tiny = 1e-300;
+    var b = x + 1 - a;
+    var c = 1 / tiny;
+    var d = 1 / b;
+    var h = d;
+    for (var i = 1; i < 10000; i++) {
+      var an = -i * (i - a);
+      b += 2;
+      d = an * d + b;
+      if (Math.abs(d) < tiny) d = tiny;
+      c = b + an / c;
+      if (Math.abs(c) < tiny) c = tiny;
+      d = 1 / d;
+      var del = d * c;
+      h *= del;
+      if (Math.abs(del - 1) < 1e-15) break;
+    }
+    return front * h;
+  }
+
+  // P(chi-square with df degrees of freedom > x), and the value it exceeds with probability 1 - p.
+  function chiSquareTail(x, df) {
+    return gammaQ(df / 2, x / 2);
+  }
+
+  function chiSquareQuantile(p, df) {
+    var lo = 0;
+    var hi = df + 10 * Math.sqrt(2 * df) + 10;
+    while (1 - chiSquareTail(hi, df) < p) hi *= 2;
+    for (var i = 0; i < 200; i++) {
+      var mid = (lo + hi) / 2;
+      if (1 - chiSquareTail(mid, df) < p) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function checkLeaderboard(table, options) {
+    var o = normaliseCheck(options);
+    var teams = table.teams;
+    var n = teams.length;
+    if (n < 3) throw new Error('At least three teams are needed; this table has ' + n + '.');
+    if (n > CHECK_MAX_TEAMS) throw new Error('At most ' + CHECK_MAX_TEAMS + ' teams can be checked; this table has ' + n + '.');
+    var k = Math.sqrt(o.days / DAYS_PER_YEAR);
+    var luck = 1 - o.correlation;
+    var basis = { sharpe: 0, vol: 0, assumed: 0 };
+    var rows = teams.map(function (t, i) {
+      var how = t.sharpe !== null ? 'sharpe' : (t.vol !== null ? 'vol' : 'assumed');
+      basis[how] += 1;
+      var z;
+      if (how === 'sharpe') {
+        // A Sharpe ratio from daily returns is a t statistic: rescaled to unit variance.
+        z = t.sharpe * k * Math.sqrt(Math.max(1, o.days - 3) / Math.max(3, o.days - 1));
+      } else {
+        // Log returns, so a lucky gamble compounding upwards is not mistaken for skill. With no
+        // skill, a log return has mean -(sd squared)/2 over the challenge.
+        var sd = (how === 'vol' ? t.vol : o.assumedVol) * k;
+        z = (Math.log(Math.max(LOG_FLOOR, 1 + t.ret)) + sd * sd / 2) / sd;
+      }
+      return { index: i, name: t.name, ret: t.ret, vol: t.vol, sharpe: t.sharpe, truth: t.truth, basis: how, z: z };
+    });
+    // Places follow the table's ranking column, highest first; ties keep the table's order.
+    var rankKey = table.rankedOn === 'sharpe' ? 'sharpe' : 'ret';
+    var order = rows.map(function (r, i) { return i; });
+    order.sort(function (x, y) {
+      var a = rows[x][rankKey];
+      var b = rows[y][rankKey];
+      if (a === b) return x - y;
+      return b > a ? 1 : -1;
+    });
+    rows = order.map(function (i, pos) { rows[i].place = pos + 1; return rows[i]; });
+
+    var mean = 0;
+    rows.forEach(function (r) { mean += r.z; });
+    mean /= n;
+    var ss = 0;
+    rows.forEach(function (r) { ss += (r.z - mean) * (r.z - mean); });
+    var spread = ss / (n - 1);
+    var df = n - 1;
+    var pSpread = chiSquareTail(ss / luck, df);
+    var skillVar = Math.max(0, (spread - luck) / (k * k));
+    var rangeVar = function (q) { return Math.max(0, (ss / q - luck) / (k * k)); };
+    var shrink = k * skillVar / (k * k * skillVar + luck);
+    var edgeSd = Math.sqrt(skillVar * luck / (k * k * skillVar + luck));
+    var best = 0;
+    rows.forEach(function (r, i) {
+      r.lead = (r.z - mean) / Math.sqrt(luck);
+      r.pLuck = 1 - normCdf(r.lead / Math.sqrt(1 - 1 / n));
+      r.edge = shrink * (r.z - mean);
+      r.edgeLow = r.edge - Z90 * edgeSd;
+      r.edgeHigh = r.edge + Z90 * edgeSd;
+      if (r.lead > rows[best].lead) best = i;
+    });
+
+    // How often a field of n teams with no skill at all produces a best luck-adjusted lead at
+    // least as large as this table's.
+    var rng = makeRng(o.seed);
+    var beaten = 0;
+    var draws = new Array(n);
+    for (var s = 0; s < o.sims; s++) {
+      var total = 0;
+      var top = -Infinity;
+      for (var j = 0; j < n; j++) {
+        draws[j] = rng.normal();
+        total += draws[j];
+        if (draws[j] > top) top = draws[j];
+      }
+      if (top - total / n >= rows[best].lead) beaten += 1;
+    }
+
+    var truthCorrelation = null;
+    if (rows.every(function (r) { return r.truth !== null; })) {
+      truthCorrelation = correlation(rows.map(function (r) { return r.z; }), rows.map(function (r) { return r.truth; }));
+      var truthMean = 0;
+      rows.forEach(function (r) { truthMean += r.truth; });
+      truthMean /= n;
+      rows.forEach(function (r) { r.truthEdge = r.truth - truthMean; });
+    }
+
+    return {
+      options: o,
+      teams: n,
+      rankedOn: rankKey,
+      basis: basis,
+      spread: spread,
+      luckSpread: luck,
+      luckShare: spread > 0 ? Math.min(1, luck / spread) : 1,
+      pSpread: pSpread,
+      verdict: pSpread < 0.01 ? 'skill' : (pSpread < 0.1 ? 'some' : 'luck'),
+      skillSpread: Math.sqrt(skillVar),
+      skillSpreadLow: Math.sqrt(rangeVar(chiSquareQuantile(0.95, df))),
+      skillSpreadHigh: Math.sqrt(rangeVar(chiSquareQuantile(0.05, df))),
+      shrink: shrink,
+      edgeSd: edgeSd,
+      best: best,
+      pBest: beaten / o.sims,
+      truthCorrelation: truthCorrelation,
+      rows: rows
+    };
+  }
+
+  // Two worked examples, made by this simulator so that every team's true skill is known: one
+  // challenge from the default four-week setting and one from a year-long version. Team names
+  // are invented.
+  var EXAMPLE_NAMES = ['Alder', 'Aspen', 'Beech', 'Birch', 'Cedar', 'Damson', 'Elm', 'Fir', 'Gorse', 'Hazel', 'Holly',
+    'Ivy', 'Juniper', 'Larch', 'Laurel', 'Maple', 'Myrtle', 'Nettle', 'Oak', 'Pine', 'Poplar', 'Quince', 'Rowan',
+    'Sorrel', 'Spruce', 'Thistle', 'Walnut', 'Willow', 'Yarrow', 'Yew'];
+  var EXAMPLES = {
+    month: { days: 20, params: {} },
+    year: { days: 250, params: { days: 250 } }
+  };
+
+  function exampleTable(kind) {
+    var ex = EXAMPLES[kind];
+    if (!ex) throw new Error('Unknown example: ' + kind);
+    var teams = sampleCompetition(ex.params, 0);
+    var lines = ['Team,Return,Volatility,True skill (known only because this is simulated)'];
+    teams.forEach(function (t) {
+      var number = t.you ? 1 : parseInt(t.name.slice(5), 10);
+      lines.push('Team ' + EXAMPLE_NAMES[number - 1] + ',' + (t.ret * 100).toFixed(2) + '%,' +
+        (t.vol * 100).toFixed(1) + '%,' + t.sharpe.toFixed(2));
+    });
+    return { text: lines.join('\n') + '\n', days: ex.days };
+  }
+
   return {
     DAYS_PER_YEAR: DAYS_PER_YEAR,
     RULES: RULES,
@@ -965,7 +1378,17 @@ var LeaderboardModel = (function () {
     correlation: correlation,
     createSkillRun: createSkillRun,
     skillByLength: skillByLength,
-    sampleCompetition: sampleCompetition
+    sampleCompetition: sampleCompetition,
+    CHECK_DEFAULTS: CHECK_DEFAULTS,
+    CHECK_RANGES: CHECK_RANGES,
+    normaliseCheck: normaliseCheck,
+    parseTable: parseTable,
+    readNumber: readNumber,
+    logGamma: logGamma,
+    chiSquareTail: chiSquareTail,
+    chiSquareQuantile: chiSquareQuantile,
+    checkLeaderboard: checkLeaderboard,
+    exampleTable: exampleTable
   };
 })();
 if (typeof module !== 'undefined' && module.exports) {
@@ -1724,6 +2147,285 @@ if (typeof module !== 'undefined' && module.exports) {
     drawSample();
   });
 
+  /* ---------- check a real leaderboard ---------- */
+
+  var lastCheck = null;
+  var pickedTeam = -1;
+
+  function num2(v) { return v.toFixed(2).replace('-', '−'); }
+
+  function signed2(v) {
+    var s = Math.abs(v).toFixed(2);
+    if (Number(s) === 0) return '0.00';
+    return (v > 0 ? '+' : '−') + s;
+  }
+
+  // Small probabilities in words: "fewer than 0.1%" rather than "0.0%".
+  function chance(p) { return p < 0.0005 ? 'fewer than 0.1%' : pct(p, 1); }
+
+  function checkVerdict(r) {
+    var tail = 'a field with no skill at all spreads out this much in ' + chance(r.pSpread) + ' of challenges.';
+    if (r.verdict === 'skill') return 'Real skill shows: ' + tail;
+    if (r.verdict === 'some') return 'Possibly some skill: ' + tail;
+    return 'Luck alone could easily have produced this table: ' + tail;
+  }
+
+  function edgeText(row, r) {
+    if (r.edgeSd === 0) return signed2(row.edge);
+    return signed2(row.edge) + ' (' + signed2(row.edgeLow) + ' to ' + signed2(row.edgeHigh) + ')';
+  }
+
+  function checkOptions() {
+    var read = function (id, scale) {
+      var v = parseFloat($(id).value);
+      return isFinite(v) ? v * scale : undefined;
+    };
+    return { days: read('#check-days', 1), correlation: read('#check-corr', 1), assumedVol: read('#check-vol', 0.01) };
+  }
+
+  function runCheck() {
+    var status = $('#check-status');
+    status.classList.remove('error');
+    var table;
+    var r;
+    try {
+      table = M.parseTable($('#check-text').value);
+      r = M.checkLeaderboard(table, checkOptions());
+    } catch (err) {
+      status.classList.add('error');
+      status.textContent = err.message;
+      $('#check-results').hidden = true;
+      lastCheck = null;
+      return;
+    }
+    status.textContent = '';
+    $('#check-days').value = r.options.days;
+    $('#check-corr').value = r.options.correlation;
+    $('#check-vol').value = Math.round(r.options.assumedVol * 1000) / 10;
+    if (pickedTeam >= r.teams) pickedTeam = -1;
+    lastCheck = { table: table, r: r };
+    $('#check-results').hidden = false;
+    renderCheck();
+  }
+
+  function renderCheck() {
+    var table = lastCheck.table;
+    var r = lastCheck.r;
+    var best = r.rows[r.best];
+    var verdict = checkVerdict(r);
+    if (r.edgeSd === 0) {
+      verdict += ' There is no sign that teams differ in skill, so every team’s best estimate is the field’s average.';
+    } else {
+      var pull = r.luckSpread / (r.luckSpread + r.options.days / M.DAYS_PER_YEAR * r.skillSpread * r.skillSpread);
+      verdict += ' Allowing for luck, each team’s estimated edge is its result pulled ' + pct(pull) +
+        ' of the way back to the field’s average.';
+    }
+    $('#check-verdict').textContent = verdict;
+
+    var tiles = $('#check-tiles');
+    tiles.innerHTML = '';
+    tiles.appendChild(tile('Share of the spread down to luck', pct(r.luckShare), 'The rest is skill'));
+    tiles.appendChild(tile('A no-skill field spreads out this much', chance(r.pSpread), 'of the time'));
+    tiles.appendChild(tile('Estimated skill spread', num2(r.skillSpread), '90% range ' + num2(r.skillSpreadLow) + ' to ' + num2(r.skillSpreadHigh)));
+    tiles.appendChild(tile('A no-skill field has a lead this big', chance(r.pBest), 'Best lead: ' + best.name + ', ' + ordinal(best.place)));
+
+    drawCheckChart();
+
+    var sel = $('#check-team');
+    sel.innerHTML = '';
+    sel.appendChild(el('option', { value: '-1' }, 'Choose a team…'));
+    r.rows.forEach(function (row, i) { sel.appendChild(el('option', { value: String(i) }, ordinal(row.place) + ' ' + row.name)); });
+    sel.value = String(pickedTeam);
+    teamNote();
+    drawCheckTable();
+
+    var notes = [];
+    var units = table.units;
+    var words = { percent: 'percentages', fraction: 'fractions' };
+    if (units.ret && units.ret === units.vol) notes.push('Returns and volatility were read as ' + words[units.ret] + '.');
+    else {
+      if (units.ret) notes.push('Returns were read as ' + words[units.ret] + '.');
+      if (units.vol) notes.push('Volatility was read as ' + words[units.vol] + '.');
+    }
+    var b = r.basis;
+    var from = [];
+    if (b.sharpe) from.push('the Sharpe ratio for ' + b.sharpe + (b.sharpe === 1 ? ' team' : ' teams'));
+    if (b.vol) from.push('return and volatility for ' + b.vol + (b.vol === 1 ? ' team' : ' teams'));
+    if (b.assumed) from.push('return and an assumed ' + pct(r.options.assumedVol) + ' volatility for ' + b.assumed + (b.assumed === 1 ? ' team' : ' teams'));
+    notes.push('Luck-adjusted leads come from ' + from.join(', ') + '.');
+    if (b.assumed) notes.push('Where teams took different risks from the one assumed, the check will mistake some risk for skill, or for bad luck. Add a volatility or Sharpe ratio column if you can.');
+    if (table.skipped) notes.push(table.skipped + (table.skipped === 1 ? ' row was' : ' rows were') + ' skipped because ' + (table.skipped === 1 ? 'it had' : 'they had') + ' no ' + (r.rankedOn === 'sharpe' ? 'Sharpe ratio' : 'return') + '.');
+    if (r.truthCorrelation !== null) notes.push('This table gives every team’s true skill, so you can see how well the leads track it: a correlation of ' + num2(r.truthCorrelation) + ' (1 would be perfect).');
+    $('#check-notes').textContent = notes.join(' ');
+  }
+
+  var CHECK_ROWS_SHOWN = 40;
+  var Z90 = 1.6448536269514722;
+
+  function drawCheckChart() {
+    var r = lastCheck.r;
+    var box = $('#check-chart');
+    box.innerHTML = '';
+    var rows = r.rows.slice(0, CHECK_ROWS_SHOWN);
+    var hasTruth = r.truthCorrelation !== null;
+    $('#check-truth-key').hidden = !hasTruth;
+    var k = Math.sqrt(r.options.days / M.DAYS_PER_YEAR);
+    var truthLead = function (row) { return k * row.truthEdge / Math.sqrt(r.luckSpread); };
+    var W = Math.max(300, box.clientWidth || 600);
+    var narrow = W < 520;
+    var rowH = 20;
+    var m = { l: narrow ? 118 : 180, r: 14, t: 6, b: 34 };
+    var H = m.t + m.b + rows.length * rowH;
+    var band = Z90 * Math.sqrt(1 - 1 / r.teams);
+    var extent = 3;
+    rows.forEach(function (row) {
+      extent = Math.max(extent, Math.abs(row.lead));
+      if (hasTruth) extent = Math.max(extent, Math.abs(truthLead(row)));
+    });
+    extent = Math.ceil(extent);
+    var sx = function (v) { return m.l + (W - m.l - m.r) * (v + extent) / (2 * extent); };
+    var sy = function (i) { return m.t + rowH * i + rowH / 2; };
+    var s = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img',
+      'aria-label': 'Luck-adjusted lead of each team in finishing order. The shaded band from ' + num2(-band) + ' to ' + num2(band) +
+        ' is where 90% of teams with no skill finish. ' + rows.map(function (row) {
+          return ordinal(row.place) + ' ' + row.name + ' ' + num2(row.lead);
+        }).join(', ') });
+    svgEl('rect', { x: sx(-band), y: m.t, width: sx(band) - sx(-band), height: rows.length * rowH, fill: 'var(--surface-2)' }, s);
+    var step = extent > 6 ? 2 : 1;
+    for (var v = -extent; v <= extent; v += step) {
+      svgEl('line', { x1: sx(v), x2: sx(v), y1: m.t, y2: H - m.b, class: v === 0 ? 'axis' : 'grid' }, s);
+      svgText(s, sx(v), H - m.b + 16, v === 0 ? '0' : (v > 0 ? '+' + v : '−' + Math.abs(v)), { 'text-anchor': 'middle' });
+    }
+    svgText(s, m.l + (W - m.l - m.r) / 2, H - 2, narrow ? 'Lead, in units of luck' : 'Lead over the field’s average, in units of the spread luck produces', { 'text-anchor': 'middle' });
+    rows.forEach(function (row, i) {
+      var g = svgEl('g', {}, s);
+      var picked = i === pickedTeam;
+      if (picked) svgEl('rect', { x: 0, y: sy(i) - rowH / 2, width: W, height: rowH, fill: 'var(--accent-soft)' }, g);
+      var name = row.name.length > (narrow ? 12 : 22) ? row.name.slice(0, narrow ? 11 : 21) + '…' : row.name;
+      svgText(g, 0, sy(i) + 4, ordinal(row.place) + ' ' + name, { 'font-weight': picked ? 700 : 400 });
+      if (hasTruth) {
+        var tx = sx(truthLead(row));
+        var d = 5;
+        svgEl('path', { d: 'M' + tx + ' ' + (sy(i) - d) + ' L' + (tx + d) + ' ' + sy(i) + ' L' + tx + ' ' + (sy(i) + d) + ' L' + (tx - d) + ' ' + sy(i) + ' Z',
+          fill: 'none', stroke: 'var(--steady)', 'stroke-width': 2 }, g);
+      }
+      svgEl('circle', { cx: sx(row.lead), cy: sy(i), r: picked ? 6 : 5, fill: 'var(--accent)', stroke: 'var(--surface)', 'stroke-width': 1.5 }, g);
+      var title = svgEl('title', {}, g);
+      title.textContent = ordinal(row.place) + ' ' + row.name + ': lead ' + num2(row.lead) + ', estimated edge ' + edgeText(row, r) +
+        (hasTruth ? ', true skill ' + num2(row.truth) : '');
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', function () { pickTeam(i); });
+    });
+    box.appendChild(s);
+    $('#check-chart-note').textContent = (r.teams > CHECK_ROWS_SHOWN ? 'Showing the first ' + CHECK_ROWS_SHOWN + ' of ' + r.teams + ' places. ' : '') +
+      'Teams outside the shaded band did better or worse than 90% of no-skill teams would. In a field of ' + r.teams +
+      ', about ' + Math.round(r.teams * 0.1) + ' land outside it by luck alone.' + (hasTruth ?
+      ' The hollow diamonds show where true skill alone would have put each team; the gap to the dot is luck.' : '');
+  }
+
+  function drawCheckTable() {
+    var r = lastCheck.r;
+    var t = $('#check-table');
+    t.innerHTML = '';
+    var has = {};
+    ['ret', 'vol', 'sharpe', 'truth'].forEach(function (key) {
+      has[key] = r.rows.some(function (row) { return row[key] !== null; });
+    });
+    var cols = [['Place', ''], ['Team', '']];
+    if (has.ret) cols.push(['Return', 'wide-col']);
+    if (has.vol) cols.push(['Volatility', 'wide-col']);
+    if (has.sharpe) cols.push(['Sharpe ratio', 'wide-col']);
+    cols.push(['Luck-adjusted lead', ''], ['Luck alone does this well', 'wide-col'], ['Estimated edge (90% range)', '']);
+    if (has.truth) cols.push(['True skill', '']);
+    var head = el('thead');
+    var hr = el('tr');
+    cols.forEach(function (c) { hr.appendChild(el('th', c[1] ? { scope: 'col', class: c[1] } : { scope: 'col' }, c[0])); });
+    head.appendChild(hr);
+    t.appendChild(head);
+    var body = el('tbody');
+    r.rows.forEach(function (row, i) {
+      var tr = el('tr', i === pickedTeam ? { class: 'picked' } : {});
+      tr.appendChild(el('th', { scope: 'row' }, ordinal(row.place)));
+      tr.appendChild(el('td', {}, row.name));
+      if (has.ret) tr.appendChild(el('td', { class: 'wide-col' }, row.ret === null ? '' : signed(row.ret)));
+      if (has.vol) tr.appendChild(el('td', { class: 'wide-col' }, row.vol === null ? '' : pct(row.vol, 1)));
+      if (has.sharpe) tr.appendChild(el('td', { class: 'wide-col' }, row.sharpe === null ? '' : num2(row.sharpe)));
+      tr.appendChild(el('td', {}, num2(row.lead)));
+      tr.appendChild(el('td', { class: 'wide-col' }, chance(row.pLuck)));
+      var edgeCell = el('td', {}, signed2(row.edge));
+      if (r.edgeSd > 0) edgeCell.appendChild(el('span', { class: 'edge-range' }, ' (' + signed2(row.edgeLow) + ' to ' + signed2(row.edgeHigh) + ')'));
+      tr.appendChild(edgeCell);
+      if (has.truth) tr.appendChild(el('td', {}, row.truth === null ? '' : num2(row.truth)));
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+  }
+
+  function teamNote() {
+    var note = $('#check-team-note');
+    var r = lastCheck.r;
+    if (pickedTeam < 0) { note.hidden = true; note.textContent = ''; return; }
+    var row = r.rows[pickedTeam];
+    var parts = [row.name + ' finished ' + ordinal(row.place) + ' of ' + r.teams + ', with a luck-adjusted lead of ' + num2(row.lead) + '.'];
+    parts.push('A single team with no skill does at least this well in ' + chance(row.pLuck) + ' of challenges' +
+      (pickedTeam === r.best ? '; in a field of ' + r.teams + ', the best lead is at least this big ' + chance(r.pBest) + ' of the time.' : '.'));
+    if (r.edgeSd === 0) {
+      parts.push('The table gives no sign that teams differ in skill, so its best estimate is the field’s average.');
+    } else {
+      parts.push('Allowing for luck, its estimated edge over the field’s average is ' + signed2(row.edge) + ' (Sharpe ratio), and with 90% confidence between ' +
+        signed2(row.edgeLow) + ' and ' + signed2(row.edgeHigh) + '.');
+    }
+    if (row.truth !== null && row.truthEdge !== undefined) {
+      parts.push('Its true skill, known because this table is simulated, was ' + num2(row.truth) + ', or ' + signed2(row.truthEdge) + ' against the field’s average.');
+    }
+    note.textContent = parts.join(' ');
+    note.hidden = false;
+  }
+
+  function pickTeam(i) {
+    pickedTeam = pickedTeam === i ? -1 : i;
+    $('#check-team').value = String(pickedTeam);
+    teamNote();
+    drawCheckChart();
+    drawCheckTable();
+  }
+
+  $('#check-team').addEventListener('change', function () {
+    pickedTeam = parseInt($('#check-team').value, 10);
+    teamNote();
+    drawCheckChart();
+    drawCheckTable();
+  });
+  $('#check-run').addEventListener('click', runCheck);
+  ['#check-days', '#check-corr', '#check-vol'].forEach(function (id) {
+    $(id).addEventListener('change', function () { if (lastCheck) runCheck(); });
+  });
+  function loadExample(kind) {
+    var ex = M.exampleTable(kind);
+    $('#check-text').value = ex.text;
+    $('#check-days').value = ex.days;
+    pickedTeam = -1;
+    runCheck();
+  }
+  $('#check-example-month').addEventListener('click', function () { loadExample('month'); });
+  $('#check-example-year').addEventListener('click', function () { loadExample('year'); });
+  $('#check-file').addEventListener('change', function (ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      $('#check-text').value = String(reader.result);
+      pickedTeam = -1;
+      runCheck();
+    };
+    reader.onerror = function () {
+      $('#check-status').classList.add('error');
+      $('#check-status').textContent = 'Could not read that file.';
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
+  });
+
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
@@ -1731,6 +2433,7 @@ if (typeof module !== 'undefined' && module.exports) {
       if (lastResult) drawRiskChart(lastResult);
       if (lastSkill) drawSkill(lastSkill);
       drawSample();
+      if (lastCheck) drawCheckChart();
     }, 150);
   });
 

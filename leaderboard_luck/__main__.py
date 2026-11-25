@@ -9,9 +9,10 @@ import os
 import sys
 from pathlib import Path
 
+from .check import CHECK_DEFAULTS, CHECK_RANGES, calibrate, check_leaderboard, example_table, parse_table
 from .design import design_csv, design_html, design_report
 from .model import DEFAULTS, RANGES, RULES, clamp, normalise, simulate, skill_by_length
-from .report import sample_report, simulate_report
+from .report import calibration_report, check_report, sample_report, simulate_report
 
 FLAGS = {
     "teams": ("--teams", int, "teams in the challenge, including yours"),
@@ -90,12 +91,71 @@ def build_parser() -> argparse.ArgumentParser:
                    help="parallel processes (default: one per CPU); the answer does not change")
     d.add_argument("--csv", metavar="PATH", help="also write the table to a CSV file")
     d.add_argument("--html", metavar="PATH", help="also write a self-contained HTML report")
+    k = sub.add_parser("check", allow_abbrev=False, help="check a real final table: how much could luck alone explain?")
+    k.add_argument("file", nargs="?", help="a CSV or tab-separated table, one row per team; - reads it from the input")
+    k.add_argument("--example", choices=("month", "year"),
+                   help="check a simulated example table instead of a file (four weeks or a year)")
+    for key, (flag, text) in CHECK_FLAGS.items():
+        lo, hi, _ = CHECK_RANGES[key]
+        k.add_argument(flag, dest=key, type=float if key in ("correlation", "assumedVol") else int, metavar="N",
+                       help=f"{text} ({num(lo)} to {num(hi)}; default {num(CHECK_DEFAULTS[key])})")
+    k.add_argument("--json", action="store_true", help="print the full result as JSON")
+    cal = sub.add_parser("calibrate", allow_abbrev=False,
+                         help="test the leaderboard check on simulated challenges whose true skill is known")
+    cal.add_argument("--challenges", type=int, default=300, metavar="N", help="challenges per setting (default 300)")
+    cal.add_argument("--sims", type=int, default=1000, metavar="N",
+                     help="luck-only fields drawn to judge each winner (default 1000)")
+    cal.add_argument("--workers", type=int, default=os.cpu_count() or 1, metavar="N",
+                     help="parallel processes (default: one per CPU); the answer does not change")
     return parser
+
+
+CHECK_FLAGS = {
+    "days": ("--days", "trading days the challenge lasted"),
+    "correlation": ("--correlation", "how much every team rides the same market"),
+    "assumedVol": ("--assume-vol", "volatility to assume for teams with no volatility or Sharpe ratio, as a fraction"),
+    "sims": ("--sims", "luck-only fields drawn to judge the best result"),
+    "seed": ("--seed", "luck number for those draws"),
+}
+
+
+def run_check(args: argparse.Namespace) -> None:
+    if (args.file is None) == (args.example is None):
+        raise ValueError("give a table file, or --example month or --example year")
+    options = {key: getattr(args, key) for key in CHECK_FLAGS if getattr(args, key) is not None}
+    for key, v in options.items():
+        lo, hi, _ = CHECK_RANGES[key]
+        if not lo <= v <= hi:
+            print(f"note: {CHECK_FLAGS[key][0]} {num(v)} is outside {num(lo)} to {num(hi)}, so {num(clamp(v, lo, hi))} "
+                  f"was used", file=sys.stderr)
+    if args.example:
+        ex = example_table(args.example)
+        text, source = ex["text"], f"simulated example ({'four weeks' if args.example == 'month' else 'a year'})"
+        options.setdefault("days", ex["days"])
+    elif args.file == "-":
+        text, source = sys.stdin.read(), "standard input"
+    else:
+        try:
+            text = Path(args.file).read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            raise ValueError(f"cannot read {args.file}: {exc.strerror}") from None
+        source = args.file
+    table = parse_table(text)
+    r = check_leaderboard(table, options)
+    print(json.dumps({"table": table, "result": r}, indent=2) if args.json else check_report(table, r, source))
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "check":
+            run_check(args)
+            return 0
+        if args.command == "calibrate":
+            if args.challenges < 1 or args.sims < 1 or args.workers < 1:
+                raise ValueError("--challenges, --sims and --workers must be at least 1")
+            print(calibration_report(calibrate(args.challenges, args.sims, args.workers), args.challenges))
+            return 0
         p = settings(args)
         warn_if_clamped(p)
         if args.command == "simulate":

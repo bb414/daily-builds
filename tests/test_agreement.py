@@ -11,7 +11,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from leaderboard_luck import model
+from leaderboard_luck import check, model
 
 NODE = shutil.which("node")
 HARNESS = Path(__file__).with_name("model_harness.js")
@@ -92,6 +92,27 @@ class AgreementTests(unittest.TestCase):
         js = run_js([{"fn": "skillByLength", "args": [p, 12]} for p in settings])
         for p, j in zip(settings, js):
             self.assert_same(j, model.skill_by_length(p, 12), f"skill {json.dumps(p)}")
+
+    def test_leaderboard_checks_agree(self):
+        texts = [
+            check.example_table("month")["text"],
+            check.example_table("year")["text"],
+            "Rank\tFund\tP&L (%)\tRisk\n1\tAlpha\t8.4\t21\n2\tBeta\t\u22121.5\t\n3\tGamma\tn/a\t30\n4\tDelta\t(3.2)\t12\n",
+            'Team;Return;Volatility\n"Smith, Jones";0,05;0,2\nLee;-0,02;0,3\nPark;0,11;0,45\n',
+            "Team,Sharpe,True skill\nA,1.2,0.5\nB,-0.3,0.1\nC,2.5,1.0\nD,0.4,-0.2\n",
+            "Oak, 8.4%, 21%\nElm, 4.0%, 23%\nAsh, -100%, 80%\n",
+        ]
+        options = [{}, {"days": 250}, {"days": 40, "correlation": 0.6}, {"assumedVol": 0.5, "seed": 9},
+                   {"days": 5, "sims": 3000}, {"correlation": 0}]
+        js = run_js([{"fn": "parseTable", "args": [t]} for t in texts])
+        for t, j in zip(texts, js):
+            self.assert_same(j, check.parse_table(t), f"parse {t[:20]!r}")
+        tables = [check.parse_table(t) for t in texts]
+        js = run_js([{"fn": "checkLeaderboard", "args": [t, o]} for t, o in zip(tables, options)])
+        for t, o, j in zip(tables, options, js):
+            self.assert_same(j, check.check_leaderboard(t, o), f"check {o}")
+        js = run_js([{"fn": "exampleTable", "args": [kind]} for kind in ("month", "year")])
+        self.assertEqual(js, [check.example_table("month"), check.example_table("year")])
 
     def test_defaults_agree(self):
         self.assert_same(run_js([{"fn": "normalise", "args": [{}]}])[0], model.normalise({}), "defaults")

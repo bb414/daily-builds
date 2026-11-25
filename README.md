@@ -10,8 +10,8 @@ It is written for people who captain or coach trading-challenge teams and run so
 
 There are two parts:
 
-- **The browser app** (`app/index.html`): set your team's skill and risk, the field and the rules, and see your chances, the risk that maximises them, who usually wins, any single simulated challenge place by place, and how the most skilled team fares at every length from one week to a year. One file, no installation, works offline.
-- **The Python companion** (`leaderboard_luck/`): the same simulation from the command line, tested to give exactly the same numbers as the app, plus an organiser's report that compares every scoring rule at every length and writes text, CSV or a self-contained HTML page.
+- **The browser app** (`app/index.html`): set your team's skill and risk, the field and the rules, and see your chances, the risk that maximises them, who usually wins, any single simulated challenge place by place, and how the most skilled team fares at every length from one week to a year. Then paste a real final table and see how much of it luck alone could explain. One file, no installation, works offline.
+- **The Python companion** (`leaderboard_luck/`): the same simulation from the command line, tested to give exactly the same numbers as the app, plus an organiser's report that compares every scoring rule at every length and writes text, CSV or a self-contained HTML page, the same leaderboard check for a CSV file, and a test of that check on simulated challenges whose true skill is known.
 
 All data is synthetic. Nothing here uses real market prices, real teams or real challenges.
 
@@ -82,6 +82,43 @@ It works on a phone too: the tiles stack in pairs, and the least important table
 - Step through single challenges with "Run another challenge" and ask people to spot the most skilled team from the table without looking at the True skill column.
 - Load "Ranked on Sharpe ratio" and "Knocked out at a 10% drawdown" in turn, and watch what happens to the risk curve.
 - If you run an internal league, use the design report to choose its length and scoring rule before the term starts.
+- After a real challenge, paste its final table into "Check a real leaderboard" and ask whether the winners showed skill, or only luck.
+
+## Check a real leaderboard
+
+The card at the bottom of the app works the other way round from the rest: instead of simulating a challenge, it takes a real final table and asks how much of it luck alone could explain. Paste the table from a spreadsheet or web page, or open a CSV file, with one row per team and a header row naming the columns: a team name, a return and, ideally, each team's volatility or Sharpe ratio, so that teams which took more risk are judged fairly. Nothing you paste leaves the page. Set how many trading days the challenge lasted and how much the teams rode the same market, and press "Check this table".
+
+![Checking a year-long league: the verdict, four tiles, each team's luck-adjusted lead against the band luck alone produces, and each team's estimated edge](docs/leaderboard-check.png)
+
+- **The verdict** says whether the table spreads out more than luck alone would allow, and how often a field with no skill at all spreads out that much.
+- **Four tiles**: the share of the spread that is down to luck, that chance, the estimated spread of true skill across the field (as a Sharpe ratio, with a 90% range), and how often a field with no skill produces a best result as strong as the table's.
+- **The chart** shows each team's luck-adjusted lead in finishing order, against the shaded band where 90% of teams with no skill finish. Click a team, or pick one from the list, for a sentence about it.
+- **The table** gives each team's lead, how often a single team with no skill does at least as well, and its estimated edge over the field's average with a 90% range.
+
+Two simulated examples, made by this simulator so that every team's true skill is known, show what the check can and cannot see. They are also in [`examples/four-week-challenge.csv`](examples/four-week-challenge.csv) and [`examples/year-long-league.csv`](examples/year-long-league.csv).
+
+| | Four weeks | A year |
+|---|---|---|
+| Verdict | Luck alone could easily have produced this table | Possibly some skill |
+| A field with no skill spreads out this much | 70.1% of the time | 3.0% of the time |
+| Share of the spread down to luck | 100% | 65% |
+| Estimated skill spread (true value 0.75) | 0.00 (90% range 0.00 to 1.85) | 0.62 (90% range 0.20 to 1.04) |
+| Best luck-adjusted lead | Team Cedar, 1st: a no-skill field does this well 26.1% of the time | Team Fir, 2nd: 12.3% of the time |
+| Correlation between leads and true skill | 0.39 | 0.61 |
+
+Over four weeks the field's real differences in skill are invisible: the check cannot tell this table from pure luck, and it is right that it cannot. Over a year they start to show, but the team with the strongest result, Team Fir, had a true Sharpe ratio of only 0.55; its estimated edge of +0.77 (90% range −0.05 to +1.59) allows for that.
+
+**Does the check work?** `python -m leaderboard_luck calibrate` runs it on simulated challenges whose true skill is known (300 per setting, each checked as if it were a real table):
+
+| Setting | Flagged at the 5% level | At 10% | Average estimated skill spread | 90% range contains the truth | Leads against true skill |
+|---|---|---|---|---|---|
+| No skill anywhere, four weeks | 5% | 10% | 0.64 (truth 0) | 95% | |
+| No skill anywhere, a year | 4% | 9% | 0.16 (truth 0) | 96% | |
+| Default field, four weeks | 9% | 17% | 0.79 (truth 0.75) | 90% | 0.23 |
+| Default field, twelve weeks | 18% | 28% | 0.65 | 91% | 0.40 |
+| Default field, a year | 72% | 81% | 0.70 | 88% | 0.66 |
+
+With no skill anywhere the check flags about 5% of tables at the 5% level, as a fair test should, even though a fifth of each field are gamblers running three times the usual risk. In a larger run of 1,500 no-skill four-week challenges it flagged 5.1%, and the winner's lead was flagged 4.9% of the time. When real skill is there, a four-week table almost never reveals it; a year usually does.
 
 ## Run the Python companion
 
@@ -94,11 +131,16 @@ python -m leaderboard_luck simulate --catch-up --json     # going for broke, as 
 python -m leaderboard_luck sample --index 0 --top 0       # one simulated challenge, every team
 python -m leaderboard_luck design                         # every rule at every length, as text
 python -m leaderboard_luck design --html report.html --csv report.csv
+python -m leaderboard_luck check examples/year-long-league.csv --days 250   # check a final table
+python -m leaderboard_luck check --example month                          # the four-week example
+python -m leaderboard_luck calibrate                      # does the check work? (about half a minute)
 ```
 
 Every setting in the app is a flag: `--teams`, `--days`, `--skill-spread`, `--field-vol`, `--gamblers`, `--gambler-multiple`, `--correlation`, `--fat-tails`, `--rule {return,sharpe,drawdown}`, `--drawdown-limit`, `--your-sharpe`, `--your-vol`, `--catch-up`, `--catch-up-vol`, `--checkpoint`, `--rivals-catch-up`, `--sims` and `--seed`. Fractions are written as fractions, so `--your-vol 0.4` means 40% volatility. A value outside a slider's range is pulled back to the nearest allowed value, with a note saying so. `python -m leaderboard_luck <command> --help` lists every flag with its range and default.
 
 `sample` shows the top ten and your team (`--top` to change; `--top 0` shows every team). `design` runs every scoring rule at every length, so it takes no `--rule`, `--days` or `--sims`: that is 21 rule-and-length combinations (400 challenges each by default, `--sims-each` to change) across all your processor cores (`--workers` to change). The results are identical whatever the number of workers. An example report, made with the default settings, is in [`examples/design-report.html`](examples/design-report.html).
+
+`check` reads a CSV or tab-separated file (`-` reads it from the input) and takes `--days`, `--correlation`, `--assume-vol` (the volatility to assume for teams with no volatility or Sharpe ratio), `--sims` and `--seed`, plus `--json`. `calibrate` takes `--challenges`, `--sims` and `--workers`.
 
 ## Tests
 
@@ -112,22 +154,23 @@ The Python suite needs nothing beyond the standard library. Some tests are skipp
 | Test file | What it checks |
 |---|---|
 | `tests/test_model.py` | The Python model: the random number generator, scoring rules, busts, drawdown knockouts, going for broke, tied skill, rank correlation, skill by length (and that the number of workers does not change it), sample challenges, and the design report's wording |
+| `tests/test_check.py` | The leaderboard check: reading numbers and tables (units, quotes, semicolons, missing headers), the chi-square distribution against published tables, the statistics against their formulas, fairness on challenges with no skill, finding skill over a year, and the shipped example files |
 | `tests/test_cli.py` | The commands, their text and JSON output, the design report's CSV and HTML, which settings each command takes, notes on out-of-range values, error handling and rounding |
-| `tests/test_agreement.py` | The app's model and the Python model give exactly the same numbers on 8 settings, including extreme ones, for simulations, sample challenges, skill by length and seeds |
-| `tests/app_model.test.js` | The app's model on its own in Node: determinism, chunked runs, scoring rules, busts, going for broke, settings limits, rank correlation, skill by length, and consistency between the summary and single challenges |
+| `tests/test_agreement.py` | The app's model and the Python model give exactly the same numbers on 8 settings, including extreme ones, for simulations, sample challenges, skill by length and seeds, and on 6 tables for the leaderboard check |
+| `tests/app_model.test.js` | The app's model on its own in Node: determinism, chunked runs, scoring rules, busts, going for broke, settings limits, rank correlation, skill by length, consistency between the summary and single challenges, and the leaderboard check |
 | `tests/test_js.py` | Runs the Node tests from the Python suite |
-| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, wording that follows the numbers, the dark theme and phone width |
+| `tests/test_app.py` | The app in headless Chromium: it opens with the right answer and no errors or network requests, the rule control, keyboard sliders, presets, new luck, stepping through challenges, the risk-chart click, the skill card, shareable links, wording that follows the numbers, checking pasted and opened tables, the dark theme and phone width |
 
 ## Which language does what
 
 | Part | Language | Lines | What it does |
 |---|---|---|---|
-| `app/index.html`, layout and styles | HTML and CSS | 338 | Page structure, light and dark themes, phone layout |
-| `app/index.html`, model | JavaScript | 636 | The simulation, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
-| `app/index.html`, interface | JavaScript | 773 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links |
-| `leaderboard_luck/` | Python | 1,042 | A line-for-line port of the model, the command line, text and JSON reports, and the organiser's design report |
-| `tests/*.py` | Python | 547 | Model, command line, cross-language agreement and browser tests |
-| `tests/*.js` | JavaScript | 210 | Node tests of the app's model, and the harness the agreement tests use |
+| `app/index.html`, layout and styles | HTML and CSS | 409 | Page structure, light and dark themes, phone layout |
+| `app/index.html`, model | JavaScript | 988 | The simulation and the leaderboard check, between `/* MODEL START */` and `/* MODEL END */`, also loadable in Node |
+| `app/index.html`, interface | JavaScript | 1,053 | Sliders, presets, charts in SVG, chunked runs that keep the page responsive, shareable links, the leaderboard check card |
+| `leaderboard_luck/` | Python | 1,645 | A line-for-line port of the model and the leaderboard check, the command line, text and JSON reports, the organiser's design report, and the check's calibration study |
+| `tests/*.py` | Python | 798 | Model, command line, cross-language agreement and browser tests |
+| `tests/*.js` | JavaScript | 241 | Node tests of the app's model, and the harness the agreement tests use |
 
 The browser app is the main product; Python is the companion for batch runs, scripting and the organiser's report.
 
@@ -151,6 +194,8 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 
 **Who is most skilled.** The most skilled team is whichever has the highest true Sharpe ratio, your team included, and ties count as wins for any team sharing the top skill. "No real edge" means a true Sharpe ratio of zero or below. Rank correlation is the correlation between true skill and final place, using average ranks for ties.
 
+**Checking a real leaderboard.** Each team's result becomes a luck-adjusted score: its log return divided by its volatility over the challenge (log returns, so that a gamble compounding upwards is not mistaken for skill), or its Sharpe ratio scaled to the challenge's length. If no team had any skill, those scores would spread out around the field's average only as much as luck allows, which is 1 − ρ in these units, because the market move everyone shares does not separate teams. A chi-square test says how often luck alone produces as much spread as the table shows, and the excess gives an estimate of the spread of true skill, with a 90% range from the chi-square distribution. Each team's estimated edge is its score pulled back towards the field's average by the share of the spread that is luck (shrinkage, as in empirical Bayes). How often a field with no skill produces a best result as strong as the table's comes from 10,000 simulated luck-only fields. The app and Python agree exactly here too.
+
 ## Limitations
 
 - **Skill is a fixed number.** Each team has one true Sharpe ratio for the whole challenge. Real teams learn, change strategy, and do not know their own edge.
@@ -159,11 +204,11 @@ where z is a standard random shock. Part of z is shared by every team (the marke
 - **One way to go for broke.** Teams switch once, at one checkpoint, if they are outside the top 3. Real teams adjust gradually and react to what they see on the leaderboard.
 - **Daily resolution.** Drawdowns and busts are checked at the close of each day, so intraday moves are ignored.
 - **Sampling error.** Figures come from a finite number of simulated challenges. With 2,000 challenges, a 1.5% chance has a standard error of about 0.3 percentage points; the skill-by-length chart uses 300 challenges per point in the app and 400 in the design report, so neighbouring points can wobble by a percentage point or two.
+- **The leaderboard check trusts its inputs.** It takes each team's volatility as its true risk, and assumes a Sharpe ratio was worked out from daily returns. If teams' luck is less shared than the correlation you set, it finds skill too readily, so when unsure a lower correlation is the cautious choice. Teams with no volatility or Sharpe ratio are judged at an assumed volatility, which mistakes risk for skill when they took very different risks.
 - **Real challenges differ.** Formats, scoring formulas and fields vary widely. The model shows how luck, risk and rules interact in general; it is not calibrated to any particular competition.
 
 ## Next steps
 
-- **Real leaderboard data.** Upload a past challenge's final table and estimate how much of the spread in returns is consistent with luck alone.
 - **More scoring formats.** Sortino ratio, return over maximum drawdown, and judged components such as a written pitch.
 - **Adaptive strategies.** Let teams adjust risk every day based on their place, and search for the best rule for your team given what rivals do.
 - **Leverage caps and costs.** Add a maximum gross exposure and a cost per trade, and see how much of the gamblers' edge survives.

@@ -179,3 +179,34 @@ test('when skills tie, a win by any of the most skilled teams counts', () => {
   // Under the drawdown rule every team can be knocked out, leaving no winner, so check the others.
   rows.filter((row) => row.rule !== 'drawdown').forEach((row) => assert.equal(row.pBestWins, 1));
 });
+
+test('the chi-square distribution matches published tables', () => {
+  assert.ok(Math.abs(M.chiSquareQuantile(0.95, 29) - 42.557) < 0.001);
+  assert.ok(Math.abs(M.chiSquareQuantile(0.05, 29) - 17.708) < 0.001);
+  assert.ok(Math.abs(M.chiSquareTail(2, 2) - Math.exp(-1)) < 1e-10);
+  assert.ok(Math.abs(M.logGamma(5) - Math.log(24)) < 1e-9);
+});
+
+test('a pasted table is read with its units, and bad tables are explained', () => {
+  const t = M.parseTable('Team\tReturn\tVolatility\nOak\t+8.4%\t21%\nElm\t−1.5%\t\nAsh\tn/a\t30%\n');
+  assert.equal(t.teams.length, 2);
+  assert.equal(t.skipped, 1);
+  assert.ok(Math.abs(t.teams[0].ret - 0.084) < 1e-12);
+  assert.equal(t.teams[1].vol, null);
+  assert.throws(() => M.parseTable(''), /empty/);
+  assert.throws(() => M.parseTable('Team,Volatility\nA,20\n'), /No return or Sharpe ratio column/);
+  assert.throws(() => M.checkLeaderboard(M.parseTable('Team,Return\nA,1\nB,2\n')), /At least three teams/);
+});
+
+test('the leaderboard check tells a month of luck from a year of skill', () => {
+  const month = M.exampleTable('month');
+  const r1 = M.checkLeaderboard(M.parseTable(month.text), { days: month.days });
+  assert.equal(r1.verdict, 'luck');
+  assert.equal(r1.edgeSd, 0);
+  const year = M.exampleTable('year');
+  const r2 = M.checkLeaderboard(M.parseTable(year.text), { days: year.days });
+  assert.notEqual(r2.verdict, 'luck');
+  assert.ok(r2.skillSpreadLow < 0.75 && 0.75 < r2.skillSpreadHigh);
+  assert.ok(r2.truthCorrelation > 0.5);
+  r2.rows.forEach((row) => assert.ok(row.edgeLow < row.edge && row.edge < row.edgeHigh));
+});

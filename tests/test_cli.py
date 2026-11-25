@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import unittest
+import unittest.mock
 
 from leaderboard_luck.__main__ import main
 
@@ -88,6 +89,42 @@ class CommandLineTests(unittest.TestCase):
             self.assertIn("Return, 15% drawdown limit", page)
         code, _, err = run(["design", "--sims-each", "0"])
         self.assertEqual(code, 2)
+
+    def test_check_a_table_file_and_the_examples(self):
+        code, out, err = run(["check", "examples/year-long-league.csv", "--days", "250"])
+        self.assertEqual(code, 0, err)
+        self.assertIn("Possibly some skill", out)
+        self.assertIn("Team Fir (2nd)", out)
+        self.assertIn("True skill", out)
+        self.assertEqual(len(table_rows(out)) - 4, 30)  # thirty teams, then four lines of notes
+        code, example, _ = run(["check", "--example", "year"])
+        self.assertEqual(example.split("\n")[1:], out.split("\n")[1:])
+        code, out, _ = run(["check", "--example", "month", "--json", "--sims", "1000"])
+        data = json.loads(out)
+        self.assertEqual(data["result"]["verdict"], "luck")
+        self.assertEqual(data["result"]["options"]["sims"], 1000)
+
+    def test_check_from_standard_input_with_assumed_risk(self):
+        text = "Team,Return\nA,9%\nB,2%\nC,-4%\nD,-7%\n"
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                unittest.mock.patch("sys.stdin", io.StringIO(text)):
+            code = main(["check", "-", "--assume-vol", "0.3", "--correlation", "2"])
+        self.assertEqual(code, 0)
+        self.assertIn("an assumed 30% volatility for 4 teams", out.getvalue())
+        self.assertIn("--correlation 2 is outside 0 to 0.9, so 0.9 was used", err.getvalue())
+
+    def test_check_errors(self):
+        for args in (["check"], ["check", "x.csv", "--example", "year"], ["check", "no-such-file.csv"]):
+            code, _, err = run(args)
+            self.assertEqual(code, 2, args)
+            self.assertIn("error:", err)
+
+    def test_calibrate(self):
+        code, out, _ = run(["calibrate", "--challenges", "4", "--sims", "100", "--workers", "1"])
+        self.assertEqual(code, 0)
+        self.assertIn("No skill anywhere, four weeks", out)
+        self.assertIn("Default field, a year", out)
 
     def test_figures_round_like_the_browser_app(self):
         from leaderboard_luck.report import fixed, pct, signed

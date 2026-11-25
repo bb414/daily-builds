@@ -135,3 +135,112 @@ def sample_report(params: dict, k: int, top: int = 10) -> str:
         lines.append(f"  {place:<7}{t['name']:<12}{kind:<9}{t['sharpe']:>7.2f}{risk:>9}"
                      f"{signed(t['ret']):>9}{pct(t['maxDD']):>10}  {status}")
     return "\n".join(lines)
+
+
+# ---------- checking a real leaderboard ----------
+
+def chance(p: float) -> str:
+    """A small probability in words-friendly form: "fewer than 0.1%" rather than "0.0%"."""
+    return "fewer than 0.1%" if p < 0.0005 else pct(p)
+
+
+def verdict_text(r: dict) -> str:
+    """The headline sentence, as in the browser app."""
+    tail = f"a field with no skill at all spreads out this much in {chance(r['pSpread'])} of challenges."
+    if r["verdict"] == "skill":
+        return "Real skill shows: " + tail
+    if r["verdict"] == "some":
+        return "Possibly some skill: " + tail
+    return "Luck alone could easily have produced this table: " + tail
+
+
+def edge_text(row: dict, r: dict, minus: str = "-") -> str:
+    def s(v):
+        text = fixed(v, 2)
+        if float(text) == 0:
+            return fixed(0, 2)
+        return ("+" if v > 0 else minus) + text.lstrip("-")
+    if r["edgeSd"] == 0:
+        return s(row["edge"])
+    return f"{s(row['edge'])} ({s(row['edgeLow'])} to {s(row['edgeHigh'])})"
+
+
+UNIT_WORDS = {"percent": "percentages", "fraction": "fractions"}
+
+
+def check_report(table: dict, r: dict, source: str) -> str:
+    o = r["options"]
+    basis = r["basis"]
+    used = [f"{label} for {basis[key]} team{'' if basis[key] == 1 else 's'}" for key, label in
+            (("sharpe", "Sharpe ratio"), ("vol", "volatility"), ("assumed", f"an assumed {pct(o['assumedVol'], 0)} volatility"))
+            if basis[key]]
+    read = {key: table["units"].get(key) for key in ("ret", "vol")}
+    if read["ret"] and read["ret"] == read["vol"]:
+        units = [f"returns and volatility as {UNIT_WORDS[read['ret']]}"]
+    else:
+        units = [f"{name} as {UNIT_WORDS[read[key]]}" for key, name in (("ret", "returns"), ("vol", "volatility"))
+                 if read[key]]
+    lines = [f"Leaderboard check: {source}", "",
+             f"  {r['teams']} teams, {o['days']} trading days, market correlation {o['correlation']:.2f}",
+             f"  Ranked on {'Sharpe ratio' if r['rankedOn'] == 'sharpe' else 'return'}"
+             + (f"; read {' and '.join(units)}" if units else ""),
+             "  Luck-adjusted scores from " + ", ".join(used)]
+    if table["skipped"]:
+        lines.append(f"  Skipped {table['skipped']} row{'' if table['skipped'] == 1 else 's'} without a number to rank on")
+    best = r["rows"][r["best"]]
+    lines += ["", "  " + verdict_text(r),
+              f"  Share of the spread down to luck   {pct(r['luckShare'], 0)}",
+              f"  Estimated skill spread             {fixed(r['skillSpread'], 2)} (90% range {fixed(r['skillSpreadLow'], 2)}"
+              f" to {fixed(r['skillSpreadHigh'], 2)})",
+              f"  Best luck-adjusted lead            {best['name']} ({ordinal(best['place'])}), {fixed(best['lead'], 2)}: "
+              f"a field with no skill does this well in {chance(r['pBest'])} of challenges"]
+    if r["truthCorrelation"] is not None:
+        lines.append(f"  Scores against true skill          correlation {fixed(r['truthCorrelation'], 2)}")
+    if r["edgeSd"] == 0:
+        lines.append("  No sign that teams differ in skill, so every team's best estimate is the field's average.")
+    has = {key: any(row[key] is not None for row in r["rows"]) for key in ("ret", "vol", "sharpe", "truth")}
+    name_width = max(12, min(28, max(len(row["name"]) for row in r["rows"]) + 2))
+    head = f"  {'Place':<7}{'Team':<{name_width}}"
+    head += f"{'Return':>9}" if has["ret"] else ""
+    head += f"{'Volatility':>12}" if has["vol"] else ""
+    head += f"{'Sharpe':>8}" if has["sharpe"] else ""
+    head += f"{'Lead':>7}{'Luck alone':>12}   Estimated edge (90% range)"
+    head += "   True skill" if has["truth"] else ""
+    lines += ["", head]
+    for row in r["rows"]:
+        line = f"  {ordinal(row['place']):<7}{row['name'][:name_width - 2]:<{name_width}}"
+        if has["ret"]:
+            line += f"{signed(row['ret']) if row['ret'] is not None else '':>9}"
+        if has["vol"]:
+            line += f"{pct(row['vol']) if row['vol'] is not None else '':>12}"
+        if has["sharpe"]:
+            line += f"{fixed(row['sharpe'], 2) if row['sharpe'] is not None else '':>8}"
+        line += f"{fixed(row['lead'], 2):>7}{chance(row['pLuck']):>12}   {edge_text(row, r):<27}"
+        if has["truth"]:
+            line += f"{fixed(row['truth'], 2):>11}"
+        lines.append(line.rstrip())
+    lines += ["",
+              "  Lead: how far ahead of the field's average a team finished, in units of the spread luck alone",
+              "  produces. Luck alone: how often a single team with no skill does at least this well (in a whole",
+              "  field, someone usually does). Estimated edge: the team's likely true Sharpe ratio relative to the",
+              "  field's average, allowing for luck."]
+    return "\n".join(lines)
+
+
+def calibration_report(rows: list[dict], challenges: int) -> str:
+    lines = ["Does the leaderboard check work?", "",
+             f"  {challenges:,} simulated challenges per setting, each checked as if it were a real table.",
+             "  Flagged: the check finds more spread than luck alone would give (5% and 10% levels).", "",
+             f"  {'Setting':<32}{'Flagged 5%':>11}{'10%':>7}{'Winner 5%':>11}{'Spread est.':>13}{'Range covers':>14}"
+             f"{'vs truth':>10}"]
+    for c in rows:
+        truth = fixed(c["truthCorrelation"], 2) if c["skillSpread"] > 0 else "-"
+        lines.append(f"  {c['label']:<32}{pct(c['flagged5'], 0):>11}{pct(c['flagged10'], 0):>7}"
+                     f"{pct(c['bestFlagged5'], 0):>11}{fixed(c['meanSkillSpread'], 2):>13}"
+                     f"{pct(c['rangeCovers'], 0):>14}{truth:>10}")
+    lines += ["",
+              "  With no skill anywhere, a fair check flags about 5% and 10% of tables by chance alone.",
+              "  Spread est.: the average estimated skill spread (the true spread is 0 or 0.75).",
+              "  Range covers: how often the 90% range contains the true spread. vs truth: average correlation",
+              "  between the luck-adjusted scores and the teams' true skill."]
+    return "\n".join(lines)

@@ -126,6 +126,37 @@ class AppTests(unittest.TestCase):
         page.close()
         self.assertEqual(self.problems, [])
 
+    def test_checks_a_real_leaderboard(self):
+        page = self.open()
+        page.click("#check-example-year")
+        expect(page.locator("#check-verdict")).to_contain_text("Possibly some skill")
+        self.assertEqual(page.locator("#check-table tbody tr").count(), 30)
+        self.assertEqual(page.input_value("#check-days"), "250")
+        self.assertIn("65%", page.inner_text("#check-tiles"))
+        page.select_option("#check-team", label="2nd Team Fir")
+        expect(page.locator("#check-team-note")).to_contain_text("Team Fir finished 2nd of 30")
+        self.assertEqual(page.locator("#check-table tr.picked").count(), 1)
+        # Changing the length reruns the check: a year's gains made in four weeks would be no luck.
+        page.fill("#check-days", "20")
+        page.dispatch_event("#check-days", "change")
+        expect(page.locator("#check-verdict")).to_contain_text("Real skill shows")
+        # A table with too few teams is explained rather than checked.
+        page.fill("#check-text", "Team,Return\nA,1%\nB,2%\n")
+        page.click("#check-run")
+        expect(page.locator("#check-status")).to_contain_text("At least three teams")
+        self.assertTrue(page.locator("#check-results").is_hidden())
+        self.assertEqual(self.problems, [])
+
+    def test_opens_a_csv_file(self):
+        page = self.open(390, 844)
+        page.set_input_files("#check-file", str(Path(__file__).resolve().parent.parent / "examples" / "four-week-challenge.csv"))
+        expect(page.locator("#check-verdict")).to_contain_text("Luck alone could easily have produced this table")
+        self.assertIn("Team Cedar", page.input_value("#check-text"))
+        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+        self.assertLessEqual(page.evaluate("document.querySelector('#check-table').scrollWidth"),
+                             page.evaluate("document.querySelector('#check-table').parentElement.clientWidth"))
+        self.assertEqual(self.problems, [])
+
     def test_fits_a_phone(self):
         page = self.open(390, 844)
         self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
