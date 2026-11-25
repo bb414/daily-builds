@@ -96,11 +96,13 @@ The agreement tests run the app's model in Node.js and check it matches the Pyth
 
 | Part | Language | Lines (roughly) | What it does |
 |------|----------|-----------------|--------------|
-| `app/index.html` model block | JavaScript | 730 | The simulation, the decomposition, options, banking, robustness, the tornado and the queueing theory |
-| `app/index.html` interface | HTML, CSS, JavaScript | 900 | Controls, step editor, charts, save, open and share |
-| `missing_minutes/model.py` | Python | 890 | A line-for-line port of the model block, giving the same numbers |
-| `missing_minutes/cli.py`, `report.py` | Python | 530 | Command line, text reports, CSV exports and the HTML report |
-| `tests/` | Python and JavaScript | 890 | Unit tests, agreement tests and browser tests |
+| `app/index.html` model block | JavaScript | 725 | The simulation, the decomposition, options, banking, robustness, the tornado and the queueing theory |
+| `app/index.html` interface | HTML, CSS, JavaScript | 910 | Controls, step editor, charts, save, open and share |
+| `missing_minutes/model.py` | Python | 880 | A line-for-line port of the model block, giving the same numbers |
+| `missing_minutes/cli.py`, `report.py` and the two package files | Python | 550 | Command line, text reports, CSV exports and the HTML report |
+| `tests/` | Python and JavaScript | 900 | Unit tests, agreement tests and browser tests |
+
+In all, about 1,640 lines of HTML, CSS and JavaScript and about 1,430 lines of Python, plus the tests.
 
 The browser app is the version anyone can open and use. The Python companion is for what a browser is less suited to: batch sweeps, ranked options and robustness runs written to CSV, a report file to attach to an email, and running a process definition kept under version control.
 
