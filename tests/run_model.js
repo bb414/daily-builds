@@ -15,4 +15,5 @@ out.sample = r.crm.history.slice(0, 40).concat(r.crm.history.slice(-10)).map(fun
 });
 out.random = (function () { const g = M.mulberry32(12345); const a = []; for (let i = 0; i < 5; i++) a.push(g()); return a; })();
 out.mix = [M.mix(0, 0), M.mix(2026, 1), M.mix(4294967295, 1000123)];
+if (process.argv[3]) out.robustness = M.robustness(settings, Number(process.argv[3]));
 process.stdout.write(JSON.stringify(out));

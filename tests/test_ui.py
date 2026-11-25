@@ -80,5 +80,53 @@ class TestUi(unittest.TestCase):
         self.assertNotIn("n/a", page.inner_text("#cards"))
 
 
+    def test_links_restore_settings(self):
+        page = self.open(hash_="#seed=7&deals=3000&blanks=0.2&zombies=0.66")
+        self.assertEqual(page.input_value("#seed"), "7")
+        self.assertEqual(page.inner_text("#deals-out"), "3,000")
+        self.assertEqual(page.inner_text("#o-zombies"), "66%")
+        page.click("[data-preset=clean]")
+        page.wait_for_timeout(300)
+        self.assertIn("zombies=0&", page.evaluate("location.hash"))
+
+    def test_save_and_load_settings_files(self):
+        import json, tempfile, os
+        page = self.browser.new_page(accept_downloads=True)
+        page.goto(APP + "#seed=9")
+        page.wait_for_function("document.querySelector('#cards .num') !== null")
+        with page.expect_download() as dl:
+            page.click("#save-file")
+        data = json.loads(open(dl.value.path(), encoding="utf-8").read())
+        self.assertEqual(data["settings"]["seed"], 9)
+        data["settings"]["retrofill"] = 0.7
+        with tempfile.TemporaryDirectory() as d:
+            good = os.path.join(d, "s.json")
+            with open(good, "w", encoding="utf-8") as fh:
+                json.dump(data, fh)
+            page.set_input_files("#load-file", good)
+            page.wait_for_timeout(300)
+            self.assertEqual(page.inner_text("#o-retrofill"), "70%")
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{oops")
+            page.set_input_files("#load-file", bad)
+            page.wait_for_timeout(300)
+            self.assertIn("not a Fit to train settings file", page.inner_text("#share-note"))
+            self.assertEqual(page.inner_text("#o-retrofill"), "70%")
+
+    def test_compare_and_robustness(self):
+        page = self.open(hash_="#deals=1000")
+        page.click("#pin-a")
+        page.click("[data-preset=chaos]")
+        page.wait_for_timeout(400)
+        self.assertGreaterEqual(len(page.query_selector_all("#compare-table tbody tr")), 9)
+        page.click("#run-robust")
+        page.wait_for_function("document.querySelector('#robust-out .robust-summary') !== null", timeout=30000)
+        self.assertIn("of 12", page.inner_text("#robust-out"))
+        page.click("[data-preset=tidy]")
+        page.wait_for_timeout(400)
+        self.assertIn("changed since the last test", page.inner_text("#robust-out"))
+        self.assertEqual(self.errors, [])
+
 if __name__ == "__main__":
     unittest.main()

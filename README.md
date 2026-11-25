@@ -55,6 +55,9 @@ python -m fittotrain lab --preset typical                   # the lab, same numb
 python -m fittotrain lab --set retrofill=0.6 --seed 7 --json
 python -m fittotrain generate --preset chaos -o crm.csv --truth truth.csv
 python -m fittotrain audit crm.csv                          # audit an export (yours or a synthetic one)
+python -m fittotrain lab --worlds 12 --preset typical       # what holds across 12 other worlds
+python -m fittotrain sweep retrofill --out reports          # one habit from 0 to its maximum: CSV and HTML
+python -m fittotrain lab --settings fit-to-train-settings.json   # a settings file saved from the app
 ```
 
 `audit` reads a CSV with these columns. Only the first six are required; any scoring field can be missing or blank.

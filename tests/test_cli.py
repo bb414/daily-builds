@@ -130,6 +130,47 @@ class TestCli(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run_cli("audit", str(self.dir / "missing.csv"))
 
+    def test_settings_file_from_the_browser_app(self):
+        f = self.dir / "fit-to-train-settings.json"
+        f.write_text(json.dumps({"app": "fit-to-train", "version": 1, "settings": {
+            "seed": 7, "deals": 1500, "blanks": 0, "retrofill": 0.5, "zombies": 0.2, "recreated": 0,
+            "placeholders": 0, "loggingShift": 0}}), encoding="utf-8")
+        data = json.loads(run_cli("lab", "--json", "--settings", str(f)))
+        self.assertEqual(data["settings"]["seed"], 7)
+        self.assertEqual(data["settings"]["retrofill"], 0.5)
+        flat = self.dir / "flat.json"
+        flat.write_text(json.dumps({"zombies": 0.7}), encoding="utf-8")
+        data = json.loads(run_cli("lab", "--json", "--settings", str(flat), "--deals", "1000", "--set", "blanks=0.1"))
+        self.assertEqual((data["settings"]["zombies"], data["settings"]["blanks"]), (0.7, 0.1))
+        bad = self.dir / "bad.json"
+        bad.write_text("{\"hello\": 1}", encoding="utf-8")
+        with self.assertRaises(SystemExit) as ctx:
+            run_cli("lab", "--settings", str(bad))
+        self.assertIn("not a Fit to train settings file", str(ctx.exception))
+        bad.write_text("not json", encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            run_cli("lab", "--settings", str(bad))
+
+    def test_lab_on_several_worlds(self):
+        text = run_cli("lab", "--worlds", "2", "--deals", "1000", "--preset", "typical")
+        self.assertIn("the same settings on 2 other worlds", text)
+        self.assertIn("one to fix first", text)
+        data = json.loads(run_cli("lab", "--worlds", "2", "--deals", "1000", "--json"))
+        self.assertEqual(len(data["worlds"]), 2)
+        self.assertEqual(sum(data["fixWinners"]["live"].values()), 2)
+
+    def test_sweep_writes_csv_and_html(self):
+        out = self.dir / "reports"
+        text = run_cli("sweep", "zombies", "--levels", "3", "--worlds", "1", "--deals", "1000", "--out", str(out))
+        self.assertIn("sweep of zombie deals", text)
+        with open(out / "sweep_zombies.csv", newline="") as fh:
+            rows = list(csv.DictReader(fh))
+        self.assertEqual([float(r["level"]) for r in rows], [0.0, 0.4, 0.8])
+        page = (out / "sweep_zombies.html").read_text(encoding="utf-8")
+        self.assertIn("<svg", page)
+        self.assertNotIn("<script", page)
+        self.assertNotIn("http", page.replace("http-equiv", ""))
+
     def test_module_entry_point(self):
         res = subprocess.run([sys.executable, "-m", "fittotrain", "lab", "--deals", "1000"], cwd=ROOT,
                              capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))

@@ -52,17 +52,17 @@ SUFFIXES = ["Foods", "Logistics", "Health", "Analytics", "Retail", "Energy", "Wo
             "Studios", "Partners", "Supply", "Labs"]
 
 DEFECTS = [
-    {"key": "blanks", "label": "Blank fields", "kind": "Missing data", "max": 0.6,
+    {"key": "blanks", "what": "Share of the six scoring fields left empty when a deal is entered.", "label": "Blank fields", "kind": "Missing data", "max": 0.6,
      "fix": "Make the scoring fields required at the stage they matter, with an explicit \"unknown\" option."},
-    {"key": "retrofill", "label": "Fields edited after the outcome", "kind": "Leakage", "max": 0.8,
+    {"key": "retrofill", "what": "Share of closed deals whose champion, stakeholder or competitor fields were updated after the deal closed (win reviews, loss reasons).", "label": "Fields edited after the outcome", "kind": "Leakage", "max": 0.8,
      "fix": "Train on field values as they stood at the scoring point (field history or weekly snapshots), not on today\u2019s values."},
-    {"key": "zombies", "label": "Zombie deals", "kind": "Missing labels", "max": 0.8,
+    {"key": "zombies", "what": "Share of lost deals never closed out, left open with a close date in the past.", "label": "Zombie deals", "kind": "Missing labels", "max": 0.8,
      "fix": "Auto-close deals 60 days past their close date with no activity, and keep them in training as losses."},
-    {"key": "recreated", "label": "Re-created deals", "kind": "Wrong labels", "max": 0.5,
+    {"key": "recreated", "what": "Share of won deals that stalled and were re-entered as a new opportunity, with the old record closed as lost.", "label": "Re-created deals", "kind": "Wrong labels", "max": 0.5,
      "fix": "Merge re-created opportunities and give them a \"duplicate\" close reason that keeps them out of training."},
-    {"key": "placeholders", "label": "Placeholder amounts", "kind": "Biased values", "max": 0.8,
+    {"key": "placeholders", "what": "Share of deals entered with a round placeholder amount, corrected only if the deal is won.", "label": "Placeholder amounts", "kind": "Biased values", "max": 0.8,
      "fix": "Require a sized amount by the proposal stage and flag round numbers in pipeline reviews."},
-    {"key": "loggingShift", "label": "Meetings logged by hand", "kind": "Drift", "max": 0.7,
+    {"key": "loggingShift", "what": "Share of meetings that hand logging missed before calendar sync switched on at go-live.", "label": "Meetings logged by hand", "kind": "Drift", "max": 0.7,
      "fix": "Backfill historical meetings from calendars, or retrain once calendar sync has run for a quarter."},
 ]
 DEFECT_KEYS = [d["key"] for d in DEFECTS]
@@ -736,6 +736,44 @@ def run_lab(settings=None, fixes=True):
         "audit": audit_crm(crm),
         "truth": truth_counts(crm),
         "crm": crm,
+    }
+
+
+# ---- How sure is this? The same settings on other synthetic worlds -----------------
+def summarise(xs):
+    a = sorted(x for x in xs if x is not None and math.isfinite(x))
+    if not a:
+        return {"n": 0, "mean": None, "low": None, "high": None, "median": None}
+    total = 0
+    for x in a:
+        total += x
+    return {"n": len(a), "mean": total / len(a), "low": a[0], "high": a[-1], "median": a[len(a) // 2]}
+
+
+def robustness(settings=None, n_worlds=12):
+    s = normalise_settings(settings)
+    f = _finite(n_worlds)
+    n = int(clamp(math.floor(f) if f else 12, 1, 60))
+    worlds = []
+    for k in range(n):
+        sk = dict(s)
+        sk["seed"] = (s["seed"] + 1 + k) % 4294967296
+        r = run_lab(sk, fixes=False)
+        worlds.append({
+            "seed": sk["seed"], "backtest": r["backtest"]["auc"], "live": r["live"]["auc"], "ceiling": r["ceiling"]["auc"],
+            "illusion": r["illusion"], "debt": r["debt"],
+            "repairedBacktest": r["repaired"]["backtest"]["auc"], "repairedLive": r["repaired"]["live"]["auc"],
+            "repairedGap": r["repaired"]["backtest"]["auc"] - r["repaired"]["live"]["auc"],
+            "bias": r["live"]["meanPredicted"] - r["live"]["winRate"],
+            "repairedBias": r["repaired"]["live"]["meanPredicted"] - r["repaired"]["live"]["winRate"],
+        })
+    keys = ["backtest", "live", "ceiling", "illusion", "debt", "repairedBacktest", "repairedLive", "repairedGap", "bias", "repairedBias"]
+    summary = {key: summarise([w[key] for w in worlds]) for key in keys}
+    return {
+        "settings": s, "worlds": worlds, "summary": summary,
+        "overpromised": sum(1 for w in worlds if w["illusion"] > 0.05),
+        "repairedHonest": sum(1 for w in worlds if abs(w["repairedGap"]) <= 0.05),
+        "repairHelped": sum(1 for w in worlds if w["repairedLive"] > w["live"]),
     }
 
 

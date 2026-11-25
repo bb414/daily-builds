@@ -25,8 +25,9 @@ CASES = [
 ]
 
 
-def run_js(settings):
-    out = subprocess.run([NODE, str(ROOT / "tests" / "run_model.js"), json.dumps(settings)],
+def run_js(settings, worlds=None):
+    args = [NODE, str(ROOT / "tests" / "run_model.js"), json.dumps(settings)] + ([str(worlds)] if worlds else [])
+    out = subprocess.run(args,
                          capture_output=True, text=True, check=True, cwd=ROOT)
     return json.loads(out.stdout)
 
@@ -72,6 +73,12 @@ class TestParity(unittest.TestCase):
                 py = model.run_lab(case)
                 py_view = {k: v for k, v in py.items() if k != "crm"}
                 compare(self, js, py_view)
+
+    def test_robustness_agrees(self):
+        for case, n in (({"seed": 11, "deals": 1000}, 3), (dict(model.PRESETS["chaos"], seed=4294967294, deals=1200), 4)):
+            with self.subTest(case=case):
+                js = run_js(case, n)["robustness"]
+                compare(self, js, model.robustness(case, n), "robustness")
 
     def test_records_agree(self):
         for case in CASES[:4]:

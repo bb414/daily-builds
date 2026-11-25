@@ -139,6 +139,17 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
 .pending { color: var(--muted); font-style: italic; }
 [aria-busy="true"] .table-wrap, [aria-busy="true"] .chart { opacity: 0.55; transition: opacity 0.2s; }
 .verdict p + p { margin-top: 6px; color: var(--ink); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: 0.6; cursor: progress; }
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.file-input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+.note { font-size: 13px; color: var(--muted); margin: 8px 0 0; min-height: 1.2em; word-break: break-all; }
+.note.error { color: var(--red); }
+#robust-out { margin-top: 12px; }
+.robust-summary { margin-bottom: 8px; }
+td.better { color: var(--green); font-weight: 600; }
+td.worse { color: var(--red); font-weight: 600; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 980px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -180,6 +191,16 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
             <button class="btn" id="new-world" type="button">New world</button>
           </div>
         </div>
+      </div>
+      <div class="world">
+        <h2>Save and share</h2>
+        <div class="btn-row">
+          <button class="btn" id="copy-link" type="button">Copy link</button>
+          <button class="btn" id="save-file" type="button">Save settings</button>
+          <input type="file" id="load-file" class="file-input" accept="application/json,.json">
+          <label class="btn" for="load-file">Load settings</label>
+        </div>
+        <p class="note" id="share-note" role="status"></p>
       </div>
     </aside>
 
@@ -226,6 +247,23 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
           <span><i class="dot live"></i>Live after go-live</span>
         </div>
         <p class="stat-line" id="repair-text"></p>
+      </section>
+
+      <section class="panel" id="robust-section">
+        <h2>How sure is this?</h2>
+        <p class="intro">One synthetic world is one draw of luck. Run the same settings on twelve other worlds and see which conclusions hold.</p>
+        <button class="btn primary" id="run-robust" type="button">Test on 12 more worlds</button>
+        <div id="robust-out" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" id="compare-section">
+        <h2>Compare two set-ups</h2>
+        <p class="intro">Pin the current settings as A, change anything, and compare: for example a CRM before and after a data-quality push.</p>
+        <div class="btn-row">
+          <button class="btn primary" id="pin-a" type="button">Pin current settings as A</button>
+          <button class="btn" id="clear-a" type="button" hidden>Clear A</button>
+        </div>
+        <div class="table-wrap"><table id="compare-table"></table></div>
       </section>
 
       <div class="two">
@@ -951,6 +989,44 @@ var FitToTrain = (function () {
     };
   }
 
+  // ---- How sure is this? The same settings on other synthetic worlds -----
+  function summarise(xs) {
+    var a = xs.filter(function (x) { return x !== null && isFinite(x); }).sort(function (p, q) { return p - q; });
+    if (!a.length) return { n: 0, mean: null, low: null, high: null, median: null };
+    var sum = 0;
+    for (var i = 0; i < a.length; i++) sum += a[i];
+    return { n: a.length, mean: sum / a.length, low: a[0], high: a[a.length - 1], median: a[Math.floor(a.length / 2)] };
+  }
+
+  function robustness(input, nWorlds) {
+    var s = normaliseSettings(input);
+    var n = clamp(Math.floor(Number(nWorlds) || 12), 1, 60);
+    var worlds = [];
+    for (var k = 0; k < n; k++) {
+      var sk = copyRecord(s);
+      sk.seed = (s.seed + 1 + k) % 4294967296;
+      var r = runLab(sk, { fixes: false });
+      worlds.push({
+        seed: sk.seed, backtest: r.backtest.auc, live: r.live.auc, ceiling: r.ceiling.auc,
+        illusion: r.illusion, debt: r.debt,
+        repairedBacktest: r.repaired.backtest.auc, repairedLive: r.repaired.live.auc,
+        repairedGap: r.repaired.backtest.auc - r.repaired.live.auc,
+        bias: r.live.meanPredicted - r.live.winRate,
+        repairedBias: r.repaired.live.meanPredicted - r.repaired.live.winRate
+      });
+    }
+    var keys = ['backtest', 'live', 'ceiling', 'illusion', 'debt', 'repairedBacktest', 'repairedLive', 'repairedGap', 'bias', 'repairedBias'];
+    var summary = {};
+    keys.forEach(function (key) { summary[key] = summarise(worlds.map(function (w) { return w[key]; })); });
+    var over = 0, honest = 0, better = 0;
+    worlds.forEach(function (w) {
+      if (w.illusion > 0.05) over++;
+      if (Math.abs(w.repairedGap) <= 0.05) honest++;
+      if (w.repairedLive > w.live) better++;
+    });
+    return { settings: s, worlds: worlds, summary: summary, overpromised: over, repairedHonest: honest, repairHelped: better };
+  }
+
   function dayToIso(day) {
     return new Date(BASE_DATE_UTC + day * 86400000).toISOString().slice(0, 10);
   }
@@ -963,7 +1039,7 @@ var FitToTrain = (function () {
     generateWorld: generateWorld, buildCrm: buildCrm, fieldMeans: fieldMeans, featureRow: featureRow,
     solve: solve, fitLogistic: fitLogistic, predict: predict, auc: auc, evaluate: evaluate,
     inTestSplit: inTestSplit, auditCrm: auditCrm, truthCounts: truthCounts, runLab: runLab, dayToIso: dayToIso,
-    pilot: pilot, repairCrm: repairCrm, fixFirst: fixFirst, median: median
+    pilot: pilot, repairCrm: repairCrm, fixFirst: fixFirst, median: median, summarise: summarise, robustness: robustness
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -980,7 +1056,12 @@ var FitToTrain = (function () {
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function f2(x) { return x === null || x === undefined || !isFinite(x) ? 'n/a' : x.toFixed(2); }
   function pct(x, dp) { return x === null || x === undefined || !isFinite(x) ? 'n/a' : (x * 100).toFixed(dp || 0) + '%'; }
-  function signed(x, dp) { if (x === null || !isFinite(x)) return 'n/a'; var v = x.toFixed(dp === undefined ? 2 : dp); return (x > 0 ? '+' : (x < 0 ? '−' : '')) + v.replace('-', ''); }
+  function signed(x, dp) {
+    if (x === null || x === undefined || !isFinite(x)) return 'n/a';
+    var d = dp === undefined ? 2 : dp, v = x.toFixed(d);
+    if (Number(v) === 0) return (0).toFixed(d);
+    return (x > 0 ? '+' : '\u2212') + v.replace('-', '');
+  }
   function money(x) {
     if (!isFinite(x)) return 'n/a';
     if (Math.abs(x) >= 1e6) return '£' + (x / 1e6).toFixed(1) + 'm';
@@ -1309,12 +1390,195 @@ var FitToTrain = (function () {
     return svg(W, H, body, 'As exported: back-test ' + f2(r.backtest.auc) + ', live ' + f2(r.live.auc) + '. Repaired first: back-test ' + f2(r.repaired.backtest.auc) + ', live ' + f2(r.repaired.live.auc) + '.');
   }
 
+  // ---- How sure is this? -------------------------------------------------
+  function stripChart(rb) {
+    var rows = [['Pilot illusion, as exported', 'illusion', 'var(--backtest)'], ['Gap after the repairs', 'repairedGap', 'var(--live)']];
+    var vals = [];
+    rb.worlds.forEach(function (w) { vals.push(w.illusion, w.repairedGap); });
+    var lo = Math.min(-0.1, Math.floor(Math.min.apply(null, vals) * 20) / 20), hi = Math.max(0.1, Math.ceil(Math.max.apply(null, vals) * 20) / 20);
+    var W = 640, l = 10, rr = 14, t = 6, rowH = 54, H = t + rows.length * rowH + 24;
+    function X(v) { return l + (v - lo) / (hi - lo) * (W - l - rr); }
+    var body = '<rect x="' + X(-0.05) + '" y="' + t + '" width="' + (X(0.05) - X(-0.05)) + '" height="' + (rows.length * rowH) + '" fill="var(--green-bg)"/>';
+    for (var g = lo; g <= hi + 1e-9; g += 0.05) {
+      var gg = Math.round(g * 100) / 100;
+      body += '<line class="grid" x1="' + X(gg) + '" x2="' + X(gg) + '" y1="' + t + '" y2="' + (t + rows.length * rowH) + '"/>';
+      if (Math.round(gg * 100) % 10 === 0) body += '<text x="' + X(gg) + '" y="' + (H - 6) + '" text-anchor="' + (gg <= lo + 1e-9 ? 'start' : (gg >= hi - 1e-9 ? 'end' : 'middle')) + '">' + signed(gg) + '</text>';
+    }
+    body += '<line x1="' + X(0) + '" x2="' + X(0) + '" y1="' + t + '" y2="' + (t + rows.length * rowH) + '" stroke="var(--muted)"/>';
+    rows.forEach(function (row, i) {
+      var y = t + i * rowH;
+      body += '<text x="' + (l + 4) + '" y="' + (y + 16) + '" style="fill:var(--ink);font-weight:600">' + esc(row[0]) + '</text>';
+      rb.worlds.forEach(function (w, j) {
+        body += '<circle cx="' + X(w[row[1]]) + '" cy="' + (y + 34 + (j % 3 - 1) * 5) + '" r="5" fill="' + row[2] + '" fill-opacity="0.8"/>';
+      });
+    });
+    return svg(W, H, body, 'Across ' + rb.worlds.length + ' worlds the pilot illusion ranged from ' + signed(rb.summary.illusion.low) + ' to ' + signed(rb.summary.illusion.high) +
+      '; after the repairs the gap ranged from ' + signed(rb.summary.repairedGap.low) + ' to ' + signed(rb.summary.repairedGap.high) + '. The shaded band is within 0.05 of live.');
+  }
+
+  function robustHtml(rb) {
+    var n = rb.worlds.length, S = rb.summary;
+    var html = '<p class="robust-summary">In <b>' + rb.overpromised + ' of ' + n + '</b> worlds the pilot overpromised by more than 0.05. Repaired first, <b>' + rb.repairedHonest + ' of ' + n +
+      '</b> back-tests landed within 0.05 of live, and the repaired model beat the unrepaired one live in <b>' + rb.repairHelped + ' of ' + n + '</b>.</p>';
+    html += '<div class="chart">' + stripChart(rb) + '</div>';
+    var rows = [['Pilot back-test', 'backtest'], ['Live after go-live', 'live'], ['Clean-data ceiling', 'ceiling'], ['Back-test after repairs', 'repairedBacktest'], ['Live, repaired model', 'repairedLive']];
+    html += '<div class="table-wrap"><table><caption class="sr-only">Ranking scores across worlds</caption><thead><tr><th>Ranking score</th><th class="num">Average</th><th class="num">Lowest</th><th class="num">Highest</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      var sm = S[r[1]];
+      html += '<tr><td>' + esc(r[0]) + '</td><td class="num">' + f2(sm.mean) + '</td><td class="num">' + f2(sm.low) + '</td><td class="num">' + f2(sm.high) + '</td></tr>';
+    });
+    html += '<tr><td>Win-rate bias live (predicted minus actual)</td><td class="num">' + signed(S.bias.mean * 100, 0) + ' pts</td><td class="num">' + signed(S.bias.low * 100, 0) + ' pts</td><td class="num">' + signed(S.bias.high * 100, 0) + ' pts</td></tr>';
+    html += '<tr><td>Same, repaired model</td><td class="num">' + signed(S.repairedBias.mean * 100, 0) + ' pts</td><td class="num">' + signed(S.repairedBias.low * 100, 0) + ' pts</td><td class="num">' + signed(S.repairedBias.high * 100, 0) + ' pts</td></tr>';
+    return html + '</tbody></table></div><p class="note">Worlds ' + rb.worlds[0].seed + ' to ' + rb.worlds[n - 1].seed + ', with every other setting as now.</p>';
+  }
+
+  function runRobust() {
+    var btn = $('run-robust');
+    btn.disabled = true;
+    btn.textContent = 'Running 12 worlds…';
+    setTimeout(function () {
+      var rb = M.robustness(state, 12);
+      $('robust-out').innerHTML = robustHtml(rb);
+      $('robust-out').dataset.key = JSON.stringify(state);
+      btn.disabled = false;
+      btn.textContent = 'Test on 12 more worlds';
+    }, 20);
+  }
+
+  // ---- Compare two set-ups ------------------------------------------------
+  var pinned = null;
+
+  function headline(r) {
+    return {
+      settings: r.settings, backtest: r.backtest.auc, live: r.live.auc, ceiling: r.ceiling.auc, illusion: r.illusion,
+      repairedBacktest: r.repaired.backtest.auc, repairedLive: r.repaired.live.auc,
+      bias: r.live.meanPredicted - r.live.winRate, forecastError: r.live.forecastError, capture: r.live.capture20
+    };
+  }
+
+  function settingsSummary(st) {
+    return M.DEFECTS.map(function (d) { return d.label + ' ' + pct(st[d.key]); }).join(', ') + '; world ' + st.seed + ', ' + st.deals.toLocaleString('en-GB') + ' deals';
+  }
+
+  function compareTable(cur) {
+    if (!pinned) return '<caption class="pending">Nothing pinned yet.</caption>';
+    var A = pinned, B = headline(cur);
+    var rows = [
+      ['Pilot back-test', 'backtest', f2, 0], ['Live after go-live', 'live', f2, 1], ['Clean-data ceiling', 'ceiling', f2, 1],
+      ['Pilot illusion', 'illusion', signed, -1], ['Back-test after repairs', 'repairedBacktest', f2, 0], ['Live, repaired model', 'repairedLive', f2, 1],
+      ['Wins in the top 20% live', 'capture', function (x) { return pct(x); }, 1],
+      ['Win-rate bias live', 'bias', function (x) { return signed(x * 100, 0) + ' pts'; }, -2],
+      ['Bookings forecast error live', 'forecastError', function (x) { return signed(x * 100, 0) + '%'; }, -2]
+    ];
+    var html = '<caption class="sr-only">Set-up A compared with the current settings (B)</caption><thead><tr><th>Measure</th><th class="num">A (pinned)</th><th class="num">B (now)</th><th class="num">B minus A</th></tr></thead><tbody>';
+    rows.forEach(function (row) {
+      var a = A[row[1]], b = B[row[1]], dlt = b - a, cls = '';
+      if (Math.abs(dlt) > 0.005) {
+        var good = row[3] === 1 ? dlt > 0 : (row[3] === -1 ? dlt < 0 : (row[3] === -2 ? Math.abs(b) < Math.abs(a) : null));
+        cls = good === null ? '' : (good ? 'better' : 'worse');
+      }
+      var dfmt = (row[1] === 'bias' || row[1] === 'forecastError' || row[1] === 'capture') ? signed(dlt * 100, 0) + ' pts' : signed(dlt);
+      html += '<tr><td>' + esc(row[0]) + '</td><td class="num">' + esc(row[2](a)) + '</td><td class="num">' + esc(row[2](b)) + '</td><td class="num ' + cls + '">' + esc(dfmt) + '</td></tr>';
+    });
+    html += '<tr><td>Settings</td><td colspan="3" class="fixtext"><b>A:</b> ' + esc(settingsSummary(A.settings)) + '<br><b>B:</b> ' + esc(settingsSummary(B.settings)) + '</td></tr>';
+    return html + '</tbody>';
+  }
+
+  // ---- Save and share -----------------------------------------------------
+  var HASH_KEYS = ['seed', 'deals'].concat(M.DEFECTS.map(function (d) { return d.key; }));
+
+  function toHash(st) {
+    return '#' + HASH_KEYS.map(function (k) { return k + '=' + st[k]; }).join('&');
+  }
+
+  function fromHash(hash) {
+    var out = {}, found = false;
+    (hash || '').replace(/^#/, '').split('&').forEach(function (part) {
+      var kv = part.split('=');
+      if (kv.length === 2 && HASH_KEYS.indexOf(kv[0]) >= 0 && kv[1] !== '') { out[kv[0]] = Number(decodeURIComponent(kv[1])); found = true; }
+    });
+    return found ? out : null;
+  }
+
+  function applySettings(obj) {
+    var merged = Object.assign({}, state, obj);
+    var clean = M.normaliseSettings(merged);
+    HASH_KEYS.forEach(function (k) { state[k] = clean[k]; });
+    syncControls();
+    schedule();
+  }
+
+  function note(msg, isError) {
+    var el = $('share-note');
+    el.textContent = msg;
+    el.className = 'note' + (isError ? ' error' : '');
+  }
+
+  function copyLink() {
+    var url = location.href.split('#')[0] + toHash(state);
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      note(ok ? 'Link copied. Anyone opening this file with it sees the same settings.' : 'Copy this link: ' + url, false);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { note('Link copied. Anyone opening this file with it sees the same settings.'); }, fallback);
+    } else fallback();
+  }
+
+  function saveFile() {
+    var payload = { app: 'fit-to-train', version: 1, settings: {} };
+    HASH_KEYS.forEach(function (k) { payload.settings[k] = state[k]; });
+    var blob = new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fit-to-train-settings.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 0);
+    note('Saved fit-to-train-settings.json. The Python version reads it too: python -m fittotrain lab --settings fit-to-train-settings.json');
+  }
+
+  function parseSettingsText(text) {
+    var data = JSON.parse(text);
+    var src = data && typeof data === 'object' && data.settings && typeof data.settings === 'object' ? data.settings : data;
+    if (!src || typeof src !== 'object' || !HASH_KEYS.some(function (k) { return k in src; })) throw new Error('no settings');
+    var out = {};
+    HASH_KEYS.forEach(function (k) { if (k in src) out[k] = src[k]; });
+    return out;
+  }
+
+  function loadFile(e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        applySettings(parseSettingsText(String(reader.result)));
+        note('Loaded ' + file.name + '.');
+      } catch (err) {
+        note('That file is not a Fit to train settings file, so nothing was changed.', true);
+      }
+      e.target.value = '';
+    };
+    reader.onerror = function () { note('Could not read that file.', true); };
+    reader.readAsText(file);
+  }
+
   // ---- Render --------------------------------------------------------------
   function card(cls, label, num, sub) {
     return '<div class="card"><div class="lbl">' + (cls ? '<i class="dot ' + cls + '"></i>' : '') + esc(label) + '</div><div class="num">' + num + '</div><div class="sub">' + sub + '</div></div>';
   }
 
-  var fixTimer = null, renderToken = 0;
+  var fixTimer = null, renderToken = 0, lastResult = null;
 
   function render() {
     var r = M.runLab(state, { fixes: false });
@@ -1344,6 +1608,12 @@ var FitToTrain = (function () {
       pct(r.repaired.live.meanPredicted) + '</b> against <b>' + pct(r.live.winRate) + '</b> actual. Meetings logged by hand cannot be repaired from the history: that habit only shows once the model is live.';
     $('audit-table').innerHTML = auditTable(r);
     $('records-table').innerHTML = recordsTable(r);
+    lastResult = r;
+    $('compare-table').innerHTML = compareTable(r);
+    if ($('robust-out').innerHTML && $('robust-out').dataset.key !== JSON.stringify(state)) {
+      $('robust-out').innerHTML = '<p class="note">The settings have changed since the last test. Run it again to check them.</p>';
+    }
+    try { history.replaceState(null, '', toHash(state)); } catch (e) { /* some browsers block this on local files */ }
 
     // The fix ranking re-runs the pilot up to twelve times, so it follows a moment later.
     var token = ++renderToken;
@@ -1368,6 +1638,29 @@ var FitToTrain = (function () {
   }
 
   buildControls();
+  var fromLink = fromHash(location.hash);
+  if (fromLink) Object.assign(state, M.normaliseSettings(Object.assign({}, state, fromLink)));
+  $('copy-link').addEventListener('click', copyLink);
+  $('save-file').addEventListener('click', saveFile);
+  $('load-file').addEventListener('change', loadFile);
+  $('run-robust').addEventListener('click', runRobust);
+  $('pin-a').addEventListener('click', function () {
+    if (!lastResult) return;
+    pinned = headline(lastResult);
+    $('clear-a').hidden = false;
+    $('pin-a').textContent = 'Re-pin current settings as A';
+    $('compare-table').innerHTML = compareTable(lastResult);
+  });
+  $('clear-a').addEventListener('click', function () {
+    pinned = null;
+    $('clear-a').hidden = true;
+    $('pin-a').textContent = 'Pin current settings as A';
+    $('compare-table').innerHTML = compareTable(lastResult);
+  });
+  window.addEventListener('hashchange', function () {
+    var h = fromHash(location.hash);
+    if (h && toHash(M.normaliseSettings(Object.assign({}, state, h))) !== toHash(state)) applySettings(h);
+  });
   syncControls();
   render();
 })();

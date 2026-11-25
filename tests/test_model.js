@@ -89,4 +89,14 @@ test('the repaired back-test is far closer to live than the raw one', function (
   assert.ok(r.repaired.live.auc > r.live.auc);
 });
 
+test('robustness runs the settings on the next worlds', function () {
+  const rb = M.robustness({ seed: 40, deals: 1000 }, 3);
+  assert.deepStrictEqual(rb.worlds.map(function (w) { return w.seed; }), [41, 42, 43]);
+  assert.strictEqual(rb.summary.live.n, 3);
+  assert.strictEqual(M.robustness({ seed: 1, deals: 1000 }, 'x').worlds.length, 12);
+  assert.strictEqual(M.robustness({ seed: 1, deals: 1000 }, 500).worlds.length, 60);
+  const sm = M.summarise([0.3, null, 0.1, NaN, 0.2]);
+  assert.deepStrictEqual([sm.n, sm.low, sm.high, sm.median], [3, 0.1, 0.3, 0.2]);
+});
+
 console.log(passed + ' Node tests passed' + (process.exitCode ? ' (with failures above)' : ''));

@@ -17,7 +17,10 @@ def pct(x, dp=0):
 def signed(x, dp=2):
     if x is None:
         return "n/a"
-    return ("+" if x > 0 else "") + "%.*f" % (dp, x)
+    text = "%.*f" % (dp, x)
+    if float(text) == 0:
+        return "%.*f" % (dp, 0)
+    return ("+" if x > 0 else "") + text
 
 
 def money(x):
@@ -165,4 +168,45 @@ def export_audit_text(a, path):
         out.append(table(["Field", "Edited", "Untouched", ""], rows, ["<", ">", ">", "<"]))
         if any(fs["suspect"] for fs in a["fieldSignal"]):
             out.append("  Fields marked suspect predict far better once a deal has closed: train on their values at the scoring point.")
+    return "\n".join(out)
+
+
+def robust_text(rb):
+    n = len(rb["worlds"])
+    sm = rb["summary"]
+    out = ["FIT TO TRAIN: the same settings on %d other worlds" % n, settings_line(rb["settings"]).replace(
+        "World %d" % rb["settings"]["seed"], "Worlds %d to %d" % (rb["worlds"][0]["seed"], rb["worlds"][-1]["seed"])), ""]
+    rows = []
+    for key, name in (("backtest", "Pilot back-test"), ("live", "Live after go-live"), ("ceiling", "Clean-data ceiling"),
+                      ("illusion", "Pilot illusion"), ("repairedBacktest", "Back-test after repairs"),
+                      ("repairedLive", "Live, repaired model"), ("repairedGap", "Gap after repairs")):
+        fmt = signed if key in ("illusion", "repairedGap") else f2
+        rows.append([name, fmt(sm[key]["mean"]), fmt(sm[key]["low"]), fmt(sm[key]["high"])])
+    for key, name in (("bias", "Win-rate bias live (pts)"), ("repairedBias", "Same, repaired model (pts)")):
+        rows.append([name] + [signed(sm[key][c] * 100, 0) for c in ("mean", "low", "high")])
+    out.append(table(["", "Average", "Lowest", "Highest"], rows, ["<", ">", ">", ">"]))
+    out.append("")
+    out.append("The pilot overpromised by more than 0.05 in %d of %d worlds." % (rb["overpromised"], n))
+    out.append("Repaired first, %d of %d back-tests landed within 0.05 of live; the repaired model beat the unrepaired one in %d." % (
+        rb["repairedHonest"], n, rb["repairHelped"]))
+    fw = rb.get("fixWinners")
+    if fw and (fw["live"] or fw["honest"]):
+        labels = {d["key"]: d["label"] for d in model.DEFECTS}
+        out.append("")
+        out.append("Which habit came out as the one to fix first")
+        keys = [d["key"] for d in model.DEFECTS if d["key"] in fw["live"] or d["key"] in fw["honest"]]
+        out.append(table(["Habit", "Most live accuracy", "Most overpromise removed"],
+                         [[labels[k], "%d of %d" % (fw["live"].get(k, 0), n), "%d of %d" % (fw["honest"].get(k, 0), n)] for k in keys],
+                         ["<", ">", ">"]))
+    return "\n".join(out)
+
+
+def sweep_text(res):
+    label = [d["label"] for d in model.DEFECTS if d["key"] == res["habit"]][0]
+    out = ["FIT TO TRAIN: sweep of %s (%d worlds per level, averages)" % (label.lower(), res["worlds"]), ""]
+    out.append(table(["Level", "Back-test", "Live", "Illusion", "Repaired back-test", "Repaired live", "Ceiling", "Bias", "Repaired bias"],
+                     [[pct(m["level"]), f2(m["backtest"]), f2(m["live"]), signed(m["illusion"]), f2(m["repaired_backtest"]),
+                       f2(m["repaired_live"]), f2(m["ceiling"]), signed(m["bias"] * 100, 0) + " pts",
+                       signed(m["repaired_bias"] * 100, 0) + " pts"] for m in res["means"]],
+                     ["<"] + [">"] * 8))
     return "\n".join(out)

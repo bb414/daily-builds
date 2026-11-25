@@ -253,5 +253,31 @@ class TestRemedies(unittest.TestCase):
         self.assertTrue(model.is_round(50000))
         self.assertFalse(model.is_round(50100))
 
+class TestRobustness(unittest.TestCase):
+    def test_summary_and_counts(self):
+        rb = model.robustness(dict(model.PRESETS["typical"], deals=1000, seed=40), 3)
+        self.assertEqual([w["seed"] for w in rb["worlds"]], [41, 42, 43])
+        lives = [w["live"] for w in rb["worlds"]]
+        self.assertAlmostEqual(rb["summary"]["live"]["mean"], sum(lives) / 3)
+        self.assertEqual(rb["summary"]["live"]["low"], min(lives))
+        self.assertEqual(rb["overpromised"], sum(1 for w in rb["worlds"] if w["illusion"] > 0.05))
+        self.assertEqual(len(model.robustness({"seed": 1, "deals": 1000}, 0)["worlds"]), 12)
+        self.assertEqual(len(model.robustness({"seed": 4294967295, "deals": 1000}, 1)["worlds"]), 1)
+        self.assertEqual(model.robustness({"seed": 4294967295, "deals": 1000}, 1)["worlds"][0]["seed"], 0)
+
+    def test_summarise_ignores_missing_values(self):
+        sm = model.summarise([0.3, None, 0.1, float("nan"), 0.2])
+        self.assertEqual((sm["n"], sm["low"], sm["high"], sm["median"]), (3, 0.1, 0.3, 0.2))
+        self.assertIsNone(model.summarise([])["mean"])
+
+    def test_sweep_levels_and_means(self):
+        from fittotrain import batch
+        res = batch.sweep({"seed": 2, "deals": 1000}, "retrofill", levels=3, n_worlds=2)
+        self.assertEqual(res["levels"], [0.0, 0.4, 0.8])
+        self.assertEqual(len(res["rows"]), 6)
+        self.assertLess(res["means"][0]["illusion"], res["means"][-1]["illusion"])
+        with self.assertRaises(ValueError):
+            batch.sweep({}, "nonsense")
+
 if __name__ == "__main__":
     unittest.main()
