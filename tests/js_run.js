@@ -20,5 +20,12 @@ process.stdin.on('end', () => {
     };
   });
   const curves = payload.curves.map((c) => M.curve(Object.assign({}, M.DEFAULT_CONFIG, c.config), c.field, c.values));
-  process.stdout.write(JSON.stringify({ presets: M.PRESETS, jobs: M.DEFAULT_JOBS, results: out, curves: curves }));
+  const rb = M.robustness(Object.assign({}, M.DEFAULT_CONFIG, payload.robustness.config), payload.robustness.seeds);
+  const ex = M.run(Object.assign({}, M.DEFAULT_CONFIG, payload.explain.config));
+  const explain = payload.explain.indices.map((i) => M.explainRun(ex, i));
+  const csvText = M.formatJobsCsv(payload.csvJobs);
+  process.stdout.write(JSON.stringify({
+    presets: M.PRESETS, jobs: M.DEFAULT_JOBS, results: out, curves: curves, robustness: rb, explain: explain,
+    csvText: csvText, csvParsed: M.parseJobsCsv(csvText).jobs
+  }));
 });

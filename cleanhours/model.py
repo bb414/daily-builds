@@ -469,6 +469,58 @@ def curve(cfg, field, values):
     return out
 
 
+def median(xs):
+    a = sorted(xs)
+    n = len(a)
+    if not n:
+        return 0
+    return a[(n - 1) // 2] if n % 2 else (a[n // 2 - 1] + a[n // 2]) / 2
+
+
+def robustness(cfg, seeds):
+    """Repeat the year with different weather to see how much the answer depends on luck."""
+    out = {"seeds": list(seeds), "policies": {k: {"reported": [], "real": []} for k in POLICY_KEYS}}
+    for sd in seeds:
+        r = run(dict(cfg, seed=sd))
+        for k in POLICY_KEYS:
+            out["policies"][k]["reported"].append(r["policies"][k]["reportedSavedT"])
+            out["policies"][k]["real"].append(r["policies"][k]["realSavedT"])
+    tol = 0.5
+    for k in POLICY_KEYS:
+        P = out["policies"][k]
+        P["medianReported"] = median(P["reported"])
+        P["medianReal"] = median(P["real"])
+        P["minReported"] = min(P["reported"])
+        P["maxReported"] = max(P["reported"])
+        P["minReal"] = min(P["real"])
+        P["maxReal"] = max(P["real"])
+        P["negativeYears"] = sum(1 for v in P["real"] if v < -tol)
+        P["overstatedYears"] = sum(1 for rep, v in zip(P["reported"], P["real"]) if rep - v > tol)
+    return out
+
+
+def explain_run(result, index):
+    """Everything needed to look inside one run of one job: the forecasts it was
+    scheduled on, what actually happened, and the hours each scheduler chose."""
+    cfg, g = result["config"], result["grid"]
+    inst = build_instances(cfg["jobs"], cfg["slack"])[index]
+    rel, win = inst["release"], inst["window"]
+    out = {
+        "instance": inst,
+        "forecast": forecast(g, cfg, rel, win),
+        "actual": {"avg": g["avg"][rel:rel + win], "marg": g["marg"][rel:rel + win], "code": g["code"][rel:rel + win]},
+        "policies": {},
+    }
+    for key in POLICY_KEYS:
+        offs = result["policies"][key]["placements"][index]["offsets"]
+        rep = real = 0
+        for o in offs:
+            rep += inst["mw"] * g["avg"][rel + o] / 1000
+            real += inst["mw"] * g["marg"][rel + o] / 1000
+        out["policies"][key] = {"offsets": offs, "reported": rep, "real": real}
+    return out
+
+
 def verdict(R, base):
     """How the reported saving compares with the real one, in tonnes."""
     tol = 0.002 * base["real"]

@@ -3,7 +3,12 @@
 import os
 import unittest
 
+import sys
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from cleanhours import jobs_csv, model  # noqa: E402
+
 APP = "file://" + os.path.join(ROOT, "app", "index.html")
 
 try:
@@ -75,6 +80,43 @@ class UiTests(unittest.TestCase):
         self.assertIn("window", page.inner_text("#errors"))
         field.fill("14")
         page.wait_for_selector("#errors:not(.show)", state="attached")
+        self.assertEqual(self.problems, [])
+
+    def test_weather_years_and_one_run(self):
+        page = self.open()
+        page.wait_for_selector("#yearsChart svg")
+        self.assertEqual(page.locator("#yearsTable tbody tr").count(), 5)
+        self.assertIn("of 10", page.inner_text("#yearsTable"))
+        self.assertEqual(page.locator("#runTable tbody tr").count(), 6)
+        page.select_option("#runJob", "0")
+        self.assertIn("no slack", page.inner_text("#runHint"))
+        page.wait_for_selector("#curveWind svg")
+        self.assertEqual(self.problems, [])
+
+    def test_save_and_load(self):
+        page = self.open()
+        with page.expect_download() as dl:
+            page.click("#saveCsv")
+        path = dl.value.path()
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertEqual(jobs_csv.parse_jobs(text), model.DEFAULT_JOBS)
+        page.set_input_files("#loadCsv", files=[{"name": "two.csv", "mimeType": "text/csv", "buffer": (
+            "name,mw,hours,every_days,first_day,release_hour,window,pausable\n"
+            "A,4,6,7,0,9,48,yes\nB,1,2,1,0,20,10,no\n").encode()}])
+        page.wait_for_function("document.querySelectorAll('.job').length === 2")
+        self.assertIn("Loaded 2 jobs", page.inner_text("#fileMsg"))
+        page.set_input_files("#loadCsv", files=[{"name": "bad.csv", "mimeType": "text/csv", "buffer": b"name,mw\nA,4\n"}])
+        page.wait_for_function("document.getElementById('fileMsg').innerText.includes('Missing column')")
+        with page.expect_download() as dl:
+            page.click("#saveSettings")
+        with open(dl.value.path(), encoding="utf-8") as fh:
+            settings = fh.read()
+        page.check("input[name=preset][value=coal]")
+        page.set_input_files("#loadSettings", files=[{"name": "s.json", "mimeType": "application/json", "buffer": settings.encode()}])
+        page.wait_for_function("document.getElementById('fileMsg').innerText.includes('Loaded settings')")
+        self.assertTrue(page.is_checked("input[name=preset][value=windy]"))
+        self.assertEqual(page.locator(".job").count(), 2)
         self.assertEqual(self.problems, [])
 
     def test_fits_a_phone_screen(self):

@@ -1,4 +1,4 @@
-"""Command-line interface: python -m cleanhours {run,curves,sweep,template}."""
+"""Command-line interface: python -m cleanhours {run,curves,years,sweep,template}."""
 
 import argparse
 import os
@@ -174,6 +174,28 @@ def cmd_curves(args):
     return 0
 
 
+def cmd_years(args):
+    _range_check("--slack", [args.slack], 0, 5)
+    _range_check("--forecast-error", [args.forecast_error], 0, 5)
+    cfg = {"preset": args.preset, "seed": 1, "windScale": args.wind, "solarScale": args.solar,
+           "forecastError": args.forecast_error, "slack": args.slack, "jobs": _load_jobs(args.jobs)}
+    rb = model.robustness(cfg, args.seeds)
+    n = len(args.seeds)
+    print("Clean hours: %s in %d weather years (%s)" % (model.PRESETS[args.preset]["label"], n, ", ".join(map(str, args.seeds))))
+    print()
+    head = "%-32s %14s %14s %14s %14s %12s %12s" % ("Scheduler", "Median rep.", "Median real", "Worst real", "Best real", "Real < 0", "Overstated")
+    print(head)
+    print("-" * len(head))
+    for p in model.POLICIES:
+        if p["key"] == "now":
+            continue
+        P = rb["policies"][p["key"]]
+        print("%-32s %14s %14s %14s %14s %12s %12s" % (
+            p["label"], report.tonnes(P["medianReported"]), report.tonnes(P["medianReal"]), report.tonnes(P["minReal"]),
+            report.tonnes(P["maxReal"]), "%d of %d" % (P["negativeYears"], n), "%d of %d" % (P["overstatedYears"], n)))
+    return 0
+
+
 def _fields(text):
     out = [x.strip() for x in text.split(",") if x.strip()]
     bad = [x for x in out if x not in CURVE_FIELDS]
@@ -232,6 +254,16 @@ def build_parser():
     c.add_argument("--fields", type=_fields, default=["wind", "slack"], help="comma-separated: wind, slack, forecast, solar (default wind,slack)")
     c.add_argument("--jobs", help="jobs CSV (default: the example fleet)")
     c.set_defaults(func=cmd_curves)
+
+    y = sub.add_parser("years", help="the same settings in several weather years")
+    y.add_argument("--preset", choices=sorted(model.PRESETS), default="windy", help="which invented grid (default windy)")
+    y.add_argument("--seeds", type=_seeds, default=list(range(1, 11)), help="weather years, e.g. 1-10 (default 1-10)")
+    y.add_argument("--wind", type=float, default=1, help="wind fleet size multiple (default 1)")
+    y.add_argument("--solar", type=float, default=1, help="solar fleet size multiple (default 1)")
+    y.add_argument("--forecast-error", type=float, default=1, help="forecast error multiple (default 1)")
+    y.add_argument("--slack", type=float, default=1, help="flexibility multiple (default 1)")
+    y.add_argument("--jobs", help="jobs CSV (default: the example fleet)")
+    y.set_defaults(func=cmd_years)
 
     t = sub.add_parser("template", help="write the example fleet as a jobs CSV to edit")
     t.add_argument("--out", default="jobs.csv", help="file to write, or - for the screen (default jobs.csv)")

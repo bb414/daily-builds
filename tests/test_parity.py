@@ -13,7 +13,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from cleanhours import model  # noqa: E402
+from cleanhours import jobs_csv, model  # noqa: E402
 
 CONFIGS = [
     {},
@@ -34,11 +34,20 @@ CURVES = [
 ]
 
 
+ROBUST = {"config": {"preset": "coal", "slack": 1.5}, "seeds": [1, 2, 3, 4]}
+EXPLAIN = {"config": {"preset": "sunny", "forecastError": 1.5}, "indices": [0, 400, 1100, 1200]}
+CSV_JOBS = model.DEFAULT_JOBS + [
+    {"name": 'Name with, a comma and "quotes"', "mw": 0.1 + 0.2, "hours": 3, "everyDays": 2, "firstDay": 1,
+     "releaseHour": 5, "window": 9, "pausable": True},
+]
+
+
 @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
 class ParityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        payload = {"configs": CONFIGS, "curves": CURVES}
+        payload = {"configs": CONFIGS, "curves": CURVES, "robustness": ROBUST, "explain": EXPLAIN,
+                   "csvJobs": CSV_JOBS}
         out = subprocess.run(["node", os.path.join(ROOT, "tests", "js_run.js")], input=json.dumps(payload),
                              capture_output=True, text=True, check=True).stdout
         cls.js = json.loads(out)
@@ -49,6 +58,24 @@ class ParityTests(unittest.TestCase):
             c.update(spec["config"])
             with self.subTest(field=spec["field"]):
                 self.assertEqual(js, model.curve(c, spec["field"], spec["values"]))
+
+    def test_identical_robustness(self):
+        c = dict(model.DEFAULT_CONFIG)
+        c.update(ROBUST["config"])
+        self.assertEqual(self.js["robustness"], model.robustness(c, ROBUST["seeds"]))
+
+    def test_identical_run_explanations(self):
+        c = dict(model.DEFAULT_CONFIG)
+        c.update(EXPLAIN["config"])
+        res = model.run(c)
+        for i, js in zip(EXPLAIN["indices"], self.js["explain"]):
+            with self.subTest(index=i):
+                self.assertEqual(js, model.explain_run(res, i))
+
+    def test_jobs_csv_is_interchangeable(self):
+        self.assertEqual(self.js["csvText"], jobs_csv.format_jobs(CSV_JOBS))
+        self.assertEqual(self.js["csvParsed"], jobs_csv.parse_jobs(self.js["csvText"]))
+        self.assertEqual(jobs_csv.parse_jobs(self.js["csvText"]), CSV_JOBS)
 
     def test_same_presets_and_jobs(self):
         self.assertEqual(self.js["presets"], model.PRESETS)

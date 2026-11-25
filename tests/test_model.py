@@ -154,6 +154,18 @@ class CliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.run_cli("curves", "--fields", "tides")
 
+    def test_years(self):
+        code, out = self.run_cli("years", "--preset", "coal", "--seeds", "1-3")
+        self.assertEqual(code, 0)
+        self.assertIn("3 of 3", out)
+        rb = model.robustness(cfg(preset="coal"), [1, 2, 3])
+        self.assertEqual(rb["policies"]["avg"]["negativeYears"], 3)
+
+    def test_median(self):
+        self.assertEqual(model.median([3, 1, 2]), 2)
+        self.assertEqual(model.median([4, 1, 3, 2]), 2.5)
+        self.assertEqual(model.median([]), 0)
+
     def test_bad_input_exits_cleanly(self):
         with self.assertRaises(SystemExit):
             self.run_cli("run", "--jobs", "/no/such/file.csv")
