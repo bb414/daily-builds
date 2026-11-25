@@ -144,8 +144,8 @@ def format_summary(summary, target, checks):
             lines.append("")
             lines.append("%s: on day one a median %.1f%% of spending is in the wrong pot" % (
                 M.PERSONAS[current]["label"], s["dayOne"]))
-            lines.append("  %-30s %10s %18s %16s %14s" % ("Strategy", "fastest", "median checks to", "share reaching",
-                                                           "median after"))
+            head = ("Strategy", "fastest", "median checks to", "share reaching", "median after")
+            lines.append("  %-30s %10s %18s %16s %14s" % head)
             lines.append("  %-30s %10s %18s %16s %14s" % ("", "on", "%g%% target" % target, "target", "10 checks"))
         med = "not reached" if s["medianChecks"] is None else "%g" % s["medianChecks"]
         wins = report.fmt_count(s["wins"]) + "/" + str(s["runs"])
@@ -168,7 +168,6 @@ def cmd_compare(args, out):
         write_batch(rows, summary, args.out, meta)
         out.write("\nWrote curves.csv, summary.csv and report.html to %s\n" % args.out)
     return 0
-
 
 
 # ---------- weekly ----------
@@ -230,6 +229,7 @@ def cmd_weekly(args, out):
                             r["n"], "%.4f" % r["misPct"] if r["n"] > 0 else "", r["checks"]])
         out.write("\nWrote %s\n" % args.out)
     return 0
+
 
 # ---------- categorise ----------
 
@@ -305,9 +305,9 @@ def cmd_categorise(args, out):
                                        slip=args.slip / 100, weight=args.weight)
         day1 = results[0]["points"][0]
         bands = M.confidence_bands(M.Session(st, weight=args.weight))
+        figures = (day1["accuracy"] * 100, len(st["tx"]), day1["misPct"])
         out.write("Day one: the generic model files %.0f%% of your %d payments correctly; "
-                  "%.1f%% of your spending is in the wrong pot.\n" % (day1["accuracy"] * 100, len(st["tx"]),
-                                                                       day1["misPct"]))
+                  "%.1f%% of your spending is in the wrong pot.\n" % figures)
         if bands["wrongP"] > 0:
             out.write("Of the %s in misfiled payments, %.0f%% was filed with at least 80%% confidence.\n" % (
                 _pounds(bands["wrongP"]), bands["sureShare"] * 100))

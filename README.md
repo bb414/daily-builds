@@ -80,9 +80,9 @@ python -m mislabelled categorise my-statement.csv -o filed.csv
 
 | Part | Language | Rough size | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | about 2,250 lines: 240 CSS, 200 markup, 930 model (190 of them data), 870 interface | The whole interactive tool, offline in one file. The model sits between `/* MODEL START */` and `/* MODEL END */` and exports itself for Node.js. |
+| `app/index.html` | HTML, CSS, JavaScript | about 2,250 lines: 235 CSS, 215 markup, 930 model (190 of them data), 870 interface | The whole interactive tool, offline in one file. The model sits between `/* MODEL START */` and `/* MODEL END */` and exports itself for Node.js. |
 | `mislabelled/` | Python (standard library) | about 1,390 lines | The same model, line for line, plus batch runs over many statements, CSV import of your own statement, strategy replays on it, CSV exports and HTML reports. |
-| `tests/` | Python and JavaScript | about 870 lines | Unit tests for both models, a cross-language agreement test, command-line tests, repository checks and browser tests. |
+| `tests/` | Python and JavaScript | about 860 lines | Unit tests for both models, a cross-language agreement test, command-line tests, repository checks and browser tests. |
 
 The two versions are not just similar: they agree **to the last bit**. Both use the same seeded random number generator, the same order of operations, and a logarithm and exponential built from plain arithmetic, so `tests/test_agreement.py` can compare statements, predictions, confidences, every strategy's choices and every figure with exact equality.
 
