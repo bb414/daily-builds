@@ -1489,7 +1489,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
     $('loadfile').addEventListener('change', loadFile);
     var pw = $('perweek');
     pw.addEventListener('input', function () { $('perweek-out').textContent = pw.value; });
-    pw.addEventListener('change', function () { perWeek = Number(pw.value); runWeeklyView(); });
+    pw.addEventListener('change', function () { perWeek = Number(pw.value); writeHash(); runWeeklyView(); });
     $('reset').addEventListener('click', function () { newSession(); say('All your checks were undone. The app is back to its day-one guesses.'); });
   }
 
@@ -1614,9 +1614,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       rebuild();
       var applied = 0, skipped = 0;
       (Array.isArray(data.checks) ? data.checks : []).forEach(function (c) {
-        var t = c && Number(c.id);
-        var label = c ? CATS.indexOf(c.pot) : -1;
-        if (!(t >= 0 && t < statement.tx.length) || statement.tx[t].desc !== c.desc || label < 0 || session.labels[t] >= 0) { skipped += 1; return; }
+        var ok = c && typeof c === 'object' && Number.isInteger(c.id) && c.id >= 0 && c.id < statement.tx.length;
+        var t = ok ? c.id : -1;
+        var label = ok ? CATS.indexOf(c.pot) : -1;
+        if (!ok || statement.tx[t].desc !== c.desc || label < 0 || session.labels[t] >= 0) { skipped += 1; return; }
         session.correct(t, label);
         applied += 1;
       });
@@ -2048,6 +2049,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Mislabelle
       th.appendChild(lab);
       tr.appendChild(th);
       r.months.forEach(function (m) {
+        if (m.n === 0) {
+          tr.appendChild(el('td', { class: 'cell', style: 'color:var(--muted);font-weight:400' }, 'no payments'));
+          return;
+        }
         var col = cellColour(m.misPct);
         var td = el('td', { class: 'cell' + (col ? '' : ' ok-cell') });
         if (col) { td.style.background = col.bg; td.style.color = col.fg; }

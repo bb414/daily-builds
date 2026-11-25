@@ -19,6 +19,7 @@ const out = {
         .map((r) => ({ strategy: r.strategy, toTarget: r.toTarget, picks: r.picks, points: r.points })),
       weekly: M.compareWeekly(st, { perWeek: c.perWeek, slip: c.slip, weight: c.weight }),
       bands: M.confidenceBands(session),
+      refiled: (() => { const s2 = new M.Session(st, { weight: c.weight }); s2.correct(3, 5); s2.correct(7, 1); s2.correct(3, 2); return { conf: s2.model.conf, order: s2.order, checks: s2.checks }; })(),
       robust: M.robustness(c.persona, 4, [c.seed, c.seed + 1], { checks: 15, target: c.target, slip: c.slip, weight: c.weight })
     };
   })

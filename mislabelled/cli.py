@@ -44,7 +44,13 @@ def _personas(text):
 
 
 def _money(pennies):
+    """Plain amount for CSV files, such as 12.50."""
     return "%.2f" % (pennies / 100)
+
+
+def _pounds(pennies):
+    """Amount for people to read, such as £1,234.50."""
+    return "£{:,.2f}".format(pennies / 100)
 
 
 # ---------- sample ----------
@@ -176,7 +182,7 @@ def run_weekly_batch(personas, seeds, weeks, per_week, slip, weight):
                 for m in r["months"]:
                     rows.append({"persona": pid, "seed": seed, "strategy": r["strategy"], "label": r["label"],
                                  "month": m["month"], "name": m["name"], "partial": m["partial"],
-                                 "misPct": m["misPct"], "checks": m["checks"]})
+                                 "misPct": m["misPct"], "checks": m["checks"], "n": m["n"]})
     return rows
 
 
@@ -200,8 +206,9 @@ def format_weekly(rows, personas, per_week):
         for sid, label in [("none", "Never checks")] + [(s["id"], s["label"]) for s in M.STRATEGIES]:
             cells = []
             for key, _, _ in months:
-                vals = [r["misPct"] for r in mine if r["strategy"] == sid and r["month"] == key]
-                cells.append("%9.1f%%" % M.quantile(vals, 0.5))
+                # a part month with no payments says nothing about the app, so it is left out
+                vals = [r["misPct"] for r in mine if r["strategy"] == sid and r["month"] == key and r["n"] > 0]
+                cells.append("%10s" % "-" if not vals else "%9.1f%%" % M.quantile(vals, 0.5))
             lines.append("  %-30s" % label + "".join(cells))
     lines.append("")
     lines.append("  * part month: the statement starts or ends partway through it.")
@@ -216,10 +223,11 @@ def cmd_weekly(args, out):
     if args.out:
         with open(args.out, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
-            w.writerow(["persona", "seed", "strategy", "month", "part_month", "wrong_pot_pct", "checks_so_far"])
+            w.writerow(["persona", "seed", "strategy", "month", "part_month", "payments", "wrong_pot_pct",
+                        "checks_so_far"])
             for r in rows:
                 w.writerow([r["persona"], r["seed"], r["strategy"], r["month"], "yes" if r["partial"] else "no",
-                            "%.4f" % r["misPct"], r["checks"]])
+                            r["n"], "%.4f" % r["misPct"] if r["n"] > 0 else "", r["checks"]])
         out.write("\nWrote %s\n" % args.out)
     return 0
 
@@ -301,8 +309,8 @@ def cmd_categorise(args, out):
                   "%.1f%% of your spending is in the wrong pot.\n" % (day1["accuracy"] * 100, len(st["tx"]),
                                                                        day1["misPct"]))
         if bands["wrongP"] > 0:
-            out.write("Of the \u00a3%s in misfiled payments, %.0f%% was filed with at least 80%% confidence.\n" % (
-                _money(bands["wrongP"]), bands["sureShare"] * 100))
+            out.write("Of the %s in misfiled payments, %.0f%% was filed with at least 80%% confidence.\n" % (
+                _pounds(bands["wrongP"]), bands["sureShare"] * 100))
         for r in results:
             if r["toTarget"] is None:
                 to = "never under %g%%" % args.target
@@ -341,7 +349,7 @@ def cmd_categorise(args, out):
     out.write("Payments the app is unsure about (under 50%%): %d\n" % unsure)
     out.write("Pots:\n")
     for c, name in enumerate(M.CATS):
-        out.write("  %-14s %10s\n" % (name, "£" + _money(totals[c])))
+        out.write("  %-14s %12s\n" % (name, _pounds(totals[c])))
     return 0
 
 

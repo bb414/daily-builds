@@ -117,6 +117,14 @@ class CliTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run(["weekly", "--per-week", "-1"])
 
+    def test_weekly_table_skips_empty_months(self):
+        rows = [{"persona": "student", "strategy": sid, "month": "2026-12", "name": "Dec", "partial": True,
+                 "misPct": 0, "n": 0} for sid in ["none"] + M.STRATEGY_IDS]
+        text = cli.format_weekly(rows, ["student"], 3)
+        self.assertIn("Never checks", text)
+        self.assertNotIn("0.0%", text)
+        self.assertIn("-", text.splitlines()[-3])
+
     def test_seed_list_forms(self):
         self.assertEqual(cli._seed_list("3"), [1, 2, 3])
         self.assertEqual(cli._seed_list("5-7"), [5, 6, 7])

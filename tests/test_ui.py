@@ -110,12 +110,19 @@ class UiTest(unittest.TestCase):
         page.wait_for_function("document.getElementById('keep-msg').textContent.includes('Loaded')")
         self.assertIn("1 check", page.inner_text("#keep-msg"))
         self.assertTrue(page.is_checked("input[value=sixthformer]"))
+        saved["checks"] += [{"id": 1.5, "desc": "X", "pot": "Fun"}, None, {"id": 0, "desc": "WRONG", "pot": "Fun"},
+                            {"id": 2, "desc": saved["checks"][0]["desc"], "pot": "Nonsense"}]
+        with open(path, "w") as fh:
+            json.dump(saved, fh)
+        page.set_input_files("#loadfile", path)
+        page.wait_for_function("document.getElementById('keep-msg').textContent.includes('skipped 4')")
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
             fh.write("not json")
         page.set_input_files("#loadfile", fh.name)
         page.wait_for_function("document.getElementById('keep-msg').textContent.includes('not valid')")
         os.unlink(fh.name)
         page.close()
+        self.assertEqual(self.problems, [])
         page = self.open(url=URL + "#persona=nobody&weeks=999&seed=-4&checks=abc")
         self.assertTrue(page.is_checked("input[value=student]"))
         self.assertEqual(page.input_value("#weeks"), "26")

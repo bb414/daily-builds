@@ -263,3 +263,12 @@ test('robustness adds up across statements', () => {
   assert.ok(Math.abs(wins - 3) < 1e-9);
   rows.forEach((r) => { assert.equal(r.toTargets.length, 3); assert.equal(r.runs, 3); });
 });
+
+test('a month with no payments is reported as empty, not as perfect', () => {
+  const st = M.generateStatement('sixthformer', 8, 3);
+  const trimmed = { persona: st.persona, weeks: st.weeks, seed: st.seed, tx: st.tx.filter((t) => t.month !== '2026-11') };
+  const r = M.runWeekly(trimmed, 'risk', { perWeek: 2 });
+  const last = r.months[r.months.length - 1];
+  assert.equal(last.month, '2026-11');
+  assert.equal(last.n, 0);
+});
