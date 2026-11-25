@@ -2,7 +2,7 @@
 
 import html as html_lib
 
-from .model import DAY, WEEKDAYS, fmt_duration
+from .model import DAY, OVERLOAD, WEEKDAYS, fmt_duration
 
 
 def _pct(x, d=0):
@@ -99,8 +99,12 @@ def bank_text(r, bank):
         lines.append(bank["reason"])
         return "\n".join(lines)
     st = cfg["steps"][bank["step"]]
-    lines.append("The pilot's business case frees %.1f people at %s; in practice the AI frees %.1f." % (
-        bank["claimedPeople"], st["name"], bank["freedPeople"]))
+    if bank["freedPeople"] >= 0.05:
+        lines.append("The pilot's business case frees %.1f people at %s; in practice the AI frees %.1f." % (
+            bank["claimedPeople"], st["name"], bank["freedPeople"]))
+    else:
+        lines.append("The pilot's business case frees %.1f people at %s; in practice the AI frees no time there." % (
+            bank["claimedPeople"], st["name"]))
     if not bank["possible"]:
         lines.append(bank["reason"])
         return "\n".join(lines)
@@ -108,7 +112,7 @@ def bank_text(r, bank):
         bank["cut"], st["staff"], _dur(bank["leadMean"]), _signed(bank["vsBase"]), _signed(bank["vsAi"])))
     lines.append("%s would be %s busy and %s of cases close within %s days%s" % (
         st["name"], _pct(bank["utilisation"]), _pct(bank["withinSla"], 1), _fmt(cfg["slaDays"]),
-        "." if bank["stable"] else "; its queue keeps growing."))
+        "; its queue keeps growing." if bank["utilisation"] >= OVERLOAD else "." if bank["stable"] else "; a queue elsewhere keeps growing."))
     return "\n".join(lines)
 
 

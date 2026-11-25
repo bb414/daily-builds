@@ -1368,7 +1368,8 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     if (k < 0 || cfg.steps[k].kind !== 'team') { box.innerHTML = '<p class="muted">' + esc(b.reason) + '</p>'; return; }
     var st = cfg.steps[k];
     var h = '<p>The pilot\'s business case: ' + dur(r.pilotClaim) + ' saved on each of ' + cfg.arrivalsPerDay + ' cases a day frees <strong>' + b.claimedPeople.toFixed(1) + ' people</strong> at ' + esc(st.name) + '. ' +
-      'Once not everyone uses it and someone checks its work, it really frees <strong>' + b.freedPeople.toFixed(1) + '</strong>.</p>';
+      (b.freedPeople >= 0.05 ? 'Once not everyone uses it and someone checks its work, it really frees <strong>' + b.freedPeople.toFixed(1) + '</strong>.</p>'
+        : 'Once not everyone uses it and someone checks its work, it frees <strong>no time</strong> there at all.</p>');
     if (b.maxCut >= 1) {
       h += '<div class="field inline"><label for="cut">People cut at ' + esc(st.name) + ' (of ' + st.staff + ')</label><select id="cut">';
       for (var n = 0; n <= b.maxCut; n++) h += '<option value="' + n + '"' + (n === b.cut ? ' selected' : '') + '>' + n + '</option>';
@@ -1380,7 +1381,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
       var worse = b.vsBase > 0.5;
       h += '<p class="bank-result ' + (worse ? 'bad' : 'good') + '">With ' + b.staffAfter + ' people left, cases take <strong>' + dur(b.leadMean) + '</strong> on average: ' +
         (Math.abs(b.vsBase) < 0.5 ? 'the same as' : dur(Math.abs(b.vsBase)) + (worse ? ' longer than' : ' less than')) + ' without the AI, and ' + pct(b.withinSla) + ' close within ' + cfg.slaDays + ' days. ' +
-        esc(st.name) + ' would be ' + pct(b.utilisation) + ' busy' + (b.stable ? '.' : ', so its queue grows for as long as the work keeps arriving.') + '</p>';
+        esc(st.name) + ' would be ' + pct(b.utilisation) + ' busy' + (b.utilisation >= M.OVERLOAD ? ', so its queue grows for as long as the work keeps arriving.' : b.stable ? '.' : ', and a queue elsewhere keeps growing.') + '</p>';
     }
     box.innerHTML = h;
     var sel = $('cut');
@@ -1393,6 +1394,9 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     var b = r.base.steps[k], a = r.ai.steps[k];
     var saved = -r.parts[0].value, realised = -r.total;
     var bits = [];
+    if (saved < 0.5) {
+      return 'The AI saves less than a minute a case at the desk' + (r.total > 0.5 ? ', and checking its work and fixing its errors make cases ' + dur(r.total) + ' slower end to end.' : ', so the end-to-end time barely changes.');
+    }
     if (r.leverage >= 1.2) {
       bits.push('Each minute saved at the desk took ' + r.leverage.toFixed(1) + ' minutes off the end-to-end time. ' + esc(st.name) + ' was ' + pct(b.utilisation) +
         ' busy, so freeing time there shrank its queue: the wait before it fell from ' + dur(b.wait) + ' to ' + dur(a.wait) + ' a case.');
@@ -1401,7 +1405,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
     } else {
       var worst = r.parts.filter(function (p) { return p.key !== 'saved' && p.value > 0.5; }).sort(function (x, y) { return y.value - x.value; });
       var where = worst.slice(0, 2).map(function (p) { return p.label.charAt(0).toLowerCase() + p.label.slice(1) + ' (' + signed(p.value) + ')'; }).join(' and ');
-      if (r.total > 0.5) bits.push('With the AI, cases take longer end to end, by ' + dur(r.total) + '. The saving was swallowed by ' + where + '.');
+      if (r.total > 0.5) bits.push('With the AI, cases take longer end to end, by ' + dur(r.total) + '. The saving was swallowed by ' + (where || 'many small delays') + '.');
       else bits.push('Only ' + dur(Math.max(realised, 0)) + ' of the ' + dur(saved) + ' a case reached the customer. ' + (where ? 'The rest went on ' + where + '.' : ''));
     }
     if (r.bottleneckAfter !== r.bottleneckBefore && r.bottleneckAfter >= 0) {
@@ -1574,7 +1578,7 @@ footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
   function sideEffects(r) {
     var b = r.base, a = r.ai, cfg = r.config;
     var items = [
-      ['Staff time freed', r.fteFreed.toFixed(2) + ' people', 'full-time equivalents across the process, after checking and rework'],
+      ['Staff time freed', minus(r.fteFreed.toFixed(2)) + ' people', 'full-time equivalents across the process, after checking and rework' + (r.fteFreed < 0 ? ' (the AI adds work overall)' : '')],
       ['Flow efficiency', pct(b.flowEfficiency, 1) + ' to ' + pct(a.flowEfficiency, 1), 'share of the time from arrival to close that someone is working on the case'],
       ['Cases sent back', (b.aiSendBacksPer100 + b.baseSendBacksPer100).toFixed(1) + ' to ' + (a.aiSendBacksPer100 + a.baseSendBacksPer100).toFixed(1), 'per 100 cases; ' + a.aiSendBacksPer100.toFixed(1) + ' of them caused by AI errors'],
       ['AI errors that reach customers', a.escapedPer100.toFixed(1), 'per 100 cases, not caught by any later check']

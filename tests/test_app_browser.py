@@ -136,6 +136,16 @@ class BrowserApp(unittest.TestCase):
         self.assertEqual(self.errors, [])
         page.close()
 
+    def test_an_ai_that_saves_nothing_is_described_sensibly(self):
+        page = self.open()
+        page.fill("#ai-saving", "0")
+        page.dispatch_event("#ai-saving", "input")
+        page.wait_for_function("document.querySelector('.verdict').innerText.includes('less than a minute')")
+        page.wait_for_selector("#bank p", timeout=30000)
+        self.assertIn("Staff time freed", page.inner_text("#results"))
+        self.assertEqual(self.errors, [])
+        page.close()
+
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(390)
         width = page.evaluate("document.documentElement.scrollWidth")
