@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assurance mix</title>
+<meta name="description" content="Find the cheapest mix of AI assurance techniques that brings risk on each of the UK's five AI principles within your risk appetite, budget and deadline.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #f1f0ec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6e69;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.12);
+  --accent: #2a78d6;
+  --accent-ink: #1c5cab;
+  --accent-soft: #e6f0fc;
+  --inherent: #b9b8b0;
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --bad: #d03b3b;
+  --bad-ink: #b02a2a;
+  --warn-ink: #8a5a00;
+  --cov: 42, 120, 214;
+  --stage-design: #6250d6;
+  --stage-test: #2a78d6;
+  --stage-live: #1baf7a;
+  --focus: #1c5cab;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #a3a29b;
+    --grid: #2c2c2a;
+    --axis: #4a4a46;
+    --border: rgba(255, 255, 255, 0.12);
+    --accent: #3987e5;
+    --accent-ink: #86b6ef;
+    --accent-soft: #172a42;
+    --inherent: #5c5b56;
+    --good: #0ca30c;
+    --good-ink: #3fcf3f;
+    --bad: #e66767;
+    --bad-ink: #f08a8a;
+    --warn-ink: #e6b24a;
+    --cov: 57, 135, 229;
+    --stage-design: #9085e9;
+    --stage-test: #3987e5;
+    --stage-live: #199e70;
+    --focus: #86b6ef;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #a3a29b;
+  --grid: #2c2c2a;
+  --axis: #4a4a46;
+  --border: rgba(255, 255, 255, 0.12);
+  --accent: #3987e5;
+  --accent-ink: #86b6ef;
+  --accent-soft: #172a42;
+  --inherent: #5c5b56;
+  --good: #0ca30c;
+  --good-ink: #3fcf3f;
+  --bad: #e66767;
+  --bad-ink: #f08a8a;
+  --warn-ink: #e6b24a;
+  --cov: 57, 135, 229;
+  --stage-design: #9085e9;
+  --stage-test: #3987e5;
+  --stage-live: #199e70;
+  --focus: #86b6ef;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent-ink); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--surface); padding: 8px 12px; z-index: 10; }
+.skip:focus { left: 8px; }
+header.top {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.top-inner { max-width: 1320px; margin: 0 auto; display: flex; gap: 16px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
+.tagline { margin: 0; color: var(--ink-2); max-width: 760px; }
+.disclaimer {
+  font-size: 13px; color: var(--warn-ink); border: 1px solid currentColor; border-radius: 999px;
+  padding: 3px 12px; white-space: nowrap;
+}
+.layout { max-width: 1320px; margin: 0 auto; padding: 20px 24px 40px; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+aside.controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding: 16px; }
+aside h2, main h2 { font-size: 15px; margin: 0 0 8px; letter-spacing: 0.01em; }
+.step { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 2px; }
+fieldset { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 8px; }
+label.q { display: block; font-size: 13px; color: var(--ink-2); margin: 10px 0 3px; }
+select, input[type="number"] {
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 7px 9px; min-height: 38px;
+}
+select:hover, input[type="number"]:hover { border-color: var(--ink-2); }
+.example-blurb { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; min-height: 1.5em; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg { display: flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+.seg button {
+  flex: 1; font: inherit; font-size: 13px; padding: 7px 4px; border: 0; background: var(--surface); color: var(--ink);
+  border-right: 1px solid var(--axis); cursor: pointer; min-height: 38px;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.hint { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 12px; color: var(--ink-2); }
+.check input { margin-top: 3px; width: 16px; height: 16px; flex: none; }
+.btn {
+  font: inherit; font-size: 13px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 7px 12px; cursor: pointer; min-height: 36px;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+main { min-width: 0; display: grid; gap: 20px; }
+section.card { padding: 18px 20px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.card-head p { margin: 0; font-size: 13px; color: var(--muted); }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tile { padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.tile .label { font-size: 13px; color: var(--ink-2); margin: 0 0 4px; }
+.tile .big { font-size: 28px; font-weight: 650; line-height: 1.15; margin: 0; font-variant-numeric: tabular-nums; }
+.tile .sub { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
+.tile.lead { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.chip.good { color: var(--good-ink); }
+.chip.bad { color: var(--bad-ink); }
+.chip.neutral { color: var(--ink-2); }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabs [role="tab"] {
+  font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--axis);
+  background: var(--surface); color: var(--ink); cursor: pointer; min-height: 38px;
+}
+.tabs [role="tab"][aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.view-note { font-size: 14px; color: var(--ink-2); margin: 0 0 14px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+.risk-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 112px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.risk-row:last-child { border-bottom: 0; }
+.risk-name { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.risk-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.bars { position: relative; height: 30px; }
+.bar { position: absolute; left: 0; height: 11px; border-radius: 0 4px 4px 0; }
+.bar.inh { top: 2px; background: var(--inherent); }
+.bar.res { top: 16px; background: var(--accent); }
+.appetite-mark { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--ink-2); }
+.risk-nums { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.risk-nums b { font-size: 15px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+.sw.dash { width: 0; height: 12px; border-left: 2px dashed var(--ink-2); border-radius: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tname { font-weight: 600; }
+.tsub { color: var(--muted); font-size: 12px; }
+.tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); margin-left: 4px; font-weight: 500; white-space: nowrap; }
+.why-good { color: var(--ink-2); }
+.why-key { color: var(--ink); }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--ink-2); font-size: 12px; }
+.tooltip {
+  position: absolute; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12px; line-height: 1.4;
+  padding: 8px 10px; border-radius: 8px; max-width: 260px; opacity: 0; transition: opacity 0.1s; z-index: 5;
+}
+.tooltip.show { opacity: 1; }
+details.alt { margin-top: 8px; font-size: 13px; }
+details.alt summary { cursor: pointer; color: var(--accent-ink); }
+.spectrum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.spectrum h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px; }
+.pill { display: block; font-size: 13px; padding: 5px 9px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+.pill.on { color: var(--ink); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.pill.off { text-decoration: line-through; opacity: 0.6; }
+.cov { text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; border-radius: 4px; min-width: 38px; }
+.choice { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.choice label { font-size: 12px; padding: 5px 8px; cursor: pointer; border-right: 1px solid var(--axis); white-space: nowrap; }
+.choice label:last-child { border-right: 0; }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choice input:checked + span { font-weight: 700; }
+.choice label:has(input:checked) { background: var(--ink); color: var(--surface); }
+.choice label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
+.choice label:has(input:disabled) { cursor: not-allowed; opacity: 0.55; }
+.unavail { color: var(--muted); font-size: 12px; }
+.custom-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; margin: 0 0 12px; }
+.custom-list label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 4px 0; }
+.custom-list input { margin-top: 3px; width: 16px; height: 16px; flex: none; }
+.custom-list .cost { color: var(--muted); font-variant-numeric: tabular-nums; }
+.notes { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
+.notes li { margin-bottom: 4px; }
+.prose { font-size: 14px; color: var(--ink-2); max-width: 900px; }
+.prose p { margin: 0 0 10px; }
+.prose h3 { font-size: 14px; color: var(--ink); margin: 14px 0 6px; }
+.sources { font-size: 13px; padding-left: 18px; color: var(--ink-2); }
+.scroll-x { overflow-x: auto; }
+.empty { padding: 18px; border: 1px dashed var(--axis); border-radius: 10px; color: var(--ink-2); font-size: 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer { max-width: 1320px; margin: 0 auto; padding: 0 24px 40px; font-size: 12px; color: var(--muted); }
+@media (max-width: 1100px) {
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  aside.controls { position: static; max-height: none; }
+  header.top { padding: 16px; }
+  .summary { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  h1 { font-size: 22px; }
+  section.card { padding: 14px; }
+  .risk-row { grid-template-columns: minmax(0, 1fr) 96px; }
+  .risk-row .bars { grid-column: 1 / -1; grid-row: 2; }
+  .spectrum { grid-template-columns: minmax(0, 1fr); }
+  .tile .big { font-size: 24px; }
+  table.stack thead { display: none; }
+  table.stack tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+  table.stack td { display: block; border: 0; padding: 2px 0; text-align: left; }
+  table.stack td.num { text-align: left; }
+  table.stack td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; }
+}
+@media print {
+  aside.controls { position: static; max-height: none; }
+  .tabs, .btn { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#results">Skip to the results</a>
+<header class="top">
+  <div class="top-inner">
+    <div>
+      <h1>Assurance mix</h1>
+      <p class="tagline">How much AI assurance is enough? Describe an AI system and your limits, and this finds the cheapest mix of assurance techniques that brings risk on each of the UK's five AI principles within your appetite.</p>
+    </div>
+    <span class="disclaimer">Simplified and illustrative. Not legal advice.</span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="controls panel" aria-label="Inputs">
+    <fieldset>
+      <legend><span class="step">Step 1</span><h2>The AI system</h2></legend>
+      <label class="q" for="example">Start from an example</label>
+      <select id="example"></select>
+      <p class="example-blurb" id="example-blurb" aria-live="polite"></p>
+      <div id="questions"></div>
+    </fieldset>
+    <fieldset>
+      <legend><span class="step">Step 2</span><h2>Your limits</h2></legend>
+      <span class="q" id="appetite-label">Risk appetite: highest risk score you will accept on any principle</span>
+      <div class="seg" role="group" aria-labelledby="appetite-label" id="appetite-presets"></div>
+      <label class="q" for="appetite">Appetite score (0.5 to 25)</label>
+      <input type="number" id="appetite" min="0.5" max="25" step="0.5" inputmode="decimal">
+      <div class="row2">
+        <div>
+          <label class="q" for="budget">Budget (£ thousands)</label>
+          <input type="number" id="budget" min="0" max="5000" step="5" inputmode="numeric">
+        </div>
+        <div>
+          <label class="q" for="weeks">Weeks to go-live</label>
+          <input type="number" id="weeks" min="0" max="104" step="1" inputmode="numeric">
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="legal-must"> <span>Treat a data protection impact assessment as required whenever personal data is used</span></label>
+    </fieldset>
+    <p class="hint">Scores run from 1 to 25: likelihood (1 to 5) times impact (1 to 5). Low is 4 or under, medium up to 9, high up to 15.</p>
+  </aside>
+
+  <main id="results" tabindex="-1">
+    <section class="summary" aria-live="polite" aria-label="Summary" id="summary"></section>
+
+    <section class="card panel" aria-labelledby="plan-title">
+      <div class="card-head">
+        <h2 id="plan-title">The plan</h2>
+        <p id="searched"></p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Which plan to show">
+        <button role="tab" id="tab-cheapest" aria-controls="plan-panel" data-view="cheapest">Cheapest that meets appetite</button>
+        <button role="tab" id="tab-budget" aria-controls="plan-panel" data-view="budget">Lowest risk within budget</button>
+        <button role="tab" id="tab-custom" aria-controls="plan-panel" data-view="custom">Your own mix</button>
+      </div>
+      <div id="plan-panel" role="tabpanel" aria-labelledby="tab-cheapest">
+        <p class="view-note" id="view-note"></p>
+        <div id="custom-box" hidden>
+          <div class="custom-list" id="custom-list"></div>
+          <p>
+            <button class="btn" type="button" id="custom-from-cheapest">Copy the cheapest plan</button>
+            <button class="btn" type="button" id="custom-clear">Clear</button>
+          </p>
+        </div>
+        <div class="grid2">
+          <div>
+            <h3 class="sr-only">Risk by principle</h3>
+            <div id="risk"></div>
+            <div class="legend" aria-hidden="true">
+              <span><i class="sw" style="background: var(--inherent)"></i>Before assurance</span>
+              <span><i class="sw" style="background: var(--accent)"></i>After this plan</span>
+              <span><i class="sw dash"></i>Your appetite</span>
+            </div>
+          </div>
+          <div class="scroll-x">
+            <table class="stack" id="plan-table"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel" aria-labelledby="frontier-title">
+      <div class="card-head">
+        <h2 id="frontier-title">What each extra pound buys</h2>
+        <p>Every plan that no cheaper plan beats. Lower is safer.</p>
+      </div>
+      <div class="chart" id="frontier"></div>
+      <details class="alt"><summary>Show these plans as a table</summary><div class="scroll-x" id="frontier-table"></div></details>
+    </section>
+
+    <section class="card panel" aria-labelledby="timeline-title">
+      <div class="card-head">
+        <h2 id="timeline-title">When it happens</h2>
+        <p id="timeline-sub"></p>
+      </div>
+      <div class="chart" id="timeline"></div>
+    </section>
+
+    <section class="card panel" aria-labelledby="spectrum-title">
+      <div class="card-head">
+        <h2 id="spectrum-title">Qualitative to quantitative</h2>
+        <p>DSIT describes a spectrum of assurance, from judgement-based assessments to objective measurement, used in combination.</p>
+      </div>
+      <div class="spectrum" id="spectrum"></div>
+    </section>
+
+    <section class="card panel" aria-labelledby="catalogue-title">
+      <div class="card-head">
+        <h2 id="catalogue-title">All techniques</h2>
+        <p>Coverage is the chance the technique catches a material problem of that kind, if there is one. Set any technique to Must or Rule out.</p>
+      </div>
+      <div class="scroll-x"><table class="stack" id="catalogue"></table></div>
+    </section>
+
+    <section class="card panel" aria-labelledby="how-title">
+      <div class="card-head"><h2 id="how-title">How it works</h2></div>
+      <div class="prose">
+        <p><b>Risk.</b> Each of the five principles gets a likelihood, the chance a material problem exists (1 to 5, from under 5% to over 80%), and an impact, how bad it would be (1 to 5). Both start at 1 and your answers add to them. The score is likelihood times impact, the same product the DSIT AI risk management toolkit uses.</p>
+        <p><b>Assurance.</b> A technique does not change what is at stake. It changes the chance that a problem reaches people unnoticed. Each technique has a coverage for each principle; problems a chosen technique catches are assumed to be fixed. The chance a problem slips through every chosen technique is the product of their misses, and that chance is turned back into a likelihood score.</p>
+        <p><b>Search.</b> Every combination of the usable techniques is scored (up to 65,536). The cheapest plan is the lowest-cost combination that brings every principle within your appetite and goes live in time; the lowest-risk plan within budget minimises the worst principle. Ties go to the lower total risk, then the lower cost, then fewer techniques.</p>
+        <p><b>Time.</b> Design work comes first, then testing before go-live; techniques in the same stage run side by side, and one that needs another waits for it. Monitoring starts at go-live.</p>
+        <h3>Limitations</h3>
+        <p>All costs, durations and coverages are illustrative judgements, not market data. Techniques are assumed to catch problems independently, which flatters combinations of similar techniques. One-off costs and a first year of monitoring are counted; the cost of fixing what is found is not.</p>
+        <h3>Sources</h3>
+        <ul class="sources">
+          <li>DSIT, <i>Introduction to AI assurance</i> (February 2024): the five principles, the assurance techniques marked DSIT, the qualitative to quantitative spectrum, and the case for proportionate assurance.</li>
+          <li>DSIT, <i>AI risk management toolkit</i> (September 2026): likelihood times impact scoring on 1 to 5 scales and comparing risk with appetite.</li>
+          <li>DSIT, <i>Trusted third-party AI assurance roadmap</i> (September 2025): the market barriers, including access to information about AI systems.</li>
+          <li>ICO, <i>Guidance on AI and data protection</i>: in the vast majority of cases, using AI on personal data needs a DPIA. The ICO notes this guidance is under review after the Data (Use and Access) Act 2025.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card panel" aria-labelledby="notes-title" id="notes-card" hidden>
+      <div class="card-head"><h2 id="notes-title">Notes on your inputs</h2></div>
+      <ul class="notes" id="notes"></ul>
+    </section>
+  </main>
+</div>
+<footer>Assurance mix is a planning aid with invented example systems and illustrative numbers. It runs entirely in this page and sends nothing anywhere.</footer>
+<div class="tooltip" id="tooltip" role="status" aria-live="off"></div>
+<script>
+/* MODEL START */
+// Assurance mix: the model. Everything the app calculates lives in this block,
+// so it can be run and tested in Node.js outside the browser.
+const DATA = /* DATA START */{"version":1,"principles":[{"id":"safety","short":"Safety","name":"Safety, security and robustness"},{"id":"transparency","short":"Transparency","name":"Appropriate transparency and explainability"},{"id":"fairness","short":"Fairness","name":"Fairness"},{"id":"accountability","short":"Accountability","name":"Accountability and governance"},{"id":"contestability","short":"Contestability","name":"Contestability and redress"}],"likelihood":{"scores":[0,1,2,3,4,5],"probabilities":[0,0.025,0.125,0.35,0.65,0.9],"bands":["under 5%","5 to 20%","20 to 50%","50 to 80%","over 80%"]},"riskBands":[{"max":4,"label":"Low"},{"max":9,"label":"Medium"},{"max":15,"label":"High"},{"max":25,"label":"Very high"}],"questions":[{"id":"stakes","label":"What does its output decide?","options":[{"id":"advisory","label":"Nothing about individuals (back-office work or general advice)","L":{},"I":{}},{"id":"shapes","label":"It shapes decisions about people (ranking, pricing, flagging)","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1.5,"accountability":1,"contestability":1}},{"id":"significant","label":"It decides access to jobs, credit, housing or services","L":{},"I":{"safety":1,"transparency":2,"fairness":2.5,"accountability":2,"contestability":2.5}},{"id":"safety","label":"It could cause physical harm (equipment, vehicles, health)","L":{},"I":{"safety":3,"transparency":1,"fairness":1,"accountability":2.5,"contestability":1}}]},{"id":"autonomy","label":"How much does a person check?","options":[{"id":"suggests","label":"A person decides; the system only suggests","L":{},"I":{}},{"id":"approves","label":"A person signs off each output, usually quickly","L":{"safety":0.5,"transparency":0.5,"fairness":0.5,"contestability":0.5},"I":{}},{"id":"automated","label":"Fully automated, with no person in the loop","L":{"safety":1,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1.5},"I":{}}]},{"id":"model","label":"What kind of model is it?","options":[{"id":"rules","label":"Rules or simple statistics","L":{"safety":0.5,"fairness":0.5},"I":{}},{"id":"ml","label":"A machine-learning model","L":{"safety":1,"transparency":1.5,"fairness":1.5,"accountability":0.5},"I":{}},{"id":"genai","label":"A general-purpose or generative model","L":{"safety":2,"transparency":2,"fairness":1.5,"accountability":1,"contestability":0.5},"I":{}}]},{"id":"data","label":"What data does it use?","options":[{"id":"none","label":"No personal data","L":{},"I":{}},{"id":"personal","label":"Personal data","L":{"transparency":0.5,"fairness":0.5,"accountability":0.5},"I":{"transparency":0.5}},{"id":"special","label":"Special category data (for example health or ethnicity)","L":{"transparency":0.5,"fairness":1,"accountability":1},"I":{"safety":0.5,"transparency":0.5,"fairness":1}}]},{"id":"affected","label":"Who is affected?","options":[{"id":"staff","label":"Staff only","L":{},"I":{}},{"id":"customers","label":"Customers who chose to deal with you","L":{},"I":{"transparency":0.5,"fairness":0.5,"contestability":0.5}},{"id":"public","label":"The public, including people in vulnerable circumstances","L":{},"I":{"safety":0.5,"transparency":1,"fairness":1,"accountability":0.5,"contestability":1}}]},{"id":"source","label":"Where does it come from?","options":[{"id":"inhouse","label":"Built in-house","L":{},"I":{}},{"id":"full","label":"Bought in, with full access to the model and data","L":{"accountability":0.5},"I":{}},{"id":"outputs","label":"Bought in, outputs only: you can test it but not look inside","L":{"transparency":1,"fairness":0.5,"accountability":1},"I":{}},{"id":"docs","label":"Bought in, documentation only: no testing before go-live","L":{"safety":0.5,"transparency":1.5,"fairness":1,"accountability":1.5},"I":{}}]},{"id":"change","label":"Does it change after go-live?","options":[{"id":"fixed","label":"No, it is fixed once deployed","L":{},"I":{}},{"id":"retrained","label":"It is retrained from time to time","L":{"safety":0.5,"fairness":0.5,"accountability":0.5},"I":{}},{"id":"learning","label":"It keeps learning from live data","L":{"safety":1,"transparency":0.5,"fairness":1,"accountability":1},"I":{}}]},{"id":"stage","label":"How far is it being rolled out?","options":[{"id":"pilot","label":"Pilot: a few hundred cases, closely watched","L":{},"I":{}},{"id":"rollout","label":"Limited roll-out: thousands of cases","L":{},"I":{"safety":0.5,"transparency":0.5,"fairness":0.5,"accountability":0.5,"contestability":0.5}},{"id":"scale","label":"Full scale: hundreds of thousands of cases","L":{},"I":{"safety":1,"transparency":1,"fairness":1,"accountability":1,"contestability":1}}]}],"stages":[{"id":"design","label":"Design"},{"id":"test","label":"Before go-live"},{"id":"live","label":"In operation"}],"techniques":[{"id":"risk","name":"Risk assessment","source":"DSIT","stage":"design","spectrum":0.15,"independent":false,"cost":4,"weeks":2,"coverage":{"safety":0.25,"transparency":0.15,"fairness":0.2,"accountability":0.3,"contestability":0.15},"blurb":"A structured look at what could go wrong in development and use: bias, privacy, misuse, reputation."},{"id":"aia","name":"Algorithmic impact assessment","source":"DSIT","stage":"design","spectrum":0.2,"independent":false,"cost":9,"weeks":4,"coverage":{"safety":0.15,"transparency":0.2,"fairness":0.35,"accountability":0.2,"contestability":0.3},"blurb":"Anticipates wider effects on people, equality and rights, ideally with input from those affected."},{"id":"dpia","name":"Data protection impact assessment","source":"UK GDPR","stage":"design","spectrum":0.25,"independent":false,"cost":6,"weeks":3,"coverage":{"safety":0.1,"transparency":0.3,"fairness":0.2,"accountability":0.3,"contestability":0.25},"needsData":true,"blurb":"The UK GDPR assessment for processing likely to be high risk to people; the ICO expects one for most AI that uses personal data."},{"id":"docs","name":"Model and data documentation","source":"Common practice","stage":"design","spectrum":0.45,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0.1,"transparency":0.4,"fairness":0.1,"accountability":0.3,"contestability":0.1},"access":{"full":1,"outputs":0.6,"docs":0.6},"blurb":"Model cards and data sheets: what the system is for, how it was built and tested, and its known limits."},{"id":"supplier","name":"Supplier due diligence","source":"Common practice","stage":"design","spectrum":0.3,"independent":false,"cost":5,"weeks":2,"coverage":{"safety":0.15,"transparency":0.25,"fairness":0.15,"accountability":0.35,"contestability":0.15},"boughtInOnly":true,"blurb":"Questions, evidence and contract terms for a bought-in system: testing rights, incident notice, audit access."},{"id":"aims","name":"Certified AI management system (ISO/IEC 42001)","source":"Standard","stage":"design","spectrum":0.4,"independent":true,"cost":45,"weeks":14,"coverage":{"safety":0.1,"transparency":0.1,"fairness":0.1,"accountability":0.5,"contestability":0.2},"requires":["risk","aia"],"blurb":"Organisation-wide AI governance certified by an accredited body. Builds on risk and impact assessment."},{"id":"biasInternal","name":"Internal bias audit","source":"DSIT","stage":"test","spectrum":0.75,"independent":false,"cost":10,"weeks":3,"coverage":{"safety":0,"transparency":0.05,"fairness":0.4,"accountability":0,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"Your own team tests inputs and outputs for unfair differences between groups."},{"id":"biasIndependent","name":"Independent bias audit","source":"DSIT","stage":"test","spectrum":0.8,"independent":true,"cost":24,"weeks":5,"coverage":{"safety":0,"transparency":0.1,"fairness":0.55,"accountability":0.1,"contestability":0.05},"access":{"full":1,"outputs":0.7,"docs":0},"blurb":"An external assurer tests for unfair bias. Needs access to data and outputs."},{"id":"performance","name":"Performance and robustness testing","source":"Common practice","stage":"test","spectrum":0.85,"independent":false,"cost":12,"weeks":3,"coverage":{"safety":0.4,"transparency":0.05,"fairness":0.1,"accountability":0,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Accuracy, error rates and behaviour on hard or shifted cases, measured against agreed thresholds."},{"id":"redteam","name":"Independent red teaming","source":"Common practice","stage":"test","spectrum":0.6,"independent":true,"cost":28,"weeks":4,"coverage":{"safety":0.45,"transparency":0.05,"fairness":0.15,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":1,"docs":0},"model":{"rules":0.5,"ml":0.8,"genai":1},"blurb":"Outside specialists try to make the system fail, leak or misbehave."},{"id":"formal","name":"Formal verification","source":"DSIT","stage":"test","spectrum":1,"independent":false,"cost":55,"weeks":10,"coverage":{"safety":0.6,"transparency":0,"fairness":0.05,"accountability":0.05,"contestability":0},"access":{"full":1,"outputs":0,"docs":0},"model":{"rules":1,"ml":0.4,"genai":0},"blurb":"Mathematical proof that the system meets specific requirements. Practical for rules and small models only."},{"id":"explain","name":"Explainability testing","source":"Common practice","stage":"test","spectrum":0.55,"independent":false,"cost":9,"weeks":3,"coverage":{"safety":0.05,"transparency":0.45,"fairness":0.1,"accountability":0.05,"contestability":0.25},"access":{"full":1,"outputs":0.6,"docs":0},"model":{"rules":1,"ml":1,"genai":0.7},"blurb":"Checks that explanations are faithful to the model and that the people who get them understand them."},{"id":"compliance","name":"Compliance audit","source":"DSIT","stage":"test","spectrum":0.5,"independent":false,"cost":14,"weeks":3,"coverage":{"safety":0.1,"transparency":0.15,"fairness":0.15,"accountability":0.4,"contestability":0.2},"blurb":"Reviews adherence to internal policies, regulations and legal requirements."},{"id":"conformity","name":"Independent conformity assessment","source":"DSIT","stage":"test","spectrum":0.7,"independent":true,"cost":38,"weeks":8,"coverage":{"safety":0.3,"transparency":0.25,"fairness":0.2,"accountability":0.35,"contestability":0.1},"access":{"full":1,"outputs":0.7,"docs":0.4},"requires":["docs"],"blurb":"Shows whether the system meets a set of requirements, such as a standard, before it goes live. Needs documentation."},{"id":"appeals","name":"Appeal and redress test","source":"Common practice","stage":"test","spectrum":0.35,"independent":false,"cost":6,"weeks":2,"coverage":{"safety":0,"transparency":0.1,"fairness":0.1,"accountability":0.15,"contestability":0.55},"blurb":"Walks real cases through the route for challenging an outcome and getting human review and a remedy."},{"id":"monitor","name":"Live monitoring and incident response","source":"Common practice","stage":"live","spectrum":0.9,"independent":false,"cost":15,"weeks":0,"coverage":{"safety":0.3,"transparency":0.05,"fairness":0.25,"accountability":0.15,"contestability":0.3},"access":{"full":1,"outputs":0.8,"docs":0.8},"blurb":"Watches drift, errors and complaints after go-live, with a plan for when something goes wrong. Cost is the first year."}],"defaults":{"answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"},"appetite":8,"budget":150,"weeks":20,"legalMust":true},"appetitePresets":[{"value":4,"label":"Cautious"},{"value":8,"label":"Balanced"},{"value":12,"label":"Tolerant"}],"examples":[{"id":"shortlister","name":"CV shortlister","blurb":"A bought-in model that ranks job applicants for a national retailer's recruiters.","answers":{"stakes":"significant","autonomy":"approves","model":"ml","data":"personal","affected":"public","source":"outputs","change":"retrained","stage":"rollout"}},{"id":"billing","name":"Billing assistant","blurb":"A generative chat assistant that answers customers' billing questions for an energy supplier.","answers":{"stakes":"shapes","autonomy":"automated","model":"genai","data":"personal","affected":"customers","source":"outputs","change":"fixed","stage":"scale"}},{"id":"maintenance","name":"Predictive maintenance","blurb":"An in-house model that tells engineers which machines on a production line to service first.","answers":{"stakes":"safety","autonomy":"suggests","model":"ml","data":"none","affected":"staff","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"fraud","name":"Payment fraud flags","blurb":"An in-house model that holds suspicious card payments for a lender's review team.","answers":{"stakes":"shapes","autonomy":"approves","model":"ml","data":"personal","affected":"customers","source":"inhouse","change":"retrained","stage":"scale"}},{"id":"policy","name":"Policy search assistant","blurb":"A generative assistant, still in pilot, that helps staff find and summarise internal policies.","answers":{"stakes":"advisory","autonomy":"suggests","model":"genai","data":"personal","affected":"staff","source":"outputs","change":"fixed","stage":"pilot"}},{"id":"grant","name":"Hardship grant checker","blurb":"Rules that decide eligibility for a local authority's hardship grant from application answers.","answers":{"stakes":"significant","autonomy":"automated","model":"rules","data":"special","affected":"public","source":"full","change":"fixed","stage":"scale"}}]}/* DATA END */;
+
+const EPS = 1e-9;
+const PRINCIPLES = DATA.principles.map(function (p) { return p.id; });
+
+function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+// Likelihood scores 1 to 5 stand for probability bands. A score maps to the
+// middle of its band, with straight lines in between, so assurance can be
+// applied to a probability and turned back into a score.
+function toProb(score) {
+  const S = DATA.likelihood.scores, P = DATA.likelihood.probabilities;
+  if (score <= S[0]) return P[0];
+  if (score >= S[S.length - 1]) return P[P.length - 1];
+  for (let k = 1; k < S.length; k++) {
+    if (score <= S[k]) return P[k - 1] + (score - S[k - 1]) * (P[k] - P[k - 1]) / (S[k] - S[k - 1]);
+  }
+  return P[P.length - 1];
+}
+
+function fromProb(prob) {
+  const S = DATA.likelihood.scores, P = DATA.likelihood.probabilities;
+  if (prob <= P[0]) return S[0];
+  if (prob >= P[P.length - 1]) return S[S.length - 1];
+  for (let k = 1; k < P.length; k++) {
+    if (prob <= P[k]) return S[k - 1] + (prob - P[k - 1]) * (S[k] - S[k - 1]) / (P[k] - P[k - 1]);
+  }
+  return S[S.length - 1];
+}
+
+function weeksPhrase(w) { return w === 1 ? '1 week' : w + ' weeks'; }
+
+function band(score) {
+  for (const b of DATA.riskBands) if (score <= b.max + EPS) return b.label;
+  return DATA.riskBands[DATA.riskBands.length - 1].label;
+}
+
+function techniqueById(id) {
+  for (const t of DATA.techniques) if (t.id === id) return t;
+  return null;
+}
+
+function finiteNumber(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const s = v.trim();
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(s)) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+// Turn whatever the caller passed into a complete, valid input, noting anything odd.
+function normaliseInput(raw) {
+  raw = raw && typeof raw === 'object' ? raw : {};
+  const notes = [];
+  const d = DATA.defaults;
+  const answers = {};
+  const rawAnswers = raw.answers && typeof raw.answers === 'object' ? raw.answers : {};
+  for (const q of DATA.questions) {
+    const v = rawAnswers[q.id];
+    const ok = q.options.some(function (o) { return o.id === v; });
+    if (ok) answers[q.id] = v;
+    else {
+      answers[q.id] = d.answers[q.id];
+      if (v !== undefined && v !== null && v !== '') notes.push('Unknown answer "' + String(v) + '" for ' + q.id + '; used "' + d.answers[q.id] + '".');
+    }
+  }
+  function num(name, lo, hi) {
+    if (raw[name] === undefined || raw[name] === null || raw[name] === '') return d[name];
+    const n = finiteNumber(raw[name]);
+    if (n === null) { notes.push('Could not read ' + name + ' "' + String(raw[name]) + '"; used ' + d[name] + '.'); return d[name]; }
+    const c = clamp(n, lo, hi);
+    if (c !== n) notes.push(name + ' ' + n + ' is outside ' + lo + ' to ' + hi + '; used ' + c + '.');
+    return c;
+  }
+  const appetite = num('appetite', 0.5, 25);
+  const budget = Math.round(num('budget', 0, 5000));
+  const weeks = Math.round(num('weeks', 0, 104));
+  const legalMust = raw.legalMust === undefined ? d.legalMust : raw.legalMust === true || raw.legalMust === 'true';
+  function idList(v, name) {
+    const out = [];
+    const list = Array.isArray(v) ? v : (typeof v === 'string' ? v.split(/[;,]/) : []);
+    for (let x of list) {
+      x = String(x).trim();
+      if (!x) continue;
+      if (!techniqueById(x)) { notes.push('Unknown technique "' + x + '" in ' + name + '; ignored.'); continue; }
+      if (out.indexOf(x) < 0) out.push(x);
+    }
+    return out;
+  }
+  const must = idList(raw.must, 'must');
+  let exclude = idList(raw.exclude, 'exclude');
+  const both = exclude.filter(function (x) { return must.indexOf(x) >= 0; });
+  if (both.length) {
+    notes.push('Listed as both a must and ruled out: ' + both.join(', ') + '; kept as a must.');
+    exclude = exclude.filter(function (x) { return must.indexOf(x) < 0; });
+  }
+  const overrides = { L: {}, I: {} };
+  const ro = raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : {};
+  for (const kind of ['L', 'I']) {
+    const src = ro[kind] && typeof ro[kind] === 'object' ? ro[kind] : {};
+    for (const p of PRINCIPLES) {
+      if (src[p] === undefined || src[p] === null || src[p] === '') continue;
+      const n = finiteNumber(src[p]);
+      if (n === null) { notes.push('Could not read override ' + kind + ' for ' + p + '; ignored.'); continue; }
+      overrides[kind][p] = clamp(n, 1, 5);
+    }
+  }
+  return { answers: answers, appetite: appetite, budget: budget, weeks: weeks, legalMust: legalMust,
+    must: must, exclude: exclude, overrides: overrides, notes: notes };
+}
+
+// Inherent risk for each principle: likelihood and impact start at 1 and each
+// answer adds to them (capped at 5); the score is likelihood times impact.
+function inherentRisk(input) {
+  const out = [];
+  for (const p of DATA.principles) {
+    let L = 1, I = 1;
+    const parts = [];
+    for (const q of DATA.questions) {
+      const o = q.options.find(function (x) { return x.id === input.answers[q.id]; });
+      const dl = o.L[p.id] || 0, di = o.I[p.id] || 0;
+      if (dl || di) parts.push({ question: q.id, option: o.id, L: dl, I: di });
+      L += dl; I += di;
+    }
+    L = clamp(L, 1, 5); I = clamp(I, 1, 5);
+    const overridden = { L: input.overrides.L[p.id] !== undefined, I: input.overrides.I[p.id] !== undefined };
+    if (overridden.L) L = input.overrides.L[p.id];
+    if (overridden.I) I = input.overrides.I[p.id];
+    const score = L * I;
+    out.push({ id: p.id, L: L, I: I, score: score, prob: toProb(L), band: band(score), parts: parts, overridden: overridden });
+  }
+  return out;
+}
+
+// How well each technique works for this system (0 means it cannot be used), and why.
+function techniqueStatus(input) {
+  const a = input.answers;
+  const status = [];
+  for (const t of DATA.techniques) {
+    let f = 1, reason = '';
+    if (t.access && a.source !== 'inhouse') f *= t.access[a.source];
+    if (f === 0) reason = a.source === 'docs' ? 'Needs test access to the system before go-live' : 'Needs full access to the model';
+    if (f > 0 && t.model) {
+      f *= t.model[a.model];
+      if (f === 0) reason = 'Not practical for general-purpose or generative models';
+    }
+    if (t.needsData && a.data === 'none') { f = 0; reason = 'No personal data, so not needed'; }
+    if (t.boughtInOnly && a.source === 'inhouse') { f = 0; reason = 'Only for bought-in systems'; }
+    const coverage = {};
+    for (const p of PRINCIPLES) coverage[p] = t.coverage[p] * f;
+    const required = !!(input.legalMust && t.needsData && a.data !== 'none');
+    const ruledOut = input.exclude.indexOf(t.id) >= 0;
+    // A legal requirement overrides the user ruling a technique out.
+    status.push({ id: t.id, factor: f, available: f > 0, reason: reason, coverage: coverage, required: required,
+      must: required || input.must.indexOf(t.id) >= 0, excluded: ruledOut && !required, overruled: ruledOut && required });
+  }
+  // A technique whose prerequisite is unavailable or ruled out cannot be used either.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const s of status) {
+      if (!s.available || s.excluded) continue;
+      const t = techniqueById(s.id);
+      for (const r of t.requires || []) {
+        const rs = status.find(function (x) { return x.id === r; });
+        if (!rs.available || rs.excluded) {
+          s.available = false;
+          s.reason = 'Needs ' + techniqueById(r).name.toLowerCase() + (rs.excluded ? ', which is ruled out' : ', which is not available');
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  // A must pulls in its prerequisites.
+  changed = true;
+  while (changed) {
+    changed = false;
+    for (const s of status) {
+      if (!s.must || !s.available) continue;
+      for (const r of techniqueById(s.id).requires || []) {
+        const rs = status.find(function (x) { return x.id === r; });
+        if (!rs.must) { rs.must = true; changed = true; }
+      }
+    }
+  }
+  return status;
+}
+
+// Everything the search needs, in index form over the usable techniques.
+function prepare(input) {
+  const risk = inherentRisk(input);
+  const status = techniqueStatus(input);
+  const notes = input.notes.slice();
+  for (const s of status) {
+    if (s.must && !s.available) notes.push(techniqueById(s.id).name + ' is a must but cannot be used here (' + s.reason.toLowerCase() + ').');
+    if (s.overruled) notes.push(techniqueById(s.id).name + ' is treated as required, so it was kept although it was ruled out.');
+  }
+  const act = [];
+  for (const s of status) if (s.available && !s.excluded) act.push(s.id);
+  const n = act.length;
+  const miss = [], cost = [], reqMask = [];
+  let mustMask = 0;
+  for (let i = 0; i < n; i++) {
+    const t = techniqueById(act[i]);
+    const s = status.find(function (x) { return x.id === act[i]; });
+    miss.push(PRINCIPLES.map(function (p) { return 1 - s.coverage[p]; }));
+    cost.push(t.cost);
+    if (s.must) mustMask |= (1 << i);
+    let rm = 0;
+    for (const r of t.requires || []) rm |= (1 << act.indexOf(r));
+    reqMask.push(rm);
+  }
+  return { input: input, risk: risk, status: status, notes: notes, ids: act, n: n, miss: miss, cost: cost,
+    mustMask: mustMask, reqMask: reqMask };
+}
+
+// Cost, coverage products and size of every subset of the usable techniques,
+// built up one technique at a time (each subset = a smaller subset plus its lowest technique).
+function enumerate(prep) {
+  const n = prep.n, N = 1 << n, P = PRINCIPLES.length;
+  const cost = new Float64Array(N), cnt = new Uint8Array(N);
+  const prod = [];
+  for (let p = 0; p < P; p++) { prod.push(new Float64Array(N)); prod[p][0] = 1; }
+  for (let m = 1; m < N; m++) {
+    const low = m & -m, i = 31 - Math.clz32(low), prev = m ^ low;
+    cost[m] = cost[prev] + prep.cost[i];
+    cnt[m] = cnt[prev] + 1;
+    const mi = prep.miss[i];
+    for (let p = 0; p < P; p++) prod[p][m] = prod[p][prev] * mi[p];
+  }
+  return { N: N, cost: cost, cnt: cnt, prod: prod };
+}
+
+function residualFor(risk, prods) {
+  const r = [];
+  for (let p = 0; p < risk.length; p++) {
+    const prob = risk[p].prob * prods[p];
+    const L = fromProb(prob);
+    r.push({ id: risk[p].id, prob: prob, L: L, score: L * risk[p].I });
+  }
+  return r;
+}
+
+function maskFeasible(prep, m) {
+  if ((m & prep.mustMask) !== prep.mustMask) return false;
+  for (let i = 0; i < prep.n; i++) {
+    if ((m >> i) & 1) { if ((m & prep.reqMask[i]) !== prep.reqMask[i]) return false; }
+  }
+  return true;
+}
+
+// Weeks from the start of design work: stages run in order, techniques in a stage
+// run side by side, and a technique starts only when its prerequisites finish.
+function schedule(ids) {
+  const finish = {}, rows = [];
+  let stageStart = 0;
+  for (const st of DATA.stages) {
+    let stageEnd = stageStart;
+    for (const t of DATA.techniques) {
+      if (t.stage !== st.id || ids.indexOf(t.id) < 0) continue;
+      let start = stageStart;
+      for (const r of t.requires || []) if (finish[r] !== undefined && finish[r] > start) start = finish[r];
+      finish[t.id] = start + t.weeks;
+      rows.push({ id: t.id, stage: st.id, start: start, end: start + t.weeks });
+      if (finish[t.id] > stageEnd) stageEnd = finish[t.id];
+    }
+    if (st.id !== 'live') stageStart = stageEnd;
+  }
+  return { goLive: stageStart, rows: rows };
+}
+
+function maskIds(prep, m) {
+  const ids = [];
+  for (let i = 0; i < prep.n; i++) if ((m >> i) & 1) ids.push(prep.ids[i]);
+  return ids;
+}
+
+function lessKey(a, b) {
+  for (let k = 0; k < a.length; k++) {
+    if (a[k] < b[k]) return true;
+    if (a[k] > b[k]) return false;
+  }
+  return false;
+}
+
+// Search every combination of usable techniques.
+function search(prep, en, worst, sum, feasible) {
+  const input = prep.input;
+  let cheap = null, cheapKey = null, inBudget = null, budgetKey = null, best = null, bestKey = null;
+  const weeksCache = {};
+  function weeksOk(m) {
+    if (weeksCache[m] === undefined) weeksCache[m] = schedule(maskIds(prep, m)).goLive <= input.weeks;
+    return weeksCache[m];
+  }
+  for (let m = 0; m < en.N; m++) {
+    if (!feasible[m]) continue;
+    const w = worst[m], c = en.cost[m];
+    if (w <= input.appetite + EPS) {
+      const key = [c, w, en.cnt[m], m];
+      if ((cheapKey === null || lessKey(key, cheapKey)) && weeksOk(m)) { cheap = m; cheapKey = key; }
+    }
+    const k2 = [w, sum[m], c, en.cnt[m], m];
+    if (c <= input.budget && (budgetKey === null || lessKey(k2, budgetKey)) && weeksOk(m)) { inBudget = m; budgetKey = k2; }
+    if ((bestKey === null || lessKey(k2, bestKey)) && weeksOk(m)) { best = m; bestKey = k2; }
+  }
+  // The efficient frontier: for each cost, the lowest worst-principle risk any cheaper or equal plan reaches.
+  const order = [];
+  for (let m = 0; m < en.N; m++) if (feasible[m]) order.push(m);
+  order.sort(function (a, b) {
+    return (en.cost[a] - en.cost[b]) || (worst[a] - worst[b]) || (sum[a] - sum[b]) || (en.cnt[a] - en.cnt[b]) || (a - b);
+  });
+  const frontier = [];
+  let bestWorst = Infinity;
+  for (const m of order) {
+    if (worst[m] < bestWorst && weeksOk(m)) { frontier.push(m); bestWorst = worst[m]; }
+  }
+  return { cheapest: cheap, inBudget: inBudget, best: best, frontier: frontier };
+}
+
+function describe(prep, en, m) {
+  const ids = maskIds(prep, m);
+  const prods = PRINCIPLES.map(function (_, p) { return en.prod[p][m]; });
+  const residual = residualFor(prep.risk, prods);
+  let worst = 0, sum = 0, worstId = residual[0].id;
+  for (const r of residual) { sum += r.score; if (r.score > worst) { worst = r.score; worstId = r.id; } }
+  for (const r of residual) { r.band = band(r.score); r.meets = r.score <= prep.input.appetite + EPS; }
+  const sched = schedule(ids);
+  return { ids: ids, cost: en.cost[m], weeks: sched.goLive, schedule: sched.rows, residual: residual,
+    worst: worst, worstId: worstId, sum: sum, meets: worst <= prep.input.appetite + EPS,
+    withinBudget: en.cost[m] <= prep.input.budget, mask: m };
+}
+
+// What happens if one technique (and anything that depends on it) is dropped.
+function marginal(prep, en, m) {
+  const out = [];
+  for (let i = 0; i < prep.n; i++) {
+    if (!((m >> i) & 1)) continue;
+    const id = prep.ids[i];
+    if ((prep.mustMask >> i) & 1) { out.push({ id: id, locked: true }); continue; }
+    let drop = 1 << i, grew = true;
+    while (grew) {
+      grew = false;
+      for (let j = 0; j < prep.n; j++) {
+        if (((m >> j) & 1) && !((drop >> j) & 1) && (prep.reqMask[j] & drop)) { drop |= 1 << j; grew = true; }
+      }
+    }
+    const m2 = m & ~drop;
+    const d = describe(prep, en, m2);
+    const lockedDependent = (drop & prep.mustMask) !== 0;
+    out.push({ id: id, locked: lockedDependent, alsoDrops: maskIds(prep, drop).filter(function (x) { return x !== id; }),
+      saves: en.cost[m] - en.cost[m2], worstWithout: d.worst, worstIdWithout: d.worstId, meetsWithout: d.meets });
+  }
+  return out;
+}
+
+function analyse(rawInput) {
+  const input = normaliseInput(rawInput);
+  const prep = prepare(input);
+  const en = enumerate(prep);
+  const worst = new Float64Array(en.N), sum = new Float64Array(en.N), feasible = new Uint8Array(en.N);
+  const P = PRINCIPLES.length;
+  for (let m = 0; m < en.N; m++) {
+    let w = 0, s = 0;
+    for (let p = 0; p < P; p++) {
+      const sc = fromProb(prep.risk[p].prob * en.prod[p][m]) * prep.risk[p].I;
+      s += sc;
+      if (sc > w) w = sc;
+    }
+    worst[m] = w; sum[m] = s;
+    feasible[m] = maskFeasible(prep, m) ? 1 : 0;
+  }
+  const found = search(prep, en, worst, sum, feasible);
+  function plan(m) {
+    if (m === null) return null;
+    const d = describe(prep, en, m);
+    d.marginal = marginal(prep, en, m);
+    return d;
+  }
+  const notes = prep.notes.slice();
+  const best = plan(found.best);
+  if (best === null) {
+    const mustIds = maskIds(prep, prep.mustMask);
+    notes.push('No plan fits in ' + weeksPhrase(input.weeks) + ': the techniques that must be included take ' + weeksPhrase(schedule(mustIds).goLive) + ' on their own.');
+  }
+  let inherentWorst = 0;
+  for (const r of prep.risk) if (r.score > inherentWorst) inherentWorst = r.score;
+  let feasibleCount = 0;
+  for (let m = 0; m < en.N; m++) feasibleCount += feasible[m];
+  return {
+    input: input,
+    notes: notes,
+    risk: prep.risk,
+    inherentWorst: inherentWorst,
+    techniques: prep.status,
+    usable: prep.ids.slice(),
+    cheapest: plan(found.cheapest),
+    inBudget: plan(found.inBudget),
+    best: best,
+    frontier: found.frontier.map(function (m) { return { cost: en.cost[m], worst: worst[m], ids: maskIds(prep, m) }; }),
+    plansSearched: feasibleCount
+  };
+}
+
+// Score a plan the user put together by hand. Prerequisites are added automatically.
+function evaluatePlan(rawInput, ids) {
+  const input = normaliseInput(rawInput);
+  const prep = prepare(input);
+  const notes = [];
+  const chosen = [];
+  function add(id) {
+    if (chosen.indexOf(id) >= 0) return;
+    const i = prep.ids.indexOf(id);
+    if (i < 0) { notes.push((techniqueById(id) ? techniqueById(id).name : id) + ' cannot be used here; left out.'); return; }
+    for (const r of techniqueById(id).requires || []) {
+      if (ids.indexOf(r) < 0 && chosen.indexOf(r) < 0) notes.push(techniqueById(id).name + ' needs ' + techniqueById(r).name.toLowerCase() + ', so that was added.');
+      add(r);
+    }
+    chosen.push(id);
+  }
+  for (const id of ids) add(id);
+  for (let i = 0; i < prep.n; i++) {
+    if (((prep.mustMask >> i) & 1) && chosen.indexOf(prep.ids[i]) < 0) {
+      notes.push(techniqueById(prep.ids[i]).name + ' is required, so it was added.');
+      chosen.push(prep.ids[i]);
+    }
+  }
+  let m = 0;
+  for (const id of chosen) m |= 1 << prep.ids.indexOf(id);
+  // Coverage products for this one plan, multiplied in the same order as the full search.
+  const prods = PRINCIPLES.map(function () { return 1; });
+  for (let i = 0; i < prep.n; i++) {
+    if ((m >> i) & 1) for (let p = 0; p < PRINCIPLES.length; p++) prods[p] = prods[p] * prep.miss[i][p];
+  }
+  const residual = residualFor(prep.risk, prods);
+  let worst = 0, sum = 0, worstId = residual[0].id, cost = 0;
+  for (const r of residual) { sum += r.score; if (r.score > worst) { worst = r.score; worstId = r.id; } r.band = band(r.score); r.meets = r.score <= input.appetite + EPS; }
+  for (let i = 0; i < prep.n; i++) if ((m >> i) & 1) cost += prep.cost[i];
+  const sched = schedule(maskIds(prep, m));
+  return { ids: maskIds(prep, m), cost: cost, weeks: sched.goLive, schedule: sched.rows, residual: residual, worst: worst,
+    worstId: worstId, sum: sum, meets: worst <= input.appetite + EPS, withinBudget: cost <= input.budget,
+    fitsDeadline: sched.goLive <= input.weeks, mask: m, notes: notes };
+}
+
+const AssuranceMix = { DATA: DATA, PRINCIPLES: PRINCIPLES, EPS: EPS, toProb: toProb, fromProb: fromProb, band: band,
+  normaliseInput: normaliseInput, inherentRisk: inherentRisk, techniqueStatus: techniqueStatus, schedule: schedule,
+  analyse: analyse, evaluatePlan: evaluatePlan };
+if (typeof module !== 'undefined' && module.exports) module.exports = AssuranceMix;
+/* MODEL END */
+
+/* The interface. Everything below reads the model above and draws the page. */
+(function () {
+  'use strict';
+  const M = AssuranceMix;
+  const D = M.DATA;
+  const $ = function (id) { return document.getElementById(id); };
+  const PNAME = {}, PSHORT = {};
+  for (const p of D.principles) { PNAME[p.id] = p.name; PSHORT[p.id] = p.short; }
+  const TECH = {};
+  for (const t of D.techniques) TECH[t.id] = t;
+  const STAGE = {};
+  for (const s of D.stages) STAGE[s.id] = s.label;
+
+  const state = {
+    example: D.examples[0].id,
+    answers: Object.assign({}, D.examples[0].answers),
+    appetite: D.defaults.appetite,
+    budget: D.defaults.budget,
+    weeks: D.defaults.weeks,
+    legalMust: D.defaults.legalMust,
+    must: [],
+    exclude: [],
+    view: 'cheapest',
+    custom: null
+  };
+  let result = null, custom = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function money(k) { return '£' + Math.round(k).toLocaleString('en-GB') + 'k'; }
+  function sc(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+  function pct(x) {
+    const v = x * 100;
+    if (v > 0 && v < 1) return '<1%';
+    return Math.round(v) + '%';
+  }
+  function weeksText(w) { return w === 1 ? '1 week' : w + ' weeks'; }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  function input() {
+    return { answers: state.answers, appetite: state.appetite, budget: state.budget, weeks: state.weeks,
+      legalMust: state.legalMust, must: state.must, exclude: state.exclude };
+  }
+
+  // ---------- controls ----------
+  function buildControls() {
+    const ex = $('example');
+    ex.innerHTML = D.examples.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.name) + '</option>'; }).join('') +
+      '<option value="custom">Your own system</option>';
+    ex.addEventListener('change', function () {
+      state.example = ex.value;
+      const e = D.examples.find(function (x) { return x.id === ex.value; });
+      if (e) state.answers = Object.assign({}, e.answers);
+      state.custom = null;
+      syncControls();
+      update();
+    });
+    const qs = $('questions');
+    qs.innerHTML = D.questions.map(function (q) {
+      return '<label class="q" for="q-' + q.id + '">' + esc(q.label) + '</label><select id="q-' + q.id + '" data-q="' + q.id + '">' +
+        q.options.map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.label) + '</option>'; }).join('') + '</select>';
+    }).join('');
+    qs.addEventListener('change', function (ev) {
+      const q = ev.target.getAttribute('data-q');
+      if (!q) return;
+      state.answers[q] = ev.target.value;
+      const match = D.examples.find(function (e) { return D.questions.every(function (qq) { return e.answers[qq.id] === state.answers[qq.id]; }); });
+      state.example = match ? match.id : 'custom';
+      state.custom = null;
+      syncControls();
+      update();
+    });
+    const pres = $('appetite-presets');
+    pres.innerHTML = D.appetitePresets.map(function (p) {
+      return '<button type="button" data-v="' + p.value + '">' + esc(p.label) + ' (' + p.value + ')</button>';
+    }).join('');
+    pres.addEventListener('click', function (ev) {
+      const b = ev.target.closest('button');
+      if (!b) return;
+      state.appetite = Number(b.getAttribute('data-v'));
+      syncControls();
+      update();
+    });
+    function numberInput(id, key, lo, hi) {
+      const el = $(id);
+      el.addEventListener('input', function () {
+        const v = Number(el.value);
+        if (el.value === '' || !Number.isFinite(v)) return;
+        state[key] = Math.min(hi, Math.max(lo, v));
+        if (key !== 'appetite') state[key] = Math.round(state[key]);
+        syncPresets();
+        scheduleUpdate();
+      });
+      el.addEventListener('change', function () { syncControls(); });
+    }
+    numberInput('appetite', 'appetite', 0.5, 25);
+    numberInput('budget', 'budget', 0, 5000);
+    numberInput('weeks', 'weeks', 0, 104);
+    $('legal-must').addEventListener('change', function () { state.legalMust = $('legal-must').checked; update(); });
+    document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
+      tab.addEventListener('click', function () { setView(tab.getAttribute('data-view')); });
+      tab.addEventListener('keydown', function (ev) {
+        const tabs = Array.from(document.querySelectorAll('.tabs [role="tab"]'));
+        let i = tabs.indexOf(tab);
+        if (ev.key === 'ArrowRight') i = (i + 1) % tabs.length;
+        else if (ev.key === 'ArrowLeft') i = (i - 1 + tabs.length) % tabs.length;
+        else if (ev.key === 'Home') i = 0;
+        else if (ev.key === 'End') i = tabs.length - 1;
+        else return;
+        ev.preventDefault();
+        tabs[i].focus();
+        setView(tabs[i].getAttribute('data-view'));
+      });
+    });
+    $('custom-from-cheapest').addEventListener('click', function () {
+      const p = result.cheapest || result.best;
+      state.custom = p ? p.ids.slice() : [];
+      update();
+    });
+    $('custom-clear').addEventListener('click', function () { state.custom = []; update(); });
+    $('custom-list').addEventListener('change', function (ev) {
+      const id = ev.target.getAttribute('data-t');
+      if (!id) return;
+      const set = state.custom.filter(function (x) { return x !== id; });
+      if (ev.target.checked) set.push(id);
+      state.custom = set;
+      update();
+    });
+    $('catalogue').addEventListener('change', function (ev) {
+      const id = ev.target.getAttribute('data-t');
+      if (!id) return;
+      state.must = state.must.filter(function (x) { return x !== id; });
+      state.exclude = state.exclude.filter(function (x) { return x !== id; });
+      if (ev.target.value === 'must') state.must.push(id);
+      if (ev.target.value === 'exclude') state.exclude.push(id);
+      update();
+    });
+    window.addEventListener('resize', function () { if (result) { drawFrontier(); drawTimeline(currentPlan()); } });
+  }
+
+  function syncPresets() {
+    document.querySelectorAll('#appetite-presets button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-v')) === state.appetite));
+    });
+  }
+  function syncControls() {
+    $('example').value = state.example;
+    const e = D.examples.find(function (x) { return x.id === state.example; });
+    $('example-blurb').textContent = e ? e.blurb : 'Your own answers. Pick an example above to start again.';
+    for (const q of D.questions) $('q-' + q.id).value = state.answers[q.id];
+    $('appetite').value = state.appetite;
+    $('budget').value = state.budget;
+    $('weeks').value = state.weeks;
+    $('legal-must').checked = state.legalMust;
+    syncPresets();
+  }
+
+  function setView(v) {
+    state.view = v;
+    if (v === 'custom' && state.custom === null) {
+      const p = result.cheapest || result.best;
+      state.custom = p ? p.ids.slice() : [];
+    }
+    render();
+  }
+
+  let timer = null;
+  function scheduleUpdate() { clearTimeout(timer); timer = setTimeout(update, 120); }
+
+  function update() {
+    result = M.analyse(input());
+    if (state.custom === null) {
+      const p = result.cheapest || result.best;
+      state.custom = p ? p.ids.slice() : [];
+    }
+    custom = M.evaluatePlan(input(), state.custom);
+    state.custom = custom.ids.slice();
+    render();
+  }
+
+  function currentPlan() {
+    if (state.view === 'custom') return custom;
+    if (state.view === 'budget') return result.inBudget;
+    return result.cheapest || result.best;
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    renderSummary();
+    renderTabs();
+    const plan = currentPlan();
+    renderViewNote(plan);
+    renderCustomBox();
+    renderRisk(plan);
+    renderPlanTable(plan);
+    drawFrontier();
+    drawTimeline(plan);
+    renderSpectrum(plan);
+    renderCatalogue();
+    renderNotes();
+  }
+
+  function worstName(plan) { return PSHORT[plan.worstId]; }
+
+  function renderSummary() {
+    const r = result, a = state.appetite;
+    let t1;
+    if (r.cheapest) {
+      const p = r.cheapest;
+      const chip = p.withinBudget ? '<span class="chip good">✓ Within budget</span>' : '<span class="chip bad">▲ ' + money(p.cost - state.budget) + ' over budget</span>';
+      t1 = '<div class="tile lead"><p class="label">Cheapest plan that meets your appetite</p><p class="big">' + money(p.cost) + '</p>' +
+        '<p class="sub">' + plural(p.ids.length, 'technique', 'techniques') + ', live in ' + weeksText(p.weeks) + '. Worst principle: ' + esc(worstName(p)) + ' at ' + sc(p.worst) + '.</p><p class="sub">' + chip + '</p></div>';
+    } else if (r.best) {
+      t1 = '<div class="tile lead"><p class="label">Cheapest plan that meets your appetite</p><p class="big">Out of reach</p>' +
+        '<p class="sub">Even all ' + plural(r.best.ids.length, 'usable technique', 'usable techniques') + ' leave ' + esc(worstName(r.best)) + ' at ' + sc(r.best.worst) + ', above your appetite of ' + sc(a) + '. Lower the stakes, roll out more slowly or accept more risk.</p></div>';
+    } else {
+      t1 = '<div class="tile lead"><p class="label">Cheapest plan that meets your appetite</p><p class="big">No plan fits</p><p class="sub">Nothing can be done in ' + weeksText(state.weeks) + '. Allow more time.</p></div>';
+    }
+    let t2;
+    if (r.inBudget) {
+      const p = r.inBudget;
+      const chip = p.meets ? '<span class="chip good">✓ Meets appetite</span>' : '<span class="chip bad">▲ Above appetite</span>';
+      t2 = '<div class="tile"><p class="label">Lowest risk for ' + money(state.budget) + ' or less</p><p class="big">' + sc(p.worst) + ' <span style="font-size:15px;font-weight:500">' + esc(M.band(p.worst).toLowerCase()) + '</span></p>' +
+        '<p class="sub">Worst principle: ' + esc(worstName(p)) + '. Costs ' + money(p.cost) + ', live in ' + weeksText(p.weeks) + '.</p><p class="sub">' + chip + '</p></div>';
+    } else {
+      t2 = '<div class="tile"><p class="label">Lowest risk for ' + money(state.budget) + ' or less</p><p class="big">None</p><p class="sub">The techniques that must be included cost more than the budget, or take too long.</p></div>';
+    }
+    let worstP = r.risk[0];
+    for (const x of r.risk) if (x.score > worstP.score) worstP = x;
+    const above = r.risk.filter(function (x) { return x.score > a + M.EPS; }).length;
+    const t3 = '<div class="tile"><p class="label">Before any assurance</p><p class="big">' + sc(r.inherentWorst) + ' <span style="font-size:15px;font-weight:500">' + esc(M.band(r.inherentWorst).toLowerCase()) + '</span></p>' +
+      '<p class="sub">Worst principle: ' + esc(PSHORT[worstP.id]) + '. ' + (above ? plural(above, 'principle is', 'principles are') + ' above your appetite of ' + sc(a) + '.' : 'Every principle is already within your appetite.') + '</p></div>';
+    $('summary').innerHTML = t1 + t2 + t3;
+    $('searched').textContent = result.plansSearched.toLocaleString('en-GB') + ' combinations of ' + result.usable.length + ' usable techniques searched';
+  }
+
+  function renderTabs() {
+    document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
+      const on = tab.getAttribute('data-view') === state.view;
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;
+      if (on) $('plan-panel').setAttribute('aria-labelledby', tab.id);
+    });
+  }
+
+  function renderViewNote(plan) {
+    let t = '';
+    if (state.view === 'cheapest') {
+      if (result.cheapest) t = 'The least you can spend and still bring every principle within your appetite of ' + sc(state.appetite) + ', going live within ' + weeksText(state.weeks) + '.';
+      else if (result.best) t = 'No combination reaches your appetite, so this shows the lowest-risk plan that goes live in time, whatever it costs.';
+      else t = 'No plan goes live within ' + weeksText(state.weeks) + '.';
+    } else if (state.view === 'budget') {
+      t = plan ? 'The plan that leaves the worst principle as low as possible for ' + money(state.budget) + ' or less.' : 'No plan fits the budget and the deadline.';
+    } else {
+      t = 'Tick techniques to build your own plan and compare it. Prerequisites and required techniques are added for you.';
+      if (custom && custom.notes.length) t += ' ' + custom.notes.join(' ');
+      if (custom && !custom.fitsDeadline) t += ' This plan goes live in ' + weeksText(custom.weeks) + ', after your deadline.';
+    }
+    $('view-note').textContent = t;
+  }
+
+  function renderCustomBox() {
+    const box = $('custom-box');
+    box.hidden = state.view !== 'custom';
+    if (box.hidden) return;
+    const usable = result.usable;
+    const status = {};
+    for (const s of result.techniques) status[s.id] = s;
+    $('custom-list').innerHTML = D.techniques.filter(function (t) { return usable.indexOf(t.id) >= 0; }).map(function (t) {
+      const on = custom.ids.indexOf(t.id) >= 0;
+      const locked = status[t.id].must;
+      return '<label><input type="checkbox" data-t="' + t.id + '"' + (on ? ' checked' : '') + (locked ? ' disabled' : '') + '> <span>' + esc(t.name) +
+        ' <span class="cost">' + money(t.cost) + (locked ? ', required' : '') + '</span></span></label>';
+    }).join('');
+  }
+
+  function renderRisk(plan) {
+    const max = 25;
+    const a = state.appetite;
+    const rows = result.risk.map(function (r, i) {
+      const res = plan ? plan.residual[i] : null;
+      const inhW = (r.score / max * 100).toFixed(2), resW = res ? (res.score / max * 100).toFixed(2) : 0;
+      const meets = res ? res.meets : r.score <= a + M.EPS;
+      const chip = meets ? '<span class="chip good">✓ Within</span>' : '<span class="chip bad">▲ Above</span>';
+      const label = PNAME[r.id] + ': ' + sc(r.score) + ' before assurance' + (res ? ', ' + sc(res.score) + ' after this plan' : '') + ', appetite ' + sc(a) + ', ' + (meets ? 'within appetite' : 'above appetite');
+      return '<div class="risk-row">' +
+        '<div class="risk-name">' + esc(PSHORT[r.id]) + '<small>L ' + sc(r.L) + ' × I ' + sc(r.I) + (res ? ', unnoticed ' + pct(r.prob) + ' → ' + pct(res.prob) : '') + '</small></div>' +
+        '<div class="bars" role="img" aria-label="' + esc(label) + '">' +
+        '<div class="bar inh" style="width:' + inhW + '%"></div>' +
+        (res ? '<div class="bar res" style="width:' + resW + '%"></div>' : '') +
+        '<div class="appetite-mark" style="left:' + (Math.min(a, max) / max * 100).toFixed(2) + '%"></div></div>' +
+        '<div class="risk-nums"><b>' + sc(r.score) + (res ? ' → ' + sc(res.score) : '') + '</b><br>' + chip + '</div></div>';
+    });
+    $('risk').innerHTML = rows.join('');
+  }
+
+  function renderPlanTable(plan) {
+    const tbl = $('plan-table');
+    if (!plan) { tbl.innerHTML = '<caption class="sr-only">Plan</caption><tbody><tr><td>No plan to show.</td></tr></tbody>'; return; }
+    if (!plan.ids.length) { tbl.innerHTML = '<caption class="sr-only">Plan</caption><tbody><tr><td>No techniques: every principle is already within your appetite, or none are ticked.</td></tr></tbody>'; return; }
+    const marg = {};
+    for (const m of plan.marginal || []) marg[m.id] = m;
+    const rows = plan.ids.map(function (id) {
+      const t = TECH[id], m = marg[id];
+      let why = '';
+      if (m) {
+        if (m.locked) why = '<span class="why-good">Required</span>';
+        else {
+          const also = m.alsoDrops.length ? ' (and ' + m.alsoDrops.map(function (x) { return TECH[x].name.toLowerCase(); }).join(', ') + ')' : '';
+          if (!m.meetsWithout && plan.meets) why = '<span class="why-key">Without it' + esc(also) + ', ' + esc(PSHORT[m.worstIdWithout]) + ' rises to ' + sc(m.worstWithout) + ', above appetite</span>';
+          else if (m.meetsWithout && plan.meets) why = '<span class="why-good">Not needed: dropping it' + esc(also) + ' saves ' + money(m.saves) + ' and still meets appetite</span>';
+          else why = '<span class="why-good">Without it' + esc(also) + ', the worst principle goes from ' + sc(plan.worst) + ' to ' + sc(m.worstWithout) + '</span>';
+        }
+      }
+      return '<tr><td data-label="Technique"><span class="tname">' + esc(t.name) + '</span>' + (t.independent && t.name.indexOf('Independent') !== 0 ? '<span class="tag">independent</span>' : '') + '</td>' +
+        '<td data-label="Stage">' + esc(STAGE[t.stage]) + '</td><td class="num" data-label="Cost">' + money(t.cost) + '</td>' +
+        '<td data-label="Why">' + why + '</td></tr>';
+    });
+    tbl.innerHTML = '<caption class="sr-only">Techniques in this plan</caption><thead><tr><th>Technique</th><th>Stage</th><th class="num">Cost</th><th>Why it is there</th></tr></thead><tbody>' +
+      rows.join('') + '</tbody><tfoot><tr><td data-label="Total"><b>' + plural(plan.ids.length, 'technique', 'techniques') + '</b></td><td data-label="Live in">Live in ' + weeksText(plan.weeks) + '</td><td class="num" data-label="Cost"><b>' + money(plan.cost) + '</b></td><td></td></tr></tfoot>';
+  }
+
+  // ---------- charts ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  function svgEl(name, attrs, text) {
+    const el = document.createElementNS(NS, name);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+  function niceMax(x) {
+    const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000];
+    for (const s of steps) if (x <= s) return s;
+    return Math.ceil(x / 1000) * 1000;
+  }
+
+  function drawFrontier() {
+    const box = $('frontier');
+    box.innerHTML = '';
+    const pts = result.frontier;
+    if (!pts.length) { box.innerHTML = '<div class="empty">No plan goes live in time, so there is nothing to chart.</div>'; $('frontier-table').innerHTML = ''; return; }
+    const W = Math.max(280, box.clientWidth), H = W < 500 ? 240 : 290;
+    const m = { l: 44, r: 16, t: 16, b: 40 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const lastCost = pts[pts.length - 1].cost;
+    const xmax = niceMax(Math.max(lastCost, state.budget, custom ? custom.cost : 0) * 1.05 + 1);
+    const ymax = Math.min(25, Math.ceil(Math.max(result.inherentWorst, state.appetite) / 5) * 5);
+    const x = function (v) { return m.l + v / xmax * iw; };
+    const y = function (v) { return m.t + (1 - Math.min(v, ymax) / ymax) * ih; };
+    const svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+      'aria-label': 'Cost against the worst principle risk score for ' + pts.length + ' plans that no cheaper plan beats. ' +
+        (result.cheapest ? 'The cheapest plan meeting your appetite costs ' + money(result.cheapest.cost) + '.' : 'None reaches your appetite.') });
+    for (let v = 0; v <= ymax; v += 5) {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: 'var(--grid)' }));
+      svg.appendChild(svgEl('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end' }, String(v)));
+    }
+    const xticks = 5;
+    for (let i = 0; i <= xticks; i++) {
+      const v = xmax / xticks * i;
+      svg.appendChild(svgEl('text', { x: x(v), y: H - m.b + 18, 'text-anchor': i === 0 ? 'start' : (i === xticks ? 'end' : 'middle') }, money(v)));
+    }
+    svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: 'var(--axis)' }));
+    svg.appendChild(svgEl('text', { x: m.l, y: H - 4 }, 'Cost'));
+    svg.appendChild(svgEl('text', { x: 4, y: m.t - 4, 'text-anchor': 'start' }, 'Worst risk score'));
+    // appetite and budget
+    svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(state.appetite), y2: y(state.appetite), stroke: 'var(--ink-2)', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }));
+    svg.appendChild(svgEl('text', { x: W - m.r, y: y(state.appetite) - 6, 'text-anchor': 'end' }, 'Appetite ' + sc(state.appetite)));
+    if (state.budget <= xmax) {
+      svg.appendChild(svgEl('line', { x1: x(state.budget), x2: x(state.budget), y1: m.t, y2: y(0), stroke: 'var(--ink-2)', 'stroke-dasharray': '2 4', 'stroke-width': 1.5 }));
+      const right = x(state.budget) > W - 90;
+      svg.appendChild(svgEl('text', { x: x(state.budget) + (right ? -6 : 6), y: m.t + 12, 'text-anchor': right ? 'end' : 'start' }, 'Budget'));
+    }
+    // step line of the frontier
+    let d = 'M' + x(pts[0].cost) + ',' + y(pts[0].worst);
+    for (let i = 1; i < pts.length; i++) d += 'H' + x(pts[i].cost) + 'V' + y(pts[i].worst);
+    d += 'H' + x(xmax);
+    svg.appendChild(svgEl('path', { d: d, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2 }));
+    for (const p of pts) svg.appendChild(svgEl('circle', { cx: x(p.cost), cy: y(p.worst), r: 3.5, fill: 'var(--accent)', stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+    // markers
+    const marks = [];
+    if (result.cheapest) marks.push({ p: result.cheapest, label: 'A', title: 'Cheapest meeting appetite' });
+    if (result.inBudget) marks.push({ p: result.inBudget, label: 'B', title: 'Lowest risk within budget' });
+    if (custom && custom.ids.length) marks.push({ p: custom, label: 'C', title: 'Your own mix' });
+    for (const mk of marks) {
+      const g = svgEl('g', {});
+      const sel = (mk.label === 'A' && state.view === 'cheapest') || (mk.label === 'B' && state.view === 'budget') || (mk.label === 'C' && state.view === 'custom');
+      g.appendChild(svgEl('circle', { cx: x(mk.p.cost), cy: y(mk.p.worst), r: 10, fill: sel ? 'var(--ink)' : 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 1.5 }));
+      const tx = svgEl('text', { x: x(mk.p.cost), y: y(mk.p.worst) + 4, 'text-anchor': 'middle', style: 'font-weight:700;fill:' + (sel ? 'var(--surface)' : 'var(--ink)') }, mk.label);
+      g.appendChild(tx);
+      svg.appendChild(g);
+    }
+    box.appendChild(svg);
+    const key = document.createElement('p');
+    key.className = 'hint';
+    key.textContent = marks.map(function (mk) { return mk.label + ': ' + mk.title + ' (' + money(mk.p.cost) + ', ' + sc(mk.p.worst) + ')'; }).join('. ') + '.';
+    box.appendChild(key);
+    // hover: nearest frontier point by cost
+    const tip = $('tooltip');
+    svg.addEventListener('pointermove', function (ev) {
+      const rect = svg.getBoundingClientRect();
+      const px = (ev.clientX - rect.left) * (W / rect.width);
+      let best = pts[0];
+      for (const p of pts) if (Math.abs(x(p.cost) - px) < Math.abs(x(best.cost) - px)) best = p;
+      tip.innerHTML = '<b>' + money(best.cost) + '</b>: worst risk ' + sc(best.worst) + '<br>' + best.ids.map(function (i) { return esc(TECH[i].name); }).join(', ');
+      const br = box.getBoundingClientRect();
+      const left = Math.min(br.width - 270, Math.max(0, x(best.cost) * rect.width / W - 120));
+      tip.style.left = (br.left + window.scrollX + left) + 'px';
+      tip.style.top = (br.top + window.scrollY + y(best.worst) * rect.height / H + 16) + 'px';
+      tip.classList.add('show');
+    });
+    svg.addEventListener('pointerleave', function () { tip.classList.remove('show'); });
+    $('frontier-table').innerHTML = '<table><thead><tr><th class="num">Cost</th><th class="num">Worst score</th><th>Techniques</th></tr></thead><tbody>' +
+      pts.map(function (p) { return '<tr><td class="num">' + money(p.cost) + '</td><td class="num">' + sc(p.worst) + '</td><td>' + p.ids.map(function (i) { return esc(TECH[i].name); }).join(', ') + '</td></tr>'; }).join('') + '</tbody></table>';
+  }
+
+  function drawTimeline(plan) {
+    const box = $('timeline');
+    box.innerHTML = '';
+    if (!plan || !plan.ids.length) { box.innerHTML = '<div class="empty">No techniques in this plan.</div>'; $('timeline-sub').textContent = ''; return; }
+    $('timeline-sub').textContent = 'Goes live in ' + weeksText(plan.weeks) + '; your deadline is ' + weeksText(state.weeks) + '.';
+    const W = Math.max(280, box.clientWidth);
+    const narrow = W < 560;
+    const labelW = narrow ? 0 : 230;
+    const rowH = narrow ? 34 : 24;
+    const rows = plan.schedule;
+    const m = { l: labelW + 8, r: 16, t: 22, b: 30 };
+    const H = m.t + rows.length * rowH + m.b;
+    const span = Math.max(plan.weeks, state.weeks) + 6;
+    const iw = W - m.l - m.r;
+    const x = function (v) { return m.l + v / span * iw; };
+    const svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+      'aria-label': 'Timeline: ' + rows.map(function (r) { return TECH[r.id].name + (r.stage === 'live' ? ' from week ' + r.start + ' onwards' : ' weeks ' + r.start + ' to ' + r.end); }).join('; ') + '. Go-live at week ' + plan.weeks + '.' });
+    const step = span > 40 ? 10 : 4;
+    for (let v = 0; v <= span; v += step) {
+      svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: m.t - 4, y2: H - m.b, stroke: 'var(--grid)' }));
+      svg.appendChild(svgEl('text', { x: x(v), y: H - m.b + 16, 'text-anchor': 'middle' }, String(v)));
+    }
+    svg.appendChild(svgEl('text', { x: W - m.r, y: H - 2, 'text-anchor': 'end' }, 'Weeks'));
+    const colour = { design: 'var(--stage-design)', test: 'var(--stage-test)', live: 'var(--stage-live)' };
+    rows.forEach(function (r, i) {
+      const yy = m.t + i * rowH;
+      const barY = narrow ? yy + 15 : yy + 4;
+      if (!narrow) svg.appendChild(svgEl('text', { x: labelW, y: yy + 15, 'text-anchor': 'end', style: 'fill:var(--ink)' }, TECH[r.id].name.length > 34 ? TECH[r.id].name.slice(0, 32) + '…' : TECH[r.id].name));
+      else svg.appendChild(svgEl('text', { x: m.l, y: yy + 11, style: 'fill:var(--ink);font-size:11px' }, TECH[r.id].name));
+      const end = r.stage === 'live' ? span : r.end;
+      svg.appendChild(svgEl('rect', { x: x(r.start), y: barY, width: Math.max(2, x(end) - x(r.start)), height: narrow ? 12 : 15, rx: 4,
+        fill: colour[r.stage], opacity: r.stage === 'live' ? 0.55 : 1 }));
+    });
+    function vline(v, label, dash, anchorEnd) {
+      svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: m.t - 8, y2: H - m.b, stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-dasharray': dash }));
+      svg.appendChild(svgEl('text', { x: x(v) + (anchorEnd ? -4 : 4), y: m.t - 10, 'text-anchor': anchorEnd ? 'end' : 'start', style: 'fill:var(--ink);font-weight:600' }, label));
+    }
+    const close = Math.abs(plan.weeks - state.weeks) < span * 0.18;
+    vline(plan.weeks, 'Go-live', '', close && plan.weeks <= state.weeks);
+    if (state.weeks !== plan.weeks) vline(state.weeks, 'Deadline', '4 3', close && state.weeks < plan.weeks);
+    box.appendChild(svg);
+    const lg = document.createElement('div');
+    lg.className = 'legend';
+    lg.innerHTML = '<span><i class="sw" style="background:var(--stage-design)"></i>Design</span><span><i class="sw" style="background:var(--stage-test)"></i>Before go-live</span><span><i class="sw" style="background:var(--stage-live);opacity:.55"></i>In operation</span>';
+    box.appendChild(lg);
+  }
+
+  function renderSpectrum(plan) {
+    const ids = plan ? plan.ids : [];
+    const usable = result.usable;
+    const groups = [['Qualitative', 0, 0.4], ['Mixed', 0.4, 0.7], ['Quantitative', 0.7, 1.01]];
+    $('spectrum').innerHTML = groups.map(function (g) {
+      const ts = D.techniques.filter(function (t) { return t.spectrum >= g[1] && t.spectrum < g[2]; }).sort(function (a, b) { return a.spectrum - b.spectrum; });
+      return '<div><h3>' + g[0] + '</h3>' + ts.map(function (t) {
+        const on = ids.indexOf(t.id) >= 0, off = usable.indexOf(t.id) < 0;
+        return '<span class="pill' + (on ? ' on' : '') + (off ? ' off' : '') + '">' + (on ? '✓ ' : '') + esc(t.name) + (off ? '<span class="sr-only"> (not usable here)</span>' : '') + '</span>';
+      }).join('') + '</div>';
+    }).join('');
+  }
+
+  function covCell(v) {
+    const a = v <= 0 ? 0 : v <= 0.15 ? 0.14 : v <= 0.3 ? 0.3 : v <= 0.45 ? 0.48 : 0.68;
+    return '<td class="cov" style="background:rgba(var(--cov),' + a + ')">' + (v > 0 ? Math.round(v * 100) : '') + '</td>';
+  }
+
+  function renderCatalogue() {
+    const status = {};
+    for (const s of result.techniques) status[s.id] = s;
+    const plan = currentPlan();
+    const inPlan = plan ? plan.ids : [];
+    const head = '<caption class="sr-only">All assurance techniques, their coverage of each principle for this system, and your choices</caption><thead><tr><th>Technique</th><th>Stage</th><th class="num">Cost</th><th class="num">Weeks</th>' +
+      D.principles.map(function (p) { return '<th class="num" title="' + esc(p.name) + '">' + esc(p.short.slice(0, 5)) + '.</th>'; }).join('') + '<th>Your choice</th></tr></thead>';
+    const rows = D.techniques.map(function (t) {
+      const s = status[t.id];
+      const val = s.required ? 'must' : state.must.indexOf(t.id) >= 0 ? 'must' : state.exclude.indexOf(t.id) >= 0 ? 'exclude' : 'auto';
+      const dis = !s.available && !s.excluded;
+      const choice = '<div class="choice" role="radiogroup" aria-label="Choice for ' + esc(t.name) + '">' + [['auto', 'Auto'], ['must', 'Must'], ['exclude', 'Rule out']].map(function (c) {
+        const disabled = dis || (s.required && c[0] !== 'must');
+        return '<label><input type="radio" name="c-' + t.id + '" data-t="' + t.id + '" value="' + c[0] + '"' + (val === c[0] ? ' checked' : '') + (disabled ? ' disabled' : '') + '><span>' + c[1] + '</span></label>';
+      }).join('') + '</div>';
+      const covs = D.principles.map(function (p) { return covCell(s.coverage[p.id]); });
+      const covLabel = D.principles.map(function (p) { return p.short + ' ' + Math.round(s.coverage[p.id] * 100) + '%'; }).join(', ');
+      const note = !s.available ? '<div class="unavail">' + esc(s.reason) + '</div>' : (s.required ? '<div class="unavail">Required: personal data is used</div>' : '');
+      return '<tr><td data-label="Technique"><span class="tname">' + (inPlan.indexOf(t.id) >= 0 ? '✓ ' : '') + esc(t.name) + '</span><span class="tag">' + esc(t.source) + '</span>' + (t.independent ? '<span class="tag">independent</span>' : '') +
+        '<div class="tsub">' + esc(t.blurb) + '</div>' + note + '</td><td data-label="Stage">' + esc(STAGE[t.stage]) + '</td><td class="num" data-label="Cost">' + money(t.cost) + '</td><td class="num" data-label="Weeks">' + (t.stage === 'live' ? 'ongoing' : t.weeks) + '</td>' +
+        covs.join('').replace('<td class="cov"', '<td class="cov" data-label="Coverage" aria-label="' + esc(covLabel) + '"') + '<td data-label="Choice">' + choice + '</td></tr>';
+    });
+    $('catalogue').innerHTML = head + '<tbody>' + rows.join('') + '</tbody>';
+  }
+
+  function renderNotes() {
+    const notes = result.notes;
+    $('notes-card').hidden = notes.length === 0;
+    $('notes').innerHTML = notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('');
+  }
+
+  buildControls();
+  syncControls();
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+name,stakes,autonomy,model,data,affected,source,change,stage,weeks,must,exclude
+CV shortlister,significant,approves,ml,personal,public,outputs,retrained,rollout,,,
+Billing assistant,shapes,automated,genai,personal,customers,outputs,fixed,scale,,,
+Predictive maintenance,safety,suggests,ml,none,staff,inhouse,retrained,scale,,,
+Payment fraud flags,shapes,approves,ml,personal,customers,inhouse,retrained,scale,,,
+Policy search assistant,advisory,suggests,genai,personal,staff,outputs,fixed,pilot,,,
+Hardship grant checker,significant,automated,rules,special,public,full,fixed,scale,,,
+Delivery route planner,advisory,approves,ml,none,staff,full,retrained,scale,,,
+Tenancy arrears predictor,shapes,suggests,ml,personal,public,inhouse,retrained,rollout,12,,redteam
