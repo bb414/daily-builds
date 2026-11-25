@@ -166,3 +166,32 @@ test('instances never run past the end of the year', () => {
   const inst = M.buildInstances(M.DEFAULT_JOBS, 3);
   inst.forEach((it) => assert.ok(it.release + it.window <= M.HOURS));
 });
+
+test('the spare-power chaser uses forecast surplus hours, otherwise runs now', () => {
+  // values are forecast marginal intensities; 0 means spare clean power.
+  assert.deepEqual(M.spareHours([400, 380, 0, 0, 390, 0], 2, 6, true), [2, 3]);
+  assert.deepEqual(M.spareHours([400, 380, 0, 390, 390, 390], 3, 6, true), [0, 1, 2]);
+  assert.deepEqual(M.spareHours([400, 380, 390, 390], 2, 4, true), [0, 1]);
+  assert.deepEqual(M.spareHours([400, 0, 390, 0, 0, 390], 2, 6, false), [3, 4]);
+  assert.deepEqual(M.spareHours([400, 380, 390, 390], 2, 4, false), [0, 1]);
+});
+
+test('the spare-power chaser waits much less than the forecast schedulers', () => {
+  const r = M.run(cfg());
+  assert.ok(r.policies.spare.meanDelay < r.policies.avg.meanDelay / 2);
+  assert.ok(r.policies.spare.realSavedT > 0);
+});
+
+test('curves reuse the grid for settings that do not change it, and match full runs', () => {
+  const c = cfg({ preset: 'sunny' });
+  const pts = M.curve(c, 'slack', [0, 1, 2]);
+  assert.deepEqual(pts.map((p) => p.value), [0, 1, 2]);
+  const full = M.run(Object.assign({}, c, { slack: 2 }));
+  for (const k of Object.keys(full.policies)) {
+    assert.equal(pts[2].policies[k].realSavedT, full.policies[k].realSavedT);
+    assert.equal(pts[2].policies[k].reportedSavedT, full.policies[k].reportedSavedT);
+  }
+  assert.equal(pts[0].policies.oracle.realSavedT, 0);
+  const wind = M.curve(c, 'windScale', [0.5, 2]);
+  assert.ok(wind[1].curtailShare > wind[0].curtailShare, 'more wind, more spare power');
+});

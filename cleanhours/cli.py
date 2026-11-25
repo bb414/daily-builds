@@ -1,4 +1,4 @@
-"""Command-line interface: python -m cleanhours {run,sweep,template}."""
+"""Command-line interface: python -m cleanhours {run,curves,sweep,template}."""
 
 import argparse
 import os
@@ -146,6 +146,42 @@ def sweep_summary(rows):
     return "\n".join(out)
 
 
+CURVE_FIELDS = {
+    "wind": ("windScale", [0.5, 0.75, 1, 1.5, 2, 2.5, 3], "Wind fleet", lambda v: "%d%%" % round(v * 100)),
+    "slack": ("slack", [0, 0.25, 0.5, 1, 1.5, 2, 3], "Flexibility", lambda v: "%gx" % v),
+    "forecast": ("forecastError", [0, 0.5, 1, 1.5, 2, 3], "Forecast error", lambda v: "%gx" % v),
+    "solar": ("solarScale", [0.5, 1, 1.5, 2, 3], "Solar fleet", lambda v: "%d%%" % round(v * 100)),
+}
+
+
+def cmd_curves(args):
+    cfg = {"preset": args.preset, "seed": args.seed, "windScale": 1, "solarScale": 1,
+           "forecastError": 1, "slack": 1, "jobs": _load_jobs(args.jobs)}
+    label = next(p["label"] for p in model.POLICIES if p["key"] == args.scheduler)
+    print("Clean hours: %s, weather year %d. Tonnes of CO2 saved in a year by: %s"
+          % (model.PRESETS[args.preset]["label"], args.seed, label))
+    for name in args.fields:
+        field, values, title, fmt = CURVE_FIELDS[name]
+        print()
+        head = "%-20s %14s %14s %14s %12s %8s" % (title, "Reported", "Real", "Best possible", "Spare hours", "Wait")
+        print(head)
+        print("-" * len(head))
+        for pt in model.curve(cfg, field, values):
+            P = pt["policies"][args.scheduler]
+            print("%-20s %14s %14s %14s %11.0f%% %7.1fh" % (
+                fmt(pt["value"]), report.tonnes(P["reportedSavedT"]), report.tonnes(P["realSavedT"]),
+                report.tonnes(pt["policies"]["oracle"]["realSavedT"]), 100 * pt["curtailShare"], P["meanDelay"]))
+    return 0
+
+
+def _fields(text):
+    out = [x.strip() for x in text.split(",") if x.strip()]
+    bad = [x for x in out if x not in CURVE_FIELDS]
+    if bad or not out:
+        raise argparse.ArgumentTypeError("choose from %s" % ", ".join(CURVE_FIELDS))
+    return out
+
+
 def cmd_template(args):
     text = jobs_csv.format_jobs(model.DEFAULT_JOBS)
     if args.out == "-":
@@ -187,6 +223,15 @@ def build_parser():
     s.add_argument("--out", default="sweep-output", help="output folder (default sweep-output)")
     s.add_argument("--quiet", action="store_true", help="no progress counter")
     s.set_defaults(func=cmd_sweep)
+
+    c = sub.add_parser("curves", help="how the savings change with wind fleet, flexibility, forecast error or solar")
+    c.add_argument("--preset", choices=sorted(model.PRESETS), default="windy", help="which invented grid (default windy)")
+    c.add_argument("--seed", type=int, default=1, help="weather year (default 1)")
+    c.add_argument("--scheduler", choices=[p["key"] for p in model.POLICIES if p["key"] != "now"], default="avg",
+                   help="scheduler to report (default avg)")
+    c.add_argument("--fields", type=_fields, default=["wind", "slack"], help="comma-separated: wind, slack, forecast, solar (default wind,slack)")
+    c.add_argument("--jobs", help="jobs CSV (default: the example fleet)")
+    c.set_defaults(func=cmd_curves)
 
     t = sub.add_parser("template", help="write the example fleet as a jobs CSV to edit")
     t.add_argument("--out", default="jobs.csv", help="file to write, or - for the screen (default jobs.csv)")

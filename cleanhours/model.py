@@ -138,6 +138,7 @@ POLICIES = [
     {"key": "night", "label": "Midnight rule", "short": "Midnight"},
     {"key": "avg", "label": "Forecast of average intensity", "short": "Avg forecast"},
     {"key": "marg", "label": "Forecast of marginal intensity", "short": "Marg forecast"},
+    {"key": "spare", "label": "Spare-power chaser", "short": "Spare power"},
     {"key": "oracle", "label": "Hindsight best", "short": "Hindsight"},
 ]
 POLICY_KEYS = [p["key"] for p in POLICIES]
@@ -347,6 +348,28 @@ def choose_hours(values, hours, window, pausable):
     return list(range(best, best + hours))
 
 
+def spare_hours(values, hours, window, pausable):
+    """Use forecast hours of spare clean power (marginal intensity zero) if there
+    are any; otherwise run as soon as possible."""
+    if window <= hours:
+        return list(range(hours))
+    if pausable:
+        out = [k for k in range(window) if values[k] <= 0][:hours]
+        taken = set(out)
+        for k in range(window):
+            if len(out) >= hours:
+                break
+            if k not in taken:
+                out.append(k)
+        return sorted(out)
+    best, best_count = 0, 0
+    for s in range(window - hours + 1):
+        count = sum(1 for k in range(s, s + hours) if values[k] <= 0)
+        if count > best_count:
+            best, best_count = s, count
+    return list(range(best, best + hours))
+
+
 def midnight_hours(inst):
     start = 0
     for k in range(inst["window"] - inst["hours"] + 1):
@@ -386,6 +409,8 @@ def run(cfg, grid=None):
                 offs = choose_hours(f["avg"], it["hours"], it["window"], it["pausable"])
             elif key == "marg":
                 offs = choose_hours(f["marg"], it["hours"], it["window"], it["pausable"])
+            elif key == "spare":
+                offs = spare_hours(f["marg"], it["hours"], it["window"], it["pausable"])
             else:
                 offs = choose_hours(g["marg"][it["release"]:it["release"] + it["window"]],
                                     it["hours"], it["window"], it["pausable"])
@@ -420,6 +445,28 @@ def run(cfg, grid=None):
     for key in POLICY_KEYS:
         res[key]["verdict"] = verdict(res[key], base)
     return {"config": cfg, "grid": g, "instances": len(inst), "policies": res, "summary": grid_summary(g)}
+
+
+GRID_FIELDS = {"preset", "seed", "windScale", "solarScale"}
+
+
+def curve(cfg, field, values):
+    """Re-run the year for several values of one setting. Settings that do not
+    change the weather or the power stations reuse one simulated grid."""
+    shared = None if field in GRID_FIELDS else simulate_grid(cfg)
+    out = []
+    for v in values:
+        c = dict(cfg)
+        c[field] = v
+        r = run(c, shared)
+        point = {"value": v, "curtailShare": r["summary"]["curtailShare"],
+                 "weightedAvg": r["summary"]["weightedAvg"], "policies": {}}
+        for key in POLICY_KEYS:
+            R = r["policies"][key]
+            point["policies"][key] = {"reportedSavedT": R["reportedSavedT"], "realSavedT": R["realSavedT"],
+                                      "meanDelay": R["meanDelay"], "verdict": R["verdict"]}
+        out.append(point)
+    return out
 
 
 def verdict(R, base):

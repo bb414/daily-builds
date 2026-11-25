@@ -28,13 +28,27 @@ CONFIGS = [
 ]
 
 
+CURVES = [
+    {"config": {"preset": "windy"}, "field": "windScale", "values": [0.5, 1.25, 3]},
+    {"config": {"preset": "sunny", "seed": 3}, "field": "slack", "values": [0, 0.5, 2.75]},
+]
+
+
 @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
 class ParityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        out = subprocess.run(["node", os.path.join(ROOT, "tests", "js_run.js")], input=json.dumps(CONFIGS),
+        payload = {"configs": CONFIGS, "curves": CURVES}
+        out = subprocess.run(["node", os.path.join(ROOT, "tests", "js_run.js")], input=json.dumps(payload),
                              capture_output=True, text=True, check=True).stdout
         cls.js = json.loads(out)
+
+    def test_identical_curves(self):
+        for spec, js in zip(CURVES, self.js["curves"]):
+            c = dict(model.DEFAULT_CONFIG)
+            c.update(spec["config"])
+            with self.subTest(field=spec["field"]):
+                self.assertEqual(js, model.curve(c, spec["field"], spec["values"]))
 
     def test_same_presets_and_jobs(self):
         self.assertEqual(self.js["presets"], model.PRESETS)

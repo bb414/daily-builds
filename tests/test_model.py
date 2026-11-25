@@ -67,6 +67,19 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(50 < s["weightedAvg"] < 400)
         self.assertEqual(sum(s["hoursByCode"]), model.HOURS)
 
+    def test_spare_hours(self):
+        self.assertEqual(model.spare_hours([400, 380, 0, 0, 390, 0], 2, 6, True), [2, 3])
+        self.assertEqual(model.spare_hours([400, 380, 0, 390, 390, 390], 3, 6, True), [0, 1, 2])
+        self.assertEqual(model.spare_hours([400, 0, 390, 0, 0, 390], 2, 6, False), [3, 4])
+        self.assertEqual(model.spare_hours([400, 380, 390, 390], 2, 4, False), [0, 1])
+
+    def test_curve_matches_full_run(self):
+        c = cfg(preset="coal")
+        pts = model.curve(c, "forecastError", [0, 2])
+        full = model.run(dict(c, forecastError=2))
+        for key in model.POLICY_KEYS:
+            self.assertEqual(pts[1]["policies"][key]["realSavedT"], full["policies"][key]["realSavedT"])
+
     def test_validation(self):
         self.assertEqual(model.validate_jobs(model.DEFAULT_JOBS), [])
         self.assertTrue(model.validate_jobs([]))
@@ -130,8 +143,16 @@ class CliTests(unittest.TestCase):
             code, out = self.run_cli("sweep", "--presets", "windy", "--seeds", "1-2", "--slack", "0,1", "--out", d, "--quiet")
             self.assertEqual(code, 0)
             with open(os.path.join(d, "sweep.csv")) as fh:
-                self.assertEqual(sum(1 for _ in fh), 1 + 2 * 2 * 4)
+                self.assertEqual(sum(1 for _ in fh), 1 + 2 * 2 * (len(model.POLICIES) - 1))
             self.assertIn("| Windy island | Hindsight best | 4 |", out)
+
+    def test_curves(self):
+        code, out = self.run_cli("curves", "--preset", "coal", "--scheduler", "spare", "--fields", "slack,forecast")
+        self.assertEqual(code, 0)
+        self.assertIn("Spare-power chaser", out)
+        self.assertIn("Forecast error", out)
+        with self.assertRaises(SystemExit):
+            self.run_cli("curves", "--fields", "tides")
 
     def test_bad_input_exits_cleanly(self):
         with self.assertRaises(SystemExit):
