@@ -128,6 +128,17 @@ td.diff { background: var(--diff-bg); }
 .tag { display: inline-block; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; margin: 1px 2px 1px 0; color: var(--muted); white-space: nowrap; }
 caption { text-align: left; color: var(--muted); font-size: 13px; padding-bottom: 6px; }
 footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
+.sub-h { font-size: 15px; margin: 18px 0 6px; }
+.line { width: 16px; height: 0; border-top: 2px dashed var(--ceiling); display: inline-block; }
+.steps { margin: 0 0 12px; padding-left: 22px; }
+.steps li { margin-bottom: 4px; }
+.steps b { font-variant-numeric: tabular-nums; }
+.gain-pos { color: var(--green); font-weight: 600; }
+.gain-neg { color: var(--red); font-weight: 600; }
+.fixtext { color: var(--muted); font-size: 13px; }
+.pending { color: var(--muted); font-style: italic; }
+[aria-busy="true"] .table-wrap, [aria-busy="true"] .chart { opacity: 0.55; transition: opacity 0.2s; }
+.verdict p + p { margin-top: 6px; color: var(--ink); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 980px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -176,6 +187,7 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
       <section class="panel verdict" aria-live="polite">
         <h2 id="verdict-title">Working it out&hellip;</h2>
         <p id="verdict-text"></p>
+        <p id="verdict-fix"></p>
       </section>
 
       <div class="cards" id="cards"></div>
@@ -189,6 +201,31 @@ footer { color: var(--muted); font-size: 13px; padding: 0 0 30px; }
           <span><i class="dot live"></i>Live after go-live</span>
           <span><i class="dot ceiling"></i>Clean-data ceiling</span>
         </div>
+      </section>
+
+      <section class="panel" id="fix-section">
+        <h2>Which habit to fix first</h2>
+        <p class="intro">Each row re-runs the whole pilot with one habit fixed and everything else left as it is. Fixes do different jobs: some make the live model better, others mostly stop the pilot overpromising.</p>
+        <div class="table-wrap"><table id="fix-table"></table></div>
+        <h3 class="sub-h">Fixing them in that order</h3>
+        <div class="chart" id="path-chart"></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="dot backtest"></i>Pilot back-test</span>
+          <span><i class="dot live"></i>Live after go-live</span>
+          <span><i class="line ceiling"></i>Clean-data ceiling</span>
+        </div>
+      </section>
+
+      <section class="panel" id="repair-section">
+        <h2>An honest back-test from the same CRM</h2>
+        <p class="intro">Four repairs anyone can make from the CRM itself, before a model is tested. They need no new data and no knowledge of how deals really ended.</p>
+        <ol class="steps" id="repair-steps"></ol>
+        <div class="chart" id="repair-chart"></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="dot backtest"></i>Pilot back-test</span>
+          <span><i class="dot live"></i>Live after go-live</span>
+        </div>
+        <p class="stat-line" id="repair-text"></p>
       </section>
 
       <div class="two">
@@ -259,6 +296,7 @@ var FitToTrain = (function () {
   var SRC_EFF = [0.3, -0.3, 0.4, 0];
 
   var FIELDS = ['stakeholders', 'meetings', 'champion', 'competitor', 'discount', 'daysToFirst'];
+  var EDITABLE = ['stakeholders', 'champion', 'competitor'];  // fields win and loss reviews tend to rewrite
   var FIELD_LABELS = {
     stakeholders: 'Stakeholders engaged',
     meetings: 'Meetings in first 3 weeks',
@@ -422,8 +460,8 @@ var FitToTrain = (function () {
   }
 
   // ---- The CRM as it was recorded -----------------------------------------
-  function buildCrm(world) {
-    var s = world.settings;
+  function buildCrm(world, settings) {
+    var s = settings ? normaliseSettings(settings) : world.settings;
     var streams = [];
     for (var k = 0; k < DEFECTS.length; k++) streams.push(mulberry32(mix(s.seed, 101 + k)));
     var rB = streams[0], rR = streams[1], rZ = streams[2], rD = streams[3], rP = streams[4], rL = streams[5];
@@ -739,32 +777,149 @@ var FitToTrain = (function () {
   }
 
   // ---- The whole experiment ---------------------------------------------
-  function runLab(input) {
-    var s = normaliseSettings(input);
-    var world = generateWorld(s);
-    var crm = buildCrm(world);
-    var h = crm.history;
+  // ---- Pilot and go-live -------------------------------------------------
+  function copyRecord(r) {
+    var c = {};
+    for (var k in r) c[k] = r[k];
+    return c;
+  }
 
-    // Dirty model, as the pilot team would build it: closed records, random 25% hold-out.
+  function splitClosed(records, seed) {
     var train = [], test = [];
-    for (var i = 0; i < h.length; i++) {
-      if (!labelled(h[i])) continue;
-      if (inTestSplit(s.seed, h[i].id)) test.push(h[i]); else train.push(h[i]);
+    for (var i = 0; i < records.length; i++) {
+      if (!labelled(records[i])) continue;
+      if (inTestSplit(seed, records[i].id)) test.push(records[i]); else train.push(records[i]);
     }
-    var means = fieldMeans(train);
-    var Xtr = train.map(function (r) { return featureRow(r, means); });
-    var ytr = train.map(function (r) { return r.status === 'won' ? 1 : 0; });
-    var dirty = fitLogistic(Xtr, ytr);
-    var pTest = predict(dirty.beta, test.map(function (r) { return featureRow(r, means); }));
-    var yTest = test.map(function (r) { return r.status === 'won' ? 1 : 0; });
-    var amtTest = test.map(function (r) { return r.amount; });
-    var backtest = evaluate(pTest, yTest, amtTest, amtTest);
+    return { train: train, test: test };
+  }
 
-    // Live: the same model scores new deals three weeks in; outcomes are the truth.
-    var live = crm.live;
-    var pLive = predict(dirty.beta, live.map(function (r) { return featureRow(r, means); }));
-    var yLive = live.map(function (r) { return r.truth.won ? 1 : 0; });
-    var liveEval = evaluate(pLive, yLive, live.map(function (r) { return r.amount; }), live.map(function (r) { return r.truth.amount; }));
+  function fitPilot(train) {
+    var means = fieldMeans(train);
+    var fit = fitLogistic(train.map(function (r) { return featureRow(r, means); }),
+      train.map(function (r) { return r.status === 'won' ? 1 : 0; }));
+    return { beta: fit.beta, means: means };
+  }
+
+  function scoreBacktest(fit, test) {
+    var p = predict(fit.beta, test.map(function (r) { return featureRow(r, fit.means); }));
+    var amt = test.map(function (r) { return r.amount; });
+    return evaluate(p, test.map(function (r) { return r.status === 'won' ? 1 : 0; }), amt, amt);
+  }
+
+  function scoreLive(fit, live) {
+    var p = predict(fit.beta, live.map(function (r) { return featureRow(r, fit.means); }));
+    return evaluate(p, live.map(function (r) { return r.truth.won ? 1 : 0; }),
+      live.map(function (r) { return r.amount; }), live.map(function (r) { return r.truth.amount; }));
+  }
+
+  // Train on the history the way a pilot team would, then follow the model into go-live.
+  function pilot(crm, seed) {
+    var sp = splitClosed(crm.history, seed);
+    var fit = fitPilot(sp.train);
+    return { fit: fit, backtest: scoreBacktest(fit, sp.test), live: scoreLive(fit, crm.live),
+      trainSize: sp.train.length, testSize: sp.test.length };
+  }
+
+  // ---- An honest back-test: repairs anyone can make from the CRM alone ----
+  function median(xs) {
+    var a = xs.slice().sort(function (p, q) { return p - q; });
+    return a[Math.floor(a.length / 2)];
+  }
+
+  function isRound(amount) { return amount % 10000 === 0; }
+
+  function repairCrm(crm, asOf) {
+    var h = crm.history;
+    var groups = {};
+    for (var i = 0; i < h.length; i++) {
+      var key = normName(h[i].account);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(i);
+    }
+    var dupLoss = {};
+    var keys = Object.keys(groups).sort();
+    for (var gk = 0; gk < keys.length; gk++) {
+      var g = groups[keys[gk]];
+      for (var a = 0; a < g.length; a++) {
+        var ra = h[g[a]];
+        if (ra.status !== 'lost') continue;
+        for (var b = 0; b < g.length; b++) {
+          var rb = h[g[b]];
+          if (rb.status !== 'won') continue;
+          if (Math.abs(ra.created - rb.created) <= 60 && Math.abs(ra.amount - rb.amount) <= 0.05 * Math.max(ra.amount, rb.amount)) {
+            dupLoss[g[a]] = true;
+            break;
+          }
+        }
+      }
+    }
+    var bySeg = [[], [], []], all = [];
+    for (var i2 = 0; i2 < h.length; i2++) {
+      if (isRound(h[i2].amount)) continue;
+      all.push(h[i2].amount);
+      var sg = h[i2].seg;
+      if (sg === 0 || sg === 1 || sg === 2) bySeg[sg].push(h[i2].amount);
+    }
+    var allMed = all.length ? median(all) : 10000;
+    var segMed = bySeg.map(function (xs) { return xs.length ? median(xs) : allMed; });
+    function fixAmount(r) {
+      if (!isRound(r.amount)) return r.amount;
+      return (r.seg === 0 || r.seg === 1 || r.seg === 2) ? segMed[r.seg] : allMed;
+    }
+    var steps = { edited: 0, duplicates: 0, zombies: 0, amounts: 0 };
+    var out = [];
+    for (var i3 = 0; i3 < h.length; i3++) {
+      var r = h[i3];
+      if (dupLoss[i3]) { steps.duplicates++; continue; }
+      var c = copyRecord(r);
+      if (labelled(c) && c.editedAfterClose) {
+        for (var e = 0; e < EDITABLE.length; e++) c[EDITABLE[e]] = null;
+        steps.edited++;
+      }
+      if (c.status === 'open' && c.close < asOf - 30) { c.status = 'lost'; steps.zombies++; }
+      var fixed = fixAmount(c);
+      if (fixed !== c.amount) { c.amount = fixed; steps.amounts++; }
+      out.push(c);
+    }
+    var live = crm.live.map(function (r) { var c = copyRecord(r); c.amount = fixAmount(r); return c; });
+    return { history: out, live: live, steps: steps };
+  }
+
+  // ---- Which habit to fix first -----------------------------------------
+  function fixFirst(world, s, base) {
+    var rows = [];
+    for (var k = 0; k < DEFECTS.length; k++) {
+      var d = DEFECTS[k];
+      if (!(s[d.key] > 0)) continue;
+      var s2 = copyRecord(s);
+      s2[d.key] = 0;
+      var p = pilot(buildCrm(world, s2), s.seed);
+      rows.push({
+        key: d.key, label: d.label, kind: d.kind, fix: d.fix, order: k,
+        liveAuc: p.live.auc, backtestAuc: p.backtest.auc,
+        gain: p.live.auc - base.live.auc,
+        illusionDrop: (base.backtest.auc - base.live.auc) - (p.backtest.auc - p.live.auc),
+        calibration: p.live.meanPredicted - p.live.winRate
+      });
+    }
+    rows.sort(function (x, y) { return (y.gain - x.gain) || (x.order - y.order); });
+    var path = [{ key: null, label: 'As kept today', liveAuc: base.live.auc, backtestAuc: base.backtest.auc }];
+    var cur = copyRecord(s);
+    for (var j = 0; j < rows.length; j++) {
+      cur[rows[j].key] = 0;
+      var q = pilot(buildCrm(world, cur), s.seed);
+      path.push({ key: rows[j].key, label: rows[j].label, liveAuc: q.live.auc, backtestAuc: q.backtest.auc });
+    }
+    return { rows: rows, path: path };
+  }
+
+  // ---- The whole experiment ---------------------------------------------
+  function runLab(input, options) {
+    var s = normaliseSettings(input);
+    var opts = options || {};
+    var world = generateWorld(s);
+    var crm = buildCrm(world, s);
+    var base = pilot(crm, s.seed);
 
     // Clean ceiling: the same method on a perfectly kept CRM.
     var cleanTrain = [];
@@ -772,21 +927,24 @@ var FitToTrain = (function () {
       var d = world.deals[c];
       if (d.created < GO_LIVE && d.close < GO_LIVE && !inTestSplit(s.seed, d.id)) cleanTrain.push(d);
     }
-    var noMeans = fieldMeans(cleanTrain);
-    var cleanFit = fitLogistic(cleanTrain.map(function (d) { return featureRow(d, noMeans); }), cleanTrain.map(function (d) { return d.won ? 1 : 0; }));
-    var liveDeals = live.map(function (r) { return r.truth; });
-    var pClean = predict(cleanFit.beta, liveDeals.map(function (d) { return featureRow(d, noMeans); }));
-    var trueAmt = liveDeals.map(function (d) { return d.amount; });
-    var ceiling = evaluate(pClean, yLive, trueAmt, trueAmt);
+    var cleanFit = fitPilot(cleanTrain.map(function (x) { var r = copyRecord(x); r.status = x.won ? 'won' : 'lost'; return r; }));
+    var liveTruth = crm.live.map(function (r) { var t = copyRecord(r.truth); t.truth = r.truth; return t; });
+    var ceiling = scoreLive(cleanFit, liveTruth);
+
+    // Honest back-test: the repaired CRM, trained and tested the same way.
+    var rep = repairCrm(crm, GO_LIVE);
+    var repaired = pilot(rep, s.seed);
 
     return {
       settings: s,
-      backtest: backtest,
-      live: liveEval,
+      backtest: base.backtest,
+      live: base.live,
       ceiling: ceiling,
-      illusion: backtest.auc - liveEval.auc,
-      debt: ceiling.auc - liveEval.auc,
-      model: { dirty: dirty.beta, clean: cleanFit.beta, trainSize: train.length, testSize: test.length, cleanTrainSize: cleanTrain.length },
+      illusion: base.backtest.auc - base.live.auc,
+      debt: ceiling.auc - base.live.auc,
+      repaired: { backtest: repaired.backtest, live: repaired.live, steps: rep.steps, trainSize: repaired.trainSize, testSize: repaired.testSize },
+      fixes: opts.fixes === false ? null : fixFirst(world, s, base),
+      model: { dirty: base.fit.beta, clean: cleanFit.beta, repaired: repaired.fit.beta, trainSize: base.trainSize, testSize: base.testSize, cleanTrainSize: cleanTrain.length },
       audit: auditCrm(crm),
       truth: truthCounts(crm),
       crm: crm
@@ -799,12 +957,13 @@ var FitToTrain = (function () {
 
   var api = {
     GO_LIVE: GO_LIVE, END_DAY: END_DAY, SCORE_DAY: SCORE_DAY, SEGMENTS: SEGMENTS, SOURCES: SOURCES,
-    FIELDS: FIELDS, FIELD_LABELS: FIELD_LABELS, FEATURES: FEATURES, DEFECTS: DEFECTS, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
+    FIELDS: FIELDS, EDITABLE: EDITABLE, FIELD_LABELS: FIELD_LABELS, FEATURES: FEATURES, DEFECTS: DEFECTS, PRESETS: PRESETS, DEFAULTS: DEFAULTS,
     mulberry32: mulberry32, mix: mix, sigmoid: sigmoid, normaliseSettings: normaliseSettings,
     accountName: accountName, twinName: twinName, normName: normName,
     generateWorld: generateWorld, buildCrm: buildCrm, fieldMeans: fieldMeans, featureRow: featureRow,
     solve: solve, fitLogistic: fitLogistic, predict: predict, auc: auc, evaluate: evaluate,
-    inTestSplit: inTestSplit, auditCrm: auditCrm, truthCounts: truthCounts, runLab: runLab, dayToIso: dayToIso
+    inTestSplit: inTestSplit, auditCrm: auditCrm, truthCounts: truthCounts, runLab: runLab, dayToIso: dayToIso,
+    pilot: pilot, repairCrm: repairCrm, fixFirst: fixFirst, median: median
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
@@ -1068,13 +1227,97 @@ var FitToTrain = (function () {
     return html + '</tbody>';
   }
 
+  // ---- Fix first and the honest back-test ----------------------------------
+  function gainSpan(x, invert) {
+    if (x === null || !isFinite(x)) return 'n/a';
+    var good = invert ? x < -0.005 : x > 0.005, bad = invert ? x > 0.005 : x < -0.005;
+    return '<span class="' + (good ? 'gain-pos' : (bad ? 'gain-neg' : '')) + '">' + signed(x) + '</span>';
+  }
+
+  function fixTable(r) {
+    var f = r.fixes;
+    if (!f || !f.rows.length) return '<caption>Every habit is already at zero: nothing to fix.</caption>';
+    var html = '<caption class="sr-only">Each habit fixed on its own</caption><thead><tr><th>Habit</th><th class="num">Live score if fixed</th><th class="num">Illusion removed</th><th class="num">Win-rate bias after</th><th>How to fix it</th></tr></thead><tbody>';
+    f.rows.forEach(function (row) {
+      html += '<tr><td><b>' + esc(row.label) + '</b><br><span class="kind" style="margin-left:0">' + esc(row.kind) + '</span></td>' +
+        '<td class="num">' + f2(row.liveAuc) + ' (' + gainSpan(row.gain) + ')</td>' +
+        '<td class="num">' + gainSpan(row.illusionDrop) + '</td>' +
+        '<td class="num">' + signed(row.calibration * 100, 0) + ' pts</td>' +
+        '<td class="fixtext">' + esc(row.fix) + '</td></tr>';
+    });
+    return html + '</tbody>';
+  }
+
+  function pathChart(r) {
+    var path = r.fixes.path;
+    var W = 640, H = 250, l = 44, rr = 16, t = 12, b = 64;
+    var vals = [r.ceiling.auc];
+    path.forEach(function (p) { vals.push(p.liveAuc, p.backtestAuc); });
+    var lo = Math.floor((Math.min.apply(null, vals) - 0.02) * 20) / 20, hi = Math.ceil((Math.max.apply(null, vals) + 0.02) * 20) / 20;
+    var n = path.length, pw = W - l - rr, ph = H - t - b;
+    function X(i) { return l + (n === 1 ? pw / 2 : i * pw / (n - 1)); }
+    function Y(v) { return t + ph - (v - lo) / (hi - lo) * ph; }
+    var body = '';
+    for (var g = lo; g <= hi + 1e-9; g += 0.05) {
+      body += '<line class="grid" x1="' + l + '" x2="' + (W - rr) + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/>';
+      body += '<text x="' + (l - 6) + '" y="' + (Y(g) + 4) + '" text-anchor="end">' + g.toFixed(2) + '</text>';
+    }
+    body += '<line x1="' + l + '" x2="' + (W - rr) + '" y1="' + Y(r.ceiling.auc) + '" y2="' + Y(r.ceiling.auc) + '" stroke="var(--ceiling)" stroke-width="2" stroke-dasharray="6 4"/>';
+    [['backtestAuc', 'var(--backtest)'], ['liveAuc', 'var(--live)']].forEach(function (sr) {
+      body += '<polyline fill="none" stroke="' + sr[1] + '" stroke-width="2.5" points="' + path.map(function (p, i) { return X(i) + ',' + Y(p[sr[0]]); }).join(' ') + '"/>';
+      path.forEach(function (p, i) { body += '<circle cx="' + X(i) + '" cy="' + Y(p[sr[0]]) + '" r="4.5" fill="' + sr[1] + '"/>'; });
+    });
+    path.forEach(function (p, i) {
+      var lbl = i === 0 ? 'Today' : '+ ' + p.label;
+      var words = lbl.split(' '), lines = [''], k = 0;
+      words.forEach(function (w) { if ((lines[k] + ' ' + w).trim().length > 12 && lines[k]) { k++; lines[k] = ''; } lines[k] = (lines[k] + ' ' + w).trim(); });
+      lines.slice(0, 3).forEach(function (ln, j) {
+        body += '<text x="' + X(i) + '" y="' + (t + ph + 16 + j * 13) + '" text-anchor="' + (i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle')) + '">' + esc(ln) + '</text>';
+      });
+    });
+    var desc = path.map(function (p, i) { return (i === 0 ? 'today' : 'after fixing ' + p.label.toLowerCase()) + ': back-test ' + f2(p.backtestAuc) + ', live ' + f2(p.liveAuc); }).join('; ');
+    return svg(W, H, body, 'Fixing the habits in order. ' + desc + '. Clean ceiling ' + f2(r.ceiling.auc) + '.');
+  }
+
+  function repairSteps(r) {
+    var st = r.repaired.steps, n = function (x) { return '<b>' + x.toLocaleString('en-GB') + '</b>'; };
+    return '<li>Blank the champion, stakeholder and competitor fields on ' + n(st.edited) + ' closed deals edited after closing, so the model only sees what was known before the outcome.</li>' +
+      '<li>Close out ' + n(st.zombies) + ' open deals more than 30 days past their close date, as losses.</li>' +
+      '<li>Drop ' + n(st.duplicates) + ' lost deals that look like re-entered copies of a win (same account, amount within 5%, started within 60 days).</li>' +
+      '<li>Treat ' + n(st.amounts) + ' round amounts as unknown and use the segment’s typical amount instead.</li>';
+  }
+
+  function repairChart(r) {
+    var rows = [['As exported', r.backtest.auc, r.live.auc], ['Repaired first', r.repaired.backtest.auc, r.repaired.live.auc]];
+    var W = 640, H = 120, l = 120, rr = 20, t = 14;
+    var vals = [];
+    rows.forEach(function (x) { vals.push(x[1], x[2]); });
+    var lo = Math.floor((Math.min.apply(null, vals) - 0.03) * 20) / 20, hi = Math.ceil((Math.max.apply(null, vals) + 0.03) * 20) / 20;
+    function X(v) { return l + (v - lo) / (hi - lo) * (W - l - rr); }
+    var body = '';
+    for (var g = lo; g <= hi + 1e-9; g += 0.05) {
+      body += '<line class="grid" x1="' + X(g) + '" x2="' + X(g) + '" y1="' + t + '" y2="' + (H - 22) + '"/>';
+      body += '<text x="' + X(g) + '" y="' + (H - 6) + '" text-anchor="middle">' + g.toFixed(2) + '</text>';
+    }
+    rows.forEach(function (x, i) {
+      var y = t + 14 + i * 38;
+      body += '<text x="0" y="' + (y + 4) + '" style="fill:var(--ink)">' + esc(x[0]) + '</text>';
+      body += '<line x1="' + X(x[1]) + '" x2="' + X(x[2]) + '" y1="' + y + '" y2="' + y + '" stroke="var(--muted)" stroke-width="2"/>';
+      body += '<circle cx="' + X(x[1]) + '" cy="' + y + '" r="7" fill="var(--backtest)"/>';
+      body += '<circle cx="' + X(x[2]) + '" cy="' + y + '" r="7" fill="var(--live)"/>';
+    });
+    return svg(W, H, body, 'As exported: back-test ' + f2(r.backtest.auc) + ', live ' + f2(r.live.auc) + '. Repaired first: back-test ' + f2(r.repaired.backtest.auc) + ', live ' + f2(r.repaired.live.auc) + '.');
+  }
+
   // ---- Render --------------------------------------------------------------
   function card(cls, label, num, sub) {
     return '<div class="card"><div class="lbl">' + (cls ? '<i class="dot ' + cls + '"></i>' : '') + esc(label) + '</div><div class="num">' + num + '</div><div class="sub">' + sub + '</div></div>';
   }
 
+  var fixTimer = null, renderToken = 0;
+
   function render() {
-    var r = M.runLab(state);
+    var r = M.runLab(state, { fixes: false });
     var ill = r.illusion, debt = r.debt;
     var title;
     if (ill > 0.03) title = 'The pilot’s back-test flatters the model by ' + f2(ill) + '.';
@@ -1082,7 +1325,8 @@ var FitToTrain = (function () {
     else title = 'The back-test is a fair guide to live performance here.';
     $('verdict-title').textContent = title;
     $('verdict-text').textContent = 'The pilot reports a ranking score of ' + f2(r.backtest.auc) + '. Live, the same model scores ' + f2(r.live.auc) +
-      (debt > 0.005 ? ', ' + f2(debt) + ' below the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.' : ', in line with the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.');
+      (debt > 0.005 ? ', ' + f2(debt) + ' below the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.' : ', in line with the ' + f2(r.ceiling.auc) + ' a clean CRM would have given.') +
+      ' Repairing the history before testing would have reported ' + f2(r.repaired.backtest.auc) + '; the repaired model then scores ' + f2(r.repaired.live.auc) + ' live.';
     $('cards').innerHTML =
       card('backtest', 'Pilot back-test', f2(r.backtest.auc), 'ranking score on a random 25% of closed deals') +
       card('live', 'Live after go-live', f2(r.live.auc), 'on ' + r.live.n.toLocaleString('en-GB') + ' new deals, scored three weeks in') +
@@ -1093,8 +1337,34 @@ var FitToTrain = (function () {
     $('calib-text').innerHTML = 'On live deals the model predicts an average <b>' + pct(r.live.meanPredicted) + '</b> chance of winning; <b>' + pct(r.live.winRate) +
       '</b> actually won. Expected bookings <b>' + money(r.live.forecast) + '</b> against <b>' + money(r.live.actual) + '</b> actual (' + signed(r.live.forecastError * 100, 0) + '%; the clean model: ' + signed(r.ceiling.forecastError * 100, 0) + '%).';
     $('coef-chart').innerHTML = coefChart(r);
+    $('repair-steps').innerHTML = repairSteps(r);
+    $('repair-chart').innerHTML = repairChart(r);
+    $('repair-text').innerHTML = 'Repaired first, the gap between back-test and live goes from <b>' + signed(ill) + '</b> to <b>' +
+      signed(r.repaired.backtest.auc - r.repaired.live.auc) + '</b>, and the live predicted win rate from <b>' + pct(r.live.meanPredicted) + '</b> to <b>' +
+      pct(r.repaired.live.meanPredicted) + '</b> against <b>' + pct(r.live.winRate) + '</b> actual. Meetings logged by hand cannot be repaired from the history: that habit only shows once the model is live.';
     $('audit-table').innerHTML = auditTable(r);
     $('records-table').innerHTML = recordsTable(r);
+
+    // The fix ranking re-runs the pilot up to twelve times, so it follows a moment later.
+    var token = ++renderToken;
+    $('fix-section').setAttribute('aria-busy', 'true');
+    if (!$('fix-table').innerHTML) $('fix-table').innerHTML = '<caption class="pending">Working out which fix matters most…</caption>';
+    clearTimeout(fixTimer);
+    fixTimer = setTimeout(function () {
+      if (token !== renderToken) return;
+      var full = M.runLab(state);
+      $('fix-table').innerHTML = fixTable(full);
+      $('path-chart').innerHTML = full.fixes.rows.length ? pathChart(full) : '';
+      $('fix-section').setAttribute('aria-busy', 'false');
+      var rows = full.fixes.rows;
+      var fixLine = '';
+      if (rows.length) {
+        var best = rows[0], honest = rows.slice().sort(function (a, b) { return b.illusionDrop - a.illusionDrop; })[0];
+        fixLine = ' Fix ' + best.label.toLowerCase() + ' first for the biggest live gain (' + signed(best.gain) + ')';
+        fixLine += honest.key === best.key ? '; it also removes the most overpromise.' : '; ' + honest.label.toLowerCase() + ' cause most of the overpromise (' + signed(honest.illusionDrop) + ' if fixed).';
+      }
+      $('verdict-fix').textContent = fixLine;
+    }, 30);
   }
 
   buildControls();

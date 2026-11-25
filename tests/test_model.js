@@ -72,4 +72,21 @@ test('dates are shown from 1 January 2024', function () {
   assert.strictEqual(M.dayToIso(M.GO_LIVE), '2025-06-24');
 });
 
+test('fixing every habit lands exactly on the clean ceiling', function () {
+  const r = M.runLab({ seed: 21, deals: 2000 });
+  assert.strictEqual(r.fixes.path.length, 7);
+  assert.ok(Math.abs(r.fixes.path[6].liveAuc - r.ceiling.auc) < 1e-12);
+  assert.strictEqual(M.runLab({ seed: 21, deals: 1000 }, { fixes: false }).fixes, null);
+});
+
+test('the repaired back-test is far closer to live than the raw one', function () {
+  const r = M.runLab(Object.assign({ seed: 3 }, M.PRESETS.chaos), { fixes: false });
+  const raw = r.backtest.auc - r.live.auc;
+  const rep = r.repaired.backtest.auc - r.repaired.live.auc;
+  assert.ok(raw > 0.15, 'raw ' + raw);
+  assert.ok(rep < 0.03, 'repaired back-test still overpromises: ' + rep);
+  assert.ok(Math.abs(rep) < raw / 2, 'repaired gap ' + rep + ' vs raw ' + raw);
+  assert.ok(r.repaired.live.auc > r.live.auc);
+});
+
 console.log(passed + ' Node tests passed' + (process.exitCode ? ' (with failures above)' : ''));

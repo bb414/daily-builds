@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from datetime import timedelta
 from pathlib import Path
 
 from fittotrain import audit, crmcsv, model
@@ -59,11 +60,17 @@ class TestCli(unittest.TestCase):
         self.assertEqual(list(rows[0].keys()), crmcsv.COLUMNS)
         records, info = crmcsv.read_export(out)
         self.assertEqual(info["bad_amounts"], 0)
-        a = audit.audit_export(records, info, as_of=model.BASE_DATE + __import__("datetime").timedelta(days=model.GO_LIVE))
+        a = audit.audit_export(records, info, as_of=model.BASE_DATE + timedelta(days=model.GO_LIVE), seed=3)
         direct = model.audit_crm(crm)
         for got, want in zip(a["rows"], direct["rows"][:5]):
             self.assertEqual(got["key"], want["key"])
             self.assertAlmostEqual(got["value"], want["value"], places=12)
+        bt = a["backtests"]
+        self.assertLess(bt["repaired"]["auc"], bt["random"]["auc"] - 0.05)
+        lab = model.run_lab(dict(model.PRESETS["typical"], seed=3, deals=2000), fixes=False)
+        self.assertEqual(bt["steps"], lab["repaired"]["steps"])
+        self.assertAlmostEqual(bt["repaired"]["auc"], lab["repaired"]["backtest"]["auc"], places=12)
+        self.assertAlmostEqual(bt["random"]["auc"], lab["backtest"]["auc"], places=12)
         suspects = {fs["field"] for fs in a["fieldSignal"] if fs["suspect"]}
         self.assertIn("champion", suspects)
         self.assertNotIn("discount", suspects)
@@ -98,6 +105,13 @@ class TestCli(unittest.TestCase):
         self.assertIsNone(a["fieldSignal"])
         text = run_cli("audit", str(p))
         self.assertIn("Not enough closed deals", text)
+
+    def test_record_keys(self):
+        self.assertEqual(crmcsv.record_key("D-42"), 42)
+        self.assertEqual(crmcsv.record_key("R-42"), 1000042)
+        self.assertEqual(crmcsv.record_key("OPP-0001"), crmcsv.record_key("OPP-0001"))
+        self.assertNotEqual(crmcsv.record_key("OPP-0001"), crmcsv.record_key("OPP-0002"))
+        self.assertTrue(0 <= crmcsv.record_key("\u00e9t\u00e9-7") < 2 ** 32)
 
     def test_unreadable_exports_fail_clearly(self):
         bad = self.dir / "bad.csv"

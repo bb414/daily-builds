@@ -30,6 +30,7 @@ SEG_EFF = [0.2, 0, -0.4]
 SRC_EFF = [0.3, -0.3, 0.4, 0]
 
 FIELDS = ["stakeholders", "meetings", "champion", "competitor", "discount", "daysToFirst"]
+EDITABLE = ["stakeholders", "champion", "competitor"]  # fields win and loss reviews tend to rewrite
 FIELD_LABELS = {
     "stakeholders": "Stakeholders engaged",
     "meetings": "Meetings in first 3 weeks",
@@ -54,7 +55,7 @@ DEFECTS = [
     {"key": "blanks", "label": "Blank fields", "kind": "Missing data", "max": 0.6,
      "fix": "Make the scoring fields required at the stage they matter, with an explicit \"unknown\" option."},
     {"key": "retrofill", "label": "Fields edited after the outcome", "kind": "Leakage", "max": 0.8,
-     "fix": "Train on field values as they stood at the scoring point (field history or weekly snapshots), not on today's values."},
+     "fix": "Train on field values as they stood at the scoring point (field history or weekly snapshots), not on today\u2019s values."},
     {"key": "zombies", "label": "Zombie deals", "kind": "Missing labels", "max": 0.8,
      "fix": "Auto-close deals 60 days past their close date with no activity, and keep them in training as losses."},
     {"key": "recreated", "label": "Re-created deals", "kind": "Wrong labels", "max": 0.5,
@@ -213,8 +214,8 @@ def generate_world(settings=None):
 
 
 # ---- The CRM as it was recorded -------------------------------------------------
-def build_crm(world):
-    s = world["settings"]
+def build_crm(world, settings=None):
+    s = normalise_settings(settings) if settings else world["settings"]
     streams = [mulberry32(mix(s["seed"], 101 + k)) for k in range(len(DEFECTS))]
     r_b, r_r, r_z, r_d, r_p, r_l = streams
     history, twins, live = [], [], []
@@ -562,48 +563,176 @@ def truth_counts(crm):
 
 
 # ---- The whole experiment ------------------------------------------------------
-def run_lab(settings=None):
-    s = normalise_settings(settings)
-    world = generate_world(s)
-    crm = build_crm(world)
-    h = crm["history"]
-
+# ---- Pilot and go-live ------------------------------------------------------------
+def split_closed(records, seed):
     train, test = [], []
-    for r in h:
+    for r in records:
         if not labelled(r):
             continue
-        (test if in_test_split(s["seed"], r["id"]) else train).append(r)
+        (test if in_test_split(seed, r["id"]) else train).append(r)
+    return train, test
+
+
+def fit_pilot(train):
     means = field_means(train)
-    dirty = fit_logistic([feature_row(r, means) for r in train], [1 if r["status"] == "won" else 0 for r in train])
-    p_test = predict(dirty["beta"], [feature_row(r, means) for r in test])
-    y_test = [1 if r["status"] == "won" else 0 for r in test]
-    amt_test = [r["amount"] for r in test]
-    backtest = evaluate(p_test, y_test, amt_test, amt_test)
+    fit = fit_logistic([feature_row(r, means) for r in train], [1 if r["status"] == "won" else 0 for r in train])
+    return {"beta": fit["beta"], "means": means}
 
-    live = crm["live"]
-    p_live = predict(dirty["beta"], [feature_row(r, means) for r in live])
-    y_live = [1 if r["truth"]["won"] else 0 for r in live]
-    live_eval = evaluate(p_live, y_live, [r["amount"] for r in live], [r["truth"]["amount"] for r in live])
 
-    clean_train = [d for d in world["deals"]
-                   if d["created"] < GO_LIVE and d["close"] < GO_LIVE and not in_test_split(s["seed"], d["id"])]
-    clean_means = field_means(clean_train)
-    clean_fit = fit_logistic([feature_row(d, clean_means) for d in clean_train],
-                             [1 if d["won"] else 0 for d in clean_train])
-    live_deals = [r["truth"] for r in live]
-    p_clean = predict(clean_fit["beta"], [feature_row(d, clean_means) for d in live_deals])
-    true_amt = [d["amount"] for d in live_deals]
-    ceiling = evaluate(p_clean, y_live, true_amt, true_amt)
+def score_backtest(fit, test):
+    p = predict(fit["beta"], [feature_row(r, fit["means"]) for r in test])
+    amt = [r["amount"] for r in test]
+    return evaluate(p, [1 if r["status"] == "won" else 0 for r in test], amt, amt)
+
+
+def score_live(fit, live):
+    p = predict(fit["beta"], [feature_row(r, fit["means"]) for r in live])
+    return evaluate(p, [1 if r["truth"]["won"] else 0 for r in live],
+                    [r["amount"] for r in live], [r["truth"]["amount"] for r in live])
+
+
+def pilot(crm, seed):
+    """Train on the history the way a pilot team would, then follow the model into go-live."""
+    train, test = split_closed(crm["history"], seed)
+    fit = fit_pilot(train)
+    return {"fit": fit, "backtest": score_backtest(fit, test), "live": score_live(fit, crm["live"]),
+            "trainSize": len(train), "testSize": len(test)}
+
+
+# ---- An honest back-test: repairs anyone can make from the CRM alone -------------
+def median(xs):
+    a = sorted(xs)
+    return a[len(a) // 2]
+
+
+def is_round(amount):
+    return amount % 10000 == 0
+
+
+def repair_crm(crm, as_of):
+    h = crm["history"]
+    groups = {}
+    for i, r in enumerate(h):
+        groups.setdefault(norm_name(r["account"]), []).append(i)
+    dup_loss = set()
+    for key in sorted(groups):
+        g = groups[key]
+        for a in g:
+            ra = h[a]
+            if ra["status"] != "lost":
+                continue
+            for b in g:
+                rb = h[b]
+                if rb["status"] != "won":
+                    continue
+                if (abs(ra["created"] - rb["created"]) <= 60
+                        and abs(ra["amount"] - rb["amount"]) <= 0.05 * max(ra["amount"], rb["amount"])):
+                    dup_loss.add(a)
+                    break
+    by_seg, every = [[], [], []], []
+    for r in h:
+        if is_round(r["amount"]):
+            continue
+        every.append(r["amount"])
+        if r["seg"] in (0, 1, 2):
+            by_seg[r["seg"]].append(r["amount"])
+    all_med = median(every) if every else 10000
+    seg_med = [median(xs) if xs else all_med for xs in by_seg]
+
+    def fix_amount(r):
+        if not is_round(r["amount"]):
+            return r["amount"]
+        return seg_med[r["seg"]] if r["seg"] in (0, 1, 2) else all_med
+
+    steps = {"edited": 0, "duplicates": 0, "zombies": 0, "amounts": 0}
+    out = []
+    for i, r in enumerate(h):
+        if i in dup_loss:
+            steps["duplicates"] += 1
+            continue
+        c = dict(r)
+        if labelled(c) and c["editedAfterClose"]:
+            for f in EDITABLE:
+                c[f] = None
+            steps["edited"] += 1
+        if c["status"] == "open" and c["close"] < as_of - 30:
+            c["status"] = "lost"
+            steps["zombies"] += 1
+        fixed = fix_amount(c)
+        if fixed != c["amount"]:
+            c["amount"] = fixed
+            steps["amounts"] += 1
+        out.append(c)
+    live = []
+    for r in crm["live"]:
+        c = dict(r)
+        c["amount"] = fix_amount(r)
+        live.append(c)
+    return {"history": out, "live": live, "steps": steps}
+
+
+# ---- Which habit to fix first ------------------------------------------------------
+def fix_first(world, s, base):
+    rows = []
+    for k, d in enumerate(DEFECTS):
+        if not s[d["key"]] > 0:
+            continue
+        s2 = dict(s)
+        s2[d["key"]] = 0
+        p = pilot(build_crm(world, s2), s["seed"])
+        rows.append({
+            "key": d["key"], "label": d["label"], "kind": d["kind"], "fix": d["fix"], "order": k,
+            "liveAuc": p["live"]["auc"], "backtestAuc": p["backtest"]["auc"],
+            "gain": p["live"]["auc"] - base["live"]["auc"],
+            "illusionDrop": (base["backtest"]["auc"] - base["live"]["auc"]) - (p["backtest"]["auc"] - p["live"]["auc"]),
+            "calibration": p["live"]["meanPredicted"] - p["live"]["winRate"],
+        })
+    rows.sort(key=lambda x: (-x["gain"], x["order"]))
+    path = [{"key": None, "label": "As kept today", "liveAuc": base["live"]["auc"], "backtestAuc": base["backtest"]["auc"]}]
+    cur = dict(s)
+    for row in rows:
+        cur[row["key"]] = 0
+        q = pilot(build_crm(world, cur), s["seed"])
+        path.append({"key": row["key"], "label": row["label"], "liveAuc": q["live"]["auc"], "backtestAuc": q["backtest"]["auc"]})
+    return {"rows": rows, "path": path}
+
+
+# ---- The whole experiment ------------------------------------------------------
+def run_lab(settings=None, fixes=True):
+    s = normalise_settings(settings)
+    world = generate_world(s)
+    crm = build_crm(world, s)
+    base = pilot(crm, s["seed"])
+
+    clean_train = []
+    for d in world["deals"]:
+        if d["created"] < GO_LIVE and d["close"] < GO_LIVE and not in_test_split(s["seed"], d["id"]):
+            r = dict(d)
+            r["status"] = "won" if d["won"] else "lost"
+            clean_train.append(r)
+    clean_fit = fit_pilot(clean_train)
+    live_truth = []
+    for r in crm["live"]:
+        t = dict(r["truth"])
+        t["truth"] = r["truth"]
+        live_truth.append(t)
+    ceiling = score_live(clean_fit, live_truth)
+
+    rep = repair_crm(crm, GO_LIVE)
+    repaired = pilot(rep, s["seed"])
 
     return {
         "settings": s,
-        "backtest": backtest,
-        "live": live_eval,
+        "backtest": base["backtest"],
+        "live": base["live"],
         "ceiling": ceiling,
-        "illusion": backtest["auc"] - live_eval["auc"],
-        "debt": ceiling["auc"] - live_eval["auc"],
-        "model": {"dirty": dirty["beta"], "clean": clean_fit["beta"], "trainSize": len(train),
-                  "testSize": len(test), "cleanTrainSize": len(clean_train)},
+        "illusion": base["backtest"]["auc"] - base["live"]["auc"],
+        "debt": ceiling["auc"] - base["live"]["auc"],
+        "repaired": {"backtest": repaired["backtest"], "live": repaired["live"], "steps": rep["steps"],
+                     "trainSize": repaired["trainSize"], "testSize": repaired["testSize"]},
+        "fixes": fix_first(world, s, base) if fixes else None,
+        "model": {"dirty": base["fit"]["beta"], "clean": clean_fit["beta"], "repaired": repaired["fit"]["beta"],
+                  "trainSize": base["trainSize"], "testSize": base["testSize"], "cleanTrainSize": len(clean_train)},
         "audit": audit_crm(crm),
         "truth": truth_counts(crm),
         "crm": crm,

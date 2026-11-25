@@ -83,6 +83,8 @@ node tests/test_model.js                   # the app's model in Node.js
 3. **The pilot.** A ridge-penalised logistic regression is trained on closed deals in the history and tested on a random 25% of them.
 4. **Go-live.** The same model scores every deal created in the last six months, three weeks after creation, using the fields as they stood then; the true outcomes judge it.
 5. **The audit.** Six checks a CRM owner can run without knowing the truth, shown next to what really happened.
+6. **Which habit to fix first.** The pilot is re-run with each habit fixed on its own, then with the habits fixed one after another in order of live gain, until the CRM is spotless and the live score lands exactly on the clean ceiling.
+7. **An honest back-test.** Four repairs anyone can make from the CRM alone (blank the fields that can be edited after closing on records that were, close out deals long past their close date, drop lost deals that copy a win, treat round amounts as unknown), then the same back-test again.
 
 ## Limitations
 

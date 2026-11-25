@@ -186,5 +186,72 @@ class TestLab(unittest.TestCase):
         self.assertTrue(all(math.isfinite(x) for x in preds))
 
 
+class TestRemedies(unittest.TestCase):
+    def test_fixing_everything_reaches_the_clean_ceiling_exactly(self):
+        r = model.run_lab({"seed": 21, "deals": 2000})
+        self.assertEqual(len(r["fixes"]["rows"]), 6)
+        self.assertEqual(len(r["fixes"]["path"]), 7)
+        self.assertAlmostEqual(r["fixes"]["path"][-1]["liveAuc"], r["ceiling"]["auc"], places=12)
+        self.assertAlmostEqual(r["fixes"]["path"][0]["liveAuc"], r["live"]["auc"], places=12)
+
+    def test_fix_rows_are_ranked_and_skip_habits_already_at_zero(self):
+        r = model.run_lab({"seed": 4, "deals": 2000, "zombies": 0, "recreated": 0})
+        keys = [row["key"] for row in r["fixes"]["rows"]]
+        self.assertNotIn("zombies", keys)
+        self.assertNotIn("recreated", keys)
+        gains = [row["gain"] for row in r["fixes"]["rows"]]
+        self.assertEqual(gains, sorted(gains, reverse=True))
+        clean = model.run_lab(dict(model.PRESETS["clean"], seed=4, deals=1000))
+        self.assertEqual(clean["fixes"]["rows"], [])
+        self.assertIsNone(model.run_lab({"seed": 4, "deals": 1000}, fixes=False)["fixes"])
+
+    def test_retro_fills_drive_the_illusion(self):
+        r = model.run_lab(dict(model.PRESETS["typical"], seed=5))
+        top = max(r["fixes"]["rows"], key=lambda row: row["illusionDrop"])
+        self.assertEqual(top["key"], "retrofill")
+        self.assertGreater(top["illusionDrop"], 0.08)
+
+    def test_repairs_make_the_back_test_honest_and_the_model_better(self):
+        raw_gap, rep_gap, raw_live, rep_live = [], [], [], []
+        for seed in range(1, 7):
+            r = model.run_lab(dict(model.PRESETS["typical"], seed=seed), fixes=False)
+            raw_gap.append(r["illusion"])
+            rep_gap.append(r["repaired"]["backtest"]["auc"] - r["repaired"]["live"]["auc"])
+            raw_live.append(r["live"]["auc"])
+            rep_live.append(r["repaired"]["live"]["auc"])
+        self.assertGreater(mean(raw_gap), 0.1)
+        self.assertLess(abs(mean(rep_gap)), 0.05)
+        self.assertGreater(mean(rep_live), mean(raw_live))
+
+    def test_repair_steps_find_the_planted_problems(self):
+        s = dict(model.PRESETS["clean"], seed=13, recreated=0.4, zombies=0.5, retrofill=0.5)
+        crm = model.build_crm(model.generate_world(s))
+        rep = model.repair_crm(crm, model.GO_LIVE)
+        twins = sum(1 for r in crm["history"] if r["twin"])
+        self.assertGreater(rep["steps"]["duplicates"], 0.8 * twins)
+        self.assertLess(rep["steps"]["duplicates"], 1.3 * twins)
+        kept_edited = sum(1 for r in rep["history"] if r["editedAfterClose"] and model.labelled(r))
+        self.assertEqual(rep["steps"]["edited"], kept_edited)
+        self.assertGreater(kept_edited, 0.9 * sum(1 for r in crm["history"] if r["editedAfterClose"]))
+        for r in rep["history"]:
+            if r["editedAfterClose"] and model.labelled(r):
+                for f in model.EDITABLE:
+                    self.assertIsNone(r[f])
+        self.assertEqual(len(rep["history"]), len(crm["history"]) - rep["steps"]["duplicates"])
+        zombies = sum(1 for r in crm["history"] if r["zombie"] and r["close"] < model.GO_LIVE - 30)
+        self.assertEqual(rep["steps"]["zombies"], zombies)
+
+    def test_repair_leaves_the_original_records_alone(self):
+        crm = model.build_crm(model.generate_world({"seed": 3, "deals": 1000}))
+        before = [dict(r) for r in crm["history"]]
+        model.repair_crm(crm, model.GO_LIVE)
+        self.assertEqual(before, crm["history"])
+
+    def test_median_and_round_amounts(self):
+        self.assertEqual(model.median([5, 1, 3]), 3)
+        self.assertEqual(model.median([4, 1, 3, 2]), 3)
+        self.assertTrue(model.is_round(50000))
+        self.assertFalse(model.is_round(50100))
+
 if __name__ == "__main__":
     unittest.main()

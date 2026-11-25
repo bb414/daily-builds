@@ -6,6 +6,7 @@ every scoring field is optional, and blanks are allowed anywhere.
 
 import csv
 import math
+import re
 from datetime import date
 
 from . import model
@@ -25,6 +26,22 @@ FIELD_COLUMNS = {
 BINARY_FIELDS = ("champion", "competitor")
 TRUTH_COLUMNS = ["opportunity_id", "true_outcome", "true_amount", "true_stakeholders", "true_meetings",
                  "true_champion", "true_competitor", "zombie", "recreated_copy", "placeholder_amount"]
+
+
+def record_key(opportunity_id):
+    """A whole number for the hold-out split, so it does not depend on row order.
+
+    Synthetic ids (D-123 and R-123 for re-created copies) map to the numbers
+    the lab uses, so an exported synthetic CRM reproduces the lab's back-tests;
+    any other id is hashed (32-bit FNV-1a of its UTF-8 bytes).
+    """
+    m = re.fullmatch(r"([DR])-(\d{1,6})", opportunity_id)
+    if m:
+        return int(m.group(2)) + (1000000 if m.group(1) == "R" else 0)
+    h = 0x811C9DC5
+    for byte in opportunity_id.encode("utf-8"):
+        h = ((h ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return h
 
 
 class CsvProblem(ValueError):
@@ -177,8 +194,9 @@ def read_export(path):
         if amt is None or amt <= 0:
             bad_amounts += 1
             amt = median
+        label = r["opportunity_id"].strip() or ("row %d" % line)
         rec = {
-            "id": i, "dealId": i, "label": r["opportunity_id"].strip() or ("row %d" % line),
+            "id": record_key(label), "dealId": i, "label": label,
             "account": r["account_name"].strip(), "rep": r.get("owner", "").strip(),
             "seg": _index(model.SEGMENTS, r.get("segment")), "src": _index(model.SOURCES, r.get("source")),
             "created": (created[i] - origin).days, "close": (closes[i] - origin).days,

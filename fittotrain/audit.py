@@ -30,18 +30,23 @@ def _fit_and_score(train, test):
     return ev
 
 
-def backtests(records, seed):
+def backtests(records, seed, as_of_day):
+    """Random and time-ordered hold-outs on the export as it stands, and the
+    random hold-out again after the four repairs in model.repair_crm."""
     closed = [r for r in records if model.labelled(r)]
+    rep = model.repair_crm({"history": records, "live": []}, as_of_day)
     if len(closed) < MIN_CLOSED:
-        return {"random": None, "time": None, "closed": len(closed)}
-    train = [r for r in closed if not model.in_test_split(seed, r["id"])]
-    test = [r for r in closed if model.in_test_split(seed, r["id"])]
+        return {"random": None, "time": None, "repaired": None, "closed": len(closed), "steps": rep["steps"]}
+    train, test = model.split_closed(records, seed)
     by_time = sorted(closed, key=lambda r: (r["close"], r["id"]))
     cut = int(len(by_time) * (1 - model.TEST_SHARE))
+    rtrain, rtest = model.split_closed(rep["history"], seed)
     return {
         "random": _fit_and_score(train, test),
         "time": _fit_and_score(by_time[:cut], by_time[cut:]),
+        "repaired": _fit_and_score(rtrain, rtest),
         "closed": len(closed),
+        "steps": rep["steps"],
     }
 
 
@@ -98,6 +103,6 @@ def audit_export(records, info, as_of=None, seed=2026):
         "closed": closed,
         "winRate": wins / closed if closed else None,
         "missingFields": missing_fields,
-        "backtests": backtests(records, seed),
+        "backtests": backtests(records, seed, as_of_day),
         "fieldSignal": field_signal(records) if info.get("has_edit_flag") else None,
     }

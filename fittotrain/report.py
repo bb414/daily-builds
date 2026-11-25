@@ -63,10 +63,46 @@ def lab_text(r):
     out.append("Live bookings forecast: %s expected against %s actual (%s%%; clean model %s%%)" % (
         money(r["live"]["forecast"]), money(r["live"]["actual"]),
         signed(r["live"]["forecastError"] * 100, 0), signed(r["ceiling"]["forecastError"] * 100, 0)))
+    rep = r["repaired"]
+    out.append("")
+    out.append("Honest back-test: the same CRM repaired before testing")
+    out.append(steps_text(rep["steps"]))
+    out.append(table(["", "Back-test", "Live", "Gap", "Predicted win rate live"],
+                     [["As exported", f2(r["backtest"]["auc"]), f2(r["live"]["auc"]), signed(r["illusion"]), pct(r["live"]["meanPredicted"])],
+                      ["Repaired first", f2(rep["backtest"]["auc"]), f2(rep["live"]["auc"]),
+                       signed(rep["backtest"]["auc"] - rep["live"]["auc"]), pct(rep["live"]["meanPredicted"])]],
+                     ["<", ">", ">", ">", ">"]))
+    out.append("Actual live win rate: %s. Meetings logged by hand cannot be repaired from the history." % pct(r["live"]["winRate"]))
+    if r.get("fixes"):
+        out.append("")
+        out.append(fix_text(r))
     out.append("")
     out.append("Data-quality audit (visible without the truth)")
     out.append(audit_table(r["audit"]["rows"]))
     return "\n".join(out)
+
+
+def steps_text(st):
+    return "\n".join([
+        "  1. Blanked champion, stakeholder and competitor fields on %d closed deals edited after closing" % st["edited"],
+        "  2. Closed out %d open deals more than 30 days past their close date, as losses" % st["zombies"],
+        "  3. Dropped %d lost deals that look like re-entered copies of a win" % st["duplicates"],
+        "  4. Treated %d round amounts as unknown (segment median instead)" % st["amounts"],
+    ])
+
+
+def fix_text(r):
+    f = r["fixes"]
+    if not f["rows"]:
+        return "Which habit to fix first: every habit is already at zero."
+    lines = ["Which habit to fix first (each fixed on its own, everything else unchanged)",
+             table(["Habit", "Live if fixed", "Gain", "Illusion removed", "Win-rate bias after"],
+                   [[row["label"], f2(row["liveAuc"]), signed(row["gain"]), signed(row["illusionDrop"]),
+                     signed(row["calibration"] * 100, 0) + " pts"] for row in f["rows"]],
+                   ["<", ">", ">", ">", ">"]),
+             "Fixing them in that order, live score: " + " > ".join(f2(p["liveAuc"]) for p in f["path"]) +
+             " (clean ceiling %s)" % f2(r["ceiling"]["auc"])]
+    return "\n".join(lines)
 
 
 def audit_value(row):
@@ -104,6 +140,9 @@ def export_audit_text(a, path):
                 rows.append([name, "n/a", "n/a", "n/a", "n/a"])
             else:
                 rows.append([name, f2(ev["auc"]), pct(ev["capture20"]), pct(ev["meanPredicted"]), pct(ev["winRate"])])
+        ev = bt.get("repaired")
+        rows.append(["Random hold-out, repaired first"] + (["n/a"] * 4 if ev is None else
+                    [f2(ev["auc"]), pct(ev["capture20"]), pct(ev["meanPredicted"]), pct(ev["winRate"])]))
         out.append(table(["Hold-out", "AUC", "Wins in top 20%", "Predicted", "Actual"], rows, ["<", ">", ">", ">", ">"]))
         if bt["random"] and bt["time"] and bt["random"]["auc"] is not None and bt["time"]["auc"] is not None:
             gap = bt["random"]["auc"] - bt["time"]["auc"]
@@ -113,6 +152,10 @@ def export_audit_text(a, path):
                 out.append("  The newest deals score %.2f better than the random hold-out; with hold-outs this small that can be chance." % -gap)
             else:
                 out.append("  The two hold-outs agree within 0.03.")
+        out.append("  Repairs made before the last row:")
+        out.append(steps_text(bt["steps"]))
+        if bt["random"] and ev and bt["random"]["auc"] is not None and ev["auc"] is not None and bt["random"]["auc"] - ev["auc"] > 0.03:
+            out.append("  Repairing the export lowers the back-test by %.2f: the raw figure is likely to overpromise." % (bt["random"]["auc"] - ev["auc"]))
     if a["fieldSignal"] is not None:
         out.append("")
         out.append("Leak check: each field alone, on records edited after closing vs untouched (AUC; 0.5 = no signal)")
