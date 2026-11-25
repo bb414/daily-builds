@@ -85,7 +85,7 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 </style></head>
 <body><main>
 <h1>Fit to train: %(label)s</h1>
-<p>%(what)s Swept from 0%% to %(top)d%% on %(worlds)d synthetic worlds each (worlds %(first)d onwards, %(deals)s deals), with %(others)s. Numbers are averages across worlds.</p>
+<p>%(what)s Swept from 0%% to %(top)d%% on %(worlds)s at each level (from world %(first)d, %(deals)s deals), with %(others)s. Numbers are averages across worlds.</p>
 <section><h2>Ranking score (AUC) as the habit grows</h2>
 %(chart)s
 <div class="legend">%(legend)s</div></section>
@@ -96,7 +96,7 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 <p>Synthetic data only. Simplified and illustrative.</p>
 </main></body></html>
 """ % {"label": html.escape(label), "what": html.escape(d["what"]), "top": round(result["levels"][-1] * 100),
-       "worlds": result["worlds"], "first": (s["seed"] + 1) % 4294967296, "deals": "{:,}".format(s["deals"]),
+       "worlds": "1 synthetic world" if result["worlds"] == 1 else "%d synthetic worlds" % result["worlds"], "first": (s["seed"] + 1) % 4294967296, "deals": "{:,}".format(s["deals"]),
        "others": html.escape(others), "chart": _line_chart(result["means"], label), "legend": legend, "rows": rows,
        "fix": html.escape(d["fix"])}
 

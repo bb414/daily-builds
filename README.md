@@ -67,7 +67,9 @@ What you can do in it:
 - **Compare two set-ups.** Pin one as A, change anything, and compare.
 - **Save and share.** Settings live in the page's address, so "Copy link" shares an exact set-up; "Save settings" writes a JSON file that the Python version also reads.
 
-On a phone the tables turn into cards, charts redraw at the screen's width, and a bar at the bottom keeps the three headline numbers in view while you move the sliders.
+On a phone the tables turn into cards, charts redraw at the screen's width, and a bar at the bottom keeps the three headline numbers in view while you move the sliders. It follows the system's light or dark setting.
+
+<img src="docs/phone-dark.png" alt="The app on a phone in dark mode with the Quarter-end chaos preset" width="300">
 
 | Which habit to fix first | The honest back-test |
 |---|---|

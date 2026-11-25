@@ -55,7 +55,7 @@ def table(headers, rows, align=None, wrap=None):
 
 def settings_line(s):
     parts = ["%s %s" % (d["label"].lower(), pct(s[d["key"]])) for d in model.DEFECTS]
-    return "World %d, %d deals. %s." % (s["seed"], s["deals"], "; ".join(parts).capitalize())
+    return "World {}, {:,} deals. {}.".format(s["seed"], s["deals"], "; ".join(parts).capitalize())
 
 
 def lab_text(r):
@@ -67,7 +67,7 @@ def lab_text(r):
          ["Wins in top 20% of scores", pct(r["backtest"]["capture20"]), pct(r["live"]["capture20"]), pct(r["ceiling"]["capture20"])],
          ["Mean predicted win chance", pct(r["backtest"]["meanPredicted"]), pct(r["live"]["meanPredicted"]), pct(r["ceiling"]["meanPredicted"])],
          ["Actual win rate", pct(r["backtest"]["winRate"]), pct(r["live"]["winRate"]), pct(r["ceiling"]["winRate"])],
-         ["Deals scored", r["backtest"]["n"], r["live"]["n"], r["ceiling"]["n"]]],
+         ["Deals scored", "{:,}".format(r["backtest"]["n"]), "{:,}".format(r["live"]["n"]), "{:,}".format(r["ceiling"]["n"])]],
         ["<", ">", ">", ">"]))
     out.append("")
     out.append("Pilot illusion (back-test minus live): %s" % signed(r["illusion"]))
@@ -133,7 +133,7 @@ def audit_table(rows):
 
 def export_audit_text(a, path):
     out = ["FIT TO TRAIN: readiness audit of %s" % path,
-           "%d records, %d closed, win rate among closed %s. Extract date taken as %s." % (
+           "{:,} records, {:,} closed, win rate among closed {}. Extract date taken as {}.".format(
                a["records"], a["closed"], pct(a["winRate"]), a["asOf"]), ""]
     out.append(audit_table(a["rows"]))
     if a["missingFields"]:
@@ -185,8 +185,10 @@ def export_audit_text(a, path):
 def robust_text(rb):
     n = len(rb["worlds"])
     sm = rb["summary"]
-    out = ["FIT TO TRAIN: the same settings on %d other worlds" % n, settings_line(rb["settings"]).replace(
-        "World %d" % rb["settings"]["seed"], "Worlds %d to %d" % (rb["worlds"][0]["seed"], rb["worlds"][-1]["seed"])), ""]
+    first, last = rb["worlds"][0]["seed"], rb["worlds"][-1]["seed"]
+    span = "World %d," % first if n == 1 else "Worlds %d to %d," % (first, last)
+    out = ["FIT TO TRAIN: the same settings on %s" % ("1 other world" if n == 1 else "%d other worlds" % n),
+           settings_line(rb["settings"]).replace("World %d," % rb["settings"]["seed"], span, 1), ""]
     rows = []
     for key, name in (("backtest", "Pilot back-test"), ("live", "Live after go-live"), ("ceiling", "Clean-data ceiling"),
                       ("illusion", "Pilot illusion"), ("repairedBacktest", "Back-test after repairs"),
@@ -214,7 +216,8 @@ def robust_text(rb):
 
 def sweep_text(res):
     label = [d["label"] for d in model.DEFECTS if d["key"] == res["habit"]][0]
-    out = ["FIT TO TRAIN: sweep of %s (%d worlds per level, averages)" % (label.lower(), res["worlds"]), ""]
+    worlds = "1 world per level" if res["worlds"] == 1 else "%d worlds per level, averages" % res["worlds"]
+    out = ["FIT TO TRAIN: sweep of %s (%s)" % (label.lower(), worlds), ""]
     out.append(table(["Level", "Back-test", "Live", "Illusion", "Repaired back-test", "Repaired live", "Ceiling", "Bias", "Repaired bias"],
                      [[pct(m["level"]), f2(m["backtest"]), f2(m["live"]), signed(m["illusion"]), f2(m["repaired_backtest"]),
                        f2(m["repaired_live"]), f2(m["ceiling"]), signed(m["bias"] * 100, 0) + " pts",

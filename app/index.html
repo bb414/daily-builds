@@ -1744,9 +1744,13 @@ var FitToTrain = (function () {
       var rows = full.fixes.rows;
       var fixLine = '';
       if (rows.length) {
-        var best = rows[0], honest = rows.slice().sort(function (a, b) { return b.illusionDrop - a.illusionDrop; })[0];
-        fixLine = ' Fix ' + best.label.toLowerCase() + ' first for the biggest live gain (' + signed(best.gain) + ')';
-        fixLine += honest.key === best.key ? '; it also removes the most overpromise.' : '; ' + honest.label.toLowerCase() + ' cause most of the overpromise (' + signed(honest.illusionDrop) + ' if fixed).';
+        var best = rows[0], honest = rows.slice().sort(function (a, b) { return (b.illusionDrop - a.illusionDrop) || (a.order - b.order); })[0];
+        var helps = best.gain > 0.005, misleads = honest.illusionDrop > 0.01;
+        fixLine = helps ? 'Fix ' + best.label.toLowerCase() + ' first for the biggest live gain (' + signed(best.gain) + ')' :
+          'No single fix lifts the live score by more than 0.01 here';
+        if (misleads && helps && honest.key === best.key) fixLine += '; it also removes the most overpromise.';
+        else if (misleads) fixLine += '; ' + honest.label.toLowerCase() + ' cause most of the overpromise (' + signed(honest.illusionDrop) + ' if fixed).';
+        else fixLine += '.';
       }
       $('verdict-fix').textContent = fixLine;
     }, 30);

@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 /out/
+/reports/
+*.csv
+fit-to-train-settings.json

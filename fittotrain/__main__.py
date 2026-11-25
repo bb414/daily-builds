@@ -86,7 +86,7 @@ def cmd_generate(args):
     s = _settings(args)
     crm = model.build_crm(model.generate_world(s))
     crmcsv.write_csv(args.output, crmcsv.COLUMNS, crmcsv.export_rows(crm))
-    msg = "Wrote %d records (the CRM as exported on go-live day, %s) to %s" % (
+    msg = "Wrote {:,} records (the CRM as exported on go-live day, {}) to {}".format(
         len(crm["history"]), model.day_to_iso(model.GO_LIVE), args.output)
     if args.truth:
         crmcsv.write_csv(args.truth, crmcsv.TRUTH_COLUMNS, crmcsv.truth_rows(crm))
@@ -158,7 +158,11 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    args.func(args)
+    try:
+        args.func(args)
+    except BrokenPipeError:
+        # The output was piped into something that stopped reading (for example `head`).
+        sys.stdout = open(os.devnull, "w")
 
 
 if __name__ == "__main__":
