@@ -77,9 +77,25 @@ class AppTest(unittest.TestCase):
         self.assertEqual(self.problems, [], 'console errors or warnings')
         self.assertEqual(self.requests, [], 'network requests')
 
+    def wait_settled(self, page):
+        page.wait_for_function("document.getElementById('train-status').textContent.indexOf('rounds.') > 0", timeout=60000)
+
+    def test_opens_with_the_case_made(self):
+        # Like the other builds, the page opens on a finished analysis: the textbook market trains on load.
+        page = self.open()
+        self.wait_settled(page)
+        self.assertIn('Prices settled', page.inner_text('#learn-verdict'))
+        self.assertIn('79%', page.inner_text('#learn-kpis'))
+        self.assertEqual(page.inner_text('.hero h1'), 'Quiet cartel')
+        self.assertGreater(page.locator('.hero-art svg rect').count(), 20)
+        page.evaluate("document.fonts.ready")
+        for font in ('DM Serif Display', 'Courier Prime', 'Libre Franklin'):
+            self.assertTrue(page.evaluate("(f) => document.fonts.check('16px \"' + f + '\"')", font), font)
+        self.assertClean()
+
     def test_learn_tab_trains_and_reports(self):
         page = self.open()
-        self.assertIn('Nothing trained yet', page.inner_text('#learn-verdict'))
+        self.wait_settled(page)
         self.train(page)
         kpis = page.inner_text('#learn-kpis')
         self.assertIn('PROFIT GAIN', kpis.upper())
@@ -105,11 +121,11 @@ class AppTest(unittest.TestCase):
 
     def test_threat_tab_shows_punishment(self):
         page = self.open()
+        self.wait_settled(page)
         page.click('#tab-threat')
-        self.assertTrue(page.is_visible('#threat-empty'))
-        page.click('#threat-train')
         page.wait_for_selector('#threat-body:not([hidden])', timeout=60000)
-        self.assertIn('Reward and punishment', page.inner_text('#threat-verdict'))
+        self.assertFalse(page.is_visible('#threat-empty'))
+        self.assertIn('reward and punishment', page.inner_text('#threat-verdict').lower())
         self.assertEqual(page.locator('#br-table tr').count(), 3)
         page.select_option('#dev-seller', '1')
         page.fill('#horizon', '30')
@@ -339,13 +355,14 @@ class AppTest(unittest.TestCase):
         # .layout, .kpis and .grid2 set their own display, which used to override the hidden attribute: the threat
         # tab showed its empty controls before training, and the screens tab two empty cards before a case file.
         page = self.open()
+        self.wait_settled(page)
         for tab in ('learn', 'threat', 'pilot', 'remedies', 'robust', 'screens', 'data', 'about'):
             page.click('#tab-' + tab)
             shown = page.evaluate("""() => Array.from(document.querySelectorAll('[hidden]'))
                 .filter(e => getComputedStyle(e).display !== 'none').map(e => e.id || e.className)""")
             self.assertEqual(shown, [], tab)
         page.click('#tab-threat')
-        self.assertFalse(page.is_visible('#threat-body'))
+        self.assertFalse(page.is_visible('#threat-empty'))
         page.click('#tab-screens')
         self.assertFalse(page.is_visible('#cf-top'))
         self.assertClean()
@@ -403,7 +420,7 @@ class AppTest(unittest.TestCase):
         self.train(page)
         page.click('#tab-threat')
         cells = [c.strip() for line in page.inner_text('#br-table').split('\n')[1:] for c in line.split('\t')]
-        self.assertIn('no', cells)
+        self.assertIn('no', [c.lower() for c in cells])
         caption = page.inner_text('#br-caption')
         self.assertIn('very close to an equilibrium', caption)
         self.assertNotIn('already playing its best reply', caption)
@@ -415,7 +432,7 @@ class AppTest(unittest.TestCase):
         self.train(page)
         page.click('#tab-threat')
         verdict = page.inner_text('#threat-verdict')
-        self.assertIn('Late reaction', verdict)
+        self.assertIn('late reaction', verdict.lower())
         self.assertNotIn('Nobody hits back', verdict)
         self.assertClean()
 
@@ -665,7 +682,7 @@ class AppTest(unittest.TestCase):
         self.assertIsNone(page.evaluate('window.pwned'))
         self.assertEqual(page.get_attribute('#tab-screens', 'aria-selected'), 'true')
         page.click('#tab-learn')
-        self.assertIn('Nothing trained yet', page.inner_text('#learn-verdict'))   # the page finished starting up
+        self.wait_settled(page)   # the page finished starting up and trained the market from the link
         # a new link in the same tab is read too
         page.evaluate('(h) => { location.hash = h; }', link({'learn': {'memory': 'own'}}).split('#', 1)[1])
         page.wait_for_function("document.getElementById('memory').value === 'own'", timeout=5000)

@@ -29,7 +29,7 @@ xdg-open app/index.html    # Linux
 start app\index.html       # Windows
 ```
 
-The app has seven views and a short guide:
+The app is styled as a competition authority's case file, with a night-time street of two rival shops on the cover, and it opens with the textbook market already trained. It has seven views and a short guide:
 
 1. **Learn.** Pick a market (two or three sellers, how alike the products are, how much each algorithm values tomorrow, what it remembers, whether a seller follows a fixed rule instead, shared vendor, busy and quiet days) and train the sellers. Watch prices move as experimenting fades, see where they settled between the competitive and monopoly prices, and read the learned strategy as a heat map.
 2. **Test for a threat.** Force one seller to cut its price for a day and watch the others respond. The app reports the gain on the day, the losses afterwards, and whether the cut is punished. An exact best-reply calculation shows how far each learned strategy is from the best possible reply to its rival.
@@ -93,7 +93,7 @@ The generator uses the same case-file recipe as the app, so building a case file
 
 | Part | Language | Lines (roughly) | What it does |
 |------|----------|-----------------|--------------|
-| `app/index.html` | HTML, CSS, JavaScript | 3,500 | The model (about 1,150 lines), all seven views, charts drawn as SVG, sample data |
+| `app/index.html` | HTML, CSS, JavaScript | 3,650 | The model (about 1,150 lines), all seven views, charts and the cover illustration drawn as SVG, embedded open-licence fonts (DM Serif Display, Courier Prime, Libre Franklin), sample data |
 | `quiet_cartel/model.py` | Python | 1,750 | The same model, bit for bit |
 | `quiet_cartel/` (other modules) | Python | 3,800 | Batch experiments and statistics, sweeps, screening, calibration, report, command line |
 | `data/generate_markets.py` | Python | 170 | The seeded dataset generator |
