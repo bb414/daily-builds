@@ -1,0 +1,2396 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiet cartel</title>
+<meta name="description" content="Can self-learning pricing algorithms learn to keep prices high without being told to, and could a regulator tell from prices alone?">
+<style>
+:root {
+  --bg: #f5f6f8; --card: #ffffff; --ink: #1b2130; --muted: #5a6275; --line: #dde1e8; --soft: #eef0f4;
+  --accent: #3b4fd8; --accent-ink: #ffffff; --accent-soft: #e6e9fb;
+  --a: #2563c9; --b: #d9641e; --c: #1f8f5f;
+  --comp: #5a6275; --mono: #b3261e;
+  --good: #1f7a4d; --good-soft: #e3f3ea; --bad: #b3261e; --bad-soft: #fbe7e5; --warn: #8a5a00; --warn-soft: #fdf1d8;
+  --g-baseline: #5a6275; --g-remedy: #1f8f5f; --g-design: #8a7f3c; --g-risk: #c2412d;
+  --heat-lo: #f3f0ff; --heat-hi: #3b2a8f;
+  --shadow: 0 1px 2px rgba(20, 24, 40, .06), 0 2px 8px rgba(20, 24, 40, .04);
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151c; --card: #1b2029; --ink: #e8ebf2; --muted: #a2aabb; --line: #2e3542; --soft: #232935;
+    --accent: #8d9bff; --accent-ink: #10131a; --accent-soft: #262c4a;
+    --a: #6ea2ff; --b: #ff9a5c; --c: #4fd19a; --comp: #a2aabb; --mono: #ff7b72;
+    --good: #5fd39a; --good-soft: #17322a; --bad: #ff7b72; --bad-soft: #3a1d1c; --warn: #f0c060; --warn-soft: #3a2f14;
+    --g-baseline: #a2aabb; --g-remedy: #4fd19a; --g-design: #d4c46a; --g-risk: #ff8a70;
+    --heat-lo: #232935; --heat-hi: #b9b0ff;
+    --shadow: none; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); }
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
+h1 { font-size: 1.6rem; letter-spacing: -.01em; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: .95rem; }
+p { margin: 0 0 .75rem; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 18px 0 6px; }
+header.top .tag { color: var(--muted); margin: 0; max-width: 760px; }
+.tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding-top: 8px; }
+.tabs button { flex: 0 0 auto; font: inherit; font-size: .92rem; color: var(--muted); background: none; border: 0;
+  border-bottom: 3px solid transparent; padding: 8px 12px 9px; cursor: pointer; border-radius: 6px 6px 0 0; }
+.tabs button:hover { color: var(--ink); background: var(--soft); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tabs .num { display: inline-block; min-width: 1.4em; height: 1.4em; line-height: 1.4em; margin-right: 6px; border-radius: 50%;
+  background: var(--soft); color: var(--muted); font-size: .78rem; text-align: center; font-weight: 600; }
+.tabs button[aria-selected="true"] .num { background: var(--accent); color: var(--accent-ink); }
+main { padding: 16px 0 32px; }
+[role="tabpanel"][hidden] { display: none; }
+.intro { color: var(--muted); max-width: 860px; margin-bottom: 14px; }
+.intro strong { color: var(--ink); }
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.card h2 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.card .sub { color: var(--muted); font-weight: 400; font-size: .85rem; }
+.caption { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+.controls { position: sticky; top: 56px; max-height: calc(100vh - 70px); overflow: auto; }
+.field { margin-bottom: 12px; }
+.field label, .field .label { display: flex; justify-content: space-between; gap: 8px; font-size: .88rem; font-weight: 600; margin-bottom: 4px; }
+.field output, .field .val { font-family: var(--mono-font); font-weight: 500; color: var(--muted); font-size: .85rem; }
+.field .hint { font-size: .8rem; color: var(--muted); margin: 3px 0 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
+select, input[type="number"], input[type="text"], textarea {
+  width: 100%; font: inherit; font-size: .9rem; color: var(--ink); background: var(--card); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 8px; }
+textarea { font-family: var(--mono-font); font-size: .82rem; min-height: 140px; resize: vertical; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { flex: 1; margin: 0; font-weight: 500; display: block; text-align: center; cursor: pointer; font-size: .86rem; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg span { display: block; padding: 6px 4px; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -3px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; margin-bottom: 8px; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.check small { display: block; color: var(--muted); font-size: .8rem; }
+details.more { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
+details.more summary { cursor: pointer; font-weight: 600; font-size: .88rem; margin-bottom: 10px; }
+.btn { font: inherit; font-size: .92rem; font-weight: 600; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.btn:hover { background: var(--soft); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn:focus-visible, .tabs button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status { font-size: .85rem; color: var(--muted); min-height: 1.3em; margin-top: 8px; }
+.progress { height: 6px; border-radius: 3px; background: var(--soft); overflow: hidden; margin-top: 8px; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.notice { border-radius: 8px; padding: 8px 12px; font-size: .88rem; margin: 8px 0; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
+.notice ul { margin: 4px 0 0; padding-left: 18px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); min-width: 0; }
+.kpi .k { font-size: .8rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.kpi .v { font-size: 1.55rem; font-weight: 700; letter-spacing: -.01em; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: .8rem; color: var(--muted); }
+.kpi.good .v { color: var(--good); } .kpi.bad .v { color: var(--bad); }
+.chart { width: 100%; min-height: 60px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+.chart .axis line, .chart .axis path { stroke: var(--line); }
+.chart .grid line { stroke: var(--soft); }
+.chart .lab { fill: var(--ink); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); margin-top: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+.legend i.dash { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; height: 2px; }
+.empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--card); }
+.empty p { max-width: 520px; margin: 0 auto 12px; }
+.verdict { border-left: 4px solid var(--accent); }
+.verdict.good { border-left-color: var(--good); } .verdict.bad { border-left-color: var(--bad); }
+.verdict .head { font-weight: 700; font-size: 1.02rem; margin-bottom: 4px; }
+.pill { display: inline-block; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: .02em; }
+.pill.good { background: var(--good-soft); color: var(--good); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.neutral { background: var(--soft); color: var(--muted); }
+.tablewrap { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: .86rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+tr.sel td { background: var(--accent-soft); }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.scen-list { display: grid; gap: 2px; }
+.mono { font-family: var(--mono-font); }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.prose { max-width: 820px; }
+.prose h2 { margin-top: 1.2rem; }
+.prose li { margin-bottom: .35rem; }
+dl.gloss dt { font-weight: 700; margin-top: .6rem; }
+dl.gloss dd { margin: 0 0 0 0; color: var(--muted); }
+footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .controls { position: static; max-height: none; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 1.35rem; }
+  .kpi .v { font-size: 1.3rem; }
+  .card { padding: 12px; }
+  .tabs .num { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Quiet cartel</h1>
+    <p class="tag">Can self-learning pricing algorithms learn to keep prices high without ever being told to, and could a regulator tell from prices alone?</p>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Views">
+  <div class="wrap" role="tablist" id="tablist">
+    <button role="tab" id="tab-learn" aria-controls="panel-learn" aria-selected="true"><span class="num">1</span>Learn</button>
+    <button role="tab" id="tab-threat" aria-controls="panel-threat" aria-selected="false" tabindex="-1"><span class="num">2</span>Test for a threat</button>
+    <button role="tab" id="tab-remedies" aria-controls="panel-remedies" aria-selected="false" tabindex="-1"><span class="num">3</span>Remedies</button>
+    <button role="tab" id="tab-screens" aria-controls="panel-screens" aria-selected="false" tabindex="-1"><span class="num">4</span>Regulator&rsquo;s screens</button>
+    <button role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1"><span class="num">5</span>Your prices</button>
+    <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1"><span class="num">?</span>How it works</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- 1. LEARN -->
+<section id="panel-learn" role="tabpanel" aria-labelledby="tab-learn" tabindex="0">
+  <p class="intro">Two online sellers of a similar chocolate gift box each hand pricing to a self-learning algorithm. Each algorithm only tries to earn as much as it can, by trial and error, seeing yesterday&rsquo;s prices. <strong>Nobody tells them to cooperate.</strong> Train them and see where prices end up between the competitive price and what a monopolist would charge.</p>
+  <div class="layout">
+    <form class="card controls" id="learn-form" aria-label="Market and learning settings" onsubmit="return false">
+      <div class="field">
+        <label for="preset">Start from</label>
+        <select id="preset">
+          <option value="textbook">Textbook duopoly</option>
+          <option value="close">Close substitutes (shoppers switch easily)</option>
+          <option value="loyal">Loyal shoppers</option>
+          <option value="three">Three sellers</option>
+          <option value="impatient">Impatient algorithms</option>
+          <option value="fast">Fast learners</option>
+          <option value="matcher">One seller price-matches</option>
+          <option value="custom" hidden>Your settings</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="label" id="nfirms-label">Sellers</span>
+        <div class="seg" role="radiogroup" aria-labelledby="nfirms-label">
+          <label><input type="radio" name="nFirms" value="2" checked><span>Two</span></label>
+          <label><input type="radio" name="nFirms" value="3"><span>Three</span></label>
+        </div>
+      </div>
+      <div class="field" id="types-field">
+        <span class="label">How each seller sets prices</span>
+        <div class="grid-types">
+          <label class="sr-only" for="type0">Seller A</label>
+          <select id="type0" aria-label="Seller A pricing"></select>
+          <label class="sr-only" for="type1">Seller B</label>
+          <select id="type1" aria-label="Seller B pricing" style="margin-top:6px"></select>
+          <label class="sr-only" for="type2">Seller C</label>
+          <select id="type2" aria-label="Seller C pricing" style="margin-top:6px"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="memory">What the algorithms remember</label>
+        <select id="memory">
+          <option value="full">Yesterday&rsquo;s prices of every seller</option>
+          <option value="own">Only their own price yesterday</option>
+          <option value="none">Nothing</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="mu">How alike the products are <output id="mu-out" for="mu"></output></label>
+        <input type="range" id="mu" min="0.05" max="1" step="0.05" aria-describedby="mu-hint">
+        <p class="hint" id="mu-hint">Left: near-identical boxes, shoppers chase the lowest price. Right: loyal shoppers.</p>
+      </div>
+      <div class="field">
+        <label for="delta">How much they value tomorrow <output id="delta-out" for="delta"></output></label>
+        <input type="range" id="delta" min="0" max="0.99" step="0.01" aria-describedby="delta-hint">
+        <p class="hint" id="delta-hint">The weight on future profit (the discount factor). 0 means today only.</p>
+      </div>
+      <details class="more">
+        <summary>Learning settings</summary>
+        <div class="field">
+          <label for="alpha">Learning rate <output id="alpha-out" for="alpha"></output></label>
+          <input type="range" id="alpha" min="0.01" max="0.5" step="0.01">
+        </div>
+        <div class="field">
+          <label for="beta">How quickly they stop experimenting <output id="beta-out" for="beta"></output></label>
+          <input type="range" id="beta" min="0" max="100" step="1" aria-describedby="beta-hint">
+          <p class="hint" id="beta-hint"></p>
+        </div>
+        <div class="field">
+          <label for="nPrices">Prices each can choose from <output id="nPrices-out" for="nPrices"></output></label>
+          <input type="range" id="nPrices" min="5" max="21" step="1">
+        </div>
+        <div class="field">
+          <label for="demandNoise">Busy and quiet days <output id="demandNoise-out" for="demandNoise"></output></label>
+          <input type="range" id="demandNoise" min="0" max="0.5" step="0.05">
+        </div>
+        <div class="field">
+          <label for="exploreFloor">Always test a random price on <output id="exploreFloor-out" for="exploreFloor"></output></label>
+          <input type="range" id="exploreFloor" min="0" max="0.2" step="0.01">
+        </div>
+        <label class="check"><input type="checkbox" id="sharedVendor"><span>Both use the same vendor&rsquo;s tool<small>One shared algorithm learns from every seller&rsquo;s sales.</small></span></label>
+        <div class="field">
+          <label for="seed">Random seed</label>
+          <input type="number" id="seed" min="0" max="4294967295" step="1">
+        </div>
+      </details>
+      <div id="learn-errors" role="alert"></div>
+      <div class="btns" style="margin-top:10px">
+        <button class="btn primary" id="train-btn" type="button">Train the sellers</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="animate" checked><span>Watch it learn</span></label>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="train-bar"></div></div>
+      <p class="status" id="train-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <div class="stack" id="learn-results">
+      <div class="kpis" id="learn-kpis"></div>
+      <div class="card">
+        <h2>Prices while they learn <span class="sub" id="learn-chart-sub"></span></h2>
+        <div class="chart" id="chart-learn"></div>
+        <div class="legend" id="legend-learn"></div>
+        <p class="caption">Average price each seller charged in every block of 10,000 rounds. Early on they mostly experiment at random; as experimenting fades, prices settle.</p>
+      </div>
+      <div class="card verdict" id="learn-verdict" aria-live="polite"></div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Where they settled</h2>
+          <div id="cycle-box"></div>
+        </div>
+        <div class="card">
+          <h2>What seller <span id="heat-who">A</span> learned to charge</h2>
+          <div class="field" style="max-width:220px">
+            <label for="heat-seller" class="sr-only">Show the strategy of</label>
+            <select id="heat-seller"></select>
+          </div>
+          <div class="chart" id="chart-heat"></div>
+          <p class="caption" id="heat-caption"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. THREAT -->
+<section id="panel-threat" role="tabpanel" aria-labelledby="tab-threat" tabindex="0" hidden>
+  <p class="intro">High prices alone do not make a cartel. Competition lawyers look for a <strong>reward and punishment</strong> pattern: stick to the high price and you are rewarded, undercut and you are punished. Here we secretly force one algorithm to cut its price for a single day, then let both play on as they learned.</p>
+  <div id="threat-empty" class="empty"><p>Train the sellers on the Learn tab first. This test uses the strategies they learned.</p><button class="btn primary" type="button" id="threat-train">Train the textbook duopoly now</button></div>
+  <div class="layout" id="threat-body" hidden>
+    <form class="card controls" aria-label="Price cut settings" onsubmit="return false">
+      <div class="field">
+        <label for="dev-seller">Who cuts the price</label>
+        <select id="dev-seller"></select>
+      </div>
+      <div class="field">
+        <label for="dev-price">Cut to</label>
+        <select id="dev-price"></select>
+        <p class="hint">The best one-day cut is the price that earns most today, if the rival does not react.</p>
+      </div>
+      <div class="field">
+        <label for="horizon">Days to follow <output id="horizon-out" for="horizon"></output></label>
+        <input type="range" id="horizon" min="8" max="40" step="1" value="20">
+      </div>
+    </form>
+    <div class="stack">
+      <div class="kpis" id="threat-kpis"></div>
+      <div class="card">
+        <h2>What happens after a one-day price cut</h2>
+        <div class="chart" id="chart-impulse"></div>
+        <div class="legend" id="legend-impulse"></div>
+        <p class="caption">Solid lines: prices after the forced cut on day 1. Dashed lines: what they would have charged with no cut.</p>
+      </div>
+      <div class="card verdict" id="threat-verdict" aria-live="polite"></div>
+      <div class="card">
+        <h2>Is each algorithm playing its best reply? <span class="sub">checked exactly, not by simulation</span></h2>
+        <p class="small muted">Holding the rival&rsquo;s learned strategy fixed, we solve for the best possible long-run strategy against it and compare it with what the algorithm learned, in every possible situation.</p>
+        <div class="tablewrap"><table id="br-table"></table></div>
+        <p class="caption" id="br-caption"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. REMEDIES -->
+<section id="panel-remedies" role="tabpanel" aria-labelledby="tab-remedies" tabindex="0" hidden>
+  <p class="intro">Suppose a competition authority wants lower prices without banning pricing algorithms. Which change actually works? Each option is trained many times with different luck, in the market you set up on the Learn tab, and compared with the baseline.</p>
+  <div class="layout">
+    <form class="card controls" aria-label="Remedy comparison settings" onsubmit="return false">
+      <div class="field">
+        <label for="rem-runs">Training runs per option <output id="rem-runs-out" for="rem-runs"></output></label>
+        <input type="range" id="rem-runs" min="2" max="30" step="1" value="6">
+        <p class="hint" id="rem-time"></p>
+      </div>
+      <fieldset class="field" style="border:0;padding:0;margin:0 0 12px">
+        <legend class="label" style="font-weight:600;font-size:.88rem;margin-bottom:6px">Options to compare</legend>
+        <div class="scen-list" id="rem-list"></div>
+      </fieldset>
+      <div class="btns">
+        <button class="btn primary" id="rem-run" type="button">Run the comparison</button>
+        <button class="btn" id="rem-stop" type="button" disabled>Stop</button>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="rem-bar"></div></div>
+      <p class="status" id="rem-status" role="status" aria-live="polite"></p>
+    </form>
+    <div class="stack">
+      <div id="rem-empty" class="empty"><p>Pick the options to compare and press <strong>Run the comparison</strong>. Six runs per option takes a few seconds.</p></div>
+      <div class="card" id="rem-chart-card" hidden>
+        <h2>How far prices end up above competitive</h2>
+        <div class="field" style="max-width:320px">
+          <label for="rem-metric">Measure</label>
+          <select id="rem-metric">
+            <option value="gain">Profit gain (0% competitive, 100% monopoly)</option>
+            <option value="harm">Shoppers&rsquo; loss (0% competitive, 100% monopoly)</option>
+            <option value="punishedShare">Share of runs where cutting is punished</option>
+          </select>
+        </div>
+        <div class="chart" id="chart-rem"></div>
+        <div class="legend" id="legend-rem"></div>
+        <p class="caption">Bars show the average across runs; whiskers show a 90% bootstrap interval for that average.</p>
+      </div>
+      <div class="card verdict" id="rem-verdict" hidden aria-live="polite"></div>
+      <div class="card" id="rem-table-card" hidden>
+        <h2>Every option in numbers</h2>
+        <div class="tablewrap"><table id="rem-table"></table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. SCREENS -->
+<section id="panel-screens" role="tabpanel" aria-labelledby="tab-screens" tabindex="0" hidden>
+  <p class="intro">A competition authority cannot open the algorithm. It sees a year of daily prices. We build a <strong>case file</strong> of simulated markets where we know the hidden truth, then test how well five simple screens on prices alone would pick out the markets worth investigating.</p>
+  <div class="layout">
+    <form class="card controls" aria-label="Case file settings" onsubmit="return false">
+      <div class="field">
+        <label for="cf-n">Markets in the case file <output id="cf-n-out" for="cf-n"></output></label>
+        <input type="range" id="cf-n" min="10" max="80" step="10" value="40">
+      </div>
+      <div class="field">
+        <label for="cf-test">Days each seller tests a random price <output id="cf-test-out" for="cf-test"></output></label>
+        <input type="range" id="cf-test" min="0.01" max="0.1" step="0.01" value="0.03">
+        <p class="hint">Real pricing systems still try prices now and then. Without these tests nothing ever moves and no screen can see a response.</p>
+      </div>
+      <div class="field">
+        <label for="cf-seed">Case file seed</label>
+        <input type="number" id="cf-seed" min="0" max="4294967295" step="1" value="1">
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="cf-run" type="button">Build the case file</button>
+        <button class="btn" id="cf-stop" type="button" disabled>Stop</button>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="cf-bar"></div></div>
+      <p class="status" id="cf-status" role="status" aria-live="polite"></p>
+      <div class="field" style="margin-top:12px">
+        <span class="label" id="target-label">What counts as a case worth opening</span>
+        <div class="seg" role="radiogroup" aria-labelledby="target-label">
+          <label><input type="radio" name="target" value="coordinated" checked><span>Held up by a threat</span></label>
+          <label><input type="radio" name="target" value="highPrice"><span>High prices</span></label>
+        </div>
+        <p class="hint" id="target-hint"></p>
+      </div>
+    </form>
+    <div class="stack">
+      <div id="cf-empty" class="empty"><p>Press <strong>Build the case file</strong>. Each market is trained from scratch with its own setup, so 40 markets take a few seconds.</p></div>
+      <div class="grid2" id="cf-top" hidden>
+        <div class="card">
+          <h2>How well each screen ranks the markets</h2>
+          <div class="chart" id="chart-roc"></div>
+          <div class="legend" id="legend-roc"></div>
+          <p class="caption">Each curve traces the share of real cases caught (up) against the share of innocent markets flagged (right) as the bar is lowered. The diagonal is guessing.</p>
+        </div>
+        <div class="card">
+          <h2>Screen scores <span class="sub">area under the curve, 0.5 = guessing</span></h2>
+          <div class="tablewrap"><table id="auc-table"></table></div>
+        </div>
+      </div>
+      <div class="card" id="cf-thresh" hidden>
+        <h2>Set a bar and see who gets flagged</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="th-screen">Screen</label>
+            <select id="th-screen"></select>
+          </div>
+          <div class="field">
+            <label for="th-value">Flag markets scoring at least <output id="th-out" for="th-value"></output></label>
+            <input type="range" id="th-value" min="0" max="100" step="1" value="50">
+          </div>
+        </div>
+        <div class="kpis" id="th-kpis"></div>
+        <div class="chart" id="chart-strip" style="margin-top:10px"></div>
+        <p class="caption">Each dot is a market. Top row: markets that really are cases; bottom row: markets that are not. Dots right of the line are flagged.</p>
+      </div>
+      <div class="card verdict" id="cf-verdict" hidden aria-live="polite"></div>
+      <div class="card" id="cf-table-card" hidden>
+        <h2>The case file, with the hidden truth revealed</h2>
+        <div class="tablewrap" style="max-height:420px;overflow:auto"><table id="cf-table"></table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. YOUR PRICES -->
+<section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="0" hidden>
+  <p class="intro">Paste or load two sellers&rsquo; daily prices and run the same screens, with a test of whether rivals&rsquo; price cuts line up with each other more than chance would allow. Everything stays in your browser.</p>
+  <div class="layout">
+    <form class="card controls" aria-label="Your price data" onsubmit="return false">
+      <div class="field">
+        <label for="sample">Try a sample market</label>
+        <select id="sample"></select>
+        <p class="hint">Samples come from the bundled synthetic dataset (data/markets.csv).</p>
+      </div>
+      <div class="field">
+        <label for="csv">Or paste CSV (one row per day)</label>
+        <textarea id="csv" spellcheck="false" aria-describedby="csv-hint"></textarea>
+        <p class="hint" id="csv-hint">The first two numeric columns are read as seller A and seller B, or columns named price_a and price_b. At least 30 days.</p>
+      </div>
+      <div class="field">
+        <label for="csv-file">Or open a CSV file</label>
+        <input type="file" id="csv-file" accept=".csv,text/csv,text/plain">
+      </div>
+      <div class="grid2" style="gap:8px">
+        <div class="field"><label for="cost-a">Unit cost A</label><input type="number" id="cost-a" step="0.01" min="0" placeholder="optional"></div>
+        <div class="field"><label for="cost-b">Unit cost B</label><input type="number" id="cost-b" step="0.01" min="0" placeholder="optional"></div>
+      </div>
+      <div class="field">
+        <label for="tol">Smallest change that counts as a cut <output id="tol-out" for="tol"></output></label>
+        <input type="range" id="tol" min="0.001" max="0.05" step="0.001" value="0.005">
+      </div>
+      <div class="btns"><button class="btn primary" id="data-run" type="button">Analyse these prices</button></div>
+      <div id="data-errors" role="alert"></div>
+    </form>
+    <div class="stack">
+      <div id="data-empty" class="empty"><p>Choose a sample or paste prices, then press <strong>Analyse these prices</strong>.</p></div>
+      <div class="kpis" id="data-kpis" hidden></div>
+      <div class="card" id="data-chart-card" hidden>
+        <h2>Daily prices <span class="sub" id="data-sub"></span></h2>
+        <div class="chart" id="chart-data"></div>
+        <div class="legend" id="legend-data"></div>
+        <p class="caption">Triangles mark unprovoked cuts (one seller cuts while the other holds still). Circles mark a rival cutting the next day.</p>
+      </div>
+      <div class="card verdict" id="data-verdict" hidden aria-live="polite"></div>
+      <div class="card" id="data-compare-card" hidden>
+        <h2>How these prices compare with the case file</h2>
+        <div class="tablewrap"><table id="data-compare"></table></div>
+        <p class="caption" id="data-compare-cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="panel-about" role="tabpanel" aria-labelledby="tab-about" tabindex="0" hidden>
+  <div class="card prose">
+    <h2>What this is</h2>
+    <p>A laboratory for one of the stranger questions in competition policy: can pricing algorithms that only ever try to maximise their own profit learn to keep prices high together, with no agreement, no messages and no instruction to collude? And if they can, what should a regulator do about it, and could it even tell?</p>
+    <h2>The market</h2>
+    <p>Sellers offer similar products. Each day every shopper picks the product (or nothing) that gives them the best mix of quality, price and personal taste, which gives the standard logit demand curve. The <strong>competitive price</strong> is where no seller can gain by changing its price on its own for one day (the static Nash equilibrium). The <strong>monopoly price</strong> is what the sellers would charge if one owner set every price to maximise their joint profit.</p>
+    <h2>The algorithms</h2>
+    <p>Each learning seller runs Q-learning, a simple and widely taught reinforcement learning method. It keeps a table of how valuable each price is in each situation (yesterday&rsquo;s prices), mostly charges the best price it knows, and sometimes tries a random one. Experimenting starts at 100% of days and fades over time. When no seller&rsquo;s best price has changed in any situation for 100,000 rounds, training stops.</p>
+    <h2>Measures</h2>
+    <dl class="gloss">
+      <dt>Profit gain</dt><dd>Where profits settle between competitive (0%) and monopoly (100%). Measured once the algorithms play the strategies they learned.</dd>
+      <dt>Shoppers&rsquo; loss</dt><dd>The same scale for consumer surplus: 0% is what shoppers get at competitive prices, 100% what they get at monopoly prices.</dd>
+      <dt>Punished</dt><dd>After a forced one-day cut, a rival answers with a lower price than it would otherwise have charged, and the cut loses the cutter money once the later losses are counted.</dd>
+      <dt>Held up by a threat</dt><dd>Punished, and with a profit gain of at least 20%. This is the case file&rsquo;s hidden truth for &ldquo;coordinated&rdquo;.</dd>
+      <dt>Best reply</dt><dd>The strategy that earns the most over time against the rival&rsquo;s actual learned strategy, found exactly by value iteration.</dd>
+    </dl>
+    <h2>Limits</h2>
+    <ul>
+      <li>All data is synthetic and the sellers are invented. Prices are in pounds only to make them readable.</li>
+      <li>Real pricing systems learn from far richer data, change prices at different times and often use other methods than tabular Q-learning. The results here show what is possible, not how common it is.</li>
+      <li>The legal tests in this app are simplified illustrations. Whether algorithmic tacit collusion is unlawful is an open question in UK and EU competition law. Nothing here is legal advice.</li>
+      <li>The market set-up follows a well-known academic design (Calvano, Calzolari, Denicol&ograve; and Pastorello, American Economic Review, 2020), rebuilt from scratch here; the numbers are this app&rsquo;s own.</li>
+    </ul>
+    <h2>Two versions</h2>
+    <p>This page runs everything in your browser and makes no network requests. A Python companion in the same project reproduces every run exactly, runs larger batches, screens whole CSV files of markets, fits the demand model to sales data and writes a report.</p>
+  </div>
+</section>
+
+</main>
+<footer class="wrap">Quiet cartel. Synthetic and illustrative: invented sellers, simulated markets, not legal advice.</footer>
+<script>
+/* MODEL START */
+/*
+ * Quiet cartel model.
+ *
+ * A repeated price-setting game between sellers of similar products, with
+ * logit demand (the textbook set-up used in research on algorithmic
+ * collusion). Each learning seller runs tabular Q-learning with an
+ * exploration rate that decays over time and remembers last period's prices.
+ *
+ * Everything that feeds a decision uses only +, -, *, / and comparisons, so
+ * the Python companion reproduces every run exactly. detExp and detLog
+ * replace Math.exp and Math.log for that reason.
+ */
+(function (root) {
+  'use strict';
+
+  var LN2 = 0.6931471805599453;
+
+  // ---------------------------------------------------------------- helpers
+
+  function detExp(x) {
+    if (x !== x) return NaN;
+    if (x > 700) return Infinity;
+    if (x < -700) return 0;
+    var k = Math.floor(x / LN2 + 0.5);
+    var r = x - k * LN2;
+    var s = 1, term = 1;
+    for (var i = 1; i <= 24; i++) { term = term * r / i; s += term; }
+    if (k > 0) { for (var a = 0; a < k; a++) s *= 2; }
+    else { for (var b = 0; b < -k; b++) s *= 0.5; }
+    return s;
+  }
+
+  function detLog(x) {
+    if (!(x > 0)) return x === 0 ? -Infinity : NaN;
+    if (x === Infinity) return Infinity;
+    var k = 0;
+    while (x >= 1.5) { x *= 0.5; k += 1; }
+    while (x < 0.75) { x *= 2; k -= 1; }
+    var z = (x - 1) / (x + 1), z2 = z * z, s = 0, term = z;
+    for (var i = 0; i < 40; i++) { s += term / (2 * i + 1); term *= z2; }
+    return 2 * s + k * LN2;
+  }
+
+  // mulberry32: a small, fast 32-bit generator that is easy to copy exactly.
+  function Rng(seed) {
+    this.a = seed >>> 0;
+  }
+  Rng.prototype.next = function () {
+    var a = (this.a + 0x6D2B79F5) | 0;
+    this.a = a >>> 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  Rng.prototype.int = function (n) { return Math.floor(this.next() * n); };
+
+  function sum(xs) { var s = 0; for (var i = 0; i < xs.length; i++) s += xs[i]; return s; }
+  function mean(xs) { return xs.length ? sum(xs) / xs.length : NaN; }
+  function sd(xs) {
+    if (xs.length < 2) return 0;
+    var m = mean(xs), s = 0;
+    for (var i = 0; i < xs.length; i++) s += (xs[i] - m) * (xs[i] - m);
+    return Math.sqrt(s / (xs.length - 1));
+  }
+  function sortedCopy(xs) { return xs.slice().sort(function (a, b) { return a - b; }); }
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    var pos = q * (sorted.length - 1), lo = Math.floor(pos), hi = Math.ceil(pos);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+  function round(x, d) { var f = 1; for (var i = 0; i < d; i++) f *= 10; return Math.round(x * f) / f; }
+
+  // Percentile bootstrap interval for a mean, with its own seeded generator.
+  function bootstrapMean(xs, level, reps, seed) {
+    xs = xs.filter(function (x) { return x === x; });
+    var n = xs.length;
+    if (n === 0) return { mean: NaN, lo: NaN, hi: NaN };
+    var m = mean(xs);
+    if (n === 1) return { mean: m, lo: m, hi: m };
+    var rng = new Rng(seed === undefined ? 12345 : seed), means = [];
+    reps = reps || 1000;
+    for (var r = 0; r < reps; r++) {
+      var s = 0;
+      for (var i = 0; i < n; i++) s += xs[rng.int(n)];
+      means.push(s / n);
+    }
+    means = sortedCopy(means);
+    var tail = (1 - level) / 2;
+    return { mean: m, lo: quantile(means, tail), hi: quantile(means, 1 - tail) };
+  }
+
+  // Area under the ROC curve (probability a random positive outscores a random negative).
+  function rocCurve(scores, labels) {
+    var pts = [], pos = 0, neg = 0, i;
+    for (i = 0; i < labels.length; i++) { if (labels[i]) pos++; else neg++; }
+    // NaN scores rank last; ties keep their original order.
+    scores = scores.map(function (s) { return s === s ? s : -Infinity; });
+    var idx = scores.map(function (s, k) { return k; });
+    idx.sort(function (a, b) { return scores[b] > scores[a] ? 1 : scores[b] < scores[a] ? -1 : a - b; });
+    var tp = 0, fp = 0, auc = 0, prevFp = 0, prevTp = 0;
+    pts.push({ fpr: 0, tpr: 0, threshold: Infinity });
+    for (i = 0; i < idx.length; i++) {
+      if (labels[idx[i]]) tp++; else fp++;
+      var last = i === idx.length - 1 || scores[idx[i + 1]] !== scores[idx[i]];
+      if (last) {
+        var fpr = neg ? fp / neg : 0, tpr = pos ? tp / pos : 0;
+        auc += (fpr - prevFp) * (tpr + prevTp) / 2;
+        prevFp = fpr; prevTp = tpr;
+        pts.push({ fpr: fpr, tpr: tpr, threshold: scores[idx[i]] });
+      }
+    }
+    return { points: pts, auc: pos && neg ? auc : NaN, positives: pos, negatives: neg };
+  }
+
+  // ---------------------------------------------------------------- market
+
+  var LIMITS = {
+    nFirms: [2, 3], nPrices: [5, 21], mu: [0.05, 1], xi: [0, 0.5], quality: [1, 3],
+    cost: [0, 2], outside: [-2, 2], alpha: [0.01, 0.5], beta: [5e-7, 1e-4],
+    delta: [0, 0.99], exploreFloor: [0, 0.2], demandNoise: [0, 0.5],
+    stableWindow: [1000, 200000], maxPeriods: [20000, 6000000]
+  };
+  var FIRM_TYPES = ['learn', 'nash', 'match', 'undercut'];
+  var MEMORY = ['full', 'own', 'none'];
+
+  function defaultConfig() {
+    return {
+      nFirms: 2,
+      quality: [2, 2, 2],
+      cost: [1, 1, 1],
+      outside: 0,
+      mu: 0.25,
+      nPrices: 15,
+      xi: 0.1,
+      alpha: 0.15,
+      beta: 4e-6,
+      delta: 0.95,
+      memory: 'full',
+      firmTypes: ['learn', 'learn', 'learn'],
+      sharedVendor: false,
+      exploreFloor: 0,
+      demandNoise: 0,
+      stableWindow: 100000,
+      maxPeriods: 3000000,
+      seed: 1
+    };
+  }
+
+  function clampNum(v, lim, fallback, name, errors) {
+    var x = typeof v === 'string' ? Number(v) : v;
+    if (typeof x !== 'number' || x !== x) { errors.push(name + ' must be a number'); return fallback; }
+    if (x < lim[0] || x > lim[1]) {
+      errors.push(name + ' must be between ' + lim[0] + ' and ' + lim[1]);
+      return x < lim[0] ? lim[0] : lim[1];
+    }
+    return x;
+  }
+
+  // Returns { config, errors }. Values out of range are clamped and reported.
+  function validateConfig(input) {
+    var d = defaultConfig(), c = {}, errors = [], k;
+    input = input || {};
+    for (k in d) c[k] = Array.isArray(d[k]) ? d[k].slice() : d[k];
+    var scalar = ['nFirms', 'nPrices', 'mu', 'xi', 'outside', 'alpha', 'beta', 'delta',
+      'exploreFloor', 'demandNoise', 'stableWindow', 'maxPeriods'];
+    for (var i = 0; i < scalar.length; i++) {
+      k = scalar[i];
+      if (input[k] !== undefined) c[k] = clampNum(input[k], LIMITS[k], d[k], k, errors);
+    }
+    c.nFirms = Math.round(c.nFirms);
+    c.nPrices = Math.round(c.nPrices);
+    c.stableWindow = Math.round(c.stableWindow);
+    c.maxPeriods = Math.round(c.maxPeriods);
+    ['quality', 'cost'].forEach(function (key) {
+      if (input[key] !== undefined) {
+        if (!Array.isArray(input[key])) errors.push(key + ' must be a list');
+        else for (var j = 0; j < 3; j++) {
+          if (input[key][j] !== undefined) c[key][j] = clampNum(input[key][j], LIMITS[key], d[key][j], key + '[' + j + ']', errors);
+        }
+      }
+    });
+    if (input.firmTypes !== undefined && !Array.isArray(input.firmTypes)) errors.push('firmTypes must be a list');
+    else if (input.firmTypes !== undefined) {
+      for (var f = 0; f < 3; f++) {
+        var t = input.firmTypes[f];
+        if (t !== undefined) {
+          if (FIRM_TYPES.indexOf(t) < 0) errors.push('firmTypes[' + f + '] must be one of ' + FIRM_TYPES.join(', '));
+          else c.firmTypes[f] = t;
+        }
+      }
+    }
+    if (input.memory !== undefined) {
+      if (MEMORY.indexOf(input.memory) < 0) errors.push('memory must be one of ' + MEMORY.join(', '));
+      else c.memory = input.memory;
+    }
+    if (input.sharedVendor !== undefined) c.sharedVendor = !!input.sharedVendor;
+    if (input.seed !== undefined) {
+      var s = (typeof input.seed === 'number' || (typeof input.seed === 'string' && input.seed.trim() !== '')) ? Number(input.seed) : NaN;
+      if (!(s >= 0) || s !== Math.floor(s) || s > 4294967295) errors.push('seed must be a whole number from 0 to 4294967295');
+      else c.seed = s;
+    }
+    var learners = 0;
+    for (var g = 0; g < c.nFirms; g++) if (c.firmTypes[g] === 'learn') learners++;
+    if (learners === 0) errors.push('at least one seller must learn');
+    if (c.sharedVendor) {
+      var sym = learners === c.nFirms;
+      for (var h = 1; h < c.nFirms; h++) {
+        if (c.quality[h] !== c.quality[0] || c.cost[h] !== c.cost[0]) sym = false;
+      }
+      if (!sym) { errors.push('a shared vendor needs every seller to learn and to have the same quality and cost'); c.sharedVendor = false; }
+    }
+    if (c.stableWindow > c.maxPeriods) { errors.push('stableWindow must not exceed maxPeriods'); c.stableWindow = c.maxPeriods; }
+    return { config: c, errors: errors };
+  }
+
+  function shares(prices, quality, outside, mu) {
+    var n = prices.length, e = [], total = detExp(outside / mu);
+    for (var i = 0; i < n; i++) { e.push(detExp((quality[i] - prices[i]) / mu)); total += e[i]; }
+    var q = [];
+    for (var j = 0; j < n; j++) q.push(e[j] / total);
+    return q;
+  }
+
+  function profitsAt(prices, quality, cost, outside, mu) {
+    var q = shares(prices, quality, outside, mu), out = [];
+    for (var i = 0; i < prices.length; i++) out.push((prices[i] - cost[i]) * q[i]);
+    return out;
+  }
+
+  // Consumer surplus per shopper (logit inclusive value), up to a constant.
+  function consumerSurplus(prices, quality, outside, mu) {
+    var total = detExp(outside / mu);
+    for (var i = 0; i < prices.length; i++) total += detExp((quality[i] - prices[i]) / mu);
+    return mu * detLog(total);
+  }
+
+  function nashPrices(quality, cost, outside, mu) {
+    var n = quality.length, p = [], i;
+    for (i = 0; i < n; i++) p.push(cost[i] + mu);
+    for (var it = 0; it < 20000; it++) {
+      var q = shares(p, quality, outside, mu), change = 0, next = [];
+      for (i = 0; i < n; i++) {
+        next.push(cost[i] + mu / (1 - q[i]));
+        var dd = next[i] - p[i];
+        if (dd < 0) dd = -dd;
+        if (dd > change) change = dd;
+      }
+      p = next;
+      if (change < 1e-13) break;
+    }
+    return p;
+  }
+
+  // Joint-profit maximum: with logit demand every product carries the same markup m, where m(1 - Q) = mu.
+  function monopolyPrices(quality, cost, outside, mu) {
+    var n = quality.length, lo = 0, hi = 60 * mu + 10;
+    function f(m) {
+      var p = [];
+      for (var i = 0; i < n; i++) p.push(cost[i] + m);
+      var q = shares(p, quality, outside, mu);
+      return m * (1 - sum(q)) - mu;
+    }
+    for (var it = 0; it < 200; it++) {
+      var mid = (lo + hi) / 2;
+      if (f(mid) < 0) lo = mid; else hi = mid;
+    }
+    var m = (lo + hi) / 2, out = [];
+    for (var j = 0; j < n; j++) out.push(cost[j] + m);
+    return out;
+  }
+
+  var SHOCKS = [-1, -0.5, 0, 0.5, 1];
+
+  // Everything about the market that does not depend on learning.
+  function buildMarket(cfg) {
+    var n = cfg.nFirms, m = cfg.nPrices, i, k;
+    var quality = cfg.quality.slice(0, n), cost = cfg.cost.slice(0, n);
+    var pN = nashPrices(quality, cost, cfg.outside, cfg.mu);
+    var pM = monopolyPrices(quality, cost, cfg.outside, cfg.mu);
+    var piN = profitsAt(pN, quality, cost, cfg.outside, cfg.mu);
+    var piM = profitsAt(pM, quality, cost, cfg.outside, cfg.mu);
+    var csN = consumerSurplus(pN, quality, cfg.outside, cfg.mu);
+    var csM = consumerSurplus(pM, quality, cfg.outside, cfg.mu);
+    var grids = [];
+    for (i = 0; i < n; i++) {
+      var lo = pN[i] - cfg.xi * (pM[i] - pN[i]), hi = pM[i] + cfg.xi * (pM[i] - pN[i]);
+      var step = (hi - lo) / (m - 1), g = [];
+      for (k = 0; k < m; k++) g.push(lo + k * step);
+      grids.push(g);
+    }
+    var nJoint = 1;
+    for (i = 0; i < n; i++) nJoint *= m;
+    var levels = cfg.demandNoise > 0 ? SHOCKS.length : 1;
+    var profit = [];
+    for (var l = 0; l < levels; l++) {
+      var shock = levels > 1 ? SHOCKS[l] * cfg.demandNoise : 0, ql = [];
+      for (i = 0; i < n; i++) ql.push(quality[i] + shock);
+      var perFirm = [];
+      for (i = 0; i < n; i++) perFirm.push(new Float64Array(nJoint));
+      for (var j = 0; j < nJoint; j++) {
+        var acts = decodeJoint(j, n, m), prices = [];
+        for (i = 0; i < n; i++) prices.push(grids[i][acts[i]]);
+        var pr = profitsAt(prices, ql, cost, cfg.outside, cfg.mu);
+        for (i = 0; i < n; i++) perFirm[i][j] = pr[i];
+      }
+      profit.push(perFirm);
+    }
+    var nashIdx = [], monoIdx = [];
+    for (i = 0; i < n; i++) { nashIdx.push(nearestIndex(grids[i], pN[i])); monoIdx.push(nearestIndex(grids[i], pM[i])); }
+    return {
+      n: n, m: m, nJoint: nJoint, quality: quality, cost: cost, outside: cfg.outside, mu: cfg.mu,
+      pN: pN, pM: pM, piN: piN, piM: piM, csN: csN, csM: csM, grids: grids, profit: profit,
+      levels: levels, nashIdx: nashIdx, monoIdx: monoIdx
+    };
+  }
+
+  function decodeJoint(j, n, m) {
+    var a = [];
+    for (var i = 0; i < n; i++) { a.push(j % m); j = (j - (j % m)) / m; }
+    return a;
+  }
+  function encodeJoint(acts, m) {
+    var j = 0, mult = 1;
+    for (var i = 0; i < acts.length; i++) { j += acts[i] * mult; mult *= m; }
+    return j;
+  }
+  function nearestIndex(grid, p) {
+    var best = 0, bd = Infinity;
+    for (var k = 0; k < grid.length; k++) {
+      var d = grid[k] - p; if (d < 0) d = -d;
+      if (d < bd) { bd = d; best = k; }
+    }
+    return best;
+  }
+
+  // Which state a learning seller sees, for every possible set of last prices.
+  function stateTables(mk, memory) {
+    var n = mk.n, m = mk.m, tabs = [], sizes = [];
+    for (var i = 0; i < n; i++) {
+      var tab = new Int32Array(mk.nJoint), size = memory === 'full' ? mk.nJoint : memory === 'own' ? m : 1;
+      for (var j = 0; j < mk.nJoint; j++) {
+        var a = decodeJoint(j, n, m), s;
+        if (memory === 'full') {
+          s = a[i]; var mult = m;
+          for (var o = 0; o < n; o++) if (o !== i) { s += a[o] * mult; mult *= m; }
+        } else if (memory === 'own') s = a[i];
+        else s = 0;
+        tab[j] = s;
+      }
+      tabs.push(tab); sizes.push(size);
+    }
+    return { tabs: tabs, sizes: sizes };
+  }
+
+  // What a rule-based seller charges, for every possible set of last prices.
+  function ruleTable(mk, i, type) {
+    var n = mk.n, m = mk.m, tab = new Int32Array(mk.nJoint);
+    for (var j = 0; j < mk.nJoint; j++) {
+      var a = decodeJoint(j, n, m), cheapest = Infinity;
+      for (var o = 0; o < n; o++) if (o !== i && mk.grids[o][a[o]] < cheapest) cheapest = mk.grids[o][a[o]];
+      var target;
+      if (type === 'nash') target = mk.nashIdx[i];
+      else if (type === 'match') target = nearestIndex(mk.grids[i], cheapest);
+      else {
+        // undercut the cheapest rival by one step; when the price war reaches the bottom, reset to the top
+        var near = nearestIndex(mk.grids[i], cheapest);
+        target = near > 0 ? near - 1 : m - 1;
+      }
+      tab[j] = target;
+    }
+    return tab;
+  }
+
+  // ---------------------------------------------------------------- learning
+
+  function Trainer(input) {
+    var v = validateConfig(input);
+    this.cfg = v.config;
+    this.errors = v.errors;
+    var cfg = this.cfg, mk = buildMarket(cfg), n = mk.n, m = mk.m, i, s, a;
+    this.market = mk;
+    var st = stateTables(mk, cfg.memory);
+    this.stateTab = st.tabs;
+    this.stateSize = st.sizes;
+    this.learn = [];
+    this.ruleTab = [];
+    for (i = 0; i < n; i++) {
+      this.learn.push(cfg.firmTypes[i] === 'learn');
+      this.ruleTab.push(this.learn[i] ? null : ruleTable(mk, i, cfg.firmTypes[i]));
+    }
+    // Initial Q: the average profit of each own price against uniformly random rival prices, forever.
+    this.Q = []; this.best = []; this.bestV = [];
+    for (i = 0; i < n; i++) {
+      if (!this.learn[i]) { this.Q.push(null); this.best.push(null); this.bestV.push(null); continue; }
+      if (cfg.sharedVendor && i > 0) { this.Q.push(this.Q[0]); this.best.push(this.best[0]); this.bestV.push(this.bestV[0]); continue; }
+      var avg = [];
+      for (a = 0; a < m; a++) avg.push(0);
+      var count = 0;
+      for (var l = 0; l < mk.levels; l++) {
+        for (var j = 0; j < mk.nJoint; j++) {
+          var own = decodeJoint(j, n, m)[i];
+          avg[own] += mk.profit[l][i][j];
+        }
+      }
+      count = mk.levels * mk.nJoint / m;
+      for (a = 0; a < m; a++) avg[a] = avg[a] / count / (1 - cfg.delta);
+      var S = this.stateSize[i], Q = new Float64Array(S * m), best = new Int32Array(S), bestV = new Float64Array(S);
+      for (s = 0; s < S; s++) {
+        var bv = -Infinity, ba = 0;
+        for (a = 0; a < m; a++) { Q[s * m + a] = avg[a]; if (avg[a] > bv) { bv = avg[a]; ba = a; } }
+        best[s] = ba; bestV[s] = bv;
+      }
+      this.Q.push(Q); this.best.push(best); this.bestV.push(bestV);
+    }
+    this.rng = new Rng(cfg.seed);
+    // Start from a random set of prices.
+    var start = [];
+    for (i = 0; i < n; i++) start.push(this.rng.int(m));
+    this.last = encodeJoint(start, m);
+    this.t = 0;
+    this.eps = 1;
+    this.decay = detExp(-cfg.beta);
+    this.stable = 0;
+    this.converged = false;
+    this.done = false;
+    this.block = 10000;
+    this.history = [];           // one point per block: mean price and profit per seller
+    this._acc = { price: [], profit: [], count: 0 };
+    for (i = 0; i < n; i++) { this._acc.price.push(0); this._acc.profit.push(0); }
+    this._acts = new Int32Array(n);
+    this._states = new Int32Array(n);
+  }
+
+  // Run up to maxSteps more periods. Returns true when training has finished.
+  Trainer.prototype.run = function (maxSteps) {
+    if (this.done) return true;
+    var cfg = this.cfg, mk = this.market, n = mk.n, m = mk.m, rng = this.rng;
+    var alpha = cfg.alpha, oma = 1 - alpha, delta = cfg.delta, floor = cfg.exploreFloor, decay = this.decay;
+    var levels = mk.levels, learn = this.learn, stateTab = this.stateTab, ruleTab = this.ruleTab;
+    var Qs = this.Q, bests = this.best, bestVs = this.bestV, profit = mk.profit, grids = mk.grids;
+    var acts = this._acts, states = this._states, acc = this._acc, block = this.block;
+    var last = this.last, t = this.t, eps = this.eps, stable = this.stable;
+    var window = cfg.stableWindow, maxT = cfg.maxPeriods, end = t + maxSteps;
+    var i, finished = false;
+    while (t < end) {
+      var joint = 0, mult = 1;
+      for (i = 0; i < n; i++) {
+        var ai;
+        if (learn[i]) {
+          var s0 = stateTab[i][last];
+          states[i] = s0;
+          if (rng.next() < eps) ai = Math.floor(rng.next() * m);
+          else ai = bests[i][s0];
+        } else ai = ruleTab[i][last];
+        acts[i] = ai; joint += ai * mult; mult *= m;
+      }
+      var lvl = levels > 1 ? Math.floor(rng.next() * levels) : 0;
+      var prof = profit[lvl], changed = false;
+      for (i = 0; i < n; i++) {
+        var r = prof[i][joint];
+        acc.price[i] += grids[i][acts[i]];
+        acc.profit[i] += r;
+        if (!learn[i]) continue;
+        var s = states[i], a = acts[i], ns = stateTab[i][joint], Q = Qs[i], best = bests[i], bestV = bestVs[i];
+        var idx = s * m + a, nq = oma * Q[idx] + alpha * (r + delta * bestV[ns]);
+        Q[idx] = nq;
+        var b = best[s];
+        if (a === b) {
+          if (nq >= bestV[s]) bestV[s] = nq;
+          else {
+            var bv = -Infinity, ba = 0, base = s * m;
+            for (var k = 0; k < m; k++) { if (Q[base + k] > bv) { bv = Q[base + k]; ba = k; } }
+            best[s] = ba; bestV[s] = bv;
+            if (ba !== b) changed = true;
+          }
+        } else if (nq > bestV[s]) { best[s] = a; bestV[s] = nq; changed = true; }
+      }
+      stable = changed ? 0 : stable + 1;
+      last = joint;
+      eps = eps * decay;
+      if (eps < floor) eps = floor;
+      t++;
+      acc.count++;
+      if (acc.count === block) {
+        var pt = { t: t, eps: eps, price: [], profit: [] };
+        for (i = 0; i < n; i++) {
+          pt.price.push(acc.price[i] / block); pt.profit.push(acc.profit[i] / block);
+          acc.price[i] = 0; acc.profit[i] = 0;
+        }
+        acc.count = 0;
+        this.history.push(pt);
+      }
+      if (stable >= window) { this.converged = true; finished = true; break; }
+      if (t >= maxT) { finished = true; break; }
+    }
+    this.last = last; this.t = t; this.eps = eps; this.stable = stable;
+    if (finished) this.done = true;
+    return this.done;
+  };
+
+  Trainer.prototype.runToEnd = function () {
+    while (!this.run(1000000)) { /* keep going */ }
+    return this;
+  };
+
+  // The prices every seller charges next, given last period's prices, with no exploration.
+  Trainer.prototype.greedyActions = function (joint) {
+    var n = this.market.n, out = [];
+    for (var i = 0; i < n; i++) {
+      out.push(this.learn[i] ? this.best[i][this.stateTab[i][joint]] : this.ruleTab[i][joint]);
+    }
+    return out;
+  };
+  Trainer.prototype.greedyNext = function (joint) {
+    return encodeJoint(this.greedyActions(joint), this.market.m);
+  };
+
+  // Follow the learned strategies from a starting point until prices repeat.
+  function limitCycle(tr, start) {
+    var mk = tr.market, seen = {}, path = [], j = start === undefined ? tr.last : start;
+    for (var step = 0; step <= mk.nJoint + 1; step++) {
+      if (seen[j] !== undefined) {
+        var cyc = path.slice(seen[j]);
+        return { states: cyc, transient: seen[j] };
+      }
+      seen[j] = path.length;
+      path.push(j);
+      j = tr.greedyNext(j);
+    }
+    return { states: [j], transient: path.length };
+  }
+
+  function outcomeOf(mk, jointList) {
+    var n = mk.n, avgP = [], avgPi = [], i, cs = 0;
+    for (i = 0; i < n; i++) { avgP.push(0); avgPi.push(0); }
+    for (var k = 0; k < jointList.length; k++) {
+      var a = decodeJoint(jointList[k], n, mk.m), prices = [];
+      for (i = 0; i < n; i++) prices.push(mk.grids[i][a[i]]);
+      var pr = profitsAt(prices, mk.quality, mk.cost, mk.outside, mk.mu);
+      for (i = 0; i < n; i++) { avgP[i] += prices[i]; avgPi[i] += pr[i]; }
+      cs += consumerSurplus(prices, mk.quality, mk.outside, mk.mu);
+    }
+    var L = jointList.length, gain = [];
+    for (i = 0; i < n; i++) {
+      avgP[i] /= L; avgPi[i] /= L;
+      gain.push((avgPi[i] - mk.piN[i]) / (mk.piM[i] - mk.piN[i]));
+    }
+    cs /= L;
+    return {
+      price: avgP, profit: avgPi, gain: gain, avgGain: mean(gain),
+      cs: cs, harm: (mk.csN - cs) / (mk.csN - mk.csM)
+    };
+  }
+
+  // Static best response of seller i to rivals' prices in a joint action (no shocks).
+  function staticBestResponse(mk, i, joint) {
+    var a = decodeJoint(joint, mk.n, mk.m), best = 0, bv = -Infinity;
+    for (var k = 0; k < mk.m; k++) {
+      a[i] = k;
+      var v = mk.profit[0][i][encodeJoint(a, mk.m)];
+      if (v > bv) { bv = v; best = k; }
+    }
+    return best;
+  }
+
+  // Force one seller to charge a different price for one period, then let the strategies play on.
+  function impulseResponse(tr, opts) {
+    opts = opts || {};
+    var mk = tr.market, n = mk.n, m = mk.m, cyc = opts.cycle || limitCycle(tr).states;
+    var L = cyc.length, dev = opts.deviator || 0, delta = tr.cfg.delta;
+    var H = opts.horizon === undefined ? 25 : Math.floor(opts.horizon);
+    if (!(H >= 2)) H = 2;
+    if (H > 500) H = 500;
+    var j0 = cyc[0];
+    var cf1 = cyc[1 % L], cfActs = decodeJoint(cf1, n, m);
+    var devAct = opts.price;
+    if (devAct === undefined || devAct === 'best') {
+      devAct = staticBestResponse(mk, dev, cf1);
+      if (devAct === cfActs[dev]) devAct = Math.max(0, cfActs[dev] - 1);
+    }
+    var path = [j0], cfPath = [j0];
+    var acts1 = tr.greedyActions(j0);
+    acts1[dev] = devAct;
+    var j = encodeJoint(acts1, m);
+    path.push(j); cfPath.push(cf1);
+    for (var t = 2; t <= H; t++) {
+      j = tr.greedyNext(j);
+      path.push(j);
+      cfPath.push(cyc[t % L]);
+    }
+    var cycSet = {};
+    for (var c = 0; c < L; c++) cycSet[cyc[c]] = true;
+    var prices = [], cfPrices = [], profits = [], cfProfits = [], i;
+    for (i = 0; i < n; i++) { prices.push([]); cfPrices.push([]); profits.push([]); cfProfits.push([]); }
+    for (t = 0; t <= H; t++) {
+      var a = decodeJoint(path[t], n, m), b = decodeJoint(cfPath[t], n, m);
+      for (i = 0; i < n; i++) {
+        prices[i].push(mk.grids[i][a[i]]); cfPrices[i].push(mk.grids[i][b[i]]);
+        profits[i].push(mk.profit[0][i][path[t]]); cfProfits[i].push(mk.profit[0][i][cfPath[t]]);
+      }
+    }
+    var gainNow = profits[dev][1] - cfProfits[dev][1], later = 0, disc = 1;
+    for (t = 2; t <= H; t++) { disc *= delta; later += disc * (profits[dev][t] - cfProfits[dev][t]); }
+    var returned = null;
+    for (t = 2; t <= H; t++) { if (cycSet[path[t]]) { returned = t; break; } }
+    // Did any rival answer with a lower price than it would otherwise have charged?
+    var rivalCut = false, deepest = 0;
+    for (i = 0; i < n; i++) {
+      if (i === dev) continue;
+      var cut = cfPrices[i][2] - prices[i][2];
+      if (cut > 1e-12) rivalCut = true;
+      for (t = 2; t <= H; t++) { var d = cfPrices[i][t] - prices[i][t]; if (d > deepest) deepest = d; }
+    }
+    return {
+      deviator: dev, devPrice: mk.grids[dev][devAct], devAction: devAct, horizon: H,
+      prices: prices, cfPrices: cfPrices, profits: profits, cfProfits: cfProfits,
+      gainNow: gainNow, lossLater: -later, net: gainNow + later,
+      rivalCut: rivalCut, deepestCut: deepest, returnedAt: returned,
+      punished: rivalCut && gainNow + later < 0
+    };
+  }
+
+  // Summary of a finished (or stopped) training run.
+  function summarise(tr) {
+    var mk = tr.market, lc = limitCycle(tr), out = outcomeOf(mk, lc.states);
+    var ir = impulseResponse(tr, { cycle: lc.states });
+    var tail = tr.history.slice(-10), realised = [];
+    for (var i = 0; i < mk.n; i++) {
+      var s = 0;
+      for (var k = 0; k < tail.length; k++) s += tail[k].profit[i];
+      realised.push(tail.length ? (s / tail.length - mk.piN[i]) / (mk.piM[i] - mk.piN[i]) : out.gain[i]);
+    }
+    return {
+      converged: tr.converged, periods: tr.t, cycleLength: lc.states.length, cycle: lc.states,
+      price: out.price, profit: out.profit, gain: out.gain, avgGain: out.avgGain,
+      harm: out.harm, realisedGain: mean(realised),
+      punished: ir.punished, rivalCut: ir.rivalCut, devNet: ir.net, returnedAt: ir.returnedAt,
+      collusive: ir.punished && out.avgGain >= 0.2
+    };
+  }
+
+  function train(cfg) {
+    var tr = new Trainer(cfg);
+    tr.runToEnd();
+    return tr;
+  }
+
+  // Holding every rival's learned strategy fixed, is seller i's learned strategy its best long-run reply?
+  // Solved exactly by value iteration over all possible sets of last prices.
+  function bestResponseCheck(tr, i, cycle) {
+    if (!tr.learn[i]) return null;
+    var mk = tr.market, n = mk.n, m = mk.m, nJ = mk.nJoint, delta = tr.cfg.delta, s, a, k;
+    var levels = mk.levels;
+    var R = new Float64Array(nJ * m), NS = new Int32Array(nJ * m);
+    for (s = 0; s < nJ; s++) {
+      var acts = tr.greedyActions(s);
+      for (a = 0; a < m; a++) {
+        acts[i] = a;
+        var j = encodeJoint(acts, m), r = 0;
+        for (var l = 0; l < levels; l++) r += mk.profit[l][i][j];
+        R[s * m + a] = r / levels;
+        NS[s * m + a] = j;
+      }
+    }
+    var V = new Float64Array(nJ), iters = 0, settled = false;
+    for (iters = 1; iters <= 5000; iters++) {
+      var change = 0;
+      var nextV = new Float64Array(nJ);
+      for (s = 0; s < nJ; s++) {
+        var bv = -Infinity;
+        for (a = 0; a < m; a++) { var v = R[s * m + a] + delta * V[NS[s * m + a]]; if (v > bv) bv = v; }
+        nextV[s] = bv;
+        var d = bv - V[s]; if (d < 0) d = -d;
+        if (d > change) change = d;
+      }
+      V = nextV;
+      if (change < 1e-11) { settled = true; break; }
+    }
+    if (iters > 5000) iters = 5000;
+    var optimal = 0, gapSum = 0, onPath = true, onPathGap = 0;
+    var onSet = {};
+    if (cycle) for (k = 0; k < cycle.length; k++) onSet[cycle[k]] = true;
+    for (s = 0; s < nJ; s++) {
+      var la = tr.best[i][tr.stateTab[i][s]];
+      var lv = R[s * m + la] + delta * V[NS[s * m + la]];
+      var gap = V[s] - lv;
+      var ok = gap <= 1e-8 * (V[s] < 0 ? -V[s] : V[s]) + 1e-12;
+      var rel = V[s] !== 0 ? gap / (V[s] < 0 ? -V[s] : V[s]) : 0;
+      if (ok) optimal++;
+      else if (onSet[s]) onPath = false;
+      if (onSet[s] && rel > onPathGap) onPathGap = rel;
+      gapSum += rel;
+    }
+    return { firm: i, shareOptimal: optimal / nJ, onPathOptimal: onPath, onPathGap: onPathGap, meanGap: gapSum / nJ, iterations: iters, settled: settled };
+  }
+
+  // ---------------------------------------------------------------- scenarios
+
+  var SCENARIOS = [
+    { id: 'baseline', group: 'baseline', label: 'Both learn and see all prices', change: {},
+      note: 'The textbook case: two self-learning sellers who can see what each other charged yesterday.' },
+    { id: 'own', group: 'remedy', label: 'Rivals’ prices banned as an input', change: { memory: 'own' },
+      note: 'Each algorithm may only use its own past price, not what rivals charged.' },
+    { id: 'myopic', group: 'remedy', label: 'Rewarded on today’s profit only', change: { delta: 0 },
+      note: 'The algorithm is told to maximise today’s profit, with no weight on the future.' },
+    { id: 'third', group: 'remedy', label: 'A third seller enters', change: { nFirms: 3, maxPeriods: 6000000 },
+      note: 'Another self-learning seller joins the market.' },
+    { id: 'fixedrival', group: 'remedy', label: 'Rival keeps a fixed competitive price', change: { firmTypes: ['learn', 'nash', 'learn'] },
+      note: 'One seller ignores the algorithm and always charges the competitive price.' },
+    { id: 'floor', group: 'remedy', label: 'Must keep testing prices (5% of days)', change: { exploreFloor: 0.05 },
+      note: 'A rule that algorithms keep experimenting, so no pattern is ever fully settled.' },
+    { id: 'none', group: 'design', label: 'No memory at all', change: { memory: 'none' },
+      note: 'Neither algorithm remembers any past price, so neither can punish.' },
+    { id: 'matcher', group: 'risk', label: 'Rival matches the cheapest price', change: { firmTypes: ['learn', 'match', 'learn'] },
+      note: 'One seller uses a simple price-match rule instead of learning.' },
+    { id: 'vendor', group: 'risk', label: 'Both buy the same pricing tool', change: { sharedVendor: true },
+      note: 'One vendor’s algorithm learns from both sellers’ sales at once (hub and spoke).' },
+    { id: 'noisy', group: 'risk', label: 'Busy and quiet days', change: { demandNoise: 0.2 },
+      note: 'Demand swings from day to day, so profits are noisier to learn from.' }
+  ];
+
+  function scenarioById(id) {
+    for (var i = 0; i < SCENARIOS.length; i++) if (SCENARIOS[i].id === id) return SCENARIOS[i];
+    return null;
+  }
+
+  function applyScenario(base, id) {
+    var sc = scenarioById(id), out = {}, k;
+    if (!sc) throw new Error('unknown scenario ' + id);
+    for (k in base) out[k] = Array.isArray(base[k]) ? base[k].slice() : base[k];
+    for (k in sc.change) {
+      var v = sc.change[k];
+      if (k === 'firmTypes') {
+        out.firmTypes = (out.firmTypes || ['learn', 'learn', 'learn']).slice();
+        for (var f = 0; f < v.length; f++) if (v[f] !== 'learn') out.firmTypes[f] = v[f];
+      } else if (k === 'maxPeriods') {
+        out.maxPeriods = Math.max(out.maxPeriods || 0, v);
+      } else out[k] = Array.isArray(v) ? v.slice() : v;
+    }
+    if (out.sharedVendor) {
+      var nF = out.nFirms || 2;
+      for (var g = 1; g < nF; g++) { out.quality[g] = out.quality[0]; out.cost[g] = out.cost[0]; }
+    }
+    return out;
+  }
+
+  function runScenario(base, id, seed) {
+    var cfg = applyScenario(base, id);
+    cfg.seed = seed;
+    var tr = train(cfg), s = summarise(tr);
+    s.scenario = id; s.seed = seed;
+    return s;
+  }
+
+  function aggregate(results) {
+    var gains = results.map(function (r) { return r.realisedGain; });
+    var harms = results.map(function (r) { return r.harm; });
+    var pun = 0, conv = 0, col = 0;
+    results.forEach(function (r) { if (r.punished) pun++; if (r.converged) conv++; if (r.collusive) col++; });
+    var n = results.length || 1;
+    return {
+      runs: results.length,
+      gain: bootstrapMean(gains, 0.9, 1000, 101),
+      harm: bootstrapMean(harms, 0.9, 1000, 202),
+      punishedShare: pun / n, convergedShare: conv / n, collusiveShare: col / n
+    };
+  }
+
+  // ---------------------------------------------------------------- what a regulator sees
+
+  // A year of daily prices once the algorithms are deployed. On a small share of days each seller
+  // tries a random price (a test or a promotion); otherwise it follows its strategy.
+  function observe(tr, opts) {
+    opts = opts || {};
+    var mk = tr.market, n = mk.n, m = mk.m, days = opts.days || 365;
+    var test = opts.experiment === undefined ? 0.03 : opts.experiment;
+    var rng = new Rng(opts.seed === undefined ? 99 : opts.seed);
+    var cyc = limitCycle(tr).states, j = cyc[0], prices = [], i;
+    for (i = 0; i < n; i++) prices.push([]);
+    for (var d = 0; d < days; d++) {
+      var acts = tr.greedyActions(j);
+      for (i = 0; i < n; i++) if (rng.next() < test) acts[i] = rng.int(m);
+      j = encodeJoint(acts, m);
+      for (i = 0; i < n; i++) prices[i].push(mk.grids[i][acts[i]]);
+    }
+    return prices;
+  }
+
+  // Screens a competition authority could run on daily prices alone.
+  // prices: one array of daily prices per seller. cost: optional array of unit costs.
+  function screens(prices, opts) {
+    opts = opts || {};
+    var n = prices.length, T = prices[0].length, tol = opts.tol === undefined ? 0.005 : opts.tol;
+    var win = opts.window || 10, cost = opts.cost || null, i, j, t;
+    var marginSum = 0, marginN = 0, cvs = [];
+    for (i = 0; i < n; i++) {
+      var p = prices[i];
+      cvs.push(sd(p) / mean(p));
+      if (cost) for (t = 0; t < T; t++) { marginSum += (p[t] - cost[i]) / p[t]; marginN++; }
+    }
+    function cut(k, tt) { return prices[k][tt] < prices[k][tt - 1] * (1 - tol); }
+    function still(k, tt) { var a = prices[k][tt], b = prices[k][tt - 1], d = a - b; if (d < 0) d = -d; return d <= tol * b; }
+    var events = 0, followed = 0, sizeSum = 0, back = 0, punishBack = 0, quiet = 0, quietCuts = 0, list = [];
+    for (t = 1; t < T - 1; t++) {
+      var allStill = true;
+      for (i = 0; i < n; i++) if (!still(i, t)) { allStill = false; break; }
+      if (allStill) {
+        // base rate: how often does someone cut on a day that follows a quiet day?
+        for (j = 0; j < n; j++) { quiet++; if (cut(j, t + 1)) quietCuts++; }
+        continue;
+      }
+      for (i = 0; i < n; i++) {
+        if (!cut(i, t)) continue;
+        var unprovoked = true;
+        for (j = 0; j < n; j++) if (j !== i && !still(j, t)) unprovoked = false;
+        if (!unprovoked) continue;
+        events++;
+        var anyFollow = false, biggest = 0;
+        for (j = 0; j < n; j++) {
+          if (j === i) continue;
+          if (cut(j, t + 1)) {
+            anyFollow = true;
+            var sz = (prices[j][t] - prices[j][t + 1]) / prices[j][t];
+            if (sz > biggest) biggest = sz;
+          }
+        }
+        if (anyFollow) { followed++; sizeSum += biggest; }
+        // snap-back: within the window, every seller is back to at least its pre-cut price
+        var ok = false;
+        for (var u = t + 1; u <= t + win && u < T; u++) {
+          var allBack = true;
+          for (j = 0; j < n; j++) if (prices[j][u] < prices[j][t - 1] * (1 - tol)) { allBack = false; break; }
+          if (allBack) { ok = true; break; }
+        }
+        if (ok) back++;
+        if (ok && anyFollow) punishBack++;
+        if (opts.detail) list.push({ t: t, who: i, followed: anyFollow, back: ok });
+      }
+    }
+    var followRate = events ? followed / events : NaN, baseRate = quiet ? quietCuts / quiet : 0;
+    return {
+      days: T, margin: cost ? marginSum / marginN : null, cv: mean(cvs),
+      events: events, followRate: followRate, baseRate: baseRate,
+      retaliation: events ? followRate - baseRate : NaN,
+      responseSize: followed ? sizeSum / followed : 0,
+      snapBack: events ? back / events : NaN,
+      punishReturn: events ? punishBack / events : NaN,
+      eventList: opts.detail ? list : undefined
+    };
+  }
+
+  // Is the follow rate higher than it would be if the rivals' timing were unrelated?
+  // Shifts every rival's series round in a circle by a random amount and recomputes.
+  function permutationTest(prices, opts) {
+    opts = opts || {};
+    var reps = opts.reps || 999, rng = new Rng(opts.seed === undefined ? 4242 : opts.seed);
+    var T = prices[0].length, obs = screens(prices, opts).retaliation, ge = 0, valid = 0;
+    if (obs !== obs || T < 30) return { observed: obs, pValue: NaN, reps: 0 };
+    var margin = opts.window || 10;
+    for (var r = 0; r < reps; r++) {
+      var k = margin + rng.int(T - 2 * margin), shifted = [prices[0]];
+      for (var i = 1; i < prices.length; i++) shifted.push(prices[i].slice(k).concat(prices[i].slice(0, k)));
+      var v = screens(shifted, opts).retaliation;
+      if (v !== v) continue;
+      valid++;
+      if (v >= obs - 1e-12) ge++;
+    }
+    return { observed: obs, pValue: (ge + 1) / (valid + 1), reps: valid };
+  }
+
+  var CASE_MIX = ['baseline', 'baseline', 'vendor', 'matcher', 'noisy', 'own', 'myopic', 'fixedrival', 'none', 'floor'];
+  var CASE_MU = [0.1, 0.25, 0.5];
+
+  // A file of simulated markets, each with the truth a regulator never sees and the prices it does.
+  // caseConfig picks market k's hidden set-up; finishCase turns its trained sellers into a case.
+  function caseConfig(base, k, seed) {
+    var rng = new Rng(seed * 7919 + k * 104729 + 17);
+    var id = CASE_MIX[rng.int(CASE_MIX.length)], mu = CASE_MU[rng.int(CASE_MU.length)];
+    var cfg = applyScenario(base, id);
+    cfg.mu = mu; cfg.nFirms = 2;
+    cfg.seed = 1 + rng.int(1000000);
+    return { k: k, scenario: id, mu: mu, cfg: cfg };
+  }
+
+  function finishCase(tr, meta, opts) {
+    opts = opts || {};
+    var s = summarise(tr);
+    var prices = observe(tr, { days: opts.days || 365, experiment: opts.experiment === undefined ? 0.03 : opts.experiment, seed: meta.cfg.seed + 1 });
+    var sc = screens(prices, { cost: tr.market.cost });
+    return {
+      id: meta.k + 1, scenario: meta.scenario, mu: meta.mu, seed: meta.cfg.seed,
+      truth: { coordinated: s.collusive, highPrice: s.avgGain >= 0.5, gain: s.avgGain, punished: s.punished },
+      screens: sc, prices: prices, competitive: tr.market.pN.slice(), monopoly: tr.market.pM.slice()
+    };
+  }
+
+  function makeCase(base, k, seed, opts) {
+    var meta = caseConfig(base, k, seed);
+    return finishCase(train(meta.cfg), meta, opts);
+  }
+
+  var SCREEN_LIST = [
+    { id: 'margin', label: 'High margin', sign: 1, note: 'Average (price − cost) / price.' },
+    { id: 'stability', label: 'Stable prices', sign: 1, note: 'Low day-to-day variation (scored as minus the coefficient of variation).' },
+    { id: 'retaliation', label: 'Rivals hit back', sign: 1, note: 'How much more often a rival cuts the day after an unprovoked cut than on an ordinary day.' },
+    { id: 'snapBack', label: 'Prices snap back', sign: 1, note: 'Share of unprovoked cuts after which every price is back up within 10 days.' },
+    { id: 'punishReturn', label: 'Hit back, then back up', sign: 1, note: 'Share of unprovoked cuts that a rival answers the next day and after which every price is back up within 10 days.' }
+  ];
+
+  function screenScore(sc, id) {
+    if (id === 'margin') return sc.margin === null ? NaN : sc.margin;
+    if (id === 'stability') return -sc.cv;
+    if (id === 'retaliation') return sc.retaliation !== sc.retaliation ? 0 : sc.retaliation;
+    if (id === 'snapBack') return sc.snapBack !== sc.snapBack ? 0 : sc.snapBack;
+    if (id === 'punishReturn') return sc.punishReturn !== sc.punishReturn ? 0 : sc.punishReturn;
+    return NaN;
+  }
+
+  function evaluateScreens(cases, target) {
+    var labels = cases.map(function (c) { return target === 'highPrice' ? c.truth.highPrice : c.truth.coordinated; });
+    return SCREEN_LIST.map(function (s) {
+      var scores = cases.map(function (c) { return screenScore(c.screens, s.id); });
+      var roc = rocCurve(scores, labels);
+      return { id: s.id, label: s.label, auc: roc.auc, roc: roc, scores: scores };
+    });
+  }
+
+  // Flag every market at or above a threshold; count what that catches and what it wrongly flags.
+  function confusion(scores, labels, threshold) {
+    var tp = 0, fp = 0, fn = 0, tn = 0;
+    for (var i = 0; i < scores.length; i++) {
+      var flag = scores[i] >= threshold;
+      if (flag && labels[i]) tp++; else if (flag) fp++; else if (labels[i]) fn++; else tn++;
+    }
+    return { caught: tp, falseAlarms: fp, missed: fn, cleared: tn,
+      precision: tp + fp ? tp / (tp + fp) : NaN, recall: tp + fn ? tp / (tp + fn) : NaN };
+  }
+
+  var api = {
+    LIMITS: LIMITS, FIRM_TYPES: FIRM_TYPES, MEMORY: MEMORY, SHOCKS: SHOCKS,
+    detExp: detExp, detLog: detLog, Rng: Rng,
+    mean: mean, sd: sd, quantile: quantile, sortedCopy: sortedCopy, round: round,
+    bootstrapMean: bootstrapMean, rocCurve: rocCurve,
+    defaultConfig: defaultConfig, validateConfig: validateConfig,
+    shares: shares, profitsAt: profitsAt, consumerSurplus: consumerSurplus,
+    nashPrices: nashPrices, monopolyPrices: monopolyPrices, buildMarket: buildMarket,
+    decodeJoint: decodeJoint, encodeJoint: encodeJoint, nearestIndex: nearestIndex,
+    Trainer: Trainer, train: train, limitCycle: limitCycle, outcomeOf: outcomeOf,
+    staticBestResponse: staticBestResponse, impulseResponse: impulseResponse, summarise: summarise,
+    bestResponseCheck: bestResponseCheck,
+    SCENARIOS: SCENARIOS, scenarioById: scenarioById, applyScenario: applyScenario,
+    runScenario: runScenario, aggregate: aggregate,
+    observe: observe, screens: screens, permutationTest: permutationTest,
+    CASE_MIX: CASE_MIX, CASE_MU: CASE_MU, caseConfig: caseConfig, finishCase: finishCase, makeCase: makeCase,
+    SCREEN_LIST: SCREEN_LIST, screenScore: screenScore, evaluateScreens: evaluateScreens, confusion: confusion
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.QC = api;
+})(this);
+/* MODEL END */
+</script>
+<script>
+/* SAMPLES START */
+window.QC_SAMPLES = [];
+/* SAMPLES END */
+</script>
+<script>
+(function () {
+  'use strict';
+  var QC = window.QC;
+  var SAMPLES = window.QC_SAMPLES || [];
+  var NS = 'http://www.w3.org/2000/svg';
+  var SELLERS = ['A', 'B', 'C'];
+  var SELLER_COL = ['var(--a)', 'var(--b)', 'var(--c)'];
+  var TYPE_LABEL = { learn: 'Self-learning algorithm', nash: 'Fixed competitive price', match: 'Match the cheapest rival', undercut: 'Undercut the cheapest rival' };
+  var GROUP_COL = { baseline: 'var(--g-baseline)', remedy: 'var(--g-remedy)', design: 'var(--g-design)', risk: 'var(--g-risk)' };
+  var GROUP_LABEL = { baseline: 'Baseline', remedy: 'Possible remedy', design: 'Design choice', risk: 'Possible risk' };
+  var SCREEN_COL = { margin: '#7a8396', stability: '#c9a227', retaliation: '#d23f31', snapBack: '#1f9aa6', punishReturn: '#7b4fd8' };
+  var PRESETS = {
+    textbook: {}, close: { mu: 0.1 }, loyal: { mu: 0.5 }, three: { nFirms: 3 },
+    impatient: { delta: 0.5 }, fast: { beta: 2e-5 }, matcher: { firmTypes: ['learn', 'match', 'learn'] }
+  };
+  var PER = 1000; // profits are shown per 1,000 shoppers
+
+  var S = { trainer: null, summary: null, cycle: null, cfg: null, job: null, remJob: null, rem: null, cfJob: null, cases: null, data: null };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function money(x) { var neg = x < 0; return (neg ? '−' : '') + '£' + Math.abs(x).toFixed(2); }
+  function pct(x, d) { if (x !== x || x === null || x === undefined) return 'n/a'; return (x * 100).toFixed(d === undefined ? 0 : d).replace('-', '−') + '%'; }
+  function num(x, d) { if (x !== x || x === null || x === undefined) return 'n/a'; return x.toFixed(d === undefined ? 2 : d).replace(/^-/, '−'); }
+  function rounds(t) { return t >= 1e6 ? (t / 1e6).toFixed(2) + 'm' : t >= 1e4 ? Math.round(t / 1e3) + 'k' : String(t); }
+  function mean(xs) { return QC.mean(xs); }
+
+  // ------------------------------------------------------------ job runner
+  function runJob(step, opts) {
+    var cancelled = false, budget = opts.budget || 28, pause = opts.pause || 0;
+    function tick() {
+      if (cancelled) return;
+      var t0 = Date.now(), done = false;
+      try {
+        do { done = step(); } while (!done && !opts.single && Date.now() - t0 < budget);
+      } catch (err) { if (opts.error) opts.error(err); return; }
+      if (opts.progress) opts.progress();
+      if (done) { if (opts.done) opts.done(); } else setTimeout(tick, pause);
+    }
+    setTimeout(tick, 0);
+    return { cancel: function () { cancelled = true; } };
+  }
+
+  // ------------------------------------------------------------ svg helpers
+  function svg(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function text(parent, x, y, str, attrs) {
+    var t = svg('text', Object.assign({ x: x, y: y }, attrs || {}), parent);
+    t.textContent = str;
+    return t;
+  }
+  function niceStep(span, count) {
+    var raw = span / Math.max(1, count), mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), r = raw / mag;
+    return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+  }
+  function ticks(min, max, count) {
+    if (!(max > min)) return [min];
+    var st = niceStep(max - min, count), out = [];
+    for (var v = Math.ceil(min / st - 1e-9) * st; v <= max + 1e-9 * st; v += st) out.push(Math.abs(v) < st * 1e-9 ? 0 : v);
+    return out;
+  }
+  function newSvg(box, w, h, label) {
+    box.innerHTML = '';
+    var s = svg('svg', { viewBox: '0 0 ' + w + ' ' + h, role: 'img', 'aria-label': label, preserveAspectRatio: 'xMidYMid meet' }, box);
+    return s;
+  }
+  function legend(box, items) {
+    box.innerHTML = items.map(function (it) {
+      return '<span><i class="' + (it.dash ? 'dash' : '') + '" style="' + (it.dash ? 'color:' + it.color : 'background:' + it.color) + '"></i>' + esc(it.label) + '</span>';
+    }).join('');
+  }
+
+  // Generic line chart. o.lines: [{xs, ys, color, dash, width}], o.hlines: [{y, color, label}], o.points: [{x, y, color, shape, title}]
+  function lineChart(box, o) {
+    var W = o.w || 680, H = o.h || 280, m = { l: 52, r: o.right || 16, t: 14, b: 38 };
+    var s = newSvg(box, W, H, o.aria);
+    var x0 = o.xMin, x1 = o.xMax, y0 = o.yMin, y1 = o.yMax;
+    function X(v) { return m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r); }
+    function Y(v) { return H - m.b - (v - y0) / (y1 - y0 || 1) * (H - m.t - m.b); }
+    var g = svg('g', { 'class': 'grid' }, s);
+    ticks(y0, y1, 5).forEach(function (v) {
+      svg('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v) }, g);
+      text(s, m.l - 6, Y(v) + 4, o.yFmt ? o.yFmt(v) : String(v), { 'text-anchor': 'end' });
+    });
+    (o.xTicks || ticks(x0, x1, 6)).forEach(function (v) {
+      text(s, X(v), H - m.b + 16, o.xFmt ? o.xFmt(v) : String(v), { 'text-anchor': 'middle' });
+    });
+    svg('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, style: 'stroke:var(--line)' }, s);
+    if (o.xLabel) text(s, m.l + (W - m.l - m.r) / 2, H - 4, o.xLabel, { 'text-anchor': 'middle' });
+    if (o.yLabel) text(s, 12, m.t + (H - m.t - m.b) / 2, o.yLabel, { 'text-anchor': 'middle', transform: 'rotate(-90 12 ' + (m.t + (H - m.t - m.b) / 2) + ')' });
+    (o.vlines || []).forEach(function (v) {
+      svg('line', { x1: X(v.x), x2: X(v.x), y1: m.t, y2: H - m.b, style: 'stroke:var(--muted);stroke-dasharray:2 3' }, s);
+      if (v.label) text(s, X(v.x) + 4, m.t + 10, v.label, {});
+    });
+    (o.hlines || []).forEach(function (h) {
+      if (h.y < y0 || h.y > y1) return;
+      svg('line', { x1: m.l, x2: W - m.r, y1: Y(h.y), y2: Y(h.y), style: 'stroke:' + h.color + ';stroke-width:1.5;stroke-dasharray:6 4' }, s);
+      if (h.label) text(s, W - m.r - 4, Y(h.y) - 5, h.label, { 'text-anchor': 'end', style: 'fill:' + h.color + ';font-weight:600' });
+    });
+    (o.lines || []).forEach(function (ln) {
+      if (!ln.xs.length) return;
+      var d = '';
+      for (var i = 0; i < ln.xs.length; i++) d += (i ? 'L' : 'M') + X(ln.xs[i]).toFixed(1) + ' ' + Y(ln.ys[i]).toFixed(1);
+      svg('path', { d: d, fill: 'none', style: 'stroke:' + ln.color + ';stroke-width:' + (ln.width || 2) + (ln.dash ? ';stroke-dasharray:5 4' : '') + ';stroke-linejoin:round;stroke-linecap:round' + (ln.opacity ? ';opacity:' + ln.opacity : '') }, s);
+    });
+    (o.points || []).forEach(function (p) {
+      var el;
+      if (p.shape === 'tri') {
+        var cx = X(p.x), cy = Y(p.y), r = 5;
+        el = svg('path', { d: 'M' + cx + ' ' + (cy + r) + 'L' + (cx - r) + ' ' + (cy - r) + 'L' + (cx + r) + ' ' + (cy - r) + 'Z', style: 'fill:' + p.color + ';stroke:var(--card);stroke-width:1' }, s);
+      } else el = svg('circle', { cx: X(p.x), cy: Y(p.y), r: p.r || 4, style: 'fill:' + (p.fill || 'var(--card)') + ';stroke:' + p.color + ';stroke-width:2' }, s);
+      if (p.title) { var t = svg('title', {}, el); t.textContent = p.title; }
+    });
+    return s;
+  }
+
+  function lerpColour(a, b, f) {
+    function parse(c) {
+      c = c.trim();
+      if (c[0] === '#') {
+        if (c.length === 4) c = '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+        return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+      }
+      var m = c.match(/\d+/g) || [0, 0, 0];
+      return [+m[0], +m[1], +m[2]];
+    }
+    var x = parse(a), y = parse(b);
+    return 'rgb(' + [0, 1, 2].map(function (i) { return Math.round(x[i] + (y[i] - x[i]) * f); }).join(',') + ')';
+  }
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name) || '#888'; }
+
+  // ------------------------------------------------------------ tabs
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function showTab(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      $(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (focus) tab.focus();
+    var id = tab.id.replace('tab-', '');
+    if (id === 'threat') renderThreat();
+    if (id === 'remedies') updateRemTime();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { showTab(t, false); });
+    t.addEventListener('keydown', function (e) {
+      var k = e.key, j = null;
+      if (k === 'ArrowRight') j = (i + 1) % tabs.length;
+      else if (k === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+      else if (k === 'Home') j = 0;
+      else if (k === 'End') j = tabs.length - 1;
+      if (j !== null) { e.preventDefault(); showTab(tabs[j], true); }
+    });
+  });
+
+  // ------------------------------------------------------------ learn: controls
+  var BETA_LO = 5e-7, BETA_HI = 1e-4;
+  function betaFromSlider(v) { return BETA_LO * Math.pow(BETA_HI / BETA_LO, v / 100); }
+  function sliderFromBeta(b) { return Math.round(100 * Math.log(b / BETA_LO) / Math.log(BETA_HI / BETA_LO)); }
+  function sci(b) { var e = Math.floor(Math.log(b) / Math.LN10), m = b / Math.pow(10, e); return m.toFixed(1) + ' × 10^' + e; }
+
+  ['type0', 'type1', 'type2'].forEach(function (id, i) {
+    var sel = $(id);
+    sel.innerHTML = QC.FIRM_TYPES.map(function (t) { return '<option value="' + t + '">Seller ' + SELLERS[i] + ': ' + TYPE_LABEL[t] + '</option>'; }).join('');
+  });
+
+  function setControls(cfg) {
+    document.querySelector('input[name="nFirms"][value="' + cfg.nFirms + '"]').checked = true;
+    for (var i = 0; i < 3; i++) $('type' + i).value = cfg.firmTypes[i];
+    $('memory').value = cfg.memory;
+    $('mu').value = cfg.mu; $('delta').value = cfg.delta; $('alpha').value = cfg.alpha;
+    $('beta').value = sliderFromBeta(cfg.beta); $('nPrices').value = cfg.nPrices;
+    $('demandNoise').value = cfg.demandNoise; $('exploreFloor').value = cfg.exploreFloor;
+    $('sharedVendor').checked = !!cfg.sharedVendor; $('seed').value = cfg.seed;
+    updateOutputs();
+  }
+  function readControls() {
+    var n = +document.querySelector('input[name="nFirms"]:checked').value;
+    var b = betaFromSlider(+$('beta').value);
+    return {
+      nFirms: n, firmTypes: [$('type0').value, $('type1').value, $('type2').value], memory: $('memory').value,
+      mu: +$('mu').value, delta: +$('delta').value, alpha: +$('alpha').value, beta: +b.toPrecision(3),
+      nPrices: +$('nPrices').value, demandNoise: +$('demandNoise').value, exploreFloor: +$('exploreFloor').value,
+      sharedVendor: $('sharedVendor').checked, seed: $('seed').value === '' ? 1 : +$('seed').value,
+      quality: [2, 2, 2], cost: [1, 1, 1], outside: 0, xi: 0.1, stableWindow: 100000,
+      maxPeriods: n === 3 ? 6000000 : 3000000
+    };
+  }
+  function updateOutputs() {
+    $('mu-out').textContent = (+$('mu').value).toFixed(2);
+    $('delta-out').textContent = (+$('delta').value).toFixed(2);
+    $('alpha-out').textContent = (+$('alpha').value).toFixed(2);
+    var b = betaFromSlider(+$('beta').value);
+    $('beta-out').textContent = sci(b);
+    $('beta-hint').textContent = 'Experimenting falls below 1% of days after about ' + rounds(Math.round(Math.log(100) / b)) + ' rounds.';
+    $('nPrices-out').textContent = $('nPrices').value;
+    $('demandNoise-out').textContent = (+$('demandNoise').value).toFixed(2);
+    $('exploreFloor-out').textContent = pct(+$('exploreFloor').value) + ' of days';
+    var n = +document.querySelector('input[name="nFirms"]:checked').value;
+    $('type2').hidden = n < 3;
+  }
+  function applyPreset(name) {
+    var cfg = QC.defaultConfig(), p = PRESETS[name] || {};
+    for (var k in p) cfg[k] = Array.isArray(p[k]) ? p[k].slice() : p[k];
+    setControls(cfg);
+  }
+  $('preset').addEventListener('change', function () { applyPreset(this.value); });
+  $('learn-form').addEventListener('input', function (e) {
+    if (e.target.id !== 'preset' && e.target.id !== 'animate') $('preset').value = 'custom';
+    updateOutputs();
+  });
+  $('learn-form').addEventListener('change', function (e) {
+    if (e.target.name === 'nFirms' || e.target.tagName === 'SELECT') updateOutputs();
+  });
+
+  function showErrors(box, errors) {
+    box.innerHTML = errors.length ? '<div class="notice warn"><strong>Check these settings:</strong><ul>' +
+      errors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div>' : '';
+  }
+
+  // ------------------------------------------------------------ learn: training
+  function train(cfgIn, animate, after) {
+    if (S.job) S.job.cancel();
+    var v = QC.validateConfig(cfgIn);
+    showErrors($('learn-errors'), v.errors);
+    if (v.errors.some(function (e) { return /at least one seller/.test(e); })) return;
+    var tr = new QC.Trainer(v.config);
+    S.trainer = tr; S.summary = null; S.cfg = v.config; S.br = null;
+    $('train-btn').disabled = true;
+    var chunk = animate ? 25000 : 500000, last = 0;
+    $('train-status').textContent = 'Training…';
+    S.job = runJob(function () { return tr.run(chunk); }, {
+      single: animate, pause: animate ? 12 : 0,
+      progress: function () {
+        var f = Math.min(1, tr.t / tr.cfg.maxPeriods);
+        $('train-bar').style.width = (tr.done ? 100 : Math.max(f * 100, Math.min(95, tr.t / 2e4))) + '%';
+        if (animate || Date.now() - last > 200) { last = Date.now(); renderLearnChart(); }
+        $('train-status').textContent = 'Round ' + rounds(tr.t) + ', experimenting on ' + pct(tr.eps, tr.eps < 0.01 ? 2 : 0) + ' of days';
+      },
+      done: function () {
+        S.job = null;
+        S.summary = QC.summarise(tr);
+        S.cycle = S.summary.cycle;
+        $('train-btn').disabled = false;
+        $('train-bar').style.width = '100%';
+        $('train-status').textContent = (tr.converged ? 'Settled after ' : 'Stopped at the limit of ') + rounds(tr.t) + ' rounds.';
+        renderLearn();
+        setupThreat();
+        if (after) after();
+      },
+      error: function (err) { $('train-btn').disabled = false; S.job = null; showErrors($('learn-errors'), ['Training failed: ' + err.message]); }
+    });
+  }
+  $('train-btn').addEventListener('click', function () { train(readControls(), $('animate').checked); });
+
+  function marketLines(mk) {
+    var pN = mean(mk.pN), pM = mean(mk.pM), sym = mk.pN.every(function (p) { return Math.abs(p - mk.pN[0]) < 1e-9; });
+    return [{ y: pN, color: 'var(--comp)', label: (sym ? 'Competitive ' : 'Average competitive ') + money(pN) },
+      { y: pM, color: 'var(--mono)', label: (sym ? 'Monopoly ' : 'Average monopoly ') + money(pM) }];
+  }
+
+  function renderLearnChart() {
+    var tr = S.trainer; if (!tr) return;
+    var mk = tr.market, h = tr.history, n = mk.n, lines = [], lo = Infinity, hi = -Infinity, i;
+    for (i = 0; i < n; i++) { lo = Math.min(lo, mk.grids[i][0]); hi = Math.max(hi, mk.grids[i][mk.m - 1]); }
+    for (i = 0; i < n; i++) {
+      lines.push({ xs: h.map(function (p) { return p.t; }), ys: h.map(function (p) { return p.price[i]; }), color: SELLER_COL[i], width: 2 });
+    }
+    var xMax = Math.max(tr.t, h.length ? h[h.length - 1].t : 1, 200000);
+    lineChart($('chart-learn'), {
+      aria: 'Line chart of average prices during training for ' + n + ' sellers, against the competitive and monopoly prices.',
+      xMin: 0, xMax: xMax, yMin: lo, yMax: hi, lines: lines, hlines: marketLines(mk),
+      xFmt: function (v) { return v >= 1e6 ? (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + 'm' : Math.round(v / 1e3) + 'k'; },
+      yFmt: function (v) { return '£' + v.toFixed(2); }, xLabel: 'Rounds of trial and error', yLabel: 'Price'
+    });
+    var items = [];
+    for (i = 0; i < n; i++) items.push({ label: 'Seller ' + SELLERS[i] + (tr.learn[i] ? '' : ' (' + TYPE_LABEL[tr.cfg.firmTypes[i]].toLowerCase() + ')'), color: SELLER_COL[i] });
+    items.push({ label: 'Competitive price', color: 'var(--comp)', dash: true }, { label: 'Monopoly price', color: 'var(--mono)', dash: true });
+    legend($('legend-learn'), items);
+    $('learn-chart-sub').textContent = rounds(tr.t) + ' rounds';
+  }
+
+  function kpi(label, value, sub, cls) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="k">' + esc(label) + '</div><div class="v">' + value + '</div><div class="s">' + sub + '</div></div>';
+  }
+
+  function levelWords(g) {
+    if (g >= 0.75) return 'close to what a monopolist would charge';
+    if (g >= 0.5) return 'well over halfway from competitive to monopoly';
+    if (g >= 0.2) return 'clearly above the competitive level';
+    if (g >= -0.1) return 'about the competitive level';
+    return 'below the competitive level';
+  }
+
+  function renderLearn() {
+    var tr = S.trainer, s = S.summary;
+    if (!tr) {
+      $('learn-kpis').innerHTML = kpi('Profit gain', '–', 'train to see') + kpi('Average price', '–', '') + kpi('Shoppers’ loss', '–', '') + kpi('Rounds', '–', '');
+      $('learn-verdict').innerHTML = '<div class="head">Nothing trained yet</div><p class="muted" style="margin:0">Press <strong>Train the sellers</strong>. The textbook case takes a second or two.</p>';
+      $('cycle-box').innerHTML = '<p class="muted small">Appears after training.</p>';
+      $('chart-heat').innerHTML = ''; $('heat-caption').textContent = '';
+      $('chart-learn').innerHTML = ''; $('legend-learn').innerHTML = '';
+      return;
+    }
+    var mk = tr.market, n = mk.n, avgP = mean(s.price);
+    renderLearnChart();
+    $('learn-kpis').innerHTML =
+      kpi('Profit gain', pct(s.avgGain), '0% competitive, 100% monopoly', s.avgGain >= 0.5 ? 'bad' : s.avgGain < 0.2 ? 'good' : '') +
+      kpi('Average price', money(avgP), 'competitive ' + money(mean(mk.pN)) + ', monopoly ' + money(mean(mk.pM))) +
+      kpi('Shoppers’ loss', pct(s.harm), 'of the gap between competitive and monopoly', s.harm >= 0.5 ? 'bad' : s.harm < 0.2 ? 'good' : '') +
+      kpi('Rounds', rounds(s.periods), s.converged ? 'strategies settled' : 'hit the round limit before settling');
+    var who = tr.learn.filter(Boolean).length;
+    var head = 'Prices settled ' + levelWords(s.avgGain);
+    var p = '<p>After ' + rounds(s.periods) + ' rounds of trial and error, ' + (n === 2 ? 'the two sellers' : 'the three sellers') + ' ended up charging ' +
+      s.price.map(function (x, i) { return money(x) + ' (' + SELLERS[i] + ')'; }).join(', ') + ' on average. The competitive price is ' + money(mean(mk.pN)) + '. ' +
+      (who === n ? 'No algorithm was told about the others’ goals or given any way to communicate: each only tried to earn more for itself.' : 'Only the learning sellers adapted; the others followed fixed rules.') + '</p>';
+    var t2 = s.avgGain >= 0.2
+      ? (s.punished ? '<p>When one seller secretly cuts its price for a day, the others hit back and the cut loses money overall. That reward and punishment pattern is what holds the price up. See <a href="#" data-go="threat">Test for a threat</a>.</p>'
+        : '<p>But when one seller secretly cuts its price for a day, nobody punishes it. High prices without a threat point to a learning accident rather than a self-enforcing scheme. See <a href="#" data-go="threat">Test for a threat</a>.</p>')
+      : '<p>Prices did not climb far above the competitive level here. Try the remedies tab to see which settings make the difference.</p>';
+    if (!s.converged) t2 += '<p class="small muted">The strategies were still changing when training stopped, so treat these numbers as provisional.</p>';
+    var v = $('learn-verdict');
+    v.className = 'card verdict ' + (s.avgGain >= 0.5 ? 'bad' : s.avgGain < 0.2 ? 'good' : '');
+    v.innerHTML = '<div class="head">' + esc(head) + '</div>' + p + t2;
+    renderCycle();
+    var hs = $('heat-seller');
+    hs.innerHTML = SELLERS.slice(0, n).map(function (L, i) { return '<option value="' + i + '">Seller ' + L + '</option>'; }).join('');
+    renderHeat(0);
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-go]');
+    if (a) { e.preventDefault(); showTab($('tab-' + a.getAttribute('data-go')), true); }
+  });
+
+  function renderCycle() {
+    var tr = S.trainer, mk = tr.market, n = mk.n, cyc = S.cycle;
+    var rows = cyc.slice(0, 8).map(function (j, k) {
+      var a = QC.decodeJoint(j, n, mk.m), cells = '';
+      for (var i = 0; i < n; i++) cells += '<td class="num">' + money(mk.grids[i][a[i]]) + '</td>';
+      for (i = 0; i < n; i++) cells += '<td class="num">' + money(mk.profit[0][i][j] * PER) + '</td>';
+      return '<tr><td>' + (k + 1) + '</td>' + cells + '</tr>';
+    }).join('');
+    var head = '<tr><th>Day</th>' + SELLERS.slice(0, n).map(function (L) { return '<th class="num">Price ' + L + '</th>'; }).join('') +
+      SELLERS.slice(0, n).map(function (L) { return '<th class="num">Profit ' + L + '</th>'; }).join('') + '</tr>';
+    var words = cyc.length === 1 ? 'They settled on one fixed set of prices, repeated every day.' :
+      'They settled into a cycle of ' + cyc.length + ' days that repeats for ever' + (cyc.length > 8 ? ' (first 8 shown)' : '') + '.';
+    $('cycle-box').innerHTML = '<p class="small">' + words + '</p><div class="tablewrap"><table>' + head + rows + '</table></div>' +
+      '<p class="caption">Profit is per 1,000 shoppers a day. At competitive prices each seller earns ' + money(mean(mk.piN) * PER) + '; at monopoly prices ' + money(mean(mk.piM) * PER) + '.</p>';
+  }
+
+  function renderHeat(i) {
+    var tr = S.trainer, mk = tr.market, n = mk.n, m = mk.m, box = $('chart-heat');
+    $('heat-who').textContent = SELLERS[i];
+    var other = i === 0 ? 1 : 0, third = n === 3 ? [0, 1, 2].filter(function (k) { return k !== i && k !== other; })[0] : null;
+    var cyc0 = QC.decodeJoint(S.cycle[0], n, m);
+    var cell = 20, padL = 46, padT = 10, padB = 40, W = padL + m * cell + 70, H = padT + m * cell + padB;
+    var s = newSvg(box, W, H, 'Heat map of the price seller ' + SELLERS[i] + ' charges today for every combination of yesterday’s prices.');
+    var lo = cssVar('--heat-lo'), hi = cssVar('--heat-hi');
+    var onPath = {};
+    S.cycle.forEach(function (j) { onPath[j] = true; });
+    for (var r = 0; r < m; r++) {
+      for (var c = 0; c < m; c++) {
+        var acts = cyc0.slice();
+        acts[i] = m - 1 - r; acts[other] = c;
+        var j = QC.encodeJoint(acts, m), today = tr.greedyActions(j)[i];
+        var rect = svg('rect', { x: padL + c * cell, y: padT + r * cell, width: cell - 1, height: cell - 1, rx: 2, style: 'fill:' + lerpColour(lo, hi, today / (m - 1)) + (onPath[j] ? ';stroke:var(--ink);stroke-width:2.2' : '') }, s);
+        var t = svg('title', {}, rect);
+        t.textContent = SELLERS[i] + ' yesterday ' + money(mk.grids[i][m - 1 - r]) + ', ' + SELLERS[other] + ' yesterday ' + money(mk.grids[other][c]) + ': ' + SELLERS[i] + ' charges ' + money(mk.grids[i][today]) + (onPath[j] ? ' (where play settled)' : '');
+      }
+    }
+    text(s, padL - 6, padT + 10, money(mk.grids[i][m - 1]), { 'text-anchor': 'end' });
+    text(s, padL - 6, padT + m * cell - 4, money(mk.grids[i][0]), { 'text-anchor': 'end' });
+    text(s, padL, padT + m * cell + 14, money(mk.grids[other][0]), {});
+    text(s, padL + m * cell, padT + m * cell + 14, money(mk.grids[other][m - 1]), { 'text-anchor': 'end' });
+    text(s, padL + m * cell / 2, H - 6, SELLERS[other] + '’s price yesterday →', { 'text-anchor': 'middle' });
+    text(s, 12, padT + m * cell / 2, SELLERS[i] + '’s price yesterday →', { 'text-anchor': 'middle', transform: 'rotate(-90 12 ' + (padT + m * cell / 2) + ')' });
+    // colour key
+    var kx = padL + m * cell + 16;
+    for (var k = 0; k < 10; k++) svg('rect', { x: kx, y: padT + (9 - k) * (m * cell / 10), width: 14, height: m * cell / 10 + 0.5, style: 'fill:' + lerpColour(lo, hi, k / 9) }, s);
+    text(s, kx + 18, padT + 10, money(mk.grids[i][m - 1]), {});
+    text(s, kx + 18, padT + m * cell - 2, money(mk.grids[i][0]), {});
+    text(s, kx - 2, padT + m * cell + 14, 'today', {});
+    var cap = 'Each square is a situation: ' + SELLERS[i] + '’s price yesterday (rows, highest at the top) and ' + SELLERS[other] + '’s (columns). Darker means ' + SELLERS[i] + ' charges more today. Outlined squares are where play settled.';
+    if (third !== null) cap += ' Seller ' + SELLERS[third] + ' is held at its settled price ' + money(mk.grids[third][cyc0[third]]) + '.';
+    if (!tr.learn[i]) cap += ' This seller follows a fixed rule.';
+    else if (tr.cfg.memory === 'own') cap += ' This algorithm only sees its own price, so rows are uniform.';
+    else if (tr.cfg.memory === 'none') cap += ' This algorithm remembers nothing, so every square is the same.';
+    $('heat-caption').textContent = cap;
+  }
+  $('heat-seller').addEventListener('change', function () { renderHeat(+this.value); });
+
+  // ------------------------------------------------------------ threat
+  function setupThreat() {
+    var tr = S.trainer, mk = tr.market, n = mk.n;
+    $('dev-seller').innerHTML = SELLERS.slice(0, n).map(function (L, i) { return '<option value="' + i + '">Seller ' + L + (tr.learn[i] ? '' : ' (rule)') + '</option>'; }).join('');
+    fillDevPrices();
+    S.br = null;
+    if (!$('panel-threat').hidden) renderThreat();
+  }
+  function fillDevPrices() {
+    var tr = S.trainer, mk = tr.market, i = +$('dev-seller').value || 0;
+    var cyc = S.cycle, next = QC.decodeJoint(cyc[1 % cyc.length], mk.n, mk.m);
+    var best = QC.staticBestResponse(mk, i, cyc[1 % cyc.length]);
+    if (best === next[i]) best = Math.max(0, next[i] - 1);
+    var opts = '<option value="best">Best one-day cut (' + money(mk.grids[i][best]) + ')</option>';
+    for (var k = mk.m - 1; k >= 0; k--) opts += '<option value="' + k + '">' + money(mk.grids[i][k]) + (k === next[i] ? ' (its settled price)' : '') + '</option>';
+    $('dev-price').innerHTML = opts;
+  }
+  $('dev-seller').addEventListener('change', function () { fillDevPrices(); renderThreat(); });
+  $('dev-price').addEventListener('change', renderThreat);
+  $('horizon').addEventListener('input', function () { $('horizon-out').textContent = this.value + ' days'; renderThreat(); });
+  $('horizon-out').textContent = $('horizon').value + ' days';
+  $('threat-train').addEventListener('click', function () { applyPreset('textbook'); $('preset').value = 'textbook'; train(readControls(), false); });
+
+  function renderThreat() {
+    var tr = S.trainer;
+    var ready = !!(tr && S.summary);
+    $('threat-empty').hidden = ready;
+    $('threat-body').hidden = !ready;
+    if (!ready) return;
+    var mk = tr.market, n = mk.n, dev = +$('dev-seller').value || 0, pv = $('dev-price').value, H = +$('horizon').value;
+    var ir = QC.impulseResponse(tr, { cycle: S.cycle, deviator: dev, price: pv === 'best' ? 'best' : +pv, horizon: H });
+    var lines = [], i, lo = Infinity, hi = -Infinity, days = [];
+    for (var t = 0; t <= H; t++) days.push(t);
+    for (i = 0; i < n; i++) {
+      lines.push({ xs: days, ys: ir.cfPrices[i], color: SELLER_COL[i], dash: true, width: 1.5, opacity: 0.8 });
+      lines.push({ xs: days, ys: ir.prices[i], color: SELLER_COL[i], width: 2.5 });
+      lo = Math.min(lo, mk.grids[i][0]); hi = Math.max(hi, mk.grids[i][mk.m - 1]);
+    }
+    var pts = [];
+    for (i = 0; i < n; i++) for (t = 0; t <= H; t++) pts.push({ x: t, y: ir.prices[i][t], color: SELLER_COL[i], r: 2.5, fill: SELLER_COL[i], title: 'Day ' + t + ': seller ' + SELLERS[i] + ' ' + money(ir.prices[i][t]) });
+    lineChart($('chart-impulse'), {
+      aria: 'Line chart of prices for ' + H + ' days after seller ' + SELLERS[dev] + ' cuts its price on day 1, against what would have happened without the cut.',
+      xMin: 0, xMax: H, yMin: lo, yMax: hi, lines: lines, points: pts, hlines: marketLines(mk), vlines: [{ x: 1, label: 'cut' }],
+      yFmt: function (v) { return '£' + v.toFixed(2); }, xFmt: function (v) { return String(Math.round(v)); }, xLabel: 'Day', yLabel: 'Price'
+    });
+    var items = [];
+    for (i = 0; i < n; i++) items.push({ label: 'Seller ' + SELLERS[i], color: SELLER_COL[i] });
+    items.push({ label: 'Without the cut', color: 'var(--muted)', dash: true });
+    legend($('legend-impulse'), items);
+    $('threat-kpis').innerHTML =
+      kpi('Gain on the day', money(ir.gainNow * PER), 'for ' + SELLERS[dev] + ', per 1,000 shoppers', ir.gainNow > 0 ? '' : 'good') +
+      kpi('Lost afterwards', money(ir.lossLater * PER), 'counted the way the algorithm values the future', ir.lossLater > 0 ? 'bad' : '') +
+      kpi('Net effect of cutting', money(ir.net * PER), ir.net < 0 ? 'cutting does not pay' : 'cutting pays', ir.net < 0 ? 'bad' : 'good') +
+      kpi('Back to old prices', ir.returnedAt ? 'day ' + ir.returnedAt : 'not yet', ir.returnedAt ? (ir.returnedAt - 1) + ' days after the cut' : 'within ' + H + ' days');
+    var v = $('threat-verdict'), rivals = n === 2 ? 'seller ' + SELLERS[1 - dev] : 'the rivals';
+    var who = 'Seller ' + SELLERS[dev] + ' cut from ' + money(ir.cfPrices[dev][1]) + ' to ' + money(ir.devPrice) + ' for one day. ';
+    if (ir.devAction === QC.decodeJoint(S.cycle[1 % S.cycle.length], n, mk.m)[dev]) {
+      v.className = 'card verdict';
+      v.innerHTML = '<div class="head">That is its settled price, so nothing changes</div><p style="margin:0">Pick a lower price to test the reaction.</p>';
+    } else if (ir.punished) {
+      v.className = 'card verdict bad';
+      v.innerHTML = '<div class="head"><span class="pill bad">Reward and punishment</span> The cut is punished, so it does not pay</div><p>' + who +
+        'It gained ' + money(ir.gainNow * PER) + ' that day, but ' + rivals + ' answered with lower prices and it lost ' + money(ir.lossLater * PER) + ' over the following days. ' +
+        (ir.returnedAt ? 'Prices were back on their old path by day ' + ir.returnedAt + '.' : 'Prices had not returned to their old path within ' + H + ' days.') + '</p>' +
+        '<p style="margin:0">Nobody programmed this response. It emerged because, during training, cuts that triggered a price war earned less than staying high. In a cartel between people, this pattern would be strong evidence of an agreement.</p>';
+    } else if (ir.rivalCut) {
+      v.className = 'card verdict';
+      v.innerHTML = '<div class="head"><span class="pill warn">Reaction without deterrence</span> ' + (n === 2 ? 'The rival reacts' : 'A rival reacts') + ', but cutting still pays</div><p style="margin:0">' + who +
+        'It gained ' + money(ir.gainNow * PER) + ' on the day and the reaction cost it only ' + money(Math.max(0, ir.lossLater) * PER) + ' afterwards, so the threat is too weak to deter a cut.</p>';
+    } else {
+      v.className = 'card verdict good';
+      v.innerHTML = '<div class="head"><span class="pill good">No threat</span> Nobody hits back</div><p style="margin:0">' + who +
+        (n === 2 ? 'The rival' : 'No rival') + ' did not lower its price in response' + (ir.net > 0 ? ', so the cut simply earned more.' : '.') +
+        (S.summary.avgGain >= 0.2 ? ' Prices are high here without being held up by a threat: the algorithms simply never learned that cutting would pay, which is a learning failure rather than a self-enforcing scheme.' : '') + '</p>';
+    }
+    renderBR();
+  }
+
+  function renderBR() {
+    var tr = S.trainer, mk = tr.market, n = mk.n;
+    if (!S.br) {
+      S.br = [];
+      for (var i = 0; i < n; i++) S.br.push(QC.bestResponseCheck(tr, i, S.cycle));
+    }
+    var rows = S.br.map(function (b, i) {
+      if (!b) return '<tr><td>Seller ' + SELLERS[i] + '</td><td colspan="3" class="muted">Follows a fixed rule: ' + esc(TYPE_LABEL[tr.cfg.firmTypes[i]].toLowerCase()) + '</td></tr>';
+      return '<tr><td>Seller ' + SELLERS[i] + '</td><td class="num">' + pct(b.shareOptimal) + '</td><td>' +
+        (b.onPathOptimal ? '<span class="pill good">yes</span>' : '<span class="pill warn">no</span>') + '</td><td class="num">' + pct(b.onPathGap, 2) + '</td></tr>';
+    }).join('');
+    $('br-table').innerHTML = '<tr><th>Seller</th><th class="num">Best reply in every situation</th><th>Best reply where play settled</th><th class="num">Most it could gain there</th></tr>' + rows;
+    var learners = S.br.filter(Boolean), allOn = learners.every(function (b) { return b.onPathOptimal; });
+    var maxGap = Math.max.apply(null, learners.map(function (b) { return b.onPathGap; }));
+    $('br-caption').textContent = allOn
+      ? 'Where play settled, every algorithm is already playing its best reply to the others: the outcome is an equilibrium of the repeated game, so no seller could do better by changing its strategy alone.'
+      : 'Not every algorithm has found its exact best reply, but the most any seller could gain by replying better where play settled is ' + pct(maxGap, 2) + ' of its long-run profit. Close to equilibrium, but learned by trial and error rather than worked out.';
+  }
+
+  // ------------------------------------------------------------ remedies
+  $('rem-list').innerHTML = QC.SCENARIOS.map(function (sc) {
+    return '<label class="check"><input type="checkbox" value="' + sc.id + '" checked><span><span class="swatch" style="background:' + GROUP_COL[sc.group] + '"></span>' + esc(sc.label) +
+      '<small>' + esc(GROUP_LABEL[sc.group]) + '. ' + esc(sc.note) + '</small></span></label>';
+  }).join('');
+  function remChosen() {
+    return Array.prototype.slice.call($('rem-list').querySelectorAll('input:checked')).map(function (x) { return x.value; });
+  }
+  function updateRemTime() {
+    var runs = +$('rem-runs').value, ids = remChosen(), w = 0;
+    ids.forEach(function (id) { w += id === 'third' ? 4 : id === 'fixedrival' || id === 'matcher' ? 0.2 : 1; });
+    $('rem-runs-out').textContent = runs;
+    $('rem-time').textContent = ids.length ? 'About ' + Math.max(1, Math.round(w * runs * 0.2)) + ' seconds on a typical laptop.' : 'Pick at least one option.';
+    $('rem-run').disabled = !ids.length || !!S.remJob;
+  }
+  $('rem-runs').addEventListener('input', updateRemTime);
+  $('rem-list').addEventListener('change', updateRemTime);
+
+  $('rem-run').addEventListener('click', function () {
+    var ids = remChosen(), runs = +$('rem-runs').value;
+    if (!ids.length) return;
+    if (ids.indexOf('baseline') < 0) ids.unshift('baseline');
+    var base = QC.validateConfig(readControls()).config, queue = [], k;
+    ids.forEach(function (id) { for (var r = 1; r <= runs; r++) queue.push({ id: id, seed: r }); });
+    var results = {}, tr = null, pos = 0;
+    ids.forEach(function (id) { results[id] = []; });
+    $('rem-run').disabled = true; $('rem-stop').disabled = false;
+    $('rem-status').textContent = 'Training…';
+    S.remJob = runJob(function () {
+      if (pos >= queue.length) return true;
+      if (!tr) { var c = QC.applyScenario(base, queue[pos].id); c.seed = queue[pos].seed; tr = new QC.Trainer(c); }
+      if (tr.run(300000)) {
+        var s = QC.summarise(tr); s.scenario = queue[pos].id; s.seed = queue[pos].seed;
+        results[queue[pos].id].push(s);
+        tr = null; pos++;
+      }
+      return pos >= queue.length;
+    }, {
+      progress: function () {
+        $('rem-bar').style.width = (100 * pos / queue.length) + '%';
+        $('rem-status').textContent = 'Run ' + Math.min(pos + 1, queue.length) + ' of ' + queue.length + (pos < queue.length ? ': ' + QC.scenarioById(queue[pos].id).label : '');
+      },
+      done: function () { finishRem(results, ids, base, runs); },
+      error: function (e) { $('rem-status').textContent = 'Stopped: ' + e.message; S.remJob = null; $('rem-stop').disabled = true; updateRemTime(); }
+    });
+  });
+  $('rem-stop').addEventListener('click', function () {
+    if (S.remJob) S.remJob.cancel();
+    S.remJob = null; $('rem-stop').disabled = true; $('rem-status').textContent = 'Stopped.'; updateRemTime();
+  });
+
+  function finishRem(results, ids, base, runs) {
+    S.remJob = null; $('rem-stop').disabled = true; updateRemTime();
+    $('rem-bar').style.width = '100%';
+    $('rem-status').textContent = 'Finished ' + ids.length * runs + ' training runs.';
+    S.rem = { ids: ids, base: base, runs: runs, agg: {}, raw: results };
+    ids.forEach(function (id) { S.rem.agg[id] = QC.aggregate(results[id]); });
+    renderRem();
+  }
+
+  function renderRem() {
+    var R = S.rem;
+    $('rem-empty').hidden = !!R;
+    ['rem-chart-card', 'rem-verdict', 'rem-table-card'].forEach(function (id) { $(id).hidden = !R; });
+    if (!R) return;
+    var metric = $('rem-metric').value;
+    var rows = R.ids.map(function (id) {
+      var a = R.agg[id], v = metric === 'punishedShare' ? { mean: a.punishedShare, lo: null, hi: null } : a[metric];
+      return { id: id, sc: QC.scenarioById(id), v: v };
+    }).sort(function (x, y) { return y.v.mean - x.v.mean; });
+    var W = 680, rowH = 44, top = 8, left = 8, right = 64, H = top + rows.length * rowH + 30;
+    var s = newSvg($('chart-rem'), W, H, 'Bar chart comparing ' + rows.length + ' options by ' + $('rem-metric').selectedOptions[0].textContent);
+    var lo = Math.min(0, Math.min.apply(null, rows.map(function (r) { return r.v.lo === null ? r.v.mean : r.v.lo; }))), hi = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.v.hi === null ? r.v.mean : r.v.hi; })));
+    function X(v) { return left + (v - lo) / (hi - lo) * (W - left - right); }
+    ticks(lo, hi, 5).forEach(function (v) {
+      svg('line', { x1: X(v), x2: X(v), y1: top, y2: H - 24, style: 'stroke:var(--soft)' }, s);
+      text(s, X(v), H - 8, pct(v), { 'text-anchor': 'middle' });
+    });
+    svg('line', { x1: X(0), x2: X(0), y1: top, y2: H - 24, style: 'stroke:var(--muted)' }, s);
+    rows.forEach(function (r, k) {
+      var y = top + k * rowH;
+      text(s, left, y + 13, r.sc.label, { 'class': r.id === 'baseline' ? 'lab' : '' });
+      var x0 = X(Math.min(0, r.v.mean)), x1 = X(Math.max(0, r.v.mean));
+      var bar = svg('rect', { x: x0, y: y + 19, width: Math.max(1, x1 - x0), height: 14, rx: 3, style: 'fill:' + GROUP_COL[r.sc.group] + (r.id === 'baseline' ? '' : ';opacity:.85') }, s);
+      var t = svg('title', {}, bar); t.textContent = r.sc.label + ': ' + pct(r.v.mean) + (r.v.lo !== null ? ' (90% interval ' + pct(r.v.lo) + ' to ' + pct(r.v.hi) + ')' : '');
+      if (r.v.lo !== null) {
+        svg('line', { x1: X(r.v.lo), x2: X(r.v.hi), y1: y + 26, y2: y + 26, style: 'stroke:var(--ink);stroke-width:1.5' }, s);
+        svg('line', { x1: X(r.v.lo), x2: X(r.v.lo), y1: y + 21, y2: y + 31, style: 'stroke:var(--ink);stroke-width:1.5' }, s);
+        svg('line', { x1: X(r.v.hi), x2: X(r.v.hi), y1: y + 21, y2: y + 31, style: 'stroke:var(--ink);stroke-width:1.5' }, s);
+      }
+      text(s, Math.min(W - 4, X(Math.max(r.v.mean, r.v.hi === null ? r.v.mean : r.v.hi)) + 6), y + 31, pct(r.v.mean), { 'class': 'lab' });
+    });
+    legend($('legend-rem'), Object.keys(GROUP_LABEL).map(function (g) { return { label: GROUP_LABEL[g], color: GROUP_COL[g] }; }));
+    var baseG = R.agg.baseline.gain.mean;
+    $('rem-table').innerHTML = '<tr><th>Option</th><th class="num">Profit gain</th><th class="num">90% interval</th><th class="num">Change</th><th class="num">Shoppers’ loss</th><th class="num">Punished</th><th class="num">Settled</th></tr>' +
+      R.ids.map(function (id) {
+        var a = R.agg[id], sc = QC.scenarioById(id), d = a.gain.mean - baseG;
+        return '<tr' + (id === 'baseline' ? ' class="sel"' : '') + '><td><span class="swatch" style="background:' + GROUP_COL[sc.group] + '"></span>' + esc(sc.label) + '</td><td class="num">' + pct(a.gain.mean) + '</td><td class="num">' + pct(a.gain.lo) + ' to ' + pct(a.gain.hi) +
+          '</td><td class="num">' + (id === 'baseline' ? '–' : (d >= 0 ? '+' : '−') + Math.abs(d * 100).toFixed(0) + ' pts') + '</td><td class="num">' + pct(a.harm.mean) + '</td><td class="num">' + pct(a.punishedShare) + '</td><td class="num">' + pct(a.convergedShare) + '</td></tr>';
+      }).join('');
+    var others = R.ids.filter(function (id) { return id !== 'baseline'; });
+    var v = $('rem-verdict');
+    if (!others.length) { v.innerHTML = '<div class="head">Only the baseline was run</div><p style="margin:0">Pick some options to compare against it.</p>'; return; }
+    var best = others.slice().sort(function (a, b) { return R.agg[a].gain.mean - R.agg[b].gain.mean; })[0];
+    var worst = others.slice().sort(function (a, b) { return R.agg[b].gain.mean - R.agg[a].gain.mean; })[0];
+    var high = others.filter(function (id) { return R.agg[id].gain.mean >= 0.5 && R.agg[id].punishedShare < 0.25; });
+    var html = '<div class="head">Biggest fall: ' + esc(QC.scenarioById(best).label.toLowerCase()) + '</div><p>In this market the baseline settles at a ' + pct(baseG) + ' profit gain. ' +
+      esc(QC.scenarioById(best).label) + ' brings that to ' + pct(R.agg[best].gain.mean) + '.';
+    if (R.agg[worst].gain.mean > baseG) html += ' ' + esc(QC.scenarioById(worst).label) + ' pushes it up to ' + pct(R.agg[worst].gain.mean) + '.';
+    html += '</p>';
+    if (high.length) html += '<p style="margin:0">Watch out for ' + high.map(function (id) { return esc(QC.scenarioById(id).label.toLowerCase()); }).join(' and ') + ': prices stay high even though cuts are rarely punished. High prices are not always a cartel, which is exactly what makes enforcement hard.</p>';
+    if (R.runs < 5) html += '<p class="small muted" style="margin-top:8px">With fewer than five runs per option, the intervals are wide. Add runs for a firmer answer.</p>';
+    v.className = 'card verdict';
+    v.innerHTML = html;
+  }
+  $('rem-metric').addEventListener('change', renderRem);
+
+  // ------------------------------------------------------------ screens
+  $('cf-n').addEventListener('input', function () { $('cf-n-out').textContent = this.value; });
+  $('cf-test').addEventListener('input', function () { $('cf-test-out').textContent = pct(+this.value) + ' of days'; });
+  $('cf-n-out').textContent = $('cf-n').value; $('cf-test-out').textContent = pct(+$('cf-test').value) + ' of days';
+  $('th-screen').innerHTML = QC.SCREEN_LIST.map(function (s) { return '<option value="' + s.id + '">' + esc(s.label) + '</option>'; }).join('');
+  $('th-screen').value = 'punishReturn';
+
+  $('cf-run').addEventListener('click', function () {
+    var N = +$('cf-n').value, seed = Math.max(0, Math.floor(+$('cf-seed').value || 0)), test = +$('cf-test').value;
+    var base = QC.defaultConfig(), cases = [], k = 0, cur = null;
+    $('cf-run').disabled = true; $('cf-stop').disabled = false;
+    S.cfJob = runJob(function () {
+      if (k >= N) return true;
+      if (!cur) { var meta = QC.caseConfig(base, k, seed); cur = { meta: meta, tr: new QC.Trainer(meta.cfg) }; }
+      if (cur.tr.run(300000)) {
+        cases.push(QC.finishCase(cur.tr, cur.meta, { experiment: test }));
+        cur = null; k++;
+      }
+      return k >= N;
+    }, {
+      progress: function () { $('cf-bar').style.width = (100 * k / N) + '%'; $('cf-status').textContent = 'Market ' + Math.min(k + 1, N) + ' of ' + N; },
+      done: function () {
+        S.cfJob = null; $('cf-run').disabled = false; $('cf-stop').disabled = true; $('cf-bar').style.width = '100%';
+        $('cf-status').textContent = 'Built ' + N + ' markets.';
+        S.cases = cases; renderScreens(true);
+      },
+      error: function (e) { S.cfJob = null; $('cf-run').disabled = false; $('cf-stop').disabled = true; $('cf-status').textContent = 'Stopped: ' + e.message; }
+    });
+  });
+  $('cf-stop').addEventListener('click', function () {
+    if (S.cfJob) S.cfJob.cancel();
+    S.cfJob = null; $('cf-run').disabled = false; $('cf-stop').disabled = true; $('cf-status').textContent = 'Stopped.';
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="target"]'), function (r) { r.addEventListener('change', function () { renderScreens(false); }); });
+  $('th-screen').addEventListener('change', function () { renderScreens(true); });
+  $('th-value').addEventListener('input', function () { renderThreshold(); });
+
+  function target() { return document.querySelector('input[name="target"]:checked').value; }
+  function labelsFor(cases, tg) { return cases.map(function (c) { return tg === 'highPrice' ? c.truth.highPrice : c.truth.coordinated; }); }
+
+  function renderScreens(resetThreshold) {
+    var cases = S.cases, tg = target();
+    $('target-hint').textContent = tg === 'highPrice' ? 'A case is any market whose profit gain is 50% or more, whatever the cause.' : 'A case is a market where cuts are punished and the profit gain is at least 20%: the self-enforcing pattern a cartel case would need.';
+    $('cf-empty').hidden = !!cases;
+    ['cf-top', 'cf-thresh', 'cf-verdict', 'cf-table-card'].forEach(function (id) { $(id).hidden = !cases; });
+    if (!cases) return;
+    var ev = QC.evaluateScreens(cases, tg), evOther = QC.evaluateScreens(cases, tg === 'highPrice' ? 'coordinated' : 'highPrice');
+    var W = 360, H = 330, m = 40;
+    var s = newSvg($('chart-roc'), W, H, 'ROC curves for five price screens');
+    function X(v) { return m + v * (W - m - 12); }
+    function Y(v) { return H - m - v * (H - m - 12); }
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+      svg('line', { x1: X(v), x2: X(v), y1: Y(0), y2: Y(1), style: 'stroke:var(--soft)' }, s);
+      svg('line', { x1: X(0), x2: X(1), y1: Y(v), y2: Y(v), style: 'stroke:var(--soft)' }, s);
+      text(s, X(v), H - m + 16, pct(v), { 'text-anchor': 'middle' });
+      text(s, m - 6, Y(v) + 4, pct(v), { 'text-anchor': 'end' });
+    });
+    svg('line', { x1: X(0), y1: Y(0), x2: X(1), y2: Y(1), style: 'stroke:var(--muted);stroke-dasharray:4 4' }, s);
+    text(s, X(0.5), H - 6, 'Innocent markets flagged', { 'text-anchor': 'middle' });
+    text(s, 11, Y(0.5), 'Real cases caught', { 'text-anchor': 'middle', transform: 'rotate(-90 11 ' + Y(0.5) + ')' });
+    ev.forEach(function (e) {
+      var d = e.roc.points.map(function (p, i) { return (i ? 'L' : 'M') + X(p.fpr).toFixed(1) + ' ' + Y(p.tpr).toFixed(1); }).join('');
+      svg('path', { d: d, fill: 'none', style: 'stroke:' + SCREEN_COL[e.id] + ';stroke-width:' + (e.id === $('th-screen').value ? 3 : 2) }, s);
+    });
+    legend($('legend-roc'), ev.map(function (e) { return { label: e.label + ' (' + num(e.auc) + ')', color: SCREEN_COL[e.id] }; }));
+    var pos = ev[0].roc.positives, neg = ev[0].roc.negatives;
+    $('auc-table').innerHTML = '<tr><th>Screen</th><th class="num">' + (tg === 'highPrice' ? 'High prices' : 'Threat') + '</th><th class="num">' + (tg === 'highPrice' ? 'Threat' : 'High prices') + '</th></tr>' +
+      ev.map(function (e, i) {
+        var info = QC.SCREEN_LIST[i];
+        return '<tr><td><span class="swatch" style="background:' + SCREEN_COL[e.id] + '"></span><strong>' + esc(e.label) + '</strong><br><span class="small muted">' + esc(info.note) + '</span></td><td class="num">' + num(e.auc) + '</td><td class="num muted">' + num(evOther[i].auc) + '</td></tr>';
+      }).join('') + '<tr><td colspan="3" class="small muted">' + pos + ' of ' + cases.length + ' markets are cases under this definition. The second column scores the same screens against the other definition.</td></tr>';
+    if (resetThreshold) {
+      var scores = ev.filter(function (e) { return e.id === $('th-screen').value; })[0].scores, labels = labelsFor(cases, tg);
+      // start at the threshold that maximises caught minus false alarm rate
+      var best = 50, bestJ = -Infinity, lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+      for (var k = 0; k <= 100; k++) {
+        var th = lo + (hi - lo) * k / 100, c = QC.confusion(scores, labels, th);
+        var j = (pos ? c.caught / pos : 0) - (neg ? c.falseAlarms / neg : 0);
+        if (j > bestJ + 1e-12) { bestJ = j; best = k; }
+      }
+      $('th-value').value = best;
+    }
+    renderThreshold();
+    var bestScreen = ev.slice().sort(function (a, b) { return b.auc - a.auc; })[0];
+    var marginE = ev.filter(function (e) { return e.id === 'margin'; })[0];
+    var vd = $('cf-verdict');
+    vd.className = 'card verdict';
+    vd.innerHTML = '<div class="head">Best screen here: ' + esc(bestScreen.label.toLowerCase()) + ' (' + num(bestScreen.auc) + ')</div><p>' +
+      (tg === 'coordinated'
+        ? 'Looking for markets held up by a threat, the margin screen scores ' + num(marginE.auc) + '. High margins also come from loyal shoppers and from algorithms that simply learned badly, so a margin screen sends investigators to innocent markets. Screens that look at how rivals respond to cuts see the threat itself.'
+        : 'Looking for any market with high prices, the margin screen scores ' + num(marginE.auc) + '. It finds high prices whatever their cause, but cannot say whether there is anything a cartel case could rest on.') +
+      '</p><p class="small muted" style="margin:0">' + cases.length + ' markets is a small sample, so expect these scores to move by several points with a different seed.</p>';
+    renderCaseTable();
+  }
+
+  function thScores() {
+    var id = $('th-screen').value;
+    return S.cases.map(function (c) { return QC.screenScore(c.screens, id); });
+  }
+  function thValue(scores) {
+    var lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    return lo + (hi - lo) * (+$('th-value').value) / 100;
+  }
+  function fmtScore(id, v) { return id === 'margin' || id === 'retaliation' || id === 'snapBack' || id === 'punishReturn' ? pct(v) : num(v, 3); }
+
+  function renderThreshold() {
+    if (!S.cases) return;
+    var id = $('th-screen').value, scores = thScores(), labels = labelsFor(S.cases, target()), th = thValue(scores);
+    $('th-out').textContent = fmtScore(id, th);
+    var c = QC.confusion(scores, labels, th);
+    $('th-kpis').innerHTML = kpi('Cases caught', c.caught, 'of ' + (c.caught + c.missed), 'good') + kpi('Cases missed', c.missed, 'not flagged', c.missed ? 'bad' : '') +
+      kpi('False alarms', c.falseAlarms, 'innocent markets flagged', c.falseAlarms ? 'bad' : '') + kpi('Cleared', c.cleared, 'innocent and not flagged');
+    var W = 680, H = 130, m = 20, lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    if (hi === lo) hi = lo + 1;
+    var s = newSvg($('chart-strip'), W, H, 'Dot plot of screen scores for every market, split by whether it is really a case.');
+    function X(v) { return m + 90 + (v - lo) / (hi - lo) * (W - m * 2 - 90); }
+    text(s, m, 38, 'Real cases', { 'class': 'lab' }); text(s, m, 88, 'Not cases', { 'class': 'lab' });
+    svg('line', { x1: X(th), x2: X(th), y1: 8, y2: H - 22, style: 'stroke:var(--accent);stroke-width:2' }, s);
+    text(s, X(th), H - 6, 'bar ' + fmtScore(id, th), { 'text-anchor': 'middle', style: 'fill:var(--accent);font-weight:600' });
+    var jit = new QC.Rng(5);
+    S.cases.forEach(function (cs, i) {
+      var y = (labels[i] ? 34 : 84) + (jit.next() - 0.5) * 22, flag = scores[i] >= th;
+      var dot = svg('circle', { cx: X(scores[i]), cy: y, r: 5, style: 'fill:' + (labels[i] ? 'var(--bad)' : 'var(--good)') + ';opacity:' + (flag ? 0.95 : 0.4) + ';stroke:var(--card);stroke-width:1' }, s);
+      var t = svg('title', {}, dot); t.textContent = 'Market ' + cs.id + ' (' + QC.scenarioById(cs.scenario).label + '): ' + fmtScore(id, scores[i]) + (flag ? ', flagged' : '');
+    });
+    renderCaseTable();
+  }
+
+  function renderCaseTable() {
+    var id = $('th-screen').value, scores = thScores(), th = thValue(scores), labels = labelsFor(S.cases, target());
+    $('cf-table').innerHTML = '<tr><th>Market</th><th>Hidden set-up</th><th class="num">Shopper loyalty</th><th class="num">Profit gain</th><th>Threat?</th><th class="num">Margin</th><th class="num">Hit back</th><th class="num">Hit back, then up</th><th>Flagged</th></tr>' +
+      S.cases.map(function (c, i) {
+        var flag = scores[i] >= th;
+        return '<tr' + (labels[i] ? ' class="sel"' : '') + '><td>' + c.id + '</td><td>' + esc(QC.scenarioById(c.scenario).label) + '</td><td class="num">' + c.mu.toFixed(2) + '</td><td class="num">' + pct(c.truth.gain) + '</td><td>' +
+          (c.truth.punished ? 'yes' : 'no') + '</td><td class="num">' + pct(c.screens.margin) + '</td><td class="num">' + pct(c.screens.retaliation) + '</td><td class="num">' + pct(c.screens.punishReturn) + '</td><td>' +
+          (flag ? (labels[i] ? '<span class="pill bad">caught</span>' : '<span class="pill warn">false alarm</span>') : (labels[i] ? '<span class="pill neutral">missed</span>' : '')) + '</td></tr>';
+      }).join('');
+  }
+
+  // ------------------------------------------------------------ your prices
+  $('tol').addEventListener('input', function () { $('tol-out').textContent = pct(+this.value, 1); });
+  $('tol-out').textContent = pct(+$('tol').value, 1);
+  $('sample').innerHTML = '<option value="">Choose a sample…</option>' + SAMPLES.map(function (s, i) { return '<option value="' + i + '">' + esc(s.label) + '</option>'; }).join('');
+  $('sample').addEventListener('change', function () {
+    var smp = SAMPLES[+this.value];
+    if (this.value === '' || !smp) return;
+    var lines = ['day,price_a,price_b'];
+    for (var t = 0; t < smp.price_a.length; t++) lines.push((t + 1) + ',' + smp.price_a[t].toFixed(2) + ',' + smp.price_b[t].toFixed(2));
+    $('csv').value = lines.join('\n');
+    $('cost-a').value = smp.cost[0]; $('cost-b').value = smp.cost[1];
+    S.sample = smp;
+    analyseData();
+  });
+  $('csv').addEventListener('input', function () { S.sample = null; $('sample').value = ''; });
+  $('csv-file').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    if (f.size > 5e6) { showErrors($('data-errors'), ['That file is over 5 MB. Use a smaller extract (one row per day).']); return; }
+    var rd = new FileReader();
+    rd.onload = function () { $('csv').value = String(rd.result); S.sample = null; $('sample').value = ''; analyseData(); };
+    rd.onerror = function () { showErrors($('data-errors'), ['The file could not be read.']); };
+    rd.readAsText(f);
+  });
+  $('data-run').addEventListener('click', analyseData);
+
+  function parseCsv(txt) {
+    var lines = txt.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(function (l) { return l.length; });
+    if (!lines.length) return { error: 'Paste some prices first.' };
+    var delim = [',', ';', '\t'].sort(function (a, b) { return lines[0].split(b).length - lines[0].split(a).length; })[0];
+    var rows = lines.map(function (l) { return l.split(delim).map(function (c) { return c.trim().replace(/^"|"$/g, ''); }); });
+    function isNum(c) { return c !== '' && !isNaN(+c.replace(/^[£$€]/, '')); }
+    var header = rows[0].some(function (c) { return !isNum(c); }) ? rows.shift().map(function (c) { return c.toLowerCase(); }) : null;
+    if (rows.length < 30) return { error: 'Need at least 30 days of prices; found ' + rows.length + '.' };
+    var ia = -1, ib = -1;
+    if (header) { ia = header.indexOf('price_a'); ib = header.indexOf('price_b'); }
+    if (ia < 0 || ib < 0) {
+      var numericCols = [];
+      for (var c = 0; c < rows[0].length; c++) {
+        var ok = rows.every(function (r) { return r[c] !== undefined && isNum(r[c]); });
+        var hName = header ? header[c] : '';
+        if (ok && !/^(day|date|t|week|period|index|id|market|market_id)$/.test(hName)) numericCols.push(c);
+      }
+      if (numericCols.length < 2) return { error: 'Could not find two columns of prices. Name them price_a and price_b, or put them first.' };
+      ia = numericCols[0]; ib = numericCols[1];
+    }
+    var a = [], b = [];
+    for (var r = 0; r < rows.length; r++) {
+      var x = +String(rows[r][ia]).replace(/^[£$€]/, ''), y = +String(rows[r][ib]).replace(/^[£$€]/, '');
+      if (!(x > 0) || !(y > 0)) return { error: 'Row ' + (r + 1 + (header ? 1 : 0)) + ' has a price that is missing, zero or not a number.' };
+      a.push(x); b.push(y);
+    }
+    if (a.length > 20000) return { error: 'That is more than 20,000 days. Use the Python companion for long histories.' };
+    return { prices: [a, b], names: header ? [header[ia], header[ib]] : ['column ' + (ia + 1), 'column ' + (ib + 1)] };
+  }
+
+  function analyseData() {
+    var p = parseCsv($('csv').value), errs = [];
+    if (p.error) { showErrors($('data-errors'), [p.error]); return; }
+    var ca = $('cost-a').value, cb = $('cost-b').value, cost = null;
+    if (ca !== '' || cb !== '') {
+      if (ca === '' || cb === '' || !(+ca >= 0) || !(+cb >= 0)) errs.push('Give both unit costs (or neither) as numbers of 0 or more.');
+      else cost = [+ca, +cb];
+    }
+    showErrors($('data-errors'), errs);
+    var tol = +$('tol').value, opts = { cost: cost, tol: tol, detail: true };
+    var sc = QC.screens(p.prices, opts), perm = QC.permutationTest(p.prices, { cost: cost, tol: tol, reps: 499 });
+    S.data = { prices: p.prices, sc: sc, perm: perm, cost: cost, names: p.names };
+    renderData();
+  }
+
+  function renderData() {
+    var D = S.data;
+    $('data-empty').hidden = !!D;
+    ['data-kpis', 'data-chart-card', 'data-verdict'].forEach(function (id) { $(id).hidden = !D; });
+    $('data-compare-card').hidden = !(D && S.cases);
+    if (!D) return;
+    var sc = D.sc, T = D.prices[0].length, all = D.prices[0].concat(D.prices[1]);
+    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), pad = (hi - lo) * 0.08 || 0.1;
+    var xs = []; for (var t = 0; t < T; t++) xs.push(t + 1);
+    var pts = [];
+    (sc.eventList || []).forEach(function (e) {
+      pts.push({ x: e.t + 1, y: D.prices[e.who][e.t], color: SELLER_COL[e.who], shape: 'tri', title: 'Day ' + (e.t + 1) + ': seller ' + SELLERS[e.who] + ' cuts while the other holds still' });
+      if (e.followed) pts.push({ x: e.t + 2, y: D.prices[1 - e.who][e.t + 1], color: SELLER_COL[1 - e.who], title: 'Day ' + (e.t + 2) + ': seller ' + SELLERS[1 - e.who] + ' cuts the next day' });
+    });
+    lineChart($('chart-data'), {
+      aria: 'Line chart of two sellers’ daily prices over ' + T + ' days with price cuts marked.',
+      xMin: 1, xMax: T, yMin: lo - pad, yMax: hi + pad, lines: [{ xs: xs, ys: D.prices[0], color: SELLER_COL[0], width: 1.6 }, { xs: xs, ys: D.prices[1], color: SELLER_COL[1], width: 1.6 }],
+      points: pts, yFmt: function (v) { return v.toFixed(2); }, xFmt: function (v) { return String(Math.round(v)); }, xLabel: 'Day', yLabel: 'Price'
+    });
+    legend($('legend-data'), [{ label: 'Seller A (' + D.names[0] + ')', color: SELLER_COL[0] }, { label: 'Seller B (' + D.names[1] + ')', color: SELLER_COL[1] }]);
+    $('data-sub').textContent = T + ' days';
+    $('data-kpis').innerHTML =
+      kpi('Unprovoked cuts', String(sc.events), 'one seller cuts, the other holds still') +
+      kpi('Rival cuts next day', pct(sc.followRate), 'against ' + pct(sc.baseRate, 1) + ' on an ordinary day', sc.retaliation > 0.2 ? 'bad' : '') +
+      kpi('Hit back, then back up', pct(sc.punishReturn), 'within 10 days') +
+      kpi('Could this be chance?', D.perm.pValue === D.perm.pValue ? 'p = ' + D.perm.pValue.toFixed(3) : 'n/a', D.perm.pValue < 0.05 ? 'unlikely to be chance' : 'chance could explain it', D.perm.pValue < 0.05 ? 'bad' : '');
+    var v = $('data-verdict'), html;
+    if (!sc.events) {
+      v.className = 'card verdict';
+      html = '<div class="head">No unprovoked cuts to learn from</div><p style="margin:0">Nobody cut its price while the other held still, so there is no reaction to measure. Stable prices on their own say little: they fit a quiet competitive market as well as a cartel.</p>';
+    } else if (D.perm.pValue < 0.05 && sc.retaliation > 0) {
+      v.className = 'card verdict bad';
+      html = '<div class="head">Cuts are answered more often than chance allows</div><p>After ' + sc.events + ' unprovoked cuts, the rival cut the next day ' + pct(sc.followRate) + ' of the time, against ' + pct(sc.baseRate, 1) + ' on an ordinary day. Shifting one seller’s prices in time (' + D.perm.reps + ' times) rarely produces a pattern this strong (p = ' + D.perm.pValue.toFixed(3) + ').</p><p style="margin:0">That is the signature a regulator would want to look into further. It is not proof: matching a rival’s cut quickly is also what fierce competitors do. What sets a threat apart is that prices climb back afterwards (' + pct(sc.punishReturn) + ' of cuts here).</p>';
+    } else {
+      v.className = 'card verdict good';
+      html = '<div class="head">No clear sign that cuts are punished</div><p style="margin:0">After ' + sc.events + ' unprovoked cuts, the rival cut the next day ' + pct(sc.followRate) + ' of the time, against ' + pct(sc.baseRate, 1) + ' on an ordinary day (p = ' + num(D.perm.pValue, 3) + '). Prices can still be high for other reasons, such as loyal shoppers or algorithms that learned a high price by accident.</p>';
+    }
+    if (S.sample) html += '<p class="small" style="margin-top:8px"><strong>Hidden truth for this sample:</strong> ' + esc(S.sample.truth) + '</p>';
+    if (D.cost) html += '<p class="small muted" style="margin:6px 0 0">Average margin: ' + pct(sc.margin) + ' of the price.</p>';
+    v.innerHTML = html;
+    renderDataCompare();
+  }
+
+  function renderDataCompare() {
+    if (!S.data || !S.cases) return;
+    var D = S.data, cases = S.cases, tg = target(), labels = labelsFor(cases, tg);
+    var rows = QC.SCREEN_LIST.map(function (s) {
+      if (s.id === 'margin' && !D.cost) return '<tr><td>' + esc(s.label) + '</td><td class="num muted">needs costs</td><td></td><td></td></tr>';
+      var mine = QC.screenScore(D.sc, s.id), yes = [], no = [];
+      cases.forEach(function (c, i) { (labels[i] ? yes : no).push(QC.screenScore(c.screens, s.id)); });
+      function share(list) { return list.length ? list.filter(function (x) { return x <= mine; }).length / list.length : NaN; }
+      return '<tr><td>' + esc(s.label) + '</td><td class="num">' + fmtScore(s.id, mine) + '</td><td class="num">' + pct(share(yes)) + '</td><td class="num">' + pct(share(no)) + '</td></tr>';
+    }).join('');
+    $('data-compare').innerHTML = '<tr><th>Screen</th><th class="num">These prices</th><th class="num">Higher than this share of cases</th><th class="num">Higher than this share of non-cases</th></tr>' + rows;
+    $('data-compare-cap').textContent = 'Compared with the ' + cases.length + ' simulated markets in your case file, using the "' + (tg === 'highPrice' ? 'high prices' : 'held up by a threat') + '" definition. Real markets differ from simulated ones, so read this as a rough guide.';
+  }
+
+  // ------------------------------------------------------------ start
+  setControls(QC.defaultConfig());
+  renderLearn();
+  renderRem();
+  renderScreens(false);
+  renderData();
+  updateRemTime();
+})();
+</script>
+</body>
+</html>
