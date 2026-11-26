@@ -59,7 +59,7 @@ python -m quiet_cartel calibrate data/markets.csv --truth data/markets_truth.csv
 python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --tornado results/tornado.json --map results/map.json --screen results/screen.json --watch results/watch.json --out results/report.html
 ```
 
-`--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and 0.15 seconds in the browser.
+`--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and about 0.2 seconds in a browser (more on a slower machine).
 
 `screen` accepts any CSV with `day`, `price_a` and `price_b` columns, optionally `market` (for many markets in one file), `cost_a`, `cost_b`, and `shoppers`, `units_a`, `units_b` for daily sales. With sales it also fits the demand model and, when the file has costs too, adds a screen that compares prices with the fitted competitive and monopoly prices.
 
