@@ -1008,7 +1008,7 @@ def _jobs(p):
 
 
 def make_parser():
-    p = _Parser(prog='python -m quiet_cartel', description=__doc__.split('\n\n')[0])
+    p = _Parser(prog='python -m quiet_cartel', description="Quiet cartel companion: pricing algorithms, collusion and the screens a regulator could use.")
     sub = p.add_subparsers(dest='command', metavar='command')
     sub.required = True
 

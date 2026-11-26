@@ -67,7 +67,7 @@ main { padding: 16px 0 32px; }
 .field { margin-bottom: 12px; }
 .field label, .field .label { display: flex; justify-content: space-between; gap: 8px; font-size: .88rem; font-weight: 600; margin-bottom: 4px; }
 .field output, .field .val { font-family: var(--mono-font); font-weight: 500; color: var(--muted); font-size: .85rem; }
-.field .hint { font-size: .8rem; color: var(--muted); margin: 3px 0 0; }
+.hint { font-size: .8rem; color: var(--muted); margin: 3px 0 0; }
 input[type="range"] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
 select, input[type="number"], input[type="text"], textarea {
   width: 100%; font: inherit; font-size: .9rem; color: var(--ink); background: var(--card); border: 1px solid var(--line);
@@ -115,6 +115,8 @@ details.more summary { cursor: pointer; font-weight: 600; font-size: .88rem; mar
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); margin-top: 6px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+.legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend i.ring { width: 10px; height: 10px; border-radius: 50%; background: transparent !important; border: 2px solid; }
 .legend i.dash { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; height: 2px; }
 .empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--card); }
 .empty p { max-width: 520px; margin: 0 auto 12px; }
@@ -569,7 +571,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         </div>
         <div class="kpis" id="th-kpis"></div>
         <div class="chart" id="chart-strip" style="margin-top:10px"></div>
-        <p class="caption">Each dot is a market. Top row: markets that really are cases; bottom row: markets that are not. Dots right of the line are flagged.</p>
+        <p class="caption">Each dot is a market. Top row (red): markets that really are cases; bottom row (green): markets that are not. Filled dots are flagged: those at or right of the line.</p>
       </div>
       <div class="card verdict" id="cf-verdict" hidden aria-live="polite"></div>
       <div class="card" id="cf-table-card" hidden>
@@ -1889,6 +1891,11 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     for (var v = Math.ceil(min / st - 1e-9) * st; v <= max + 1e-9 * st; v += st) out.push(Math.abs(v) < st * 1e-9 ? 0 : v);
     return out;
   }
+  // Charts are drawn at the width they are shown, so text stays readable on a phone.
+  function chartWidth(box, max) {
+    var w = box.clientWidth;
+    return w > 0 ? Math.max(300, Math.min(max || 680, Math.round(w))) : (max || 680);
+  }
   function newSvg(box, w, h, label) {
     box.innerHTML = '';
     var s = svg('svg', { viewBox: '0 0 ' + w + ' ' + h, role: 'img', 'aria-label': label, preserveAspectRatio: 'xMidYMid meet' }, box);
@@ -1896,13 +1903,15 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
   }
   function legend(box, items) {
     box.innerHTML = items.map(function (it) {
-      return '<span><i class="' + (it.dash ? 'dash' : '') + '" style="' + (it.dash ? 'color:' + it.color : 'background:' + it.color) + '"></i>' + esc(it.label) + '</span>';
+      var cls = it.dash ? 'dash' : it.dot ? 'dot' : it.ring ? 'ring' : '';
+      var style = it.dash ? 'color:' + it.color : it.ring ? 'border-color:' + it.color : 'background:' + it.color;
+      return '<span><i class="' + cls + '" style="' + style + '"></i>' + esc(it.label) + '</span>';
     }).join('');
   }
 
   // Generic line chart. o.lines: [{xs, ys, color, dash, width}], o.hlines: [{y, color, label}], o.points: [{x, y, color, shape, title}]
   function lineChart(box, o) {
-    var W = o.w || 680, H = o.h || 280, m = { l: 52, r: o.right || 16, t: 14, b: 38 };
+    var W = o.w || chartWidth(box), H = o.h || 280, m = { l: 52, r: o.right || 16, t: 14, b: 38 };
     var s = newSvg(box, W, H, o.aria);
     var x0 = o.xMin, x1 = o.xMax, y0 = o.yMin, y1 = o.yMax;
     function X(v) { return m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r); }
@@ -1920,7 +1929,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     if (o.yLabel) text(s, 12, m.t + (H - m.t - m.b) / 2, o.yLabel, { 'text-anchor': 'middle', transform: 'rotate(-90 12 ' + (m.t + (H - m.t - m.b) / 2) + ')' });
     (o.vlines || []).forEach(function (v) {
       svg('line', { x1: X(v.x), x2: X(v.x), y1: m.t, y2: H - m.b, style: 'stroke:var(--muted);stroke-dasharray:2 3' }, s);
-      if (v.label) text(s, X(v.x) + 4, m.t + 10, v.label, {});
+      if (v.label) text(s, X(v.x) + 4, m.t + 24, v.label, {});
     });
     (o.hlines || []).forEach(function (h) {
       if (h.y < y0 || h.y > y1) return;
@@ -1970,9 +1979,27 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     });
     if (focus) tab.focus();
     var id = tab.id.replace('tab-', '');
-    if (id === 'threat') renderThreat();
+    if (RENDER[id]) RENDER[id]();
     if (id === 'remedies') updateRemTime();
   }
+  // Redraw a view's charts when it is shown or the window changes size.
+  var RENDER = {
+    learn: function () { if (S.trainer && S.summary) { renderLearnChart(); renderHeat(+$('heat-seller').value || 0); } },
+    threat: function () { renderThreat(); }, pilot: function () { renderPilot(); }, remedies: function () { renderRem(); },
+    robust: function () { renderRobust(); }, screens: function () { renderScreens(false); },
+    data: function () { renderData(); renderPanel(); }
+  };
+  var resizeTimer = null, lastWidth = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var t = tabs.filter(function (x) { return x.getAttribute('aria-selected') === 'true'; })[0];
+      var id = t ? t.id.replace('tab-', '') : 'learn';
+      if (RENDER[id] && !(id === 'learn' && S.job)) RENDER[id]();
+    }, 150);
+  });
   tabs.forEach(function (t, i) {
     t.addEventListener('click', function () { showTab(t, false); });
     t.addEventListener('keydown', function (e) {
@@ -2419,7 +2446,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       stage('pilot') + stage('scaled') + stage('together');
     $('pilot-table-sub').textContent = R === 1 ? 'one run' : 'average of ' + R + ' runs';
     // per-run dumbbell: pilot uplift to scaled uplift
-    var W = 680, rowH = 26, top = 10, left = 60, right = 20, Hh = top + R * rowH + 34;
+    var W = chartWidth($('chart-pilot-runs')), rowH = 26, top = 10, left = 60, right = 20, Hh = top + R * rowH + 34;
     var vals = [];
     runs.forEach(function (r) { vals.push(r.upliftA.pilot, r.upliftA.scaled, r.upliftA.together); });
     var vlo = Math.min(0, Math.min.apply(null, vals)), vhi = Math.max(0.1, Math.max.apply(null, vals));
@@ -2438,7 +2465,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       var d2 = svg('circle', { cx: X(r.upliftA.scaled), cy: y, r: 5, style: 'fill:var(--a)' }, sv);
       svg('title', {}, d2).textContent = 'Run ' + r.seed + ': after B adopts ' + signed(r.upliftA.scaled) + (r.scaled.punished ? ', cuts punished' : '');
     });
-    legend($('legend-pilot-runs'), [{ label: 'Open circle: A\u2019s profit change in the pilot', color: 'var(--a)' }, { label: 'Filled circle: after B adopts', color: 'var(--a)' }]);
+    legend($('legend-pilot-runs'), [{ label: 'A\u2019s profit change in the pilot', color: 'var(--a)', ring: true }, { label: 'After B adopts an algorithm', color: 'var(--a)', dot: true }]);
     // verdict
     var gap = aScaled - aPilot, v = $('pilot-verdict');
     var head = Math.abs(gap) < 0.05 ? 'The pilot was a fair guide this time' : gap > 0 ? 'The pilot understated A\u2019s gain by ' + Math.round(gap * 100) + ' points' : 'The pilot overstated A\u2019s gain by ' + Math.round(-gap * 100) + ' points';
@@ -2523,9 +2550,9 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       var a = R.agg[id], v = metric === 'punishedShare' ? { mean: a.punishedShare, lo: null, hi: null } : a[metric];
       return { id: id, sc: QC.scenarioById(id), v: v };
     }).sort(function (x, y) { return y.v.mean - x.v.mean; });
-    var W = 680, rowH = 44, top = 8, left = 8, right = 64, H = top + rows.length * rowH + 30;
+    var W = chartWidth($('chart-rem')), rowH = 44, top = 8, left = 8, right = 64, H = top + rows.length * rowH + 30;
     var s = newSvg($('chart-rem'), W, H, 'Bar chart comparing ' + rows.length + ' options by ' + $('rem-metric').selectedOptions[0].textContent);
-    var lo = Math.min(0, Math.min.apply(null, rows.map(function (r) { return r.v.lo === null ? r.v.mean : r.v.lo; }))), hi = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.v.hi === null ? r.v.mean : r.v.hi; })));
+    var lo = Math.min(0, Math.min.apply(null, rows.map(function (r) { return r.v.lo === null ? r.v.mean : r.v.lo; })) - 0.08), hi = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.v.hi === null ? r.v.mean : r.v.hi; })));
     function X(v) { return left + (v - lo) / (hi - lo) * (W - left - right); }
     ticks(lo, hi, 5).forEach(function (v) {
       svg('line', { x1: X(v), x2: X(v), y1: top + 16, y2: H - 24, style: 'stroke:var(--soft)' }, s);
@@ -2543,7 +2570,8 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
         svg('line', { x1: X(r.v.lo), x2: X(r.v.lo), y1: y + 21, y2: y + 31, style: 'stroke:var(--ink);stroke-width:1.5' }, s);
         svg('line', { x1: X(r.v.hi), x2: X(r.v.hi), y1: y + 21, y2: y + 31, style: 'stroke:var(--ink);stroke-width:1.5' }, s);
       }
-      text(s, Math.min(W - 4, X(Math.max(r.v.mean, r.v.hi === null ? r.v.mean : r.v.hi)) + 6), y + 31, pct(r.v.mean), { 'class': 'lab' });
+      if (r.v.mean < 0) text(s, X(Math.min(r.v.mean, r.v.lo === null ? r.v.mean : r.v.lo)) - 6, y + 31, pct(r.v.mean), { 'class': 'lab', 'text-anchor': 'end' });
+      else text(s, Math.min(W - 4, X(Math.max(r.v.mean, r.v.hi === null ? r.v.mean : r.v.hi)) + 6), y + 31, pct(r.v.mean), { 'class': 'lab' });
     });
     legend($('legend-rem'), Object.keys(GROUP_LABEL).map(function (g) { return { label: GROUP_LABEL[g], color: GROUP_COL[g] }; }));
     var baseG = R.agg.baseline.gain.mean;
@@ -2636,7 +2664,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     if (T) {
       var metric = $('rb-metric').value, baseV = T.base[metric];
       var rows = T.rows.slice().sort(function (a, b) { return Math.abs(b.high[metric] - b.low[metric]) + Math.max(Math.abs(b.high[metric] - baseV), Math.abs(b.low[metric] - baseV)) - Math.abs(a.high[metric] - a.low[metric]) - Math.max(Math.abs(a.high[metric] - baseV), Math.abs(a.low[metric] - baseV)); });
-      var W = 680, rowH = 46, top = 10, left = 12, right = 20, H = top + rows.length * rowH + 30;
+      var W = chartWidth($('chart-tornado')), rowH = 46, top = 10, left = 12, right = 20, H = top + rows.length * rowH + 30;
       var all = [baseV]; rows.forEach(function (r) { all.push(r.low[metric], r.high[metric]); });
       var lo = Math.min(0, Math.min.apply(null, all)), hi = Math.max(1, Math.max.apply(null, all));
       var sv = newSvg($('chart-tornado'), W, H, 'Tornado chart of how far the result moves when each assumption is set low or high.');
@@ -2648,25 +2676,26 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       svg('line', { x1: X(baseV), x2: X(baseV), y1: top, y2: H - 24, style: 'stroke:var(--ink);stroke-dasharray:3 3' }, sv);
       rows.forEach(function (r, k) {
         var y = top + k * rowH, cy = y + 30, pr = r.param;
-        text(sv, left, y + 13, pr.label + ' (' + fmtSetting(pr.key, pr.low) + ' to ' + fmtSetting(pr.key, pr.high) + ')', {});
+        text(sv, left, y + 13, pr.label + (W >= 560 ? ' (' + fmtSetting(pr.key, pr.low) + ' to ' + fmtSetting(pr.key, pr.high) + ')' : ''), {});
         var a = r.low[metric], b = r.high[metric];
         svg('line', { x1: X(Math.min(a, b, baseV)), x2: X(Math.max(a, b, baseV)), y1: cy, y2: cy, style: 'stroke:var(--accent);stroke-width:6;opacity:.25;stroke-linecap:round' }, sv);
         var c1 = svg('circle', { cx: X(a), cy: cy, r: 6, style: 'fill:var(--card);stroke:var(--accent);stroke-width:2' }, sv);
         svg('title', {}, c1).textContent = pr.label + ' ' + fmtSetting(pr.key, pr.low) + ': ' + pct(a);
         var c2 = svg('circle', { cx: X(b), cy: cy, r: 6, style: 'fill:var(--accent)' }, sv);
         svg('title', {}, c2).textContent = pr.label + ' ' + fmtSetting(pr.key, pr.high) + ': ' + pct(b);
-        var lx = Math.max(X(a), X(b)) + 10;
-        if (lx > W - 70) lx = Math.min(X(a), X(b)) - 10;
+        var lx = Math.max(X(a), X(b), X(baseV)) + 12;
+        if (lx > W - 80) lx = Math.min(X(a), X(b), X(baseV)) - 12;
         text(sv, lx, cy + 4, pct(a) + ' / ' + pct(b), { 'text-anchor': lx < Math.min(X(a), X(b)) ? 'end' : 'start', 'class': 'lab' });
       });
-      legend($('legend-tornado'), [{ label: 'Low value', color: 'var(--accent)' }, { label: 'High value', color: 'var(--accent)' }, { label: 'Learn tab values (' + pct(baseV) + ')', color: 'var(--ink)', dash: true }]);
+      legend($('legend-tornado'), [{ label: 'Low value', color: 'var(--accent)', ring: true }, { label: 'High value', color: 'var(--accent)', dot: true }, { label: 'Learn tab values (' + pct(baseV) + ')', color: 'var(--ink)', dash: true }]);
       var robustRows = T.rows.filter(function (r) { return r.low.gain >= 0.5 && r.high.gain >= 0.5; }).length;
       var worst = T.rows.slice().sort(function (a, b) { return Math.min(a.low.gain, a.high.gain) - Math.min(b.low.gain, b.high.gain); })[0];
       lines.push('With the Learn tab&rsquo;s settings the profit gain averages ' + pct(T.base.gain) + '. Moving one assumption at a time, it stays at 50% or more at both ends for ' + robustRows + ' of ' + T.rows.length + ' assumptions. The biggest fall comes from ' +
         esc(worst.param.label.toLowerCase()) + ' (' + pct(Math.min(worst.low.gain, worst.high.gain)) + ' at ' + fmtSetting(worst.param.key, worst.low.gain < worst.high.gain ? worst.param.low : worst.param.high) + ').');
     }
     if (Mp) {
-      var cw = 100, ch = 58, padL = 70, padT = 8, padB = 46, nx = QC.MAP_MU.length, ny = QC.MAP_DELTA.length;
+      var nx = QC.MAP_MU.length, ny = QC.MAP_DELTA.length, avail = chartWidth($('chart-map'), 576);
+      var padL = avail < 500 ? 48 : 70, cw = Math.floor((avail - padL - 6) / nx), ch = 58, padT = 8, padB = 46;
       var W2 = padL + nx * cw + 6, H2 = padT + ny * ch + padB;
       var s2 = newSvg($('chart-map'), W2, H2, 'Heat map of profit gain across how alike the products are and how much the algorithms value tomorrow.');
       var loC = cssVar('--heat-lo'), hiC = cssVar('--heat-hi'), high = 0, total = 0;
@@ -2685,7 +2714,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
         });
       });
       QC.MAP_MU.forEach(function (mu, c) { text(s2, padL + c * cw + (cw - 3) / 2, padT + ny * ch + 14, String(mu), { 'text-anchor': 'middle' }); });
-      text(s2, padL + nx * cw / 2, H2 - 6, 'How alike the products are (mu): left, shoppers chase the lowest price', { 'text-anchor': 'middle' });
+      text(s2, padL + nx * cw / 2, H2 - 6, W2 < 500 ? 'How alike the products are (mu)' : 'How alike the products are (mu): left, shoppers chase the lowest price', { 'text-anchor': 'middle' });
       text(s2, 12, padT + ny * ch / 2, 'Values tomorrow', { 'text-anchor': 'middle', transform: 'rotate(-90 12 ' + (padT + ny * ch / 2) + ')' });
       lines.push('Across the map, ' + high + ' of ' + total + ' combinations settle at a profit gain of 50% or more. Impatient algorithms (low values of tomorrow) stay near competitive, because a future punishment is worth little to them; patience is what makes the threat pay.');
     }
@@ -2806,7 +2835,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     var c = QC.confusion(scores, labels, th);
     $('th-kpis').innerHTML = kpi('Cases caught', c.caught, 'of ' + (c.caught + c.missed), 'good') + kpi('Cases missed', c.missed, 'not flagged', c.missed ? 'bad' : '') +
       kpi('False alarms', c.falseAlarms, 'innocent markets flagged', c.falseAlarms ? 'bad' : '') + kpi('Cleared', c.cleared, 'innocent and not flagged');
-    var W = 680, H = 130, m = 20, lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    var W = chartWidth($('chart-strip')), H = 130, m = 20, lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
     if (hi === lo) hi = lo + 1;
     var s = newSvg($('chart-strip'), W, H, 'Dot plot of screen scores for every market, split by whether it is really a case.');
     function X(v) { return m + 90 + (v - lo) / (hi - lo) * (W - m * 2 - 90); }
@@ -2816,7 +2845,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     var jit = new QC.Rng(5);
     S.cases.forEach(function (cs, i) {
       var y = (labels[i] ? 34 : 84) + (jit.next() - 0.5) * 22, flag = scores[i] >= th;
-      var dot = svg('circle', { cx: X(scores[i]), cy: y, r: 5, style: 'fill:' + (labels[i] ? 'var(--bad)' : 'var(--good)') + ';opacity:' + (flag ? 0.95 : 0.4) + ';stroke:var(--card);stroke-width:1' }, s);
+      var dot = svg('circle', { cx: X(scores[i]), cy: y, r: 5, style: 'fill:' + (flag ? (labels[i] ? 'var(--bad)' : 'var(--good)') : 'var(--card)') + ';stroke:' + (labels[i] ? 'var(--bad)' : 'var(--good)') + ';stroke-width:2' }, s);
       var t = svg('title', {}, dot); t.textContent = 'Market ' + cs.id + ' (' + QC.scenarioById(cs.scenario).label + '): ' + fmtScore(id, scores[i]) + (flag ? ', flagged' : '');
     });
     renderCaseTable();
@@ -3180,7 +3209,10 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       kpi('Hit back, then back up', pct(sc.punishReturn), 'within 10 days') +
       kpi('Could this be chance?', D.perm.pValue === D.perm.pValue ? 'p = ' + D.perm.pValue.toFixed(3) : 'n/a', D.perm.pValue < 0.05 ? 'unlikely to be chance' : 'chance could explain it', D.perm.pValue < 0.05 ? 'bad' : '');
     var v = $('data-verdict'), html;
-    if (!sc.events) {
+    if (!sc.events && sc.cv > 0.02) {
+      v.className = 'card verdict';
+      html = '<div class="head">Prices move every day, so there is no calm day to start from</div><p style="margin:0">These prices go round in a cycle rather than sitting still, so no cut ever comes out of a calm day and there is no clean reaction to measure. This is a real blind spot: in the companion&rsquo;s watch analysis, about four in ten markets held up by a threat settled into a cycle like this, and no amount of watching made them visible to a reaction screen.</p>';
+    } else if (!sc.events) {
       v.className = 'card verdict';
       html = '<div class="head">No unprovoked cuts to learn from</div><p style="margin:0">Nobody cut its price while the other held still, so there is no reaction to measure. Stable prices on their own say little: they fit a quiet competitive market as well as a cartel.</p>';
     } else if (D.perm.pValue < 0.05 && sc.retaliation > 0) {
