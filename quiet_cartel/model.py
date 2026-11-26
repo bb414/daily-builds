@@ -43,10 +43,12 @@ __all__ = [
     'sum_', 'mean', 'sd', 'sorted_copy', 'quantile', 'round_',
     'bootstrap_mean', 'roc_curve',
     'LIMITS', 'FIRM_TYPES', 'MEMORY', 'default_config', 'validate_config',
-    'shares', 'profits_at', 'consumer_surplus', 'nash_prices', 'monopoly_prices',
+    'shares', 'profits_at', 'consumer_surplus', 'best_reply_price', 'nash_prices', 'monopoly_prices',
     'SHOCKS', 'build_market', 'decode_joint', 'encode_joint', 'nearest_index',
     'state_tables', 'rule_table', 'Trainer', 'train', 'limit_cycle', 'outcome_of',
-    'static_best_response', 'impulse_response', 'summarise', 'best_response_check',
+    'static_best_response', 'impulse_response', 'summarise',
+    'PILOT_RULES', 'pilot_config', 'together_config', 'status_quo', 'pilot_summary', 'pilot_run',
+    'best_response_check',
     'SCENARIOS', 'scenario_by_id', 'apply_scenario', 'run_scenario', 'aggregate',
     'observe', 'screens', 'permutation_test',
     'CASE_MIX', 'CASE_MU', 'case_config', 'finish_case', 'make_case',
@@ -381,7 +383,7 @@ LIMITS = {
     'nFirms': [2, 3], 'nPrices': [5, 21], 'mu': [0.05, 1], 'xi': [0, 0.5], 'quality': [1, 3],
     'cost': [0, 2], 'outside': [-2, 2], 'alpha': [0.01, 0.5], 'beta': [5e-7, 1e-4],
     'delta': [0, 0.99], 'exploreFloor': [0, 0.2], 'demandNoise': [0, 0.5],
-    'stableWindow': [1000, 200000], 'maxPeriods': [20000, 6000000],
+    'stableWindow': [1000, 200000], 'maxPeriods': [20000, 9000000], 'adoptAt': [-1, 6000000],
 }
 FIRM_TYPES = ['learn', 'nash', 'match', 'undercut']
 MEMORY = ['full', 'own', 'none']
@@ -394,7 +396,7 @@ def default_config():
         'nFirms': 2, 'quality': [2, 2, 2], 'cost': [1, 1, 1], 'outside': 0, 'mu': 0.25,
         'nPrices': 15, 'xi': 0.1, 'alpha': 0.15, 'beta': 4e-6, 'delta': 0.95, 'memory': 'full',
         'firmTypes': ['learn', 'learn', 'learn'], 'sharedVendor': False, 'exploreFloor': 0,
-        'demandNoise': 0, 'stableWindow': 100000, 'maxPeriods': 3000000, 'seed': 1,
+        'demandNoise': 0, 'stableWindow': 100000, 'maxPeriods': 3000000, 'adoptAt': [-1, -1, -1], 'seed': 1,
     }
 
 
@@ -458,9 +460,27 @@ def validate_config(input=None):
             errors.append('seed must be a whole number from 0 to 4294967295')
         else:
             c['seed'] = s if s == 0 else int(s)     # keeps a seed of -0 as JavaScript does
+    if 'adoptAt' in input:
+        if not isinstance(input['adoptAt'], list):
+            errors.append('adoptAt must be a list')
+        else:
+            for u, v in enumerate(input['adoptAt'][:3]):
+                # Math.round keeps the sign of a zero, so -0.4 becomes -0 (which still counts as round 0)
+                c['adoptAt'][u] = _math_round(_clamp_num(v, LIMITS['adoptAt'], -1, 'adoptAt[%d]' % u, errors))
     n = c['nFirms']
-    learners = sum(1 for t in c['firmTypes'][:n] if t == 'learn')
-    if learners == 0:
+    learners = adopters = 0
+    for g in range(n):
+        if c['adoptAt'][g] >= 0 and c['firmTypes'][g] == 'learn':
+            errors.append('adoptAt[%d] needs a seller that starts with a rule' % g)
+            c['adoptAt'][g] = -1
+        if c['adoptAt'][g] >= c['maxPeriods']:
+            errors.append('adoptAt[%d] must be before maxPeriods' % g)
+            c['adoptAt'][g] = -1
+        if c['firmTypes'][g] == 'learn':
+            learners += 1
+        elif c['adoptAt'][g] >= 0:
+            adopters += 1
+    if learners + adopters == 0:
         errors.append('at least one seller must learn')
     if c['sharedVendor']:
         same = all(c['quality'][h] == c['quality'][0] and c['cost'][h] == c['cost'][0] for h in range(1, n))
@@ -508,7 +528,8 @@ def best_reply_price(p, i, quality, cost, outside, mu):
             break
         trial[i] = mid
         q = shares(trial, quality, outside, mu)[i]
-        if mid - cost[i] - mu / (1 - q) < 0:
+        # a share that rounds to exactly 1 gives Infinity in JavaScript, not ZeroDivisionError
+        if mid - cost[i] - _div(mu, 1 - q) < 0:
             lo = mid
         else:
             hi = mid
@@ -516,17 +537,20 @@ def best_reply_price(p, i, quality, cost, outside, mu):
 
 
 def nash_prices(quality, cost, outside, mu):
-    """Competitive (static Nash) prices: every seller in turn moves to its best one-day price, until none moves."""
+    """Competitive (static Nash) prices: every seller moves at once to its best one-day price, until none moves.
+
+    Moving together keeps identical sellers exactly identical.
+    """
     n = len(quality)
     p = [cost[i] + mu for i in range(n)]
     for _ in range(1000):
+        nxt = [best_reply_price(p, i, quality, cost, outside, mu) for i in range(n)]
         change = 0
         for i in range(n):
-            np_ = best_reply_price(p, i, quality, cost, outside, mu)
-            dd = abs(np_ - p[i])
+            dd = abs(nxt[i] - p[i])
             if dd > change:
                 change = dd
-            p[i] = np_
+        p = nxt
         if change < 1e-13:
             break
     return p
@@ -681,16 +705,28 @@ def _write_back(pairs):
         Q[:] = chain.from_iterable(rows)
 
 
+def _max_eps(eps_f, learn):
+    """The largest exploration rate among learning sellers (0 when none learns)."""
+    e = 0
+    for x, on in zip(eps_f, learn):
+        if on and x > e:
+            e = x
+    return e
+
+
 class Trainer(object):
     """Q-learning sellers in the market described by a (validated) config.
 
     Attributes mirror the JavaScript object: ``cfg``, ``errors``, ``market``,
     ``state_tab``, ``state_size``, ``learn``, ``rule_tab``, ``Q``, ``best``,
-    ``best_v``, ``rng``, ``last``, ``t``, ``eps``, ``decay``, ``stable``,
-    ``converged``, ``done``, ``block`` and ``history``. ``Q[i]`` is a flat list
-    indexed by ``state * m + action``, like the JavaScript Float64Array. The
-    JavaScript scratch buffers ``_acts`` and ``_states`` are locals of the
-    training loop here.
+    ``best_v``, ``adopt_at``, ``eps_f``, ``rng``, ``last``, ``t``, ``eps``,
+    ``decay``, ``stable``, ``converged``, ``done``, ``block`` and ``history``.
+    ``Q[i]`` is a flat list indexed by ``state * m + action``, like the
+    JavaScript Float64Array. ``eps_f[i]`` is seller i's own exploration rate;
+    ``eps``, the largest rate among learning sellers, is only for display. A
+    seller with ``adopt_at[i] >= 0`` follows its rule until that round, then
+    starts learning (and ``learn[i]`` becomes True). The JavaScript scratch
+    buffers ``_acts`` and ``_states`` are locals of the training loop here.
     """
 
     def __init__(self, input=None):
@@ -702,11 +738,13 @@ class Trainer(object):
         st = state_tables(mk, cfg['memory'])
         self.state_tab, self.state_size = st['tabs'], st['sizes']
         self.learn = [cfg['firmTypes'][i] == 'learn' for i in range(n)]
+        self.adopt_at = cfg['adoptAt'][:n]
+        will_learn = [self.learn[i] or self.adopt_at[i] >= 0 for i in range(n)]
         self.rule_tab = [None if self.learn[i] else rule_table(mk, i, cfg['firmTypes'][i]) for i in range(n)]
         # Initial Q: the average profit of each own price against uniformly random rival prices, forever.
         self.Q, self.best, self.best_v = [], [], []
         for i in range(n):
-            if not self.learn[i]:
+            if not will_learn[i]:
                 Q = best = best_v = None
             elif cfg['sharedVendor'] and i > 0:
                 Q, best, best_v = self.Q[0], self.best[0], self.best_v[0]
@@ -733,7 +771,9 @@ class Trainer(object):
         # Start from a random set of prices.
         self.last = encode_joint([self.rng.int(m) for _ in range(n)], m)
         self.t = 0
-        self.eps = 1
+        # Each learning seller has its own exploration rate, starting at 1 when it starts learning.
+        self.eps_f = [1.0 if on else 0.0 for on in self.learn]
+        self.eps = _max_eps(self.eps_f, self.learn)
         self.decay = det_exp(-cfg['beta'])
         self.stable = 0
         self.converged = False
@@ -742,6 +782,21 @@ class Trainer(object):
         self.history = []           # one point per block: mean price and profit per seller
         self._acc = {'price': [0] * n, 'profit': [0] * n, 'count': 0}
         self._fast = True           # use the specialised two-seller loop when it applies
+
+    def next_adopt(self, t):
+        """The next round, from round t on, at which a seller starts learning (-1 if none)."""
+        best = -1
+        for a, on in zip(self.adopt_at, self.learn):
+            if a >= t and not on and (best < 0 or a < best):
+                best = a
+        return best
+
+    def _adopt(self, t):
+        """At round t, the sellers due to adopt start learning; returns their indices."""
+        new = [i for i, a in enumerate(self.adopt_at) if a == t and not self.learn[i]]
+        for i in new:
+            self.learn[i] = True
+        return new
 
     def run(self, max_steps=None):
         """Run up to ``max_steps`` more periods. Returns True when training has finished."""
@@ -775,8 +830,10 @@ class Trainer(object):
         * ``stable = changed ? 0 : stable + 1`` becomes ``stable = -1`` on a
           change followed by ``stable += 1``.
         * The period counter and block counter are advanced once per run of
-          periods up to the next block boundary; the convergence test is still
-          made after every period.
+          periods up to the next block boundary or adoption round; the
+          convergence test is still made after every period. Adoption is
+          checked at the start of each run of periods, which always begins at
+          an adoption round when one is due.
         """
         cfg, mk = self.cfg, self.market
         m, levels = mk['m'], mk['levels']
@@ -785,7 +842,8 @@ class Trainer(object):
         oma = 1 - alpha
         decay, window, max_t = self.decay, cfg['stableWindow'], cfg['maxPeriods']
         block, history = self.block, self.history
-        learn0, learn1 = self.learn
+        learn = self.learn
+        learn0, learn1 = learn
         tab0, tab1 = self.state_tab
         rule0, rule1 = self.rule_tab
         best0, best1 = self.best
@@ -799,13 +857,28 @@ class Trainer(object):
         sp0, sp1 = acc['price']
         sr0, sr1 = acc['profit']
         count = acc['count']
-        st, last, t, eps, stable = self.rng.a, self.last, self.t, self.eps, self.stable
-        thr = eps * _TWO32
+        st, last, t, stable = self.rng.a, self.last, self.t, self.stable
+        eps0, eps1 = self.eps_f
+        thr0, thr1 = eps0 * _TWO32, eps1 * _TWO32
         s0 = tab0[last] if learn0 else 0
         s1 = tab1[last] if learn1 else 0
+        next_adopt = self.next_adopt(t)
+        never = max_t + 1               # more than any reachable count of stable rounds
         finished = False
         while allowed > 0:
+            if t == next_adopt:
+                for i in self._adopt(t):
+                    if i == 0:
+                        learn0, eps0, thr0, s0 = True, 1.0, _TWO32, tab0[last]
+                    else:
+                        learn1, eps1, thr1, s1 = True, 1.0, _TWO32, tab1[last]
+                stable = 0
+                next_adopt = self.next_adopt(t + 1)
             chunk = min(block - count, allowed)
+            if next_adopt > t:
+                chunk = min(chunk, next_adopt - t)
+            # training can only settle once no seller is still waiting to start learning
+            settle = window if next_adopt < 0 else never
             steps = chunk
             for k in range(chunk):
                 # seller 0 picks a price
@@ -813,7 +886,7 @@ class Trainer(object):
                     st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                     x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                     x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
-                    if (x ^ (x >> 14)) < thr:
+                    if (x ^ (x >> 14)) < thr0:
                         st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                         x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                         x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
@@ -827,7 +900,7 @@ class Trainer(object):
                     st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                     x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                     x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
-                    if (x ^ (x >> 14)) < thr:
+                    if (x ^ (x >> 14)) < thr1:
                         st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                         x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                         x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
@@ -896,21 +969,25 @@ class Trainer(object):
                     s1 = ns
                 last = joint
                 stable += 1
-                eps = eps * decay
-                if eps < floor:
-                    eps = floor
-                thr = eps * _TWO32
-                if stable >= window:
+                if learn0:
+                    e = eps0 * decay
+                    eps0 = floor if e < floor else e
+                    thr0 = eps0 * _TWO32
+                if learn1:
+                    e = eps1 * decay
+                    eps1 = floor if e < floor else e
+                    thr1 = eps1 * _TWO32
+                if stable >= settle:
                     steps = k + 1
                     break
             t += steps
             count += steps
             allowed -= steps
             if count == block:
-                history.append({'t': t, 'eps': eps, 'price': [sp0 / block, sp1 / block],
-                                'profit': [sr0 / block, sr1 / block]})
+                history.append({'t': t, 'eps': _max_eps((eps0, eps1), learn),
+                                'price': [sp0 / block, sp1 / block], 'profit': [sr0 / block, sr1 / block]})
                 sp0 = sp1 = sr0 = sr1 = count = 0
-            if stable >= window:
+            if stable >= window and next_adopt < 0:
                 self.converged = finished = True
                 break
             if t >= max_t:
@@ -918,7 +995,9 @@ class Trainer(object):
                 break
         _write_back(pairs)
         acc['price'], acc['profit'], acc['count'] = [sp0, sp1], [sr0, sr1], count
-        self.rng.a, self.last, self.t, self.eps, self.stable = st, last, t, eps, stable
+        self.eps_f[:] = eps0, eps1
+        self.rng.a, self.last, self.t, self.stable = st, last, t, stable
+        self.eps = _max_eps(self.eps_f, learn)
         if finished:
             self.done = True
 
@@ -939,13 +1018,24 @@ class Trainer(object):
         mults = [m ** i for i in firms]
         acc = self._acc
         sp, sr, count = list(acc['price']), list(acc['profit']), acc['count']
-        st, last, t, eps, stable = self.rng.a, self.last, self.t, self.eps, self.stable
-        thr = eps * _TWO32
+        st, last, t, stable = self.rng.a, self.last, self.t, self.stable
+        eps = list(self.eps_f)
+        thr = [e * _TWO32 for e in eps]
         states = [tabs[i][last] if learn[i] else 0 for i in firms]
         acts = [0] * n
+        next_adopt = self.next_adopt(t)
+        never = max_t + 1
         finished = False
         while allowed > 0:
+            if t == next_adopt:
+                for i in self._adopt(t):
+                    eps[i], thr[i], states[i] = 1.0, _TWO32, tabs[i][last]
+                stable = 0
+                next_adopt = self.next_adopt(t + 1)
             chunk = min(block - count, allowed)
+            if next_adopt > t:
+                chunk = min(chunk, next_adopt - t)
+            settle = window if next_adopt < 0 else never
             steps = chunk
             for k in range(chunk):
                 joint = 0
@@ -954,7 +1044,7 @@ class Trainer(object):
                         st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                         x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                         x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
-                        if (x ^ (x >> 14)) < thr:
+                        if (x ^ (x >> 14)) < thr[i]:
                             st = (st + 0x6D2B79F5) & 0xFFFFFFFF
                             x = ((st ^ (st >> 15)) * (st | 1)) & 0xFFFFFFFF
                             x = ((x + (x ^ (x >> 7)) * (x | 61)) & 0xFFFFFFFF) ^ x
@@ -999,21 +1089,22 @@ class Trainer(object):
                     states[i] = ns
                 last = joint
                 stable += 1
-                eps = eps * decay
-                if eps < floor:
-                    eps = floor
-                thr = eps * _TWO32
-                if stable >= window:
+                for i in firms:
+                    if learn[i]:
+                        e = eps[i] * decay
+                        eps[i] = floor if e < floor else e
+                        thr[i] = eps[i] * _TWO32
+                if stable >= settle:
                     steps = k + 1
                     break
             t += steps
             count += steps
             allowed -= steps
             if count == block:
-                history.append({'t': t, 'eps': eps, 'price': [x / block for x in sp],
+                history.append({'t': t, 'eps': _max_eps(eps, learn), 'price': [x / block for x in sp],
                                 'profit': [x / block for x in sr]})
                 sp, sr, count = [0] * n, [0] * n, 0
-            if stable >= window:
+            if stable >= window and next_adopt < 0:
                 self.converged = finished = True
                 break
             if t >= max_t:
@@ -1021,7 +1112,9 @@ class Trainer(object):
                 break
         _write_back(pairs)
         acc['price'], acc['profit'], acc['count'] = sp, sr, count
-        self.rng.a, self.last, self.t, self.eps, self.stable = st, last, t, eps, stable
+        self.eps_f[:] = eps
+        self.rng.a, self.last, self.t, self.stable = st, last, t, stable
+        self.eps = _max_eps(self.eps_f, learn)
         if finished:
             self.done = True
 
@@ -1182,6 +1275,60 @@ def summarise(tr):
 
 def train(cfg=None):
     return Trainer(cfg).run_to_end()
+
+
+# ---------------------------------------------------------------- pilot to scale
+
+PILOT_RULES = ['nash', 'match', 'undercut']
+
+
+def pilot_config(base, rule, adopt_after, seed):
+    """Seller A pilots a learning algorithm while B keeps a rule; B starts learning at round adopt_after."""
+    c = {k: list(v) if isinstance(v, list) else v for k, v in base.items()}
+    c['nFirms'], c['sharedVendor'], c['seed'] = 2, False, seed
+    c['firmTypes'] = ['learn', rule, 'learn']
+    c['adoptAt'] = [-1, adopt_after, -1]
+    c['maxPeriods'] = _js_max(_or(c.get('maxPeriods'), 3000000), adopt_after + 3000000)
+    return c
+
+
+def together_config(base, seed):
+    """The same market and seed with both sellers learning from the start."""
+    c = pilot_config(base, 'nash', 0, seed)
+    c['firmTypes'], c['adoptAt'] = ['learn', 'learn', 'learn'], [-1, -1, -1]
+    c['maxPeriods'] = _or(base.get('maxPeriods'), 3000000)
+    return c
+
+
+def status_quo(mk):
+    """Before anyone adopts, both sellers charge the competitive price."""
+    return outcome_of(mk, [encode_joint(mk['nashIdx'], mk['m'])])
+
+
+def pilot_summary(mk, pilot, scaled, together):
+    sq = status_quo(mk)
+
+    def up(s, i):
+        return _div(s['profit'][i], sq['profit'][i]) - 1
+
+    return {
+        'statusQuo': sq, 'pilot': pilot, 'scaled': scaled, 'together': together,
+        'upliftA': {'pilot': up(pilot, 0), 'scaled': up(scaled, 0), 'together': up(together, 0)},
+        'upliftB': {'pilot': up(pilot, 1), 'scaled': up(scaled, 1), 'together': up(together, 1)},
+    }
+
+
+def pilot_run(base, rule, adopt_after, seed):
+    """Train through the pilot (A learns, B keeps its rule), then on after B adopts; compare with both learning."""
+    tr = Trainer(pilot_config(base, rule, adopt_after, seed))
+    while tr.t < adopt_after and not tr.run(adopt_after - tr.t):
+        pass                        # the pilot phase
+    pilot, pilot_blocks = summarise(tr), len(tr.history)
+    tr.run_to_end()
+    out = pilot_summary(tr.market, pilot, summarise(tr), summarise(train(together_config(base, seed))))
+    out['pilotBlocks'] = pilot_blocks
+    out['history'] = tr.history
+    return out
 
 
 def best_response_check(tr, i, cycle=None):

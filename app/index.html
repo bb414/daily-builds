@@ -169,9 +169,10 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   <div class="wrap" role="tablist" id="tablist">
     <button role="tab" id="tab-learn" aria-controls="panel-learn" aria-selected="true"><span class="num">1</span>Learn</button>
     <button role="tab" id="tab-threat" aria-controls="panel-threat" aria-selected="false" tabindex="-1"><span class="num">2</span>Test for a threat</button>
-    <button role="tab" id="tab-remedies" aria-controls="panel-remedies" aria-selected="false" tabindex="-1"><span class="num">3</span>Remedies</button>
-    <button role="tab" id="tab-screens" aria-controls="panel-screens" aria-selected="false" tabindex="-1"><span class="num">4</span>Regulator&rsquo;s screens</button>
-    <button role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1"><span class="num">5</span>Your prices</button>
+    <button role="tab" id="tab-pilot" aria-controls="panel-pilot" aria-selected="false" tabindex="-1"><span class="num">3</span>Pilot to scale</button>
+    <button role="tab" id="tab-remedies" aria-controls="panel-remedies" aria-selected="false" tabindex="-1"><span class="num">4</span>Remedies</button>
+    <button role="tab" id="tab-screens" aria-controls="panel-screens" aria-selected="false" tabindex="-1"><span class="num">5</span>Regulator&rsquo;s screens</button>
+    <button role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1"><span class="num">6</span>Your prices</button>
     <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1"><span class="num">?</span>How it works</button>
   </div>
 </nav>
@@ -337,7 +338,61 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   </div>
 </section>
 
-<!-- 3. REMEDIES -->
+<!-- 3. PILOT TO SCALE -->
+<section id="panel-pilot" role="tabpanel" aria-labelledby="tab-pilot" tabindex="0" hidden>
+  <p class="intro">Both sellers start out charging the competitive price. Seller A then <strong>pilots</strong> a pricing algorithm while seller B keeps its old rule, and the pilot&rsquo;s result goes to the board. Later, B buys an algorithm too. Does the pilot predict what A earns once its rival has one, and where does the extra money come from?</p>
+  <div class="layout">
+    <form class="card controls" aria-label="Pilot settings" onsubmit="return false">
+      <div class="field">
+        <label for="pilot-rule">Seller B during the pilot</label>
+        <select id="pilot-rule">
+          <option value="nash">Keeps its old competitive price</option>
+          <option value="match">Matches A whenever A is cheaper</option>
+          <option value="undercut">Undercuts A by one step</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pilot-after">B buys an algorithm after <output id="pilot-after-out" for="pilot-after"></output></label>
+        <input type="range" id="pilot-after" min="500000" max="3000000" step="250000" value="1500000">
+        <p class="hint">Rounds of A&rsquo;s pilot before B switches. A&rsquo;s algorithm keeps learning afterwards.</p>
+      </div>
+      <div class="field">
+        <label for="pilot-runs">Runs with different luck <output id="pilot-runs-out" for="pilot-runs"></output></label>
+        <input type="range" id="pilot-runs" min="1" max="12" step="1" value="4">
+      </div>
+      <p class="hint" style="margin-top:-4px">Uses the market from the Learn tab (with two sellers).</p>
+      <div class="btns">
+        <button class="btn primary" id="pilot-run" type="button">Run the pilot</button>
+        <button class="btn" id="pilot-stop" type="button" disabled>Stop</button>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="pilot-bar"></div></div>
+      <p class="status" id="pilot-status" role="status" aria-live="polite"></p>
+    </form>
+    <div class="stack">
+      <div id="pilot-empty" class="empty"><p>Choose how seller B prices during the pilot and press <strong>Run the pilot</strong>. Four runs take a few seconds.</p></div>
+      <div class="kpis" id="pilot-kpis" hidden></div>
+      <div class="card" id="pilot-chart-card" hidden>
+        <h2>Prices through the pilot and after B adopts <span class="sub">first run</span></h2>
+        <div class="chart" id="chart-pilot"></div>
+        <div class="legend" id="legend-pilot"></div>
+        <p class="caption">Average price in every block of 10,000 rounds. The dotted line marks the round when seller B switches from its rule to an algorithm.</p>
+      </div>
+      <div class="card verdict" id="pilot-verdict" hidden aria-live="polite"></div>
+      <div class="card" id="pilot-table-card" hidden>
+        <h2>Stage by stage <span class="sub" id="pilot-table-sub"></span></h2>
+        <div class="tablewrap"><table id="pilot-table"></table></div>
+        <p class="caption">Profit change is against the status quo, where both charge the competitive price. Profit gain and shoppers&rsquo; loss run from 0% (competitive) to 100% (monopoly).</p>
+      </div>
+      <div class="card" id="pilot-runs-card" hidden>
+        <h2>Seller A&rsquo;s profit change in each run</h2>
+        <div class="chart" id="chart-pilot-runs"></div>
+        <div class="legend" id="legend-pilot-runs"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. REMEDIES -->
 <section id="panel-remedies" role="tabpanel" aria-labelledby="tab-remedies" tabindex="0" hidden>
   <p class="intro">Suppose a competition authority wants lower prices without banning pricing algorithms. Which change actually works? Each option is trained many times with different luck, in the market you set up on the Learn tab, and compared with the baseline.</p>
   <div class="layout">
@@ -383,7 +438,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   </div>
 </section>
 
-<!-- 4. SCREENS -->
+<!-- 5. SCREENS -->
 <section id="panel-screens" role="tabpanel" aria-labelledby="tab-screens" tabindex="0" hidden>
   <p class="intro">A competition authority cannot open the algorithm. It sees a year of daily prices. We build a <strong>case file</strong> of simulated markets where we know the hidden truth, then test how well five simple screens on prices alone would pick out the markets worth investigating.</p>
   <div class="layout">
@@ -455,7 +510,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   </div>
 </section>
 
-<!-- 5. YOUR PRICES -->
+<!-- 6. YOUR PRICES -->
 <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="0" hidden>
   <p class="intro">Paste or load two sellers&rsquo; daily prices and run the same screens, with a test of whether rivals&rsquo; price cuts line up with each other more than chance would allow. Everything stays in your browser.</p>
   <div class="layout">
@@ -658,7 +713,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     nFirms: [2, 3], nPrices: [5, 21], mu: [0.05, 1], xi: [0, 0.5], quality: [1, 3],
     cost: [0, 2], outside: [-2, 2], alpha: [0.01, 0.5], beta: [5e-7, 1e-4],
     delta: [0, 0.99], exploreFloor: [0, 0.2], demandNoise: [0, 0.5],
-    stableWindow: [1000, 200000], maxPeriods: [20000, 6000000]
+    stableWindow: [1000, 200000], maxPeriods: [20000, 9000000], adoptAt: [-1, 6000000]
   };
   var FIRM_TYPES = ['learn', 'nash', 'match', 'undercut'];
   var MEMORY = ['full', 'own', 'none'];
@@ -682,6 +737,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       demandNoise: 0,
       stableWindow: 100000,
       maxPeriods: 3000000,
+      adoptAt: [-1, -1, -1],
       seed: 1
     };
   }
@@ -739,9 +795,22 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       if (!(s >= 0) || s !== Math.floor(s) || s > 4294967295) errors.push('seed must be a whole number from 0 to 4294967295');
       else c.seed = s;
     }
-    var learners = 0;
-    for (var g = 0; g < c.nFirms; g++) if (c.firmTypes[g] === 'learn') learners++;
-    if (learners === 0) errors.push('at least one seller must learn');
+    if (input.adoptAt !== undefined && !Array.isArray(input.adoptAt)) errors.push('adoptAt must be a list');
+    else if (input.adoptAt !== undefined) {
+      for (var u = 0; u < 3; u++) {
+        if (input.adoptAt[u] !== undefined) c.adoptAt[u] = Math.round(clampNum(input.adoptAt[u], LIMITS.adoptAt, -1, 'adoptAt[' + u + ']', errors));
+      }
+    }
+    var learners = 0, adopters = 0;
+    for (var g = 0; g < c.nFirms; g++) {
+      if (c.adoptAt[g] >= 0 && c.firmTypes[g] === 'learn') {
+        errors.push('adoptAt[' + g + '] needs a seller that starts with a rule'); c.adoptAt[g] = -1;
+      }
+      if (c.adoptAt[g] >= c.maxPeriods) { errors.push('adoptAt[' + g + '] must be before maxPeriods'); c.adoptAt[g] = -1; }
+      if (c.firmTypes[g] === 'learn') learners++;
+      else if (c.adoptAt[g] >= 0) adopters++;
+    }
+    if (learners + adopters === 0) errors.push('at least one seller must learn');
     if (c.sharedVendor) {
       var sym = learners === c.nFirms;
       for (var h = 1; h < c.nFirms; h++) {
@@ -788,18 +857,20 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     return (lo + hi) / 2;
   }
 
-  // Competitive (static Nash) prices: every seller in turn moves to its best one-day price, until none moves.
+  // Competitive (static Nash) prices: every seller moves at once to its best one-day price against the others'
+  // current prices, until none moves. Moving together keeps identical sellers exactly identical.
   function nashPrices(quality, cost, outside, mu) {
     var n = quality.length, p = [], i;
     for (i = 0; i < n; i++) p.push(cost[i] + mu);
     for (var it = 0; it < 1000; it++) {
-      var change = 0;
+      var change = 0, next = [];
       for (i = 0; i < n; i++) {
-        var np = bestReplyPrice(p, i, quality, cost, outside, mu), dd = np - p[i];
+        next.push(bestReplyPrice(p, i, quality, cost, outside, mu));
+        var dd = next[i] - p[i];
         if (dd < 0) dd = -dd;
         if (dd > change) change = dd;
-        p[i] = np;
       }
+      p = next;
       if (change < 1e-13) break;
     }
     return p;
@@ -938,14 +1009,18 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     this.stateSize = st.sizes;
     this.learn = [];
     this.ruleTab = [];
+    // A seller with adoptAt >= 0 follows its rule until that round, then starts learning.
+    this.adoptAt = cfg.adoptAt.slice(0, n);
+    var willLearn = [];
     for (i = 0; i < n; i++) {
       this.learn.push(cfg.firmTypes[i] === 'learn');
+      willLearn.push(this.learn[i] || this.adoptAt[i] >= 0);
       this.ruleTab.push(this.learn[i] ? null : ruleTable(mk, i, cfg.firmTypes[i]));
     }
     // Initial Q: the average profit of each own price against uniformly random rival prices, forever.
     this.Q = []; this.best = []; this.bestV = [];
     for (i = 0; i < n; i++) {
-      if (!this.learn[i]) { this.Q.push(null); this.best.push(null); this.bestV.push(null); continue; }
+      if (!willLearn[i]) { this.Q.push(null); this.best.push(null); this.bestV.push(null); continue; }
       if (cfg.sharedVendor && i > 0) { this.Q.push(this.Q[0]); this.best.push(this.best[0]); this.bestV.push(this.bestV[0]); continue; }
       var avg = [];
       for (a = 0; a < m; a++) avg.push(0);
@@ -972,7 +1047,10 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     for (i = 0; i < n; i++) start.push(this.rng.int(m));
     this.last = encodeJoint(start, m);
     this.t = 0;
-    this.eps = 1;
+    // Each learning seller has its own exploration rate, starting at 1 when it starts learning.
+    this.epsF = new Float64Array(n);
+    for (i = 0; i < n; i++) if (this.learn[i]) this.epsF[i] = 1;
+    this.eps = maxEps(this.epsF, this.learn);
     this.decay = detExp(-cfg.beta);
     this.stable = 0;
     this.converged = false;
@@ -985,6 +1063,22 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     this._states = new Int32Array(n);
   }
 
+  function maxEps(epsF, learn) {
+    var e = 0;
+    for (var i = 0; i < epsF.length; i++) if (learn[i] && epsF[i] > e) e = epsF[i];
+    return e;
+  }
+
+  // The first round from round t onwards at which a seller starts learning (-1 if none).
+  Trainer.prototype.nextAdopt = function (t) {
+    var best = -1;
+    for (var i = 0; i < this.adoptAt.length; i++) {
+      var a = this.adoptAt[i];
+      if (a >= t && !this.learn[i] && (best < 0 || a < best)) best = a;
+    }
+    return best;
+  };
+
   // Run up to maxSteps more periods. Returns true when training has finished.
   Trainer.prototype.run = function (maxSteps) {
     if (this.done) return true;
@@ -993,17 +1087,23 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     var levels = mk.levels, learn = this.learn, stateTab = this.stateTab, ruleTab = this.ruleTab;
     var Qs = this.Q, bests = this.best, bestVs = this.bestV, profit = mk.profit, grids = mk.grids;
     var acts = this._acts, states = this._states, acc = this._acc, block = this.block;
-    var last = this.last, t = this.t, eps = this.eps, stable = this.stable;
+    var last = this.last, t = this.t, epsF = this.epsF, stable = this.stable;
     var window = cfg.stableWindow, maxT = cfg.maxPeriods, end = t + maxSteps;
+    var adoptAt = this.adoptAt, nextAdopt = this.nextAdopt(t);
     var i, finished = false;
     while (t < end) {
+      if (t === nextAdopt) {
+        for (i = 0; i < n; i++) if (adoptAt[i] === t && !learn[i]) { learn[i] = true; epsF[i] = 1; }
+        stable = 0;
+        nextAdopt = this.nextAdopt(t + 1);
+      }
       var joint = 0, mult = 1;
       for (i = 0; i < n; i++) {
         var ai;
         if (learn[i]) {
           var s0 = stateTab[i][last];
           states[i] = s0;
-          if (rng.next() < eps) ai = Math.floor(rng.next() * m);
+          if (rng.next() < epsF[i]) ai = Math.floor(rng.next() * m);
           else ai = bests[i][s0];
         } else ai = ruleTab[i][last];
         acts[i] = ai; joint += ai * mult; mult *= m;
@@ -1031,12 +1131,13 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       }
       stable = changed ? 0 : stable + 1;
       last = joint;
-      eps = eps * decay;
-      if (eps < floor) eps = floor;
+      for (i = 0; i < n; i++) {
+        if (learn[i]) { var e = epsF[i] * decay; epsF[i] = e < floor ? floor : e; }
+      }
       t++;
       acc.count++;
       if (acc.count === block) {
-        var pt = { t: t, eps: eps, price: [], profit: [] };
+        var pt = { t: t, eps: maxEps(epsF, learn), price: [], profit: [] };
         for (i = 0; i < n; i++) {
           pt.price.push(acc.price[i] / block); pt.profit.push(acc.profit[i] / block);
           acc.price[i] = 0; acc.profit[i] = 0;
@@ -1044,10 +1145,11 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         acc.count = 0;
         this.history.push(pt);
       }
-      if (stable >= window) { this.converged = true; finished = true; break; }
+      // training can only settle once no seller is still waiting to start learning
+      if (stable >= window && nextAdopt < 0) { this.converged = true; finished = true; break; }
       if (t >= maxT) { finished = true; break; }
     }
-    this.last = last; this.t = t; this.eps = eps; this.stable = stable;
+    this.last = last; this.t = t; this.eps = maxEps(epsF, learn); this.stable = stable;
     if (finished) this.done = true;
     return this.done;
   };
@@ -1198,6 +1300,54 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     var tr = new Trainer(cfg);
     tr.runToEnd();
     return tr;
+  }
+
+  // ---------------------------------------------------------------- pilot to scale
+
+  var PILOT_RULES = ['nash', 'match', 'undercut'];
+
+  // Seller A pilots a learning algorithm while B keeps a rule; B starts learning at round adoptAfter.
+  function pilotConfig(base, rule, adoptAfter, seed) {
+    var c = {}, k;
+    for (k in base) c[k] = Array.isArray(base[k]) ? base[k].slice() : base[k];
+    c.nFirms = 2; c.sharedVendor = false; c.seed = seed;
+    c.firmTypes = ['learn', rule, 'learn'];
+    c.adoptAt = [-1, adoptAfter, -1];
+    c.maxPeriods = Math.max(c.maxPeriods || 3000000, adoptAfter + 3000000);
+    return c;
+  }
+
+  // The same market and seed with both sellers learning from the start.
+  function togetherConfig(base, seed) {
+    var c = pilotConfig(base, 'nash', 0, seed);
+    c.firmTypes = ['learn', 'learn', 'learn']; c.adoptAt = [-1, -1, -1];
+    c.maxPeriods = base.maxPeriods || 3000000;
+    return c;
+  }
+
+  // Before anyone adopts, both sellers charge the competitive price.
+  function statusQuo(mk) { return outcomeOf(mk, [encodeJoint(mk.nashIdx, mk.m)]); }
+
+  function pilotSummary(mk, pilot, scaled, together) {
+    var sq = statusQuo(mk);
+    function up(s, i) { return s.profit[i] / sq.profit[i] - 1; }
+    return {
+      statusQuo: sq, pilot: pilot, scaled: scaled, together: together,
+      upliftA: { pilot: up(pilot, 0), scaled: up(scaled, 0), together: up(together, 0) },
+      upliftB: { pilot: up(pilot, 1), scaled: up(scaled, 1), together: up(together, 1) }
+    };
+  }
+
+  function pilotRun(base, rule, adoptAfter, seed) {
+    var tr = new Trainer(pilotConfig(base, rule, adoptAfter, seed));
+    while (tr.t < adoptAfter && !tr.run(adoptAfter - tr.t)) { /* pilot phase */ }
+    var pilot = summarise(tr), pilotHistory = tr.history.length;
+    tr.runToEnd();
+    var scaled = summarise(tr), together = summarise(train(togetherConfig(base, seed)));
+    var out = pilotSummary(tr.market, pilot, scaled, together);
+    out.pilotBlocks = pilotHistory;
+    out.history = tr.history;
+    return out;
   }
 
   // Holding every rival's learned strategy fixed, is seller i's learned strategy its best long-run reply?
@@ -1523,6 +1673,8 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     Trainer: Trainer, train: train, limitCycle: limitCycle, outcomeOf: outcomeOf,
     staticBestResponse: staticBestResponse, impulseResponse: impulseResponse, summarise: summarise,
     bestResponseCheck: bestResponseCheck,
+    PILOT_RULES: PILOT_RULES, pilotConfig: pilotConfig, togetherConfig: togetherConfig, statusQuo: statusQuo,
+    pilotSummary: pilotSummary, pilotRun: pilotRun,
     SCENARIOS: SCENARIOS, scenarioById: scenarioById, applyScenario: applyScenario,
     runScenario: runScenario, aggregate: aggregate,
     observe: observe, screens: screens, permutationTest: permutationTest,
@@ -2050,6 +2202,135 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
         ' here, so these strategies are not an equilibrium. The algorithms never search for that reply: they only test one price at a time, and a single cut is punished. A seller that worked out the reply, or a smarter algorithm, could break the high price.';
   }
 
+  // ------------------------------------------------------------ pilot to scale
+  function signed(x) { return x !== x ? 'n/a' : (x > 0.0005 ? '+' : '') + pct(x); }
+  function pilotOutputs() {
+    $('pilot-after-out').textContent = rounds(+$('pilot-after').value) + ' rounds';
+    $('pilot-runs-out').textContent = $('pilot-runs').value;
+  }
+  $('pilot-after').addEventListener('input', pilotOutputs);
+  $('pilot-runs').addEventListener('input', pilotOutputs);
+  pilotOutputs();
+
+  $('pilot-run').addEventListener('click', function () {
+    var rule = $('pilot-rule').value, after = +$('pilot-after').value, R = +$('pilot-runs').value;
+    var base = QC.validateConfig(readControls()).config, out = [], seed = 1, stage = 0, tr = null, rec = null;
+    base.nFirms = 2;
+    $('pilot-run').disabled = true; $('pilot-stop').disabled = false;
+    S.pilotJob = runJob(function () {
+      if (seed > R) return true;
+      if (stage === 0) { tr = new QC.Trainer(QC.pilotConfig(base, rule, after, seed)); rec = {}; stage = 1; }
+      if (stage === 1) {
+        tr.run(Math.min(300000, after - tr.t));
+        if (tr.t >= after) { rec.pilot = QC.summarise(tr); rec.pilotBlocks = tr.history.length; stage = 2; }
+      } else if (stage === 2) {
+        if (tr.run(300000)) { rec.scaled = QC.summarise(tr); rec.history = tr.history; rec.market = tr.market; tr = new QC.Trainer(QC.togetherConfig(base, seed)); stage = 3; }
+      } else if (stage === 3) {
+        if (tr.run(300000)) {
+          var sm = QC.pilotSummary(rec.market, rec.pilot, rec.scaled, QC.summarise(tr));
+          sm.history = rec.history; sm.pilotBlocks = rec.pilotBlocks; sm.market = rec.market; sm.seed = seed;
+          out.push(sm); seed++; stage = 0;
+        }
+      }
+      return seed > R;
+    }, {
+      progress: function () {
+        $('pilot-bar').style.width = (100 * (seed - 1 + (stage === 0 ? 0 : stage / 4)) / R) + '%';
+        $('pilot-status').textContent = seed > R ? '' : 'Run ' + seed + ' of ' + R + ': ' + ['starting', 'A\u2019s pilot', 'B has adopted', 'both from the start'][stage];
+      },
+      done: function () {
+        S.pilotJob = null; $('pilot-run').disabled = false; $('pilot-stop').disabled = true; $('pilot-bar').style.width = '100%';
+        $('pilot-status').textContent = 'Finished ' + R + (R === 1 ? ' run.' : ' runs.');
+        S.pilot = { rule: rule, after: after, runs: out }; renderPilot();
+      },
+      error: function (e) { S.pilotJob = null; $('pilot-run').disabled = false; $('pilot-stop').disabled = true; $('pilot-status').textContent = 'Stopped: ' + e.message; }
+    });
+  });
+  $('pilot-stop').addEventListener('click', function () {
+    if (S.pilotJob) S.pilotJob.cancel();
+    S.pilotJob = null; $('pilot-run').disabled = false; $('pilot-stop').disabled = true; $('pilot-status').textContent = 'Stopped.';
+  });
+
+  function renderPilot() {
+    var P = S.pilot;
+    $('pilot-empty').hidden = !!P;
+    ['pilot-kpis', 'pilot-chart-card', 'pilot-verdict', 'pilot-table-card', 'pilot-runs-card'].forEach(function (id) { $(id).hidden = !P; });
+    if (!P) return;
+    var runs = P.runs, first = runs[0], mk = first.market, R = runs.length;
+    function avg(f) { return mean(runs.map(f)); }
+    var aPilot = avg(function (r) { return r.upliftA.pilot; }), aScaled = avg(function (r) { return r.upliftA.scaled; });
+    var bScaled = avg(function (r) { return r.upliftB.scaled; }), aTogether = avg(function (r) { return r.upliftA.together; });
+    var harm = avg(function (r) { return r.scaled.harm; }), punished = runs.filter(function (r) { return r.scaled.punished; }).length;
+    var pilotPunished = runs.filter(function (r) { return r.pilot.punished; }).length;
+    $('pilot-kpis').innerHTML =
+      kpi('A in the pilot', signed(aPilot), 'profit against the status quo') +
+      kpi('A once B adopts', signed(aScaled), 'same algorithm, rival changed', Math.abs(aScaled - aPilot) > 0.1 ? 'bad' : '') +
+      kpi('B once it adopts', signed(bScaled), 'profit against the status quo') +
+      kpi('Shoppers\u2019 loss', pct(harm), 'once both use algorithms', harm >= 0.5 ? 'bad' : harm < 0.2 ? 'good' : '');
+    // timeline
+    var h = first.history, xs = h.map(function (p) { return p.t; });
+    var lo = Math.min(mk.grids[0][0], mk.grids[1][0]), hi = Math.max(mk.grids[0][mk.m - 1], mk.grids[1][mk.m - 1]);
+    lineChart($('chart-pilot'), {
+      aria: 'Line chart of both sellers\u2019 prices through seller A\u2019s pilot and after seller B adopts an algorithm.',
+      xMin: 0, xMax: Math.max(1, xs[xs.length - 1] || 1), yMin: lo, yMax: hi,
+      lines: [0, 1].map(function (i) { return { xs: xs, ys: h.map(function (p) { return p.price[i]; }), color: SELLER_COL[i], width: 2 }; }),
+      hlines: marketLines(mk), vlines: [{ x: P.after, label: 'B adopts' }],
+      xFmt: function (v) { return v >= 1e6 ? (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + 'm' : Math.round(v / 1e3) + 'k'; },
+      yFmt: function (v) { return '\u00a3' + v.toFixed(2); }, xLabel: 'Rounds', yLabel: 'Price'
+    });
+    legend($('legend-pilot'), [{ label: 'Seller A (pilots the algorithm)', color: SELLER_COL[0] }, { label: 'Seller B (' + $('pilot-rule').selectedOptions[0].textContent.toLowerCase() + ', then an algorithm)', color: SELLER_COL[1] },
+      { label: 'Competitive price', color: 'var(--comp)', dash: true }, { label: 'Monopoly price', color: 'var(--mono)', dash: true }]);
+    // stage table (averages over runs)
+    var sq = first.statusQuo;
+    function row(name, price, upA, upB, gain, hm, pun) {
+      return '<tr><td>' + name + '</td><td class="num">' + price + '</td><td class="num">' + upA + '</td><td class="num">' + upB + '</td><td class="num">' + gain + '</td><td class="num">' + hm + '</td><td class="num">' + pun + '</td></tr>';
+    }
+    function stage(key) {
+      return row({ pilot: 'Pilot: A has an algorithm, B a rule', scaled: 'B adopts later', together: 'Both adopt at once' }[key],
+        money(avg(function (r) { return r[key].price[0]; })) + ' / ' + money(avg(function (r) { return r[key].price[1]; })),
+        signed(avg(function (r) { return r.upliftA[key]; })), signed(avg(function (r) { return r.upliftB[key]; })),
+        pct(avg(function (r) { return r[key].avgGain; })), pct(avg(function (r) { return r[key].harm; })),
+        runs.filter(function (r) { return r[key].punished; }).length + ' of ' + R);
+    }
+    $('pilot-table').innerHTML = '<tr><th>Stage</th><th class="num">Prices A / B</th><th class="num">A\u2019s profit</th><th class="num">B\u2019s profit</th><th class="num">Profit gain</th><th class="num">Shoppers\u2019 loss</th><th class="num">Cut punished</th></tr>' +
+      row('Status quo: both charge the competitive price', money(sq.price[0]) + ' / ' + money(sq.price[1]), '0%', '0%', pct(sq.avgGain), pct(sq.harm), '\u2013') +
+      stage('pilot') + stage('scaled') + stage('together');
+    $('pilot-table-sub').textContent = R === 1 ? 'one run' : 'average of ' + R + ' runs';
+    // per-run dumbbell: pilot uplift to scaled uplift
+    var W = 680, rowH = 26, top = 10, left = 60, right = 20, Hh = top + R * rowH + 34;
+    var vals = [];
+    runs.forEach(function (r) { vals.push(r.upliftA.pilot, r.upliftA.scaled, r.upliftA.together); });
+    var vlo = Math.min(0, Math.min.apply(null, vals)), vhi = Math.max(0.1, Math.max.apply(null, vals));
+    var sv = newSvg($('chart-pilot-runs'), W, Hh, 'For each run, seller A\u2019s profit change in the pilot and after seller B adopts.');
+    function X(v) { return left + (v - vlo) / (vhi - vlo) * (W - left - right); }
+    ticks(vlo, vhi, 6).forEach(function (v) {
+      svg('line', { x1: X(v), x2: X(v), y1: top, y2: Hh - 26, style: 'stroke:var(--soft)' }, sv);
+      text(sv, X(v), Hh - 10, signed(v), { 'text-anchor': 'middle' });
+    });
+    runs.forEach(function (r, k) {
+      var y = top + k * rowH + 12;
+      text(sv, left - 8, y + 4, 'Run ' + r.seed, { 'text-anchor': 'end' });
+      svg('line', { x1: X(r.upliftA.pilot), x2: X(r.upliftA.scaled), y1: y, y2: y, style: 'stroke:var(--muted);stroke-width:2' }, sv);
+      var d1 = svg('circle', { cx: X(r.upliftA.pilot), cy: y, r: 5, style: 'fill:var(--card);stroke:var(--a);stroke-width:2' }, sv);
+      svg('title', {}, d1).textContent = 'Run ' + r.seed + ': pilot ' + signed(r.upliftA.pilot);
+      var d2 = svg('circle', { cx: X(r.upliftA.scaled), cy: y, r: 5, style: 'fill:var(--a)' }, sv);
+      svg('title', {}, d2).textContent = 'Run ' + r.seed + ': after B adopts ' + signed(r.upliftA.scaled) + (r.scaled.punished ? ', cuts punished' : '');
+    });
+    legend($('legend-pilot-runs'), [{ label: 'Open circle: A\u2019s profit change in the pilot', color: 'var(--a)' }, { label: 'Filled circle: after B adopts', color: 'var(--a)' }]);
+    // verdict
+    var gap = aScaled - aPilot, v = $('pilot-verdict');
+    var head = Math.abs(gap) < 0.05 ? 'The pilot was a fair guide this time' : gap > 0 ? 'The pilot understated A\u2019s gain by ' + Math.round(gap * 100) + ' points' : 'The pilot overstated A\u2019s gain by ' + Math.round(-gap * 100) + ' points';
+    var why = P.rule === 'nash'
+      ? 'Against a rival that keeps the competitive price, the best an algorithm can do is charge about the same, so the pilot shows almost nothing.'
+      : P.rule === 'match'
+        ? 'A rival that matches every cut hands the algorithm a ready-made punishment, so the pilot already shows high prices. That gain comes from B\u2019s rule, not from A\u2019s algorithm.'
+        : 'A rival that always undercuts by one step, then resets to the top when the price war bottoms out, is easy to exploit, so the pilot looks very good. That gain comes from B\u2019s rule, not from A\u2019s algorithm.';
+    v.className = 'card verdict ' + (Math.abs(gap) >= 0.1 ? 'bad' : '');
+    v.innerHTML = '<div class="head">' + esc(head) + '</div><p>' + why + ' Once B has its own algorithm, A earns ' + signed(aScaled) + ' against the status quo on average (' + signed(aTogether) + ' when both adopt at once), and B earns ' + signed(bScaled) + '. ' +
+      'A one-day cut is punished at scale in ' + punished + ' of ' + R + ' runs' + (pilotPunished ? ' (and in ' + pilotPunished + ' during the pilot)' : '') + '.</p>' +
+      '<p style="margin:0">So the number that went to the board measured the rival&rsquo;s rule, not the algorithm. The gain at scale comes from both sellers competing less hard, which is exactly the part a competition authority would ask about. That gap between what a pilot can show and what scaling brings is one reason pricing pilots stall.</p>';
+  }
+
   // ------------------------------------------------------------ remedies
   $('rem-list').innerHTML = QC.SCENARIOS.map(function (sc) {
     return '<label class="check"><input type="checkbox" value="' + sc.id + '" checked><span><span class="swatch" style="background:' + GROUP_COL[sc.group] + '"></span>' + esc(sc.label) +
@@ -2437,6 +2718,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
   // ------------------------------------------------------------ start
   setControls(QC.defaultConfig());
   renderLearn();
+  renderPilot();
   renderRem();
   renderScreens(false);
   renderData();

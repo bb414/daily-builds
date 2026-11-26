@@ -1,4 +1,4 @@
-// Unit tests for the browser app's model block. Run with: node --test tests/js
+// Unit tests for the browser app's model block. Run with: node --test tests/js/model.test.js
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -80,6 +80,9 @@ test('competitive prices satisfy every seller’s first-order condition', () => 
   }
   const p = M.nashPrices([2, 2], [1, 1], 0, 0.25);
   assert.ok(Math.abs(p[0] - 1.4729) < 1e-4);
+  assert.equal(p[0], p[1], 'identical sellers get identical prices');
+  const p3 = M.nashPrices([2, 2, 2], [1, 1, 1], 0, 0.1);
+  assert.ok(p3[0] === p3[1] && p3[1] === p3[2]);
 });
 
 test('monopoly prices maximise joint profit', () => {
@@ -300,4 +303,48 @@ test('screen scores and their evaluation line up with the screen list', () => {
   assert.deepEqual(ev.map((e) => e.id), M.SCREEN_LIST.map((s) => s.id));
   assert.equal(ev.find((e) => e.id === 'retaliation').auc, 1);
   assert.equal(M.evaluateScreens(cases, 'highPrice').find((e) => e.id === 'margin').auc, 1);
+});
+
+test('a rule seller can start learning part-way through training', () => {
+  const v = M.validateConfig({ firmTypes: ['learn', 'nash'], adoptAt: [-1, 60000] });
+  assert.deepEqual(v.errors, []);
+  assert.ok(M.validateConfig({ adoptAt: [5, -1] }).errors.some((e) => /starts with a rule/.test(e)));
+  assert.ok(M.validateConfig({ firmTypes: ['learn', 'nash'], adoptAt: [-1, 4000000] }).errors.some((e) => /before maxPeriods/.test(e)));
+  assert.ok(M.validateConfig({ adoptAt: 3 }).errors.some((e) => /must be a list/.test(e)));
+  assert.deepEqual(M.validateConfig({ firmTypes: ['nash', 'match'], adoptAt: [-1, 0] }).errors, []);
+  const tr = new M.Trainer(fast({ firmTypes: ['learn', 'nash'], adoptAt: [-1, 60000], seed: 3, maxPeriods: 600000 }));
+  assert.deepEqual(tr.learn, [true, false]);
+  assert.equal(tr.epsF[1], 0);
+  tr.run(60000);
+  assert.equal(tr.t, 60000);
+  assert.equal(tr.done, false, 'cannot settle while an adoption is pending');
+  tr.run(1);
+  assert.deepEqual(tr.learn, [true, true]);
+  assert.ok(tr.epsF[1] > 0.99 && tr.epsF[0] < tr.epsF[1]);
+  tr.runToEnd();
+  assert.ok(tr.converged && tr.t > 60000 + 10000);
+});
+
+test('adoption leaves runs without it unchanged', () => {
+  const a = M.train(fast({ seed: 21 })), b = M.train(fast({ seed: 21, adoptAt: [-1, -1, -1] }));
+  assert.equal(a.t, b.t);
+  assert.deepEqual(Array.from(a.Q[0]), Array.from(b.Q[0]));
+});
+
+test('the pilot helpers measure each stage against the status quo', () => {
+  const base = Object.assign(M.defaultConfig(), FAST);
+  const r = M.pilotRun(base, 'nash', 100000, 2);
+  for (const k of ['pilot', 'scaled', 'together']) {
+    assert.ok(k in r.upliftA && k in r.upliftB);
+    assert.equal(typeof r[k].avgGain, 'number');
+  }
+  // against a rival that keeps the competitive price, the pilot cannot do better than about competitive
+  assert.ok(Math.abs(r.upliftA.pilot) < 0.05, 'pilot uplift ' + r.upliftA.pilot);
+  assert.equal(r.upliftB.pilot, 0);
+  assert.equal(r.statusQuo.price[0], r.statusQuo.price[1]);
+  assert.ok(r.pilotBlocks === 10 && r.history.length > r.pilotBlocks);
+  const cfg = M.pilotConfig(base, 'match', 100000, 5);
+  assert.deepEqual([cfg.firmTypes[1], cfg.adoptAt[1], cfg.seed, cfg.nFirms], ['match', 100000, 5, 2]);
+  assert.ok(cfg.maxPeriods >= 3100000);
+  assert.deepEqual(M.togetherConfig(base, 5).adoptAt, [-1, -1, -1]);
 });

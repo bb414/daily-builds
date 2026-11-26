@@ -6,7 +6,7 @@ Quiet cartel is a laboratory for one of the stranger questions in competition po
 
 There are two versions, built on the same model:
 
-- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It trains the sellers live, tests whether a price cut is punished, compares remedies, builds a case file of simulated markets to score a regulator's screens, and screens your own price data.
+- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It trains the sellers live, tests whether a price cut is punished, runs a pilot-to-scale experiment, compares remedies, builds a case file of simulated markets to score a regulator's screens, and screens your own price data.
 - **The Python companion** (`quiet_cartel/`). The same model, reproducing every run exactly, plus what a browser does less well: batch experiments on several processor cores with paired statistical tests, parameter sweeps, screening a whole CSV of markets with false-discovery control, fitting the demand model to sales data, and a self-contained HTML report. Standard library only.
 
 ![The Learn tab after training: prices climb from near competitive to near monopoly as the algorithms stop experimenting](docs/learn.png)
@@ -29,13 +29,14 @@ xdg-open app/index.html    # Linux
 start app\index.html       # Windows
 ```
 
-The app has five views and a short guide:
+The app has six views and a short guide:
 
 1. **Learn.** Pick a market (two or three sellers, how alike the products are, how much each algorithm values tomorrow, what it remembers, whether a seller follows a fixed rule instead, shared vendor, busy and quiet days) and train the sellers. Watch prices move as experimenting fades, see where they settled between the competitive and monopoly prices, and read the learned strategy as a heat map.
 2. **Test for a threat.** Force one seller to cut its price for a day and watch the others respond. The app reports the gain on the day, the losses afterwards, and whether the cut is punished. An exact best-reply calculation shows how far each learned strategy is from the best possible reply to its rival.
-3. **Remedies.** Train ten options many times each (banning rivals' prices as an input, rewarding today's profit only, a third seller, a rival that keeps a fixed competitive price, a rule that algorithms keep testing prices, no memory, a price-matching rival, a shared pricing vendor, busy and quiet days) and compare profit gain, shoppers' loss and how often cuts are punished, with 90% bootstrap intervals.
-4. **Regulator's screens.** Build a case file of simulated markets whose hidden truth is known, observe a year of daily prices in each, and score five screens a competition authority could run on prices alone. Toggle what counts as a case (held up by a threat, or just high prices), see ROC curves, and slide a bar to see who gets flagged.
-5. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file.
+3. **Pilot to scale.** Both sellers start at the competitive price. Seller A pilots an algorithm while seller B keeps a simple rule (keep the competitive price, match the cheapest, or undercut), then B adopts an algorithm too. See what the pilot reported to the board against what A earns once its rival has one, stage by stage and run by run.
+4. **Remedies.** Train ten options many times each (banning rivals' prices as an input, rewarding today's profit only, a third seller, a rival that keeps a fixed competitive price, a rule that algorithms keep testing prices, no memory, a price-matching rival, a shared pricing vendor, busy and quiet days) and compare profit gain, shoppers' loss and how often cuts are punished, with 90% bootstrap intervals.
+5. **Regulator's screens.** Build a case file of simulated markets whose hidden truth is known, observe a year of daily prices in each, and score five screens a competition authority could run on prices alone. Toggle what counts as a case (held up by a threat, or just high prices), see ROC curves, and slide a bar to see who gets flagged.
+6. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file.
 
 ## Run the Python companion
 
@@ -45,10 +46,11 @@ Python 3.10 or later, standard library only. From the project folder:
 python -m quiet_cartel train                                   # one training run, explained
 python -m quiet_cartel train --preset three --seed 4           # presets match the app's
 python -m quiet_cartel remedies --runs 20 --json results/remedies.json
+python -m quiet_cartel pilot --runs 20 --json results/pilot.json        # does the pilot predict the result at scale?
 python -m quiet_cartel sweep --x mu=0.1,0.25,0.5 --y delta=0.5,0.8,0.95 --runs 3
 python -m quiet_cartel screen data/markets.csv --truth data/markets_truth.csv --json results/screen.json
 python -m quiet_cartel calibrate data/markets.csv --truth data/markets_truth.csv
-python -m quiet_cartel report --remedies results/remedies.json --screen results/screen.json --out results/report.html
+python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --screen results/screen.json --out results/report.html
 ```
 
 `--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and 0.15 seconds in the browser.
@@ -68,6 +70,8 @@ The generator uses the same case-file recipe as the app, so building a case file
 ## Screenshots
 
 ![Test for a threat: after seller A's one-day cut, seller B answers with lower prices and both return to the settled price within days](docs/threat.png)
+
+![Pilot to scale: seller A's pilot against a rival that keeps the competitive price shows no gain, but A earns about 40% more once the rival adopts its own algorithm](docs/pilot.png)
 
 ![Remedies: average profit gain for ten options with 90% intervals, from banning rivals' prices as an input to a shared pricing vendor](docs/remedies.png)
 
@@ -92,6 +96,8 @@ The generator uses the same case-file recipe as the app, so building a case file
 **The market.** Each day every shopper picks one product, or nothing, according to quality, price and a random personal taste. This is the standard logit demand model. Its single parameter `mu` sets how alike the products feel: small values mean shoppers chase the lowest price, large values mean loyal shoppers. Two benchmarks come straight from the maths: the **competitive price**, where no seller can gain by changing its own price for one day (the static Nash equilibrium, found by iterating each seller's exact best reply), and the **monopoly price**, which maximises the sellers' joint profit. The set-up follows a well-known academic design (Calvano, Calzolari, Denicolò and Pastorello, American Economic Review, 2020), rebuilt from scratch.
 
 **The algorithms.** Each learning seller runs tabular Q-learning. It keeps a table of how valuable each of 15 prices is in each situation (yesterday's prices), usually charges the best one it knows and sometimes tries a random one. Experimenting starts on every day and fades exponentially. Training stops when no seller's best price has changed in any situation for 100,000 rounds. A seller can instead follow a fixed rule: a constant competitive price, matching the cheapest rival, or undercutting it.
+
+**Pilot to scale.** A seller can start on a rule and switch to learning at a chosen round, with its own exploration rate starting from 100% at that point while the other seller's algorithm keeps learning. The pilot result is measured just before the rival switches, and the scaled result once both strategies have settled again.
 
 **The tests.** After training, the app follows the learned strategies until prices repeat (the settled cycle) and measures the **profit gain**: 0% at competitive profits, 100% at monopoly profits. The **punishment test** forces one seller to cut its price for a day and compares what follows with the path without the cut; a cut counts as punished when it would pay on the day, a rival answers with a lower price and the cut loses money overall. The **best-reply check** holds the rival's learned strategy fixed and solves the seller's best long-run strategy against it exactly, by value iteration over every possible situation, then compares its value with that of the learned strategy.
 

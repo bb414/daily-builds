@@ -187,6 +187,110 @@ class SweepTest(unittest.TestCase):
             experiments.sweep(FAST, 'stableWindow', [200000], 'mu', [0.1], [1], jobs=1)   # above maxPeriods
 
 
+class PilotTest(unittest.TestCase):
+
+    RULES = ['nash', 'match', 'undercut']
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = experiments.run_pilots(FAST, cls.RULES, [1, 2], 100000, jobs=1)
+
+    def test_rows_shape(self):
+        self.assertEqual([(r['rule'], r['seed']) for r in self.rows],
+                         [(rule, seed) for rule in self.RULES for seed in (1, 2)])
+        keys = {'rule', 'seed', 'periods', 'scaledSettled', 'togetherPeriods', 'togetherSettled'}
+        for stage in ('pilot', 'scaled', 'together'):
+            keys |= {stage + k for k in ('UpliftA', 'UpliftB', 'Gain', 'Harm', 'Punished')}
+        for r in self.rows:
+            self.assertEqual(set(r), keys)
+            self.assertIsInstance(r['pilotPunished'], bool)
+            self.assertGreater(r['periods'], 100000)        # the pilot phase always runs to the adoption round
+        # The both-learn comparison depends only on the seed, so every rule shares it.
+        seed1 = [r for r in self.rows if r['seed'] == 1]
+        self.assertEqual(len({r['togetherUpliftA'] for r in seed1}), 1)
+
+    def test_rows_match_model_pilot_run(self):
+        base = model.validate_config(FAST)['config']
+        for rule, seed in (('undercut', 2), ('match', 1)):
+            ref = model.pilot_run(base, rule, 100000, seed)
+            row = [r for r in self.rows if r['rule'] == rule and r['seed'] == seed][0]
+            for stage in ('pilot', 'scaled', 'together'):
+                self.assertEqual(row[stage + 'UpliftA'], ref['upliftA'][stage])
+                self.assertEqual(row[stage + 'UpliftB'], ref['upliftB'][stage])
+                self.assertEqual(row[stage + 'Gain'], ref[stage]['avgGain'])
+                self.assertEqual(row[stage + 'Punished'], ref[stage]['punished'])
+            self.assertEqual(row['periods'], ref['scaled']['periods'])
+
+    def test_summary(self):
+        s = experiments.summarise_pilots(self.rows)
+        self.assertEqual(s['order'], self.RULES)
+        self.assertEqual(s['seeds'], [1, 2])
+        self.assertEqual(s['correlation']['runs'], 6)
+        for rule in self.RULES:
+            r = s['rules'][rule]
+            self.assertEqual(set(r), {'rule', 'label', 'runs', 'upliftA', 'upliftB', 'gapA', 'punishedShare', 'gain',
+                                      'harm', 'correlation'})
+            self.assertEqual(set(r['upliftA']), {'pilot', 'scaled', 'together'})
+            self.assertEqual(set(r['upliftB']), {'pilot', 'scaled'})
+            for b in list(r['upliftA'].values()) + list(r['upliftB'].values()) + [r['gapA']]:
+                self.assertEqual(set(b), {'mean', 'lo', 'hi'})
+                self.assertLessEqual(b['lo'], b['mean'] + 1e-12)
+                self.assertGreaterEqual(b['hi'], b['mean'] - 1e-12)
+            mine = [x for x in self.rows if x['rule'] == rule]
+            self.assertAlmostEqual(r['gapA']['mean'], sum(x['scaledUpliftA'] - x['pilotUpliftA'] for x in mine) / 2,
+                                   places=12)
+            self.assertEqual(r['upliftA']['pilot'], model.bootstrap_mean([x['pilotUpliftA'] for x in mine], 0.9, 2000,
+                                                                         601))
+            for share in r['punishedShare'].values():
+                self.assertIn(share, (0, 0.5, 1))
+        # Against a seller that always charges the competitive price, A's pilot settles on its best reply: no uplift.
+        self.assertEqual(s['rules']['nash']['upliftA']['pilot']['mean'], 0)
+
+    def test_pilot_validation(self):
+        with self.assertRaisesRegex(ValueError, 'unknown pilot rule'):
+            experiments.run_pilots(FAST, ['nope'], [1], 100000, jobs=1)
+        with self.assertRaisesRegex(ValueError, 'adopt_after'):
+            experiments.run_pilots(FAST, ['match'], [1], 0, jobs=1)
+        with self.assertRaisesRegex(ValueError, 'adopt_after'):
+            experiments.run_pilots(FAST, ['match'], [1], True, jobs=1)
+        with self.assertRaisesRegex(ValueError, 'not valid'):
+            experiments.run_pilots(FAST, ['match'], [1], 7000000, jobs=1)
+        with self.assertRaisesRegex(ValueError, 'no pilot runs'):
+            experiments.summarise_pilots([])
+
+
+class CorrelationTest(unittest.TestCase):
+
+    def test_perfect_positive_and_negative(self):
+        xs = [1, 2, 3, 4, 5]
+        self.assertAlmostEqual(experiments.pearson(xs, [2 * x + 1 for x in xs]), 1, places=12)
+        self.assertAlmostEqual(experiments.spearman(xs, [2 * x + 1 for x in xs]), 1, places=12)
+        self.assertAlmostEqual(experiments.pearson(xs, [10 - x for x in xs]), -1, places=12)
+        self.assertAlmostEqual(experiments.spearman(xs, [10 - x for x in xs]), -1, places=12)
+
+    def test_hand_example(self):
+        # x = 1..4, y = 2, 1, 4, 3: deviations (-1.5, -0.5, 0.5, 1.5) and (-0.5, -1.5, 1.5, 0.5),
+        # products sum to 0.75 + 0.75 + 0.75 + 0.75 = 3, both sums of squares 5, so r = 3 / 5.
+        self.assertAlmostEqual(experiments.pearson([1, 2, 3, 4], [2, 1, 4, 3]), 0.6, places=12)
+
+    def test_spearman_ties_and_shape(self):
+        self.assertEqual(experiments.ranks([10, 20, 20, 30]), [1, 2.5, 2.5, 4])
+        self.assertEqual(experiments.ranks([3, 1, 3, 3]), [3, 1, 3, 3])
+        # Ranks of x (1, 2.5, 2.5, 4) against y (1, 3, 2, 4): 4.5 / sqrt(4.5 * 5) = 3 / sqrt(10).
+        self.assertAlmostEqual(experiments.spearman([1, 2, 2, 3], [1, 3, 2, 4]), 3 / math.sqrt(10), places=12)
+        # A rising curve is a perfect rank correlation but not a perfect straight line.
+        self.assertAlmostEqual(experiments.spearman([1, 2, 3, 4], [1, 4, 9, 100]), 1, places=12)
+        self.assertLess(experiments.pearson([1, 2, 3, 4], [1, 4, 9, 100]), 0.9)
+
+    def test_missing_and_degenerate(self):
+        self.assertTrue(math.isnan(experiments.pearson([1, 1, 1], [1, 2, 3])))
+        self.assertTrue(math.isnan(experiments.spearman([1, 2], [5, 5])))
+        self.assertTrue(math.isnan(experiments.pearson([1], [2])))
+        self.assertAlmostEqual(experiments.pearson([1, None, 2, 3, float('nan')], [1, 5, 2, 3, 9]), 1, places=12)
+        with self.assertRaises(ValueError):
+            experiments.pearson([1, 2], [1, 2, 3])
+
+
 # ------------------------------------------------------------ screening
 
 class ReadPanelTest(unittest.TestCase):
@@ -407,6 +511,10 @@ class CommandLineTest(unittest.TestCase):
         cls.sweep_json = os.path.join(cls.dir, 'sweep.json')
         cls.sweep = run_cli(['sweep', '--x', 'mu=0.1,0.5', '--y', 'delta=0.5,0.95', '--runs', '1', '--jobs', '1',
                              '--set'] + FAST_SET + ['--json', cls.sweep_json])
+        cls.pilot_json = os.path.join(cls.dir, 'pilot.json')
+        cls.pilot_csv = os.path.join(cls.dir, 'pilot.csv')
+        cls.pilot = run_cli(['pilot', '--rules', 'match,undercut', '--runs', '2', '--adopt-after', '100000',
+                             '--jobs', '1', '--set'] + FAST_SET + ['--json', cls.pilot_json, '--csv', cls.pilot_csv])
 
     @classmethod
     def tearDownClass(cls):
@@ -475,11 +583,37 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(own['pairs'], 2)
         self.assertIn(own['pValue'], (0.5, 1.0))     # two pairs: exact p is 2/4 or 4/4
 
+    def test_pilot(self):
+        status, out, err = self.pilot
+        self.assertEqual(status, 0, err)
+        for text in ('Quiet cartel: pilot to scale', 'B matches the cheapest price', 'B undercuts by one step',
+                     'A after B adopts', 'Does the pilot predict the result at scale?', 'Spearman rho',
+                     'round 100,000'):
+            self.assertIn(text, out)
+        self.assertNotIn('B keeps the competitive price', out)
+        with open(self.pilot_json, encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['kind'], 'pilot')
+        self.assertEqual(data['summary']['order'], ['match', 'undercut'])
+        self.assertEqual(data['settings']['adoptAfter'], 100000)
+        self.assertEqual(len(data['runs']), 4)
+        with open(self.pilot_csv, newline='', encoding='utf-8') as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual([(r['rule'], r['seed']) for r in rows],
+                         [('match', '1'), ('match', '2'), ('undercut', '1'), ('undercut', '2')])
+
+    def test_adoption_is_described(self):
+        cfg = model.validate_config({'firmTypes': ['learn', 'match'], 'adoptAt': [-1, 1500000]})['config']
+        self.assertIn('B matches the cheapest rival until round 1,500,000, then learning', cli.describe(cfg))
+        status, out, err = run_cli(['train', '--set', 'firmTypes=learn,match', 'adoptAt=-1,50000'] + FAST_SET)
+        self.assertEqual(status, 0, err)
+        self.assertIn('seller B (matches the cheapest rival until round 50,000, then learning)', out)
+
     def test_report(self):
         self.assertEqual(self.sweep[0], 0, self.sweep[2])
         path = os.path.join(self.dir, 'report.html')
-        status, out, err = run_cli(['report', '--out', path, '--remedies', self.remedies_json,
-                                    '--sweep', self.sweep_json, '--screen', self.screen_json])
+        status, out, err = run_cli(['report', '--out', path, '--remedies', self.remedies_json, '--pilot',
+                                    self.pilot_json, '--sweep', self.sweep_json, '--screen', self.screen_json])
         self.assertEqual(status, 0, err)
         with open(path, encoding='utf-8') as f:
             page = f.read()
@@ -491,7 +625,9 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('prefers-color-scheme: dark', page)
         self.assertIn('synthetic', page)
         self.assertIn('legal advice', page)
-        self.assertEqual(page.count('<svg'), 3)      # bar chart, heat map, scatter
+        self.assertEqual(page.count('<svg'), 4)      # bar chart, dumbbell, heat map, scatter
+        self.assertIn('Does the pilot predict the result at scale?', page)
+        self.assertLess(page.index('id="remedies"'), page.index('id="pilot"'))
 
     def test_report_escapes_text(self):
         with open(self.remedies_json, encoding='utf-8') as f:
@@ -515,6 +651,10 @@ class CommandLineTest(unittest.TestCase):
              'is not saved remedies results'),
             (['sweep', '--x', 'mu=0.1', '--y', 'memory=1'], 'numeric setting'),
             (['remedies', '--scenarios', 'nope', '--runs', '1'], 'unknown scenario'),
+            (['pilot', '--rules', 'nope', '--runs', '1'], 'unknown pilot rule'),
+            (['pilot', '--adopt-after', '0'], '--adopt-after must be at least 1'),
+            (['report', '--out', os.path.join(self.dir, 'r.html'), '--pilot', self.remedies_json],
+             'is not saved pilot results'),
         ]
         for argv, message in cases:
             status, out, err = run_cli(argv)

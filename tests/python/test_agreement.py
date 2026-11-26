@@ -150,7 +150,7 @@ def trainer_state(tr):
         'qSum': [None if q is None else loop_sum(q) for q in tr.Q],
         'qFirst': [None if q is None else q[0] for q in tr.Q],
         'qLast': [None if q is None else q[-1] for q in tr.Q],
-        'history': tr.history, 'acc': tr._acc, 'rngState': tr.rng.a,
+        'history': tr.history, 'acc': tr._acc, 'rngState': tr.rng.a, 'epsF': tr.eps_f, 'adoptAt': tr.adopt_at,
     }
 
 
@@ -166,6 +166,7 @@ def analyse(tr):
     joints = (0, 1, nj - 1, tr.last)
     out['greedy'] = [tr.greedy_actions(j) for j in joints]
     out['greedyNext'] = [tr.greedy_next(j) for j in joints]
+    out['nextAdopt'] = [tr.next_adopt(t) for t in (0, 1, 30000, 50000, 70001, 123457)]
     out['staticBR'] = [[qc.static_best_response(mk, i, j) for j in (0, tr.last, lc['states'][0])] for i in range(n)]
     out['outcome'] = qc.outcome_of(mk, lc['states'])
     out['outcomeAll'] = qc.outcome_of(mk, [0, 1, 2, nj - 1])
@@ -291,8 +292,10 @@ class AgreementTest(unittest.TestCase):
 
     def test_general_loop_matches_for_two_sellers(self):
         # The specialised two-seller loop is the one normally used; check the general loop too.
-        keys = ('cfg', 't', 'converged', 'eps', 'last', 'stable', 'best', 'bestV', 'Q', 'history', 'acc', 'rngState')
-        wanted = ('shared-vendor', 'learn-undercut', 'undercut-learn', 'demand-noise')
+        keys = ('cfg', 't', 'converged', 'eps', 'epsF', 'learn', 'last', 'stable', 'best', 'bestV', 'Q', 'history',
+                'acc', 'rngState')
+        wanted = ('shared-vendor', 'learn-undercut', 'undercut-learn', 'demand-noise', 'adopt-nash', 'adopt-at-zero',
+                  'adopt-late')
         for case in self.ref['train']:
             if case['name'] not in wanted:
                 continue
@@ -315,6 +318,48 @@ class AgreementTest(unittest.TestCase):
         out['marks'] = marks
         out['summary'] = qc.summarise(tr)
         self.same(ref, out, 'stepwise')
+
+    def test_adoption_setup(self):
+        # Freshly built trainers: who learns, who has a Q table and a rule, and when the next adoption is.
+        actual = []
+        for case in self.ref['adoption']:
+            tr = qc.Trainer(case['input'])
+            actual.append({
+                'name': case['name'], 'input': case['input'], 'eps': tr.eps, 'epsF': tr.eps_f, 'learn': tr.learn,
+                'adoptAt': tr.adopt_at, 'hasQ': [q is not None for q in tr.Q],
+                'hasRule': [r is not None for r in tr.rule_tab],
+                'nextAdopt': [tr.next_adopt(t) for t in (0, 1, 29999, 30000, 30001, 40000, 50000, 60000, 60001, 1e7)],
+            })
+        self.same(self.ref['adoption'], actual, 'adoption')
+
+    def test_stepwise_training_across_adoption(self):
+        ref = self.ref['stepwiseAdopt']
+        for fast in (True, False):
+            with self.subTest(fast=fast):
+                tr = qc.Trainer(ref['input'])
+                tr._fast = fast
+                marks = []
+                while not tr.run(7777):
+                    marks.append([tr.t, tr.eps, tr.stable, tr.last, list(tr.learn), list(tr.eps_f)])
+                out = trainer_state(tr)
+                out['name'] = ref['name']
+                out['input'] = ref['input']
+                out['marks'] = marks
+                out['summary'] = qc.summarise(tr)
+                self.same(ref, out, 'stepwiseAdopt')
+
+    def test_pilot_runs(self):
+        ref = self.ref['pilot']
+        base = qc.validate_config(ref['baseInput'])['config']
+        after, seed = ref['adoptAfter'], ref['seed']
+        actual = {
+            'baseInput': ref['baseInput'], 'adoptAfter': after, 'seed': seed, 'rules': qc.PILOT_RULES,
+            'configs': [qc.pilot_config(base, rule, after, seed) for rule in qc.PILOT_RULES],
+            'together': qc.together_config(base, seed),
+            'defaults': [qc.pilot_config({}, 'match', 5, 9), qc.together_config({}, 9)],
+            'runs': [qc.pilot_run(base, rule, after, seed) for rule in qc.PILOT_RULES],
+        }
+        self.same(ref, actual, 'pilot')
 
     def test_short_run(self):
         # No 10,000-period block yet, so the realised gain falls back on the cycle's gain.

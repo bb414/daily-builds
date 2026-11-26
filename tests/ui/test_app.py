@@ -90,6 +90,23 @@ class AppTest(unittest.TestCase):
         self.assertIn('30 days', page.inner_text('#horizon-out'))
         self.assertClean()
 
+    def test_pilot_to_scale(self):
+        page = self.open()
+        page.click('#tab-pilot')
+        self.assertTrue(page.is_visible('#pilot-empty'))
+        page.fill('#pilot-runs', '2')
+        page.dispatch_event('#pilot-runs', 'input')
+        page.click('#pilot-run')
+        page.wait_for_function("document.getElementById('pilot-status').textContent.indexOf('Finished') === 0", timeout=120000)
+        self.assertEqual(page.locator('#pilot-table tr').count(), 5)
+        self.assertIn('understated', page.inner_text('#pilot-verdict'))
+        self.assertEqual(page.locator('#chart-pilot-runs circle').count(), 4)
+        page.select_option('#pilot-rule', 'match')
+        page.click('#pilot-run')
+        page.click('#pilot-stop')
+        self.assertIn('Stopped', page.inner_text('#pilot-status'))
+        self.assertClean()
+
     def test_remedies_run_and_stop(self):
         page = self.open()
         page.click('#tab-remedies')
@@ -187,7 +204,7 @@ class AppTest(unittest.TestCase):
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(width=390, height=844)
         self.train(page)
-        for tab in ('learn', 'threat', 'remedies', 'screens', 'data', 'about'):
+        for tab in ('learn', 'threat', 'pilot', 'remedies', 'screens', 'data', 'about'):
             page.click('#tab-' + tab)
             wide = page.evaluate('document.documentElement.scrollWidth')
             self.assertLessEqual(wide, 390, tab)

@@ -60,7 +60,20 @@ const VALIDATE_INPUTS = [
   { seed: 'abc' }, { seed: [1, 2] }, { seed: {} }, { seed: [[' 9 ']] },
   { seed: false }, { seed: ' 12 ' }, { seed: '\t\n' }, { seed: String.fromCharCode(160) + '7' + String.fromCharCode(8232) },
   { seed: '0x1F' }, { seed: '-0' }, { seed: 0 }, { seed: 'Infinity' },
-  { stableWindow: 50000, maxPeriods: 30000 }, { maxPeriods: 7e6, stableWindow: 1000 },
+  { stableWindow: 50000, maxPeriods: 30000 }, { maxPeriods: 7e6, stableWindow: 1000 }, { maxPeriods: 1e7 },
+  // staggered adoption
+  { firmTypes: ['learn', 'nash'], adoptAt: [-1, 60000] }, { firmTypes: ['learn', 'match'], adoptAt: [-1, ' 50000 '] },
+  { adoptAt: 5 }, { adoptAt: null }, { adoptAt: '60000' }, { adoptAt: { 1: 100 } },
+  { adoptAt: [100, -1] }, { firmTypes: ['learn', 'nash'], adoptAt: [-1, 3000000] },
+  { firmTypes: ['learn', 'nash'], maxPeriods: 50000, stableWindow: 5000, adoptAt: [-1, 50000] },
+  { firmTypes: ['learn', 'nash'], maxPeriods: 50000, stableWindow: 5000, adoptAt: [-1, 49999] },
+  { firmTypes: ['nash', 'match'], adoptAt: [-1, 0] }, { firmTypes: ['nash', 'match'], adoptAt: [-1, -1] },
+  { firmTypes: ['nash', 'match'] }, { nFirms: 3, firmTypes: ['nash', 'match', 'undercut'], adoptAt: [-1, -1, 7] },
+  { firmTypes: ['nash', 'learn'], adoptAt: [-5, 7e6, 2.5, 9] }, { firmTypes: ['match', 'nash'], adoptAt: [null, 'x', 12.5] },
+  { firmTypes: ['nash', 'learn'], adoptAt: [-0.4] }, { firmTypes: ['nash', 'learn'], adoptAt: [0.4999, -0.6] },
+  { firmTypes: ['learn', 'nash', 'match'], adoptAt: [-1, -1, 5] },
+  { sharedVendor: true, firmTypes: ['learn', 'nash'], adoptAt: [-1, 100] },
+  { firmTypes: ['nash', 'nash'], adoptAt: [200, 100], maxPeriods: 150 },
   { xi: [0.1], outside: {}, alpha: null, beta: '5e-7', delta: '0.99', mu: ' \n0.05\t' },
   { nFirms: 3, firmTypes: ['nash', 'match', 'undercut'] }, { nFirms: 3, firmTypes: ['nash', 'match', 'learn'] },
   { mu: '1_0', nPrices: 'Infinity', alpha: '-Infinity', beta: '+0.0001', delta: '0b1', xi: '0o0' }
@@ -87,11 +100,30 @@ const TRAIN_CASES = [
   ['explore-floor', { exploreFloor: 0.05, beta: 1e-4, maxPeriods: 50000, stableWindow: 20000 }],
   ['asymmetric-cost', fast({ cost: [0.8, 1.2], quality: [2.2, 1.9], mu: 0.4, outside: -0.5 })],
   ['seven-prices', { nPrices: 7, beta: 2e-5, maxPeriods: 200000, stableWindow: 15000, alpha: 0.3, delta: 0.9 }],
-  ['other-seed', fast({ seed: 987654321, xi: 0.25 })]
+  ['other-seed', fast({ seed: 987654321, xi: 0.25 })],
+  // staggered adoption: a seller follows its rule until adoptAt, then starts learning
+  ['adopt-nash', { firmTypes: ['learn', 'nash'], adoptAt: [-1, 60000], beta: 5e-5, maxPeriods: 250000, stableWindow: 10000 }],
+  ['adopt-match', { firmTypes: ['learn', 'match'], adoptAt: [-1, 50000], beta: 5e-5, maxPeriods: 250000, stableWindow: 10000, seed: 12 }],
+  ['adopt-three', { nFirms: 3, nPrices: 5, firmTypes: ['learn', 'learn', 'nash'], adoptAt: [-1, -1, 40000],
+    beta: 1e-4, maxPeriods: 150000, stableWindow: 8000, seed: 4 }],
+  ['adopt-at-zero', { firmTypes: ['nash', 'undercut'], adoptAt: [-1, 0], beta: 5e-5, maxPeriods: 250000, stableWindow: 10000, seed: 21 }],
+  ['adopt-floor', { firmTypes: ['undercut', 'learn'], adoptAt: [30000, -1], exploreFloor: 0.05, beta: 1e-4,
+    maxPeriods: 80000, stableWindow: 20000, seed: 8 }],
+  // late adoptions, off a block edge, after the first sellers have settled: training must wait for them
+  ['adopt-late', { firmTypes: ['learn', 'nash'], adoptAt: [-1, 123457], beta: 1e-4, maxPeriods: 300000, stableWindow: 5000, seed: 2 }],
+  ['adopt-late-three', { nFirms: 3, nPrices: 5, firmTypes: ['learn', 'learn', 'match'], adoptAt: [-1, -1, 70001],
+    beta: 1e-4, maxPeriods: 150000, stableWindow: 5000, seed: 3 }]
 ];
+const ADOPT_NAMES = ['adopt-nash', 'adopt-match', 'adopt-three', 'adopt-at-zero', 'adopt-floor', 'adopt-late', 'adopt-late-three'];
 
 // Run in pieces of 7,777 periods; must match a single run to the end.
 const STEPWISE_CASE = ['stepwise', fast({ demandNoise: 0.3, seed: 77 })];
+// In pieces of 7,777 periods across two adoption rounds: 20,000 (a block edge, inside a piece) and
+// 31,108 (exactly where the fourth piece ends).
+const STEPWISE_ADOPT_CASE = ['stepwise-adopt', { nFirms: 3, nPrices: 5, firmTypes: ['learn', 'match', 'nash'],
+  adoptAt: [-1, 20000, 31108], demandNoise: 0.2, beta: 1e-4, maxPeriods: 120000, stableWindow: 8000, seed: 6 }];
+const PILOT_BASE_INPUT = { beta: 5e-5, maxPeriods: 150000, stableWindow: 10000 };
+const PILOT_ADOPT_AFTER = 100000, PILOT_SEED = 4;
 
 const BOOTSTRAP_INPUTS = [
   [[1, 2, 3, 4, 5.5], 0.9, 1000, 7], [[0.1, -0.3, 2.2], 0.95, 200, undefined], [[], 0.9], [[3.3], 0.9],
@@ -226,7 +258,7 @@ function trainerState(tr) {
     qSum: tr.Q.map(function (q) { return q ? loopSum(q) : null; }),
     qFirst: tr.Q.map(function (q) { return q ? q[0] : null; }),
     qLast: tr.Q.map(function (q) { return q ? q[q.length - 1] : null; }),
-    history: tr.history, acc: tr._acc, rngState: tr.rng.a
+    history: tr.history, acc: tr._acc, rngState: tr.rng.a, epsF: arr(tr.epsF), adoptAt: tr.adoptAt
   };
 }
 
@@ -238,6 +270,7 @@ function analyse(tr) {
   out.limitCycleFrom = [0, mk.nJoint - 1, Math.floor(mk.nJoint / 3)].map(function (j) { return QC.limitCycle(tr, j); });
   out.greedy = [0, 1, mk.nJoint - 1, tr.last].map(function (j) { return tr.greedyActions(j); });
   out.greedyNext = [0, 1, mk.nJoint - 1, tr.last].map(function (j) { return tr.greedyNext(j); });
+  out.nextAdopt = [0, 1, 30000, 50000, 70001, 123457].map(function (t) { return tr.nextAdopt(t); });
   out.staticBR = [];
   for (let i = 0; i < n; i++) out.staticBR.push([0, tr.last, lc.states[0]].map(function (j) { return QC.staticBestResponse(mk, i, j); }));
   out.outcome = QC.outcomeOf(mk, lc.states);
@@ -381,6 +414,38 @@ ref.syntheticScreens = SYNTHETIC_PRICES.map(function (p) {
     perm: QC.permutationTest(p, { reps: 50, seed: 1 })
   };
 });
+
+// Freshly built trainers for each adoption case: who learns, who has a table and a rule, and when the next adoption is.
+ref.adoption = ADOPT_NAMES.map(function (name) {
+  const input = TRAIN_CASES.filter(function (c) { return c[0] === name; })[0][1], tr = new QC.Trainer(input);
+  return {
+    name: name, input: input, eps: tr.eps, epsF: arr(tr.epsF), learn: tr.learn.slice(), adoptAt: tr.adoptAt,
+    hasQ: tr.Q.map(function (q) { return q !== null; }), hasRule: tr.ruleTab.map(function (r) { return r !== null; }),
+    nextAdopt: [0, 1, 29999, 30000, 30001, 40000, 50000, 60000, 60001, 1e7].map(function (t) { return tr.nextAdopt(t); })
+  };
+});
+
+(function () {
+  const tr = new QC.Trainer(STEPWISE_ADOPT_CASE[1]);
+  const marks = [];
+  while (!tr.run(7777)) marks.push([tr.t, tr.eps, tr.stable, tr.last, tr.learn.slice(), arr(tr.epsF)]);
+  const out = trainerState(tr);
+  out.name = STEPWISE_ADOPT_CASE[0]; out.input = STEPWISE_ADOPT_CASE[1]; out.marks = marks;
+  out.summary = QC.summarise(tr);
+  ref.stepwiseAdopt = out;
+})();
+
+// Pilot to scale: seller A learns from the start, B keeps a rule and adopts at round PILOT_ADOPT_AFTER.
+(function () {
+  const base = QC.validateConfig(PILOT_BASE_INPUT).config;
+  ref.pilot = {
+    baseInput: PILOT_BASE_INPUT, adoptAfter: PILOT_ADOPT_AFTER, seed: PILOT_SEED, rules: QC.PILOT_RULES,
+    configs: QC.PILOT_RULES.map(function (rule) { return QC.pilotConfig(base, rule, PILOT_ADOPT_AFTER, PILOT_SEED); }),
+    together: QC.togetherConfig(base, PILOT_SEED),
+    defaults: [QC.pilotConfig({}, 'match', 5, 9), QC.togetherConfig({}, 9)],
+    runs: QC.PILOT_RULES.map(function (rule) { return QC.pilotRun(base, rule, PILOT_ADOPT_AFTER, PILOT_SEED); })
+  };
+})();
 
 ref.sorting = sortCases().map(function (xs) { return { xs: xs, sorted: QC.sortedCopy(xs) }; });
 

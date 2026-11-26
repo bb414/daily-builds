@@ -8,6 +8,8 @@ its results are given:
 
 * remedies (from ``remedies --json``): bar chart of the mean realised profit
   gain with 90% intervals, and a table with the paired comparisons;
+* pilot to scale (from ``pilot --json``): dumbbell chart of seller A's uplift in
+  the pilot and after B adopts, per rule, the table, and the correlations;
 * sweep (from ``sweep --json``): heat map of the mean realised profit gain;
 * screening (from ``screen --json``): how well each screen ranks the real
   cases, the false discovery rate flag, and the flagged markets;
@@ -25,6 +27,7 @@ __all__ = ['build_report', 'SECTION_TITLES']
 
 SECTION_TITLES = {
     'remedies': 'Remedies: what brings prices down',
+    'pilot': 'Pilot to scale: does the pilot predict the result?',
     'sweep': 'Sweep: where prices settle',
     'screening': 'Screening: could a regulator spot it?',
     'calibration': 'Calibration: demand fitted to sales',
@@ -38,6 +41,7 @@ CSS = """
   --accent: #3b4fd8; --good: #1f7a4d; --bad: #b3261e; --warn: #8a5a00; --warn-soft: #fdf1d8;
   --g-baseline: #5a6275; --g-remedy: #1f8f5f; --g-design: #8a7f3c; --g-risk: #c2412d;
   --heat-lo: #f3f0ff; --heat-hi: #3b2a8f; --heat-ink: #ffffff; --point: #3b4fd8;
+  --pilot: #2563c9; --scaled: #d9641e;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -46,6 +50,7 @@ CSS = """
     --accent: #8d9bff; --good: #5fd39a; --bad: #ff7b72; --warn: #f0c060; --warn-soft: #3a2f14;
     --g-baseline: #a2aabb; --g-remedy: #4fd19a; --g-design: #d4c46a; --g-risk: #ff8a70;
     --heat-lo: #232935; --heat-hi: #b9b0ff; --heat-ink: #10131a; --point: #8d9bff;
+    --pilot: #6ea2ff; --scaled: #ff9a5c;
     color-scheme: dark;
   }
 }
@@ -97,6 +102,13 @@ tr.base td { background: var(--soft); }
 .g-remedy { fill: var(--g-remedy); background: var(--g-remedy); }
 .g-design { fill: var(--g-design); background: var(--g-design); }
 .g-risk { fill: var(--g-risk); background: var(--g-risk); }
+.st-pilot { fill: var(--pilot); stroke: var(--pilot); background: var(--pilot); }
+.st-scaled { fill: var(--scaled); stroke: var(--scaled); background: var(--scaled); }
+.chart .st-pilot, .chart .st-scaled { stroke-width: 1.6; }
+.chart .link { stroke: var(--muted); stroke-width: 1.5; }
+.chart .together { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.swatch.round { border-radius: 50%; }
+.swatch.together { background: none; border: 1.5px solid var(--ink); transform: rotate(45deg) scale(.8); }
 .pill { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: .78rem; font-weight: 600;
   border: 1px solid currentColor; }
 .pill.bad { color: var(--bad); } .pill.good { color: var(--good); }
@@ -357,6 +369,130 @@ def _seed_range(seeds):
     return ', '.join(str(s) for s in seeds)
 
 
+# ------------------------------------------------------------ pilot to scale
+
+def _spct(x):
+    """A signed percentage (uplifts): +12%, \u22123%, 0%."""
+    if not _ok(x):
+        return 'n/a'
+    s = '%+.0f%%' % (x * 100)
+    if s in ('+0%', '-0%'):
+        return '0%'
+    return MINUS + s[1:] if s.startswith('-') else s
+
+
+def _pilot_chart(summary):
+    """Dumbbell chart: per rule, A's uplift in the pilot and after B adopts, with 90% intervals."""
+    rules = [summary['rules'][r] for r in summary['order']]
+    values = []
+    for r in rules:
+        for st in ('pilot', 'scaled', 'together'):
+            b = r['upliftA'][st]
+            values += [v for v in (b['mean'], b['lo'], b['hi']) if _ok(v)]
+    lo, hi = min([0.0] + values), max([0.1] + values)
+    pad = (hi - lo) * 0.04
+    lo, hi = lo - (pad if lo < 0 else 0), hi + pad
+    W, rowH, top, left, right = 440, 52, 22, 16, 112
+    H = top + rowH * len(rules) + 24
+
+    def X(v):
+        return left + (v - lo) / (hi - lo) * (W - left - right)
+
+    inner = []
+    ticks = _nice_ticks(lo, hi, 5)
+    for v in ticks:
+        inner.append(_text(X(v), H - 6, _spct(v), anchor='middle'))
+    inner.append(_text(X(0) - (2 if X(0) < 60 else 0), 12, 'status quo', anchor='start' if X(0) < 60 else 'middle'))
+    for k, r in enumerate(rules):
+        y = top + k * rowH
+        for v in ticks:
+            inner.append('<line class="grid" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                _f(X(v)), _f(X(v)), _f(y + 17), _f(y + 44 if k < len(rules) - 1 else H - 22)))
+        inner.append('<line class="zero" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (_f(X(0)), _f(X(0)), _f(y + 17),
+                                                                               _f(y + 44)))
+        inner.append(_text(4, y + 12, e(r['label']), cls='ink'))
+        p, sc, tg = r['upliftA']['pilot'], r['upliftA']['scaled'], r['upliftA']['together']
+        yp, ys = y + 25, y + 37
+        if _ok(p['mean']) and _ok(sc['mean']):
+            inner.append('<line class="link" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                _f(X(p['mean'])), _f(X(sc['mean'])), _f(yp), _f(ys)))
+        for b, yy, cls, name in ((p, yp, 'st-pilot', 'in the pilot'), (sc, ys, 'st-scaled', 'after B adopts')):
+            if not _ok(b['mean']):
+                continue
+            if _ok(b['lo']) and _ok(b['hi']):
+                inner.append('<line class="%s" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                    cls, _f(X(b['lo'])), _f(X(b['hi'])), _f(yy), _f(yy)))
+            inner.append('<circle class="%s" cx="%s" cy="%s" r="4.5"><title>%s</title></circle>' % (
+                cls, _f(X(b['mean'])), _f(yy), e('%s: A %s %s (90%% interval %s to %s)' % (
+                    r['label'], name, _spct(b['mean']), _spct(b['lo']), _spct(b['hi'])))))
+        if _ok(tg['mean']):
+            cx, cy = X(tg['mean']), (yp + ys) / 2
+            inner.append('<path class="together" d="M%s %sL%s %sL%s %sL%s %sZ"><title>%s</title></path>' % (
+                _f(cx), _f(cy - 5), _f(cx + 5), _f(cy), _f(cx), _f(cy + 5), _f(cx - 5), _f(cy),
+                e('%s: A with both learning from the start %s' % (r['label'], _spct(tg['mean'])))))
+        inner.append(_text(W - 2, y + 35, '%s \u2192 %s' % (_spct(p['mean']), _spct(sc['mean'])), cls='ink',
+                           anchor='end'))
+    return _svg(W, H, 'Dumbbell chart of seller A\u2019s profit uplift in the pilot and after B adopts, for %d rules'
+                % len(rules), inner)
+
+
+def _corr_html(c):
+    if not _ok(c.get('pearson')):
+        return 'n/a (A\u2019s uplift did not vary)' if c.get('runs', 0) >= 2 else 'n/a (too few runs)'
+    return 'Pearson r %s, Spearman rho %s' % (num(c['pearson'], 2), num(c['spearman'], 2))
+
+
+def _pilot_section(part):
+    summary = part['summary']
+    settings = part.get('settings') or {}
+    S = summary['rules']
+
+    def iv(b):
+        return '%s<br><span class="small muted">%s to %s</span>' % (_spct(b['mean']), _signed(b['lo']), _signed(b['hi']))
+
+    rows = []
+    for rule in summary['order']:
+        r = S[rule]
+        rows.append([e(r['label']), iv(r['upliftA']['pilot']), iv(r['upliftA']['scaled']), iv(r['gapA']),
+                     iv(r['upliftA']['together']), iv(r['upliftB']['pilot']), iv(r['upliftB']['scaled']),
+                     ' / '.join(pct(r['punishedShare'][st]) for st in ('pilot', 'scaled', 'together'))])
+    table = _table(['B\u2019s rule in the pilot', 'A in the pilot', 'A after B adopts', 'Change for A (paired)',
+                    'A, both from the start', 'B in the pilot', 'B after adopting',
+                    'Cut punished: pilot / after / both'], rows, num_cols=range(1, 8), wide=True)
+    c = summary['correlation']
+    corr = ''.join('<li>%s (%d runs): %s</li>' % (e(S[r]['label']), S[r]['correlation']['runs'],
+                                                   _corr_html(S[r]['correlation'])) for r in summary['order'])
+    runs = len(summary.get('seeds', []))
+    adopt = settings.get('adoptAfter')
+    legend = ('<div class="legend"><span><i class="swatch round st-pilot"></i>A in the pilot</span>'
+              '<span><i class="swatch round st-scaled"></i>A after B adopts</span>'
+              '<span><i class="swatch together"></i>A with both learning from the start</span></div>')
+    return ''.join([
+        '<section id="pilot"><h2>%s</h2>' % e(SECTION_TITLES['pilot']),
+        '<p class="lead">Seller A pilots a learning pricing algorithm while seller B keeps a simple rule; at round '
+        '%s B adopts an algorithm too. Uplift is profit compared with the status quo in which both sellers charge '
+        'the competitive price. Each rule was run with %s seed%s.</p>' % (
+            e('{:,}'.format(adopt) if isinstance(adopt, int) else adopt or '?'), runs, '' if runs == 1 else 's'),
+        _pilot_chart(summary), legend,
+        '<p class="caption">Dots are means and lines their 90% bootstrap intervals; the grey link joins the pilot '
+        'to the result after B adopts, and the hollow diamond is A\u2019s uplift when both learn from the start.</p>',
+        table,
+        '<p class="caption">Each cell gives the mean uplift and, below it, the 90% bootstrap interval in percentage '
+        'points. The change for A is the run-by-run difference between after B adopts and the pilot, so its interval '
+        'is paired. The last column is the share of runs in which a one-day cut by A pays on the day, is answered '
+        'and loses money overall, in each stage.</p>',
+        '<h3>Does the pilot predict the result at scale?</h3>',
+        '<p>Across all %d runs, A\u2019s uplift in the pilot against A\u2019s uplift after B adopts: %s. Within each '
+        'rule:</p><ul class="small">%s</ul>' % (c['runs'], _corr_html(c), corr),
+        '<p class="caption">Pearson\u2019s r measures how close the runs lie to a straight line; Spearman\u2019s rho '
+        'is the same on ranks, so it asks only whether a better pilot goes with a better result at scale. Near +1: '
+        'the pilot predicts the scaled result; near 0: it tells A little. The pooled figure mixes the rules, so a high '
+        'value can simply mean that the rule which flatters the pilot also helps at scale; the within-rule values are '
+        'the fairer test.</p>',
+        '<details><summary>Command and settings</summary>%s</details></section>' % _settings_list(part),
+    ])
+
+
 # ------------------------------------------------------------ sweep
 
 def _heat_map(sw, key='gain'):
@@ -593,12 +729,15 @@ def _calibration_section(cal, part):
 
 # ------------------------------------------------------------ page
 
-def build_report(remedies=None, sweep=None, screen=None, command=''):
+def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None):
     """The whole report as one HTML string. Each argument is a saved JSON result (already loaded) or None."""
     sections, nav = [], []
     if remedies:
         sections.append(_remedies_section(remedies))
         nav.append(('remedies', 'Remedies'))
+    if pilot:
+        sections.append(_pilot_section(pilot))
+        nav.append(('pilot', 'Pilot to scale'))
     if sweep:
         sections.append(_sweep_section(sweep))
         nav.append(('sweep', 'Sweep'))
@@ -616,7 +755,8 @@ def build_report(remedies=None, sweep=None, screen=None, command=''):
         '<title>Quiet cartel: companion report</title>\n<style>%s</style>\n</head>\n<body>\n<div class="wrap">\n' % CSS,
         '<header><h1>Quiet cartel: companion report</h1>',
         '<p class="lead">Can self-learning pricing algorithms learn to keep prices high without being told to, which '
-        'remedies stop them, and could a regulator tell from the prices? This report collects results from the '
+        'remedies stop them, does a pilot predict what happens when a rival adopts one too, and could a regulator '
+        'tell from the prices? This report collects results from the '
         'Python companion to the Quiet cartel browser app.</p>',
         '<p class="notice">All markets, sellers and sales here are synthetic, produced by simulated Q-learning '
         'sellers in a textbook logit demand model. The numbers are illustrative only: they are not evidence about '

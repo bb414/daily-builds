@@ -1,4 +1,4 @@
-"""Batches of training runs: remedies compared with the baseline, and parameter sweeps.
+"""Batches of training runs: remedies compared with the baseline, parameter sweeps, and pilots taken to scale.
 
 Every run trains the sellers once with :func:`quiet_cartel.model.train` and
 summarises the result with :func:`quiet_cartel.model.summarise`, exactly as the
@@ -11,8 +11,14 @@ mean and 90% interval for each option are identical to the browser app's for
 the same runs (seeds 1 to N, in that order). On top of that this module adds a
 paired comparison with the baseline (see :func:`paired_comparison`), which the
 app does not attempt.
+
+The pilot functions (:func:`run_pilots`, :func:`summarise_pilots`) repeat the
+browser app's "Pilot to scale" tab over many seeds and ask whether the profit
+uplift seller A sees in its pilot predicts what it earns once seller B adopts
+an algorithm too.
 """
 
+import math
 import multiprocessing
 import os
 
@@ -21,6 +27,8 @@ from . import model
 __all__ = [
     'run_one', 'run_batch', 'summarise_batch', 'paired_comparison', 'sign_flip_test', 'holm',
     'sweep', 'SWEEP_PARAMS', 'EXACT_MAX', 'FLIP_REPS',
+    'run_pilot_stages', 'run_together', 'run_pilots', 'summarise_pilots', 'pearson', 'spearman', 'ranks',
+    'PILOT_LABELS', 'PILOT_STAGES',
 ]
 
 # Parameters a sweep may vary: the numeric, single-valued config keys.
@@ -76,8 +84,11 @@ def _run_task(task):
     return run_one(*task)
 
 
-def _run_tasks(tasks, jobs=None, progress=None):
-    """Run tasks in input order, in-process when ``jobs`` is 1, otherwise in a process pool."""
+def _run_tasks(tasks, jobs=None, progress=None, worker=_run_task):
+    """Run tasks in input order, in-process when ``jobs`` is 1, otherwise in a process pool.
+
+    ``worker`` must be a top-level function of this module, so that the pool can pickle it.
+    """
     total = len(tasks)
     jobs = (os.cpu_count() or 1) if jobs is None else int(jobs)
     if jobs < 1:
@@ -87,13 +98,13 @@ def _run_tasks(tasks, jobs=None, progress=None):
     out = []
     if jobs == 1 or total <= 1:
         for task in tasks:
-            out.append(_run_task(task))
+            out.append(worker(task))
             if progress:
                 progress(len(out), total, out[-1])
         return out
     with multiprocessing.Pool(processes=min(jobs, total)) as pool:
         # chunksize 1: runs differ a lot in length (a third seller takes several times longer)
-        for row in pool.imap(_run_task, tasks, chunksize=1):
+        for row in pool.imap(worker, tasks, chunksize=1):
             out.append(row)
             if progress:
                 progress(len(out), total, row)
@@ -380,3 +391,217 @@ def sweep(base, x_param, x_values, y_param, y_values, seeds, scenario='baseline'
         cells.append(line)
     return {'x': {'param': x_param, 'values': xs}, 'y': {'param': y_param, 'values': ys},
             'scenario': scenario, 'seeds': seeds, 'cells': cells, 'runs': rows}
+
+
+# ------------------------------------------------------------ pilot to scale
+
+PILOT_STAGES = ('pilot', 'scaled', 'together')
+PILOT_LABELS = {'nash': 'B keeps the competitive price', 'match': 'B matches the cheapest price',
+                'undercut': 'B undercuts by one step'}
+PILOT_BOOT_SEEDS = {'pilotUpliftA': 601, 'scaledUpliftA': 602, 'togetherUpliftA': 603,
+                    'pilotUpliftB': 604, 'scaledUpliftB': 605, 'gapA': 606}
+
+
+def run_pilot_stages(base, rule, adopt_after, seed):
+    """Seller A's pilot and the scale-up after B adopts: the first two thirds of ``model.pilot_run``.
+
+    Seller A learns while B follows ``rule``; at round ``adopt_after`` B starts
+    learning too and training runs on until both settle. Returns the
+    :func:`quiet_cartel.model.summarise` of the market at the end of the pilot
+    (``pilot``) and at the end (``scaled``). The steps are exactly those of
+    ``model.pilot_run``, which a test checks.
+    """
+    tr = model.Trainer(model.pilot_config(base, rule, adopt_after, seed))
+    while tr.t < adopt_after and not tr.run(adopt_after - tr.t):
+        pass
+    pilot = model.summarise(tr)
+    tr.run_to_end()
+    return {'pilot': pilot, 'scaled': model.summarise(tr)}
+
+
+def run_together(base, seed):
+    """Both sellers learning from the start, as in ``model.pilot_run``. It does not depend on B's rule."""
+    return model.summarise(model.train(model.together_config(base, seed)))
+
+
+def _pilot_task(task):
+    """Pool worker for pilots: ('pilot', base, rule, adopt_after, seed) or ('together', base, seed)."""
+    if task[0] == 'pilot':
+        return run_pilot_stages(*task[1:])
+    return run_together(*task[1:])
+
+
+def _checked_rules(rules):
+    rules = list(rules)
+    out = []
+    for r in rules:
+        if r not in model.PILOT_RULES:
+            raise ValueError("unknown pilot rule '%s' (choose from %s)" % (r, ', '.join(model.PILOT_RULES)))
+        if r not in out:
+            out.append(r)
+    if not out:
+        raise ValueError('give at least one pilot rule')
+    return out
+
+
+def run_pilots(base, rules, seeds, adopt_after, jobs=None, progress=None):
+    """Run the pilot-to-scale experiment for every rule and seed and return one flat row per run.
+
+    For each (rule, seed): seller A pilots a learning algorithm while B keeps
+    ``rule`` ('nash' keeps the competitive price, 'match' matches the cheapest
+    price, 'undercut' undercuts by one step); B adopts an algorithm at round
+    ``adopt_after``. The "together" comparison (both learning from the start)
+    depends only on the seed, so it is trained once per seed and shared by the
+    rules; the uplifts then come from ``model.pilot_summary`` exactly as in
+    ``model.pilot_run``.
+
+    Each row has ``rule``, ``seed``; ``<stage>UpliftA`` and ``<stage>UpliftB``
+    for the stages ``pilot``, ``scaled`` and ``together`` (profit relative to
+    the status quo in which both charge the competitive grid price, so 0.25
+    means 25% more); ``<stage>Gain`` (profit gain on the settled cycle, 0
+    competitive, 1 monopoly), ``<stage>Harm`` (shoppers' loss) and
+    ``<stage>Punished``; ``periods`` and ``scaledSettled`` for the pilot run, and
+    ``togetherPeriods`` and ``togetherSettled``. ``progress`` is called as in
+    :func:`run_batch` (its total counts the shared together runs too).
+    """
+    base = _checked_base(base)
+    rules = _checked_rules(rules)
+    seeds = _checked_seeds(seeds)
+    if isinstance(adopt_after, bool) or not isinstance(adopt_after, int) or adopt_after < 1:
+        raise ValueError('adopt_after must be a whole number of rounds, at least 1')
+    for rule in rules:
+        errors = model.validate_config(model.pilot_config(base, rule, adopt_after, seeds[0]))['errors']
+        if errors:
+            raise ValueError('the pilot with rule %s is not valid: %s' % (rule, '; '.join(errors)))
+    errors = model.validate_config(model.together_config(base, seeds[0]))['errors']
+    if errors:
+        raise ValueError('the both-learn comparison is not valid: ' + '; '.join(errors))
+    tasks = [('pilot', base, rule, adopt_after, seed) for rule in rules for seed in seeds]
+    tasks += [('together', base, seed) for seed in seeds]       # shorter runs last, for an even load
+    results = _run_tasks(tasks, jobs, progress, worker=_pilot_task)
+    together = dict(zip(seeds, results[len(rules) * len(seeds):]))
+    # The market (and so the status quo) does not depend on the rule or the seed.
+    mk = model.build_market(model.validate_config(model.pilot_config(base, rules[0], adopt_after, seeds[0]))['config'])
+    rows = []
+    for k, (rule, seed) in enumerate((r, s) for r in rules for s in seeds):
+        stages = results[k]
+        summary = model.pilot_summary(mk, stages['pilot'], stages['scaled'], together[seed])
+        row = {'rule': rule, 'seed': seed}
+        for stage in PILOT_STAGES:
+            row[stage + 'UpliftA'] = summary['upliftA'][stage]
+            row[stage + 'UpliftB'] = summary['upliftB'][stage]
+        for stage in PILOT_STAGES:
+            s = summary[stage]
+            row[stage + 'Gain'], row[stage + 'Harm'], row[stage + 'Punished'] = s['avgGain'], s['harm'], s['punished']
+        row.update({'periods': stages['scaled']['periods'], 'scaledSettled': stages['scaled']['converged'],
+                    'togetherPeriods': together[seed]['periods'], 'togetherSettled': together[seed]['converged']})
+        rows.append(row)
+    return rows
+
+
+def _pairs(xs, ys):
+    if len(xs) != len(ys):
+        raise ValueError('the two lists must have the same length')
+    return [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None and x == x and y == y]
+
+
+def pearson(xs, ys):
+    """Pearson's correlation: how close the points lie to a straight rising (1) or falling (-1) line.
+
+    r = sum((x - mean x)(y - mean y)) / sqrt(sum((x - mean x)**2) * sum((y - mean y)**2)),
+    over the pairs where neither value is missing (None or NaN). NaN when fewer
+    than two pairs remain or either list does not vary.
+    """
+    pairs = _pairs(xs, ys)
+    n = len(pairs)
+    if n < 2:
+        return NAN
+    mx = math.fsum(x for x, _ in pairs) / n
+    my = math.fsum(y for _, y in pairs) / n
+    sxx = math.fsum((x - mx) ** 2 for x, _ in pairs)
+    syy = math.fsum((y - my) ** 2 for _, y in pairs)
+    sxy = math.fsum((x - mx) * (y - my) for x, y in pairs)
+    if not (sxx > 0 and syy > 0):
+        return NAN
+    return max(-1.0, min(1.0, sxy / math.sqrt(sxx * syy)))
+
+
+def ranks(xs):
+    """Ranks from 1 (smallest) to n; tied values share the average of the ranks they span."""
+    order = sorted(range(len(xs)), key=lambda i: xs[i])
+    out = [0.0] * len(xs)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and xs[order[j + 1]] == xs[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            out[order[k]] = (i + j) / 2 + 1
+        i = j + 1
+    return out
+
+
+def spearman(xs, ys):
+    """Spearman's rank correlation: Pearson's correlation of the ranks (ties get average ranks).
+
+    It asks whether a higher x goes with a higher y at all, whatever the shape,
+    and one extreme run cannot dominate it. Missing pairs are dropped first.
+    """
+    pairs = _pairs(xs, ys)
+    return pearson(ranks([x for x, _ in pairs]), ranks([y for _, y in pairs]))
+
+
+def _correlation(rows):
+    xs, ys = [r['pilotUpliftA'] for r in rows], [r['scaledUpliftA'] for r in rows]
+    return {'runs': len(_pairs(xs, ys)), 'pearson': pearson(xs, ys), 'spearman': spearman(xs, ys)}
+
+
+def summarise_pilots(rows):
+    """Summarise pilot runs rule by rule, and ask whether the pilot predicts the result at scale.
+
+    For each rule, in the order the rows appear: the mean and 90% bootstrap
+    interval (:func:`quiet_cartel.model.bootstrap_mean`, 2,000 resamples, fixed
+    seeds) of A's uplift in the pilot, after B adopts (``scaled``) and with both
+    learning from the start (``together``); of B's uplift in the pilot and after
+    adopting; of the run-by-run gap ``scaled - pilot`` for A (a paired interval,
+    since each gap comes from one run); the share of runs in which a one-day cut
+    is punished in each stage; the mean profit gain and shoppers' loss in each
+    stage; and the correlation within the rule.
+
+    ``correlation`` pools every run: Pearson's and Spearman's correlation
+    between A's pilot uplift and A's uplift after B adopts. Pooling mixes the
+    rules, so a high pooled value can simply mean that the rule which helps the
+    pilot also helps at scale; the per-rule values say whether, within one
+    rule, a better pilot run goes with a better result at scale.
+
+    Returns ``{'order': [rules], 'rules': {rule: summary}, 'correlation': {...}, 'seeds': [...]}``.
+    """
+    order, by_rule, seeds = [], {}, []
+    for r in rows:
+        if r['rule'] not in by_rule:
+            order.append(r['rule'])
+            by_rule[r['rule']] = []
+        by_rule[r['rule']].append(r)
+        if r['seed'] not in seeds:
+            seeds.append(r['seed'])
+    if not order:
+        raise ValueError('no pilot runs to summarise')
+    out = {}
+    for rule in order:
+        rs = by_rule[rule]
+
+        def boot(key, values=None):
+            vals = [r[key] for r in rs] if values is None else values
+            return model.bootstrap_mean(vals, 0.9, BOOT_REPS, PILOT_BOOT_SEEDS[key])
+
+        out[rule] = {
+            'rule': rule, 'label': PILOT_LABELS.get(rule, rule), 'runs': len(rs),
+            'upliftA': {stage: boot(stage + 'UpliftA') for stage in PILOT_STAGES},
+            'upliftB': {stage: boot(stage + 'UpliftB') for stage in ('pilot', 'scaled')},
+            'gapA': boot('gapA', [r['scaledUpliftA'] - r['pilotUpliftA'] for r in rs]),
+            'punishedShare': {stage: sum(1 for r in rs if r[stage + 'Punished']) / len(rs) for stage in PILOT_STAGES},
+            'gain': {stage: model.mean([r[stage + 'Gain'] for r in rs]) for stage in PILOT_STAGES},
+            'harm': {stage: model.mean([r[stage + 'Harm'] for r in rs]) for stage in PILOT_STAGES},
+            'correlation': _correlation(rs),
+        }
+    return {'order': order, 'rules': out, 'correlation': _correlation(rows), 'seeds': seeds}

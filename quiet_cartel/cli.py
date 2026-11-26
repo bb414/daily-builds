@@ -4,6 +4,7 @@ Commands
   train      one training run, explained: prices, the cycle, a one-day price cut and the reply
   remedies   many runs of each remedy, compared with the baseline run by run
   sweep      a grid of two settings, showing where prices settle
+  pilot      seller A pilots an algorithm, then B adopts one: does the pilot predict the result at scale?
   screen     screen a file of daily prices (and sales) for signs of coordination
   calibrate  fit the demand model to daily sales and measure how far prices sit above competitive
   report     build one offline HTML report from saved JSON results
@@ -181,7 +182,7 @@ def describe(cfg, swept=()):
     n = cfg['nFirms'] if cfg['nFirms'] != 'swept' else 3
     types = cfg['firmTypes'][:n]
     who = 'all self-learning' if all(t == 'learn' for t in types) else ', '.join(
-        '%s %s' % (SELLERS[i], RULE_LABEL[t]) for i, t in enumerate(types))
+        '%s %s' % (SELLERS[i], seller_role(cfg, i)) for i in range(len(types)))
     text = ('%s sellers (%s), loyalty mu %s, patience delta %s, learning rate alpha %s, exploration decay beta %s, '
             '%s prices, memory %s' % (n, who, cfg['mu'], cfg['delta'], cfg['alpha'], cfg['beta'], cfg['nPrices'],
                                       cfg['memory']))
@@ -195,6 +196,15 @@ def describe(cfg, swept=()):
     if any(x != 2 for x in cfg['quality'][:n]) or any(x != 1 for x in cfg['cost'][:n]):
         extras.append('quality %s, cost %s' % (cfg['quality'][:n], cfg['cost'][:n]))
     return text + (', ' + ', '.join(extras) if extras else '')
+
+
+def seller_role(cfg, i):
+    """How seller i prices, in words, including a rule it keeps only until it adopts an algorithm."""
+    t = cfg['firmTypes'][i]
+    adopt = (cfg.get('adoptAt') or [-1, -1, -1])[i]
+    if t != 'learn' and isinstance(adopt, (int, float)) and adopt >= 0:
+        return '%s until round %s, then learning' % (RULE_LABEL[t], '{:,}'.format(int(adopt)))
+    return RULE_LABEL[t]
 
 
 # ------------------------------------------------------------ files
@@ -339,7 +349,10 @@ def cmd_train(args, ctx):
         if b is None:
             rows.append(['seller %s' % SELLERS[i], 'fixed rule: ' + RULE_LABEL[cfg['firmTypes'][i]], '', ''])
         else:
-            rows.append(['seller %s' % SELLERS[i], pct(b['shareOptimal']), 'yes' if b['onPathOptimal'] else 'no',
+            name = 'seller %s' % SELLERS[i]
+            if cfg['firmTypes'][i] != 'learn':
+                name += ' (%s)' % seller_role(cfg, i)      # a seller that adopted an algorithm part way through
+            rows.append([name, pct(b['shareOptimal']), 'yes' if b['onPathOptimal'] else 'no',
                          pct(b['bestReplyGain'], 1) + ('' if b['settled'] else ' (not settled)')])
     out(table(['', 'best reply in every situation', 'best reply where play settled', 'gain from best reply'], rows))
     out('  Gain from best reply: how much more the seller would earn over time, from where play settled, by switching')
@@ -658,13 +671,96 @@ def cmd_calibrate(args, ctx):
     return 0
 
 
+# ------------------------------------------------------------ pilot
+
+def spct(x):
+    """A signed percentage for uplifts: +12%, -3%, 0%."""
+    if not _finite(x):
+        return 'n/a'
+    s = '%+.0f%%' % (x * 100)
+    return '0%' if s in ('+0%', '-0%') else s
+
+
+def _with_interval(b):
+    return '%s (%s to %s)' % (spct(b['mean']), _signed0(b['lo']), _signed0(b['hi']))
+
+
+def _corr_text(c):
+    if not _finite(c['pearson']):
+        return 'n/a (A\'s uplift did not vary)' if c['runs'] >= 2 else 'n/a (too few runs)'
+    return 'Pearson r %+.2f, Spearman rho %+.2f' % (c['pearson'], c['spearman'])
+
+
+def cmd_pilot(args, ctx):
+    if args.runs < 1:
+        raise CliError('--runs must be at least 1')
+    if args.adopt_after < 1:
+        raise CliError('--adopt-after must be at least 1')
+    base = build_config(args)
+    rules = [x.strip() for x in args.rules.split(',') if x.strip()] if args.rules else list(model.PILOT_RULES)
+    seeds = list(range(1, args.runs + 1))
+
+    def start(total):
+        pilots = total - len(seeds)
+        return 'Training %d pilots (%d per rule, seeds 1 to %d) and %d both-learn comparisons on %s ...' % (
+            pilots, len(seeds), len(seeds), len(seeds), _workers(args.jobs, total))
+
+    rows = experiments.run_pilots(base, rules, seeds, args.adopt_after, jobs=args.jobs, progress=Progress('Run', start))
+    summary = experiments.summarise_pilots(rows)
+    S = summary['rules']
+    out('Quiet cartel: pilot to scale')
+    out('Settings: loyalty mu %s, patience delta %s, learning rate alpha %s, exploration decay beta %s, %s prices; '
+        'seller A pilots a learning algorithm, B adopts one at round %s; %d run%s per rule (seeds 1 to %d)' % (
+            base['mu'], base['delta'], base['alpha'], base['beta'], base['nPrices'], '{:,}'.format(args.adopt_after),
+            len(seeds), '' if len(seeds) == 1 else 's', len(seeds)))
+    out()
+    out('Profit uplift over the status quo (both at the competitive price): mean, with its 90% interval in brackets')
+    out(table(['B\'s rule in the pilot', 'A in pilot', 'A after B adopts', 'A: change', 'A, both from start',
+               'B in pilot', 'B after adopting'],
+              [[S[r]['label'], _with_interval(S[r]['upliftA']['pilot']), _with_interval(S[r]['upliftA']['scaled']),
+                _with_interval(S[r]['gapA']), _with_interval(S[r]['upliftA']['together']),
+                _with_interval(S[r]['upliftB']['pilot']), _with_interval(S[r]['upliftB']['scaled'])]
+               for r in summary['order']]))
+    out()
+    out('Share of runs in which a one-day cut by A is punished, and mean profit gain (0% competitive, 100% monopoly)')
+    out(table(['B\'s rule in the pilot', 'punished: pilot', 'after adopting', 'both from start',
+               'gain: pilot', 'after adopting', 'both from start'],
+              [[S[r]['label']] + [pct(S[r]['punishedShare'][st]) for st in experiments.PILOT_STAGES]
+               + [pct(S[r]['gain'][st]) for st in experiments.PILOT_STAGES] for r in summary['order']]))
+    out()
+    c = summary['correlation']
+    out('Does the pilot predict the result at scale? A\'s uplift in the pilot against A\'s uplift after B adopts:')
+    out('  all %d runs: %s' % (c['runs'], _corr_text(c)))
+    for r in summary['order']:
+        out('  %s (%d runs): %s' % (S[r]['label'], S[r]['correlation']['runs'], _corr_text(S[r]['correlation'])))
+    out()
+    out('Uplift is a seller\'s profit compared with the status quo in which both sellers charge the competitive')
+    out('price: +40% means 40% more profit. In the pilot, seller A prices with a learning algorithm while B keeps')
+    out('its rule. "After B adopts" is once B\'s own algorithm has settled too; "A: change" is that figure minus the')
+    out('pilot, run by run. "Both from start" trains both algorithms together from day one with the same seed.')
+    out('A correlation near +1 means runs with a better pilot also did better at scale; near 0 means the pilot')
+    out('told A little about what scaling up would bring. The pooled figure mixes the rules, so the')
+    out('within-rule lines are the fairer test.')
+    if args.csv:
+        write_csv(args.csv, rows)
+    if args.json:
+        write_json(args.json, {
+            'kind': 'pilot', 'command': ctx['command'],
+            'settings': {'preset': args.preset, 'set': args.set or [], 'runs': args.runs, 'seeds': seeds,
+                         'rules': summary['order'], 'adoptAfter': args.adopt_after, 'base': base},
+            'summary': summary, 'runs': rows, 'seconds': time.time() - ctx['start'],
+        })
+    return 0
+
+
 # ------------------------------------------------------------ report
 
 def cmd_report(args, ctx):
-    if not (args.remedies or args.sweep or args.screen):
-        raise CliError('report needs at least one of --remedies, --sweep and --screen')
+    if not (args.remedies or args.sweep or args.screen or args.pilot):
+        raise CliError('report needs at least one of --remedies, --pilot, --sweep and --screen')
     parts = {
         'remedies': read_json(args.remedies, 'remedies') if args.remedies else None,
+        'pilot': read_json(args.pilot, 'pilot') if args.pilot else None,
         'sweep': read_json(args.sweep, 'sweep') if args.sweep else None,
         'screen': read_json(args.screen, 'screen') if args.screen else None,
     }
@@ -727,6 +823,18 @@ def make_parser():
     w.add_argument('--json', metavar='PATH', help='save the grid as JSON (for report)')
     w.set_defaults(func=cmd_sweep)
 
+    pl = sub.add_parser('pilot', help='seller A pilots an algorithm, then B adopts one')
+    _model_options(pl)
+    pl.add_argument('--rules', metavar='RULE,RULE', help='rules B keeps during the pilot (default all: %s)' % ', '.join(
+        model.PILOT_RULES))
+    pl.add_argument('--runs', type=int, default=10, help='runs per rule, seeds 1 to N (default 10)')
+    pl.add_argument('--adopt-after', type=int, default=1500000, metavar='ROUNDS',
+                    help='round at which B adopts an algorithm (default 1500000)')
+    _jobs(pl)
+    pl.add_argument('--csv', metavar='PATH', help='save one row per run as CSV')
+    pl.add_argument('--json', metavar='PATH', help='save the runs and the summary as JSON (for report)')
+    pl.set_defaults(func=cmd_pilot)
+
     s = sub.add_parser('screen', help='screen a file of daily prices for signs of coordination')
     s.add_argument('path', help='CSV with day, price_a, price_b and optionally market, cost_a, cost_b, shoppers, '
                                 'units_a, units_b')
@@ -748,6 +856,7 @@ def make_parser():
     o = sub.add_parser('report', help='build one offline HTML report from saved JSON results')
     o.add_argument('--out', required=True, metavar='PATH', help='HTML file to write')
     o.add_argument('--remedies', metavar='JSON', help='from remedies --json')
+    o.add_argument('--pilot', metavar='JSON', help='from pilot --json')
     o.add_argument('--sweep', metavar='JSON', help='from sweep --json')
     o.add_argument('--screen', metavar='JSON', help='from screen --json')
     o.set_defaults(func=cmd_report)
