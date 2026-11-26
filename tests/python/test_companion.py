@@ -66,10 +66,10 @@ class BatchTest(unittest.TestCase):
         self.assertEqual([(r['scenario'], r['seed']) for r in self.rows],
                          [('baseline', 1), ('baseline', 2), ('baseline', 3), ('own', 1), ('own', 2), ('own', 3)])
         keys = {'scenario', 'seed', 'converged', 'periods', 'avgGain', 'realisedGain', 'harm', 'punished',
-                'collusive', 'cycleLength', 'meanPrice', 'brGapA', 'brGapB'}
+                'collusive', 'cycleLength', 'meanPrice', 'replyGainA', 'replyGainB'}
         for r in self.rows:
             self.assertEqual(set(r), keys)
-            self.assertGreaterEqual(r['brGapA'], 0)
+            self.assertGreaterEqual(r['replyGainA'], 0)
 
     def test_run_one_matches_model_run_scenario(self):
         base = model.validate_config(FAST)['config']
@@ -80,8 +80,8 @@ class BatchTest(unittest.TestCase):
 
     def test_rule_seller_has_no_gap(self):
         r = experiments.run_one(model.validate_config(FAST)['config'], 'fixedrival', 1)
-        self.assertIsNone(r['brGapB'])
-        self.assertIsNotNone(r['brGapA'])
+        self.assertIsNone(r['replyGainB'])
+        self.assertIsNotNone(r['replyGainA'])
 
     def test_summary_uses_model_aggregate(self):
         s = experiments.summarise_batch(self.rows)
@@ -348,15 +348,10 @@ class CalibrateTest(unittest.TestCase):
         self.assertAlmostEqual(bm['excess'][0], (fit['meanPrice'][0] - pn) / (pm - pn), places=12)
         self.assertIsNone(calibrate.benchmark(fit, None)['excessPrice'])
 
-    def test_competitive_prices_for_unequal_sellers(self):
-        # model.nash_prices ends in a two-day cycle here; the checked version must find the equilibrium.
+    def test_benchmark_for_unequal_sellers(self):
+        # Fitted sellers are never exactly equal; the competitive prices must still be an equilibrium.
         q, c = [2, 2.2], [1, 1]
-        self.assertGreater(calibrate.nash_residual(model.nash_prices(q, c, 0, 0.25), q, c, 0, 0.25), 1)
-        p, method = calibrate.competitive_prices(q, c, 0, 0.25)
-        self.assertEqual(method, 'best response')
-        self.assertLess(calibrate.nash_residual(p, q, c, 0, 0.25), 1e-9)
-        p, method = calibrate.competitive_prices([2, 2], c, 0, 0.25)
-        self.assertEqual(method, 'model')
+        self.assertLess(calibrate.nash_residual(model.nash_prices(q, c, 0, 0.25), q, c, 0, 0.25), 1e-9)
 
     def test_unusable_fits(self):
         pa, pb, ua, ub, n = self.noise_free([2, 2], 0.25)

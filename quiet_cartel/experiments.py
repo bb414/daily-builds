@@ -47,14 +47,12 @@ def run_one(base, scenario, seed):
     (shoppers' loss as a share of the gap between their surplus at competitive
     and at monopoly prices), ``punished``, ``collusive``, ``cycleLength`` and ``meanPrice``
     (average settled price over sellers). With two sellers it also has
-    ``brGapA`` and ``brGapB``: the ``onPathGap`` of
+    ``replyGainA`` and ``replyGainB``: the ``bestReplyGain`` of
     :func:`quiet_cartel.model.best_response_check`, or ``None`` for a seller that
-    follows a fixed rule. That is the most a learning seller could gain by
-    choosing a better price for one day where play settled and replying
-    optimally afterwards, as a share of its best long-run profit. Being a
-    one-day measure it is roughly (1 - delta) times what a seller could gain by
-    changing its strategy for good, so a small gap does not by itself mean the
-    learned strategies are close to an equilibrium.
+    follows a fixed rule. That is how much more the seller would earn over time,
+    starting where play settled, by switching to its exact best reply to the
+    others' learned strategies, as a share of what its own learned strategy
+    earns. Zero means the learned strategy is already a best reply there.
     """
     cfg = model.apply_scenario(base, scenario)
     cfg['seed'] = seed
@@ -67,9 +65,9 @@ def run_one(base, scenario, seed):
         'meanPrice': model.mean(s['price']),
     }
     if tr.market['n'] == 2:
-        for i, key in enumerate(('brGapA', 'brGapB')):
+        for i, key in enumerate(('replyGainA', 'replyGainB')):
             br = model.best_response_check(tr, i, s['cycle'])
-            row[key] = None if br is None else br['onPathGap']
+            row[key] = None if br is None else br['bestReplyGain']
     return row
 
 
@@ -262,9 +260,9 @@ def summarise_batch(results):
       order, so the means and 90% bootstrap intervals for profit gain and
       shoppers' loss, and the shares punished, settled and collusive, match the
       browser app's for the same runs.
-    * ``meanPrice`` and ``brGap``: mean settled price, and the mean over runs
-      of the larger learning seller's best-response gap (``None`` when no run
-      had two sellers).
+    * ``meanPrice`` and ``replyGain``: mean settled price, and the mean over
+      runs and learning sellers of the gain from a best reply (``None`` when no
+      run had two sellers).
     * ``vsBaseline`` (not for the baseline): for ``realisedGain`` and ``harm``,
       the paired comparison of :func:`paired_comparison`, with ``pHolm``, the
       Holm-adjusted p-value over every non-baseline scenario in the batch. The
@@ -291,14 +289,14 @@ def summarise_batch(results):
         sc = model.scenario_by_id(sid) or {'label': sid, 'group': 'baseline', 'note': ''}
         gaps = []
         for r in rows:
-            g = [r[k] for k in ('brGapA', 'brGapB') if r.get(k) is not None]
+            g = [r[k] for k in ('replyGainA', 'replyGainB') if r.get(k) is not None]
             if g:
                 gaps.append(max(g))
         out[sid] = {
             'id': sid, 'label': sc['label'], 'group': sc['group'], 'note': sc['note'],
             'agg': model.aggregate(rows),
             'meanPrice': _mean_of([r['meanPrice'] for r in rows]),
-            'brGap': _mean_of(gaps),
+            'replyGain': _mean_of(gaps),
             'vsBaseline': None,
         }
         if sid != 'baseline':

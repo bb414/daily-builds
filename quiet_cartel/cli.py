@@ -170,18 +170,7 @@ def build_config(args, seed=None):
     v = model.validate_config(cfg)
     if v['errors']:
         raise ConfigErrors(v['errors'])
-    warn_unequal(v['config'])
     return v['config']
-
-
-def warn_unequal(cfg):
-    """model.nash_prices can fail for unequal sellers (see calibrate.competitive_prices): say so."""
-    n = cfg['nFirms']
-    q, c = cfg['quality'][:n], cfg['cost'][:n]
-    gap = calibrate.nash_residual(model.nash_prices(q, c, cfg['outside'], cfg['mu']), q, c, cfg['outside'], cfg['mu'])
-    if not gap < 1e-9:
-        err('warning: the model\'s competitive-price solver does not settle for these unequal sellers '
-            '(off by %.3g), so the price grid, competitive prices and profit gains are not reliable' % gap)
 
 
 def describe(cfg, swept=()):
@@ -351,10 +340,10 @@ def cmd_train(args, ctx):
             rows.append(['seller %s' % SELLERS[i], 'fixed rule: ' + RULE_LABEL[cfg['firmTypes'][i]], '', ''])
         else:
             rows.append(['seller %s' % SELLERS[i], pct(b['shareOptimal']), 'yes' if b['onPathOptimal'] else 'no',
-                         pct(b['onPathGap'], 2) + ('' if b['settled'] else ' (not settled)')])
-    out(table(['', 'best reply in every situation', 'best reply where play settled', 'one-day gain there'], rows))
-    out('  One-day gain: what a better price for one day where play settled (then the best replies) adds, as a share')
-    out('  of the seller\'s best long-run profit.')
+                         pct(b['bestReplyGain'], 1) + ('' if b['settled'] else ' (not settled)')])
+    out(table(['', 'best reply in every situation', 'best reply where play settled', 'gain from best reply'], rows))
+    out('  Gain from best reply: how much more the seller would earn over time, from where play settled, by switching')
+    out('  to the best possible strategy against the others\' learned strategies (which stay fixed).')
     if args.json:
         write_json(args.json, {
             'kind': 'train', 'command': ctx['command'], 'config': cfg,
@@ -392,9 +381,9 @@ def cmd_remedies(args, ctx):
     out()
     out('Gain is the realised profit gain (0% competitive, 100% monopoly) with its 90% bootstrap interval. Change is')
     out('the mean paired difference from the baseline run with the same seed, with a 90% paired bootstrap interval')
-    out('and a sign-flip permutation p-value, Holm-adjusted across the options. Loss is the shoppers\' loss. BR gap')
-    out('is what a learning seller could gain by choosing a better price for one day where play settled, as a share')
-    out('of its best long-run profit (a one-day measure: changing strategy for good can gain far more).')
+    out('and a sign-flip permutation p-value, Holm-adjusted across the options. Loss is the shoppers\' loss. Reply')
+    out('gain is how much more a learning seller would earn over time by switching to its exact best reply to the')
+    out('others\' learned strategies (0% would mean they form an equilibrium).')
     if args.csv:
         write_csv(args.csv, rows)
     if args.json:
@@ -417,10 +406,10 @@ def remedies_table(summary):
             sc['label'], sc['group'], pct(a['gain']['mean']), '%s to %s' % (pct(a['gain']['lo']), pct(a['gain']['hi'])),
             pts(g['diff']) if g else '', '%s to %s' % (_signed0(g['lo']), _signed0(g['hi'])) if g else '',
             pval(g['pHolm']) if g else '', pct(a['harm']['mean']), pct(a['punishedShare']), pct(a['convergedShare']),
-            pct(sc['brGap'], 2) if sc['brGap'] is not None else 'n/a',
+            pct(sc['replyGain'], 1) if sc['replyGain'] is not None else 'n/a',
         ])
     return table(['option', 'group', 'gain', '90% interval', 'change', '90% interval', 'Holm p', 'loss', 'punished',
-                  'settled', 'BR gap'], rows, right=range(2, 11))
+                  'settled', 'reply gain'], rows, right=range(2, 11))
 
 
 def _signed0(x):

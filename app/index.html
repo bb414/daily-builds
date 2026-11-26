@@ -285,7 +285,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
           <div id="cycle-box"></div>
         </div>
         <div class="card">
-          <h2>What seller <span id="heat-who">A</span> learned to charge</h2>
+          <h2 id="heat-title">What seller A learned to charge</h2>
           <div class="field" style="max-width:220px">
             <label for="heat-seller" class="sr-only">Show the strategy of</label>
             <select id="heat-seller"></select>
@@ -492,7 +492,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         <h2>Daily prices <span class="sub" id="data-sub"></span></h2>
         <div class="chart" id="chart-data"></div>
         <div class="legend" id="legend-data"></div>
-        <p class="caption">Triangles mark unprovoked cuts (one seller cuts while the other holds still). Circles mark a rival cutting the next day.</p>
+        <p class="caption">Triangles mark unprovoked cuts (after a calm day, one seller cuts while the other holds still). Circles mark a rival cutting the next day.</p>
       </div>
       <div class="card verdict" id="data-verdict" hidden aria-live="polite"></div>
       <div class="card" id="data-compare-card" hidden>
@@ -517,9 +517,9 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     <dl class="gloss">
       <dt>Profit gain</dt><dd>Where profits settle between competitive (0%) and monopoly (100%). Measured once the algorithms play the strategies they learned.</dd>
       <dt>Shoppers&rsquo; loss</dt><dd>The same scale for consumer surplus: 0% is what shoppers get at competitive prices, 100% what they get at monopoly prices.</dd>
-      <dt>Punished</dt><dd>After a forced one-day cut, a rival answers with a lower price than it would otherwise have charged, and the cut loses the cutter money once the later losses are counted.</dd>
+      <dt>Punished</dt><dd>A one-day price cut that would pay on the day if nobody reacted is answered by a rival with a lower price than it would otherwise have charged, and the cut loses the cutter money once the later losses are counted.</dd>
       <dt>Held up by a threat</dt><dd>Punished, and with a profit gain of at least 20%. This is the case file&rsquo;s hidden truth for &ldquo;coordinated&rdquo;.</dd>
-      <dt>Best reply</dt><dd>The strategy that earns the most over time against the rival&rsquo;s actual learned strategy, found exactly by value iteration.</dd>
+      <dt>Best reply</dt><dd>The strategy that earns the most over time against the rival&rsquo;s actual learned strategy, found exactly by value iteration. If every seller already plays its best reply, the outcome is an equilibrium.</dd>
     </dl>
     <h2>Limits</h2>
     <ul>
@@ -774,18 +774,32 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     return mu * detLog(total);
   }
 
+  // Seller i's best one-day price against the others' prices: the root of p - c = mu / (1 - q_i(p)),
+  // which is unique because the left side minus the right side rises with p. Found by bisection.
+  function bestReplyPrice(p, i, quality, cost, outside, mu) {
+    var trial = p.slice(), lo = cost[i], hi = cost[i] + 50 * mu + 10;
+    for (var b = 0; b < 200; b++) {
+      var mid = (lo + hi) / 2;
+      if (mid <= lo || mid >= hi) break;
+      trial[i] = mid;
+      var q = shares(trial, quality, outside, mu)[i];
+      if (mid - cost[i] - mu / (1 - q) < 0) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // Competitive (static Nash) prices: every seller in turn moves to its best one-day price, until none moves.
   function nashPrices(quality, cost, outside, mu) {
     var n = quality.length, p = [], i;
     for (i = 0; i < n; i++) p.push(cost[i] + mu);
-    for (var it = 0; it < 20000; it++) {
-      var q = shares(p, quality, outside, mu), change = 0, next = [];
+    for (var it = 0; it < 1000; it++) {
+      var change = 0;
       for (i = 0; i < n; i++) {
-        next.push(cost[i] + mu / (1 - q[i]));
-        var dd = next[i] - p[i];
+        var np = bestReplyPrice(p, i, quality, cost, outside, mu), dd = np - p[i];
         if (dd < 0) dd = -dd;
         if (dd > change) change = dd;
+        p[i] = np;
       }
-      p = next;
       if (change < 1e-13) break;
     }
     return p;
@@ -1155,8 +1169,9 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       deviator: dev, devPrice: mk.grids[dev][devAct], devAction: devAct, horizon: H,
       prices: prices, cfPrices: cfPrices, profits: profits, cfProfits: cfProfits,
       gainNow: gainNow, lossLater: -later, net: gainNow + later,
-      rivalCut: rivalCut, deepestCut: deepest, returnedAt: returned,
-      punished: rivalCut && gainNow + later < 0
+      rivalCut: rivalCut, deepestCut: deepest, returnedAt: returned, tempting: gainNow > 0,
+      // punished: the cut pays on the day, a rival answers with a lower price, and the cut loses money overall
+      punished: rivalCut && gainNow > 0 && gainNow + later < 0
     };
   }
 
@@ -1217,7 +1232,21 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       if (change < 1e-11) { settled = true; break; }
     }
     if (iters > 5000) iters = 5000;
-    var optimal = 0, gapSum = 0, onPath = true, onPathGap = 0;
+    // Value of keeping the learned strategy, by iterating its own Bellman equation.
+    var W = new Float64Array(nJ), LA = new Int32Array(nJ);
+    for (s = 0; s < nJ; s++) LA[s] = tr.best[i][tr.stateTab[i][s]];
+    for (var it2 = 1; it2 <= 5000; it2++) {
+      var ch2 = 0, nextW = new Float64Array(nJ);
+      for (s = 0; s < nJ; s++) {
+        var w = R[s * m + LA[s]] + delta * W[NS[s * m + LA[s]]];
+        nextW[s] = w;
+        var d2 = w - W[s]; if (d2 < 0) d2 = -d2;
+        if (d2 > ch2) ch2 = d2;
+      }
+      W = nextW;
+      if (ch2 < 1e-11) break;
+    }
+    var optimal = 0, gapSum = 0, onPath = true, onPathGap = 0, replyGain = 0;
     var onSet = {};
     if (cycle) for (k = 0; k < cycle.length; k++) onSet[cycle[k]] = true;
     for (s = 0; s < nJ; s++) {
@@ -1229,9 +1258,11 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       if (ok) optimal++;
       else if (onSet[s]) onPath = false;
       if (onSet[s] && rel > onPathGap) onPathGap = rel;
+      if (onSet[s] && W[s] > 0) { var g2 = (V[s] - W[s]) / W[s]; if (g2 > replyGain) replyGain = g2; }
       gapSum += rel;
     }
-    return { firm: i, shareOptimal: optimal / nJ, onPathOptimal: onPath, onPathGap: onPathGap, meanGap: gapSum / nJ, iterations: iters, settled: settled };
+    return { firm: i, shareOptimal: optimal / nJ, onPathOptimal: onPath, onPathGap: onPathGap, bestReplyGain: replyGain,
+      meanGap: gapSum / nJ, iterations: iters, settled: settled };
   }
 
   // ---------------------------------------------------------------- scenarios
@@ -1353,7 +1384,11 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         if (!cut(i, t)) continue;
         var unprovoked = true;
         for (j = 0; j < n; j++) if (j !== i && !still(j, t)) unprovoked = false;
-        if (!unprovoked) continue;
+        if (!unprovoked || t < 2) continue;
+        // only a cut out of a calm day counts, so a rival's answer is not itself counted as a new cut
+        var calm = true;
+        for (j = 0; j < n; j++) if (!still(j, t - 1)) calm = false;
+        if (!calm) continue;
         events++;
         var anyFollow = false, biggest = 0;
         for (j = 0; j < n; j++) {
@@ -1483,7 +1518,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     bootstrapMean: bootstrapMean, rocCurve: rocCurve,
     defaultConfig: defaultConfig, validateConfig: validateConfig,
     shares: shares, profitsAt: profitsAt, consumerSurplus: consumerSurplus,
-    nashPrices: nashPrices, monopolyPrices: monopolyPrices, buildMarket: buildMarket,
+    bestReplyPrice: bestReplyPrice, nashPrices: nashPrices, monopolyPrices: monopolyPrices, buildMarket: buildMarket,
     decodeJoint: decodeJoint, encodeJoint: encodeJoint, nearestIndex: nearestIndex,
     Trainer: Trainer, train: train, limitCycle: limitCycle, outcomeOf: outcomeOf,
     staticBestResponse: staticBestResponse, impulseResponse: impulseResponse, summarise: summarise,
@@ -1527,8 +1562,18 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function money(x) { var neg = x < 0; return (neg ? '−' : '') + '£' + Math.abs(x).toFixed(2); }
-  function pct(x, d) { if (x !== x || x === null || x === undefined) return 'n/a'; return (x * 100).toFixed(d === undefined ? 0 : d).replace('-', '−') + '%'; }
-  function num(x, d) { if (x !== x || x === null || x === undefined) return 'n/a'; return x.toFixed(d === undefined ? 2 : d).replace(/^-/, '−'); }
+  function pct(x, d) {
+    if (x === null || x === undefined || x !== x) return 'n/a';
+    var t = (x * 100).toFixed(d === undefined ? 0 : d);
+    if (+t === 0) t = t.replace('-', '');
+    return t.replace('-', '−') + '%';
+  }
+  function num(x, d) {
+    if (x === null || x === undefined || x !== x) return 'n/a';
+    var t = x.toFixed(d === undefined ? 2 : d);
+    if (+t === 0) t = t.replace('-', '');
+    return t.replace(/^-/, '−');
+  }
   function rounds(t) { return t >= 1e6 ? (t / 1e6).toFixed(2) + 'm' : t >= 1e4 ? Math.round(t / 1e3) + 'k' : String(t); }
   function mean(xs) { return QC.mean(xs); }
 
@@ -1863,7 +1908,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
 
   function renderHeat(i) {
     var tr = S.trainer, mk = tr.market, n = mk.n, m = mk.m, box = $('chart-heat');
-    $('heat-who').textContent = SELLERS[i];
+    $('heat-title').textContent = 'What seller ' + SELLERS[i] + ' learned to charge';
     var other = i === 0 ? 1 : 0, third = n === 3 ? [0, 1, 2].filter(function (k) { return k !== i && k !== other; })[0] : null;
     var cyc0 = QC.decodeJoint(S.cycle[0], n, m);
     var cell = 20, padL = 46, padT = 10, padB = 40, W = padL + m * cell + 70, H = padT + m * cell + padB;
@@ -1893,7 +1938,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     text(s, kx + 18, padT + 10, money(mk.grids[i][m - 1]), {});
     text(s, kx + 18, padT + m * cell - 2, money(mk.grids[i][0]), {});
     text(s, kx - 2, padT + m * cell + 14, 'today', {});
-    var cap = 'Each square is a situation: ' + SELLERS[i] + '’s price yesterday (rows, highest at the top) and ' + SELLERS[other] + '’s (columns). Darker means ' + SELLERS[i] + ' charges more today. Outlined squares are where play settled.';
+    var cap = 'Each square is a situation: ' + SELLERS[i] + '’s price yesterday (rows, highest at the top) and ' + SELLERS[other] + '’s (columns). Darker means ' + SELLERS[i] + ' charges more today. Outlined squares are where play settled. Most other squares are situations the algorithms rarely met once they stopped experimenting, so their choices there look patchy.';
     if (third !== null) cap += ' Seller ' + SELLERS[third] + ' is held at its settled price ' + money(mk.grids[third][cyc0[third]]) + '.';
     if (!tr.learn[i]) cap += ' This seller follows a fixed rule.';
     else if (tr.cfg.memory === 'own') cap += ' This algorithm only sees its own price, so rows are uniform.';
@@ -1961,6 +2006,11 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     if (ir.devAction === QC.decodeJoint(S.cycle[1 % S.cycle.length], n, mk.m)[dev]) {
       v.className = 'card verdict';
       v.innerHTML = '<div class="head">That is its settled price, so nothing changes</div><p style="margin:0">Pick a lower price to test the reaction.</p>';
+    } else if (!ir.tempting) {
+      v.className = 'card verdict good';
+      v.innerHTML = '<div class="head"><span class="pill good">Nothing to deter</span> This cut loses money even on the day</div><p style="margin:0">' + who +
+        'That earns less than its settled price even before anyone reacts, so a reaction here says nothing about a threat. ' +
+        (pv === 'best' ? 'The settled price is already its best one-day price: that is how competitive pricing looks.' : 'Choose the best one-day cut to test for a threat.') + '</p>';
     } else if (ir.punished) {
       v.className = 'card verdict bad';
       v.innerHTML = '<div class="head"><span class="pill bad">Reward and punishment</span> The cut is punished, so it does not pay</div><p>' + who +
@@ -1989,14 +2039,15 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     var rows = S.br.map(function (b, i) {
       if (!b) return '<tr><td>Seller ' + SELLERS[i] + '</td><td colspan="3" class="muted">Follows a fixed rule: ' + esc(TYPE_LABEL[tr.cfg.firmTypes[i]].toLowerCase()) + '</td></tr>';
       return '<tr><td>Seller ' + SELLERS[i] + '</td><td class="num">' + pct(b.shareOptimal) + '</td><td>' +
-        (b.onPathOptimal ? '<span class="pill good">yes</span>' : '<span class="pill warn">no</span>') + '</td><td class="num">' + pct(b.onPathGap, 2) + '</td></tr>';
+        (b.onPathOptimal ? '<span class="pill good">yes</span>' : '<span class="pill warn">no</span>') + '</td><td class="num">' + pct(b.bestReplyGain, 1) + '</td></tr>';
     }).join('');
-    $('br-table').innerHTML = '<tr><th>Seller</th><th class="num">Best reply in every situation</th><th>Best reply where play settled</th><th class="num">Most it could gain there</th></tr>' + rows;
-    var learners = S.br.filter(Boolean), allOn = learners.every(function (b) { return b.onPathOptimal; });
-    var maxGap = Math.max.apply(null, learners.map(function (b) { return b.onPathGap; }));
-    $('br-caption').textContent = allOn
-      ? 'Where play settled, every algorithm is already playing its best reply to the others: the outcome is an equilibrium of the repeated game, so no seller could do better by changing its strategy alone.'
-      : 'Not every algorithm has found its exact best reply, but the most any seller could gain by replying better where play settled is ' + pct(maxGap, 2) + ' of its long-run profit. Close to equilibrium, but learned by trial and error rather than worked out.';
+    $('br-table').innerHTML = '<tr><th>Seller</th><th class="num">Best reply in every situation</th><th>Best reply where play settled</th><th class="num">Gain from a best reply</th></tr>' + rows;
+    var learners = S.br.filter(Boolean);
+    var maxGain = Math.max.apply(null, learners.map(function (b) { return b.bestReplyGain; }));
+    $('br-caption').textContent = maxGain < 0.005
+      ? 'Where play settled, every algorithm is already playing its best reply to the others: no seller could earn more by changing its strategy on its own, so the outcome is an equilibrium of the repeated game.'
+      : 'Gain from a best reply: how much more a seller would earn over time, from where play settled, by switching to the best possible strategy against the others’ learned strategies. Up to ' + pct(maxGain, 0) +
+        ' here, so these strategies are not an equilibrium. The algorithms never search for that reply: they only test one price at a time, and a single cut is punished. A seller that worked out the reply, or a smarter algorithm, could break the high price.';
   }
 
   // ------------------------------------------------------------ remedies
@@ -2074,12 +2125,12 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     var lo = Math.min(0, Math.min.apply(null, rows.map(function (r) { return r.v.lo === null ? r.v.mean : r.v.lo; }))), hi = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.v.hi === null ? r.v.mean : r.v.hi; })));
     function X(v) { return left + (v - lo) / (hi - lo) * (W - left - right); }
     ticks(lo, hi, 5).forEach(function (v) {
-      svg('line', { x1: X(v), x2: X(v), y1: top, y2: H - 24, style: 'stroke:var(--soft)' }, s);
+      svg('line', { x1: X(v), x2: X(v), y1: top + 16, y2: H - 24, style: 'stroke:var(--soft)' }, s);
       text(s, X(v), H - 8, pct(v), { 'text-anchor': 'middle' });
     });
-    svg('line', { x1: X(0), x2: X(0), y1: top, y2: H - 24, style: 'stroke:var(--muted)' }, s);
     rows.forEach(function (r, k) {
       var y = top + k * rowH;
+      svg('line', { x1: X(0), x2: X(0), y1: y + 17, y2: y + 35, style: 'stroke:var(--muted)' }, s);
       text(s, left, y + 13, r.sc.label, { 'class': r.id === 'baseline' ? 'lab' : '' });
       var x0 = X(Math.min(0, r.v.mean)), x1 = X(Math.max(0, r.v.mean));
       var bar = svg('rect', { x: x0, y: y + 19, width: Math.max(1, x1 - x0), height: 14, rx: 3, style: 'fill:' + GROUP_COL[r.sc.group] + (r.id === 'baseline' ? '' : ';opacity:.85') }, s);
@@ -2246,7 +2297,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
 
   function renderCaseTable() {
     var id = $('th-screen').value, scores = thScores(), th = thValue(scores), labels = labelsFor(S.cases, target());
-    $('cf-table').innerHTML = '<tr><th>Market</th><th>Hidden set-up</th><th class="num">Shopper loyalty</th><th class="num">Profit gain</th><th>Threat?</th><th class="num">Margin</th><th class="num">Hit back</th><th class="num">Hit back, then up</th><th>Flagged</th></tr>' +
+    $('cf-table').innerHTML = '<tr><th>Market</th><th>Hidden set-up</th><th class="num">Shopper loyalty</th><th class="num">Profit gain</th><th>Cut punished?</th><th class="num">Margin</th><th class="num">Hit back</th><th class="num">Hit back, then up</th><th>Flagged</th></tr>' +
       S.cases.map(function (c, i) {
         var flag = scores[i] >= th;
         return '<tr' + (labels[i] ? ' class="sel"' : '') + '><td>' + c.id + '</td><td>' + esc(QC.scenarioById(c.scenario).label) + '</td><td class="num">' + c.mu.toFixed(2) + '</td><td class="num">' + pct(c.truth.gain) + '</td><td>' +
@@ -2348,7 +2399,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     legend($('legend-data'), [{ label: 'Seller A (' + D.names[0] + ')', color: SELLER_COL[0] }, { label: 'Seller B (' + D.names[1] + ')', color: SELLER_COL[1] }]);
     $('data-sub').textContent = T + ' days';
     $('data-kpis').innerHTML =
-      kpi('Unprovoked cuts', String(sc.events), 'one seller cuts, the other holds still') +
+      kpi('Unprovoked cuts', String(sc.events), 'after a calm day, one seller cuts alone') +
       kpi('Rival cuts next day', pct(sc.followRate), 'against ' + pct(sc.baseRate, 1) + ' on an ordinary day', sc.retaliation > 0.2 ? 'bad' : '') +
       kpi('Hit back, then back up', pct(sc.punishReturn), 'within 10 days') +
       kpi('Could this be chance?', D.perm.pValue === D.perm.pValue ? 'p = ' + D.perm.pValue.toFixed(3) : 'n/a', D.perm.pValue < 0.05 ? 'unlikely to be chance' : 'chance could explain it', D.perm.pValue < 0.05 ? 'bad' : '');

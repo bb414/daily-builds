@@ -31,7 +31,7 @@ market,setup,setup_label,mu,training_seed,profit_gain,punished,coordinated,high_
 30,myopic,Rewarded on today’s profit only,0.1,983510,-0.0168,0,0,0,1.2,1.8657
 31,baseline,Both learn and see all prices,0.25,383406,0.8676,1,1,1,1.4729,1.925
 32,matcher,Rival matches the cheapest price,0.25,846113,0.9934,1,1,1,1.4729,1.925
-33,myopic,Rewarded on today’s profit only,0.25,771759,0.2133,1,1,0,1.4729,1.925
+33,myopic,Rewarded on today’s profit only,0.25,771759,0.2133,0,0,0,1.4729,1.925
 34,matcher,Rival matches the cheapest price,0.5,310947,0.995,1,1,1,1.7995,2.1874
 35,own,Rivals’ prices banned as an input,0.5,209228,-0.0737,0,0,0,1.7995,2.1874
 36,none,No memory at all,0.5,110523,0.9951,0,0,1,1.7995,2.1874

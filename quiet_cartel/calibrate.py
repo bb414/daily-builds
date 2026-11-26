@@ -32,7 +32,7 @@ import math
 
 from . import model
 
-__all__ = ['fit_market', 'benchmark', 'calibrate_panel', 'nash_residual', 'competitive_prices',
+__all__ = ['fit_market', 'benchmark', 'calibrate_panel', 'nash_residual',
            'MIN_FIT_DAYS', 'DROP_WARN']
 
 MIN_FIT_DAYS = 5        # fewer usable days than this and the fit is not attempted
@@ -46,61 +46,6 @@ def nash_residual(prices, quality, cost, outside, mu):
     """Largest gap in the logit first-order condition p_i = c_i + mu / (1 - s_i): zero at an equilibrium."""
     s = model.shares(prices, quality, outside, mu)
     return max(abs(prices[i] - cost[i] - mu / (1 - s[i])) for i in range(len(prices)))
-
-
-def _best_response(i, prices, quality, cost, outside, mu):
-    """Seller i's profit-maximising price against the others' prices, by bisection on its first-order condition.
-
-    g(p) = p - c_i - mu / (1 - s_i(p)) rises with p, is negative at p = c_i + mu
-    and positive once p is large, so it has exactly one root.
-    """
-    trial = list(prices)
-
-    def g(p):
-        trial[i] = p
-        return p - cost[i] - mu / (1 - model.shares(trial, quality, outside, mu)[i])
-
-    lo, hi = cost[i] + mu, cost[i] + 2 * mu + 1
-    while g(hi) < 0:
-        hi += hi - lo
-    for _ in range(200):
-        mid = (lo + hi) / 2
-        if g(mid) < 0:
-            lo = mid
-        else:
-            hi = mid
-        if hi - lo < 1e-15:
-            break
-    return (lo + hi) / 2
-
-
-def competitive_prices(quality, cost, outside, mu):
-    """Competitive (Nash) prices, from ``model.nash_prices`` when it converges, otherwise by best responses.
-
-    ``model.nash_prices`` updates every seller at once (p_i <- c_i + mu / (1 -
-    s_i)). With equal sellers that update stays on the symmetric path and
-    converges, but with unequal sellers and large shares it is unstable away
-    from that path (at the default mu of 0.25 the slope of the update in the
-    direction that separates two sellers is about -1.7) and ends in a two-day
-    cycle that is not an equilibrium. So the result is checked against the
-    first-order conditions, and when it fails, each seller in turn plays its
-    exact best response until prices stop moving, which converges because a
-    logit seller's best response moves less than one for one with its rivals'
-    prices. Returns ``(prices, method)`` with method ``'model'`` or ``'best response'``.
-    """
-    p = model.nash_prices(quality, cost, outside, mu)
-    if nash_residual(p, quality, cost, outside, mu) < 1e-9:
-        return p, 'model'
-    p = [c + mu for c in cost[:len(quality)]]
-    for _ in range(10000):
-        change = 0.0
-        for i in range(len(p)):
-            new = _best_response(i, p, quality, cost, outside, mu)
-            change = max(change, abs(new - p[i]))
-            p[i] = new
-        if change < 1e-13:
-            break
-    return p, 'best response'
 
 
 def fit_market(prices_a, prices_b, units_a, units_b, shoppers):
@@ -193,23 +138,20 @@ def benchmark(fit, costs):
     """Competitive and monopoly prices of the fitted market, and the excess price index.
 
     The fitted market has the fitted qualities and mu, the given unit costs and
-    an outside option of 0. Competitive prices come from ``model.nash_prices``,
-    checked and if need be replaced by :func:`competitive_prices` (reported in
-    ``nashMethod``); monopoly prices from ``model.monopoly_prices``. The index
+    an outside option of 0. Competitive prices come from ``model.nash_prices``
+    and monopoly prices from ``model.monopoly_prices``. The index
     for each seller is (mean observed price
     - fitted competitive price) / (fitted monopoly price - fitted competitive
     price): 0 means competitive prices, 1 monopoly prices, and values below 0 or
     above 1 are possible. ``excessPrice`` is its average over the two sellers.
     Every value is ``None`` when the fit is unusable or there are no costs.
     """
-    out = {'competitive': None, 'monopoly': None, 'excess': None, 'excessPrice': None, 'nashMethod': None}
+    out = {'competitive': None, 'monopoly': None, 'excess': None, 'excessPrice': None}
     if not fit['usable'] or costs is None:
         return out
     q, mu = fit['quality'], fit['mu']
-    # Fitted qualities are never exactly equal, which is where model.nash_prices can fail: see competitive_prices.
-    pn, method = competitive_prices(q, costs, 0, mu)
+    pn = model.nash_prices(q, costs, 0, mu)
     pm = model.monopoly_prices(q, costs, 0, mu)
-    out['nashMethod'] = method
     excess = []
     for i in range(2):
         gap = pm[i] - pn[i]

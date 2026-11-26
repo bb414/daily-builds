@@ -317,10 +317,10 @@ def _remedies_section(part):
                                                                  pct(a['harm']['hi'])),
             '%s<br><span class="small muted">Holm p %s</span>' % (pts(hd['diff']), pval(hd['pHolm'])) if hd else '',
             pct(a['punishedShare']), pct(a['convergedShare']),
-            pct(s.get('brGap'), 2) if s.get('brGap') is not None else 'n/a',
+            pct(s.get('replyGain'), 1) if s.get('replyGain') is not None else 'n/a',
         ])
     table = _table(['Option', 'Profit gain<br>(90% interval)', 'Change vs baseline<br>(paired 90% interval)', 'Holm p',
-                    'Shoppers’ loss<br>(90% interval)', 'Change in loss', 'Punished', 'Settled', 'Best-response gap'],
+                    'Shoppers’ loss<br>(90% interval)', 'Change in loss', 'Punished', 'Settled', 'Gain from best reply'],
                    rows, num_cols=range(1, 9), row_class=lambda n: 'base' if summary['order'][n] == 'baseline' else '',
                    wide=True)
     notes = '<details><summary>What each option means</summary><dl class="settings">%s</dl></details>' % ''.join(
@@ -341,10 +341,9 @@ def _remedies_section(part):
         'with Holm’s method across all the options shown. Shoppers’ loss is the share of the gap between '
         'competitive and monopoly consumer surplus that shoppers lose. Punished is the share of runs in which a '
         'one-day price cut is answered and loses money overall; settled is the share whose strategies stopped '
-        'changing. The best-response gap is the most a learning seller could gain by choosing a better price for one '
-        'day where play settled (and replying optimally afterwards), as a share of its best long-run profit, from the '
-        'model\u2019s best-response check (two sellers only). It is a one-day measure, so it stays small even when a '
-        'seller could earn much more by changing its strategy for good.</p>',
+        'changing. Gain from best reply is how much more a learning seller would earn over time, from where play '
+        'settled, by switching to its exact best reply to the others\u2019 learned strategies, from the model\u2019s '
+        'best-response check (two sellers only). Zero would mean the learned strategies form an equilibrium.</p>',
         notes,
         '<details><summary>Command and settings</summary>%s</details></section>' % _settings_list(part),
     ])

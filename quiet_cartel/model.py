@@ -494,18 +494,39 @@ def consumer_surplus(prices, quality, outside, mu):
     return mu * det_log(total)
 
 
+def best_reply_price(p, i, quality, cost, outside, mu):
+    """Seller i's best one-day price against the others' prices.
+
+    The root of p - c = mu / (1 - q_i(p)), which is unique because the left
+    side minus the right side rises with p. Found by bisection.
+    """
+    trial = list(p)
+    lo, hi = cost[i], cost[i] + 50 * mu + 10
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if mid <= lo or mid >= hi:
+            break
+        trial[i] = mid
+        q = shares(trial, quality, outside, mu)[i]
+        if mid - cost[i] - mu / (1 - q) < 0:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 def nash_prices(quality, cost, outside, mu):
+    """Competitive (static Nash) prices: every seller in turn moves to its best one-day price, until none moves."""
     n = len(quality)
     p = [cost[i] + mu for i in range(n)]
-    for _ in range(20000):
-        q = shares(p, quality, outside, mu)
-        nxt = [cost[i] + mu / (1 - q[i]) for i in range(n)]
+    for _ in range(1000):
         change = 0
         for i in range(n):
-            dd = abs(nxt[i] - p[i])
+            np_ = best_reply_price(p, i, quality, cost, outside, mu)
+            dd = abs(np_ - p[i])
             if dd > change:
                 change = dd
-        p = nxt
+            p[i] = np_
         if change < 1e-13:
             break
     return p
@@ -1128,8 +1149,9 @@ def impulse_response(tr, opts=None):
         'deviator': dev, 'devPrice': grids[dev][dev_act], 'devAction': dev_act, 'horizon': H,
         'prices': prices, 'cfPrices': cf_prices, 'profits': profits, 'cfProfits': cf_profits,
         'gainNow': gain_now, 'lossLater': -later, 'net': gain_now + later,
-        'rivalCut': rival_cut, 'deepestCut': deepest, 'returnedAt': returned,
-        'punished': rival_cut and gain_now + later < 0,
+        'rivalCut': rival_cut, 'deepestCut': deepest, 'returnedAt': returned, 'tempting': gain_now > 0,
+        # punished: the cut pays on the day, a rival answers with a lower price, and the cut loses money overall
+        'punished': rival_cut and gain_now > 0 and gain_now + later < 0,
     }
 
 
@@ -1198,9 +1220,20 @@ def best_response_check(tr, i, cycle=None):
         if change < 1e-11:
             settled = True
             break
-    optimal, gap_sum, on_path, on_path_gap = 0, 0, True, 0
-    on_set = set(cycle) if _truthy(cycle) else set()
     best_i, tab_i = tr.best[i], tr.state_tab[i]
+    # Value of keeping the learned strategy, by iterating its own Bellman equation.
+    LA = [best_i[tab_i[s]] for s in range(nJ)]
+    RL = [R[s * m + LA[s]] for s in range(nJ)]
+    NL = [NS[s * m + LA[s]] for s in range(nJ)]
+    W = [0.0] * nJ
+    for _ in range(5000):
+        next_w = list(map(add, RL, map(mul, repeat(delta), map(W.__getitem__, NL))))
+        ch2 = max(map(abs, map(sub, next_w, W)))
+        W = next_w
+        if ch2 < 1e-11:
+            break
+    optimal, gap_sum, on_path, on_path_gap, reply_gain = 0, 0, True, 0, 0
+    on_set = set(cycle) if _truthy(cycle) else set()
     for s in range(nJ):
         la = best_i[tab_i[s]]
         lv = R[s * m + la] + delta * V[NS[s * m + la]]
@@ -1214,9 +1247,13 @@ def best_response_check(tr, i, cycle=None):
             on_path = False
         if s in on_set and rel > on_path_gap:
             on_path_gap = rel
+        if s in on_set and W[s] > 0:
+            g2 = (vs - W[s]) / W[s]
+            if g2 > reply_gain:
+                reply_gain = g2
         gap_sum += rel
     return {'firm': i, 'shareOptimal': optimal / nJ, 'onPathOptimal': on_path, 'onPathGap': on_path_gap,
-            'meanGap': gap_sum / nJ, 'iterations': iters, 'settled': settled}
+            'bestReplyGain': reply_gain, 'meanGap': gap_sum / nJ, 'iterations': iters, 'settled': settled}
 
 
 # ---------------------------------------------------------------- scenarios
@@ -1366,7 +1403,10 @@ def screens(prices, opts=None):
                     quiet_cuts += 1
             continue
         for i in range(n):
-            if not cut(i, t) or not all(still(j, t) for j in range(n) if j != i):
+            if not cut(i, t) or not all(still(j, t) for j in range(n) if j != i) or t < 2:
+                continue
+            # only a cut out of a calm day counts, so a rival's answer is not itself counted as a new cut
+            if not all(still(j, t - 1) for j in range(n)):
                 continue
             events += 1
             any_follow, biggest = False, 0
