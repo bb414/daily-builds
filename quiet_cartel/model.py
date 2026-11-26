@@ -48,6 +48,7 @@ __all__ = [
     'state_tables', 'rule_table', 'Trainer', 'train', 'limit_cycle', 'outcome_of',
     'static_best_response', 'impulse_response', 'summarise',
     'PILOT_RULES', 'pilot_config', 'together_config', 'status_quo', 'pilot_summary', 'pilot_run',
+    'TORNADO', 'MAP_MU', 'MAP_DELTA', 'with_setting',
     'best_response_check',
     'SCENARIOS', 'scenario_by_id', 'apply_scenario', 'run_scenario', 'aggregate',
     'observe', 'screens', 'permutation_test',
@@ -1478,6 +1479,32 @@ def aggregate(results):
         'convergedShare': sum(1 for r in results if _truthy(r['converged'])) / n,
         'collusiveShare': sum(1 for r in results if _truthy(r['collusive'])) / n,
     }
+
+
+# ---------------------------------------------------------------- robustness
+
+# Each assumption pushed to a low and a high value, one at a time (a tornado), and a map of the market.
+TORNADO = [
+    {'key': 'mu', 'label': 'How alike the products are', 'low': 0.1, 'high': 0.5},
+    {'key': 'delta', 'label': 'How much they value tomorrow', 'low': 0.8, 'high': 0.99},
+    {'key': 'alpha', 'label': 'Learning rate', 'low': 0.05, 'high': 0.25},
+    {'key': 'beta', 'label': 'How quickly experimenting fades', 'low': 2.5e-6, 'high': 1e-5},
+    {'key': 'nPrices', 'label': 'Prices to choose from', 'low': 7, 'high': 21},
+    {'key': 'xi', 'label': 'Price range beyond the benchmarks', 'low': 0, 'high': 0.3},
+    {'key': 'demandNoise', 'label': 'Busy and quiet days', 'low': 0, 'high': 0.3},
+]
+MAP_MU = [0.05, 0.1, 0.25, 0.5, 1]
+MAP_DELTA = [0.25, 0.5, 0.8, 0.9, 0.95]
+
+
+def with_setting(base, key, value, seed):
+    """A copy of ``base`` with one setting changed and the seed set; slower fading gets more rounds to settle."""
+    c = {k: (list(v) if isinstance(v, list) else v) for k, v in base.items()}
+    c[key] = value
+    c['seed'] = seed
+    if key == 'beta' and value < 4e-6:
+        c['maxPeriods'] = max(_or(c.get('maxPeriods'), 3000000), 6000000)
+    return c
 
 
 # ---------------------------------------------------------------- what a regulator sees

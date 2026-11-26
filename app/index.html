@@ -171,8 +171,9 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     <button role="tab" id="tab-threat" aria-controls="panel-threat" aria-selected="false" tabindex="-1"><span class="num">2</span>Test for a threat</button>
     <button role="tab" id="tab-pilot" aria-controls="panel-pilot" aria-selected="false" tabindex="-1"><span class="num">3</span>Pilot to scale</button>
     <button role="tab" id="tab-remedies" aria-controls="panel-remedies" aria-selected="false" tabindex="-1"><span class="num">4</span>Remedies</button>
-    <button role="tab" id="tab-screens" aria-controls="panel-screens" aria-selected="false" tabindex="-1"><span class="num">5</span>Regulator&rsquo;s screens</button>
-    <button role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1"><span class="num">6</span>Your prices</button>
+    <button role="tab" id="tab-robust" aria-controls="panel-robust" aria-selected="false" tabindex="-1"><span class="num">5</span>Robustness</button>
+    <button role="tab" id="tab-screens" aria-controls="panel-screens" aria-selected="false" tabindex="-1"><span class="num">6</span>Regulator&rsquo;s screens</button>
+    <button role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1"><span class="num">7</span>Your prices</button>
     <button role="tab" id="tab-about" aria-controls="panel-about" aria-selected="false" tabindex="-1"><span class="num">?</span>How it works</button>
   </div>
 </nav>
@@ -438,7 +439,56 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   </div>
 </section>
 
-<!-- 5. SCREENS -->
+<!-- 5. ROBUSTNESS -->
+<section id="panel-robust" role="tabpanel" aria-labelledby="tab-robust" tabindex="0" hidden>
+  <p class="intro">Results like these are often criticised for depending on hand-picked learning settings. Here each assumption is pushed to a low and a high value, one at a time, and the market is mapped across how alike the products are and how much the algorithms value tomorrow. If the high prices only appeared at one lucky setting, it would show here.</p>
+  <div class="layout">
+    <form class="card controls" aria-label="Robustness settings" onsubmit="return false">
+      <div class="field">
+        <label for="rb-runs">Runs for each value tested <output id="rb-runs-out" for="rb-runs"></output></label>
+        <input type="range" id="rb-runs" min="1" max="8" step="1" value="3">
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="rb-tornado" type="button">Test each assumption</button>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label for="rb-cell">Runs for each square of the map <output id="rb-cell-out" for="rb-cell"></output></label>
+        <input type="range" id="rb-cell" min="1" max="4" step="1" value="1">
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="rb-map" type="button">Map the market</button>
+        <button class="btn" id="rb-stop" type="button" disabled>Stop</button>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="rb-bar"></div></div>
+      <p class="status" id="rb-status" role="status" aria-live="polite"></p>
+      <p class="hint">Both start from the market on the Learn tab, with every other setting held at its value there.</p>
+    </form>
+    <div class="stack">
+      <div id="rb-empty" class="empty"><p>Press <strong>Test each assumption</strong> or <strong>Map the market</strong>. Each takes about ten seconds.</p></div>
+      <div class="card" id="rb-tornado-card" hidden>
+        <h2>Which assumptions matter</h2>
+        <div class="field" style="max-width:320px">
+          <label for="rb-metric">Measure</label>
+          <select id="rb-metric">
+            <option value="gain">Profit gain</option>
+            <option value="punished">Share of runs where a cut is punished</option>
+          </select>
+        </div>
+        <div class="chart" id="chart-tornado"></div>
+        <div class="legend" id="legend-tornado"></div>
+        <p class="caption">Each row moves one assumption to its low value (open circle) and its high value (filled circle), holding the rest at the Learn tab&rsquo;s values (the vertical line). Rows are sorted by how far the result moves.</p>
+      </div>
+      <div class="card" id="rb-map-card" hidden>
+        <h2>Where learned collusion appears</h2>
+        <div class="chart" id="chart-map"></div>
+        <p class="caption">Each square trains the sellers at one combination. The number is the average profit gain; &ldquo;threat&rdquo; marks squares where a cut was punished in at least half the runs. Darker means higher prices.</p>
+      </div>
+      <div class="card verdict" id="rb-verdict" hidden aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. SCREENS -->
 <section id="panel-screens" role="tabpanel" aria-labelledby="tab-screens" tabindex="0" hidden>
   <p class="intro">A competition authority cannot open the algorithm. It sees a year of daily prices. We build a <strong>case file</strong> of simulated markets where we know the hidden truth, then test how well five simple screens on prices alone would pick out the markets worth investigating.</p>
   <div class="layout">
@@ -510,7 +560,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   </div>
 </section>
 
-<!-- 6. YOUR PRICES -->
+<!-- 7. YOUR PRICES -->
 <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="0" hidden>
   <p class="intro">Paste or load two sellers&rsquo; daily prices and run the same screens, with a test of whether rivals&rsquo; price cuts line up with each other more than chance would allow. Everything stays in your browser.</p>
   <div class="layout">
@@ -1487,6 +1537,30 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     };
   }
 
+  // ---------------------------------------------------------------- robustness
+
+  // Each assumption pushed to a low and a high value, one at a time (a tornado), and a map of the market.
+  var TORNADO = [
+    { key: 'mu', label: 'How alike the products are', low: 0.1, high: 0.5 },
+    { key: 'delta', label: 'How much they value tomorrow', low: 0.8, high: 0.99 },
+    { key: 'alpha', label: 'Learning rate', low: 0.05, high: 0.25 },
+    { key: 'beta', label: 'How quickly experimenting fades', low: 2.5e-6, high: 1e-5 },
+    { key: 'nPrices', label: 'Prices to choose from', low: 7, high: 21 },
+    { key: 'xi', label: 'Price range beyond the benchmarks', low: 0, high: 0.3 },
+    { key: 'demandNoise', label: 'Busy and quiet days', low: 0, high: 0.3 }
+  ];
+  var MAP_MU = [0.05, 0.1, 0.25, 0.5, 1];
+  var MAP_DELTA = [0.25, 0.5, 0.8, 0.9, 0.95];
+
+  function withSetting(base, key, value, seed) {
+    var c = {}, k;
+    for (k in base) c[k] = Array.isArray(base[k]) ? base[k].slice() : base[k];
+    c[key] = value; c.seed = seed;
+    // slower fading needs more rounds to settle
+    if (key === 'beta' && value < 4e-6) c.maxPeriods = Math.max(c.maxPeriods || 3000000, 6000000);
+    return c;
+  }
+
   // ---------------------------------------------------------------- what a regulator sees
 
   // A year of daily prices once the algorithms are deployed. On a small share of days each seller
@@ -1673,6 +1747,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     Trainer: Trainer, train: train, limitCycle: limitCycle, outcomeOf: outcomeOf,
     staticBestResponse: staticBestResponse, impulseResponse: impulseResponse, summarise: summarise,
     bestResponseCheck: bestResponseCheck,
+    TORNADO: TORNADO, MAP_MU: MAP_MU, MAP_DELTA: MAP_DELTA, withSetting: withSetting,
     PILOT_RULES: PILOT_RULES, pilotConfig: pilotConfig, togetherConfig: togetherConfig, statusQuo: statusQuo,
     pilotSummary: pilotSummary, pilotRun: pilotRun,
     SCENARIOS: SCENARIOS, scenarioById: scenarioById, applyScenario: applyScenario,
@@ -2448,6 +2523,130 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
   }
   $('rem-metric').addEventListener('change', renderRem);
 
+  // ------------------------------------------------------------ robustness
+  function rbOutputs() { $('rb-runs-out').textContent = $('rb-runs').value; $('rb-cell-out').textContent = $('rb-cell').value; }
+  $('rb-runs').addEventListener('input', rbOutputs);
+  $('rb-cell').addEventListener('input', rbOutputs);
+  rbOutputs();
+  S.rb = { tornado: null, map: null };
+
+  function rbStart(tasks, onDone) {
+    var base = QC.validateConfig(readControls()).config, pos = 0, tr = null, out = [];
+    $('rb-tornado').disabled = true; $('rb-map').disabled = true; $('rb-stop').disabled = false;
+    S.rbJob = runJob(function () {
+      if (pos >= tasks.length) return true;
+      var tk = tasks[pos];
+      if (!tr) tr = new QC.Trainer(tk.key ? QC.withSetting(base, tk.key, tk.value, tk.seed) : QC.withSetting(QC.withSetting(base, 'mu', tk.mu, tk.seed), 'delta', tk.delta, tk.seed));
+      if (tr.run(300000)) { var s = QC.summarise(tr); out.push({ task: tk, gain: s.realisedGain, punished: s.punished, converged: s.converged }); tr = null; pos++; }
+      return pos >= tasks.length;
+    }, {
+      progress: function () { $('rb-bar').style.width = (100 * pos / tasks.length) + '%'; $('rb-status').textContent = 'Run ' + Math.min(pos + 1, tasks.length) + ' of ' + tasks.length; },
+      done: function () { rbIdle(); $('rb-bar').style.width = '100%'; $('rb-status').textContent = 'Finished ' + tasks.length + ' training runs.'; onDone(base, out); },
+      error: function (e) { rbIdle(); $('rb-status').textContent = 'Stopped: ' + e.message; }
+    });
+  }
+  function rbIdle() { S.rbJob = null; $('rb-tornado').disabled = false; $('rb-map').disabled = false; $('rb-stop').disabled = true; }
+  $('rb-stop').addEventListener('click', function () { if (S.rbJob) S.rbJob.cancel(); rbIdle(); $('rb-status').textContent = 'Stopped.'; });
+
+  $('rb-tornado').addEventListener('click', function () {
+    var R = +$('rb-runs').value, base = QC.validateConfig(readControls()).config, tasks = [];
+    for (var r = 1; r <= R; r++) tasks.push({ key: 'seed', value: r, seed: r, side: 'base' });
+    QC.TORNADO.forEach(function (t) {
+      ['low', 'high'].forEach(function (side) { for (var r = 1; r <= R; r++) tasks.push({ key: t.key, value: t[side], seed: r, side: side, param: t }); });
+    });
+    rbStart(tasks, function (b, out) {
+      function agg(list) { return { gain: mean(list.map(function (x) { return x.gain; })), punished: list.filter(function (x) { return x.punished; }).length / list.length }; }
+      var res = { base: agg(out.filter(function (o) { return o.task.side === 'base'; })), rows: [], runs: R, cfg: b };
+      QC.TORNADO.forEach(function (t) {
+        res.rows.push({ param: t, low: agg(out.filter(function (o) { return o.task.param === t && o.task.side === 'low'; })),
+          high: agg(out.filter(function (o) { return o.task.param === t && o.task.side === 'high'; })) });
+      });
+      S.rb.tornado = res; renderRobust();
+    });
+  });
+  $('rb-map').addEventListener('click', function () {
+    var R = +$('rb-cell').value, tasks = [];
+    QC.MAP_DELTA.forEach(function (d) { QC.MAP_MU.forEach(function (mu) { for (var r = 1; r <= R; r++) tasks.push({ mu: mu, delta: d, seed: r }); }); });
+    rbStart(tasks, function (b, out) {
+      var cells = {};
+      out.forEach(function (o) { var k = o.task.mu + '|' + o.task.delta; (cells[k] = cells[k] || []).push(o); });
+      S.rb.map = { cells: cells, runs: R }; renderRobust();
+    });
+  });
+  $('rb-metric').addEventListener('change', renderRobust);
+
+  function fmtSetting(key, v) {
+    if (key === 'beta') return sci(v);
+    if (key === 'nPrices') return String(v);
+    return String(+v.toFixed(3));
+  }
+
+  function renderRobust() {
+    var T = S.rb.tornado, Mp = S.rb.map;
+    $('rb-empty').hidden = !!(T || Mp);
+    $('rb-tornado-card').hidden = !T; $('rb-map-card').hidden = !Mp; $('rb-verdict').hidden = !(T || Mp);
+    var lines = [];
+    if (T) {
+      var metric = $('rb-metric').value, baseV = T.base[metric];
+      var rows = T.rows.slice().sort(function (a, b) { return Math.abs(b.high[metric] - b.low[metric]) + Math.max(Math.abs(b.high[metric] - baseV), Math.abs(b.low[metric] - baseV)) - Math.abs(a.high[metric] - a.low[metric]) - Math.max(Math.abs(a.high[metric] - baseV), Math.abs(a.low[metric] - baseV)); });
+      var W = 680, rowH = 46, top = 10, left = 12, right = 20, H = top + rows.length * rowH + 30;
+      var all = [baseV]; rows.forEach(function (r) { all.push(r.low[metric], r.high[metric]); });
+      var lo = Math.min(0, Math.min.apply(null, all)), hi = Math.max(1, Math.max.apply(null, all));
+      var sv = newSvg($('chart-tornado'), W, H, 'Tornado chart of how far the result moves when each assumption is set low or high.');
+      function X(v) { return left + (v - lo) / (hi - lo) * (W - left - right); }
+      ticks(lo, hi, 5).forEach(function (v) {
+        svg('line', { x1: X(v), x2: X(v), y1: top + 16, y2: H - 24, style: 'stroke:var(--soft)' }, sv);
+        text(sv, X(v), H - 8, pct(v), { 'text-anchor': 'middle' });
+      });
+      svg('line', { x1: X(baseV), x2: X(baseV), y1: top, y2: H - 24, style: 'stroke:var(--ink);stroke-dasharray:3 3' }, sv);
+      rows.forEach(function (r, k) {
+        var y = top + k * rowH, cy = y + 30, pr = r.param;
+        text(sv, left, y + 13, pr.label + ' (' + fmtSetting(pr.key, pr.low) + ' to ' + fmtSetting(pr.key, pr.high) + ')', {});
+        var a = r.low[metric], b = r.high[metric];
+        svg('line', { x1: X(Math.min(a, b, baseV)), x2: X(Math.max(a, b, baseV)), y1: cy, y2: cy, style: 'stroke:var(--accent);stroke-width:6;opacity:.25;stroke-linecap:round' }, sv);
+        var c1 = svg('circle', { cx: X(a), cy: cy, r: 6, style: 'fill:var(--card);stroke:var(--accent);stroke-width:2' }, sv);
+        svg('title', {}, c1).textContent = pr.label + ' ' + fmtSetting(pr.key, pr.low) + ': ' + pct(a);
+        var c2 = svg('circle', { cx: X(b), cy: cy, r: 6, style: 'fill:var(--accent)' }, sv);
+        svg('title', {}, c2).textContent = pr.label + ' ' + fmtSetting(pr.key, pr.high) + ': ' + pct(b);
+        var lx = Math.max(X(a), X(b)) + 10;
+        if (lx > W - 70) lx = Math.min(X(a), X(b)) - 10;
+        text(sv, lx, cy + 4, pct(a) + ' / ' + pct(b), { 'text-anchor': lx < Math.min(X(a), X(b)) ? 'end' : 'start', 'class': 'lab' });
+      });
+      legend($('legend-tornado'), [{ label: 'Low value', color: 'var(--accent)' }, { label: 'High value', color: 'var(--accent)' }, { label: 'Learn tab values (' + pct(baseV) + ')', color: 'var(--ink)', dash: true }]);
+      var robustRows = T.rows.filter(function (r) { return r.low.gain >= 0.5 && r.high.gain >= 0.5; }).length;
+      var worst = T.rows.slice().sort(function (a, b) { return Math.min(a.low.gain, a.high.gain) - Math.min(b.low.gain, b.high.gain); })[0];
+      lines.push('With the Learn tab&rsquo;s settings the profit gain averages ' + pct(T.base.gain) + '. Moving one assumption at a time, it stays at 50% or more at both ends for ' + robustRows + ' of ' + T.rows.length + ' assumptions. The biggest fall comes from ' +
+        esc(worst.param.label.toLowerCase()) + ' (' + pct(Math.min(worst.low.gain, worst.high.gain)) + ' at ' + fmtSetting(worst.param.key, worst.low.gain < worst.high.gain ? worst.param.low : worst.param.high) + ').');
+    }
+    if (Mp) {
+      var cw = 100, ch = 58, padL = 70, padT = 8, padB = 46, nx = QC.MAP_MU.length, ny = QC.MAP_DELTA.length;
+      var W2 = padL + nx * cw + 6, H2 = padT + ny * ch + padB;
+      var s2 = newSvg($('chart-map'), W2, H2, 'Heat map of profit gain across how alike the products are and how much the algorithms value tomorrow.');
+      var loC = cssVar('--heat-lo'), hiC = cssVar('--heat-hi'), high = 0, total = 0;
+      QC.MAP_DELTA.slice().reverse().forEach(function (d, r) {
+        text(s2, padL - 8, padT + r * ch + ch / 2 + 4, String(d), { 'text-anchor': 'end' });
+        QC.MAP_MU.forEach(function (mu, c) {
+          var list = Mp.cells[mu + '|' + d] || [], g = mean(list.map(function (x) { return x.gain; }));
+          var pun = list.filter(function (x) { return x.punished; }).length / (list.length || 1);
+          var f = Math.max(0, Math.min(1, g)), x = padL + c * cw, y = padT + r * ch;
+          total++; if (g >= 0.5) high++;
+          var rect = svg('rect', { x: x, y: y, width: cw - 3, height: ch - 3, rx: 4, style: 'fill:' + lerpColour(loC, hiC, f) }, s2);
+          svg('title', {}, rect).textContent = 'How alike ' + mu + ', values tomorrow ' + d + ': profit gain ' + pct(g) + ', cut punished in ' + pct(pun) + ' of runs';
+          var ink = f > 0.55 ? 'fill:#fff' : 'fill:var(--ink)';
+          text(s2, x + (cw - 3) / 2, y + (pun >= 0.5 ? 24 : 32), pct(g), { 'text-anchor': 'middle', style: ink + ';font-weight:700;font-size:13px' });
+          if (pun >= 0.5) text(s2, x + (cw - 3) / 2, y + 41, 'threat', { 'text-anchor': 'middle', style: ink + ';font-size:10px' });
+        });
+      });
+      QC.MAP_MU.forEach(function (mu, c) { text(s2, padL + c * cw + (cw - 3) / 2, padT + ny * ch + 14, String(mu), { 'text-anchor': 'middle' }); });
+      text(s2, padL + nx * cw / 2, H2 - 6, 'How alike the products are (mu): left, shoppers chase the lowest price', { 'text-anchor': 'middle' });
+      text(s2, 12, padT + ny * ch / 2, 'Values tomorrow', { 'text-anchor': 'middle', transform: 'rotate(-90 12 ' + (padT + ny * ch / 2) + ')' });
+      lines.push('Across the map, ' + high + ' of ' + total + ' combinations settle at a profit gain of 50% or more. Impatient algorithms (low values of tomorrow) stay near competitive, because a future punishment is worth little to them; patience is what makes the threat pay.');
+    }
+    var v = $('rb-verdict');
+    v.className = 'card verdict';
+    v.innerHTML = '<div class="head">How robust is the result?</div>' + lines.map(function (l, i) { return '<p' + (i === lines.length - 1 ? ' style="margin:0"' : '') + '>' + l + '</p>'; }).join('');
+  }
+
   // ------------------------------------------------------------ screens
   $('cf-n').addEventListener('input', function () { $('cf-n-out').textContent = this.value; });
   $('cf-test').addEventListener('input', function () { $('cf-test-out').textContent = pct(+this.value) + ' of days'; });
@@ -2719,6 +2918,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
   setControls(QC.defaultConfig());
   renderLearn();
   renderPilot();
+  renderRobust();
   renderRem();
   renderScreens(false);
   renderData();

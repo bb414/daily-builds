@@ -107,6 +107,23 @@ class AppTest(unittest.TestCase):
         self.assertIn('Stopped', page.inner_text('#pilot-status'))
         self.assertClean()
 
+    def test_robustness_tornado_and_map(self):
+        page = self.open()
+        page.click('#tab-robust')
+        self.assertTrue(page.is_visible('#rb-empty'))
+        page.fill('#rb-runs', '1')
+        page.dispatch_event('#rb-runs', 'input')
+        page.click('#rb-tornado')
+        page.wait_for_function("document.getElementById('rb-status').textContent.indexOf('Finished') === 0", timeout=180000)
+        self.assertEqual(page.locator('#chart-tornado circle').count(), 14)
+        page.select_option('#rb-metric', 'punished')
+        self.assertIn('assumptions', page.inner_text('#rb-verdict'))
+        page.click('#rb-map')
+        page.wait_for_function("document.getElementById('rb-status').textContent.indexOf('Finished 25') === 0", timeout=180000)
+        self.assertEqual(page.locator('#chart-map rect').count(), 25)
+        self.assertIn('combinations', page.inner_text('#rb-verdict'))
+        self.assertClean()
+
     def test_remedies_run_and_stop(self):
         page = self.open()
         page.click('#tab-remedies')
@@ -204,7 +221,7 @@ class AppTest(unittest.TestCase):
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(width=390, height=844)
         self.train(page)
-        for tab in ('learn', 'threat', 'pilot', 'remedies', 'screens', 'data', 'about'):
+        for tab in ('learn', 'threat', 'pilot', 'remedies', 'robust', 'screens', 'data', 'about'):
             page.click('#tab-' + tab)
             wide = page.evaluate('document.documentElement.scrollWidth')
             self.assertLessEqual(wide, 390, tab)
