@@ -378,6 +378,101 @@ class RobustnessTest(unittest.TestCase):
         self.assertEqual(experiments.fmt_setting('xi', 0), '0')
 
 
+def same_values(a, b):
+    """Exact equality where NaN equals NaN (for screens, which use NaN for 'no evidence')."""
+    if isinstance(a, float) and isinstance(b, float) and a != a and b != b:
+        return True
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(same_values(a[k], b[k]) for k in a)
+    if isinstance(a, bool) or isinstance(b, bool) or a is None or b is None:
+        return a is b
+    return a == b
+
+
+class WatchTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = model.validate_config(FAST)['config']
+        cls.res = experiments.run_watch(markets=4, seeds=[1, 2], days=[365, 60], rates=[0.03], reps=19, jobs=1,
+                                        base=cls.base)
+
+    def test_records(self):
+        self.assertEqual([(m['caseSeed'], m['k']) for m in self.res['markets']],
+                         [(1, 0), (1, 1), (1, 2), (1, 3), (2, 0), (2, 1), (2, 2), (2, 3)])
+        self.assertEqual(self.res['settings']['days'], [60, 365])          # sorted
+        for m in self.res['markets']:
+            self.assertEqual([(r['days'], r['rate']) for r in m['results']], [(60, 0.03), (365, 0.03)])
+            self.assertNotIn('prices', m['results'][0])
+
+    def test_pool_matches_make_case(self):
+        # A market trained once and watched for 365 days at a 3% test rate is exactly the app's case file.
+        for m in self.res['markets']:
+            case = model.make_case(self.base, m['k'], m['caseSeed'])
+            self.assertTrue(same_values(case['screens'], m['results'][1]['screens']), (m['caseSeed'], m['k']))
+            self.assertEqual(case['truth'], m['truth'])
+            self.assertEqual((case['id'], case['scenario'], case['mu'], case['seed']),
+                             (m['id'], m['scenario'], m['mu'], m['seed']))
+
+    def test_summary_matches_model_evaluation(self):
+        sm = experiments.summarise_watch(self.res)
+        self.assertEqual((sm['days'], sm['rates'], sm['seeds']), ([60, 365], [0.03], [1, 2]))
+        self.assertEqual(len(sm['perSeed']), 4)
+        self.assertEqual([len(line) for line in sm['cells']], [1, 1])
+        for e in sm['perSeed']:
+            recs = [m for m in self.res['markets'] if m['caseSeed'] == e['seed']]
+            idx = [60, 365].index(e['days'])
+            cases = [{'truth': m['truth'], 'screens': m['results'][idx]['screens']} for m in recs]
+            for target in ('coordinated', 'highPrice'):
+                for ev in model.evaluate_screens(cases, target):
+                    self.assertTrue(same_values(ev['auc'], e['auc'][target][ev['id']]))
+            q = model.benjamini_hochberg([m['results'][idx]['pValue'] for m in recs])
+            flags = [qv == qv and qv < 0.1 and m['results'][idx]['screens']['retaliation'] > 0
+                     for qv, m in zip(q, recs)]
+            self.assertEqual(e['flag']['flagged'], sum(flags))
+            self.assertEqual(e['events'], model.mean([m['results'][idx]['screens']['events'] for m in recs]))
+        cell = sm['cells'][1][0]
+        self.assertEqual(cell['events'], model.bootstrap_mean([e['events'] for e in sm['perSeed'] if e['days'] == 365],
+                                                              0.9, 2000, 923))
+
+    def test_summary_hand_example(self):
+        def market(k, coordinated, by_days):
+            results = []
+            for d, (ret, p, events) in sorted(by_days.items()):
+                results.append({'days': d, 'rate': 0.03, 'pValue': p, 'screens': {
+                    'margin': 0.4, 'cv': 0.05, 'retaliation': ret, 'snapBack': 0.5, 'punishReturn': 0.5,
+                    'events': events}})
+            return {'k': k, 'caseSeed': 1, 'truth': {'coordinated': coordinated, 'highPrice': coordinated},
+                    'results': results}
+        # After 60 days the innocent markets look worse (AUC 0); after 120 the two threats stand out (AUC 1).
+        markets = [market(0, True, {60: (0.1, 1, 2), 120: (0.9, 0.005, 6)}),
+                   market(1, True, {60: (0.0, 1, 2), 120: (0.8, 0.005, 6)}),
+                   market(2, False, {60: (0.5, 1, 2), 120: (0.1, 1, 4)}),
+                   market(3, False, {60: (0.6, 1, 2), 120: (float('nan'), float('nan'), 0)})]
+        res = {'settings': {'days': [60, 120], 'rates': [0.03], 'seeds': [1], 'markets': 4, 'reps': 19},
+               'markets': markets}
+        sm = experiments.summarise_watch(res)
+        early, late = sm['cells'][0][0], sm['cells'][1][0]
+        self.assertEqual(early['auc']['coordinated']['retaliation']['mean'], 0)
+        self.assertEqual(late['auc']['coordinated']['retaliation']['mean'], 1)
+        self.assertEqual(sm['shortest'], {'0.03': 120})
+        # q-values at 120 days: 0.005 * 4 / 2 = 0.01 for the two threats, so both are flagged and nothing else.
+        self.assertEqual((late['recall']['mean'], late['precision']['mean'], late['flagged']), (1, 1, 2))
+        self.assertEqual(early['recall']['mean'], 0)
+        self.assertTrue(math.isnan(early['precision']['mean']))     # nothing flagged
+        self.assertEqual((late['events']['mean'], late['silent']), (4, 1))
+
+    def test_watch_validation(self):
+        with self.assertRaisesRegex(ValueError, 'at least 30'):
+            experiments.run_watch(markets=2, seeds=[1], days=[20], rates=[0.03], jobs=1, base=FAST)
+        with self.assertRaisesRegex(ValueError, 'shares of days'):
+            experiments.run_watch(markets=2, seeds=[1], days=[60], rates=[1.5], jobs=1, base=FAST)
+        with self.assertRaisesRegex(ValueError, 'markets'):
+            experiments.run_watch(markets=1, seeds=[1], days=[60], rates=[0.03], jobs=1, base=FAST)
+        with self.assertRaisesRegex(ValueError, 'reps'):
+            experiments.run_watch(markets=2, seeds=[1], days=[60], rates=[0.03], reps=0, jobs=1, base=FAST)
+
+
 # ------------------------------------------------------------ screening
 
 class ReadPanelTest(unittest.TestCase):
@@ -609,6 +704,11 @@ class CommandLineTest(unittest.TestCase):
         cls.map_csv = os.path.join(cls.dir, 'map.csv')
         cls.map = run_cli(['map', '--runs', '1', '--jobs', '1', '--set', 'beta=1e-4', 'maxPeriods=20000',
                            'stableWindow=1000', '--json', cls.map_json, '--csv', cls.map_csv])
+        cls.watch_json = os.path.join(cls.dir, 'watch.json')
+        cls.watch_csv = os.path.join(cls.dir, 'watch.csv')
+        cls.watch = run_cli(['watch', '--markets', '3', '--seeds', '1', '--days', '60,120', '--rates', '0.03',
+                             '--reps', '19', '--jobs', '1', '--set'] + FAST_SET
+                            + ['--json', cls.watch_json, '--csv', cls.watch_csv])
 
     @classmethod
     def tearDownClass(cls):
@@ -724,6 +824,23 @@ class CommandLineTest(unittest.TestCase):
         with open(self.map_csv, newline='', encoding='utf-8') as f:
             self.assertEqual(len(list(csv.DictReader(f))), 25)
 
+    def test_watch_cli(self):
+        status, out, err = self.watch
+        self.assertEqual(status, 0, err)
+        for text in ('how long must an authority watch?', '(a) "Rivals hit back"', '(b) The flag', '(c) "High margin"',
+                     '(d) The evidence', 'test rate 3%', 'Shortest watch at which the reaction screen'):
+            self.assertIn(text, out)
+        self.assertIn('Training 3 markets (1 case file of 3) once, then watching each 2 ways', err)
+        with open(self.watch_json, encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['kind'], 'watch')
+        self.assertEqual(data['summary']['days'], [60, 120])
+        self.assertEqual(len(data['markets']), 3)
+        with open(self.watch_csv, newline='', encoding='utf-8') as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual([(r['days'], r['rate']) for r in rows], [('60', '0.03'), ('120', '0.03')])
+        self.assertIn('auc_coordinated_retaliation', rows[0])
+
     def test_adoption_is_described(self):
         cfg = model.validate_config({'firmTypes': ['learn', 'match'], 'adoptAt': [-1, 1500000]})['config']
         self.assertIn('B matches the cheapest rival until round 1,500,000, then learning', cli.describe(cfg))
@@ -736,7 +853,8 @@ class CommandLineTest(unittest.TestCase):
         path = os.path.join(self.dir, 'report.html')
         status, out, err = run_cli(['report', '--out', path, '--remedies', self.remedies_json, '--pilot',
                                     self.pilot_json, '--tornado', self.tornado_json, '--map', self.map_json,
-                                    '--sweep', self.sweep_json, '--screen', self.screen_json])
+                                    '--watch', self.watch_json, '--sweep', self.sweep_json, '--screen',
+                                    self.screen_json])
         self.assertEqual(status, 0, err)
         with open(path, encoding='utf-8') as f:
             page = f.read()
@@ -748,14 +866,14 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('prefers-color-scheme: dark', page)
         self.assertIn('synthetic', page)
         self.assertIn('legal advice', page)
-        # bar chart, dumbbell, tornado, market map, sweep heat map, scatter
-        self.assertEqual(page.count('<svg'), 6)
+        # bar chart, dumbbell, tornado, market map, two watch charts, sweep heat map, scatter
+        self.assertEqual(page.count('<svg'), 8)
         self.assertIn('Does the pilot predict the result at scale?', page)
         self.assertIn('One assumption at a time', page)
         self.assertIn('The market map: mu and delta together', page)
-        order = [page.index('id="%s"' % k) for k in ('remedies', 'pilot', 'robustness', 'sweep', 'screening')]
+        order = [page.index('id="%s"' % k) for k in ('remedies', 'pilot', 'robustness', 'watch', 'sweep', 'screening')]
         self.assertEqual(order, sorted(order))
-        self.assertIn('with the remedies, pilot, tornado, map, sweep, screen and calibration results', out)
+        self.assertIn('with the remedies, pilot, tornado, map, watch, sweep, screen and calibration results', out)
 
     def test_report_robustness_alone(self):
         path = os.path.join(self.dir, 'robust.html')
@@ -794,6 +912,9 @@ class CommandLineTest(unittest.TestCase):
             (['report', '--out', os.path.join(self.dir, 'r.html'), '--pilot', self.remedies_json],
              'is not saved pilot results'),
             (['tornado', '--assumptions', 'nope', '--runs', '1'], 'unknown assumption'),
+            (['watch', '--days', '10'], 'at least 30'),
+            (['watch', '--rates', 'often'], "--rates: 'often' is not a number"),
+            (['watch', '--days', '60.5'], "--days: '60.5' is not a whole number"),
             (['map', '--runs', '0'], '--runs must be at least 1'),
             (['report', '--out', os.path.join(self.dir, 'r.html'), '--map', self.pilot_json],
              'is not saved map results'),

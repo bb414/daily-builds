@@ -17,6 +17,7 @@ Every number below comes from the Python companion, which reproduces the browser
 - `remedies --runs 20`: ten options, 20 seeds each, each compared with the baseline on the same seed by a sign-flip permutation test with Holm's correction.
 - `pilot --runs 20`: three pilot designs, 20 seeds each.
 - `tornado --runs 5` and `map --runs 2`: each assumption at a low and a high value, and a grid of shopper loyalty against patience.
+- `watch --markets 40 --seeds 3`: 120 case-file markets, each trained once and watched for 60 to 730 days at test rates of 1%, 3% and 6%.
 - `screen data/markets.csv --truth data/markets_truth.csv`: the bundled dataset of 40 invented markets observed for a year, where each seller tests a random price on about 3% of days.
 
 **Profit gain** places profits on a scale from 0% (competitive) to 100% (monopoly); **shoppers' loss** does the same for consumer surplus.
@@ -84,6 +85,8 @@ Each screen was scored by ROC area (0.5 is guessing, 1 is perfect) against two d
 | Price above the competitive price fitted from sales data | 0.86 | 1.00 |
 
 Margins find high prices but not threats, because high margins also come from loyal shoppers and from memoryless algorithms. Price stability, a classic cartel marker, is close to useless here. Watching how rivals react to cuts works best on prices alone. Combined with a permutation test and false-discovery control, it flagged **11** markets, all of them real threat cases, but missed 6. With sales data, the fitted competitive price ranks high-price markets perfectly but still cannot say why prices are high.
+
+Watching longer does not fix this. Across 120 case-file markets, the reaction screen's AUC rises from 0.66 (60 days, sellers testing prices on 1% of days) to about 0.80 (730 days) and then stalls. The flag's recall stops at about 50%, with precision steady at 81% to 89%. The reason is structural: 26 of the 63 threat markets settle into a price cycle rather than a fixed price. A cycle has no calm days, so a screen built on clean cuts never sees a test it can read, however long it watches. Learned collusion that cycles is close to invisible to this kind of screen. The margin screen stays at 0.63 to 0.67 throughout.
 
 ## What this means
 

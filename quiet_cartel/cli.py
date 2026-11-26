@@ -7,6 +7,7 @@ Commands
   pilot      seller A pilots an algorithm, then B adopts one: does the pilot predict the result at scale?
   tornado    move each assumption to a low and a high value, one at a time: how far does the result move?
   map        profit gain for every pair of mu (how alike the products are) and delta (patience)
+  watch      how long must an authority watch, and how often must sellers test prices, to find a threat?
   screen     screen a file of daily prices (and sales) for signs of coordination
   calibrate  fit the demand model to daily sales and measure how far prices sit above competitive
   report     build one offline HTML report from saved JSON results
@@ -868,16 +869,115 @@ def cmd_map(args, ctx):
     return 0
 
 
+# ------------------------------------------------------------ how long to watch
+
+def _number_list(text, flag, whole):
+    vals = []
+    for part in (text or '').split(','):
+        if not part.strip():
+            continue
+        x = parse_value(part)
+        if isinstance(x, bool) or not isinstance(x, (int, float)) or (whole and not isinstance(x, int)):
+            raise CliError("%s: '%s' is not a %s" % (flag, part.strip(), 'whole number' if whole else 'number'))
+        vals.append(x)
+    if not vals:
+        raise CliError('%s needs at least one value' % flag)
+    return vals
+
+
+def _rate(r):
+    return ('%g' % (r * 100)) + '%'
+
+
+def cmd_watch(args, ctx):
+    if args.seeds < 1:
+        raise CliError('--seeds must be at least 1')
+    base = build_config(args)
+    days = _number_list(args.days, '--days', True)
+    rates = _number_list(args.rates, '--rates', False)
+    seeds = list(range(args.first_seed, args.first_seed + args.seeds))
+
+    def start(total):
+        return 'Training %d markets (%d case file%s of %d) once, then watching each %d ways, on %s ...' % (
+            total, len(seeds), '' if len(seeds) == 1 else 's', args.markets, len(set(days)) * len(set(rates)),
+            _workers(args.jobs, total))
+
+    res = experiments.run_watch(markets=args.markets, seeds=seeds, days=days, rates=rates, reps=args.reps,
+                                jobs=args.jobs, progress=Progress('Market', start), base=base)
+    sm = experiments.summarise_watch(res)
+    days, rates, cells = sm['days'], sm['rates'], sm['cells']
+    positives = model.mean([c['positives'] for line in cells for c in line])
+    out('Quiet cartel: how long must an authority watch?')
+    out('%d case file%s (seed%s %s) of %d markets each, on average %.1f held up by a threat; %d permutation shifts'
+        % (len(seeds), '' if len(seeds) == 1 else 's', '' if len(seeds) == 1 else 's',
+           str(seeds[0]) if len(seeds) == 1 else '%d to %d' % (seeds[0], seeds[-1]), args.markets, positives,
+           args.reps))
+    heads = ['days watched'] + ['test rate %s' % _rate(r) for r in rates]
+
+    def grid(title, fmt):
+        out()
+        out(title)
+        out(table(heads, [[str(d)] + [fmt(c) for c in line] for d, line in zip(days, cells)]))
+
+    def auc(c, sid):
+        b = c['auc']['coordinated'][sid]
+        return '%s (%s to %s)' % (num(b['mean'], 2), num(b['lo'], 2), num(b['hi'], 2))
+
+    grid('(a) "Rivals hit back" screen: AUC for markets held up by a threat (mean, 90% interval)',
+         lambda c: auc(c, 'retaliation'))
+    grid('(b) The flag (q < 0.10 and rivals hit back): recall / precision for markets held up by a threat',
+         lambda c: '%s / %s' % (pct(c['recall']['mean']), pct(c['precision']['mean'])))
+    grid('(c) "High margin" screen for comparison: AUC for markets held up by a threat', lambda c: auc(c, 'margin'))
+    grid('(d) The evidence: mean unprovoked one-day cuts per market (and how many markets had none)',
+         lambda c: '%.1f (%g of %d)' % (c['events']['mean'], round(c['silent'], 1), args.markets))
+    out()
+    words = []
+    for r in rates:
+        d = sm['shortest'][str(r)]
+        words.append('%s test rate: %s' % (_rate(r), '%d days' % d if d else 'not within %d days' % days[-1]))
+    out('Shortest watch at which the reaction screen ("Rivals hit back") reaches an AUC of 0.8: '
+        + '; '.join(words) + '.')
+    out('AUC is the chance that a market held up by a threat scores higher than an innocent one (0.5 is a coin,')
+    out('1 is perfect). Recall is the share of those markets the flag catches; precision the share of flags that')
+    out('are right. A screen can only judge a reaction after an unprovoked cut, a price test out of a calm day,')
+    out('so it needs sellers who test prices and a watch long enough to see enough of them. Markets that settle')
+    out('into a price cycle have no calm days, so they show no unprovoked cuts however long they are watched.')
+    if args.csv:
+        flat = []
+        for e in sm['perSeed']:
+            row = {'caseSeed': e['seed'], 'days': e['days'], 'rate': e['rate']}
+            for t in experiments.WATCH_TARGETS:
+                for sc in model.SCREEN_LIST:
+                    row['auc_%s_%s' % (t, sc['id'])] = e['auc'][t][sc['id']]
+            row.update({'flagged': e['flag']['flagged'], 'caught': e['flag']['caught'],
+                        'falseAlarms': e['flag']['falseAlarms'], 'missed': e['flag']['missed'],
+                        'precision': e['flag']['precision'], 'recall': e['flag']['recall'],
+                        'meanCuts': e['events'], 'marketsWithoutCuts': e['silent'],
+                        'coordinated': e['positives']['coordinated'], 'highPrice': e['positives']['highPrice']})
+            flat.append(row)
+        write_csv(args.csv, flat)
+    if args.json:
+        write_json(args.json, {
+            'kind': 'watch', 'command': ctx['command'],
+            'settings': {'preset': args.preset, 'set': args.set or [], 'markets': args.markets, 'seeds': seeds,
+                         'days': days, 'rates': rates, 'reps': args.reps, 'base': base},
+            'summary': sm, 'markets': res['markets'], 'seconds': time.time() - ctx['start'],
+        })
+    return 0
+
+
 # ------------------------------------------------------------ report
 
 def cmd_report(args, ctx):
-    if not (args.remedies or args.sweep or args.screen or args.pilot or args.tornado or args.map):
-        raise CliError('report needs at least one of --remedies, --pilot, --tornado, --map, --sweep and --screen')
+    if not (args.remedies or args.sweep or args.screen or args.pilot or args.tornado or args.map or args.watch):
+        raise CliError('report needs at least one of --remedies, --pilot, --tornado, --map, --watch, --sweep and '
+                       '--screen')
     parts = {
         'remedies': read_json(args.remedies, 'remedies') if args.remedies else None,
         'pilot': read_json(args.pilot, 'pilot') if args.pilot else None,
         'tornado': read_json(args.tornado, 'tornado') if args.tornado else None,
         'market_map': read_json(args.map, 'map') if args.map else None,
+        'watch': read_json(args.watch, 'watch') if args.watch else None,
         'sweep': read_json(args.sweep, 'sweep') if args.sweep else None,
         'screen': read_json(args.screen, 'screen') if args.screen else None,
     }
@@ -970,6 +1070,22 @@ def make_parser():
     mp.add_argument('--json', metavar='PATH', help='save the map as JSON (for report)')
     mp.set_defaults(func=cmd_map)
 
+    wt = sub.add_parser('watch', help='how long to watch, and how often sellers must test, to find a threat')
+    _model_options(wt)
+    wt.add_argument('--markets', type=int, default=40, help='markets per case file (default 40)')
+    wt.add_argument('--seeds', type=int, default=3, help='number of case files (default 3)')
+    wt.add_argument('--first-seed', type=int, default=1, metavar='N',
+                    help='seed of the first case file (default 1, as in the app; 2026 gives the bundled data)')
+    wt.add_argument('--days', default=','.join(str(d) for d in experiments.WATCH_DAYS), metavar='D,D',
+                    help='observation lengths in days (default %(default)s)')
+    wt.add_argument('--rates', default=','.join('%g' % r for r in experiments.WATCH_RATES), metavar='R,R',
+                    help='shares of days on which each seller tests a price (default %(default)s)')
+    wt.add_argument('--reps', type=int, default=199, help='circular shifts in each permutation test (default 199)')
+    _jobs(wt)
+    wt.add_argument('--csv', metavar='PATH', help='save one row per case file and combination as CSV')
+    wt.add_argument('--json', metavar='PATH', help='save everything as JSON (for report)')
+    wt.set_defaults(func=cmd_watch)
+
     s = sub.add_parser('screen', help='screen a file of daily prices for signs of coordination')
     s.add_argument('path', help='CSV with day, price_a, price_b and optionally market, cost_a, cost_b, shoppers, '
                                 'units_a, units_b')
@@ -994,6 +1110,7 @@ def make_parser():
     o.add_argument('--pilot', metavar='JSON', help='from pilot --json')
     o.add_argument('--tornado', metavar='JSON', help='from tornado --json')
     o.add_argument('--map', metavar='JSON', help='from map --json')
+    o.add_argument('--watch', metavar='JSON', help='from watch --json')
     o.add_argument('--sweep', metavar='JSON', help='from sweep --json')
     o.add_argument('--screen', metavar='JSON', help='from screen --json')
     o.set_defaults(func=cmd_report)

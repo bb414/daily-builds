@@ -13,6 +13,9 @@ its results are given:
 * robustness (from ``tornado --json`` and ``map --json``): a tornado chart of
   how far the gain moves when each assumption is set low or high, and the
   market map of mu against delta as a heat map, marking threats;
+* how long to watch (from ``watch --json``): the AUC of the reaction and
+  margin screens against days watched, one line per test rate, and the flag's
+  recall and precision;
 * sweep (from ``sweep --json``): heat map of the mean realised profit gain;
 * screening (from ``screen --json``): how well each screen ranks the real
   cases, the false discovery rate flag, and the flagged markets;
@@ -32,6 +35,7 @@ SECTION_TITLES = {
     'remedies': 'Remedies: what brings prices down',
     'pilot': 'Pilot to scale: does the pilot predict the result?',
     'robustness': 'Robustness: does the result survive other assumptions?',
+    'watch': 'How long to watch: when can price screens find a threat?',
     'sweep': 'Sweep: where prices settle',
     'screening': 'Screening: could a regulator spot it?',
     'calibration': 'Calibration: demand fitted to sales',
@@ -46,6 +50,7 @@ CSS = """
   --g-baseline: #5a6275; --g-remedy: #1f8f5f; --g-design: #8a7f3c; --g-risk: #c2412d;
   --heat-lo: #f3f0ff; --heat-hi: #3b2a8f; --heat-ink: #ffffff; --point: #3b4fd8;
   --pilot: #2563c9; --scaled: #d9641e;
+  --r1: #2563c9; --r2: #d9641e; --r3: #1f8f5f;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -55,6 +60,7 @@ CSS = """
     --g-baseline: #a2aabb; --g-remedy: #4fd19a; --g-design: #d4c46a; --g-risk: #ff8a70;
     --heat-lo: #232935; --heat-hi: #b9b0ff; --heat-ink: #10131a; --point: #8d9bff;
     --pilot: #6ea2ff; --scaled: #ff9a5c;
+    --r1: #6ea2ff; --r2: #ff9a5c; --r3: #4fd19a;
     color-scheme: dark;
   }
 }
@@ -112,6 +118,12 @@ tr.base td { background: var(--soft); }
 .chart .link { stroke: var(--muted); stroke-width: 1.5; }
 .chart .together { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .swatch.round { border-radius: 50%; }
+.chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.chart .ref { stroke: var(--muted); stroke-dasharray: 4 4; }
+.r1 { stroke: var(--r1); fill: var(--r1); background: var(--r1); }
+.r2 { stroke: var(--r2); fill: var(--r2); background: var(--r2); }
+.r3 { stroke: var(--r3); fill: var(--r3); background: var(--r3); }
+.chart .ln.r1, .chart .ln.r2, .chart .ln.r3 { fill: none; }
 .chart .tn-band { stroke: var(--accent); stroke-width: 6; opacity: .25; stroke-linecap: round; }
 .chart .tn-ci { stroke: var(--accent); stroke-width: 1.5; }
 .chart .tn-low { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
@@ -210,7 +222,7 @@ def _nice_ticks(lo, hi, count=5):
     return out
 
 
-def _table(headers, rows, num_cols=(), row_class=None, wide=False, label_cols=()):
+def _table(headers, rows, num_cols=(), row_class=None, wide=False, label_cols=None):
     """``headers`` and ``rows`` hold HTML already escaped; ``num_cols`` are right-aligned.
 
     A ``wide`` table keeps a minimum width and scrolls sideways inside its box on a
@@ -218,7 +230,7 @@ def _table(headers, rows, num_cols=(), row_class=None, wide=False, label_cols=()
     ``label_cols`` (default: the first column of a wide table) keep a readable width.
     """
     num_cols = set(num_cols)
-    labels = set(label_cols) if label_cols else ({0} if wide else set())
+    labels = set(label_cols) if label_cols is not None else ({0} if wide else set())
 
     def cls(k):
         names = (['num'] if k in num_cols else []) + (['label'] if k in labels else [])
@@ -644,6 +656,124 @@ def _yes_plain(v):
     return '<span class="pill %s">%s</span>' % ('good' if v else 'bad', 'yes' if v else 'no')
 
 
+# ------------------------------------------------------------ how long to watch
+
+def _rate_text(r):
+    return ('%g' % (r * 100)) + '%'
+
+
+def _watch_floor(sm, sids):
+    """The bottom of the AUC axis: 0.4, or lower when any mean or interval of these screens goes lower."""
+    vals = [0.5]
+    for line in sm['cells']:
+        for c in line:
+            for sid in sids:
+                b = c['auc']['coordinated'][sid]
+                vals += [v for v in (b['mean'], b['lo'], b['hi']) if _ok(v)]
+    return min(0.4, math.floor(min(vals) * 10) / 10)
+
+
+def _watch_chart(sm, sid, title, lo):
+    """AUC (coordinated target) of one screen against days watched (log scale), one line per test rate."""
+    days, rates, cells = sm['days'], sm['rates'], sm['cells']
+    W, H, ml, mr, mt, mb = 440, 250, 46, 14, 26, 40
+    lmin, lmax = math.log(days[0]), math.log(days[-1])
+
+    def X(d):
+        return ml + ((math.log(d) - lmin) / (lmax - lmin) if lmax > lmin else 0.5) * (W - ml - mr)
+
+    def Y(v):
+        return H - mb - (v - lo) / (1 - lo) * (H - mt - mb)
+
+    inner = [_text(ml, 14, e(title), cls='ink')]
+    v = lo
+    while v <= 1.0 + 1e-9:
+        inner.append('<line class="grid" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (_f(ml), _f(W - mr), _f(Y(v)), _f(Y(v))))
+        inner.append(_text(ml - 6, Y(v) + 4, num(v, 1), anchor='end'))
+        v = round(v + 0.1, 10)
+    for ref, label in ((0.5, 'chance'), (0.8, '0.8')):
+        if ref >= lo:
+            inner.append('<line class="ref" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (_f(ml), _f(W - mr), _f(Y(ref)),
+                                                                                 _f(Y(ref))))
+            inner.append(_text(W - mr - 2, Y(ref) - 4, label, anchor='end'))
+    for d in days:
+        inner.append(_text(X(d), H - mb + 16, str(d), anchor='middle'))
+    inner.append(_text(ml + (W - ml - mr) / 2, H - 6, 'Days watched (log scale)', anchor='middle'))
+    for j, r in enumerate(rates):
+        cls = 'r%d' % (j % 3 + 1)
+        pts_ = [(X(d), cells[i][j]['auc']['coordinated'][sid]) for i, d in enumerate(days)]
+        path = ''.join('%s%s %s' % ('M' if k == 0 else 'L', _f(x), _f(Y(b['mean'])))
+                       for k, (x, b) in enumerate(pts_) if _ok(b['mean']))
+        if path:
+            inner.append('<path class="ln %s" d="%s"/>' % (cls, path))
+        for (x, b), d in zip(pts_, days):
+            if not _ok(b['mean']):
+                continue
+            dx = (j - (len(rates) - 1) / 2) * 3          # spread the whiskers of different rates a little
+            if _ok(b['lo']) and _ok(b['hi']):
+                inner.append('<line class="%s" x1="%s" x2="%s" y1="%s" y2="%s" stroke-width="1.2"/>' % (
+                    cls, _f(x + dx), _f(x + dx), _f(Y(b['lo'])), _f(Y(b['hi']))))
+            inner.append('<circle class="%s" cx="%s" cy="%s" r="3.5"><title>%s</title></circle>' % (
+                cls, _f(x + dx), _f(Y(b['mean'])), e('%s, %d days, test rate %s: AUC %s (90%% interval %s to %s)' % (
+                    title, d, _rate_text(r), num(b['mean'], 2), num(b['lo'], 2), num(b['hi'], 2)))))
+    return _svg(W, H, '%s: AUC against days watched for %d test rates' % (title, len(rates)), inner)
+
+
+def _watch_section(part):
+    sm = part['summary']
+    days, rates, cells = sm['days'], sm['rates'], sm['cells']
+    legend = '<div class="legend">%s</div>' % ''.join(
+        '<span><i class="swatch r%d"></i>Sellers test prices on %s of days</span>' % (j % 3 + 1, _rate_text(r))
+        for j, r in enumerate(rates))
+    def iv(b, fmt):
+        if not _ok(b['mean']):
+            return 'n/a'
+        if not (_ok(b['lo']) and _ok(b['hi'])):
+            return fmt(b['mean'])
+        return '%s<br><span class="small muted">%s to %s</span>' % (fmt(b['mean']), fmt(b['lo']), fmt(b['hi']))
+
+    def auc2(x):
+        return num(x, 2)
+
+    rows = []
+    for d, line in zip(days, cells):
+        for c in line:
+            rows.append([str(d), _rate_text(c['rate']), iv(c['auc']['coordinated']['retaliation'], auc2),
+                         num(c['auc']['coordinated']['margin']['mean'], 2),
+                         iv(c['recall'], pct), iv(c['precision'], pct),
+                         '%s' % num(c['flagged'], 1), num(c['events']['mean'], 1),
+                         '%s of %s' % (num(c['silent'], 1).rstrip('0').rstrip('.'), sm['markets'])])
+    words = []
+    for r in rates:
+        d = sm['shortest'].get(str(r))
+        words.append('%s test rate: %s' % (_rate_text(r), '%d days' % d if d else 'not within %d days' % days[-1]))
+    positives = model.mean([c['positives'] for line in cells for c in line])
+    seeds = sm['seeds']
+    lo = _watch_floor(sm, ('retaliation', 'margin'))       # one scale for both charts, so they compare directly
+    return ''.join([
+        '<section id="watch"><h2>%s</h2>' % e(SECTION_TITLES['watch']),
+        '<p class="lead">%d case file%s of %d simulated markets (on average %.1f held up by a threat) were trained '
+        'once and then watched for different lengths of time, with sellers testing a random price on a different '
+        'share of days. A screen that looks for rivals hitting back needs unprovoked cuts to judge, so it needs both '
+        'tests and time; the margin screen does not.</p>' % (
+            len(seeds), '' if len(seeds) == 1 else 's', sm['markets'], positives),
+        '<p>Shortest watch at which the "Rivals hit back" screen reaches an AUC of 0.8: %s.</p>' % e('; '.join(words)),
+        _watch_chart(sm, 'retaliation', 'Rivals hit back', lo), _watch_chart(sm, 'margin', 'High margin', lo), legend,
+        '<p class="caption">AUC for the markets held up by a threat: the chance that such a market scores higher '
+        'than an innocent one (0.5 is a coin, 1 perfect). Dots are means over the case files, lines their 90% '
+        'bootstrap intervals. At one test rate a shorter watch is the start of a longer one.</p>',
+        _table(['Days watched', 'Test rate', 'Rivals hit back AUC', 'Margin AUC', 'Flag recall', 'Flag precision',
+                'Markets flagged', 'Unprovoked cuts per market', 'Markets with none'], rows,
+               num_cols=range(0, 9), wide=True, label_cols=[]),
+        '<p class="caption">The flag marks a market when its Benjamini-Hochberg q-value (over the markets of one '
+        'case file, from a one-sided permutation test with %d circular shifts) is below 0.10 and rivals hit back. '
+        'Recall is the share of markets held up by a threat that it catches; precision the share of its flags that '
+        'are right (undefined when nothing is flagged). Markets that settle into a price cycle have no calm days, '
+        'so they show no unprovoked cuts however long they are watched.</p>' % sm['reps'],
+        '<details><summary>Command and settings</summary>%s</details></section>' % _settings_list(part),
+    ])
+
+
 # ------------------------------------------------------------ sweep
 
 def _heat_map(sw, key='gain', mark_threat=False, x_title=None, y_title=None):
@@ -885,7 +1015,8 @@ def _calibration_section(cal, part):
 
 # ------------------------------------------------------------ page
 
-def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None, tornado=None, market_map=None):
+def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None, tornado=None, market_map=None,
+                 watch=None):
     """The whole report as one HTML string. Each argument is a saved JSON result (already loaded) or None."""
     sections, nav = [], []
     if remedies:
@@ -897,6 +1028,9 @@ def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None,
     if tornado or market_map:
         sections.append(_robustness_section(tornado, market_map))
         nav.append(('robustness', 'Robustness'))
+    if watch:
+        sections.append(_watch_section(watch))
+        nav.append(('watch', 'How long to watch'))
     if sweep:
         sections.append(_sweep_section(sweep))
         nav.append(('sweep', 'Sweep'))

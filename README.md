@@ -54,8 +54,9 @@ python -m quiet_cartel tornado --runs 5 --json results/tornado.json      # which
 python -m quiet_cartel map --runs 2 --json results/map.json              # loyalty against patience
 python -m quiet_cartel sweep --x mu=0.1,0.25,0.5 --y delta=0.5,0.8,0.95 --runs 3
 python -m quiet_cartel screen data/markets.csv --truth data/markets_truth.csv --json results/screen.json
+python -m quiet_cartel watch --markets 40 --seeds 3 --json results/watch.json   # how long must a regulator watch?
 python -m quiet_cartel calibrate data/markets.csv --truth data/markets_truth.csv
-python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --tornado results/tornado.json --map results/map.json --screen results/screen.json --out results/report.html
+python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --tornado results/tornado.json --map results/map.json --screen results/screen.json --watch results/watch.json --out results/report.html
 ```
 
 `--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and 0.15 seconds in the browser.

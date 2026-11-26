@@ -1,4 +1,4 @@
-"""Batches of training runs: remedies, parameter sweeps, pilots taken to scale, and robustness checks.
+"""Batches of training runs: remedies, sweeps, pilots taken to scale, robustness checks and how long to watch.
 
 Every run trains the sellers once with :func:`quiet_cartel.model.train` and
 summarises the result with :func:`quiet_cartel.model.summarise`, exactly as the
@@ -20,6 +20,10 @@ an algorithm too.
 The robustness functions (:func:`run_tornado`, :func:`summarise_tornado`,
 :func:`run_market_map`) repeat the app's "Robustness" tab: every config is
 built with :func:`quiet_cartel.model.with_setting` exactly as the app builds it.
+
+The watch functions (:func:`run_watch`, :func:`summarise_watch`) ask how long a
+competition authority must watch, and how often sellers must test prices,
+before the price screens can find the markets held up by a threat.
 """
 
 import math
@@ -34,6 +38,7 @@ __all__ = [
     'run_pilot_stages', 'run_together', 'run_pilots', 'summarise_pilots', 'pearson', 'spearman', 'ranks',
     'PILOT_LABELS', 'PILOT_STAGES',
     'run_setting', 'run_tornado', 'summarise_tornado', 'run_market_map', 'fmt_setting',
+    'watch_market', 'run_watch', 'summarise_watch', 'WATCH_DAYS', 'WATCH_RATES', 'WATCH_TARGETS',
 ]
 
 # Parameters a sweep may vary: the numeric, single-valued config keys.
@@ -781,3 +786,156 @@ def run_market_map(base, seeds, jobs=None, progress=None, mus=None, deltas=None)
             'cells': cells, 'runs': rows, 'highCells': sum(1 for c in flat if c['gain'] >= 0.5),
             'threatCells': sum(1 for c in flat if c['threat']),
             'lowThreatCells': sum(1 for c in flat if c['threat'] and not c['gain'] >= 0.5)}
+
+
+# ------------------------------------------------------------ how long to watch
+
+WATCH_DAYS = [60, 120, 240, 365, 730]
+WATCH_RATES = [0.01, 0.03, 0.06]
+WATCH_TARGETS = ('coordinated', 'highPrice')     # as in model.evaluate_screens
+WATCH_FLAG_Q = 0.10
+WATCH_BOOT_SEEDS = {'auc': 901, 'precision': 921, 'recall': 922, 'events': 923, 'flagged': 924}
+
+
+def watch_market(base, k, case_seed, days, rates, reps):
+    """Train market k of a case file once, then watch it for every (days, test rate) combination.
+
+    The market is ``model.case_config(base, k, case_seed)`` trained with
+    ``model.train``, and its hidden truth comes from ``model.summarise``
+    exactly as in ``model.finish_case``. Each combination observes it with
+    ``model.observe(tr, {'days': d, 'experiment': rate, 'seed': cfg seed + 1})``
+    (so, at one test rate, a shorter watch is the start of a longer one) and
+    records ``model.screens`` with the sellers' unit costs and the p-value of
+    ``model.permutation_test`` with ``reps`` circular shifts. Only these compact
+    results come back, never the trained sellers.
+    """
+    meta = model.case_config(base, k, case_seed)
+    tr = model.train(meta['cfg'])
+    s = model.summarise(tr)
+    cost = tr.market['cost']
+    results = []
+    for d in days:
+        for rate in rates:
+            prices = model.observe(tr, {'days': d, 'experiment': rate, 'seed': meta['cfg']['seed'] + 1})
+            perm = model.permutation_test(prices, {'reps': reps})
+            results.append({'days': d, 'rate': rate, 'screens': model.screens(prices, {'cost': cost}),
+                            'pValue': perm['pValue']})
+    return {'k': k, 'id': k + 1, 'caseSeed': case_seed, 'scenario': meta['scenario'], 'mu': meta['mu'],
+            'seed': meta['cfg']['seed'], 'cycleLength': s['cycleLength'],
+            'truth': {'coordinated': s['collusive'], 'highPrice': s['avgGain'] >= 0.5, 'gain': s['avgGain'],
+                      'punished': s['punished']},
+            'results': results}
+
+
+def _watch_task(task):
+    """Pool worker for the watch study. Top level so that it can be pickled."""
+    return watch_market(*task)
+
+
+def run_watch(markets=40, seeds=(1, 2, 3), days=None, rates=None, reps=199, jobs=None, progress=None, base=None):
+    """Train ``markets`` case-file markets for each case-file seed, once, and watch each for every combination.
+
+    ``days`` (default 60, 120, 240, 365 and 730) are observation lengths of at
+    least 30 days, the shortest the permutation test accepts; ``rates``
+    (default 0.01, 0.03 and 0.06) are the shares of days on which each seller
+    tests a random price. ``base`` is the config the case files are drawn from
+    (default ``model.default_config()``, as the app and the bundled data use).
+    One worker trains one market and loops over every combination, so no market
+    is trained twice. Returns the settings and one record per market (see
+    :func:`watch_market`), ordered by case-file seed and then market.
+    """
+    base = _checked_base(model.default_config() if base is None else base)
+    seeds = _checked_seeds(seeds)
+    if isinstance(markets, bool) or not isinstance(markets, int) or markets < 2:
+        raise ValueError('markets must be a whole number of at least 2')
+    days = sorted(set(WATCH_DAYS if days is None else days))
+    rates = sorted(set(WATCH_RATES if rates is None else rates))
+    if not days or any(isinstance(d, bool) or not isinstance(d, int) or d < 30 for d in days):
+        raise ValueError('days must be whole numbers of at least 30 (the permutation test needs 30 days)')
+    if not rates or any(isinstance(r, bool) or not isinstance(r, (int, float)) or not 0 <= r <= 1 for r in rates):
+        raise ValueError('test rates must be shares of days from 0 to 1')
+    if isinstance(reps, bool) or not isinstance(reps, int) or reps < 1:
+        raise ValueError('reps must be a whole number of at least 1')
+    tasks = [(base, k, s, days, rates, reps) for s in seeds for k in range(markets)]
+    records = _run_tasks(tasks, jobs, progress, worker=_watch_task)
+    return {'settings': {'markets': markets, 'seeds': seeds, 'days': days, 'rates': rates, 'reps': reps,
+                         'flagQ': WATCH_FLAG_Q, 'base': base},
+            'markets': records}
+
+
+def _evaluate_watch(records, index):
+    """Every screen's AUC for both targets, the BH flag's confusion and the evidence, for one case file and combination."""
+    res = [r['results'][index] for r in records]
+    labels = {t: [bool(r['truth'][t]) for r in records] for t in WATCH_TARGETS}
+    auc = {t: {sc['id']: model.roc_curve([model.screen_score(x['screens'], sc['id']) for x in res], labels[t])['auc']
+               for sc in model.SCREEN_LIST} for t in WATCH_TARGETS}
+    q = model.benjamini_hochberg([x['pValue'] for x in res])
+    flags = []
+    for x, qv in zip(res, q):
+        ret = x['screens']['retaliation']
+        flags.append(qv == qv and qv < WATCH_FLAG_Q and ret == ret and ret > 0)
+    c = model.confusion([1.0 if f else 0.0 for f in flags], labels['coordinated'], 0.5)
+    return {'auc': auc, 'flag': dict(c, flagged=sum(flags)),
+            'events': model.mean([x['screens']['events'] for x in res]),
+            'silent': sum(1 for x in res if x['screens']['events'] == 0),
+            'positives': {t: sum(labels[t]) for t in WATCH_TARGETS}}
+
+
+def summarise_watch(result):
+    """How well the screens find the cases, for every observation length and test rate.
+
+    For each case-file seed and combination (``perSeed``): the ROC AUC
+    (:func:`quiet_cartel.model.roc_curve`) of every screen in
+    ``model.SCREEN_LIST`` against both targets, 'coordinated' (held up by a
+    threat) and 'highPrice', exactly as ``model.evaluate_screens`` scores them;
+    the Benjamini-Hochberg flag (``model.benjamini_hochberg`` over the markets
+    of that case file, flag when q < 0.10 and retaliation > 0) as caught, false
+    alarms, missed, cleared, precision and recall for the coordinated target;
+    the mean number of unprovoked cuts per market (the evidence the reaction
+    screens have to work with) and how many markets had none.
+
+    ``cells[i][j]`` (rows follow the days, columns the rates) average those
+    over the case-file seeds: each AUC, the precision, the recall and the mean
+    cuts get a mean and 90% bootstrap interval (``model.bootstrap_mean``,
+    2,000 resamples, fixed seeds; case files where a value is undefined, such
+    as precision with no flags, are left out). ``shortest`` gives, for each
+    rate, the shortest watch at which the mean AUC of the "Rivals hit back"
+    screen for the coordinated target reaches 0.8 (``None`` if none does).
+    """
+    st = result['settings']
+    days, rates, seeds = st['days'], st['rates'], st['seeds']
+    combos = [(d, r) for d in days for r in rates]
+    per_seed = []
+    for s in seeds:
+        records = [m for m in result['markets'] if m['caseSeed'] == s]
+        for ci, (d, r) in enumerate(combos):
+            ev = _evaluate_watch(records, ci)
+            ev.update({'seed': s, 'days': d, 'rate': r})
+            per_seed.append(ev)
+
+    def boot(values, seed):
+        return model.bootstrap_mean(values, 0.9, BOOT_REPS, seed)
+
+    cells = []
+    for d in days:
+        line = []
+        for r in rates:
+            es = [e for e in per_seed if e['days'] == d and e['rate'] == r]
+            auc = {}
+            for ti, t in enumerate(WATCH_TARGETS):
+                auc[t] = {sc['id']: boot([e['auc'][t][sc['id']] for e in es], WATCH_BOOT_SEEDS['auc'] + 10 * ti + si)
+                          for si, sc in enumerate(model.SCREEN_LIST)}
+            line.append({'days': d, 'rate': r, 'auc': auc,
+                         'precision': boot([e['flag']['precision'] for e in es], WATCH_BOOT_SEEDS['precision']),
+                         'recall': boot([e['flag']['recall'] for e in es], WATCH_BOOT_SEEDS['recall']),
+                         'events': boot([e['events'] for e in es], WATCH_BOOT_SEEDS['events']),
+                         'flagged': model.mean([e['flag']['flagged'] for e in es]),
+                         'silent': model.mean([e['silent'] for e in es]),
+                         'positives': model.mean([e['positives']['coordinated'] for e in es])})
+        cells.append(line)
+    shortest = {}
+    for j, r in enumerate(rates):
+        shortest[str(r)] = next((cells[i][j]['days'] for i in range(len(days))
+                                 if cells[i][j]['auc']['coordinated']['retaliation']['mean'] >= 0.8), None)
+    return {'days': days, 'rates': rates, 'seeds': seeds, 'markets': st['markets'], 'reps': st['reps'],
+            'perSeed': per_seed, 'cells': cells, 'shortest': shortest}
