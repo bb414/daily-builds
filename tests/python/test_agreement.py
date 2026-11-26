@@ -380,6 +380,10 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual(ref['settings'][1][3]['low']['maxPeriods'], 7000000)
         self.assertEqual(bases[0], qc.default_config())
 
+    def test_benjamini_hochberg(self):
+        for case in self.ref['bh']:
+            self.same(case['q'], qc.benjamini_hochberg(case['ps']), 'bh %r' % (case['ps'],))
+
     def test_short_run(self):
         # No 10,000-period block yet, so the realised gain falls back on the cycle's gain.
         ref = self.ref['short']

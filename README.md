@@ -37,7 +37,9 @@ The app has seven views and a short guide:
 4. **Remedies.** Train ten options many times each (banning rivals' prices as an input, rewarding today's profit only, a third seller, a rival that keeps a fixed competitive price, a rule that algorithms keep testing prices, no memory, a price-matching rival, a shared pricing vendor, busy and quiet days) and compare profit gain, shoppers' loss and how often cuts are punished, with 90% bootstrap intervals.
 5. **Robustness.** Push each of seven assumptions (shopper loyalty, patience, learning rate, how fast experimenting fades, number of prices, price range, demand noise) to a low and a high value, one at a time, and see a tornado chart of how far the profit gain moves. A second view maps the profit gain across shopper loyalty and patience.
 6. **Regulator's screens.** Build a case file of simulated markets whose hidden truth is known, observe a year of daily prices in each, and score five screens a competition authority could run on prices alone. Toggle what counts as a case (held up by a threat, or just high prices), see ROC curves, and slide a bar to see who gets flagged.
-7. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file.
+7. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file. Add a `market` column to screen many markets at once: open `data/markets.csv` to screen all 40 bundled markets, ranked by Benjamini-Hochberg q-value, and click any market to see its prices.
+
+The bar under the title copies a link that restores every setting (useful for sharing a scenario), or saves and loads settings as a small JSON file. Every results table can be downloaded as CSV.
 
 ## Run the Python companion
 

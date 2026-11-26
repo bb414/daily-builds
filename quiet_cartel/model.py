@@ -51,7 +51,7 @@ __all__ = [
     'TORNADO', 'MAP_MU', 'MAP_DELTA', 'with_setting',
     'best_response_check',
     'SCENARIOS', 'scenario_by_id', 'apply_scenario', 'run_scenario', 'aggregate',
-    'observe', 'screens', 'permutation_test',
+    'observe', 'screens', 'permutation_test', 'benjamini_hochberg',
     'CASE_MIX', 'CASE_MU', 'case_config', 'finish_case', 'make_case',
     'SCREEN_LIST', 'screen_score', 'evaluate_screens', 'confusion',
 ]
@@ -1633,6 +1633,9 @@ def permutation_test(prices, opts=None):
     obs = screens(prices, opts)['retaliation']
     if obs != obs or T < 30:
         return {'observed': obs, 'pValue': NAN, 'reps': 0}
+    # one-sided: rivals cutting no more often after a cut than on an ordinary day is no evidence at all
+    if not obs > 0:
+        return {'observed': obs, 'pValue': 1, 'reps': 0}
     margin = _or(opts.get('window'), 10)
     ge = valid = 0
     for _ in range(_count(_or(opts.get('reps'), 999))):
@@ -1645,6 +1648,29 @@ def permutation_test(prices, opts=None):
         if v >= obs - 1e-12:
             ge += 1
     return {'observed': obs, 'pValue': (ge + 1) / (valid + 1), 'reps': valid}
+
+
+def benjamini_hochberg(pvalues):
+    """Benjamini-Hochberg q-values in the input order.
+
+    Flagging every q below L keeps the expected share of false flags at or
+    below L. A missing p-value (None or NaN) counts as 1 among the m tests and
+    gets a NaN q-value.
+    """
+    m = len(pvalues)
+    ps = [1 if p is None or p != p else p for p in pvalues]
+    q = [NAN] * m
+    order = sorted(range(m), key=lambda k: (ps[k], k))
+    running = 1
+    for rank in range(m - 1, -1, -1):
+        v = ps[order[rank]] * m / (rank + 1)
+        if v < running:
+            running = v
+        q[order[rank]] = running
+    for i in range(m):
+        if pvalues[i] is None or pvalues[i] != pvalues[i]:
+            q[i] = NAN
+    return q
 
 
 CASE_MIX = ['baseline', 'baseline', 'vendor', 'matcher', 'noisy', 'own', 'myopic', 'fixedrival', 'none', 'floor']

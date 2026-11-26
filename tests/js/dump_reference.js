@@ -465,6 +465,10 @@ ref.adoption = ADOPT_NAMES.map(function (name) {
   };
 })();
 
+// Benjamini-Hochberg q-values, including ties, missing p-values and a single test.
+ref.bh = [[0.01, 0.04, 0.03, 0.2, 0.5], [0.05, 0.05, NaN, 0.001, 1], [0.3], [], [NaN, NaN], [0.002, 0.002, 0.002, 0.9],
+  [0.999, 0.001, 0.0101, 0.047, 0.048, 0.049, 0.051]].map(function (ps) { return { ps: ps, q: QC.benjaminiHochberg(ps) }; });
+
 ref.sorting = sortCases().map(function (xs) { return { xs: xs, sorted: QC.sortedCopy(xs) }; });
 
 ref.aggregate = {

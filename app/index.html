@@ -141,6 +141,13 @@ tr.sel td { background: var(--accent-soft); }
 .prose li { margin-bottom: .35rem; }
 dl.gloss dt { font-weight: 700; margin-top: .6rem; }
 dl.gloss dd { margin: 0 0 0 0; color: var(--muted); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 10px; }
+.btn.small { font-size: .8rem; padding: 4px 10px; font-weight: 600; }
+.toolbar input[type="text"] { max-width: 420px; font-size: .8rem; padding: 4px 8px; }
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.file-btn { position: relative; overflow: hidden; display: inline-block; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
 @media (max-width: 980px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -162,6 +169,15 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
   <div class="wrap">
     <h1>Quiet cartel</h1>
     <p class="tag">Can self-learning pricing algorithms learn to keep prices high without ever being told to, and could a regulator tell from prices alone?</p>
+    <div class="toolbar" aria-label="Save and share settings">
+      <button class="btn small" type="button" id="share-btn">Copy a link to these settings</button>
+      <button class="btn small" type="button" id="save-btn">Save settings</button>
+      <span class="btn small file-btn">Load settings<input type="file" id="load-file" accept=".json,application/json" aria-label="Load settings from a file"></span>
+      <label class="sr-only" for="share-link">Link to these settings</label>
+      <input type="text" id="share-link" readonly hidden>
+      <span class="small muted" id="share-status" role="status" aria-live="polite"></span>
+    </div>
+    <div id="state-notice"></div>
   </div>
 </header>
 
@@ -382,6 +398,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       <div class="card" id="pilot-table-card" hidden>
         <h2>Stage by stage <span class="sub" id="pilot-table-sub"></span></h2>
         <div class="tablewrap"><table id="pilot-table"></table></div>
+        <div class="card-actions"><button class="btn small" type="button" id="pilot-csv">Download every run (CSV)</button></div>
         <p class="caption">Profit change is against the status quo, where both charge the competitive price. Profit gain and shoppers&rsquo; loss run from 0% (competitive) to 100% (monopoly).</p>
       </div>
       <div class="card" id="pilot-runs-card" hidden>
@@ -434,6 +451,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       <div class="card" id="rem-table-card" hidden>
         <h2>Every option in numbers</h2>
         <div class="tablewrap"><table id="rem-table"></table></div>
+        <div class="card-actions"><button class="btn small" type="button" id="rem-csv">Download every run (CSV)</button></div>
       </div>
     </div>
   </div>
@@ -476,11 +494,13 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         </div>
         <div class="chart" id="chart-tornado"></div>
         <div class="legend" id="legend-tornado"></div>
+        <div class="card-actions"><button class="btn small" type="button" id="rb-csv">Download (CSV)</button></div>
         <p class="caption">Each row moves one assumption to its low value (open circle) and its high value (filled circle), holding the rest at the Learn tab&rsquo;s values (the vertical line). Rows are sorted by how far the result moves.</p>
       </div>
       <div class="card" id="rb-map-card" hidden>
         <h2>Where learned collusion appears</h2>
         <div class="chart" id="chart-map"></div>
+        <div class="card-actions"><button class="btn small" type="button" id="map-csv">Download (CSV)</button></div>
         <p class="caption">Each square trains the sellers at one combination. The number is the average profit gain; &ldquo;threat&rdquo; marks squares where a cut was punished in at least half the runs. Darker means higher prices.</p>
       </div>
       <div class="card verdict" id="rb-verdict" hidden aria-live="polite"></div>
@@ -555,6 +575,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       <div class="card" id="cf-table-card" hidden>
         <h2>The case file, with the hidden truth revealed</h2>
         <div class="tablewrap" style="max-height:420px;overflow:auto"><table id="cf-table"></table></div>
+        <div class="card-actions"><button class="btn small" type="button" id="cf-csv">Download the case file (CSV)</button></div>
       </div>
     </div>
   </div>
@@ -573,7 +594,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       <div class="field">
         <label for="csv">Or paste CSV (one row per day)</label>
         <textarea id="csv" spellcheck="false" aria-describedby="csv-hint"></textarea>
-        <p class="hint" id="csv-hint">The first two numeric columns are read as seller A and seller B, or columns named price_a and price_b. At least 30 days.</p>
+        <p class="hint" id="csv-hint">The first two numeric columns are read as seller A and seller B, or columns named price_a and price_b. At least 30 days. Add a market column to screen many markets at once (try data/markets.csv), and cost_a and cost_b columns for margins.</p>
       </div>
       <div class="field">
         <label for="csv-file">Or open a CSV file</label>
@@ -588,10 +609,17 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
         <input type="range" id="tol" min="0.001" max="0.05" step="0.001" value="0.005">
       </div>
       <div class="btns"><button class="btn primary" id="data-run" type="button">Analyse these prices</button></div>
+      <p class="status" id="data-status" role="status" aria-live="polite"></p>
       <div id="data-errors" role="alert"></div>
     </form>
     <div class="stack">
       <div id="data-empty" class="empty"><p>Choose a sample or paste prices, then press <strong>Analyse these prices</strong>.</p></div>
+      <div class="card" id="data-panel-card" hidden>
+        <h2>Every market, most suspicious first <span class="sub" id="panel-sub"></span></h2>
+        <div class="tablewrap" style="max-height:360px;overflow:auto"><table id="panel-table"></table></div>
+        <div class="card-actions"><button class="btn small" type="button" id="panel-csv">Download (CSV)</button></div>
+        <p class="caption">p: how often shifting one seller&rsquo;s prices in time gives a follow rate as high (499 shifts). q: the Benjamini-Hochberg adjustment for screening many markets at once. A market is flagged when q is below 0.10 and rivals cut after a cut more often than on an ordinary day, which keeps the expected share of false flags among flagged markets at about 10% or less.</p>
+      </div>
       <div class="kpis" id="data-kpis" hidden></div>
       <div class="card" id="data-chart-card" hidden>
         <h2>Daily prices <span class="sub" id="data-sub"></span></h2>
@@ -1655,6 +1683,8 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     var reps = opts.reps || 999, rng = new Rng(opts.seed === undefined ? 4242 : opts.seed);
     var T = prices[0].length, obs = screens(prices, opts).retaliation, ge = 0, valid = 0;
     if (obs !== obs || T < 30) return { observed: obs, pValue: NaN, reps: 0 };
+    // one-sided: rivals cutting no more often after a cut than on an ordinary day is no evidence at all
+    if (!(obs > 0)) return { observed: obs, pValue: 1, reps: 0 };
     var margin = opts.window || 10;
     for (var r = 0; r < reps; r++) {
       var k = margin + rng.int(T - 2 * margin), shifted = [prices[0]];
@@ -1665,6 +1695,23 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
       if (v >= obs - 1e-12) ge++;
     }
     return { observed: obs, pValue: (ge + 1) / (valid + 1), reps: valid };
+  }
+
+  // Benjamini-Hochberg q-values in the input order: flagging every q below L keeps the expected share of false
+  // flags at or below L. A missing p-value (NaN) counts as 1 among the m tests and gets a NaN q-value.
+  function benjaminiHochberg(pvalues) {
+    var m = pvalues.length, ps = [], q = [], i;
+    for (i = 0; i < m; i++) { ps.push(pvalues[i] === pvalues[i] && pvalues[i] !== null ? pvalues[i] : 1); q.push(NaN); }
+    var order = ps.map(function (p, k) { return k; });
+    order.sort(function (a, b) { return ps[a] - ps[b] || a - b; });
+    var running = 1;
+    for (var rank = m - 1; rank >= 0; rank--) {
+      var v = ps[order[rank]] * m / (rank + 1);
+      if (v < running) running = v;
+      q[order[rank]] = running;
+    }
+    for (i = 0; i < m; i++) if (!(pvalues[i] === pvalues[i] && pvalues[i] !== null)) q[i] = NaN;
+    return q;
   }
 
   var CASE_MIX = ['baseline', 'baseline', 'vendor', 'matcher', 'noisy', 'own', 'myopic', 'fixedrival', 'none', 'floor'];
@@ -1752,7 +1799,7 @@ footer { color: var(--muted); font-size: .8rem; padding: 0 0 24px; }
     pilotSummary: pilotSummary, pilotRun: pilotRun,
     SCENARIOS: SCENARIOS, scenarioById: scenarioById, applyScenario: applyScenario,
     runScenario: runScenario, aggregate: aggregate,
-    observe: observe, screens: screens, permutationTest: permutationTest,
+    observe: observe, screens: screens, permutationTest: permutationTest, benjaminiHochberg: benjaminiHochberg,
     CASE_MIX: CASE_MIX, CASE_MU: CASE_MU, caseConfig: caseConfig, finishCase: finishCase, makeCase: makeCase,
     SCREEN_LIST: SCREEN_LIST, screenScore: screenScore, evaluateScreens: evaluateScreens, confusion: confusion
   };
@@ -2817,32 +2864,47 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     if (!lines.length) return { error: 'Paste some prices first.' };
     var delim = [',', ';', '\t'].sort(function (a, b) { return lines[0].split(b).length - lines[0].split(a).length; })[0];
     var rows = lines.map(function (l) { return l.split(delim).map(function (c) { return c.trim().replace(/^"|"$/g, ''); }); });
-    function isNum(c) { return c !== '' && !isNaN(+c.replace(/^[£$€]/, '')); }
+    function clean(c) { return String(c).replace(/^[£$€]/, ''); }
+    function isNum(c) { return c !== undefined && c !== '' && !isNaN(+clean(c)); }
     var header = rows[0].some(function (c) { return !isNum(c); }) ? rows.shift().map(function (c) { return c.toLowerCase(); }) : null;
-    if (rows.length < 30) return { error: 'Need at least 30 days of prices; found ' + rows.length + '.' };
-    var ia = -1, ib = -1;
-    if (header) { ia = header.indexOf('price_a'); ib = header.indexOf('price_b'); }
+    if (rows.length > 200000) return { error: 'That file has more than 200,000 rows. Use the Python companion for files this large.' };
+    function col(name) { return header ? header.indexOf(name) : -1; }
+    var ia = col('price_a'), ib = col('price_b'), im = col('market'), iday = col('day'), ica = col('cost_a'), icb = col('cost_b');
     if (ia < 0 || ib < 0) {
       var numericCols = [];
       for (var c = 0; c < rows[0].length; c++) {
-        var ok = rows.every(function (r) { return r[c] !== undefined && isNum(r[c]); });
+        var ok = rows.every(function (r) { return isNum(r[c]); });
         var hName = header ? header[c] : '';
-        if (ok && !/^(day|date|t|week|period|index|id|market|market_id)$/.test(hName)) numericCols.push(c);
+        if (ok && !/^(day|date|t|week|period|index|id|market|market_id|shoppers|units_a|units_b|cost_a|cost_b)$/.test(hName)) numericCols.push(c);
       }
       if (numericCols.length < 2) return { error: 'Could not find two columns of prices. Name them price_a and price_b, or put them first.' };
       ia = numericCols[0]; ib = numericCols[1];
     }
-    var a = [], b = [];
+    var groups = {}, order = [];
     for (var r = 0; r < rows.length; r++) {
-      var x = +String(rows[r][ia]).replace(/^[£$€]/, ''), y = +String(rows[r][ib]).replace(/^[£$€]/, '');
+      var row = rows[r], x = +clean(row[ia]), y = +clean(row[ib]);
       if (!(x > 0) || !(y > 0)) return { error: 'Row ' + (r + 1 + (header ? 1 : 0)) + ' has a price that is missing, zero or not a number.' };
-      a.push(x); b.push(y);
+      var key = im >= 0 ? String(row[im]) : '1';
+      if (!groups[key]) { groups[key] = { rows: [], cost: null }; order.push(key); }
+      var g = groups[key];
+      g.rows.push({ day: iday >= 0 && isNum(row[iday]) ? +row[iday] : g.rows.length + 1, a: x, b: y });
+      if (ica >= 0 && icb >= 0 && isNum(row[ica]) && isNum(row[icb])) g.cost = [+row[ica], +row[icb]];
     }
-    if (a.length > 20000) return { error: 'That is more than 20,000 days. Use the Python companion for long histories.' };
-    return { prices: [a, b], names: header ? [header[ia], header[ib]] : ['column ' + (ia + 1), 'column ' + (ib + 1)] };
+    var markets = [], skipped = [];
+    for (var k = 0; k < order.length; k++) {
+      var gr = groups[order[k]];
+      gr.rows.sort(function (u, v) { return u.day - v.day; });
+      if (gr.rows.length < 30) { skipped.push(order[k]); continue; }
+      if (gr.rows.length > 20000) return { error: 'A market has more than 20,000 days. Use the Python companion for long histories.' };
+      markets.push({ id: order[k], cost: gr.cost, prices: [gr.rows.map(function (q) { return q.a; }), gr.rows.map(function (q) { return q.b; })] });
+    }
+    if (!markets.length) return { error: 'Need at least 30 days of prices' + (im >= 0 ? ' in at least one market.' : '; found ' + rows.length + '.') };
+    if (markets.length > 500) return { error: 'More than 500 markets. Use the Python companion for files this large.' };
+    return { markets: markets, skipped: skipped, names: header ? [header[ia], header[ib]] : ['column ' + (ia + 1), 'column ' + (ib + 1)] };
   }
 
   function analyseData() {
+    if (S.dataJob) { S.dataJob.cancel(); S.dataJob = null; }
     var p = parseCsv($('csv').value), errs = [];
     if (p.error) { showErrors($('data-errors'), [p.error]); return; }
     var ca = $('cost-a').value, cb = $('cost-b').value, cost = null;
@@ -2850,14 +2912,248 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       if (ca === '' || cb === '' || !(+ca >= 0) || !(+cb >= 0)) errs.push('Give both unit costs (or neither) as numbers of 0 or more.');
       else cost = [+ca, +cb];
     }
+    if (p.skipped.length) errs.push('Skipped ' + p.skipped.length + ' market' + (p.skipped.length > 1 ? 's' : '') + ' with fewer than 30 days: ' + p.skipped.slice(0, 5).join(', ') + (p.skipped.length > 5 ? '…' : '') + '.');
     showErrors($('data-errors'), errs);
-    var tol = +$('tol').value, opts = { cost: cost, tol: tol, detail: true };
-    var sc = QC.screens(p.prices, opts), perm = QC.permutationTest(p.prices, { cost: cost, tol: tol, reps: 499 });
-    S.data = { prices: p.prices, sc: sc, perm: perm, cost: cost, names: p.names };
+    var tol = +$('tol').value;
+    if (p.markets.length === 1) {
+      S.panel = null; renderPanel(); $('data-status').textContent = '';
+      selectMarket(p.markets[0], p.markets[0].cost || cost, tol, p.names, false);
+      return;
+    }
+    var rows = [], k = 0;
+    $('data-run').disabled = true;
+    S.dataJob = runJob(function () {
+      var mkt = p.markets[k], c = mkt.cost || cost;
+      var sc = QC.screens(mkt.prices, { cost: c, tol: tol }), perm = QC.permutationTest(mkt.prices, { cost: c, tol: tol, reps: 499 });
+      rows.push({ market: mkt, cost: c, sc: sc, p: perm.pValue });
+      k++;
+      return k >= p.markets.length;
+    }, {
+      progress: function () { $('data-status').textContent = 'Screening market ' + Math.min(k + 1, p.markets.length) + ' of ' + p.markets.length + '…'; },
+      done: function () {
+        S.dataJob = null; $('data-run').disabled = false;
+        var q = QC.benjaminiHochberg(rows.map(function (r) { return r.p; }));
+        rows.forEach(function (r, i) { r.q = q[i]; r.flag = q[i] < 0.1 && r.sc.retaliation > 0; });
+        $('data-status').textContent = 'Screened ' + rows.length + ' markets.';
+        S.panel = { rows: rows, names: p.names, tol: tol };
+        renderPanel();
+        var first = rows.slice().sort(byQ)[0];
+        selectMarket(first.market, first.cost, tol, p.names, true);
+      },
+      error: function (e) { S.dataJob = null; $('data-run').disabled = false; showErrors($('data-errors'), ['Screening stopped: ' + e.message]); }
+    });
+  }
+
+  function byQ(a, b) {
+    var x = a.q === a.q ? a.q : 2, y = b.q === b.q ? b.q : 2;
+    return x - y || (a.p === a.p ? a.p : 2) - (b.p === b.p ? b.p : 2);
+  }
+
+  function selectMarket(mkt, cost, tol, names, many) {
+    var sc = QC.screens(mkt.prices, { cost: cost, tol: tol, detail: true }), perm = QC.permutationTest(mkt.prices, { cost: cost, tol: tol, reps: 499 });
+    S.data = { prices: mkt.prices, sc: sc, perm: perm, cost: cost, names: names, market: many ? mkt.id : null };
     renderData();
+    if (many) renderPanel();
+  }
+
+  function renderPanel() {
+    var P = S.panel;
+    $('data-panel-card').hidden = !P;
+    if (!P) return;
+    var rows = P.rows.slice().sort(byQ), flagged = rows.filter(function (r) { return r.flag; }).length;
+    $('panel-sub').textContent = flagged + ' of ' + rows.length + ' flagged';
+    $('panel-table').innerHTML = '<tr><th>Market</th><th class="num">Days</th><th class="num">Unprovoked cuts</th><th class="num">Rival cuts next day</th><th class="num">Hit back, then up</th><th class="num">Margin</th><th class="num">p</th><th class="num">q</th><th>Flag</th><th><span class="sr-only">View</span></th></tr>' +
+      rows.map(function (r) {
+        var sel = S.data && S.data.market === r.market.id;
+        return '<tr' + (sel ? ' class="sel"' : '') + '><td>' + esc(r.market.id) + '</td><td class="num">' + r.market.prices[0].length + '</td><td class="num">' + r.sc.events + '</td><td class="num">' + pct(r.sc.followRate) +
+          '</td><td class="num">' + pct(r.sc.punishReturn) + '</td><td class="num">' + (r.cost ? pct(r.sc.margin) : 'n/a') + '</td><td class="num">' + num(r.p, 3) + '</td><td class="num">' + num(r.q, 3) + '</td><td>' +
+          (r.flag ? '<span class="pill bad">flagged</span>' : '') + '</td><td><button class="btn small" type="button" data-market="' + esc(r.market.id) + '"' + (sel ? ' aria-current="true"' : '') + '>View</button></td></tr>';
+      }).join('');
+  }
+  $('panel-table').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button[data-market]');
+    if (!b || !S.panel) return;
+    var id = b.getAttribute('data-market'), r = S.panel.rows.filter(function (x) { return x.market.id === id; })[0];
+    if (r) { selectMarket(r.market, r.cost, S.panel.tol, S.panel.names, true); $('data-chart-card').scrollIntoView({ block: 'nearest' }); }
+  });
+
+  // ------------------------------------------------------------ downloads
+  function download(name, content, type) {
+    try {
+      var blob = new Blob([content], { type: type || 'text/csv' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+      return true;
+    } catch (err) { return false; }
+  }
+  function csvCell(v) {
+    if (v === null || v === undefined || (typeof v === 'number' && v !== v)) return '';
+    var s = typeof v === 'number' ? String(+v.toPrecision(10)) : typeof v === 'boolean' ? (v ? '1' : '0') : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvText(header, rows) { return [header].concat(rows).map(function (r) { return r.map(csvCell).join(','); }).join('\n') + '\n'; }
+
+  $('rem-csv').addEventListener('click', function () {
+    if (!S.rem) return;
+    var rows = [];
+    S.rem.ids.forEach(function (id) {
+      S.rem.raw[id].forEach(function (r) { rows.push([id, r.seed, r.converged, r.periods, r.realisedGain, r.avgGain, r.harm, r.punished, r.collusive, r.cycleLength, mean(r.price)]); });
+    });
+    download('quiet-cartel-remedies.csv', csvText(['scenario', 'seed', 'settled', 'rounds', 'realised_gain', 'cycle_gain', 'shoppers_loss', 'punished', 'held_up_by_threat', 'cycle_length', 'mean_price'], rows));
+  });
+  $('pilot-csv').addEventListener('click', function () {
+    if (!S.pilot) return;
+    var rows = S.pilot.runs.map(function (r) {
+      return [S.pilot.rule, S.pilot.after, r.seed, r.upliftA.pilot, r.upliftA.scaled, r.upliftA.together, r.upliftB.pilot, r.upliftB.scaled, r.upliftB.together,
+        r.pilot.avgGain, r.scaled.avgGain, r.together.avgGain, r.pilot.punished, r.scaled.punished, r.together.punished];
+    });
+    download('quiet-cartel-pilot.csv', csvText(['rule_b', 'b_adopts_after', 'seed', 'a_uplift_pilot', 'a_uplift_after_b_adopts', 'a_uplift_both_at_once', 'b_uplift_pilot', 'b_uplift_after_adopting', 'b_uplift_both_at_once',
+      'gain_pilot', 'gain_after_b_adopts', 'gain_both_at_once', 'punished_pilot', 'punished_after_b_adopts', 'punished_both_at_once'], rows));
+  });
+  $('rb-csv').addEventListener('click', function () {
+    var T = S.rb.tornado; if (!T) return;
+    var rows = [['base', 'Learn tab values', '', '', T.base.gain, T.base.gain, T.base.punished, T.base.punished]].concat(T.rows.map(function (r) {
+      return [r.param.key, r.param.label, r.param.low, r.param.high, r.low.gain, r.high.gain, r.low.punished, r.high.punished];
+    }));
+    download('quiet-cartel-tornado.csv', csvText(['assumption', 'label', 'low', 'high', 'gain_low', 'gain_high', 'punished_share_low', 'punished_share_high'], rows));
+  });
+  $('map-csv').addEventListener('click', function () {
+    var Mp = S.rb.map; if (!Mp) return;
+    var rows = [];
+    QC.MAP_DELTA.forEach(function (d) {
+      QC.MAP_MU.forEach(function (mu) {
+        var list = Mp.cells[mu + '|' + d] || [];
+        rows.push([mu, d, list.length, mean(list.map(function (x) { return x.gain; })), list.filter(function (x) { return x.punished; }).length / (list.length || 1)]);
+      });
+    });
+    download('quiet-cartel-map.csv', csvText(['mu', 'delta', 'runs', 'mean_gain', 'punished_share'], rows));
+  });
+  $('cf-csv').addEventListener('click', function () {
+    if (!S.cases) return;
+    var rows = S.cases.map(function (c) {
+      var sc = c.screens;
+      return [c.id, c.scenario, c.mu, c.seed, c.truth.gain, c.truth.punished, c.truth.coordinated, c.truth.highPrice, sc.margin, sc.cv, sc.events, sc.followRate, sc.baseRate, sc.retaliation, sc.snapBack, sc.punishReturn];
+    });
+    download('quiet-cartel-case-file.csv', csvText(['market', 'setup', 'mu', 'training_seed', 'profit_gain', 'punished', 'held_up_by_threat', 'high_price', 'margin', 'price_cv', 'unprovoked_cuts', 'follow_rate', 'base_rate', 'retaliation', 'snap_back', 'hit_back_then_up'], rows));
+  });
+  $('panel-csv').addEventListener('click', function () {
+    if (!S.panel) return;
+    var rows = S.panel.rows.slice().sort(byQ).map(function (r) {
+      return [r.market.id, r.market.prices[0].length, r.sc.events, r.sc.followRate, r.sc.baseRate, r.sc.retaliation, r.sc.punishReturn, r.cost ? r.sc.margin : null, r.p, r.q, r.flag];
+    });
+    download('quiet-cartel-screened-markets.csv', csvText(['market', 'days', 'unprovoked_cuts', 'follow_rate', 'base_rate', 'retaliation', 'hit_back_then_up', 'margin', 'p', 'q', 'flagged'], rows));
+  });
+
+  // ------------------------------------------------------------ saving and sharing settings
+  var TAB_IDS = tabs.map(function (t) { return t.id.replace('tab-', ''); });
+  function currentTab() { var t = tabs.filter(function (x) { return x.getAttribute('aria-selected') === 'true'; })[0]; return t ? t.id.replace('tab-', '') : 'learn'; }
+  function gatherState() {
+    var c = readControls();
+    return {
+      app: 'quiet-cartel', v: 1, tab: currentTab(),
+      learn: { nFirms: c.nFirms, firmTypes: c.firmTypes, memory: c.memory, mu: c.mu, delta: c.delta, alpha: c.alpha, beta: c.beta,
+        nPrices: c.nPrices, demandNoise: c.demandNoise, exploreFloor: c.exploreFloor, sharedVendor: c.sharedVendor, seed: c.seed },
+      pilot: { rule: $('pilot-rule').value, after: +$('pilot-after').value, runs: +$('pilot-runs').value },
+      remedies: { runs: +$('rem-runs').value, options: remChosen() },
+      robustness: { runs: +$('rb-runs').value, cell: +$('rb-cell').value },
+      caseFile: { markets: +$('cf-n').value, testRate: +$('cf-test').value, seed: +$('cf-seed').value, target: target() },
+      data: { tol: +$('tol').value }
+    };
+  }
+  function setRange(id, v, errs, name) {
+    var el = $(id), lo = +el.min, hi = +el.max, step = +el.step || 1, x = +v;
+    if (v === undefined) return;
+    if (x !== x) { errs.push(name + ' was not a number, so it was left as it was.'); return; }
+    if (x < lo || x > hi) errs.push(name + ' was outside ' + lo + ' to ' + hi + ', so it was moved to the nearest end.');
+    x = Math.min(hi, Math.max(lo, x));
+    el.value = lo + Math.round((x - lo) / step) * step;
+  }
+  function applyState(st) {
+    var errs = [];
+    if (!st || typeof st !== 'object' || st.app !== 'quiet-cartel') return ['This is not a Quiet cartel settings file or link.'];
+    if (st.learn) {
+      var v = QC.validateConfig(st.learn);
+      v.errors.forEach(function (e) { errs.push('Learn tab: ' + e + '.'); });
+      setControls(v.config);
+      $('preset').value = 'custom';
+    }
+    if (st.pilot) {
+      if (QC.PILOT_RULES.indexOf(st.pilot.rule) >= 0) $('pilot-rule').value = st.pilot.rule; else if (st.pilot.rule !== undefined) errs.push('Pilot: unknown rule for seller B.');
+      setRange('pilot-after', st.pilot.after, errs, 'Pilot length'); setRange('pilot-runs', st.pilot.runs, errs, 'Pilot runs'); pilotOutputs();
+    }
+    if (st.remedies) {
+      setRange('rem-runs', st.remedies.runs, errs, 'Remedy runs');
+      if (Array.isArray(st.remedies.options)) {
+        Array.prototype.forEach.call($('rem-list').querySelectorAll('input'), function (b) { b.checked = st.remedies.options.indexOf(b.value) >= 0; });
+      }
+      updateRemTime();
+    }
+    if (st.robustness) { setRange('rb-runs', st.robustness.runs, errs, 'Robustness runs'); setRange('rb-cell', st.robustness.cell, errs, 'Map runs'); rbOutputs(); }
+    if (st.caseFile) {
+      setRange('cf-n', st.caseFile.markets, errs, 'Case file markets'); setRange('cf-test', st.caseFile.testRate, errs, 'Test rate');
+      if (st.caseFile.seed !== undefined) { var sd = Math.floor(+st.caseFile.seed); if (sd >= 0 && sd <= 4294967295) $('cf-seed').value = sd; else errs.push('Case file seed was not a whole number from 0 to 4294967295.'); }
+      var tg = document.querySelector('input[name="target"][value="' + st.caseFile.target + '"]');
+      if (tg) tg.checked = true;
+      $('cf-n-out').textContent = $('cf-n').value; $('cf-test-out').textContent = pct(+$('cf-test').value) + ' of days';
+    }
+    if (st.data) { setRange('tol', st.data.tol, errs, 'Smallest cut'); $('tol-out').textContent = pct(+$('tol').value, 1); }
+    if (TAB_IDS.indexOf(st.tab) >= 0) showTab($('tab-' + st.tab), false);
+    return errs;
+  }
+  function toB64(str) {
+    var bytes = new TextEncoder().encode(str), bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function fromB64(s) {
+    var b = s.replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    var bin = atob(b), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function stateNotice(errs, okText) {
+    $('state-notice').innerHTML = errs.length ? '<div class="notice warn"><strong>Some settings were adjusted:</strong><ul>' + errs.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div>' : '';
+    $('share-status').textContent = okText || '';
+  }
+  $('share-btn').addEventListener('click', function () {
+    var hash = '#s=' + toB64(JSON.stringify(gatherState())), base = String(location.href).split('#')[0], link = base + hash;
+    try { history.replaceState(null, '', hash); } catch (err) { /* some frames do not allow it */ }
+    var box = $('share-link');
+    box.hidden = false; box.value = link;
+    function fallback() { box.focus(); box.select(); $('share-status').textContent = 'Copy the link from the box.'; }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { $('share-status').textContent = 'Link copied.'; }, fallback);
+      else fallback();
+    } catch (err) { fallback(); }
+  });
+  $('save-btn').addEventListener('click', function () {
+    var ok = download('quiet-cartel-settings.json', JSON.stringify(gatherState(), null, 2), 'application/json');
+    $('share-status').textContent = ok ? 'Settings saved as a file.' : 'This page cannot save files here.';
+  });
+  $('load-file').addEventListener('change', function () {
+    var f = this.files && this.files[0], input = this;
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var st = null;
+      try { st = JSON.parse(String(rd.result)); } catch (err) { stateNotice(['That file is not valid JSON.']); return; }
+      stateNotice(applyState(st), 'Settings loaded.');
+      input.value = '';
+    };
+    rd.onerror = function () { stateNotice(['The file could not be read.']); };
+    rd.readAsText(f);
+  });
+  function loadFromHash() {
+    var h = String(location.hash || '');
+    if (h.indexOf('#s=') !== 0) return;
+    var st = null;
+    try { st = JSON.parse(fromB64(h.slice(3))); } catch (err) { stateNotice(['The settings in this link could not be read, so the defaults are shown.']); return; }
+    stateNotice(applyState(st), 'Settings from the link.');
   }
 
   function renderData() {
+
     var D = S.data;
     $('data-empty').hidden = !!D;
     ['data-kpis', 'data-chart-card', 'data-verdict'].forEach(function (id) { $(id).hidden = !D; });
@@ -2877,7 +3173,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       points: pts, yFmt: function (v) { return v.toFixed(2); }, xFmt: function (v) { return String(Math.round(v)); }, xLabel: 'Day', yLabel: 'Price'
     });
     legend($('legend-data'), [{ label: 'Seller A (' + D.names[0] + ')', color: SELLER_COL[0] }, { label: 'Seller B (' + D.names[1] + ')', color: SELLER_COL[1] }]);
-    $('data-sub').textContent = T + ' days';
+    $('data-sub').textContent = (D.market !== null && D.market !== undefined ? 'market ' + D.market + ', ' : '') + T + ' days';
     $('data-kpis').innerHTML =
       kpi('Unprovoked cuts', String(sc.events), 'after a calm day, one seller cuts alone') +
       kpi('Rival cuts next day', pct(sc.followRate), 'against ' + pct(sc.baseRate, 1) + ' on an ordinary day', sc.retaliation > 0.2 ? 'bad' : '') +
@@ -2916,12 +3212,14 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
 
   // ------------------------------------------------------------ start
   setControls(QC.defaultConfig());
+  loadFromHash();
   renderLearn();
   renderPilot();
   renderRobust();
   renderRem();
   renderScreens(false);
   renderData();
+  renderPanel();
   updateRemTime();
 })();
 </script>

@@ -195,6 +195,71 @@ class AppTest(unittest.TestCase):
         self.assertIn('120 days', page.inner_text('#data-sub'))
         self.assertClean()
 
+    def test_share_link_and_settings_file(self):
+        page = self.open()
+        page.select_option('#preset', 'loyal')
+        page.select_option('#memory', 'own')
+        page.click('#tab-pilot')
+        page.select_option('#pilot-rule', 'undercut')
+        page.click('#share-btn')
+        link = page.input_value('#share-link')
+        self.assertIn('#s=', link)
+        other = self.open(url=link)
+        self.assertEqual(other.input_value('#memory'), 'own')
+        self.assertEqual(other.input_value('#mu'), '0.5')
+        self.assertEqual(other.input_value('#pilot-rule'), 'undercut')
+        self.assertEqual(other.get_attribute('#tab-pilot', 'aria-selected'), 'true')
+        broken = self.open(url=APP + '#s=not-really-settings')
+        self.assertIn('could not be read', broken.inner_text('#state-notice'))
+        with page.expect_download() as dl:
+            page.click('#save-btn')
+        path = dl.value.path()
+        with tempfile.TemporaryDirectory() as d:
+            bad = pathlib.Path(d) / 'bad.json'
+            bad.write_text('{"app": "quiet-cartel", "learn": {"mu": 7}, "remedies": {"runs": 99}}', encoding='utf-8')
+            fresh = self.open()
+            fresh.set_input_files('#load-file', str(bad))
+            fresh.wait_for_timeout(300)
+            notice = fresh.inner_text('#state-notice')
+            self.assertIn('mu must be between', notice)
+            self.assertIn('Remedy runs', notice)
+            fresh.set_input_files('#load-file', path)
+            fresh.wait_for_timeout(300)
+            self.assertEqual(fresh.input_value('#memory'), 'own')
+        self.assertClean()
+
+    def test_many_markets_and_downloads(self):
+        lines = (ROOT / 'data' / 'markets.csv').read_text(encoding='utf-8').splitlines()
+        keep = [lines[0]] + [l for l in lines[1:] if l.split(',')[0] in ('1', '4', '11')]
+        page = self.open()
+        page.click('#tab-data')
+        page.fill('#csv', '\n'.join(keep))
+        page.click('#data-run')
+        page.wait_for_function("document.getElementById('data-status').textContent.indexOf('Screened 3') === 0", timeout=60000)
+        self.assertEqual(page.locator('#panel-table tr').count(), 4)
+        self.assertIn('market', page.inner_text('#data-sub'))
+        page.click('#panel-table button[data-market="11"]')
+        self.assertIn('market 11', page.inner_text('#data-sub'))
+        self.assertIn('margin', page.inner_text('#panel-table').lower())
+        with page.expect_download() as dl:
+            page.click('#panel-csv')
+        text = pathlib.Path(dl.value.path()).read_text(encoding='utf-8')
+        self.assertTrue(text.startswith('market,days,unprovoked_cuts'))
+        self.assertEqual(len(text.strip().splitlines()), 4)
+        page.click('#tab-remedies')
+        boxes = page.locator('#rem-list input')
+        for k in range(boxes.count()):
+            if boxes.nth(k).get_attribute('value') != 'baseline':
+                boxes.nth(k).uncheck()
+        page.fill('#rem-runs', '2')
+        page.dispatch_event('#rem-runs', 'input')
+        page.click('#rem-run')
+        page.wait_for_function("document.getElementById('rem-status').textContent.indexOf('Finished') === 0", timeout=60000)
+        with page.expect_download() as dl:
+            page.click('#rem-csv')
+        self.assertEqual(len(pathlib.Path(dl.value.path()).read_text(encoding='utf-8').strip().splitlines()), 3)
+        self.assertClean()
+
     def test_keyboard_tabs(self):
         page = self.open()
         page.focus('#tab-learn')

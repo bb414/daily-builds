@@ -348,3 +348,21 @@ test('the pilot helpers measure each stage against the status quo', () => {
   assert.ok(cfg.maxPeriods >= 3100000);
   assert.deepEqual(M.togetherConfig(base, 5).adoptAt, [-1, -1, -1]);
 });
+
+test('the permutation test is one-sided and q-values follow Benjamini-Hochberg', () => {
+  const a = [], b = [];
+  for (let t = 0; t < 200; t++) { a.push(2); b.push(2); }
+  for (let t = 5; t < 190; t += 17) a[t] = 1.8;           // A cuts now and then, B never answers
+  for (let t = 13; t < 190; t += 23) b[t] = 1.8;           // B cuts on its own schedule
+  const r = M.permutationTest([a, b], { reps: 99 });
+  assert.ok(r.observed <= 0);
+  assert.equal(r.pValue, 1);
+  // hand-worked example: p = 0.01, 0.04, 0.03, 0.2, 0.5 with m = 5
+  const q = M.benjaminiHochberg([0.01, 0.04, 0.03, 0.2, 0.5]);
+  const want = [0.05, 0.05, 0.05, 0.25, 0.5];
+  q.forEach((x, i) => assert.ok(Math.abs(x - want[i]) < 1e-12, i + ': ' + x));
+  const withGap = M.benjaminiHochberg([0.01, NaN]);
+  assert.ok(Math.abs(withGap[0] - 0.02) < 1e-12, 'a missing p-value still counts as a test');
+  assert.ok(Number.isNaN(withGap[1]));
+  assert.deepEqual(M.benjaminiHochberg([]), []);
+});

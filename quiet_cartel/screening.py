@@ -249,19 +249,7 @@ def benjamini_hochberg(pvalues):
     still counts in m as a p-value of 1, which can only make the others more
     cautious; its own q-value comes back as NaN.
     """
-    ps = [1.0 if p is None or p != p else float(p) for p in pvalues]
-    m = len(ps)
-    q = [NAN] * m
-    running = 1.0
-    order = sorted(range(m), key=lambda i: ps[i])
-    for rank in range(m - 1, -1, -1):
-        i = order[rank]
-        running = min(running, ps[i] * m / (rank + 1))
-        q[i] = running
-    for i, p in enumerate(pvalues):
-        if p is None or p != p:
-            q[i] = NAN
-    return q
+    return model.benjamini_hochberg(pvalues)
 
 
 def _screen_one(task):
