@@ -2364,7 +2364,7 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
       v.innerHTML = '<div class="head"><span class="pill bad">Reward and punishment</span> The cut is punished, so it does not pay</div><p>' + who +
         'It gained ' + money(ir.gainNow * PER) + ' that day, but ' + rivals + ' answered with lower prices and it lost ' + money(ir.lossLater * PER) + ' over the following days. ' +
         (ir.returnedAt ? 'Prices were back on their old path by day ' + ir.returnedAt + '.' : 'Prices had not returned to their old path within ' + H + ' days.') + '</p>' +
-        '<p style="margin:0">Nobody programmed this response. It emerged because, during training, cuts that triggered a price war earned less than staying high. In a cartel between people, this pattern would be strong evidence of an agreement.</p>';
+        '<p style="margin:0">Nobody programmed this response. It emerged because, during training, cuts that triggered a price war earned less than staying high. Between people, this is the kind of pattern competition authorities look for in a cartel, although quick matching of a rival&rsquo;s price can also be ordinary competition.</p>';
     } else if (ir.rivalCut) {
       v.className = 'card verdict';
       v.innerHTML = '<div class="head"><span class="pill warn">Reaction without deterrence</span> ' + (n === 2 ? 'The rival reacts' : 'A rival reacts') + ', but cutting still pays</div><p style="margin:0">' + who +
@@ -3409,8 +3409,11 @@ window.QC_SAMPLES = [{"label":"Market 1 from the dataset","market":1,"cost":[1,1
     var box = $('share-link');
     box.hidden = false; box.value = link;
     function fallback() { box.focus(); box.select(); $('share-status').textContent = 'Copy the link from the box.'; }
+    // A sandboxed frame blocks the clipboard and the browser logs an error, so ask first where the browser can say.
+    var policy = document.permissionsPolicy || document.featurePolicy;
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { $('share-status').textContent = 'Link copied.'; }, fallback);
+      if (policy && policy.allowsFeature && !policy.allowsFeature('clipboard-write')) fallback();
+      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { $('share-status').textContent = 'Link copied.'; }, fallback);
       else fallback();
     } catch (err) { fallback(); }
   });

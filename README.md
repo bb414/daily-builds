@@ -135,7 +135,7 @@ The agreement tests need Node.js on the path and skip with a message without it.
 
 ## What could come next
 
-- A cycle-aware screen. About four in ten markets held up by a threat settle into a price cycle, which has no calm days, so a screen built on clean cuts never sees them. Measuring cuts against each market's own usual cycle could close that blind spot.
+- A cycle-aware screen. About four in ten markets held up by a threat settle into a price cycle with no calm days, so a screen built on clean cuts never sees them. Measuring cuts against each market's own usual cycle could close that blind spot.
 - Let the algorithms keep learning after deployment, so that a regulator's test prices also teach them.
 - Add sellers who change prices at different times of day, and buyers who compare prices with a lag.
 - Try other learning methods (policy-gradient or bandit pricing) on the same tests.

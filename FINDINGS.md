@@ -18,13 +18,13 @@ Every number below comes from the Python companion, which reproduces the browser
 
 ## Result 1: the algorithms learn to stop competing, and a threat holds the price up
 
-Across 20 runs of the textbook market the profit gain averaged **85%** (90% interval 81% to 88%; range 58% to 98%). Settled prices averaged **£1.80**, much nearer monopoly than competition, and shoppers lost **73%** of what a monopoly would take, in line with the research literature for the same design.
+Across 20 runs of the textbook market the profit gain averaged **85%** (90% interval 81% to 88%; range 58% to 98%). Settled prices averaged **£1.79**, much nearer monopoly than competition, and shoppers lost **73%** of what a monopoly would take, in line with the research literature for the same design.
 
 The punishment test forces one seller to make its most profitable one-day cut and lets both strategies play on. In **18 of 20** runs the cut was punished: the rival answered with lower prices, the cutter lost more than it gained, and prices returned to their old level within days. With seed 1, seller A gains £23.65 per 1,000 shoppers on the day and loses £165.15 over the next 24 days. That is the pattern a competition lawyer looks for in a cartel, and nobody programmed it.
 
-An exact best-reply check adds a twist. Holding the rival's learned strategy fixed, the seller with more to gain could earn on average **17.7%** more over time with its best reply. So the high price is not a strict equilibrium: it survives because the algorithms only test one price at a time, and any single test is punished.
+An exact best-reply check adds a twist. Holding the rival's learned strategy fixed, the seller with more to gain could earn on average **17.7%** more over time with its best reply. In every one of the 20 runs both sellers could gain this way, so the learned strategies are not an equilibrium: the high price survives because the algorithms only test one price at a time, and a single cut from the settled price is punished.
 
-The result does not hang on one lucky setting. Moving each of seven assumptions to a low and a high value, one at a time, the gain stays at 50% or more at both ends for all seven. Patience matters most: 60% when the algorithms value tomorrow at 0.8, 94% at 0.99. On the loyalty-by-patience map, 13 of 25 combinations reach 50% or more, almost all where tomorrow is valued at 0.8 or above.
+The result does not hang on one lucky setting. Moving each of seven assumptions to a low and a high value, one at a time, the gain stays at 50% or more at both ends for all seven. Patience matters most: 60% when the algorithms value tomorrow at 0.8 (90% interval 44% to 77% over five runs), 94% at 0.99. On the loyalty-by-patience map, 13 of 25 combinations reach 50% or more, all of them where tomorrow is valued at 0.8 or above.
 
 ## Result 2: the pilot measures the rival's rule, not the algorithm
 
@@ -36,7 +36,7 @@ In the pilot design, both sellers start at the competitive price. Seller A then 
 | Matches the cheapest price | +53% | +40% | -12 points |
 | Undercuts by one step | +64% | +41% | -23 points |
 
-Once both sellers have algorithms, A ends up at about **+40%** whatever happened in the pilot (+46% if both adopt at once). Across all 60 runs, A's pilot uplift barely predicts its uplift at scale (Pearson r = **0.07**, Spearman rho = 0.12).
+Once both sellers have algorithms, A ends up at about **+40%** whatever happened in the pilot (+46% if both adopt at once). Within each design the pilot number is fixed by B's rule (identical in all 20 runs for two of the three rules), while the result at scale varies from run to run; pooling all 60 runs, A's pilot uplift barely predicts its uplift at scale (Pearson r = **0.07**, Spearman rho = 0.12). The table, not the correlation, is the main evidence.
 
 A board that approved roll-out on the pilot number would have been approving a guess about how rivals respond. Worse, the gain at scale comes from both sellers competing less hard: cuts were punished in 65% to 70% of runs after B adopted. The part of the return a pilot cannot see is the part a competition authority would ask about.
 
@@ -48,14 +48,14 @@ A board that approved roll-out on the pilot number would have been approving a g
 | Rivals' prices banned as an input | -5% | -90 points | 0% |
 | Rival keeps a fixed competitive price | 7% | -78 points | 0% |
 | Rewarded on today's profit only | 16% | -68 points | 0% |
-| Must keep testing prices (5% of days) | 45% | -40 points | 50% |
+| Must keep testing prices (5% of days)* | 45% | -40 points | 50% |
 | A third seller enters | 65% | -20 points | 90% |
 | Busy and quiet days | 73% | -12 points | 65% |
 | Both buy the same pricing tool | 92% | +7 points | 90% |
 | Rival matches the cheapest price | 94% | +9 points | 100% |
 | No memory at all | 96% | +11 points | 0% |
 
-Every difference is statistically clear after Holm's correction (largest adjusted p = 0.036, for the shared tool).
+Every difference in profit gain is statistically clear after Holm's correction (largest adjusted p = 0.036, for the shared tool). *Algorithms that must keep testing never settle, so this row is measured when training stops at 3 million rounds.
 
 - **Input rules work best.** Stopping the algorithm from using rivals' prices removes what a punishment needs, and prices fall to competitive; rewarding today's profit only does almost as well. Both are design rules a regulator could audit.
 - **More competitors and forced experimenting help only partly.** A third seller still leaves a 65% gain with cuts punished in 90% of runs.
@@ -63,7 +63,7 @@ Every difference is statistically clear after Holm's correction (largest adjuste
 
 ## Result 4: high prices without a threat
 
-Algorithms with **no memory at all** reached the highest prices (96%) while no cut was ever punished. They cannot punish, because they cannot see yesterday; they simply never learned that undercutting pays, because their estimate of a low price went stale once experimenting stopped. Shoppers lose 90% of the monopoly surplus, yet a conduct test based on reward and punishment would clear these markets. The harm does not depend on the mechanism; the legal theory does.
+Algorithms with **no memory at all** reached the highest prices (96%) while no cut was ever punished. They cannot punish, because they cannot see yesterday; they simply never learned that undercutting pays, because their estimate of a low price went stale once experimenting stopped. Shoppers lose 90% of what a monopoly would take, yet a conduct test based on reward and punishment would clear these markets. The harm does not depend on the mechanism; the legal theory does.
 
 ## Result 5: what a regulator can and cannot see
 
@@ -86,7 +86,7 @@ Watching longer does not fix the misses. Across 120 case-file markets, the react
 
 For **AI governance**, the most effective remedies regulate what goes into an algorithm (which data it may use, what objective it optimises) rather than what comes out. Price screens can prioritise investigations, but they cannot separate a learned threat from a learning failure without clean price cuts to watch, and they miss markets that cycle.
 
-For **AI adoption**, a pricing pilot cannot tell "better pricing" apart from "learned to stop competing", and its uplift says more about rivals' current rules than about the algorithm. A responsible pilot needs a gate before scaling: a forced-cut test like the one in this app, scenarios for rivals adopting similar tools, and a record of which inputs the algorithm may use. Without them, the larger the projected uplift, the larger the legal exposure: an unclear benefit with a hard-to-measure risk, two of the barriers executives name when AI pilots fail to scale.
+For **AI adoption**, a pricing pilot cannot tell "better pricing" apart from "learned to stop competing", and its uplift says more about rivals' current rules than about the algorithm. A responsible pilot needs a gate before scaling: a forced-cut test like the one in this app, scenarios for rivals adopting similar tools, and a record of which inputs the algorithm may use. Without them, the larger the projected uplift, the larger the legal exposure: an unclear benefit paired with a hard-to-measure risk, which is exactly the kind of uncertainty that makes a roll-out hard to sign off.
 
 ## Limitations
 
