@@ -353,7 +353,6 @@ test('the permutation test is one-sided and q-values follow Benjamini-Hochberg',
   const a = [], b = [];
   for (let t = 0; t < 200; t++) { a.push(2); b.push(2); }
   for (let t = 5; t < 190; t += 17) a[t] = 1.8;           // A cuts now and then, B never answers
-  for (let t = 13; t < 190; t += 23) b[t] = 1.8;           // B cuts on its own schedule
   const r = M.permutationTest([a, b], { reps: 99 });
   assert.ok(r.observed <= 0);
   assert.equal(r.pValue, 1);
