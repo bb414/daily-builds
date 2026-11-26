@@ -54,7 +54,8 @@ def fit_market(prices_a, prices_b, units_a, units_b, shoppers):
     Each day gives two observations, one per seller: y = ln(s_i / s_0) and its
     own price p_i, with s_i = units_i / shoppers and s_0 = (shoppers - units_a -
     units_b) / shoppers, the share who bought nothing. Days on which any share
-    is zero (or there were no shoppers) are dropped, since the log is undefined. Pooled OLS with a common slope b and one intercept c_i per
+    is zero (or there were no shoppers) are dropped, since the log is
+    undefined. Pooled OLS with a common slope b and one intercept c_i per
     seller is solved in closed form: b is the within-seller covariance of price
     and y over the within-seller variance of price, and c_i = mean(y_i) - b *
     mean(p_i).
@@ -203,7 +204,9 @@ def calibrate_panel(panel, truth=None):
         'competitiveMae': model.mean([abs(e) for e in comp_errors]) if comp_errors else None,
         'evaluation': None,
     }
-    if any(r['excessPrice'] is not None for r in markets) and any(r['market'] in truth for r in markets):
+    # Only markets in the truth file are scored, so one of those must have an index (otherwise evaluate
+    # would return no screen at all, and the summaries read the first screen).
+    if any(r['excessPrice'] is not None and r['market'] in truth for r in markets):
         summary['evaluation'] = screening.evaluate({'markets': markets}, truth)
     out['truth'] = summary
     return out

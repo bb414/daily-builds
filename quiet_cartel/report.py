@@ -28,6 +28,7 @@ import html
 import math
 
 from . import model
+from .experiments import fmt_setting as _fs
 
 __all__ = ['build_report', 'SECTION_TITLES']
 
@@ -185,7 +186,10 @@ def num(x, d=3):
 
 
 def money(x):
-    return 'n/a' if not _ok(x) else (MINUS if x < 0 else '') + '£%.2f' % abs(x)
+    if not _ok(x):
+        return 'n/a'
+    s = '£%.2f' % abs(x)
+    return (MINUS if x < 0 and s != '£0.00' else '') + s       # no "−£0.00"
 
 
 def _signed(x):
@@ -377,9 +381,10 @@ def _remedies_section(part):
         'with Holm’s method across all the options shown. Shoppers’ loss is the share of the gap between '
         'competitive and monopoly consumer surplus that shoppers lose. Punished is the share of runs in which a '
         'one-day price cut is answered and loses money overall; settled is the share whose strategies stopped '
-        'changing. Gain from best reply is how much more a learning seller would earn over time, from where play '
-        'settled, by switching to its exact best reply to the others\u2019 learned strategies, from the model\u2019s '
-        'best-response check (two sellers only). Zero would mean the learned strategies form an equilibrium.</p>',
+        'changing. Gain from best reply is, averaged over runs, how much more the learning seller with more to gain '
+        'would earn over time, from where play settled, by switching to its exact best reply to the others\u2019 '
+        'learned strategies, from the model\u2019s best-response check (two sellers only). Zero would mean the '
+        'learned strategies form an equilibrium.</p>',
         notes,
         '<details><summary>Command and settings</summary>%s</details></section>' % _settings_list(part),
     ])
@@ -518,14 +523,6 @@ def _pilot_section(part):
 
 
 # ------------------------------------------------------------ robustness
-
-def _fs(key, value):
-    """A setting's value as text, as in the command line: beta as 2.5e-6, prices as a whole number."""
-    if key == 'beta':
-        mant, _, exp = ('%e' % value).partition('e')
-        return '%se%d' % ('%g' % float(mant), int(exp))
-    return '%d' % value if key == 'nPrices' else '%g' % value
-
 
 def _tornado_chart(summary):
     """Tornado: per assumption, the gain at the low value (hollow) and the high value (filled), with intervals."""
@@ -697,13 +694,15 @@ def _watch_chart(sm, sid, title, lo):
                                                                                  _f(Y(ref))))
             inner.append(_text(W - mr - 2, Y(ref) - 4, label, anchor='end'))
     for d in days:
-        inner.append(_text(X(d), H - mb + 16, str(d), anchor='middle'))
+        inner.append(_text(X(d), H - mb + 16, e(d), anchor='middle'))
     inner.append(_text(ml + (W - ml - mr) / 2, H - 6, 'Days watched (log scale)', anchor='middle'))
     for j, r in enumerate(rates):
         cls = 'r%d' % (j % 3 + 1)
         pts_ = [(X(d), cells[i][j]['auc']['coordinated'][sid]) for i, d in enumerate(days)]
+        # The path starts (M) at the first point it draws, which is not the first day when that one is missing.
+        drawn = [(x, b) for x, b in pts_ if _ok(b['mean'])]
         path = ''.join('%s%s %s' % ('M' if k == 0 else 'L', _f(x), _f(Y(b['mean'])))
-                       for k, (x, b) in enumerate(pts_) if _ok(b['mean']))
+                       for k, (x, b) in enumerate(drawn))
         if path:
             inner.append('<path class="ln %s" d="%s"/>' % (cls, path))
         for (x, b), d in zip(pts_, days):
@@ -738,11 +737,11 @@ def _watch_section(part):
     rows = []
     for d, line in zip(days, cells):
         for c in line:
-            rows.append([str(d), _rate_text(c['rate']), iv(c['auc']['coordinated']['retaliation'], auc2),
+            rows.append([e(d), _rate_text(c['rate']), iv(c['auc']['coordinated']['retaliation'], auc2),
                          num(c['auc']['coordinated']['margin']['mean'], 2),
                          iv(c['recall'], pct), iv(c['precision'], pct),
                          '%s' % num(c['flagged'], 1), num(c['events']['mean'], 1),
-                         '%s of %s' % (num(c['silent'], 1).rstrip('0').rstrip('.'), sm['markets'])])
+                         '%s of %s' % (num(c['silent'], 1).rstrip('0').rstrip('.'), e(sm['markets']))])
     words = []
     for r in rates:
         d = sm['shortest'].get(str(r))
@@ -769,7 +768,7 @@ def _watch_section(part):
         'case file, from a one-sided permutation test with %d circular shifts) is below 0.10 and rivals hit back. '
         'Recall is the share of markets held up by a threat that it catches; precision the share of its flags that '
         'are right (undefined when nothing is flagged). Markets that settle into a price cycle have no calm days, '
-        'so they show no unprovoked cuts however long they are watched.</p>' % sm['reps'],
+        'so they show almost no unprovoked cuts however long they are watched.</p>' % sm['reps'],
         '<details><summary>Command and settings</summary>%s</details></section>' % _settings_list(part),
     ])
 
@@ -825,7 +824,7 @@ def _sweep_section(part):
     rows = []
     for line in sw['cells']:
         for c in line:
-            rows.append([e(_short(c['x'])), e(_short(c['y'])), str(c.get('runs', '')), pct(c.get('gain')),
+            rows.append([e(_short(c['x'])), e(_short(c['y'])), e(c.get('runs', '')), pct(c.get('gain')),
                          pct(c.get('harm')), pct(c.get('punishedShare')), pct(c.get('convergedShare'))])
     key = ''.join('<span><i class="swatch heat"><i style="opacity:%.2f"></i></i>%s</span>' % (t, pct(t))
                   for t in (0.0, 0.25, 0.5, 0.75, 1.0))
@@ -854,11 +853,12 @@ def _screening_section(part):
     markets = res['markets']
     flagged = [r for r in markets if r.get('flag')]
     out = ['<section id="screening"><h2>%s</h2>' % e(SECTION_TITLES['screening']),
-           '<p class="lead">%d markets were screened from daily prices%s. Each market’s retaliation screen was '
+           '<p class="lead">%d %s screened from daily prices%s. Each market’s retaliation screen was '
            'tested with %s circular shifts of the rival’s prices, the p-values were turned into '
            'Benjamini-Hochberg q-values across markets, and a market is flagged when q is below %s and rivals hit '
            'back more often after an unprovoked cut than on an ordinary day.</p>' % (
-               len(markets), ' and sales' if settings.get('sales') else '', e(settings.get('reps', '?')),
+               len(markets), 'market was' if len(markets) == 1 else 'markets were',
+               ' and sales' if settings.get('sales') else '', e(settings.get('reps', '?')),
                e(settings.get('flagQ', 0.1)))]
     if ev:
         tg = ev['targets']
@@ -877,8 +877,8 @@ def _screening_section(part):
             rows = []
             for t in tg:
                 c = t['flag']
-                rows.append([e(t['label']), str(c['caught']), str(c['falseAlarms']), str(c['missed']),
-                             str(c['cleared']), pct(c['precision']), pct(c['recall'])])
+                rows.append([e(t['label']), e(c['caught']), e(c['falseAlarms']), e(c['missed']),
+                             e(c['cleared']), pct(c['precision']), pct(c['recall'])])
             out.append('<h3>The flag against each definition</h3>')
             out.append(_table(['Definition', 'Caught', 'False alarms', 'Missed', 'Cleared', 'Precision', 'Recall'],
                               rows, num_cols=range(1, 7)))
@@ -898,7 +898,7 @@ def _market_table(markets, truth_cols):
     rows = []
     for r in markets:
         sc = r['screens']
-        row = [e(r['market']), str(r['days']), pct(sc.get('margin')), num(sc.get('cv')), str(sc.get('events')),
+        row = [e(r['market']), e(r['days']), pct(sc.get('margin')), num(sc.get('cv')), e(sc.get('events')),
                pct(sc.get('retaliation')), pval(r.get('pValue')), pval(r.get('qValue')),
                '<span class="pill bad">flag</span>' if r.get('flag') else '']
         if has_excess:
@@ -979,7 +979,7 @@ def _calibration_section(cal, part):
                if f.get('usable') else '<span class="pill bad">unusable</span>']
         if has_truth:
             row.append(num(r.get('trueMu')))
-        row += [num(f.get('r2'), 2), '%s of %s' % (f['days'], f['days'] + f['dropped']),
+        row += [num(f.get('r2'), 2), '%s of %s' % (e(f['days']), e(f['days'] + f['dropped'])),
                 money(model.mean(b['competitive'])) if b.get('competitive') else 'n/a',
                 money(model.mean(b['monopoly'])) if b.get('monopoly') else 'n/a',
                 money(model.mean(f['meanPrice'])), num(b.get('excessPrice'), 2),

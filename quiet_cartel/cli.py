@@ -43,7 +43,7 @@ class CliError(Exception):
 
 
 class ConfigErrors(Exception):
-    """Validation errors from model.validate_config, one per line."""
+    """Validation errors from model.validate_config, reported together on one line."""
 
 
 class _Parser(argparse.ArgumentParser):
@@ -54,7 +54,10 @@ class _Parser(argparse.ArgumentParser):
 # ------------------------------------------------------------ formatting
 
 def money(x):
-    return 'n/a' if not _finite(x) else ('-' if x < 0 else '') + '£%.2f' % abs(x)
+    if not _finite(x):
+        return 'n/a'
+    s = '£%.2f' % abs(x)
+    return ('-' if x < 0 and s != '£0.00' else '') + s       # no "-£0.00"
 
 
 def pct(x, d=0):
@@ -79,7 +82,8 @@ def num(x, d=3):
 
 
 def rounds(t):
-    return '%.2fm' % (t / 1e6) if t >= 1e6 else '%dk' % round(t / 1e3) if t >= 1e4 else str(t)
+    # from 999,500 the thousands would round to "1000k"
+    return '%.2fm' % (t / 1e6) if t >= 999500 else '%dk' % round(t / 1e3) if t >= 1e4 else str(t)
 
 
 def _finite(x):
@@ -187,8 +191,8 @@ def describe(cfg, swept=()):
     who = 'all self-learning' if all(t == 'learn' for t in types) else ', '.join(
         '%s %s' % (SELLERS[i], seller_role(cfg, i)) for i in range(len(types)))
     text = ('%s sellers (%s), loyalty mu %s, patience delta %s, learning rate alpha %s, exploration decay beta %s, '
-            '%s prices, memory %s' % (n, who, cfg['mu'], cfg['delta'], cfg['alpha'], cfg['beta'], cfg['nPrices'],
-                                      cfg['memory']))
+            '%s prices, memory %s' % (cfg['nFirms'], who, cfg['mu'], cfg['delta'], cfg['alpha'], cfg['beta'],
+                                      cfg['nPrices'], cfg['memory']))
     extras = []
     if cfg['sharedVendor']:
         extras.append('shared vendor')
@@ -261,7 +265,7 @@ def read_json(path, kind):
         raise CliError('%s is not valid JSON (line %d: %s)' % (path, e.lineno, e.msg)) from None
     if not isinstance(data, dict) or data.get('kind') != kind:
         raise CliError('%s is not saved %s results (make it with: python -m quiet_cartel %s --json %s)' % (
-            path, kind, kind, path))
+            path, kind, 'screen PRICES.csv' if kind == 'screen' else kind, path))
     return data
 
 
@@ -311,7 +315,7 @@ def cmd_train(args, ctx):
     for k, j in enumerate(s['cycle'][:8]):
         a = model.decode_joint(j, n, mk['m'])
         rows.append([k + 1] + [money(mk['grids'][i][a[i]]) for i in range(n)]
-                    + [money(mk['profit'][0][i][j] * PER) for i in range(n)])
+                    + [money(mk['profit'][mk['base']][i][j] * PER) for i in range(n)])
     out('The cycle%s (profit per 1,000 shoppers a day)' % (' (first 8 days)' if s['cycleLength'] > 8 else ''))
     out(table(['day'] + ['price %s' % SELLERS[i] for i in range(n)] + ['profit %s' % SELLERS[i] for i in range(n)],
               rows))
@@ -321,30 +325,25 @@ def cmd_train(args, ctx):
     # (a cycle can return out of step, so returning to the cycle is not enough).
     differs = [t for t in range(H + 1) if any(abs(ir['prices'][i][t] - ir['cfPrices'][i][t]) > 1e-9 for i in range(n))]
     last = min(H, max(8, (differs[-1] if differs else 0) + 2))
-    out('Impulse response: seller A cuts to %s for one day (its best one-day cut), then the strategies play on'
-        % money(ir['devPrice']))
+    what, move, verdict = impulse_words(ir)
+    out('Impulse response: seller A %s, then the strategies play on' % what)
     rows = []
     for t in range(last + 1):
         rows.append([t] + ['%.2f%s' % (ir['prices'][i][t], '*' if abs(ir['prices'][i][t] - ir['cfPrices'][i][t]) > 1e-9
                                        else '') for i in range(n)]
                     + ['%.2f' % ir['cfPrices'][i][t] for i in range(n)])
-    out(table(['day'] + ['%s' % SELLERS[i] for i in range(n)] + ['%s without the cut' % SELLERS[i] for i in range(n)],
-              rows))
+    out(table(['day'] + ['%s' % SELLERS[i] for i in range(n)] + ['%s without the %s' % (SELLERS[i], move)
+                                                                 for i in range(n)], rows))
     if last < H:
-        out('  (days %d to %d are the same with or without the cut)' % (last + 1, H))
-    out('  * differs from the path without the cut')
+        out('  (days %d to %d are the same with or without the %s)' % (last + 1, H, move))
+    out('  * differs from the path without the %s' % move)
     back = 'back in the settled cycle from day %d' % ir['returnedAt'] if ir['returnedAt'] is not None else \
         'not back in the settled cycle within %d days' % H
     now = ('gains %s today' if ir['gainNow'] >= 0 else 'loses %s today') % money(abs(ir['gainNow']) * PER)
     later = ('loses %s' if ir['lossLater'] >= 0 else 'gains %s') % money(abs(ir['lossLater']) * PER)
     out('  Seller A %s and %s over the next %d days (discounted at delta %s): net %s per 1,000 shoppers; %s.'
         % (now, later, H - 1, cfg['delta'], money(ir['net'] * PER), back))
-    if s['punished']:
-        out('  Punished: yes. A rival answers with a lower price and the cut loses money overall.')
-    elif ir['rivalCut']:
-        out('  Punished: no. A rival answers with a lower price, but the cut still pays.')
-    else:
-        out('  Punished: no. No rival answers the cut with a lower price.')
+    out('  ' + verdict)
     out()
     out('Best-response check (each seller against the others\' learned strategies, solved exactly)')
     rows = []
@@ -367,6 +366,36 @@ def cmd_train(args, ctx):
             'summary': s, 'impulse': ir, 'bestResponse': brs, 'seconds': time.time() - ctx['start'],
         })
     return 0
+
+
+def impulse_words(ir):
+    """Seller A's forced move in words, the noun for it, and the punishment verdict, for one impulse response.
+
+    The model forces A's most profitable one-day price against the rivals' next prices, or one step
+    down when A already charges it, so the move can be a rise, and can lose money on the day itself.
+    """
+    before = ir['cfPrices'][ir['deviator']][1]
+    price = money(ir['devPrice'])
+    if ir['devPrice'] == before:
+        return ('keeps its price of %s (the lowest on offer, and already its best one-day reply)' % price, 'cut',
+                'Punished: no. A cannot cut below the lowest price on offer, so there is nothing to test.')
+    move = 'rise' if ir['devPrice'] > before else 'cut'
+    if move == 'rise':
+        what = 'raises its price to %s for one day (its most profitable one-day price)' % price
+    elif ir['gainNow'] > 0:
+        what = 'cuts to %s for one day (its best one-day cut)' % price
+    else:
+        what = 'cuts to %s for one day (its price is already its best one-day reply, so no cut pays on the day)' % price
+    if ir['punished']:
+        verdict = 'Punished: yes. A rival answers with a lower price and the %s loses money overall.' % move
+    elif ir['rivalCut'] and ir['gainNow'] > 0:
+        verdict = 'Punished: no. A rival answers with a lower price, but the %s still pays.' % move
+    elif ir['rivalCut']:
+        verdict = ('Punished: no. A rival answers with a lower price, but the %s does not pay even on the day, '
+                   'so there is nothing to deter.' % move)
+    else:
+        verdict = 'Punished: no. No rival answers the %s with a lower price.' % move
+    return what, move, verdict
 
 
 # ------------------------------------------------------------ remedies
@@ -399,8 +428,9 @@ def cmd_remedies(args, ctx):
     out('Gain is the realised profit gain (0% competitive, 100% monopoly) with its 90% bootstrap interval. Change is')
     out('the mean paired difference from the baseline run with the same seed, with a 90% paired bootstrap interval')
     out('and a sign-flip permutation p-value, Holm-adjusted across the options. Loss is the shoppers\' loss. Reply')
-    out('gain is how much more a learning seller would earn over time by switching to its exact best reply to the')
-    out('others\' learned strategies (0% would mean they form an equilibrium).')
+    out('gain is, averaged over runs, how much more the learning seller with more to gain would earn over time by')
+    out('switching to its exact best reply to the others\' learned strategies (0% would mean they form an')
+    out('equilibrium; two sellers only).')
     if args.csv:
         write_csv(args.csv, rows)
     if args.json:
@@ -517,9 +547,14 @@ def _attach_calibration(res, cal):
 def cmd_screen(args, ctx):
     if args.reps < 1:
         raise CliError('--reps must be at least 1')
+    if not 0 <= args.tol < 1:       # checked here, so that nothing is printed before the error
+        raise CliError('--tol must be at least 0 and below 1')
     panel = screening.read_panel(args.path)
     truth = screening.read_truth(args.truth) if args.truth else None
+    if truth is not None and not any(m in truth for m in panel):
+        raise CliError('none of the markets in %s appears in %s' % (args.path, args.truth))
     sales = all('units' in d for d in panel.values())
+    costs = all(d['cost'] is not None for d in panel.values())     # the excess price index needs them too
     err('Screening %d market%s (%d permutation shifts each) on %s ...' % (
         len(panel), '' if len(panel) == 1 else 's', args.reps, _workers(args.jobs, len(panel))))
     res = screening.screen_panel(panel, reps=args.reps, tol=args.tol, jobs=args.jobs, progress=Progress('Market'))
@@ -531,8 +566,9 @@ def cmd_screen(args, ctx):
             r['truth'] = truth.get(r['market'])
     out('Quiet cartel: price screens for %d market%s in %s' % (len(panel), '' if len(panel) == 1 else 's', args.path))
     out('Settings: tolerance %s, %d permutation shifts, flag when q < %.2f and retaliation > 0%s' % (
-        pct(args.tol, 1), args.reps, screening.FLAG_Q, '; sales data found, so the excess price screen is included'
-        if sales else ''))
+        pct(args.tol, 1), args.reps, screening.FLAG_Q,
+        '' if not sales else '; sales data found, so the excess price screen is included' if costs else
+        '; sales data found, but the excess price screen also needs cost_a and cost_b'))
     out()
     rows = []
     for r in res['markets']:
@@ -846,11 +882,8 @@ def cmd_map(args, ctx):
     out(table(['delta \\ mu'] + [str(x) + ' ' for x in res['x']['values']], lines))
     out('* a one-day cut is punished in at least half the runs in that cell')
     out()
-    n = len(res['x']['values']) * len(res['y']['values'])
-    out('%d of %d cells settle at a profit gain of 50%% or more. In %d a one-day cut is punished in at least half'
-        % (res['highCells'], n, res['threatCells']))
-    out('the runs, %s.' % ('%d of them with a gain below 50%%, so a punished cut alone does not mean high prices'
-                           % res['lowThreatCells'] if res['lowThreatCells'] else 'all of them with a gain of 50% or more'))
+    for line in map_verdict(res):
+        out(line)
     out()
     out('Small mu (left) means shoppers chase the lowest price; small delta (bottom) means the algorithms care')
     out('little about tomorrow, so a future punishment is worth little to them. Gain is the realised profit gain')
@@ -867,6 +900,18 @@ def cmd_map(args, ctx):
             'map': res, 'seconds': time.time() - ctx['start'],
         })
     return 0
+
+
+def map_verdict(res):
+    """The lines under the market map: how many cells are high, and how many are held up by a threat."""
+    n = len(res['x']['values']) * len(res['y']['values'])
+    head = '%d of %d cells settle at a profit gain of 50%% or more.' % (res['highCells'], n)
+    if not res['threatCells']:
+        return [head + ' In none is a one-day cut punished in at least half the runs.']
+    return [head + ' In %d a one-day cut is punished in at least half' % res['threatCells'],
+            'the runs, %s.' % ('%d of them with a gain below 50%%, so a punished cut alone does not mean high prices'
+                               % res['lowThreatCells'] if res['lowThreatCells']
+                               else 'all of them with a gain of 50% or more')]
 
 
 # ------------------------------------------------------------ how long to watch
@@ -941,7 +986,7 @@ def cmd_watch(args, ctx):
     out('1 is perfect). Recall is the share of those markets the flag catches; precision the share of flags that')
     out('are right. A screen can only judge a reaction after an unprovoked cut, a price test out of a calm day,')
     out('so it needs sellers who test prices and a watch long enough to see enough of them. Markets that settle')
-    out('into a price cycle have no calm days, so they show no unprovoked cuts however long they are watched.')
+    out('into a price cycle have no calm days, so they show almost no unprovoked cuts however long they are watched.')
     if args.csv:
         flat = []
         for e in sm['perSeed']:
@@ -972,15 +1017,17 @@ def cmd_report(args, ctx):
     if not (args.remedies or args.sweep or args.screen or args.pilot or args.tornado or args.map or args.watch):
         raise CliError('report needs at least one of --remedies, --pilot, --tornado, --map, --watch, --sweep and '
                        '--screen')
-    parts = {
-        'remedies': read_json(args.remedies, 'remedies') if args.remedies else None,
-        'pilot': read_json(args.pilot, 'pilot') if args.pilot else None,
-        'tornado': read_json(args.tornado, 'tornado') if args.tornado else None,
-        'market_map': read_json(args.map, 'map') if args.map else None,
-        'watch': read_json(args.watch, 'watch') if args.watch else None,
-        'sweep': read_json(args.sweep, 'sweep') if args.sweep else None,
-        'screen': read_json(args.screen, 'screen') if args.screen else None,
-    }
+    paths = {'remedies': args.remedies, 'pilot': args.pilot, 'tornado': args.tornado, 'market_map': args.map,
+             'watch': args.watch, 'sweep': args.sweep, 'screen': args.screen}
+    parts = {k: read_json(path, {'market_map': 'map'}.get(k, k)) if path else None for k, path in paths.items()}
+    for k, part in parts.items():
+        # Each file on its own first, so that a file with the right kind but missing pieces is named.
+        if part:
+            try:
+                report.build_report(**{k: part})
+            except (KeyError, IndexError, TypeError, ValueError, AttributeError, ArithmeticError) as ex:
+                raise CliError('%s is incomplete or was saved by another version (%s: %s); make it again' % (
+                    paths[k], type(ex).__name__, ex)) from None
     html = report.build_report(command=ctx['command'], **parts)
     _parent(args.out)
     with open(args.out, 'w', encoding='utf-8') as f:
@@ -1135,8 +1182,7 @@ def main(argv=None):
             pass
         return 1
     except ConfigErrors as e:
-        for message in e.args[0]:
-            err('error: ' + message)
+        err('error: ' + '; '.join(e.args[0]))
         return 2
     except CliError as e:
         err('error: %s' % e)

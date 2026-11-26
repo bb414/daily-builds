@@ -365,3 +365,13 @@ test('the permutation test is one-sided and q-values follow Benjamini-Hochberg',
   assert.ok(Number.isNaN(withGap[1]));
   assert.deepEqual(M.benjaminiHochberg([]), []);
 });
+
+test('one-day tests use an ordinary day when demand swings', () => {
+  const tr = M.train(fast({ seed: 4, demandNoise: 0.2 }));
+  const mk = tr.market, s = M.summarise(tr);
+  assert.equal(mk.levels, 5);
+  assert.equal(M.SHOCKS[mk.base], 0);
+  const ir = M.impulseResponse(tr, { cycle: s.cycle });
+  const day = (P, t) => M.profitsAt([P[0][t], P[1][t]], mk.quality, mk.cost, mk.outside, mk.mu)[0];
+  assert.ok(Math.abs(ir.gainNow - (day(ir.prices, 1) - day(ir.cfPrices, 1))) < 1e-12);
+});

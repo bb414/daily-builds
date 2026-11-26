@@ -61,7 +61,7 @@ python -m quiet_cartel report --remedies results/remedies.json --pilot results/p
 
 `--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and 0.15 seconds in the browser.
 
-`screen` accepts any CSV with `day`, `price_a` and `price_b` columns, optionally `market` (for many markets in one file), `cost_a`, `cost_b`, and `shoppers`, `units_a`, `units_b` for daily sales. With sales it also fits the demand model and adds a screen that compares prices with the fitted competitive price.
+`screen` accepts any CSV with `day`, `price_a` and `price_b` columns, optionally `market` (for many markets in one file), `cost_a`, `cost_b`, and `shoppers`, `units_a`, `units_b` for daily sales. With sales it also fits the demand model and, when the file has costs too, adds a screen that compares prices with the fitted competitive and monopoly prices.
 
 ## The data
 
@@ -93,11 +93,11 @@ The generator uses the same case-file recipe as the app, so building a case file
 
 | Part | Language | Lines (roughly) | What it does |
 |------|----------|-----------------|--------------|
-| `app/index.html` | HTML, CSS, JavaScript | 2,500 | The model, all five views, charts drawn as SVG, sample data |
-| `quiet_cartel/model.py` | Python | 1,550 | The same model, bit for bit |
-| `quiet_cartel/` (other modules) | Python | 2,450 | Batch experiments and statistics, sweeps, screening, calibration, report, command line |
-| `data/generate_markets.py` | Python | 190 | The seeded dataset generator |
-| `tests/` | JavaScript, Python | 1,900 | Model tests, exact agreement tests, companion tests, browser tests |
+| `app/index.html` | HTML, CSS, JavaScript | 3,300 | The model, all seven views, charts drawn as SVG, sample data |
+| `quiet_cartel/model.py` | Python | 1,750 | The same model, bit for bit |
+| `quiet_cartel/` (other modules) | Python | 3,800 | Batch experiments and statistics, sweeps, screening, calibration, report, command line |
+| `data/generate_markets.py` | Python | 170 | The seeded dataset generator |
+| `tests/` | JavaScript, Python | 2,900 | Model tests, exact agreement tests, companion tests, browser tests |
 
 ## How it works
 

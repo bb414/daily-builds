@@ -44,6 +44,7 @@ __all__ = [
 # Parameters a sweep may vary: the numeric, single-valued config keys.
 SWEEP_PARAMS = ['nFirms', 'nPrices', 'mu', 'xi', 'outside', 'alpha', 'beta', 'delta',
                 'exploreFloor', 'demandNoise', 'stableWindow', 'maxPeriods']
+WHOLE_PARAMS = ('nFirms', 'nPrices', 'stableWindow', 'maxPeriods')     # model.validate_config rounds these
 
 EXACT_MAX = 16          # up to this many pairs the sign-flip test enumerates every sign pattern
 FLIP_REPS = 9999        # otherwise it draws this many random patterns
@@ -282,8 +283,8 @@ def summarise_batch(results):
       shoppers' loss, and the shares punished, settled and collusive, match the
       browser app's for the same runs.
     * ``meanPrice`` and ``replyGain``: mean settled price, and the mean over
-      runs and learning sellers of the gain from a best reply (``None`` when no
-      run had two sellers).
+      runs of the larger of the learning sellers' gains from a best reply
+      (``None`` when no run had two sellers).
     * ``vsBaseline`` (not for the baseline): for ``realisedGain`` and ``harm``,
       the paired comparison of :func:`paired_comparison`, with ``pHolm``, the
       Holm-adjusted p-value over every non-baseline scenario in the batch. The
@@ -336,7 +337,8 @@ def summarise_batch(results):
 def _check_param(name, values, scenario):
     if name not in SWEEP_PARAMS:
         raise ValueError("cannot sweep '%s': choose a numeric setting (%s)" % (name, ', '.join(SWEEP_PARAMS)))
-    if name in model.scenario_by_id(scenario)['change'] and name != 'maxPeriods':
+    change = model.scenario_by_id(scenario)['change']
+    if name in change and name != 'maxPeriods':
         raise ValueError("scenario '%s' fixes %s, so it cannot be swept" % (scenario, name))
     values = list(values)
     if not values:
@@ -347,6 +349,13 @@ def _check_param(name, values, scenario):
             raise ValueError('%s values must be numbers, not %r' % (name, v))
         if not lo <= v <= hi:
             raise ValueError('%s must be between %s and %s, not %s' % (name, lo, hi, v))
+        if name in change and v < change[name]:
+            # maxPeriods: the scenario would raise the value to its own minimum, so every such cell would be the same
+            raise ValueError("scenario '%s' trains for at least %s rounds, so %s must be at least that, not %s"
+                             % (scenario, change[name], name, v))
+        if name in WHOLE_PARAMS and v != int(v):
+            # the model would round it, so the cell would be labelled with a value it never trained
+            raise ValueError('%s values must be whole numbers, not %s' % (name, v))
     if len(set(values)) != len(values):
         raise ValueError('%s values must not repeat' % name)
     return values
@@ -356,7 +365,8 @@ def sweep(base, x_param, x_values, y_param, y_values, seeds, scenario='baseline'
     """Train a grid of settings and report, per cell, how high prices settle.
 
     ``x_param`` and ``y_param`` are two different numeric config keys (see
-    ``SWEEP_PARAMS``) and every value must lie within ``model.LIMITS``. Each
+    ``SWEEP_PARAMS``) and every value must lie within ``model.LIMITS`` (and be
+    a whole number for the settings the model rounds, such as ``nPrices``). Each
     cell is the base config with those two values set, then the scenario
     applied (a scenario that fixes either setting is refused), trained once per
     seed. Every cell config is validated before anything is trained.
@@ -669,6 +679,8 @@ def run_tornado(base, seeds, jobs=None, progress=None, keys=None):
     known = [t['key'] for t in model.TORNADO]
     if keys is not None:
         keys = list(keys)
+        if not keys:
+            raise ValueError('give at least one assumption (choose from %s)' % ', '.join(known))
         for k in keys:
             if k not in known:
                 raise ValueError("unknown assumption '%s' (choose from %s)" % (k, ', '.join(known)))
@@ -848,12 +860,14 @@ def run_watch(markets=40, seeds=(1, 2, 3), days=None, rates=None, reps=199, jobs
     seeds = _checked_seeds(seeds)
     if isinstance(markets, bool) or not isinstance(markets, int) or markets < 2:
         raise ValueError('markets must be a whole number of at least 2')
-    days = sorted(set(WATCH_DAYS if days is None else days))
-    rates = sorted(set(WATCH_RATES if rates is None else rates))
+    days = list(WATCH_DAYS if days is None else days)
+    rates = list(WATCH_RATES if rates is None else rates)
+    # checked before sorting, which would fail with a TypeError on a value that is not a number
     if not days or any(isinstance(d, bool) or not isinstance(d, int) or d < 30 for d in days):
         raise ValueError('days must be whole numbers of at least 30 (the permutation test needs 30 days)')
     if not rates or any(isinstance(r, bool) or not isinstance(r, (int, float)) or not 0 <= r <= 1 for r in rates):
         raise ValueError('test rates must be shares of days from 0 to 1')
+    days, rates = sorted(set(days)), sorted(set(rates))
     if isinstance(reps, bool) or not isinstance(reps, int) or reps < 1:
         raise ValueError('reps must be a whole number of at least 1')
     tasks = [(base, k, s, days, rates, reps) for s in seeds for k in range(markets)]

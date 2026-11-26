@@ -9,14 +9,17 @@ from the repository root::
 
 import contextlib
 import csv
+import importlib.util
 import io
 import json
 import math
 import os
+import re
 import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ROOT not in sys.path:
@@ -185,6 +188,16 @@ class SweepTest(unittest.TestCase):
             experiments.sweep(FAST, 'mu', [0.1], 'delta', [0.5], [1], scenario='myopic', jobs=1)
         with self.assertRaisesRegex(ValueError, 'not valid'):
             experiments.sweep(FAST, 'stableWindow', [200000], 'mu', [0.1], [1], jobs=1)   # above maxPeriods
+
+    def test_sweep_refuses_values_the_model_would_change(self):
+        # The model rounds nPrices 7.4 to 7, so the cell would be labelled with a value it never trained.
+        with self.assertRaisesRegex(ValueError, 'nPrices values must be whole numbers, not 7.4'):
+            experiments.sweep(FAST, 'nPrices', [7.4, 9], 'mu', [0.1], [1], jobs=1)
+        with self.assertRaisesRegex(ValueError, 'whole numbers'):
+            experiments.sweep(FAST, 'mu', [0.1], 'maxPeriods', [150000.5], [1], jobs=1)
+        # A third seller trains for at least 6 million rounds, so a lower maxPeriods would be raised to that.
+        with self.assertRaisesRegex(ValueError, "'third' trains for at least 6000000 rounds"):
+            experiments.sweep(FAST, 'mu', [0.1], 'maxPeriods', [150000, 7000000], [1], scenario='third', jobs=1)
 
 
 class PilotTest(unittest.TestCase):
@@ -369,6 +382,9 @@ class RobustnessTest(unittest.TestCase):
     def test_validation_and_formatting(self):
         with self.assertRaisesRegex(ValueError, 'unknown assumption'):
             experiments.run_tornado(FAST, [1], jobs=1, keys=['nope'])
+        # An empty list used to run the base settings alone and save every assumption as moved.
+        with self.assertRaisesRegex(ValueError, 'at least one assumption'):
+            experiments.run_tornado(FAST, [1], jobs=1, keys=[])
         with self.assertRaisesRegex(ValueError, 'base settings'):
             experiments.run_tornado({'mu': 7}, [1], jobs=1)
         with self.assertRaisesRegex(ValueError, 'mu values'):
@@ -471,6 +487,11 @@ class WatchTest(unittest.TestCase):
             experiments.run_watch(markets=1, seeds=[1], days=[60], rates=[0.03], jobs=1, base=FAST)
         with self.assertRaisesRegex(ValueError, 'reps'):
             experiments.run_watch(markets=2, seeds=[1], days=[60], rates=[0.03], reps=0, jobs=1, base=FAST)
+        # Values that are not numbers are refused before sorting, which raised a TypeError.
+        with self.assertRaisesRegex(ValueError, 'at least 30'):
+            experiments.run_watch(markets=2, seeds=[1], days=[60, 'x'], rates=[0.03], jobs=1, base=FAST)
+        with self.assertRaisesRegex(ValueError, 'shares of days'):
+            experiments.run_watch(markets=2, seeds=[1], days=[60], rates=[0.03, None], jobs=1, base=FAST)
 
 
 # ------------------------------------------------------------ screening
@@ -545,6 +566,33 @@ class ReadPanelTest(unittest.TestCase):
                        r'row 2: units_a \+ units_b \(110\) is more than shoppers \(100\)')
         self.assertBad(['day', 'price_a', 'price_b', 'shoppers'], [r + [100] for r in price_rows(30)],
                        'must be given together')
+
+    def test_negative_cost(self):
+        rows = price_rows(30, 1)
+        self.assertBad(['market', 'day', 'price_a', 'price_b', 'cost_a', 'cost_b'],
+                       [r + [1, 1] for r in rows[:5]] + [r + [-0.5, 1] for r in rows[5:]],
+                       r'row 7: cost_a must not be negative \(got -0.5\)')
+
+    def test_file_that_is_not_utf8_is_named(self):
+        # The command line can read two files, so the message must say which one is not UTF-8.
+        with open(self.path(), 'wb') as f:
+            f.write('market,day,price_a,price_b\n1,1,£1.50,1.60\n'.encode('latin-1'))
+        with self.assertRaisesRegex(ValueError, r'p\.csv is not UTF-8 text'):
+            screening.read_panel(self.path())
+        with open(self.path('t.csv'), 'wb') as f:
+            f.write('market,coordinated,high_price,setup\n1,1,1,caf\xe9\n'.encode('latin-1'))
+        with self.assertRaisesRegex(ValueError, r't\.csv is not UTF-8 text'):
+            screening.read_truth(self.path('t.csv'))
+
+    def test_one_market_is_screened_in_this_process(self):
+        # The command line says "on this process" when one worker would do, so no pool may be started.
+        rows = price_rows(40)
+        panel = {1: {'prices': [[r[1] for r in rows], [r[2] for r in rows]], 'cost': None}}
+        with mock.patch.object(screening.multiprocessing, 'Pool', side_effect=AssertionError('a pool was started')):
+            res = screening.screen_panel(panel, reps=9, jobs=4)
+        self.assertEqual(res['markets'][0]['market'], 1)
+        with self.assertRaisesRegex(ValueError, 'reps'):
+            screening.screen_panel(panel, reps=True, jobs=1)
 
     def test_read_truth(self):
         truth = screening.read_truth(TRUTH)
@@ -666,6 +714,19 @@ class CalibrateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'no sales data'):
             calibrate.calibrate_panel({1: {'prices': [[1.0], [1.0]], 'cost': None}})
 
+    def test_truth_only_for_a_market_without_an_index(self):
+        # Market 1 has a usable fit, market 2 (flat prices) does not, and only market 2 is in the truth file.
+        # Scoring the index there found no screen at all, and the summaries then failed with an IndexError.
+        pa, pb, ua, ub, n = self.noise_free([2, 2], 0.25)
+        panel = {1: {'prices': [pa, pb], 'cost': [1, 1], 'shoppers': n, 'units': [ua, ub]},
+                 2: {'prices': [[1.5] * 60, [1.6] * 60], 'cost': [1, 1], 'shoppers': [1000] * 60,
+                     'units': [[300] * 60, [280] * 60]}}
+        cal = calibrate.calibrate_panel(panel, {2: {'coordinated': True, 'high_price': False, 'mu': 0.25}})
+        self.assertIsNotNone(cal['markets'][0]['excessPrice'])
+        self.assertIsNone(cal['truth']['evaluation'])
+        self.assertIn('1 of 2 fits are usable', report._calibration_section(cal, {}))
+        self.assertIn('fitted mu off by n/a', cli.calibration_summary(cal))
+
 
 # ------------------------------------------------------------ command line and report
 
@@ -776,6 +837,11 @@ class CommandLineTest(unittest.TestCase):
         own = data['summary']['scenarios']['own']['vsBaseline']['realisedGain']
         self.assertEqual(own['pairs'], 2)
         self.assertIn(own['pValue'], (0.5, 1.0))     # two pairs: exact p is 2/4 or 4/4
+        # The reply gain is the larger of the two sellers' gains in each run, averaged over runs.
+        self.assertIn('the learning seller with more to gain', out)
+        runs = [r for r in data['runs'] if r['scenario'] == 'own']
+        self.assertAlmostEqual(data['summary']['scenarios']['own']['replyGain'],
+                               sum(max(r['replyGainA'], r['replyGainB']) for r in runs) / 2, places=12)
 
     def test_pilot(self):
         status, out, err = self.pilot
@@ -831,6 +897,8 @@ class CommandLineTest(unittest.TestCase):
                      '(d) The evidence', 'test rate 3%', 'Shortest watch at which the reaction screen'):
             self.assertIn(text, out)
         self.assertIn('Training 3 markets (1 case file of 3) once, then watching each 2 ways', err)
+        # Cycling markets rarely show an unprovoked cut, but some do (a test can knock them off the cycle).
+        self.assertIn('show almost no unprovoked cuts', out)
         with open(self.watch_json, encoding='utf-8') as f:
             data = json.load(f)
         self.assertEqual(data['kind'], 'watch')
@@ -933,6 +1001,122 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertIn('row 32: price_a is not a number', err)
 
+    def test_config_errors_on_one_line(self):
+        status, out, err = run_cli(['train', '--set', 'mu=9', 'delta=2'])
+        self.assertEqual(status, 2)
+        self.assertEqual(err.strip(), 'error: mu must be between 0.05 and 1; delta must be between 0 and 0.99')
+
+    def test_screen_errors_come_before_any_output(self):
+        # Both used to be found only after "Screening ..." (and, for the truth file, the screening) was printed.
+        status, out, err = run_cli(['screen', self.panel, '--tol', '2'])
+        self.assertEqual((status, err.strip()), (2, 'error: --tol must be at least 0 and below 1'))
+        status, out, err = run_cli(['screen', self.panel, '--tol', 'nan'])
+        self.assertEqual(status, 2)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        other = os.path.join(self.dir, 'other_truth.csv')
+        write_csv(other, ['market', 'coordinated', 'high_price'], [[99, 1, 1]])
+        status, out, err = run_cli(['screen', self.panel, '--truth', other])
+        self.assertEqual(status, 2)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertIn('none of the markets in', err)
+
+    def test_screen_with_sales_but_no_costs(self):
+        # The excess price index needs costs, so it must not be announced as included.
+        path = os.path.join(self.dir, 'sales_no_costs.csv')
+        write_csv(path, ['day', 'price_a', 'price_b', 'shoppers', 'units_a', 'units_b'],
+                  [r + [1000, 300, 280] for r in price_rows(30)])
+        status, out, err = run_cli(['screen', path, '--reps', '9', '--jobs', '1'])
+        self.assertEqual(status, 0, err)
+        self.assertIn('sales data found, but the excess price screen also needs cost_a and cost_b', out)
+        self.assertNotIn('so the excess price screen is included', out)
+
+    def test_impulse_words(self):
+        def ir(dev, before, gain_now, rival_cut, punished):
+            return {'deviator': 0, 'devPrice': dev, 'cfPrices': [[1.8, before], [1.8, 1.8]], 'gainNow': gain_now,
+                    'rivalCut': rival_cut, 'punished': punished}
+        what, move, verdict = cli.impulse_words(ir(1.7, 1.8, 0.02, True, True))
+        self.assertEqual((what, move), ('cuts to £1.70 for one day (its best one-day cut)', 'cut'))
+        self.assertIn('Punished: yes', verdict)
+        self.assertIn('but the cut still pays', cli.impulse_words(ir(1.7, 1.8, 0.02, True, False))[2])
+        # A cut that loses money on the day itself used to be described as one that "still pays".
+        what, move, verdict = cli.impulse_words(ir(1.5, 1.54, -0.001, True, False))
+        self.assertIn('its price is already its best one-day reply', what)
+        self.assertIn('does not pay even on the day', verdict)
+        self.assertNotIn('still pays', verdict)
+        # The most profitable one-day price can be above the current one.
+        what, move, verdict = cli.impulse_words(ir(1.22, 1.16, 0.03, False, False))
+        self.assertEqual((what, move), ('raises its price to £1.22 for one day (its most profitable one-day price)',
+                                        'rise'))
+        self.assertEqual(verdict, 'Punished: no. No rival answers the rise with a lower price.')
+        self.assertIn('nothing to test', cli.impulse_words(ir(1.16, 1.16, 0, False, False))[2])
+
+    def test_train_when_the_cut_loses_on_the_day(self):
+        # With these settings seed 1 settles where A's price is already its best one-day reply.
+        status, out, err = run_cli(['train', '--set'] + FAST_SET + ['delta=0.5', '--seed', '1'])
+        self.assertEqual(status, 0, err)
+        self.assertIn('loses £1.06 today', out)
+        self.assertIn('Punished: no. A rival answers with a lower price, but the cut does not pay even on the day', out)
+
+    def test_map_verdict(self):
+        res = {'x': {'values': [1, 2]}, 'y': {'values': [1, 2]}, 'highCells': 0, 'threatCells': 0, 'lowThreatCells': 0}
+        self.assertEqual(cli.map_verdict(res), ['0 of 4 cells settle at a profit gain of 50% or more. In none is a '
+                                                'one-day cut punished in at least half the runs.'])
+        res.update(highCells=3, threatCells=2, lowThreatCells=1)
+        self.assertEqual(cli.map_verdict(res)[1], 'the runs, 1 of them with a gain below 50%, so a punished cut alone '
+                                                  'does not mean high prices.')
+        res.update(lowThreatCells=0)
+        self.assertEqual(cli.map_verdict(res)[1], 'the runs, all of them with a gain of 50% or more.')
+
+    def test_report_names_an_incomplete_file(self):
+        path = os.path.join(self.dir, 'partial.json')
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'kind': 'screen', 'results': {'markets': [{'market': 1}]}}, f)
+        status, out, err = run_cli(['report', '--out', os.path.join(self.dir, 'p.html'), '--screen', path])
+        self.assertEqual(status, 2)
+        self.assertNotIn('Traceback', err)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertIn('partial.json is incomplete', err)
+        status, out, err = run_cli(['report', '--out', os.path.join(self.dir, 'p.html'), '--screen', self.pilot_json])
+        self.assertIn('make it with: python -m quiet_cartel screen PRICES.csv --json', err)
+
+    def test_describe_a_swept_number_of_sellers(self):
+        cfg = model.validate_config(FAST)['config']
+        self.assertTrue(cli.describe(cfg, ('nFirms', 'mu')).startswith('swept sellers (all self-learning), loyalty '
+                                                                     'mu swept'))
+        self.assertTrue(cli.describe(cfg).startswith('2 sellers'))
+
+    def test_money_and_rounds(self):
+        self.assertEqual([cli.money(x) for x in (-0.001, -1.5, 0.004, float('nan'))], ['£0.00', '-£1.50', '£0.00', 'n/a'])
+        self.assertEqual([report.money(x) for x in (-0.004, -2)], ['£0.00', report.MINUS + '£2.00'])
+        self.assertEqual([cli.rounds(t) for t in (5000, 10000, 999499, 999500, 999999, 1000000, 1834567)],
+                         ['5000', '10k', '999k', '1.00m', '1.00m', '1.00m', '1.83m'])
+
+    def test_watch_chart_path_starts_with_a_move(self):
+        # When the first day has no AUC, the line must still start with M, or the SVG path is invalid.
+        nan = float('nan')
+
+        def cell(mean):
+            return {'rate': 0.03, 'auc': {'coordinated': {'retaliation': {'mean': mean, 'lo': mean, 'hi': mean}}}}
+        sm = {'days': [60, 120, 240], 'rates': [0.03], 'cells': [[cell(nan)], [cell(0.7)], [cell(0.8)]]}
+        paths = re.findall(r'<path class="ln r1" d="([^"]*)"', report._watch_chart(sm, 'retaliation', 'Rivals', 0.4))
+        self.assertEqual(len(paths), 1)
+        self.assertTrue(paths[0].startswith('M'), paths[0])
+        self.assertEqual((paths[0].count('M'), paths[0].count('L')), (1, 1))
+
+    def test_report_escapes_numbers_from_data(self):
+        with open(self.screen_json, encoding='utf-8') as f:
+            data = json.load(f)
+        res = data['results']
+        res['markets'] = res['markets'][:1]
+        res['markets'][0]['days'] = '<b>days</b>'
+        res['markets'][0]['screens']['events'] = '<i>cuts</i>'
+        res['evaluation']['targets'][0]['flag']['caught'] = '<u>caught</u>'
+        page = report.build_report(screen=data)
+        for raw in ('<b>days', '<i>cuts', '<u>caught'):
+            self.assertNotIn(raw, page)
+        self.assertIn('&lt;b&gt;days&lt;/b&gt;', page)
+        self.assertIn('1 market was screened', page)
+
     def test_parse_value(self):
         self.assertEqual(cli.parse_value('learn,nash'), ['learn', 'nash'])
         self.assertEqual(cli.parse_value('2,2.5'), [2, 2.5])
@@ -940,6 +1124,26 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(cli.parse_value('5e-5'), 5e-5)
         self.assertEqual(cli.parse_value('15'), 15)
         self.assertEqual(cli.parse_value('own'), 'own')
+
+
+class GeneratorTest(unittest.TestCase):
+
+    def test_test_rate_must_be_a_share(self):
+        # A rate above 1 (or below 0) was accepted and trained every market before anything looked odd.
+        spec = importlib.util.spec_from_file_location('generate_markets', os.path.join(ROOT, 'data', 'generate_markets.py'))
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        out = tempfile.mkdtemp()
+        try:
+            for rate in ('1.5', '-0.1', 'nan'):
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err), self.assertRaises(SystemExit) as cm:
+                    gen.main(['--test-rate', rate, '--markets', '1', '--no-samples', '--out', out])
+                self.assertEqual(cm.exception.code, 2)
+                self.assertIn('--test-rate is a share of days', err.getvalue())
+            self.assertEqual(os.listdir(out), [])
+        finally:
+            shutil.rmtree(out)
 
 
 if __name__ == '__main__':

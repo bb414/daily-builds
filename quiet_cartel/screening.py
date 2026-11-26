@@ -28,7 +28,6 @@ FLAG_Q = 0.10           # flag markets whose q-value is below this (and whose ri
 NAN = float('nan')
 
 REQUIRED = ('day', 'price_a', 'price_b')
-OPTIONAL = ('market', 'cost_a', 'cost_b', 'shoppers', 'units_a', 'units_b')
 
 # The two definitions of a "real case" used by the browser app.
 TARGETS = [
@@ -89,25 +88,29 @@ def _open_rows(path):
     The delimiter is whichever of comma, semicolon or tab splits the header most.
     """
     with open(path, newline='', encoding='utf-8-sig') as f:
-        first = f.readline()
-        if not first.strip():
-            raise ValueError('%s is empty (no header row)' % path)
-        delim = max([',', ';', '\t'], key=first.count)
-        f.seek(0)       # utf-8-sig drops a byte order mark again after the seek
-        reader = csv.reader(f, delimiter=delim)
-        header = [h.strip().lower() for h in next(reader)]
-        seen = set()
-        for h in header:
-            if h and h in seen:
-                raise ValueError('%s: the column %s appears twice in the header' % (path, h))
-            seen.add(h)
-        yield header
-        for cells in reader:
-            if not any(c.strip() for c in cells):
-                continue
-            if len(cells) > len(header) and any(c.strip() for c in cells[len(header):]):
-                raise ValueError('%s: more values than columns in the header' % _where(path, reader.line_num))
-            yield reader.line_num, {h: (cells[k] if k < len(cells) else '') for k, h in enumerate(header)}
+        try:
+            first = f.readline()
+            if not first.strip():
+                raise ValueError('%s is empty (no header row)' % path)
+            delim = max([',', ';', '\t'], key=first.count)
+            f.seek(0)       # utf-8-sig drops a byte order mark again after the seek
+            reader = csv.reader(f, delimiter=delim)
+            header = [h.strip().lower() for h in next(reader)]
+            seen = set()
+            for h in header:
+                if h and h in seen:
+                    raise ValueError('%s: the column %s appears twice in the header' % (path, h))
+                seen.add(h)
+            yield header
+            for cells in reader:
+                if not any(c.strip() for c in cells):
+                    continue
+                if len(cells) > len(header) and any(c.strip() for c in cells[len(header):]):
+                    raise ValueError('%s: more values than columns in the header' % _where(path, reader.line_num))
+                yield reader.line_num, {h: (cells[k] if k < len(cells) else '') for k, h in enumerate(header)}
+        except UnicodeDecodeError:
+            # name the file: the command line may read two (prices and truth)
+            raise ValueError('%s is not UTF-8 text (save it as UTF-8 CSV)' % path) from None
 
 
 def read_panel(path):
@@ -124,8 +127,9 @@ def read_panel(path):
     or None}}``, with ``'shoppers'`` and ``'units'`` ([[a...], [b...]]) when the
     file has sales, every list sorted by day, and markets in order. Raises
     ValueError with the row number for a missing column, a value that is not a
-    number, a price that is not above zero, negative or impossible sales, a day
-    that appears twice in a market, or a market with fewer than 30 days.
+    number, a price that is not above zero, a negative cost, negative or
+    impossible sales, a day that appears twice in a market, or a market with
+    fewer than 30 days.
     """
     rows = _open_rows(path)
     header = next(rows)
@@ -153,6 +157,9 @@ def read_panel(path):
             rec[col] = p
         if has_cost:
             rec['cost'] = [_number(cells[c], c, path, row, money=True) for c in ('cost_a', 'cost_b')]
+            for col, c in zip(('cost_a', 'cost_b'), rec['cost']):
+                if c < 0:
+                    raise ValueError('%s: %s must not be negative (got %s)' % (_where(path, row), col, cells[col].strip()))
         if has_sales:
             n, ua, ub = (_number(cells[c], c, path, row) for c in ('shoppers', 'units_a', 'units_b'))
             for col, v in (('shoppers', n), ('units_a', ua), ('units_b', ub)):
@@ -284,14 +291,14 @@ def screen_panel(panel, reps=999, tol=0.005, seed=4242, jobs=1, progress=None):
     """
     if not panel:
         raise ValueError('the panel has no markets')
-    if not (isinstance(reps, int) and reps >= 1):
+    if not (isinstance(reps, int) and not isinstance(reps, bool) and reps >= 1):
         raise ValueError('reps must be a whole number of at least 1')
-    if not (isinstance(tol, (int, float)) and 0 <= tol < 1):
+    if not (isinstance(tol, (int, float)) and not isinstance(tol, bool) and 0 <= tol < 1):
         raise ValueError('tol must be at least 0 and below 1')
     tasks = [(m, d['prices'], d['cost'], reps, tol, seed) for m, d in panel.items()]
     out = []
-    if jobs is None or jobs > 1:
-        n = min((os.cpu_count() or 1) if jobs is None else jobs, len(tasks))
+    n = 1 if jobs is not None and jobs <= 1 else min((os.cpu_count() or 1) if jobs is None else jobs, len(tasks))
+    if n > 1:           # one worker would only add the cost of a process (and the command line says "this process")
         with multiprocessing.Pool(processes=n) as pool:
             for res in pool.imap(_screen_one, tasks):
                 out.append(res)

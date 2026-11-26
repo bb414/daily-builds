@@ -15,7 +15,8 @@ Outputs
   app/index.html          the sample markets offered on the "Your prices" tab (unless --no-samples)
 
 Usage
-  python data/generate_markets.py [--markets 40] [--seed 2026] [--days 365] [--no-samples]
+  python data/generate_markets.py [--markets 40] [--seed 2026] [--days 365] [--test-rate 0.03] [--out data]
+                                  [--no-samples]
 
 Everything is seeded, so the same arguments always give the same files.
 """
@@ -141,6 +142,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if not 1 <= args.markets <= 500 or not 30 <= args.days <= 3650:
         ap.error('use 1 to 500 markets and 30 to 3650 days')
+    if not 0 <= args.test_rate <= 1:
+        ap.error('--test-rate is a share of days, from 0 to 1')
 
     all_rows, truths, cases = [], [], []
     for k in range(args.markets):

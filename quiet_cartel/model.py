@@ -616,6 +616,8 @@ def build_market(cfg):
         'piN': profits_at(pN, quality, cost, outside, mu), 'piM': profits_at(pM, quality, cost, outside, mu),
         'csN': consumer_surplus(pN, quality, outside, mu), 'csM': consumer_surplus(pM, quality, outside, mu),
         'grids': grids, 'profit': profit, 'levels': levels,
+        # base: the profit table of an ordinary day (no demand shock), used by the one-day tests
+        'base': SHOCKS.index(0) if levels > 1 else 0,
         'nashIdx': [nearest_index(grids[i], pN[i]) for i in range(n)],
         'monoIdx': [nearest_index(grids[i], pM[i]) for i in range(n)],
     }
@@ -1172,7 +1174,7 @@ def static_best_response(mk, i, joint):
     best, bv = 0, -INF
     for k in range(mk['m']):
         a[i] = k
-        v = mk['profit'][0][i][encode_joint(a, mk['m'])]
+        v = mk['profit'][mk['base']][i][encode_joint(a, mk['m'])]
         if v > bv:
             bv, best = v, k
     return best
@@ -1185,7 +1187,7 @@ def impulse_response(tr, opts=None):
     """
     opts = opts or {}
     mk = tr.market
-    n, m, grids, profit0 = mk['n'], mk['m'], mk['grids'], mk['profit'][0]
+    n, m, grids, profit0 = mk['n'], mk['m'], mk['grids'], mk['profit'][mk['base']]
     cyc = opts.get('cycle')
     if not _truthy(cyc):
         cyc = limit_cycle(tr)['states']
