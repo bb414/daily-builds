@@ -359,7 +359,7 @@ test('the permutation test is one-sided and q-values follow Benjamini-Hochberg',
   assert.equal(r.pValue, 1);
   // hand-worked example: p = 0.01, 0.04, 0.03, 0.2, 0.5 with m = 5
   const q = M.benjaminiHochberg([0.01, 0.04, 0.03, 0.2, 0.5]);
-  const want = [0.05, 0.05, 0.05, 0.25, 0.5];
+  const want = [0.05, 0.04 * 5 / 3, 0.04 * 5 / 3, 0.25, 0.5];
   q.forEach((x, i) => assert.ok(Math.abs(x - want[i]) < 1e-12, i + ': ' + x));
   const withGap = M.benjaminiHochberg([0.01, NaN]);
   assert.ok(Math.abs(withGap[0] - 0.02) < 1e-12, 'a missing p-value still counts as a test');
