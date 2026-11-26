@@ -16,6 +16,7 @@ Every number below comes from the Python companion, which reproduces the browser
 
 - `remedies --runs 20`: ten options, 20 seeds each, each compared with the baseline on the same seed by a sign-flip permutation test with Holm's correction.
 - `pilot --runs 20`: three pilot designs, 20 seeds each.
+- `tornado --runs 5` and `map --runs 2`: each assumption at a low and a high value, and a grid of shopper loyalty against patience.
 - `screen data/markets.csv --truth data/markets_truth.csv`: the bundled dataset of 40 invented markets observed for a year, where each seller tests a random price on about 3% of days.
 
 **Profit gain** places profits on a scale from 0% (competitive) to 100% (monopoly); **shoppers' loss** does the same for consumer surplus.
@@ -27,6 +28,8 @@ Across 20 runs of the textbook market the profit gain averaged **85%** (90% inte
 The punishment test forces one seller to make its most profitable one-day cut and lets both strategies play on. In **18 of 20** runs the cut was punished: the rival answered with lower prices, the cutter lost more over the following days than it gained, and prices returned to their old level within days. With seed 1, seller A gains £23.65 per 1,000 shoppers on the day and loses £165.15 over the next 24 days. That is the pattern a competition lawyer looks for in a cartel, and nobody programmed it.
 
 An exact best-reply check adds a twist. Holding the rival's learned strategy fixed, a seller could earn on average **17.7%** more over time by switching to its best reply. So the high price is not a strict equilibrium. It survives because the algorithms only ever test one price at a time, and any single test is punished. Nothing inside the market reliably ends it.
+
+The result does not hang on one lucky setting. Pushing each of seven assumptions (shopper loyalty, patience, learning rate, how fast experimenting fades, the number of prices, the price range and demand noise) to a low and a high value, one at a time, the gain stays at 50% or more at both ends for all seven. Patience matters most: 60% when the algorithms value tomorrow at 0.8, 94% at 0.99. On the loyalty-by-patience map, 13 of 25 combinations reach 50% or more, almost all of them where tomorrow is valued at 0.8 or above.
 
 ## Result 2: the pilot measures the rival's rule, not the algorithm
 

@@ -29,14 +29,15 @@ xdg-open app/index.html    # Linux
 start app\index.html       # Windows
 ```
 
-The app has six views and a short guide:
+The app has seven views and a short guide:
 
 1. **Learn.** Pick a market (two or three sellers, how alike the products are, how much each algorithm values tomorrow, what it remembers, whether a seller follows a fixed rule instead, shared vendor, busy and quiet days) and train the sellers. Watch prices move as experimenting fades, see where they settled between the competitive and monopoly prices, and read the learned strategy as a heat map.
 2. **Test for a threat.** Force one seller to cut its price for a day and watch the others respond. The app reports the gain on the day, the losses afterwards, and whether the cut is punished. An exact best-reply calculation shows how far each learned strategy is from the best possible reply to its rival.
 3. **Pilot to scale.** Both sellers start at the competitive price. Seller A pilots an algorithm while seller B keeps a simple rule (keep the competitive price, match the cheapest, or undercut), then B adopts an algorithm too. See what the pilot reported to the board against what A earns once its rival has one, stage by stage and run by run.
 4. **Remedies.** Train ten options many times each (banning rivals' prices as an input, rewarding today's profit only, a third seller, a rival that keeps a fixed competitive price, a rule that algorithms keep testing prices, no memory, a price-matching rival, a shared pricing vendor, busy and quiet days) and compare profit gain, shoppers' loss and how often cuts are punished, with 90% bootstrap intervals.
-5. **Regulator's screens.** Build a case file of simulated markets whose hidden truth is known, observe a year of daily prices in each, and score five screens a competition authority could run on prices alone. Toggle what counts as a case (held up by a threat, or just high prices), see ROC curves, and slide a bar to see who gets flagged.
-6. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file.
+5. **Robustness.** Push each of seven assumptions (shopper loyalty, patience, learning rate, how fast experimenting fades, number of prices, price range, demand noise) to a low and a high value, one at a time, and see a tornado chart of how far the profit gain moves. A second view maps the profit gain across shopper loyalty and patience.
+6. **Regulator's screens.** Build a case file of simulated markets whose hidden truth is known, observe a year of daily prices in each, and score five screens a competition authority could run on prices alone. Toggle what counts as a case (held up by a threat, or just high prices), see ROC curves, and slide a bar to see who gets flagged.
+7. **Your prices.** Paste or open a CSV of two sellers' daily prices, or pick a sample market from the bundled dataset. The app runs the same screens and a permutation test of whether rivals' cuts line up more often than chance, and compares the result with your case file.
 
 ## Run the Python companion
 
@@ -47,10 +48,12 @@ python -m quiet_cartel train                                   # one training ru
 python -m quiet_cartel train --preset three --seed 4           # presets match the app's
 python -m quiet_cartel remedies --runs 20 --json results/remedies.json
 python -m quiet_cartel pilot --runs 20 --json results/pilot.json        # does the pilot predict the result at scale?
+python -m quiet_cartel tornado --runs 5 --json results/tornado.json      # which assumptions matter?
+python -m quiet_cartel map --runs 2 --json results/map.json              # loyalty against patience
 python -m quiet_cartel sweep --x mu=0.1,0.25,0.5 --y delta=0.5,0.8,0.95 --runs 3
 python -m quiet_cartel screen data/markets.csv --truth data/markets_truth.csv --json results/screen.json
 python -m quiet_cartel calibrate data/markets.csv --truth data/markets_truth.csv
-python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --screen results/screen.json --out results/report.html
+python -m quiet_cartel report --remedies results/remedies.json --pilot results/pilot.json --tornado results/tornado.json --map results/map.json --screen results/screen.json --out results/report.html
 ```
 
 `--set key=value` changes any model setting (for example `--set mu=0.1 --set firmTypes=learn,nash`), and `--jobs N` sets how many processor cores batch commands use. A default training run takes about 2.5 seconds in Python and 0.15 seconds in the browser.
@@ -74,6 +77,8 @@ The generator uses the same case-file recipe as the app, so building a case file
 ![Pilot to scale: seller A's pilot against a rival that keeps the competitive price shows no gain, but A earns about 40% more once the rival adopts its own algorithm](docs/pilot.png)
 
 ![Remedies: average profit gain for ten options with 90% intervals, from banning rivals' prices as an input to a shared pricing vendor](docs/remedies.png)
+
+![Robustness: a tornado chart of seven assumptions and a map of profit gain across shopper loyalty and patience](docs/robust.png)
 
 ![Regulator's screens: ROC curves for five price screens on a case file of simulated markets, with the hidden truth revealed below](docs/screens.png)
 
