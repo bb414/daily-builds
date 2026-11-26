@@ -361,6 +361,25 @@ class AgreementTest(unittest.TestCase):
         }
         self.same(ref, actual, 'pilot')
 
+    def test_robustness_settings(self):
+        ref = self.ref['robustness']
+        bases = [qc.default_config(), dict(qc.default_config(), maxPeriods=7000000)]
+        actual = {
+            'TORNADO': qc.TORNADO, 'MAP_MU': qc.MAP_MU, 'MAP_DELTA': qc.MAP_DELTA, 'bases': bases,
+            'settings': [[{'key': t['key'], 'low': qc.with_setting(base, t['key'], t['low'], 3),
+                           'high': qc.with_setting(base, t['key'], t['high'], 4)} for t in qc.TORNADO]
+                         for base in bases],
+            'seedOnly': qc.with_setting(bases[0], 'seed', 5, 5),
+            'mapCell': qc.with_setting(qc.with_setting(bases[0], 'mu', 0.05, 2), 'delta', 0.95, 2),
+            'edges': [qc.with_setting({}, 'beta', 2.5e-6, 1), qc.with_setting({'maxPeriods': 0}, 'beta', 1e-6, 1),
+                      qc.with_setting(bases[0], 'beta', 4e-6, 1), qc.with_setting(bases[1], 'beta', 3.9e-6, 0)],
+        }
+        self.same(ref, actual, 'robustness')
+        # The slow-fading case really does get more rounds, and the base is never changed in place.
+        self.assertEqual(ref['settings'][0][3]['low']['maxPeriods'], 6000000)
+        self.assertEqual(ref['settings'][1][3]['low']['maxPeriods'], 7000000)
+        self.assertEqual(bases[0], qc.default_config())
+
     def test_short_run(self):
         # No 10,000-period block yet, so the realised gain falls back on the cycle's gain.
         ref = self.ref['short']

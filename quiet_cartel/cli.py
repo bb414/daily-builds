@@ -5,6 +5,8 @@ Commands
   remedies   many runs of each remedy, compared with the baseline run by run
   sweep      a grid of two settings, showing where prices settle
   pilot      seller A pilots an algorithm, then B adopts one: does the pilot predict the result at scale?
+  tornado    move each assumption to a low and a high value, one at a time: how far does the result move?
+  map        profit gain for every pair of mu (how alike the products are) and delta (patience)
   screen     screen a file of daily prices (and sales) for signs of coordination
   calibrate  fit the demand model to daily sales and measure how far prices sit above competitive
   report     build one offline HTML report from saved JSON results
@@ -382,13 +384,14 @@ def cmd_remedies(args, ctx):
     seeds = list(range(1, args.runs + 1))
 
     def start(total):
-        return 'Training %d runs (%d per option, seeds 1 to %d) on %s ...' % (
-            total, len(seeds), len(seeds), _workers(args.jobs, total))
+        return 'Training %d runs (%d per option, %s) on %s ...' % (
+            total, len(seeds), _seed_words(seeds), _workers(args.jobs, total))
 
     rows = experiments.run_batch(base, ids, seeds, jobs=args.jobs, progress=Progress('Run', start))
     summary = experiments.summarise_batch(rows)
     out('Quiet cartel: remedies compared with the baseline')
-    out('Settings: %s; %d runs per option (seeds 1 to %d)' % (describe(base), len(seeds), len(seeds)))
+    out('Settings: %s; %d run%s per option (%s)' % (describe(base), len(seeds), '' if len(seeds) == 1 else 's',
+                                                    _seed_words(seeds)))
     out()
     out(remedies_table(summary))
     out()
@@ -431,6 +434,11 @@ def _signed0(x):
         return 'n/a'
     s = '%+.0f' % (x * 100)
     return '0' if s in ('+0', '-0') else s
+
+
+def _seed_words(seeds):
+    """'seed 1' or 'seeds 1 to N', for runs numbered from 1."""
+    return 'seed 1' if len(seeds) == 1 else 'seeds 1 to %d' % len(seeds)
 
 
 def _workers(jobs, count):
@@ -702,17 +710,17 @@ def cmd_pilot(args, ctx):
 
     def start(total):
         pilots = total - len(seeds)
-        return 'Training %d pilots (%d per rule, seeds 1 to %d) and %d both-learn comparisons on %s ...' % (
-            pilots, len(seeds), len(seeds), len(seeds), _workers(args.jobs, total))
+        return 'Training %d pilots (%d per rule, %s) and %d both-learn comparisons on %s ...' % (
+            pilots, len(seeds), _seed_words(seeds), len(seeds), _workers(args.jobs, total))
 
     rows = experiments.run_pilots(base, rules, seeds, args.adopt_after, jobs=args.jobs, progress=Progress('Run', start))
     summary = experiments.summarise_pilots(rows)
     S = summary['rules']
     out('Quiet cartel: pilot to scale')
     out('Settings: loyalty mu %s, patience delta %s, learning rate alpha %s, exploration decay beta %s, %s prices; '
-        'seller A pilots a learning algorithm, B adopts one at round %s; %d run%s per rule (seeds 1 to %d)' % (
+        'seller A pilots a learning algorithm, B adopts one at round %s; %d run%s per rule (%s)' % (
             base['mu'], base['delta'], base['alpha'], base['beta'], base['nPrices'], '{:,}'.format(args.adopt_after),
-            len(seeds), '' if len(seeds) == 1 else 's', len(seeds)))
+            len(seeds), '' if len(seeds) == 1 else 's', _seed_words(seeds)))
     out()
     out('Profit uplift over the status quo (both at the competitive price): mean, with its 90% interval in brackets')
     out(table(['B\'s rule in the pilot', 'A in pilot', 'A after B adopts', 'A: change', 'A, both from start',
@@ -753,14 +761,123 @@ def cmd_pilot(args, ctx):
     return 0
 
 
+# ------------------------------------------------------------ robustness
+
+def cmd_tornado(args, ctx):
+    if args.runs < 1:
+        raise CliError('--runs must be at least 1')
+    base = build_config(args)
+    seeds = list(range(1, args.runs + 1))
+    keys = [x.strip() for x in args.assumptions.split(',') if x.strip()] if args.assumptions else None
+
+    def start(total):
+        moved = (total // len(seeds) - 1) // 2
+        return 'Training %d runs (the settings below and %d assumption%s at two values, %d seed%s each) on %s ...' % (
+            total, moved, '' if moved == 1 else 's', len(seeds), '' if len(seeds) == 1 else 's',
+            _workers(args.jobs, total))
+
+    rows = experiments.run_tornado(base, seeds, jobs=args.jobs, progress=Progress('Run', start), keys=keys)
+    summary = experiments.summarise_tornado(rows)
+    b = summary['base']
+    fs = experiments.fmt_setting
+    out('Quiet cartel: how robust is the result? One assumption at a time')
+    out('Settings: %s; %d run%s per value (%s)' % (describe(base), len(seeds), '' if len(seeds) == 1 else 's',
+                                                   _seed_words(seeds)))
+    out()
+    out('With these settings the realised profit gain averages %s (90%% interval %s to %s) and a one-day cut is'
+        % (pct(b['gain']['mean']), pct(b['gain']['lo']), pct(b['gain']['hi'])))
+    out('punished in %s of runs.' % pct(b['punishedShare']))
+    out()
+    rows_out = []
+    for a in summary['assumptions']:
+        rows_out.append([
+            '%s (%s %s to %s)' % (a['label'], a['key'], fs(a['key'], a['lowValue']), fs(a['key'], a['highValue'])),
+            '%s (%s to %s)' % (pct(a['low']['gain']['mean']), pct(a['low']['gain']['lo']), pct(a['low']['gain']['hi'])),
+            '%s (%s to %s)' % (pct(a['high']['gain']['mean']), pct(a['high']['gain']['lo']),
+                               pct(a['high']['gain']['hi'])),
+            pts(a['swing']), '%s / %s' % (pct(a['low']['punishedShare']), pct(a['high']['punishedShare'])),
+            'yes' if a['robust'] else 'no'])
+    out(table(['assumption (low to high)', 'gain at low', 'gain at high', 'swing', 'punished low / high',
+               '50%+ at both ends'], rows_out))
+    out()
+    w = summary['worst']
+    out('The gain stays at 50%% or more at both ends for %d of %d assumptions.%s' % (
+        summary['robustCount'], len(summary['assumptions']),
+        ' The biggest fall comes from %s (%s at %s %s).' % (w['label'].lower(), pct(w['gain']), w['key'],
+                                                             fs(w['key'], w['value'])) if w else ''))
+    out()
+    out('Each assumption is moved to a low and then a high value while everything else stays at the settings above,')
+    out('with the same seeds. Gain is the realised profit gain over the last 100,000 rounds of training (0% is')
+    out('competitive, 100% monopoly), with a 90% bootstrap interval; swing is the gain at the high value minus the')
+    out('gain at the low one. Rows follow the browser app\'s order, biggest movers first. When experimenting fades')
+    out('slowly (beta below 4e-6) the run gets at least 6 million rounds to settle.')
+    if args.csv:
+        write_csv(args.csv, rows)
+    if args.json:
+        write_json(args.json, {
+            'kind': 'tornado', 'command': ctx['command'],
+            'settings': {'preset': args.preset, 'set': args.set or [], 'runs': args.runs, 'seeds': seeds,
+                         'assumptions': keys or [t['key'] for t in model.TORNADO], 'base': base},
+            'summary': summary, 'runs': rows, 'seconds': time.time() - ctx['start'],
+        })
+    return 0
+
+
+def cmd_map(args, ctx):
+    if args.runs < 1:
+        raise CliError('--runs must be at least 1')
+    base = build_config(args)
+    seeds = list(range(1, args.runs + 1))
+
+    def start(total):
+        return 'Training %d runs (%d by %d grid, %d per cell) on %s ...' % (
+            total, len(model.MAP_MU), len(model.MAP_DELTA), len(seeds), _workers(args.jobs, total))
+
+    res = experiments.run_market_map(base, seeds, jobs=args.jobs, progress=Progress('Run', start))
+    out('Quiet cartel: market map of the realised profit gain')
+    out('Settings: %s; %d run%s per cell (%s)' % (describe(base, ('mu', 'delta')), len(seeds),
+                                                  '' if len(seeds) == 1 else 's', _seed_words(seeds)))
+    out()
+    out('Columns: how alike the products are (mu). Rows: how much the algorithms value tomorrow (delta).')
+    lines = []
+    for d, line in reversed(list(zip(res['y']['values'], res['cells']))):
+        lines.append([str(d)] + ['%s%s' % (pct(c['gain']), '*' if c['threat'] else ' ') for c in line])
+    out(table(['delta \\ mu'] + [str(x) + ' ' for x in res['x']['values']], lines))
+    out('* a one-day cut is punished in at least half the runs in that cell')
+    out()
+    n = len(res['x']['values']) * len(res['y']['values'])
+    out('%d of %d cells settle at a profit gain of 50%% or more. In %d a one-day cut is punished in at least half'
+        % (res['highCells'], n, res['threatCells']))
+    out('the runs, %s.' % ('%d of them with a gain below 50%%, so a punished cut alone does not mean high prices'
+                           % res['lowThreatCells'] if res['lowThreatCells'] else 'all of them with a gain of 50% or more'))
+    out()
+    out('Small mu (left) means shoppers chase the lowest price; small delta (bottom) means the algorithms care')
+    out('little about tomorrow, so a future punishment is worth little to them. Gain is the realised profit gain')
+    out('over the last 100,000 rounds of training (0% is competitive, 100% monopoly), averaged over the runs.')
+    if args.csv:
+        write_csv(args.csv, [{'mu': c['x'], 'delta': c['y'], 'runs': c['runs'], 'gain': c['gain'], 'harm': c['harm'],
+                              'punishedShare': c['punishedShare'], 'convergedShare': c['convergedShare'],
+                              'threat': int(c['threat'])} for line in res['cells'] for c in line])
+    if args.json:
+        write_json(args.json, {
+            'kind': 'map', 'command': ctx['command'],
+            'settings': {'preset': args.preset, 'set': args.set or [], 'runs': args.runs, 'seeds': seeds,
+                         'base': base},
+            'map': res, 'seconds': time.time() - ctx['start'],
+        })
+    return 0
+
+
 # ------------------------------------------------------------ report
 
 def cmd_report(args, ctx):
-    if not (args.remedies or args.sweep or args.screen or args.pilot):
-        raise CliError('report needs at least one of --remedies, --pilot, --sweep and --screen')
+    if not (args.remedies or args.sweep or args.screen or args.pilot or args.tornado or args.map):
+        raise CliError('report needs at least one of --remedies, --pilot, --tornado, --map, --sweep and --screen')
     parts = {
         'remedies': read_json(args.remedies, 'remedies') if args.remedies else None,
         'pilot': read_json(args.pilot, 'pilot') if args.pilot else None,
+        'tornado': read_json(args.tornado, 'tornado') if args.tornado else None,
+        'market_map': read_json(args.map, 'map') if args.map else None,
         'sweep': read_json(args.sweep, 'sweep') if args.sweep else None,
         'screen': read_json(args.screen, 'screen') if args.screen else None,
     }
@@ -768,7 +885,7 @@ def cmd_report(args, ctx):
     _parent(args.out)
     with open(args.out, 'w', encoding='utf-8') as f:
         f.write(html)
-    names = [k for k, v in parts.items() if v]
+    names = [{'market_map': 'map'}.get(k, k) for k, v in parts.items() if v]
     if parts['screen'] and parts['screen'].get('results', {}).get('calibration'):
         names.append('calibration')
     names = ' and '.join([', '.join(names[:-1]), names[-1]]) if len(names) > 1 else names[0]
@@ -835,6 +952,24 @@ def make_parser():
     pl.add_argument('--json', metavar='PATH', help='save the runs and the summary as JSON (for report)')
     pl.set_defaults(func=cmd_pilot)
 
+    tn = sub.add_parser('tornado', help='move each assumption to a low and a high value, one at a time')
+    _model_options(tn)
+    tn.add_argument('--runs', type=int, default=5, help='runs per value, seeds 1 to N (default 5)')
+    tn.add_argument('--assumptions', metavar='KEY,KEY', help='assumptions to move (default all: %s)' % ', '.join(
+        x['key'] for x in model.TORNADO))
+    _jobs(tn)
+    tn.add_argument('--csv', metavar='PATH', help='save one row per run as CSV')
+    tn.add_argument('--json', metavar='PATH', help='save the runs and the summary as JSON (for report)')
+    tn.set_defaults(func=cmd_tornado)
+
+    mp = sub.add_parser('map', help='profit gain for every pair of mu and delta')
+    _model_options(mp)
+    mp.add_argument('--runs', type=int, default=2, help='runs per cell, seeds 1 to N (default 2)')
+    _jobs(mp)
+    mp.add_argument('--csv', metavar='PATH', help='save one row per cell as CSV')
+    mp.add_argument('--json', metavar='PATH', help='save the map as JSON (for report)')
+    mp.set_defaults(func=cmd_map)
+
     s = sub.add_parser('screen', help='screen a file of daily prices for signs of coordination')
     s.add_argument('path', help='CSV with day, price_a, price_b and optionally market, cost_a, cost_b, shoppers, '
                                 'units_a, units_b')
@@ -857,6 +992,8 @@ def make_parser():
     o.add_argument('--out', required=True, metavar='PATH', help='HTML file to write')
     o.add_argument('--remedies', metavar='JSON', help='from remedies --json')
     o.add_argument('--pilot', metavar='JSON', help='from pilot --json')
+    o.add_argument('--tornado', metavar='JSON', help='from tornado --json')
+    o.add_argument('--map', metavar='JSON', help='from map --json')
     o.add_argument('--sweep', metavar='JSON', help='from sweep --json')
     o.add_argument('--screen', metavar='JSON', help='from screen --json')
     o.set_defaults(func=cmd_report)

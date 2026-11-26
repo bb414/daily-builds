@@ -291,6 +291,93 @@ class CorrelationTest(unittest.TestCase):
             experiments.pearson([1, 2], [1, 2, 3])
 
 
+class RobustnessTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = model.validate_config(FAST)['config']
+        cls.rows = experiments.run_tornado(FAST, [1, 2], jobs=1, keys=['mu', 'nPrices'])
+        cls.map = experiments.run_market_map(FAST, [1], jobs=1, mus=[0.1, 0.5], deltas=[0.5, 0.95])
+
+    def test_tornado_rows_in_the_apps_order(self):
+        self.assertEqual([(r['key'], r['side'], r['value'], r['seed']) for r in self.rows], [
+            ('base', 'base', None, 1), ('base', 'base', None, 2),
+            ('mu', 'low', 0.1, 1), ('mu', 'low', 0.1, 2), ('mu', 'high', 0.5, 1), ('mu', 'high', 0.5, 2),
+            ('nPrices', 'low', 7, 1), ('nPrices', 'low', 7, 2), ('nPrices', 'high', 21, 1), ('nPrices', 'high', 21, 2)])
+        for r in self.rows:
+            self.assertEqual(set(r), {'key', 'side', 'value', 'seed', 'realisedGain', 'avgGain', 'harm', 'punished',
+                                      'converged', 'periods', 'meanPrice'})
+
+    def test_tornado_configs_come_from_with_setting(self):
+        direct = model.summarise(model.train(model.with_setting(self.base, 'nPrices', 21, 2)))
+        self.assertEqual(self.rows[9]['realisedGain'], direct['realisedGain'])
+        direct = model.summarise(model.train(model.with_setting(self.base, 'seed', 2, 2)))
+        self.assertEqual(self.rows[1]['realisedGain'], direct['realisedGain'])
+
+    def test_tornado_summary(self):
+        sm = experiments.summarise_tornado(self.rows)
+        self.assertEqual(sm['seeds'], [1, 2])
+        self.assertEqual(sm['base']['gain'], model.bootstrap_mean([r['realisedGain'] for r in self.rows[:2]], 0.9,
+                                                                    2000, 701))
+        self.assertEqual(len(sm['assumptions']), 2)
+        moves = [a['moves'] for a in sm['assumptions']]
+        self.assertEqual(moves, sorted(moves, reverse=True))
+        for a in sm['assumptions']:
+            self.assertEqual(set(a), {'key', 'label', 'lowValue', 'highValue', 'low', 'high', 'swing', 'moves',
+                                      'robust'})
+            self.assertAlmostEqual(a['swing'], a['high']['gain']['mean'] - a['low']['gain']['mean'], places=12)
+            self.assertEqual(a['robust'], a['low']['gain']['mean'] >= 0.5 and a['high']['gain']['mean'] >= 0.5)
+            self.assertEqual(a['low']['runs'], 2)
+        k = [t['key'] for t in model.TORNADO].index('nPrices')
+        np_item = [a for a in sm['assumptions'] if a['key'] == 'nPrices'][0]
+        self.assertEqual(np_item['high']['gain'], model.bootstrap_mean([r['realisedGain'] for r in self.rows[8:]], 0.9,
+                                                                         2000, 711 + 2 * k))
+
+    def test_tornado_summary_hand_example(self):
+        def rows(key, side, gains, punished=False):
+            return [{'key': key, 'side': side, 'value': None, 'seed': i + 1, 'realisedGain': g, 'punished': punished,
+                     'converged': True} for i, g in enumerate(gains)]
+        data = (rows('base', 'base', [0.6, 0.6]) + rows('delta', 'low', [0.55, 0.55]) +
+                rows('delta', 'high', [0.65, 0.65], True) + rows('mu', 'low', [0.2, 0.2]) + rows('mu', 'high', [0.7, 0.7]))
+        sm = experiments.summarise_tornado(data)
+        # mu moves 0.5 + 0.4 = 0.9 and delta 0.1 + 0.05 = 0.15, so mu comes first; only delta stays at 50% or more.
+        self.assertEqual([a['key'] for a in sm['assumptions']], ['mu', 'delta'])
+        self.assertAlmostEqual(sm['assumptions'][0]['moves'], 0.9, places=12)
+        self.assertAlmostEqual(sm['assumptions'][1]['swing'], 0.1, places=12)
+        self.assertEqual([a['robust'] for a in sm['assumptions']], [False, True])
+        self.assertEqual(sm['robustCount'], 1)
+        self.assertEqual(sm['assumptions'][1]['high']['punishedShare'], 1)
+        self.assertEqual((sm['worst']['key'], sm['worst']['side'], sm['worst']['value']), ('mu', 'low', 0.1))
+        with self.assertRaisesRegex(ValueError, 'no base runs'):
+            experiments.summarise_tornado(data[2:])
+
+    def test_market_map(self):
+        mp = self.map
+        self.assertEqual((mp['x']['param'], mp['y']['param']), ('mu', 'delta'))
+        self.assertEqual(len(mp['cells']), 2)
+        self.assertEqual([(c['x'], c['y']) for line in mp['cells'] for c in line],
+                         [(0.1, 0.5), (0.5, 0.5), (0.1, 0.95), (0.5, 0.95)])
+        self.assertEqual([(r['delta'], r['mu']) for r in mp['runs']], [(0.5, 0.1), (0.5, 0.5), (0.95, 0.1), (0.95, 0.5)])
+        cell = mp['cells'][1][0]
+        cfg = model.with_setting(model.with_setting(self.base, 'mu', 0.1, 1), 'delta', 0.95, 1)
+        self.assertEqual(cell['gain'], model.summarise(model.train(cfg))['realisedGain'])
+        for line in mp['cells']:
+            for c in line:
+                self.assertEqual(c['threat'], c['punishedShare'] >= 0.5)
+        self.assertEqual(mp['highCells'], sum(1 for line in mp['cells'] for c in line if c['gain'] >= 0.5))
+
+    def test_validation_and_formatting(self):
+        with self.assertRaisesRegex(ValueError, 'unknown assumption'):
+            experiments.run_tornado(FAST, [1], jobs=1, keys=['nope'])
+        with self.assertRaisesRegex(ValueError, 'base settings'):
+            experiments.run_tornado({'mu': 7}, [1], jobs=1)
+        with self.assertRaisesRegex(ValueError, 'mu values'):
+            experiments.run_market_map(FAST, [1], jobs=1, mus=[2])
+        self.assertEqual([experiments.fmt_setting('beta', v) for v in (2.5e-6, 1e-5, 4e-6)], ['2.5e-6', '1e-5', '4e-6'])
+        self.assertEqual(experiments.fmt_setting('nPrices', 21), '21')
+        self.assertEqual(experiments.fmt_setting('xi', 0), '0')
+
+
 # ------------------------------------------------------------ screening
 
 class ReadPanelTest(unittest.TestCase):
@@ -515,6 +602,13 @@ class CommandLineTest(unittest.TestCase):
         cls.pilot_csv = os.path.join(cls.dir, 'pilot.csv')
         cls.pilot = run_cli(['pilot', '--rules', 'match,undercut', '--runs', '2', '--adopt-after', '100000',
                              '--jobs', '1', '--set'] + FAST_SET + ['--json', cls.pilot_json, '--csv', cls.pilot_csv])
+        cls.tornado_json = os.path.join(cls.dir, 'tornado.json')
+        cls.tornado = run_cli(['tornado', '--runs', '1', '--assumptions', 'mu,nPrices', '--jobs', '1', '--set']
+                              + FAST_SET + ['--json', cls.tornado_json, '--csv', os.path.join(cls.dir, 'tornado.csv')])
+        cls.map_json = os.path.join(cls.dir, 'map.json')
+        cls.map_csv = os.path.join(cls.dir, 'map.csv')
+        cls.map = run_cli(['map', '--runs', '1', '--jobs', '1', '--set', 'beta=1e-4', 'maxPeriods=20000',
+                           'stableWindow=1000', '--json', cls.map_json, '--csv', cls.map_csv])
 
     @classmethod
     def tearDownClass(cls):
@@ -602,6 +696,34 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual([(r['rule'], r['seed']) for r in rows],
                          [('match', '1'), ('match', '2'), ('undercut', '1'), ('undercut', '2')])
 
+    def test_tornado_cli(self):
+        status, out, err = self.tornado
+        self.assertEqual(status, 0, err)
+        for text in ('One assumption at a time', 'How alike the products are (mu 0.1 to 0.5)',
+                     'Prices to choose from (nPrices 7 to 21)', 'swing', 'at both ends', '(seed 1)'):
+            self.assertIn(text, out)
+        with open(self.tornado_json, encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['kind'], 'tornado')
+        self.assertEqual(data['settings']['assumptions'], ['mu', 'nPrices'])
+        self.assertEqual(len(data['runs']), 5)
+
+    def test_map_cli(self):
+        status, out, err = self.map
+        self.assertEqual(status, 0, err)
+        self.assertIn('delta \\ mu', out)
+        self.assertIn('* a one-day cut is punished in at least half the runs', out)
+        lines = out.splitlines()
+        first = lines.index([l for l in lines if l.startswith('delta')][0])
+        self.assertEqual([l.split()[0] for l in lines[first + 2:first + 7]], ['0.95', '0.9', '0.8', '0.5', '0.25'])
+        with open(self.map_json, encoding='utf-8') as f:
+            data = json.load(f)
+        self.assertEqual(data['kind'], 'map')
+        self.assertEqual(data['map']['x']['values'], model.MAP_MU)
+        self.assertEqual(data['map']['y']['values'], model.MAP_DELTA)
+        with open(self.map_csv, newline='', encoding='utf-8') as f:
+            self.assertEqual(len(list(csv.DictReader(f))), 25)
+
     def test_adoption_is_described(self):
         cfg = model.validate_config({'firmTypes': ['learn', 'match'], 'adoptAt': [-1, 1500000]})['config']
         self.assertIn('B matches the cheapest rival until round 1,500,000, then learning', cli.describe(cfg))
@@ -613,7 +735,8 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(self.sweep[0], 0, self.sweep[2])
         path = os.path.join(self.dir, 'report.html')
         status, out, err = run_cli(['report', '--out', path, '--remedies', self.remedies_json, '--pilot',
-                                    self.pilot_json, '--sweep', self.sweep_json, '--screen', self.screen_json])
+                                    self.pilot_json, '--tornado', self.tornado_json, '--map', self.map_json,
+                                    '--sweep', self.sweep_json, '--screen', self.screen_json])
         self.assertEqual(status, 0, err)
         with open(path, encoding='utf-8') as f:
             page = f.read()
@@ -625,9 +748,24 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('prefers-color-scheme: dark', page)
         self.assertIn('synthetic', page)
         self.assertIn('legal advice', page)
-        self.assertEqual(page.count('<svg'), 4)      # bar chart, dumbbell, heat map, scatter
+        # bar chart, dumbbell, tornado, market map, sweep heat map, scatter
+        self.assertEqual(page.count('<svg'), 6)
         self.assertIn('Does the pilot predict the result at scale?', page)
-        self.assertLess(page.index('id="remedies"'), page.index('id="pilot"'))
+        self.assertIn('One assumption at a time', page)
+        self.assertIn('The market map: mu and delta together', page)
+        order = [page.index('id="%s"' % k) for k in ('remedies', 'pilot', 'robustness', 'sweep', 'screening')]
+        self.assertEqual(order, sorted(order))
+        self.assertIn('with the remedies, pilot, tornado, map, sweep, screen and calibration results', out)
+
+    def test_report_robustness_alone(self):
+        path = os.path.join(self.dir, 'robust.html')
+        status, out, err = run_cli(['report', '--out', path, '--map', self.map_json])
+        self.assertEqual(status, 0, err)
+        with open(path, encoding='utf-8') as f:
+            page = f.read()
+        self.assertIn(report.e(report.SECTION_TITLES['robustness']), page)
+        self.assertNotIn('One assumption at a time', page)
+        self.assertEqual(page.count('<svg'), 1)
 
     def test_report_escapes_text(self):
         with open(self.remedies_json, encoding='utf-8') as f:
@@ -655,6 +793,10 @@ class CommandLineTest(unittest.TestCase):
             (['pilot', '--adopt-after', '0'], '--adopt-after must be at least 1'),
             (['report', '--out', os.path.join(self.dir, 'r.html'), '--pilot', self.remedies_json],
              'is not saved pilot results'),
+            (['tornado', '--assumptions', 'nope', '--runs', '1'], 'unknown assumption'),
+            (['map', '--runs', '0'], '--runs must be at least 1'),
+            (['report', '--out', os.path.join(self.dir, 'r.html'), '--map', self.pilot_json],
+             'is not saved map results'),
         ]
         for argv, message in cases:
             status, out, err = run_cli(argv)

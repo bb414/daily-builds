@@ -10,6 +10,9 @@ its results are given:
   gain with 90% intervals, and a table with the paired comparisons;
 * pilot to scale (from ``pilot --json``): dumbbell chart of seller A's uplift in
   the pilot and after B adopts, per rule, the table, and the correlations;
+* robustness (from ``tornado --json`` and ``map --json``): a tornado chart of
+  how far the gain moves when each assumption is set low or high, and the
+  market map of mu against delta as a heat map, marking threats;
 * sweep (from ``sweep --json``): heat map of the mean realised profit gain;
 * screening (from ``screen --json``): how well each screen ranks the real
   cases, the false discovery rate flag, and the flagged markets;
@@ -28,6 +31,7 @@ __all__ = ['build_report', 'SECTION_TITLES']
 SECTION_TITLES = {
     'remedies': 'Remedies: what brings prices down',
     'pilot': 'Pilot to scale: does the pilot predict the result?',
+    'robustness': 'Robustness: does the result survive other assumptions?',
     'sweep': 'Sweep: where prices settle',
     'screening': 'Screening: could a regulator spot it?',
     'calibration': 'Calibration: demand fitted to sales',
@@ -108,6 +112,14 @@ tr.base td { background: var(--soft); }
 .chart .link { stroke: var(--muted); stroke-width: 1.5; }
 .chart .together { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .swatch.round { border-radius: 50%; }
+.chart .tn-band { stroke: var(--accent); stroke-width: 6; opacity: .25; stroke-linecap: round; }
+.chart .tn-ci { stroke: var(--accent); stroke-width: 1.5; }
+.chart .tn-low { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
+.chart .tn-high { fill: var(--accent); stroke: var(--card); stroke-width: 1; }
+.chart .base-line { stroke: var(--ink); stroke-dasharray: 3 3; }
+.swatch.tn-low { background: var(--card); border: 2px solid var(--accent); border-radius: 50%; }
+.swatch.tn-high { background: var(--accent); border-radius: 50%; }
+.swatch.base-line { background: none; border-left: 2px dashed var(--ink); border-radius: 0; width: 2px; }
 .swatch.together { background: none; border: 1.5px solid var(--ink); transform: rotate(45deg) scale(.8); }
 .pill { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: .78rem; font-weight: 600;
   border: 1px solid currentColor; }
@@ -493,12 +505,152 @@ def _pilot_section(part):
     ])
 
 
+# ------------------------------------------------------------ robustness
+
+def _fs(key, value):
+    """A setting's value as text, as in the command line: beta as 2.5e-6, prices as a whole number."""
+    if key == 'beta':
+        mant, _, exp = ('%e' % value).partition('e')
+        return '%se%d' % ('%g' % float(mant), int(exp))
+    return '%d' % value if key == 'nPrices' else '%g' % value
+
+
+def _tornado_chart(summary):
+    """Tornado: per assumption, the gain at the low value (hollow) and the high value (filled), with intervals."""
+    items = summary['assumptions']
+    bm = summary['base']['gain']['mean']
+    values = [bm] if _ok(bm) else []
+    for it in items:
+        for side in ('low', 'high'):
+            values += [v for v in it[side]['gain'].values() if _ok(v)]
+    lo, hi = min([0.0] + values), max([1.0] + values)
+    W, rowH, top, left, right = 440, 52, 24, 16, 76
+    H = top + rowH * len(items) + 24
+
+    def X(v):
+        return left + (v - lo) / (hi - lo) * (W - left - right)
+
+    inner = []
+    ticks = _nice_ticks(lo, hi, 5)
+    for v in ticks:
+        inner.append(_text(X(v), H - 6, pct(v), anchor='middle'))
+    if _ok(bm):
+        inner.append(_text(X(bm), 12, 'these settings %s' % pct(bm), anchor='middle' if X(bm) > 70 else 'start'))
+    for k, it in enumerate(items):
+        y = top + k * rowH
+        for v in ticks:
+            inner.append('<line class="grid" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                _f(X(v)), _f(X(v)), _f(y + 17), _f(y + 44 if k < len(items) - 1 else H - 22)))
+        if _ok(bm):
+            inner.append('<line class="base-line" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (_f(X(bm)), _f(X(bm)), _f(y + 17),
+                                                                                    _f(y + 44)))
+        inner.append(_text(4, y + 12, e('%s (%s %s to %s)' % (it['label'], it['key'], _fs(it['key'], it['lowValue']),
+                                                                _fs(it['key'], it['highValue'])))))
+        a, b = it['low']['gain'], it['high']['gain']
+        if _ok(a['mean']) and _ok(b['mean']):
+            inner.append('<line class="tn-band" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                _f(X(min(a['mean'], b['mean']))), _f(X(max(a['mean'], b['mean']))), _f(y + 31), _f(y + 31)))
+        for g, yy, cls, side in ((a, y + 25, 'tn-low', 'low'), (b, y + 37, 'tn-high', 'high')):
+            if not _ok(g['mean']):
+                continue
+            if _ok(g['lo']) and _ok(g['hi']):
+                inner.append('<line class="tn-ci" x1="%s" x2="%s" y1="%s" y2="%s"/>' % (
+                    _f(X(g['lo'])), _f(X(g['hi'])), _f(yy), _f(yy)))
+            inner.append('<circle class="%s" cx="%s" cy="%s" r="4.5"><title>%s</title></circle>' % (
+                cls, _f(X(g['mean'])), _f(yy), e('%s at %s %s: %s (90%% interval %s to %s)' % (
+                    it['label'], it['key'], _fs(it['key'], it[side + 'Value']), pct(g['mean']), pct(g['lo']),
+                    pct(g['hi'])))))
+        inner.append(_text(W - 2, y + 35, '%s / %s' % (pct(a['mean']), pct(b['mean'])), cls='ink', anchor='end'))
+    return _svg(W, H, 'Tornado chart of the realised profit gain when each of %d assumptions is set low or high'
+                % len(items), inner)
+
+
+def _robustness_section(tornado, market_map):
+    out = ['<section id="robustness"><h2>%s</h2>' % e(SECTION_TITLES['robustness']),
+           '<p class="lead">How much does the result depend on the assumptions? The tornado moves one assumption at a '
+           'time to a low and a high value, with the same seeds; the map varies how alike the products are (mu) and '
+           'how much the algorithms value tomorrow (delta) together. Gain is the realised profit gain over the last '
+           '100,000 rounds of training: 0% competitive, 100% monopoly.</p>']
+    if tornado:
+        sm = tornado['summary']
+        b = sm['base']
+        rows = []
+        for it in sm['assumptions']:
+            def iv(g):
+                return '%s<br><span class="small muted">%s to %s</span>' % (pct(g['mean']), pct(g['lo']), pct(g['hi']))
+            rows.append(['%s<br><span class="small muted">%s %s to %s</span>' % (
+                e(it['label']), e(it['key']), e(_fs(it['key'], it['lowValue'])), e(_fs(it['key'], it['highValue']))),
+                iv(it['low']['gain']), iv(it['high']['gain']), pts(it['swing']),
+                '%s / %s' % (pct(it['low']['punishedShare']), pct(it['high']['punishedShare'])),
+                _yes_plain(it['robust'])])
+        w = sm.get('worst')
+        verdict = 'The gain stays at 50%% or more at both ends for %d of %d assumptions.' % (
+            sm['robustCount'], len(sm['assumptions']))
+        if w:
+            verdict += ' The biggest fall comes from %s (%s at %s %s).' % (
+                e(w['label'].lower()), pct(w['gain']), e(w['key']), e(_fs(w['key'], w['value'])))
+        runs = len(sm.get('seeds', []))
+        out += [
+            '<h3>One assumption at a time</h3>',
+            '<p>With the settings below the realised profit gain averages %s (90%% interval %s to %s) and a one-day '
+            'cut is punished in %s of runs. %s</p>' % (pct(b['gain']['mean']), pct(b['gain']['lo']),
+                                                        pct(b['gain']['hi']), pct(b['punishedShare']), verdict),
+            _tornado_chart(sm),
+            '<div class="legend"><span><i class="swatch tn-low"></i>Low value</span><span><i class="swatch tn-high">'
+            '</i>High value</span><span><i class="swatch base-line"></i>These settings</span></div>',
+            '<p class="caption">Dots are mean gains over %d run%s and lines their 90%% bootstrap intervals; the label '
+            'on the right gives the low and high means. Biggest movers first, in the browser app\u2019s order.</p>'
+            % (runs, '' if runs == 1 else 's'),
+            _table(['Assumption', 'Gain at low', 'Gain at high', 'Swing', 'Punished low / high',
+                    '50%+ at both ends'], rows, num_cols=range(1, 6), wide=True),
+            '<p class="caption">Swing is the gain at the high value minus the gain at the low one. When experimenting '
+            'fades slowly (beta below 4e-6) a run gets at least six million rounds to settle.</p>',
+            '<details><summary>Command and settings</summary>%s</details>' % _settings_list(tornado),
+        ]
+    if market_map:
+        mp = market_map['map']
+        n = len(mp['x']['values']) * len(mp['y']['values'])
+        runs = len(mp.get('seeds', []))
+        cells = []
+        for line in mp['cells']:
+            for c in line:
+                cells.append([e(_short(c['x'])), e(_short(c['y'])), pct(c.get('gain')), pct(c.get('harm')),
+                              pct(c.get('punishedShare')), pct(c.get('convergedShare'))])
+        key = ''.join('<span><i class="swatch heat"><i style="opacity:%.2f"></i></i>%s</span>' % (t, pct(t))
+                      for t in (0.0, 0.25, 0.5, 0.75, 1.0))
+        out += [
+            '<h3>The market map: mu and delta together</h3>',
+            '<p>%d of %d combinations settle at a profit gain of 50%% or more. %d are marked threat: a one-day cut is '
+            'punished in at least half the runs%s. Each cell averages %d run%s.</p>' % (
+                mp['highCells'], n, mp['threatCells'],
+                ', including %d with a gain below 50%%, so a punished cut alone does not mean high prices'
+                % mp['lowThreatCells'] if mp.get('lowThreatCells') else '', runs, '' if runs == 1 else 's'),
+            _heat_map(mp, mark_threat=True, x_title='How alike the products are (mu)',
+                      y_title='Values tomorrow (delta)'),
+            '<div class="legend">%s</div>' % key,
+            '<p class="caption">Small mu (left) means shoppers chase the lowest price; small delta (bottom) means the '
+            'algorithms care little about tomorrow, so a future punishment is worth little to them. Darker cells '
+            'settle closer to monopoly prices (gains below 0% are shaded as 0%).</p>',
+            '<details><summary>Every cell</summary>%s</details>' % _table(
+                ['mu', 'delta', 'Profit gain', 'Shoppers\u2019 loss', 'Punished', 'Settled'], cells,
+                num_cols=range(0, 6)),
+            '<details><summary>Command and settings</summary>%s</details>' % _settings_list(market_map),
+        ]
+    out.append('</section>')
+    return ''.join(out)
+
+
+def _yes_plain(v):
+    return '<span class="pill %s">%s</span>' % ('good' if v else 'bad', 'yes' if v else 'no')
+
+
 # ------------------------------------------------------------ sweep
 
-def _heat_map(sw, key='gain'):
+def _heat_map(sw, key='gain', mark_threat=False, x_title=None, y_title=None):
+    """Heat map of ``cells[iy][ix][key]``; ``mark_threat`` writes "threat" under cells punished in half the runs."""
     xs, ys = sw['x']['values'], sw['y']['values']
     cw = max(46, min(84, 400 / max(1, len(xs))))
-    ch, left, top, bottom = 34, 78, 8, 44
+    ch, left, top, bottom = (44 if mark_threat else 34), 78, 8, 44
     W, H = left + cw * len(xs) + 8, top + ch * len(ys) + bottom
     inner = []
     for iy, (y, line) in enumerate(zip(ys, sw['cells'])):
@@ -517,13 +669,17 @@ def _heat_map(sw, key='gain'):
                          '<rect class="heat-hi" x="%s" y="%s" width="%s" height="%s" rx="2" fill-opacity="%.2f"/>%s</g>'
                          % (e(label), _f(x + 1), _f(yy + 1), _f(cw - 2), _f(ch - 2), _f(x + 1), _f(yy + 1),
                             _f(cw - 2), _f(ch - 2), t,
-                            _text(x + cw / 2, yy + ch / 2 + 4, pct(v), cls='on-hi' if t > 0.55 else 'ink',
-                                  anchor='middle')))
+                            _text(x + cw / 2, yy + ch / 2 + (0 if mark_threat else 4), pct(v),
+                                  cls='on-hi' if t > 0.55 else 'ink', anchor='middle')
+                            + (_text(x + cw / 2, yy + ch / 2 + 14, 'threat', cls='on-hi' if t > 0.55 else 'ink',
+                                     anchor='middle', extra='style="font-size:10px;font-weight:400"')
+                               if mark_threat and (cell.get('punishedShare') or 0) >= 0.5 else '')))
     for ix, x in enumerate(xs):
         inner.append(_text(left + ix * cw + cw / 2, top + ch * len(ys) + 16, e(_short(x)), anchor='middle'))
-    inner.append(_text(left + cw * len(xs) / 2, H - 6, e(sw['x']['param']) + ' →', cls='ink', anchor='middle'))
+    inner.append(_text(left + cw * len(xs) / 2, H - 6, e(x_title or sw['x']['param']) + ' →', cls='ink',
+                       anchor='middle'))
     cy = top + ch * len(ys) / 2
-    inner.append(_text(14, cy, e(sw['y']['param']) + ' →', cls='ink', anchor='middle',
+    inner.append(_text(14, cy, e(y_title or sw['y']['param']) + ' →', cls='ink', anchor='middle',
                        extra='transform="rotate(-90 14 %s)"' % _f(cy)))
     return _svg(W, H, 'Heat map of mean realised profit gain by %s and %s' % (sw['x']['param'], sw['y']['param']),
                 inner)
@@ -729,7 +885,7 @@ def _calibration_section(cal, part):
 
 # ------------------------------------------------------------ page
 
-def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None):
+def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None, tornado=None, market_map=None):
     """The whole report as one HTML string. Each argument is a saved JSON result (already loaded) or None."""
     sections, nav = [], []
     if remedies:
@@ -738,6 +894,9 @@ def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None)
     if pilot:
         sections.append(_pilot_section(pilot))
         nav.append(('pilot', 'Pilot to scale'))
+    if tornado or market_map:
+        sections.append(_robustness_section(tornado, market_map))
+        nav.append(('robustness', 'Robustness'))
     if sweep:
         sections.append(_sweep_section(sweep))
         nav.append(('sweep', 'Sweep'))
@@ -755,8 +914,8 @@ def build_report(remedies=None, sweep=None, screen=None, command='', pilot=None)
         '<title>Quiet cartel: companion report</title>\n<style>%s</style>\n</head>\n<body>\n<div class="wrap">\n' % CSS,
         '<header><h1>Quiet cartel: companion report</h1>',
         '<p class="lead">Can self-learning pricing algorithms learn to keep prices high without being told to, which '
-        'remedies stop them, does a pilot predict what happens when a rival adopts one too, and could a regulator '
-        'tell from the prices? This report collects results from the '
+        'remedies stop them, does a pilot predict what happens when a rival adopts one too, how robust is that to '
+        'the assumptions, and could a regulator tell from the prices? This report collects results from the '
         'Python companion to the Quiet cartel browser app.</p>',
         '<p class="notice">All markets, sellers and sales here are synthetic, produced by simulated Q-learning '
         'sellers in a textbook logit demand model. The numbers are illustrative only: they are not evidence about '

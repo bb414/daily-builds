@@ -1,4 +1,4 @@
-"""Batches of training runs: remedies compared with the baseline, parameter sweeps, and pilots taken to scale.
+"""Batches of training runs: remedies, parameter sweeps, pilots taken to scale, and robustness checks.
 
 Every run trains the sellers once with :func:`quiet_cartel.model.train` and
 summarises the result with :func:`quiet_cartel.model.summarise`, exactly as the
@@ -16,6 +16,10 @@ The pilot functions (:func:`run_pilots`, :func:`summarise_pilots`) repeat the
 browser app's "Pilot to scale" tab over many seeds and ask whether the profit
 uplift seller A sees in its pilot predicts what it earns once seller B adopts
 an algorithm too.
+
+The robustness functions (:func:`run_tornado`, :func:`summarise_tornado`,
+:func:`run_market_map`) repeat the app's "Robustness" tab: every config is
+built with :func:`quiet_cartel.model.with_setting` exactly as the app builds it.
 """
 
 import math
@@ -29,6 +33,7 @@ __all__ = [
     'sweep', 'SWEEP_PARAMS', 'EXACT_MAX', 'FLIP_REPS',
     'run_pilot_stages', 'run_together', 'run_pilots', 'summarise_pilots', 'pearson', 'spearman', 'ranks',
     'PILOT_LABELS', 'PILOT_STAGES',
+    'run_setting', 'run_tornado', 'summarise_tornado', 'run_market_map', 'fmt_setting',
 ]
 
 # Parameters a sweep may vary: the numeric, single-valued config keys.
@@ -605,3 +610,174 @@ def summarise_pilots(rows):
             'correlation': _correlation(rs),
         }
     return {'order': order, 'rules': out, 'correlation': _correlation(rows), 'seeds': seeds}
+
+
+# ------------------------------------------------------------ robustness
+
+TORNADO_BOOT_SEED = 701         # the base runs' interval; assumption k uses 710 + 2k (low) and 711 + 2k (high)
+
+
+def fmt_setting(key, value):
+    """A setting's value as text: beta as 2.5e-6, the number of prices as a whole number, others as they are."""
+    if key == 'beta':
+        mant, _, exp = ('%e' % value).partition('e')
+        return '%se%d' % ('%g' % float(mant), int(exp))
+    if key == 'nPrices':
+        return '%d' % value
+    return '%g' % value
+
+
+def run_setting(cfg):
+    """Train one complete config and return the outcome the robustness checks use (no best-response check)."""
+    tr = model.train(cfg)
+    s = model.summarise(tr)
+    return {'realisedGain': s['realisedGain'], 'avgGain': s['avgGain'], 'harm': s['harm'], 'punished': s['punished'],
+            'converged': s['converged'], 'periods': s['periods'], 'meanPrice': model.mean(s['price'])}
+
+
+def _robust_task(cfg):
+    """Pool worker for the robustness checks. Top level so that it can be pickled."""
+    return run_setting(cfg)
+
+
+def _checked_config(cfg, what):
+    errors = model.validate_config(cfg)['errors']
+    if errors:
+        raise ValueError('%s is not valid: %s' % (what, '; '.join(errors)))
+    return cfg
+
+
+def run_tornado(base, seeds, jobs=None, progress=None, keys=None):
+    """Move each assumption in ``model.TORNADO`` to its low and its high value, one at a time.
+
+    As in the app: for every seed r the base runs with
+    ``model.with_setting(base, 'seed', r, r)``, and every assumption runs at its
+    low and high value with ``model.with_setting(base, key, value, r)`` (which
+    also gives a slow fading of experimenting, beta below 4e-6, at least six
+    million rounds). ``keys`` limits the assumptions (default: all seven).
+    Returns one flat row per run: ``key`` ('base' for the base runs), ``side``
+    ('base', 'low' or 'high'), ``value``, ``seed`` and the outcome of
+    :func:`run_setting`. ``progress`` is called as in :func:`run_batch`.
+    """
+    base = _checked_base(base)
+    seeds = _checked_seeds(seeds)
+    known = [t['key'] for t in model.TORNADO]
+    if keys is not None:
+        keys = list(keys)
+        for k in keys:
+            if k not in known:
+                raise ValueError("unknown assumption '%s' (choose from %s)" % (k, ', '.join(known)))
+    entries = [t for t in model.TORNADO if keys is None or t['key'] in keys]
+    specs, cfgs = [], []
+    for r in seeds:
+        specs.append({'key': 'base', 'side': 'base', 'value': None, 'seed': r})
+        cfgs.append(model.with_setting(base, 'seed', r, r))
+    for t in entries:
+        for side in ('low', 'high'):
+            for r in seeds:
+                specs.append({'key': t['key'], 'side': side, 'value': t[side], 'seed': r})
+                cfgs.append(_checked_config(model.with_setting(base, t['key'], t[side], r),
+                                            '%s = %s' % (t['key'], fmt_setting(t['key'], t[side]))))
+    results = _run_tasks(cfgs, jobs, progress, worker=_robust_task)
+    return [dict(spec, **res) for spec, res in zip(specs, results)]
+
+
+def _robust_agg(rows, seed):
+    n = len(rows) or 1
+    return {'runs': len(rows),
+            'gain': model.bootstrap_mean([r['realisedGain'] for r in rows], 0.9, BOOT_REPS, seed),
+            'punishedShare': sum(1 for r in rows if r['punished']) / n,
+            'convergedShare': sum(1 for r in rows if r['converged']) / n}
+
+
+def summarise_tornado(rows):
+    """Summarise a tornado: how far the realised profit gain moves with each assumption.
+
+    ``base`` and, per assumption, ``low`` and ``high`` hold the number of runs,
+    the mean realised gain with a 90% bootstrap interval
+    (:func:`quiet_cartel.model.bootstrap_mean`, 2,000 resamples, fixed seeds),
+    the share of runs in which a one-day cut is punished and the share that
+    settled. ``swing`` is the mean gain at the high value minus the mean at the
+    low value; ``robust`` says whether the mean gain stays at 50% or more at
+    both ends. Assumptions are listed in the app's order, biggest movers first:
+    by |swing| plus the larger distance of either end from the base (ties keep
+    the order of ``model.TORNADO``). ``robustCount`` counts the robust
+    assumptions and ``worst`` names the assumption and end with the lowest gain.
+    """
+    base_rows = [r for r in rows if r['side'] == 'base']
+    if not base_rows:
+        raise ValueError('the tornado has no base runs')
+    base = _robust_agg(base_rows, TORNADO_BOOT_SEED)
+    bm = base['gain']['mean']
+    items = []
+    for k, t in enumerate(model.TORNADO):
+        lo_rows = [r for r in rows if r['key'] == t['key'] and r['side'] == 'low']
+        hi_rows = [r for r in rows if r['key'] == t['key'] and r['side'] == 'high']
+        if not lo_rows or not hi_rows:
+            continue
+        low, high = _robust_agg(lo_rows, 710 + 2 * k), _robust_agg(hi_rows, 711 + 2 * k)
+        a, b = low['gain']['mean'], high['gain']['mean']
+        items.append({'key': t['key'], 'label': t['label'], 'lowValue': t['low'], 'highValue': t['high'],
+                      'low': low, 'high': high, 'swing': b - a,
+                      'moves': abs(b - a) + max(abs(b - bm), abs(a - bm)), 'robust': a >= 0.5 and b >= 0.5})
+    worst = None
+    for it in items:            # in TORNADO order, so a tie goes to the first assumption, as in the app
+        side = 'low' if it['low']['gain']['mean'] < it['high']['gain']['mean'] else 'high'
+        g = it[side]['gain']['mean']
+        if worst is None or g < worst['gain']:
+            worst = {'key': it['key'], 'label': it['label'], 'side': side, 'value': it[side + 'Value'], 'gain': g}
+    order = sorted(items, key=lambda it: -it['moves'])
+    return {'base': base, 'assumptions': order, 'robustCount': sum(1 for it in items if it['robust']),
+            'worst': worst, 'seeds': sorted({r['seed'] for r in base_rows})}
+
+
+def run_market_map(base, seeds, jobs=None, progress=None, mus=None, deltas=None):
+    """The app's market map: realised profit gain for every (mu, delta) pair.
+
+    Each cell trains, for every seed r,
+    ``model.with_setting(model.with_setting(base, 'mu', mu, r), 'delta', delta, r)``,
+    exactly as the app does, over ``model.MAP_MU`` by ``model.MAP_DELTA`` unless
+    ``mus`` or ``deltas`` are given. Returns the axes, one flat row per run,
+    and ``cells[iy][ix]`` (rows follow the deltas, columns the mus, the same
+    layout as :func:`sweep`) with ``runs``, ``gain`` (mean realised gain),
+    ``harm``, ``punishedShare``, ``convergedShare`` and ``threat`` (a one-day
+    cut punished in at least half the runs); plus ``highCells`` (cells with a
+    gain of 50% or more), ``threatCells`` and ``lowThreatCells`` (threat cells
+    whose gain is below 50%: a punished cut does not by itself mean high prices).
+    """
+    base = _checked_base(base)
+    seeds = _checked_seeds(seeds)
+    mus = list(model.MAP_MU if mus is None else mus)
+    deltas = list(model.MAP_DELTA if deltas is None else deltas)
+    for name, vals in (('mu', mus), ('delta', deltas)):
+        lo, hi = model.LIMITS[name]
+        if not vals or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi for v in vals):
+            raise ValueError('%s values must be numbers between %s and %s' % (name, lo, hi))
+    specs, cfgs = [], []
+    for d in deltas:            # the app's order: delta by delta, mu by mu, seed by seed
+        for mu in mus:
+            for r in seeds:
+                specs.append({'mu': mu, 'delta': d, 'seed': r})
+                cfgs.append(_checked_config(model.with_setting(model.with_setting(base, 'mu', mu, r), 'delta', d, r),
+                                            'mu = %s, delta = %s' % (mu, d)))
+    results = _run_tasks(cfgs, jobs, progress, worker=_robust_task)
+    rows = [dict(spec, **res) for spec, res in zip(specs, results)]
+    per, k, cells = len(seeds), 0, []
+    for d in deltas:
+        line = []
+        for mu in mus:
+            runs = rows[k:k + per]
+            k += per
+            pun = sum(1 for r in runs if r['punished']) / per
+            line.append({'x': mu, 'y': d, 'runs': per,
+                         'gain': model.mean([r['realisedGain'] for r in runs]),
+                         'harm': model.mean([r['harm'] for r in runs]),
+                         'punishedShare': pun,
+                         'convergedShare': sum(1 for r in runs if r['converged']) / per,
+                         'threat': pun >= 0.5})
+        cells.append(line)
+    flat = [c for line in cells for c in line]
+    return {'x': {'param': 'mu', 'values': mus}, 'y': {'param': 'delta', 'values': deltas}, 'seeds': seeds,
+            'cells': cells, 'runs': rows, 'highCells': sum(1 for c in flat if c['gain'] >= 0.5),
+            'threatCells': sum(1 for c in flat if c['threat']),
+            'lowThreatCells': sum(1 for c in flat if c['threat'] and not c['gain'] >= 0.5)}

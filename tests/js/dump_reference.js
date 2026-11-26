@@ -447,6 +447,24 @@ ref.adoption = ADOPT_NAMES.map(function (name) {
   };
 })();
 
+// Robustness: the assumptions the tornado moves, the market map's axes, and the configs withSetting builds
+// for every assumption at its low and high value (on the default config and on one with more rounds).
+(function () {
+  const bases = [QC.defaultConfig(), Object.assign(QC.defaultConfig(), { maxPeriods: 7000000 })];
+  ref.robustness = {
+    TORNADO: QC.TORNADO, MAP_MU: QC.MAP_MU, MAP_DELTA: QC.MAP_DELTA, bases: bases,
+    settings: bases.map(function (base) {
+      return QC.TORNADO.map(function (t) {
+        return { key: t.key, low: QC.withSetting(base, t.key, t.low, 3), high: QC.withSetting(base, t.key, t.high, 4) };
+      });
+    }),
+    seedOnly: QC.withSetting(bases[0], 'seed', 5, 5),
+    mapCell: QC.withSetting(QC.withSetting(bases[0], 'mu', 0.05, 2), 'delta', 0.95, 2),
+    edges: [QC.withSetting({}, 'beta', 2.5e-6, 1), QC.withSetting({ maxPeriods: 0 }, 'beta', 1e-6, 1),
+      QC.withSetting(bases[0], 'beta', 4e-6, 1), QC.withSetting(bases[1], 'beta', 3.9e-6, 0)]
+  };
+})();
+
 ref.sorting = sortCases().map(function (xs) { return { xs: xs, sorted: QC.sortedCopy(xs) }; });
 
 ref.aggregate = {
