@@ -1,6 +1,6 @@
 market,setup,setup_label,mu,training_seed,profit_gain,punished,coordinated,high_price,competitive_price,monopoly_price
 1,baseline,Both learn and see all prices,0.5,187461,0.9579,1,1,1,1.7995,2.1874
-2,noisy,Busy and quiet days,0.5,191786,0.7491,0,0,1,1.7995,2.1874
+2,noisy,Busy and quiet days,0.5,191786,0.7491,1,1,1,1.7995,2.1874
 3,matcher,Rival matches the cheapest price,0.5,959911,0.995,1,1,1,1.7995,2.1874
 4,myopic,Rewarded on today’s profit only,0.25,714696,-0.0238,0,0,0,1.4729,1.925
 5,none,No memory at all,0.1,209764,0.8595,0,0,1,1.2,1.8657
@@ -14,7 +14,7 @@ market,setup,setup_label,mu,training_seed,profit_gain,punished,coordinated,high_
 13,floor,Must keep testing prices (5% of days),0.5,531017,0.7488,1,1,1,1.7995,2.1874
 14,myopic,Rewarded on today’s profit only,0.25,177181,0.3046,0,0,0,1.4729,1.925
 15,baseline,Both learn and see all prices,0.5,850551,0.9536,1,1,1,1.7995,2.1874
-16,noisy,Busy and quiet days,0.5,417157,0.879,0,0,1,1.7995,2.1874
+16,noisy,Busy and quiet days,0.5,417157,0.879,1,1,1,1.7995,2.1874
 17,own,Rivals’ prices banned as an input,0.1,632008,-0.0168,0,0,0,1.2,1.8657
 18,own,Rivals’ prices banned as an input,0.1,316346,-0.0168,0,0,0,1.2,1.8657
 19,none,No memory at all,0.1,494894,0.9841,0,0,1,1.2,1.8657
@@ -24,7 +24,7 @@ market,setup,setup_label,mu,training_seed,profit_gain,punished,coordinated,high_
 23,none,No memory at all,0.5,161322,-0.0283,0,0,0,1.7995,2.1874
 24,myopic,Rewarded on today’s profit only,0.1,703659,-0.0168,0,0,0,1.2,1.8657
 25,none,No memory at all,0.5,969731,-0.0283,0,0,0,1.7995,2.1874
-26,noisy,Busy and quiet days,0.5,726586,0.6777,0,0,1,1.7995,2.1874
+26,noisy,Busy and quiet days,0.5,726586,0.6777,1,1,1,1.7995,2.1874
 27,matcher,Rival matches the cheapest price,0.25,101960,0.9824,1,1,1,1.4729,1.925
 28,own,Rivals’ prices banned as an input,0.25,167171,-0.0238,0,0,0,1.4729,1.925
 29,baseline,Both learn and see all prices,0.5,504800,0.8675,0,0,1,1.7995,2.1874

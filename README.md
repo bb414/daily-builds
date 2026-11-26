@@ -6,8 +6,8 @@ Quiet cartel is a laboratory for one of the stranger questions in competition po
 
 There are two versions, built on the same model:
 
-- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It trains the sellers live, tests whether a price cut is punished, runs a pilot-to-scale experiment, compares remedies, builds a case file of simulated markets to score a regulator's screens, and screens your own price data.
-- **The Python companion** (`quiet_cartel/`). The same model, reproducing every run exactly, plus what a browser does less well: batch experiments on several processor cores with paired statistical tests, parameter sweeps, screening a whole CSV of markets with false-discovery control, fitting the demand model to sales data, and a self-contained HTML report. Standard library only.
+- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It trains the sellers live, tests whether a price cut is punished, runs a pilot-to-scale experiment, compares remedies, checks how robust the result is, builds a case file of simulated markets to score a regulator's screens, and screens your own price data, one market or hundreds.
+- **The Python companion** (`quiet_cartel/`). The same model, reproducing every run exactly, plus what a browser does less well: batch experiments on several processor cores with paired statistical tests, whether a pilot's result predicts the result at scale (correlations over many runs), a power analysis of how long a regulator must watch, screening a whole CSV of markets with false-discovery control, fitting the demand model to sales data, and a self-contained HTML report ([an example from the runs behind the findings](docs/report.html)). Standard library only.
 
 ![The Learn tab after training: prices climb from near competitive to near monopoly as the algorithms stop experimenting](docs/learn.png)
 
@@ -85,7 +85,7 @@ The generator uses the same case-file recipe as the app, so building a case file
 
 ![Regulator's screens: ROC curves for five price screens on a case file of simulated markets, with the hidden truth revealed below](docs/screens.png)
 
-![Your prices: a sample market's daily prices with unprovoked cuts and rivals' responses marked, and a permutation test](docs/data.png)
+![Your prices: all 40 bundled markets screened at once and ranked by Benjamini-Hochberg q-value, with the top market's daily prices, unprovoked cuts and rivals' answers marked](docs/data.png)
 
 ![The app at phone width](docs/phone.png)
 
@@ -93,11 +93,11 @@ The generator uses the same case-file recipe as the app, so building a case file
 
 | Part | Language | Lines (roughly) | What it does |
 |------|----------|-----------------|--------------|
-| `app/index.html` | HTML, CSS, JavaScript | 3,300 | The model, all seven views, charts drawn as SVG, sample data |
+| `app/index.html` | HTML, CSS, JavaScript | 3,500 | The model (about 1,150 lines), all seven views, charts drawn as SVG, sample data |
 | `quiet_cartel/model.py` | Python | 1,750 | The same model, bit for bit |
 | `quiet_cartel/` (other modules) | Python | 3,800 | Batch experiments and statistics, sweeps, screening, calibration, report, command line |
 | `data/generate_markets.py` | Python | 170 | The seeded dataset generator |
-| `tests/` | JavaScript, Python | 2,900 | Model tests, exact agreement tests, companion tests, browser tests |
+| `tests/` | JavaScript, Python | 3,300 | Model tests, exact agreement tests, companion tests, browser tests |
 
 ## How it works
 
@@ -109,7 +109,9 @@ The generator uses the same case-file recipe as the app, so building a case file
 
 **The tests.** After training, the app follows the learned strategies until prices repeat (the settled cycle) and measures the **profit gain**: 0% at competitive profits, 100% at monopoly profits. The **punishment test** forces one seller to cut its price for a day and compares what follows with the path without the cut; a cut counts as punished when it would pay on the day, a rival answers with a lower price and the cut loses money overall. The **best-reply check** holds the rival's learned strategy fixed and solves the seller's best long-run strategy against it exactly, by value iteration over every possible situation, then compares its value with that of the learned strategy.
 
-**The screens.** In each case-file market the trained sellers play for a year, each testing a random price on about 3% of days. The screens see only these prices (and unit costs): margin, price stability, how often a rival cuts the day after an unprovoked cut, how often prices snap back, and the combination of both. They are scored by ROC area against the hidden truth.
+**Robustness.** The tornado moves one assumption at a time to a low and a high value, with every other setting held, and retrains on several seeds; the map retrains on a grid of shopper loyalty and patience.
+
+**The screens.** In each case-file market the trained sellers play for a year, each testing a random price on about 3% of days. The screens see only these prices (and unit costs): margin, price stability, how often a rival cuts the day after an unprovoked cut (a cut after a calm day, while the other seller holds still), how often prices snap back, and the combination of both. They are scored by ROC area against the hidden truth. A permutation test shifts one seller's prices in time to ask whether rivals' cuts line up more than chance allows, and Benjamini-Hochberg q-values control false flags when many markets are screened at once. The companion's `watch` command repeats this for observation periods from 60 to 730 days and test rates from 1% to 6%, training each market once and watching it many ways.
 
 **Exactness.** All the maths that feeds a decision uses only addition, subtraction, multiplication and division, with the same random number generator (mulberry32) in both languages and custom exponential and logarithm functions. An agreement test runs the JavaScript in Node.js and the Python port on the same inputs and checks that every number matches exactly.
 
@@ -133,6 +135,7 @@ The agreement tests need Node.js on the path and skip with a message without it.
 
 ## What could come next
 
+- A cycle-aware screen. About four in ten markets held up by a threat settle into a price cycle, which has no calm days, so a screen built on clean cuts never sees them. Measuring cuts against each market's own usual cycle could close that blind spot.
 - Let the algorithms keep learning after deployment, so that a regulator's test prices also teach them.
 - Add sellers who change prices at different times of day, and buyers who compare prices with a lag.
 - Try other learning methods (policy-gradient or bandit pricing) on the same tests.
