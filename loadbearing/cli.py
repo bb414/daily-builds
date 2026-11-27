@@ -878,9 +878,9 @@ def cmd_calibrate(args):
     rows = [[p['player'], p['tests']] + cells(p) for p in cal['players']]
     rows.append(['Squad median', ''] + cells(cal['medians']))
     say(f"Fitness and fatigue: the Banister model fitted to {tests['column']} in {args.tests}",
-        wrap(f'perf(t) = p0 + k1 * fitness - k2 * fatigue, fitness and fatigue being the logbook\'s daily loads '
-             f'(minutes x rpe) before day t, fading over tau1 and tau2 days. k1 and k2 are per 1,000 units of load; '
-             f't0 is the days until a hard session does more good than harm, t* the days until its benefit peaks.'),
+        wrap('perf(t) = p0 + k1 * fitness - k2 * fatigue, fitness and fatigue being the logbook\'s daily loads '
+             '(minutes x rpe) before day t, fading over tau1 and tau2 days. k1 and k2 are per 1,000 units of load; '
+             't0 is the days until a hard session does more good than harm, t* the days until its benefit peaks.'),
         '', text_table(['Player', 'Tests', 'p0', 'k1', 'k2', 'tau1', 'tau2', 'R2', 'RMSE', 't0', 't*'], rows))
     for s in cal['skipped']:
         say(f"Not fitted: {s['player']} ({s['reason']})")

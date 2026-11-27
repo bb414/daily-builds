@@ -281,6 +281,26 @@ class AppTest(unittest.TestCase):
             frame.locator('#pilot-power svg').wait_for(timeout=60000)
             self.assertEqual([], errors)
 
+    def test_stays_responsive_and_drops_stale_work(self):
+        page = self.open()
+        self.tab(page, 'tradeoff')
+        page.click('label[for="ts-40"]')
+        worst = page.evaluate('''() => new Promise(done => {
+            const start = performance.now(); let last = start, worst = 0;
+            function tick(now) { worst = Math.max(worst, now - last); last = now;
+              if (now - start < 1500) requestAnimationFrame(tick); else done(worst); }
+            requestAnimationFrame(tick); })''')
+        self.assertLess(worst, 250)
+        for name in ('hidden', 'pilot', 'season', 'light'):
+            page.click('#tab-' + name)
+        page.select_option('#flag', 'ewma')
+        page.click('label[for="pol-modify"]')
+        page.wait_for_selector('#roc svg', timeout=90000)
+        self.tab(page, 'tradeoff')
+        self.assertIn('EWMA', page.text_content('#trade-body .foot'))
+        self.assertEqual(0, page.locator('.error').count())
+        self.assertEqual([], self.errors)
+
     def test_works_without_web_workers(self):
         page = self.open(init='window.Worker = undefined;')
         self.tab(page, 'light')

@@ -212,6 +212,7 @@ const comparisons = [{ settings: {}, seeds: [1, 2, 3] },
     out: M.comparePolicies(c.settings, c.seeds, c.policies) };
 });
 const pilots = [{ settings: {}, pairs: 3 }, { settings: { policy: 'modify', flag: 'model' }, pairs: 2 },
+  { settings: { policy: 'rotate' }, pairs: 2 },
   { settings: {}, pairs: 0 }].map(function (c) {
   return { settings: c.settings, pairs: c.pairs, out: M.pilotStudy(c.settings, c.pairs) };
 });
@@ -239,6 +240,7 @@ const tradeoffs = [{ settings: { flag: 'model' }, seeds: [101, 102] }, { setting
 const robust = { settings: { policy: 'rest', flag: 'ewma', threshold: 1.3 }, seeds: [201, 202] };
 robust.out = M.robustness(robust.settings, robust.seeds);
 robust.map = M.robustnessMap({ flag: 'model' }, [203], [0, 3], [0.6, 1.4]);
+robust.readiness = M.lightEffect({ policy: 'readiness', flag: 'ewma' }, [204]);
 robust.assumptions = M.ASSUMPTIONS;
 
 // ---------- logbooks ----------

@@ -176,6 +176,7 @@ class AgreementTest(unittest.TestCase):
         self.assertSame(ref['assumptions'], model.ASSUMPTIONS, 'ASSUMPTIONS')
         self.assertSame(ref['out'], model.robustness(ref['settings'], ref['seeds']), 'robustness')
         self.assertSame(ref['map'], model.robustness_map({'flag': 'model'}, [203], [0, 3], [0.6, 1.4]), 'robustnessMap')
+        self.assertSame(ref['readiness'], model.light_effect({'policy': 'readiness', 'flag': 'ewma'}, [204]), 'lightEffect')
 
     def test_calibration(self):
         ref = self.ref['calibration']

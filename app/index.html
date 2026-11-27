@@ -1316,7 +1316,7 @@ var LoadBearing = (function () {
           var graded = S.gradedReturn && gradedUntil[q] > d;
           var cut = d >= 0 && modUntil[q] >= d;
           var rl = d < 0 ? 'reserve' : graded ? 'returning' : isMatchDay ? role[q]
-            : (cut && S.policy === 'rest') ? 'rested' : 'reserve';
+            : (cut && excluded[q]) ? 'rested' : 'reserve';
           sess = session(info, wd, rl, info ? RAMP[S.preseason][Math.min(w, PRE_WEEKS - 1)] : 1, pl.offLoad / 107);
           mn = sess[0] < 0 ? roleMins[q] : sess[0]; rpe = sess[1]; kind = sess[2];
           var game = kind === KIND.MATCH || kind === KIND.SECOND;
@@ -1570,9 +1570,11 @@ var LoadBearing = (function () {
   ];
 
   /* The light's accuracy (AUC on silent seasons) and its value when acted on, over paired seasons. */
+  function actingPolicy(p) { return p === 'rest' || p === 'modify' ? p : 'rest'; }
+
   function lightEffect(settings, seeds) {
     var S = withDefaults(settings);
-    if (S.policy === 'none') S.policy = 'rest';
+    S.policy = actingPolicy(S.policy);
     var ctx = prepare(S);
     var off = withDefaults(S); off.policy = 'none';
     var scores = [], labels = [], dNC = [], dInj = [], dDays = [], dPts = [];
@@ -1590,7 +1592,7 @@ var LoadBearing = (function () {
 
   function robustness(settings, seeds) {
     var S = withDefaults(settings);
-    if (S.policy === 'none') S.policy = 'rest';
+    S.policy = actingPolicy(S.policy);
     var base = lightEffect(S, seeds);
     var rows = ASSUMPTIONS.map(function (a) {
       var lo = withDefaults(S), hi = withDefaults(S);
@@ -1604,7 +1606,7 @@ var LoadBearing = (function () {
   /* The light's value across the two most contested hidden parameters. */
   function robustnessMap(settings, seeds, spikes, contacts) {
     var S = withDefaults(settings);
-    if (S.policy === 'none') S.policy = 'rest';
+    S.policy = actingPolicy(S.policy);
     spikes = spikes || [0, 1, 2, 3, 4];
     contacts = contacts || [0.6, 1, 1.4];
     var cells = [];
@@ -1900,7 +1902,7 @@ var LoadBearing = (function () {
       trueDays.push(withA.daysLost - baseA.daysLost);
       pointsDiff.push(withA.points - baseA.points);
       missed.push(withA.rests);
-      var co = coachView(withA);
+      var co = S.policy === 'rest' || S.policy === 'modify' ? coachView(withA) : { actions: 0, quiet: 0 };
       actions.push(co.actions); quiet.push(co.quiet);
     }
     var trueEffect = mean(trueDiff), baseMean = mean(before), afterMean = mean(after);
@@ -1923,7 +1925,7 @@ var LoadBearing = (function () {
       looksWorse: count(function (v) { return v > 0; }),
       power: power, seasonsNeeded: needed,
       actionsPerSeason: totalActions / pairs, quietShare: totalActions ? totalQuiet / totalActions : NaN,
-      actionsPerInjuryPrevented: trueEffect < 0 ? (totalActions / pairs) / -trueEffect : Infinity
+      actionsPerInjuryPrevented: !totalActions ? NaN : trueEffect < 0 ? (totalActions / pairs) / -trueEffect : Infinity
     };
   }
 
@@ -2599,9 +2601,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       try { j.resolve(M[j.fn].apply(null, j.args)); } catch (err) { j.reject(err); }
     }, 20);
   }
+  /* A new request means any work still running is stale (the settings or the page changed), so the worker is
+     restarted rather than left to finish it. Abandoned jobs are rejected quietly. */
+  function abandonPending() {
+    var pending = jobs;
+    jobs = {};
+    try { worker.terminate(); } catch (e) { /* already gone */ }
+    worker = null;
+    Object.keys(pending).forEach(function (id) { pending[id].reject({ cancelled: true }); });
+    startWorker();
+  }
   function run(fn, args) {
     return new Promise(function (resolve, reject) {
       var j = { fn: fn, args: args, resolve: resolve, reject: reject };
+      if (worker && !workerFailed && Object.keys(jobs).length) abandonPending();
       if (worker && !workerFailed) {
         var id = ++jobSeq;
         jobs[id] = j;
@@ -2740,7 +2753,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       (unit ? '<small>' + esc(unit) + '</small>' : '') + '</div>' + (note ? '<p class="t-note">' + note + '</p>' : '') + '</div>';
   }
   function busy(el, text) { el.innerHTML = '<div class="busy" role="status"><span class="ball" aria-hidden="true"></span>' + esc(text) + '</div>'; }
-  function failed(el, err) { el.innerHTML = '<div class="error" role="alert">Something went wrong working this out: ' + esc(err && err.message || err) + '. Try the defaults.</div>'; }
+  function failed(el, err) {
+    if (err && err.cancelled) return;
+    el.innerHTML = '<div class="error" role="alert">Something went wrong working this out: ' + esc(err && err.message || err) + '. Try the defaults.</div>';
+  }
   function download(name, text, type) {
     try {
       var blob = new Blob([text], { type: type || 'text/csv' });
@@ -3514,6 +3530,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     var html = [];
     html.push('<div class="btn-row" style="margin:0 0 14px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons for each version</span><div class="tickets three" role="radiogroup" aria-label="Seasons for each version of the truth" style="min-width:220px">' +
       [8, 12, 24].map(function (n) { return '<input type="radio" name="hseasons" id="hs-' + n + '" value="' + n + '"' + (n === extra.hiddenSeasons ? ' checked' : '') + '><label for="hs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
+    if (S.policy !== 'rest' && S.policy !== 'modify') html.push('<div class="warnings"><p>The clipboard\'s policy does not act on the light, so this page tests <b>resting anyone flagged</b> instead.</p></div>');
     html.push('<div class="scoreboard">' +
       tile('Light\'s AUC', fmt(rb.base.auc, 2), esc(FLAG_SHORT[rb.flag]) + ' on these silent seasons; ' + fmt(spike.low.auc, 2) + ' to ' + fmt(spike.high.auc, 2) + ' as spikes matter less or more') +
       tile('Soft-tissue saved', fmt(-rb.base.dNC, 1), 'a season by ' + esc(POLICY_SHORT[rb.policy].toLowerCase()) + '; ' + fmt(-spike.low.dNC, 1) + ' to ' + fmt(-spike.high.dNC, 1) + ' across the spike range', 'good') +

@@ -83,7 +83,7 @@ python3 -m loadbearing calibrate --logbook data/club_logbook.csv --tests data/ju
 python3 -m loadbearing report --out results/report.html
 ```
 
-Every simulation command takes the app's settings (`--policy`, `--flag`, `--threshold`, `--budget`, `--preseason`, `--intensity`, `--no-graded-return`, `--spike`, `--contact-scale`, `--squad-seed`) and defaults to the app's: rest anyone the risk model flags. `python3 -m loadbearing COMMAND --help` explains each one. The same command always prints the same numbers. The default runs take from under a second (`season`) to about half a minute (`compare`, `trial`, `report`) on a two-core laptop.
+Every simulation command takes the app's settings (`--policy`, `--flag`, `--threshold`, `--budget`, `--preseason`, `--intensity`, `--no-graded-return`, `--spike`, `--contact-scale`, `--squad-seed`) and defaults to the app's: rest anyone the risk model flags. `python3 -m loadbearing COMMAND --help` explains each one. The same command always prints the same numbers. On a two-core laptop the default runs take from under a second (`season`) to about half a minute (`compare`, `pilot`, `trial`, `report`) or a minute (`optimise`); `robustness --seasons 24 --map` takes a few minutes.
 
 The data in `data/` comes from `python3 data/generate_logbook.py`, a seeded generator that rebuilds the files exactly: `club_logbook.csv` (one simulated season's 6,555 sessions with injuries, identical to the app's sample), `jump_tests.csv` (a countermovement-jump test every Monday for every fit player, made from each player's loads through a fitness-fatigue model with hidden parameters) and `jump_truth.csv` (those hidden parameters, so the calibration can be checked).
 

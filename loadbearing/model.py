@@ -974,7 +974,7 @@ def simulate_season(ctx, S, season_seed, opts=None):
                     rl = 'returning'
                 elif is_match_day:
                     rl = role[q]
-                elif cut and S['policy'] == 'rest':
+                elif cut and excluded[q]:
                     rl = 'rested'
                 else:
                     rl = 'reserve'
@@ -1275,11 +1275,15 @@ ASSUMPTIONS = [
 ]
 
 
+def _acting_policy(p):
+    """The policy that acts on the light: the clipboard's if it does, otherwise resting anyone flagged."""
+    return p if p in ('rest', 'modify') else 'rest'
+
+
 def light_effect(settings, seeds):
     """The light's accuracy (AUC on silent seasons) and its value when acted on, over paired seasons."""
     S = with_defaults(settings)
-    if S['policy'] == 'none':
-        S['policy'] = 'rest'
+    S['policy'] = _acting_policy(S['policy'])
     ctx = prepare(S)
     off = with_defaults(S)
     off['policy'] = 'none'
@@ -1302,8 +1306,7 @@ def light_effect(settings, seeds):
 def robustness(settings, seeds):
     """light_effect() at the settings, then with each assumption pushed low and high, one at a time."""
     S = with_defaults(settings)
-    if S['policy'] == 'none':
-        S['policy'] = 'rest'
+    S['policy'] = _acting_policy(S['policy'])
     base = light_effect(S, seeds)
     rows = []
     for a in ASSUMPTIONS:
@@ -1319,8 +1322,7 @@ def robustness(settings, seeds):
 def robustness_map(settings, seeds, spikes=None, contacts=None):
     """light_effect() across the two most contested hidden parameters."""
     S = with_defaults(settings)
-    if S['policy'] == 'none':
-        S['policy'] = 'rest'
+    S['policy'] = _acting_policy(S['policy'])
     spikes = [0, 1, 2, 3, 4] if spikes is None else list(spikes)
     contacts = [0.6, 1, 1.4] if contacts is None else list(contacts)
     cells = []
@@ -1670,7 +1672,7 @@ def pilot_study(settings, pairs):
         true_days.append(with_a['daysLost'] - base_a['daysLost'])
         points_diff.append(with_a['points'] - base_a['points'])
         missed.append(with_a['rests'])
-        co = coach_view(with_a)
+        co = coach_view(with_a) if S['policy'] in ('rest', 'modify') else {'actions': 0, 'quiet': 0}
         actions.append(co['actions'])
         quiet.append(co['quiet'])
     true_effect, base_mean, after_mean = mean(true_diff), mean(before), mean(after)
@@ -1699,7 +1701,8 @@ def pilot_study(settings, pairs):
         'power': power, 'seasonsNeeded': needed,
         'actionsPerSeason': _div(total_actions, pairs),
         'quietShare': total_quiet / total_actions if total_actions else math.nan,
-        'actionsPerInjuryPrevented': _div(total_actions, pairs) / -true_effect if true_effect < 0 else math.inf,
+        'actionsPerInjuryPrevented': (math.nan if not total_actions else
+                                      _div(total_actions, pairs) / -true_effect if true_effect < 0 else math.inf),
     }
 
 
