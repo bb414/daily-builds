@@ -188,13 +188,16 @@ class SeasonTest(unittest.TestCase):
         self.assertEqual(24, len(res['matches']))
         self.assertEqual(22, len(league))
         self.assertEqual(['League round %d' % k for k in range(1, 23)], [m['label'] for m in league])
-        self.assertEqual(['Cup semi-final', 'Cup final'], [m['label'] for m in res['matches'] if m['type'] == 'C'])
+        cup = [m for m in res['matches'] if m['type'] == 'C']
+        self.assertEqual('Cup semi-final', cup[0]['label'])
+        self.assertEqual('Cup final' if cup[0]['margin'] > 0 else 'Third-place play-off', cup[1]['label'])
+        self.assertEqual(res['finalWon'], cup[1]['stage'] == 'final' and cup[1]['result'] == 'W')
         self.assertEqual(res['points'], sum(m['points'] for m in league))
         self.assertEqual(22, res['wins'] + res['draws'] + res['losses'])
         self.assertTrue(all(league.count(m) == 1 for m in league))
         self.assertTrue(all([m['opponent'] for m in league].count(k) == 2 for k in range(11)))
         final = res['matches'][-1]
-        self.assertEqual(res['finalWon'], final['result'] == 'W')
+        self.assertEqual(res['finalStage'], final['stage'])
         self.assertEqual(res['finalBestXV'], final['bestXVPlaying'])
         for m in res['matches']:
             self.assertEqual(15, len(m['starters']))

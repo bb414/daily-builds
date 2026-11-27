@@ -3,6 +3,7 @@ command line shares with them. Nothing here fetches anything: the pages use syst
 """
 import html
 import math
+from decimal import ROUND_HALF_UP, Decimal
 
 from . import model
 
@@ -19,8 +20,8 @@ POLICY_SHORT = {'none': 'Ignore the light', 'rest': 'Rest anyone flagged', 'modi
                 'rotate': 'Planned rotation', 'readiness': 'Pick on readiness'}
 METRIC_LABELS = {'injuriesTotal': 'Injuries', 'nc': 'Soft-tissue injuries', 'contact': 'Contact injuries',
                  'daysLost': 'Days lost', 'points': 'League points', 'position': 'League position',
-                 'finalBestXV': 'First-choice XV in final', 'meanRating': 'Team rating',
-                 'rests': 'Matches sat out', 'finalWon': 'Cup final won (share)'}
+                 'finalBestXV': 'First-choice XV, last cup tie', 'meanRating': 'Team rating',
+                 'rests': 'Matches sat out', 'finalWon': 'Cup won (share)'}
 
 
 # ---------- numbers as text ----------
@@ -29,22 +30,35 @@ def finite(x):
     return isinstance(x, (int, float)) and math.isfinite(x)
 
 
+def fixed(x, digits):
+    """Number.prototype.toFixed: the exact binary value rounded half away from zero, as the app writes numbers,
+    so the companion and the app print the same figures."""
+    if not finite(x):
+        return 'NaN' if x != x else 'Infinity' if x > 0 else '-Infinity'
+    return format(Decimal(x).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP), 'f')
+
+
 def fmt(x, digits=1):
-    """A number with thousands separators; n/a for NaN or None."""
+    """A number with thousands separators, rounded as the app rounds; n/a for NaN or None."""
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return 'n/a'
     if isinstance(x, float) and math.isinf(x):
         return 'never' if x > 0 else '-inf'
-    return f'{x:,.{digits}f}'
+    text = fixed(abs(x), digits)
+    whole, _, frac = text.partition('.')
+    whole = f'{int(whole):,}'
+    zero = not any(ch not in '0.' for ch in text)
+    return ('-' if x < 0 and not zero else '') + whole + ('.' + frac if frac else '')
 
 
 def signed(x, digits=1):
     """A number with its sign (+1.2, -0.4, 0.0)."""
     if not finite(x):
         return fmt(x, digits)
-    if round(x, digits) == 0:
-        return f'{0:.{digits}f}'
-    return f'{x:+,.{digits}f}'
+    text = fmt(abs(x), digits)
+    if not any(ch not in '0.,' for ch in text):
+        return text
+    return ('+' if x > 0 else '-') + text
 
 
 def pct(x, digits=0):
@@ -133,13 +147,14 @@ def compare_summary(cp):
 
 def pilot_summary(ps):
     """What a one-season pilot can and cannot tell, in a few sentences."""
-    needed = 'more seasons than any club has' if not finite(ps['seasonsNeeded']) else fmt(ps['seasonsNeeded'], 0)
+    n = ps['seasonsNeeded']
+    needed = 'more seasons than any club has' if not finite(n) else plural(n, 'season')
     text = (f"With the luck held fixed, {POLICY_SHORT[ps['policy']].lower()} changes injuries by "
             f"{signed(ps['trueEffect'])} a season ({signed(ps['trueNC'])} soft-tissue). But one season of injuries "
             f"varies by about {fmt(ps['seasonSd'])} either way, so a before-and-after pilot swings by "
             f"{fmt(ps['measuredSd'])}: it shows fewer injuries {pct(ps['looksBetter'])} of the time and more "
             f"{pct(ps['looksWorse'])} of the time. Detecting the true effect four times in five needs {needed} "
-            f"seasons in each arm. League points change by {signed(ps['pointsEffect'])} a season.")
+            f"in each arm. League points change by {signed(ps['pointsEffect'])} a season.")
     if finite(ps['quietShare']):
         per = ps['actionsPerInjuryPrevented']
         text += (f" {pct(ps['quietShare'])} of acted-on flags are followed by a quiet fortnight, which looks like "
@@ -445,9 +460,9 @@ def flags_table(ev, S):
                      f"{fmt(f['seasonAuc']['lo'], 2)} to {fmt(f['seasonAuc']['hi'], 2)}",
                      pct(f['atRule']['share'], 1),
                      fmt(100 * f['atRule']['precision'], 1) if f['atRule']['flagged'] else 'n/a',
-                     pct(f['atRule']['recall']), pct(f['atBudget']['recall'])])
+                     pct(f['atRule']['recall']), pct(f['atBudget']['recall']), pct(f['starterShare'])])
     headers = ['Light', 'AUC', 'One season', 'Flagged', 'Hits per 100 flags', 'Caught',
-               f"Caught at {fmt(S['budget'], 0)}%"]
+               f"Caught at {fmt(S['budget'], 0)}%", 'On starters']
     return headers, rows
 
 

@@ -10,7 +10,6 @@ import math
 import os
 import sys
 import textwrap
-from decimal import ROUND_HALF_UP, Decimal
 
 from . import calibrate, experiments, model, report
 from .report import FLAG_PHRASE, METRIC_LABELS, POLICY_SHORT, finite, fmt, interval, ordinal, pct, plural, signed
@@ -131,13 +130,6 @@ def read_book(path):
     return book
 
 
-def js_fixed(x, digits):
-    """Number.prototype.toFixed: the exact binary value rounded half away from zero, as the app writes it."""
-    if not finite(x):
-        return 'NaN' if x != x else 'Infinity' if x > 0 else '-Infinity'
-    return format(Decimal(x).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP), 'f')
-
-
 # ---------- argument types ----------
 def ranged(kind, lo, hi):
     """An argparse type: a number of the given kind between lo and hi."""
@@ -241,8 +233,14 @@ def season_date(day):
 
 
 def final_text(res):
-    m = res['matches'][-1]
-    return 'drew' if m['result'] == 'D' else f"{'won' if m['result'] == 'W' else 'lost'} by {abs(m['margin'])}"
+    """How the cup went: the final, or the third-place play-off after a semi-final defeat."""
+    semi, m = res['matches'][-2], res['matches'][-1]
+
+    def score(x):
+        return 'drew' if x['result'] == 'D' else f"{'won' if x['result'] == 'W' else 'lost'} by {abs(x['margin'])}"
+    if m['stage'] == 'final':
+        return f"final: {score(m)}"
+    return f"semi: {score(semi)}; play-off: {score(m)}"
 
 
 def flag_record(res, S):
@@ -307,9 +305,9 @@ def cmd_season(args):
             row('Days lost', 'daysLost', lambda v: fmt(v, 0)), row('League position', 'position', ordinal, places),
             row('League points', 'points'),
             ['Won-drawn-lost', record(res)] + ([record(base), ''] if base else []),
-            [f"Cup final v {squad['opponents'][res['matches'][-1]['opponent']]['name']}", final_text(res)] +
+            ['The cup', final_text(res)] +
             ([final_text(base), ''] if base else []),
-            row('First-choice XV in the final', 'finalBestXV', lambda v: f'{v} of 15'),
+            row('First-choice XV, last cup tie', 'finalBestXV', lambda v: f'{v} of 15'),
             row('Matches sat out', 'rests')]
     headers = ['', 'This season'] + (['Light ignored', 'Difference'] if base else [])
     say('', text_table(headers, rows))
@@ -367,8 +365,37 @@ def cmd_season(args):
 
 
 # ---------- flags ----------
+def inquest_seasons(S, n):
+    """The inquest's tallies summed over seasons 1 to n: how many injuries a one-week rest would have avoided
+    in hindsight, and how many the light flagged beforehand."""
+    keys = ('nc', 'contact', 'ncFlagged', 'contactFlagged', 'ncAvoidable', 'contactAvoidable', 'ncChecked',
+            'contactChecked')
+    total = {k: 0 for k in keys}
+    for seed in range(1, n + 1):
+        sm = model.inquest(S, seed)['summary']
+        for k in keys:
+            total[k] += sm[k]
+    say(f'The inquest over {plural(n, "season")} (seeds 1 to {n})',
+        wrap(f'Settings: {report.settings_line(S)}. Each injury is replayed with only that player rested for that '
+             'week, on the same luck.'), '', key_values([
+            ('Soft-tissue injuries', f"{total['nc']}; flagged beforehand {total['ncFlagged']} "
+                                     f"({pct(total['ncFlagged'] / max(1, total['nc']))}); a rest would have avoided "
+                                     f"{total['ncAvoidable']} of {total['ncChecked']} "
+                                     f"({pct(total['ncAvoidable'] / max(1, total['ncChecked']))})"),
+            ('Contact injuries', f"{total['contact']}; flagged beforehand {total['contactFlagged']}; a rest would "
+                                 f"have avoided {total['contactAvoidable']} of {total['contactChecked']} "
+                                 f"({pct(total['contactAvoidable'] / max(1, total['contactChecked']))})"),
+        ]))
+    return total
+
+
 def cmd_inquest(args):
     S = settings_from(args)
+    if args.seasons:
+        total = inquest_seasons(S, args.seasons)
+        blank_if(args.json)
+        write_json(args.json, {'settings': S, 'seasons': args.seasons, 'summary': total})
+        return 0
     S['seasonSeed'] = args.seed
     out = model.inquest(S, args.seed)
     sm = out['summary']
@@ -445,7 +472,7 @@ def cmd_optimise(args):
     table = [[option_label(r), signed(-r['dDays'] + lam * r['dPoints'], 0), signed(r['dInjuries'], 1),
               signed(r['dDays'], 0), signed(r['dPoints'], 1), signed(r['dFinal'], 1),
               break_even_text(r['breakEven'], r), 'yes' if r['frontier'] else ''] for r in ranked]
-    say('', text_table(['Option', 'Value', 'Injuries', 'Days lost', 'Points', 'Best XV in final', 'Pays when',
+    say('', text_table(['Option', 'Value', 'Injuries', 'Days lost', 'Points', 'Best XV, last cup tie', 'Pays when',
                         'Efficient'], table, right=[1, 2, 3, 4, 5]))
     best = ranked[0]
     switch = []
@@ -464,7 +491,7 @@ def cmd_optimise(args):
     if args.csv:
         save(args.csv, model.to_csv(
             ['option', 'policy', 'flag', 'level', 'value', 'd_injuries', 'd_soft_tissue', 'd_days_lost', 'd_days_lo',
-             'd_days_hi', 'd_points', 'd_points_lo', 'd_points_hi', 'd_first_choice_xv_in_final', 'break_even_kind',
+             'd_days_hi', 'd_points', 'd_points_lo', 'd_points_hi', 'd_first_choice_xv_last_cup_tie', 'break_even_kind',
              'break_even_days_per_point', 'efficient'],
             [[option_label(r), r['policy'], r['flag'] or '', '' if r['level'] is None else r['level'],
               f"{-r['dDays'] + lam * r['dPoints']:.2f}", f"{r['dInjuries']:.3f}", f"{r['dNC']:.3f}",
@@ -610,8 +637,10 @@ def cmd_flags(args):
         wrap(f'Settings: {report.settings_line(S)}. Nobody acts on any flag, so every light is scored against the '
              'same soft-tissue injuries.'), '', text_table(headers, rows),
         wrap(f"Rules: ratio lights fire at {fmt(S['threshold'], 2)}; the model and the oracle flag the riskiest "
-             f"{fmt(S['budget'], 0)}% on past seasons. One season: the middle 80% of single-season AUCs. The last "
-             f"column flags the riskiest {fmt(S['budget'], 0)}% for every light, a like-for-like comparison."), '')
+             f"{fmt(S['budget'], 0)}% on past seasons. One season: the middle 80% of single-season AUCs. "
+             f"\"Caught at {fmt(S['budget'], 0)}%\" flags the riskiest {fmt(S['budget'], 0)}% for every light, a "
+             'like-for-like comparison. On starters: of the flags raised once the league is under way, the share on '
+             'players who started the latest match.'), '')
     t = ev['totals']
     say(key_values([
         ('Player-weeks scored', fmt(ev['rows'], 0)),
@@ -808,9 +837,9 @@ def ratio_rows(an):
         for t in range(an['span']):
             if not finite(se['coupled'][t]):
                 continue
-            rows.append([model.format_day(an['start'] + t), se['name'], js_fixed(se['acute'][t], 0),
-                         js_fixed(se['chronic'][t], 0), js_fixed(se['coupled'][t], 3), js_fixed(se['uncoupled'][t], 3),
-                         js_fixed(se['ewma'][t], 3), js_fixed(se['monotony'][t], 3), js_fixed(se['strain'][t], 0)])
+            rows.append([model.format_day(an['start'] + t), se['name'], report.fixed(se['acute'][t], 0),
+                         report.fixed(se['chronic'][t], 0), report.fixed(se['coupled'][t], 3), report.fixed(se['uncoupled'][t], 3),
+                         report.fixed(se['ewma'][t], 3), report.fixed(se['monotony'][t], 3), report.fixed(se['strain'][t], 0)])
     return rows
 
 
@@ -969,7 +998,7 @@ def build_parser():
                        help='processes to use (default: one per core; 1 runs everything in this process)')
 
     p = command('season', cmd_season, 'Play one season and replay it with the light ignored',
-                'Prints injuries (soft-tissue and contact), days lost, the league and the cup final, the flags\n'
+                'Prints injuries (soft-tissue and contact), days lost, the league and the cup, the flags\n'
                 'raised and acted on, and the same season replayed with policy none on the same luck.')
     p.add_argument('--seed', type=SEEDS, default=APP_SEASON_SEED,
                    help=f'the season seed (default {APP_SEASON_SEED}, as in the app)')
@@ -982,6 +1011,8 @@ def build_parser():
                 'resting that player that week would have avoided it (the season replayed on the same luck).')
     p.add_argument('--seed', type=SEEDS, default=APP_SEASON_SEED,
                    help=f'the season seed (default {APP_SEASON_SEED}, as in the app)')
+    p.add_argument('--seasons', type=COUNT, metavar='N',
+                   help='instead of one season, total the inquest over seasons 1 to N (slow: about 5 s a season)')
     json_option(p)
 
     p = command('optimise', cmd_optimise, 'Find the best way to use the light for a given worth of a league point',
@@ -1079,8 +1110,8 @@ def build_parser():
                    help='flag level for the ratios (default 1.5)')
     p.add_argument('--only', choices=['non-contact', 'all'],
                    help='injuries to score against (default non-contact when any are logged, otherwise all)')
-    p.add_argument('--permutations', type=ranged(int, 0, 100000), default=500, metavar='N',
-                   help='reshuffles for the permutation test (default 500)')
+    p.add_argument('--permutations', type=ranged(int, 0, 100000), default=200, metavar='N',
+                   help='reshuffles for the permutation test (default 200, as in the app)')
     p.add_argument('--seed', type=SEEDS, default=1, help='seed for the reshuffles (default 1)')
     p.add_argument('--report', metavar='PATH', help='write an HTML report')
     p.add_argument('--ratios-csv', metavar='PATH', help="write every player's daily ratios to a CSV file")

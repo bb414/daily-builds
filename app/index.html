@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Load bearing</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='16' rx='14' ry='9' transform='rotate(-35 16 16)' fill='%236b1d33' stroke='%23e3a33b' stroke-width='2'/%3E%3Cpath d='M11 13l10 6M13 11.5l2 3.5M16 13.5l2 3.5' stroke='%23fbf7ee' stroke-width='1.6'/%3E%3C/svg%3E">
 <style>
 /* Load bearing: a match-day programme for an invented club. Claret and old-gold hoops on programme paper. */
 :root {
@@ -333,6 +334,7 @@ table.sheet-table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
 }
 
 /* the availability board (wall chart) */
+.swipe-hint { display: none; font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; font-style: italic; }
 .board-hint { display: none; font-size: 13px; color: var(--ink-soft); margin: -4px 0 8px; font-style: italic; }
 .board-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--rule); background: #fffaf0; }
 .board-wrap svg { display: block; }
@@ -424,7 +426,8 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
   .shirt-tab .label { font-size: 13.5px; }
   .note-card .big { font-size: 22px; }
   .sheet-table { font-size: 13.5px; }
-  .sheet-table td:first-child { min-width: 128px; }
+  .sheet-table.wide-first td:first-child { min-width: 128px; }
+  .swipe-hint { display: block; }
   .sheet-table th, .sheet-table td { padding: 6px 6px; }
   .cover h1 { font-size: 64px; }
   .cover .question { font-size: 17px; }
@@ -821,7 +824,7 @@ var LoadBearing = (function () {
   var WEEKS = PRE_WEEKS + COMP_WEEKS;
   var SEASON_DAYS = WEEKS * 7;   // 252, day 0 is the Monday of pre-season week 1
   var TOTAL_DAYS = HIST + SEASON_DAYS;
-  var COMP_PLAN = 'LLLLLBLLLLBLLLLBLLLBLLLLBLLCBC'; // L league, B bye, C cup semi-final and final
+  var COMP_PLAN = 'LLLLLBLLLLBLLLLBLLLBLLLLBLLCBC'; // L league, B bye, C cup: the semi-final, then the final or a third-place play-off
   var MATCH_DAY = 5;             // Saturday
   var DECISION_DAY = 3;          // Thursday: flags are read and the week is planned
   var CTL_REF = 260;             // in-season fitness of a regular starter (arbitrary units a day)
@@ -1135,7 +1138,7 @@ var LoadBearing = (function () {
     var leagueOrder = makeLeagueOrder(S.squadSeed);
     var injuries = [], matches = [], rows = [], weekly = [];
     var excluded = new Uint8Array(P);
-    var selection = null, oppIndex = 0;
+    var selection = null, oppIndex = 0, semiWon = false, lastStarters = new Uint8Array(P);
     var lamA = 2 / (7 + 1), lamC = 2 / (28 + 1);
     var forcedPlays = 0, rests = 0, flagsRaised = 0, flagWeeks = 0;
 
@@ -1242,7 +1245,7 @@ var LoadBearing = (function () {
     }
 
     function playMatch(d, w, info) {
-      var opp, home, label;
+      var opp, home, label, stage = 'league';
       var u = matchRng.open(), uf = matchRng.open();
       if (info.type === 'L') {
         var round = oppIndex++;
@@ -1253,19 +1256,24 @@ var LoadBearing = (function () {
         var byRating = squad.opponents.map(function (o, k) { return k; }).sort(function (a, b) {
           return squad.opponents[b].rating - squad.opponents[a].rating || a - b;
         });
-        var isFinal = info.comp === COMP_WEEKS - 1;
-        opp = isFinal ? byRating[0] : byRating[1];
-        home = isFinal ? null : true;
-        label = isFinal ? 'Cup final' : 'Cup semi-final';
+        // The semi-final is at home to the second-best club; the winner meets the best in the final, the loser
+        // plays the third-best in a third-place play-off. Both are at a neutral ground.
+        stage = info.comp < COMP_WEEKS - 1 ? 'semi' : semiWon ? 'final' : 'playoff';
+        opp = stage === 'semi' ? byRating[1] : stage === 'final' ? byRating[0] : byRating[2];
+        home = stage === 'semi' ? true : null;
+        label = stage === 'semi' ? 'Cup semi-final' : stage === 'final' ? 'Cup final' : 'Third-place play-off';
       }
       var oppRating = squad.opponents[opp].rating + invNorm(uf);
       var adv = home === null ? 0 : home ? 3 : -3;
       var margin = roundHalfUp(2.0 * (selection.rating - oppRating) + adv + 12 * invNorm(u));
       var result = margin > 0 ? 'W' : margin === 0 ? 'D' : 'L';
       var pts = info.type === 'L' ? (result === 'W' ? 4 : result === 'D' ? 2 : margin >= -7 ? 1 : 0) : 0;
+      if (stage === 'semi') semiWon = margin > 0;
       var bestPlaying = 0;
       squad.bestXV.forEach(function (pid) { if (selection.starters.indexOf(pid) >= 0) bestPlaying += 1; });
-      matches.push({ week: w, day: d, label: label, type: info.type, opponent: opp, home: home,
+      for (var k = 0; k < P; k++) lastStarters[k] = 0;
+      selection.starters.forEach(function (pid) { if (pid >= 0) lastStarters[pid] = 1; });
+      matches.push({ week: w, day: d, label: label, type: info.type, stage: stage, opponent: opp, home: home,
         rating: selection.rating, oppRating: oppRating, margin: margin, result: result, points: pts,
         bestXVPlaying: bestPlaying, starters: selection.starters.slice(), bench: selection.bench.slice() });
     }
@@ -1286,7 +1294,7 @@ var LoadBearing = (function () {
           var isFlag = activeFlag(sc, S, ctx);
           wk.available += 1; flagWeeks += 1;
           if (isFlag) { flagsRaised += 1; wk.flags.push(p1); }
-          if (opts.collectRows) rows.push({ season: seasonSeed, week: w, day: d, player: p1, scores: sc, nc: 0, any: 0 });
+          if (opts.collectRows) rows.push({ season: seasonSeed, week: w, day: d, player: p1, scores: sc, nc: 0, any: 0, started: lastStarters[p1] });
           if (isFlag && (S.policy === 'rest' || S.policy === 'modify')) {
             modUntil[p1] = d + 6;
             modFactor[p1] = S.policy === 'rest' ? S.restTraining : 0.6;
@@ -1382,7 +1390,7 @@ var LoadBearing = (function () {
       seed: seasonSeed, injuries: injuries, matches: matches, weekly: weekly,
       injuriesTotal: injuries.length, nc: nc, contact: contact, inMatch: inMatch, daysLost: daysLost,
       points: points, wins: wins, draws: draws, losses: losses, position: table.position, table: table.rows,
-      finalWon: final.result === 'W', finalBestXV: final.bestXVPlaying, meanRating: meanRating,
+      finalWon: final.stage === 'final' && final.result === 'W', finalStage: final.stage, finalBestXV: final.bestXVPlaying, meanRating: meanRating,
       flagsRaised: flagsRaised, flagWeeks: flagWeeks, rests: rests, forcedPlays: forcedPlays
     };
     if (opts.collectRows) out.rows = rows;
@@ -1808,8 +1816,12 @@ var LoadBearing = (function () {
       var sorted = sortNumbers(sc);
       var budgetCut = quantile(sorted, 1 - S.budget / 100);
       var aucs = perSeason.map(function (o) { return o[f]; }).filter(function (v) { return v === v; });
+      var flaggedN = 0, flaggedStarted = 0;
+      // Of the flags raised once the league is under way, the share on players who started the latest match.
+      rows.forEach(function (r, k) { if (sc[k] >= cut && r.week > PRE_WEEKS) { flaggedN += 1; flaggedStarted += r.started; } });
       return {
         id: f, label: FLAG_LABELS[f], auc: auc(sc, ncLab), aucAny: auc(sc, anyLab),
+        starterShare: flaggedN ? flaggedStarted / flaggedN : NaN,
         seasonAuc: { mean: mean(aucs), lo: quantile(sortNumbers(aucs), 0.1), hi: quantile(sortNumbers(aucs), 0.9) },
         roc: rocCurve(sc, ncLab, 50), atRule: confusion(sc, ncLab, cut), rule: cut,
         atBudget: confusion(sc, ncLab, budgetCut), budgetCut: budgetCut
@@ -2298,8 +2310,22 @@ var LoadBearing = (function () {
         strain[t] = valid ? a7 * monotony[t] : NaN;
         if (t >= first) { eA = lamA * L[t] + (1 - lamA) * eA; eC = lamC * L[t] + (1 - lamC) * eC; }
       }
+      // The same figures on the morning after the last logged day, which include that day's sessions.
+      var n7 = 0, n28 = 0, n21 = 0, nv = [];
+      for (var j2 = 0; j2 < 28; j2++) {
+        var v2 = T - 1 - j2 >= 0 ? L[T - 1 - j2] : 0;
+        n28 += v2;
+        if (j2 < 7) { n7 += v2; nv.push(v2); } else n21 += v2;
+      }
+      var nOk = T - first >= 28, nm = n7 / 7, ns = 0;
+      for (var q2 = 0; q2 < 7; q2++) ns += (nv[q2] - nm) * (nv[q2] - nm);
+      ns = Math.sqrt(ns / 7);
+      var nMono = nOk ? Math.min(ns > 0 ? nm / ns : 5, 5) : NaN;
+      var next = { acute: n7, chronic: n28 / 4, coupled: nOk ? n7 / Math.max(n28 / 4, 100) : NaN,
+        uncoupled: nOk ? n7 / Math.max(n21 / 3, 100) : NaN, ewma: nOk ? eA / Math.max(eC, 100 / 7) : NaN,
+        monotony: nMono, strain: nOk ? n7 * nMono : NaN };
       series.push({ name: book.names[p], coupled: coupled, uncoupled: uncoupled, ewma: ewma, monotony: monotony,
-        strain: strain, acute: acute, chronic: chronic, first: first });
+        strain: strain, acute: acute, chronic: chronic, first: first, next: next });
     }
     // Weekly decision points on the logbook's own weekday pattern: every seventh day from day 28.
     var injByPlayer = [];
@@ -2352,11 +2378,11 @@ var LoadBearing = (function () {
       results.forEach(function (r, k) { r.p = (exceed[k] + 1) / (perms + 1); });
     }
     // The latest week: who would be flagged on the last day of the logbook.
-    var lastT = T - 1;
     var latest = series.map(function (se, k) {
-      return { player: k, name: se.name, coupled: se.coupled[lastT], uncoupled: se.uncoupled[lastT], ewma: se.ewma[lastT],
-        monotony: se.monotony[lastT], strain: se.strain[lastT], acute: se.acute[lastT], chronic: se.chronic[lastT],
-        flagged: se.ewma[lastT] >= threshold || se.coupled[lastT] >= threshold };
+      var nx = se.next;
+      return { player: k, name: se.name, coupled: nx.coupled, uncoupled: nx.uncoupled, ewma: nx.ewma,
+        monotony: nx.monotony, strain: nx.strain, acute: nx.acute, chronic: nx.chronic,
+        flagged: nx.ewma >= threshold || nx.coupled >= threshold };
     }).sort(function (x, y) { return (y.ewma === y.ewma ? y.ewma : -1) - (x.ewma === x.ewma ? x.ewma : -1) || x.player - y.player; });
     var weeklyLoad = 0, nWeeks = 0;
     book.loads.forEach(function (L) { var s = 0; for (var t3 = 0; t3 < T; t3++) s += L[t3]; weeklyLoad += s; });
@@ -2468,7 +2494,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   })();
   var S = copy(APP_DEFAULTS);
   var view = 'season';
-  var extra = { pilotPairs: 40, rotationSeasons: 30, pointValue: 12, tradeSeasons: 20, hiddenSeasons: 12, hiddenMetric: 'breakeven' };
+  var extra = { pilotPairs: 40, rotationSeasons: 30, pointValue: 12, tradeSeasons: 20, hiddenSeasons: 24, hiddenMetric: 'breakeven' };
   function copy(o) { var r = {}; for (var k in o) r[k] = o[k]; return r; }
 
   function readHash() {
@@ -2484,9 +2510,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   function applyState(o) {
     if (!o || typeof o !== 'object') return;
     var clean = M.withDefaults(o.settings || o);
+    S = copy(APP_DEFAULTS);
     for (var k in APP_DEFAULTS) if ((o.settings || o)[k] !== undefined) S[k] = clean[k];
     if (o.view && ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'hidden', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
-    if (o.hiddenSeasons && [8, 12, 24].indexOf(+o.hiddenSeasons) >= 0) extra.hiddenSeasons = +o.hiddenSeasons;
+    if (o.hiddenSeasons && [12, 24].indexOf(+o.hiddenSeasons) >= 0) extra.hiddenSeasons = +o.hiddenSeasons;
     if (o.hiddenMetric && HIDDEN_METRICS[o.hiddenMetric]) extra.hiddenMetric = o.hiddenMetric;
     if (o.pointValue !== undefined && +o.pointValue >= 0 && +o.pointValue <= 60) extra.pointValue = +o.pointValue;
     if (o.tradeSeasons && [12, 20, 40].indexOf(+o.tradeSeasons) >= 0) extra.tradeSeasons = +o.tradeSeasons;
@@ -2652,7 +2679,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     (spec.bands || []).forEach(function (b) {
       var x0 = xs(Math.max(b.from, spec.x.min)), x1 = xs(Math.min(b.to, spec.x.max));
       s.push('<rect x="' + x0 + '" y="' + m.t + '" width="' + Math.max(0, x1 - x0) + '" height="' + ih + '" fill="' + b.color + '" opacity="' + (b.opacity || 0.12) + '"/>');
-      if (b.label) s.push('<text x="' + (x0 + 4) + '" y="' + (m.t + ih - 6) + '" class="ref-label" fill="' + (b.textColor || COLORS.ink) + '">' + esc(b.label) + '</text>');
+      if (b.label) s.push('<text x="' + (x0 + 4) + '" y="' + (m.t + 12) + '" class="ref-label" fill="' + (b.textColor || COLORS.ink) + '">' + esc(b.label) + '</text>');
     });
     s.push('<g class="grid">');
     yt.forEach(function (v) { s.push('<line x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + ys(v) + '" y2="' + ys(v) + '"/>'); });
@@ -2710,12 +2737,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         s.push('<line x1="' + xs(r.value) + '" x2="' + xs(r.value) + '" y1="' + m.t + '" y2="' + (m.t + ih) + '" stroke="' + c + '" stroke-width="' + (r.width || 2) + '"' + (r.dash ? ' stroke-dasharray="' + r.dash + '"' : '') + '/>');
         if (r.label) {
           var anchor = r.anchor || (xs(r.value) > m.l + iw * 0.7 ? 'end' : 'start');
-          s.push('<text class="ref-label" x="' + (xs(r.value) + (anchor === 'end' ? -5 : 5)) + '" y="' + (m.t + 12 + (r.row || 0) * 15) + '" text-anchor="' + anchor + '" fill="' + c + '">' + esc(r.label) + '</text>');
+          var rowOff = (spec.bands || []).some(function (b) { return b.label; }) ? 1 : 0;
+          s.push('<text class="ref-label" x="' + (xs(r.value) + (anchor === 'end' ? -5 : 5)) + '" y="' + (m.t + 12 + ((r.row || 0) + rowOff) * 15) + '" text-anchor="' + anchor + '" fill="' + c + '">' + esc(r.label) + '</text>');
         }
       } else {
         if (r.value < spec.y.min || r.value > spec.y.max) return;
         s.push('<line x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + ys(r.value) + '" y2="' + ys(r.value) + '" stroke="' + c + '" stroke-width="' + (r.width || 2) + '"' + (r.dash ? ' stroke-dasharray="' + r.dash + '"' : '') + '/>');
-        if (r.label) s.push('<text class="ref-label" x="' + (m.l + iw - 4) + '" y="' + (ys(r.value) - 5) + '" text-anchor="end" fill="' + c + '">' + esc(r.label) + '</text>');
+        if (r.label) s.push('<text class="ref-label" x="' + (r.at === 'start' ? m.l + 6 : m.l + iw - 4) + '" y="' + (ys(r.value) - 5) + '" text-anchor="' + (r.at === 'start' ? 'start' : 'end') + '" fill="' + c + '">' + esc(r.label) + '</text>');
       }
     });
     (spec.labels || []).forEach(function (lb) {
@@ -2802,7 +2830,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       tile('Injuries', fmt(res.injuriesTotal), fmt(res.nc) + ' soft-tissue, ' + fmt(res.contact) + ' contact', res.injuriesTotal > 34 ? 'bad' : '') +
       tile('Days lost', fmt(res.daysLost), 'player-days out injured, about ' + fmt(res.daysLost / players.length, 0) + ' a player') +
       tile('League', ordinal(res.position), fmt(res.points) + ' points, won ' + res.wins + ', drew ' + res.draws + ', lost ' + res.losses, res.position <= 2 ? 'good' : '') +
-      tile('Cup final', last.result === 'W' ? 'Won' : last.result === 'D' ? 'Drew' : 'Lost', (last.margin === 0 ? 'level' : 'by ' + Math.abs(last.margin)) + ' against ' + esc(ctx.squad.opponents[last.opponent].name) + '; ' + last.bestXVPlaying + ' of the first-choice XV started', last.result === 'W' ? 'good' : 'warn') +
+      tile('The cup', last.stage === 'final' ? (last.result === 'W' ? 'Won' : 'Runners-up') : 'Semis', cupText(res, ctx) + '; ' + last.bestXVPlaying + ' of the first-choice XV started the last tie', last.stage === 'final' && last.result === 'W' ? 'good' : 'warn') +
       '</div>');
     html.push(seasonNote(res, base, ctx, flagged, flagNC));
     html.push('<div class="card"><p class="kicker">The availability board</p><h3>Every player, every week</h3><p class="sub">Darker squares are heavier weeks. Click a player to see his season below. Results run along the top.</p><p class="board-hint">Swipe sideways along the board for the whole season.</p><div class="board-wrap" id="board"></div>' +
@@ -2825,6 +2853,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     }).join('');
   }
 
+  function cupText(res, ctx) {
+    var semi = res.matches[res.matches.length - 2], last = res.matches[res.matches.length - 1];
+    var name = function (m) { return esc(ctx.squad.opponents[m.opponent].name); };
+    var by = function (m) { return m.margin === 0 ? 'drew with' : (m.margin > 0 ? 'beat ' : 'lost to ') ; };
+    var tail = function (m) { return m.margin === 0 ? '' : ' by ' + Math.abs(m.margin); };
+    if (last.stage === 'final') return (last.result === 'W' ? 'beat ' + name(last) + tail(last) + ' in the final' : 'lost the final to ' + name(last) + tail(last));
+    return 'lost the semi to ' + name(semi) + tail(semi) + ', then ' + (last.result === 'W' ? 'won' : 'lost') + ' the third-place play-off' + tail(last);
+  }
   function activeFlagged(row, ctx) {
     var f = S.flag;
     if (f === 'coupled' || f === 'uncoupled' || f === 'ewma') return row.scores[f] >= S.threshold;
@@ -2899,10 +2935,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       });
       return;
     }
-    html.push('<div class="table-wrap"><table class="sheet-table inquest"><thead><tr><th>When</th><th>Player</th><th>Injury</th><th>Hidden factors</th><th>The light said</th><th>A rest that week</th></tr></thead><tbody>' +
+    html.push('<p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first inquest"><thead><tr><th>When</th><th>Player</th><th>Injury</th><th>Hidden factors</th><th>The light said</th><th>A rest that week</th></tr></thead><tbody>' +
       q.items.filter(function (it) { return showAll || it.type === 'nc'; }).map(function (it) {
         var l = it.lights ? it.lights[S.flag] : null;
-        var said = l ? (l.fired ? '<b class="worse">Flagged</b>' : 'Quiet') + ' <span class="ci">(riskier than ' + pct(l.rank) + ')</span>' : '<span class="ci">no reading yet</span>';
+        var said = l ? (l.fired ? '<b class="worse">Flagged</b>' : 'Quiet') + ' <span class="ci">(' + (l.rank >= 1 ? 'the riskiest in the squad' : 'riskier than ' + pct(l.rank)) + ')</span>' : '<span class="ci">no reading yet</span>';
         var rest = it.avoided === null ? '<span class="ci">n/a</span>' : it.avoided ? '<span class="better">Avoided</span>' : '<span class="worse">Still injured</span>';
         return '<tr><td class="nowrap">' + esc(shortWeek(it.week)) + ' <span class="ci">' + esc(dayMonth(M.SEASON_START + M.HIST + it.day)) + '</span></td>' +
           '<td class="nowrap"><button type="button" class="linkish" data-p="' + it.player + '">' + esc(it.name) + '</button> <span class="ci">' + esc(groupLabelOf(it.group)) + '</span></td>' +
@@ -3059,20 +3095,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         legend: [{ label: 'Match', color: COLORS.claret, kind: 'box' }, { label: 'Second-team or friendly', color: COLORS['claret-soft'], kind: 'box' }, { label: 'Training', color: COLORS['ink-faint'], kind: 'box' }, { label: 'Rehab', color: COLORS.pitch, kind: 'box' }, { label: 'Fitness (42-day average)', color: COLORS.navy }, { label: 'Fatigue (7-day average)', color: COLORS['amber-deep'] }]
       });
     });
+    // The uncoupled ratio is a fixed function of the coupled one: uncoupled = 3c / (4 - c).
+    var rolling = S.flag === 'uncoupled' ? cp.map(function (p) { return [p[0], p[1] === p[1] ? 3 * p[1] / (4 - p[1]) : NaN]; }) : cp;
+    var rollName = S.flag === 'uncoupled' ? 'Rolling ratio (uncoupled)' : 'Rolling ratio (coupled)';
     var flagPts = flags.map(function (w) {
-      var i2 = H + w * 7 + 3;
-      return [xOf(i2), S.flag === 'coupled' || S.flag === 'uncoupled' ? series.coupled[i2] : series.ewma[i2], COLORS.amber, 'Flagged, ' + weekLabel(w)];
+      var i2 = H + w * 7 + 3, k2 = i2;
+      var y = S.flag === 'coupled' || S.flag === 'uncoupled' ? rolling[k2][1] : series.ewma[i2];
+      return [xOf(i2), y, COLORS.amber, 'Flagged, ' + weekLabel(w)];
     });
+    var ratioLight = S.flag === 'coupled' || S.flag === 'uncoupled' || S.flag === 'ewma';
     var maxR = 1.6;
-    ew.concat(cp).forEach(function (p) { if (p[1] === p[1]) maxR = Math.max(maxR, p[1]); });
+    ew.concat(rolling).forEach(function (p) { if (p[1] === p[1]) maxR = Math.max(maxR, p[1]); });
     chart($('pc-ratio'), function () {
       plot($('pc-ratio'), {
-        height: 200, aria: 'Workload ratios for ' + pl.name + ' with the 1.5 danger line and flagged weeks',
-        x: xSpec, y: { min: 0, max: Math.min(4, Math.ceil(maxR * 2) / 2), label: 'Ratio', format: function (v) { return fmt(v, 1); } },
-        series: [{ type: 'line', data: cp, color: COLORS.coupled, width: 1.8, dash: '4 3' }, { type: 'line', data: ew, color: COLORS.ewma, width: 2.5 },
+        height: 200, aria: 'Workload ratios for ' + pl.name + (ratioLight ? ' with the flag level' : '') + ' and flagged weeks',
+        x: xSpec, y: { min: 0, max: Math.min(6, Math.ceil(maxR * 2) / 2), label: 'Ratio', format: function (v) { return fmt(v, 1); } },
+        series: [{ type: 'line', data: rolling, color: COLORS.coupled, width: 1.8, dash: '4 3' }, { type: 'line', data: ew, color: COLORS.ewma, width: 2.5 },
           { type: 'points', data: flagPts, r: 5, stroke: '#5a3b0a' }],
-        refs: [{ axis: 'y', value: S.threshold, color: COLORS.claret, dash: '6 4', label: 'Flag at ' + fmt(S.threshold, 2) }].concat(injRefs.map(function (r) { var o = copy(r); o.label = ''; return o; })),
-        legend: [{ label: 'EWMA ratio', color: COLORS.ewma }, { label: 'Rolling ratio (coupled)', color: COLORS.coupled, kind: 'dash' }, { label: 'Flagged that Thursday (' + FLAG_SHORT[S.flag] + ')', color: COLORS.amber, kind: 'dot' }]
+        refs: (ratioLight ? [{ axis: 'y', value: S.threshold, color: COLORS.claret, dash: '6 4', label: 'Flag at ' + fmt(S.threshold, 2) }] : []).concat(injRefs.map(function (r) { var o = copy(r); o.label = ''; return o; })),
+        legend: [{ label: 'EWMA ratio', color: COLORS.ewma }, { label: rollName, color: COLORS.coupled, kind: 'dash' }, { label: 'Flagged that Thursday (' + FLAG_SHORT[S.flag] + ')', color: COLORS.amber, kind: 'dot' }]
       });
     });
   }
@@ -3128,10 +3169,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       '<p class="big">Of every 100 flags, ' + (per100 === per100 ? fmt(per100, 1) : 'none') + ' ' + (per100 === 1 ? 'is' : 'are') + ' followed by a soft-tissue injury within a week.</p>' +
       '<p>Across ' + fmt(ev.rows) + ' player-weeks, ' + pct(ev.baseRate, 1) + ' ended in a soft-tissue injury within seven days, so even a good light mostly flags players who would have been fine. At its rule, this light flags ' + pct(chosen.atRule.share, 1) + ' of player-weeks and catches ' + pct(chosen.atRule.recall) + ' of those injuries.' +
       (best.id === 'model' ? '' : ' The risk model, trained on two seasons with ' + fmt(ev.historyInjuries) + ' soft-tissue injuries, scores ' + fmt(by.model.auc, 2) + '.') + '</p>' +
-      '<p>A single season is a small sample: the same light can read ' + fmt(chosen.seasonAuc.lo, 2) + ' one year and ' + fmt(chosen.seasonAuc.hi, 2) + ' the next, on nothing but luck.</p></div>');
+      '<p>A single season is a small sample: the same light can read ' + fmt(chosen.seasonAuc.lo, 2) + ' one year and ' + fmt(chosen.seasonAuc.hi, 2) + ' the next, on nothing but luck.' +
+      (chosen.starterShare === chosen.starterShare ? ' Once the league is under way, ' + pct(chosen.starterShare) + ' of its flags fall on players who started the latest match, so acting on it benches regulars' + (by.oracle.starterShare === by.oracle.starterShare ? ' (perfect knowledge: ' + pct(by.oracle.starterShare) + ')' : '') + '.' : ' At this level it never fires once the league is under way.') + '</p></div>');
     html.push('<div class="grid-2"><div class="card"><p class="kicker">Exhibit A</p><h3>Hits against false alarms</h3><p class="sub">Each curve traces every possible flag level: up means more injuries caught, right means more fit players flagged. The diagonal is guessing.</p><div class="chart" id="roc"></div></div>' +
       '<div class="card"><p class="kicker">Exhibit B</p><h3>One season at a time</h3><p class="sub">Each dot is one season\'s score for that light. A club judging its light on one season gets one of these dots.</p><div class="chart" id="strip"></div></div></div>');
-    html.push('<div class="card"><p class="kicker">The scorecard</p><h3>Every light against the same injuries</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Light</th><th class="num">AUC</th><th class="num">One season</th><th class="num">Flagged</th><th class="num">Hits per 100 flags</th><th class="num">Caught</th><th class="num">Caught at ' + S.budget + '%</th></tr></thead><tbody>' +
+    html.push('<div class="card"><p class="kicker">The scorecard</p><h3>Every light against the same injuries</h3><p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first"><thead><tr><th>Light</th><th class="num">AUC</th><th class="num">One season</th><th class="num">Flagged</th><th class="num">Hits per 100 flags</th><th class="num">Caught</th><th class="num">Caught at ' + S.budget + '%</th></tr></thead><tbody>' +
       ev.flags.map(function (f) {
         return '<tr' + (f.id === S.flag ? ' class="us"' : '') + '><td><span class="swatch" style="background:' + COLORS[f.id] + '"></span>' + esc(FLAG_SHORT[f.id]) + '<br><span class="ci">' + (f.id === 'coupled' || f.id === 'uncoupled' || f.id === 'ewma' ? 'rule: ratio of ' + fmt(S.threshold, 2) + ' or more' : 'rule: riskiest ' + S.budget + '% on past seasons') + '</span></td>' +
           '<td class="num">' + fmt(f.auc, 3) + '</td><td class="num">' + fmt(f.seasonAuc.lo, 2) + ' to ' + fmt(f.seasonAuc.hi, 2) + '</td><td class="num">' + pct(f.atRule.share, 1) + '</td><td class="num">' + fmt(100 * f.atRule.precision, 1) + '</td><td class="num">' + pct(f.atRule.recall) + '</td><td class="num">' + pct(f.atBudget.recall) + '</td></tr>';
@@ -3216,7 +3258,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       tile('True effect', signed(ps.trueEffect, 1), 'injuries a season, same luck with and without (' + signed(ps.trueNC, 1) + ' soft-tissue)', ps.trueEffect < 0 ? 'good' : 'bad') +
       tile('Pilot looks better', pct(ps.looksBetter), 'chance a one-season before-and-after shows fewer injuries; ' + pct(ps.looksWorse) + ' it shows more') +
       tile('Seasons needed', ps.seasonsNeeded === Infinity ? 'never' : fmt(ps.seasonsNeeded), 'in each arm to detect the true effect four times in five', 'warn') +
-      tile('League points', signed(ps.pointsEffect, 1), 'a season, from resting or rotating players', ps.pointsEffect < -0.5 ? 'bad' : '') +
+      tile('League points', signed(ps.pointsEffect, 1), 'a season, from ' + esc(POLICY_SHORT[pol].toLowerCase()) + ' (same luck)', ps.pointsEffect < -0.5 ? 'bad' : '') +
       '</div>');
     var note = [];
     note.push('<p class="big">' + (usesLight ? pct(ps.quietShare) + ' of the times the coach acted on a flag, nothing happened in the next fortnight.' : 'This policy does not use the light, so the coach sees nothing to credit.') + '</p>');
@@ -3227,7 +3269,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       '<div class="card"><p class="kicker">Exhibit D</p><h3>How many seasons to know?</h3><p class="sub">The chance a fair comparison of this many seasons with the light and without it would detect the true effect.</p><div class="chart" id="pilot-power"></div></div></div>');
     html.push('<div class="card"><p class="kicker">The ledger</p><h3>What the pilot saw and what really happened</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Measure</th><th class="num">A season</th><th>What it means</th></tr></thead><tbody>' +
       '<tr><td>Injuries in a normal season</td><td class="num">' + fmt(ps.baseMean, 1) + '</td><td>the club\'s starting point, with ' + fmt(ps.seasonSd, 1) + ' either way from luck</td></tr>' +
-      '<tr><td>Change a one-season pilot reports, on average</td><td class="num">' + signed(ps.measuredMean, 1) + '</td><td>right on average, but any one pilot lands anywhere in Exhibit C</td></tr>' +
+      '<tr><td>Change a one-season pilot reports, on average</td><td class="num">' + signed(ps.measuredMean, 1) + '</td><td>close to the truth on average over many pilots, but any one pilot lands anywhere in Exhibit C</td></tr>' +
       '<tr><td>True change, same luck</td><td class="num">' + signed(ps.trueEffect, 1) + '</td><td>95% interval ' + signed(ps.trueEffectCI[0], 1) + ' to ' + signed(ps.trueEffectCI[1], 1) + '; ' + signed(ps.trueNC, 1) + ' of it soft-tissue, the rest contact injuries avoided by playing less</td></tr>' +
       '<tr><td>Days lost to injury</td><td class="num">' + signed(ps.trueDays, 0) + '</td><td>player-days, same luck</td></tr>' +
       '<tr><td>League points</td><td class="num">' + signed(ps.pointsEffect, 1) + '</td><td>95% interval ' + signed(ps.pointsCI[0], 1) + ' to ' + signed(ps.pointsCI[1], 1) + '</td></tr>' +
@@ -3264,7 +3306,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         x: { min: 1, max: 100, ticks: [1, 20, 40, 60, 80, 100], label: 'Seasons with the light, and as many without' },
         y: { min: 0, max: 1, ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], label: 'Chance of detecting it', format: function (v) { return Math.round(v * 100) + '%'; } },
         series: [{ type: 'area', data: ps.power.map(function (p) { return [p.seasons, p.power]; }), color: COLORS.navy, opacity: 0.15 }, { type: 'line', data: ps.power.map(function (p) { return [p.seasons, p.power]; }), color: COLORS.navy, width: 3 }],
-        refs: [{ axis: 'y', value: 0.8, color: COLORS.claret, dash: '6 4', label: 'Four times in five' }, { axis: 'x', value: 1, color: COLORS['amber-deep'], dash: '3 3', label: 'One season: ' + pct(ps.power[0].power) }]
+        refs: [{ axis: 'y', value: 0.8, color: COLORS.claret, dash: '6 4', label: 'Four times in five', at: 'start' }, { axis: 'x', value: 1, color: COLORS['amber-deep'], dash: '3 3', label: 'One season: ' + pct(ps.power[0].power) }]
       });
     });
   }
@@ -3297,15 +3339,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       tile('Most points', esc(POLICY_SHORT[byPts[0].policy]), fmt(byPts[0].metrics.points.mean, 1) + ' a season, ' + signed(byPts[0].metrics.points.diff, 1) + ' against picking the best', 'good words') +
       tile('Fewest days lost', esc(POLICY_SHORT[byDays[0].policy]), fmt(byDays[0].metrics.daysLost.mean, 0) + ' player-days, ' + signed(byDays[0].metrics.daysLost.diff, 0) + ' against picking the best', 'words') +
       tile('Resting costs', signed(t.rest.metrics.points.diff, 1), 'points a season to rest the flagged (' + esc(FLAG_SHORT[S.flag]) + ')', t.rest.metrics.points.diff < -0.5 ? 'bad' : '') +
-      tile('Best XV in the final', fmt(t.rest.metrics.finalBestXV.mean, 1) + '<small>/15</small>', 'when resting the flagged, against ' + fmt(t.none.metrics.finalBestXV.mean, 1) + ' picking the best', 'warn') +
+      tile('Best XV, last cup tie', fmt(t.rest.metrics.finalBestXV.mean, 1) + '<small>/15</small>', 'when resting the flagged, against ' + fmt(t.none.metrics.finalBestXV.mean, 1) + ' picking the best', 'warn') +
       '</div>');
     var same = byPts[0].policy === byDays[0].policy;
     html.push('<div class="note-card"><p class="from">Coach\'s note &middot; ' + cp.seeds.length + ' seasons, same luck for every policy</p><p class="big">' +
       (same ? esc(POLICY_SHORT[byPts[0].policy]) + ' wins on both counts here.' : 'The policy that loses the fewest days is not the one that wins the most points.') + '</p>' +
       '<p>Resting flagged players saves ' + fmt(-t.rest.metrics.daysLost.diff, 0) + ' player-days a season, ' + signed(t.rest.metrics.nc.diff, 1) + ' soft-tissue and ' + signed(t.rest.metrics.contact.diff, 1) + ' contact injuries: most of the saving is simply less rugby played, which also means a weaker team on the day. ' +
       'Planned rotation does something similar without any light. Picking on readiness changes almost nothing about injuries but keeps the strongest side on the pitch.</p></div>');
-    var metricsShown = [['injuriesTotal', 'Injuries', 1, -1], ['nc', 'Soft-tissue injuries', 1, -1], ['daysLost', 'Player-days lost', 0, -1], ['points', 'League points', 1, 1], ['position', 'League place', 1, -1], ['finalBestXV', 'Best XV in the final', 1, 1], ['rests', 'Matches sat out', 0, 0]];
-    html.push('<div class="card"><p class="kicker">The team sheet</p><h3>Five policies, same seasons</h3><p class="sub">Average a season. Underneath each figure, the difference from picking the best with its 95% interval; green is better, claret worse.</p><div class="table-wrap"><table class="sheet-table policy-table"><thead><tr><th>Average a season</th>' +
+    var metricsShown = [['injuriesTotal', 'Injuries', 1, -1], ['nc', 'Soft-tissue injuries', 1, -1], ['daysLost', 'Player-days lost', 0, -1], ['points', 'League points', 1, 1], ['position', 'League place', 1, -1], ['finalBestXV', 'Best XV, last cup tie', 1, 1], ['finalWon', 'Cup won', 2, 1], ['rests', 'Matches sat out', 0, 0]];
+    html.push('<div class="card"><p class="kicker">The team sheet</p><h3>Five policies, same seasons</h3><p class="sub">Average a season. Underneath each figure, the difference from picking the best with its 95% interval; green is better, claret worse.</p><p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first policy-table"><thead><tr><th>Average a season</th>' +
       cp.table.map(function (r) { return '<th class="num"><span class="swatch" style="background:' + COLORS[r.policy] + '"></span>' + esc(POLICY_SHORT[r.policy]) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       metricsShown.map(function (m) {
         return '<tr><td>' + esc(m[1]) + '</td>' + cp.table.map(function (r) {
@@ -3315,7 +3357,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div><p class="foot">Flag-based policies use ' + esc(FLAG_SHORT[S.flag]) + ' as set on the clipboard. Intervals are bootstrapped from the paired season-by-season differences.</p></div>');
     html.push('<div class="grid-2"><div class="card"><p class="kicker">Exhibit E</p><h3>Injuries against wins</h3><p class="sub">Change against picking the best, with 95% intervals. Up is more points; left is fewer days lost.</p><div class="chart" id="rot-scatter"></div></div>' +
-      '<div class="card"><p class="kicker">Exhibit F</p><h3>Fit for the final?</h3><p class="sub">How many of the first-choice XV start the cup final, on average.</p><div class="chart" id="rot-final"></div></div></div>');
+      '<div class="card"><p class="kicker">Exhibit F</p><h3>Fit for the cup?</h3><p class="sub">How many of the first-choice XV start the season\'s last cup tie (the final, or the third-place play-off after a semi-final defeat), on average.</p><div class="chart" id="rot-final"></div></div></div>');
     out.innerHTML = html.join('');
     out.querySelectorAll('input[name="rseasons"]').forEach(function (r) {
       r.addEventListener('change', function () { extra.rotationSeasons = +this.value; renderRotation(); });
@@ -3336,13 +3378,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
             { x: r.metrics.daysLost.diff, ylo: r.metrics.points.lo, yhi: r.metrics.points.hi, color: COLORS[r.policy] }]);
         }, []),
         series: [{ type: 'points', r: 6.5, stroke: '#fff', data: cp.table.map(function (r) { return [r.metrics.daysLost.diff, r.metrics.points.diff, COLORS[r.policy], POLICY_SHORT[r.policy]]; }) }],
-        labels: cp.table.map(function (r) { return { x: r.metrics.daysLost.diff, y: r.metrics.points.diff, dx: 9, dy: -8, text: POLICY_TINY[r.policy], color: COLORS[r.policy] }; }),
+        labels: cp.table.map(function (r) { var ref = r.policy === 'none'; return { x: r.metrics.daysLost.diff, y: r.metrics.points.diff, dx: ref ? -9 : 9, dy: ref ? 18 : -8, anchor: ref ? 'end' : 'start', text: POLICY_TINY[r.policy], color: COLORS[r.policy] }; }),
         legend: cp.table.map(function (r) { return { label: POLICY_SHORT[r.policy], color: COLORS[r.policy], kind: 'dot' }; })
       });
     });
     chart($('rot-final'), function () {
       plot($('rot-final'), {
-        height: 300, aria: 'First-choice XV starting the cup final under each policy',
+        height: 300, aria: 'First-choice XV starting the last cup tie under each policy',
         x: { min: 0, max: cp.table.length, ticks: cp.table.map(function (r, k) { return k + 0.5; }), format: function (v) { return POLICY_TINY[cp.table[Math.floor(v)].policy]; } },
         y: { min: 0, max: 15, ticks: [0, 5, 10, 15], label: 'Of the best XV' },
         series: [{ type: 'bars', barWidth: 0.6, data: cp.table.map(function (r, k) { return [k + 0.5, r.metrics.finalBestXV.mean, COLORS[r.policy], POLICY_SHORT[r.policy] + ': ' + fmt(r.metrics.finalBestXV.mean, 1)]; }) }],
@@ -3365,12 +3407,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     if (r && r.policy === 'none') return 'the reference';
     if (b.kind === 'always') return 'at any rate';
     if (b.kind === 'never') return 'never';
-    return (b.kind === 'below' ? 'under ' : 'over ') + fmt(b.value, 0) + ' days a point';
+    return (b.kind === 'below' ? 'under ' : 'over ') + (fmt(b.value, 0) === '1' ? '1 day' : fmt(b.value, 0) + ' days') + ' a point';
   }
   function breakEvenSentence(b) {
     if (b.kind === 'always') return 'pays at any rate';
     if (b.kind === 'never') return 'never pays';
-    return 'pays only if a league point is worth ' + (b.kind === 'below' ? 'under ' : 'over ') + fmt(b.value, 0) + ' player-days';
+    return 'pays only if a league point is worth ' + (b.kind === 'below' ? 'under ' : 'over ') + (fmt(b.value, 0) === '1' ? '1 player-day' : fmt(b.value, 0) + ' player-days');
   }
   function tradeKey() { var c = copy(S); delete c.seasonSeed; delete c.policy; delete c.threshold; delete c.budget; return JSON.stringify([c, extra.tradeSeasons]); }
   function renderTradeoff() {
@@ -3435,7 +3477,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       'Resting flagged players buys days at a falling rate: each step up in how many it flags costs more points per day saved. Picking on readiness never costs points, but it saves few days. Slide the rate to see where the answer changes; the line on the chart moves with it.</p></div>');
     html.push('<div class="card"><p class="kicker">Exhibit G</p><h3>Days saved against points lost</h3><p class="sub">Each dot is one option, as a change from picking the best and ignoring the light. Left is fewer player-days lost, up is more points. Options above the dashed line beat doing nothing at your rate; ringed dots are efficient.</p><div class="chart" id="trade-chart"></div></div>');
     var sorted = rows.map(function (r, i) { return { r: r, v: -r.dDays + lam * r.dPoints }; }).sort(function (a, b) { return b.v - a.v; });
-    html.push('<div class="card"><p class="kicker">The order of merit</p><h3>Every option, best first at your rate</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Option</th><th class="num">Value</th><th class="num">Injuries</th><th class="num">Days lost</th><th class="num">Points</th><th class="num">Best XV in final</th><th>Pays when</th></tr></thead><tbody>' +
+    html.push('<div class="card"><p class="kicker">The order of merit</p><h3>Every option, best first at your rate</h3><p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first"><thead><tr><th>Option</th><th class="num">Value</th><th class="num">Injuries</th><th class="num">Days lost</th><th class="num">Points</th><th class="num">Best XV, last cup tie</th><th>Pays when</th></tr></thead><tbody>' +
       sorted.map(function (o) {
         var r = o.r;
         return '<tr' + (r === best ? ' class="us"' : r === current ? ' class="ref"' : '') + '><td><span class="swatch" style="background:' + COLORS[r.policy] + '"></span>' + esc(optionLabel(r)) + (r.frontier ? ' <span class="ci">efficient</span>' : '') + '</td>' +
@@ -3462,6 +3504,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         if (r.level === null) return;
         if (r.policy === 'modify' && r.level !== (RATIO_IDS[r.flag] ? 2.0 : 30)) return;
         if (r.policy === 'rotate' && r.level > (chartWidth($('trade-chart')) < 520 ? 2 : 4)) return;
+        if (r.policy === 'rest' && (r.level === 5 || r.level === 1.3)) return;
         if (r.policy === 'rest' && chartWidth($('trade-chart')) < 520 && r.dDays > -40) return;
         labels.push({ x: r.dDays, y: r.dPoints, dx: 7, dy: -6, text: r.policy === 'rotate' ? r.level + ' in a row' : RATIO_IDS[r.flag] ? fmt(r.level, 1) : r.level + '%', color: COLORS[r.policy] });
       });
@@ -3501,7 +3544,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     var out = $('hidden-out'), key = 'hid' + hiddenKey();
     resetCharts(out);
     if (cache[key] && cache[key + 'map']) return drawHidden(cache[key], cache[key + 'map']);
-    busy(out, 'Replaying ' + extra.hiddenSeasons + ' seasons under fifteen versions of the truth');
+    busy(out, 'Replaying ' + extra.hiddenSeasons + ' seasons under fifteen versions of the truth (about ten seconds)');
     var seeds = [];
     for (var i = 1; i <= extra.hiddenSeasons; i++) seeds.push(200 + i);
     var still = function () { return view === 'hidden' && key === 'hid' + hiddenKey(); };
@@ -3509,7 +3552,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       cache[key] = rb;
       if (!still()) return null;
       drawHidden(rb, null);
-      return run('robustnessMap', [S, seeds.slice(0, Math.max(6, Math.round(seeds.length * 2 / 3)))]);
+      return run('robustnessMap', [S, seeds]);
     }).then(function (mp) {
       if (!mp) return;
       cache[key + 'map'] = mp;
@@ -3528,8 +3571,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     var hist = rb.rows.filter(function (r) { return r.key === 'historySeasons'; })[0];
     var spike = rb.rows.filter(function (r) { return r.key === 'spike'; })[0];
     var html = [];
-    html.push('<div class="btn-row" style="margin:0 0 14px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons for each version</span><div class="tickets three" role="radiogroup" aria-label="Seasons for each version of the truth" style="min-width:220px">' +
-      [8, 12, 24].map(function (n) { return '<input type="radio" name="hseasons" id="hs-' + n + '" value="' + n + '"' + (n === extra.hiddenSeasons ? ' checked' : '') + '><label for="hs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
+    html.push('<div class="btn-row" style="margin:0 0 14px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons for each version</span><div class="tickets" role="radiogroup" aria-label="Seasons for each version of the truth" style="min-width:160px">' +
+      [12, 24].map(function (n) { return '<input type="radio" name="hseasons" id="hs-' + n + '" value="' + n + '"' + (n === extra.hiddenSeasons ? ' checked' : '') + '><label for="hs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
     if (S.policy !== 'rest' && S.policy !== 'modify') html.push('<div class="warnings"><p>The clipboard\'s policy does not act on the light, so this page tests <b>resting anyone flagged</b> instead.</p></div>');
     html.push('<div class="scoreboard">' +
       tile('Light\'s AUC', fmt(rb.base.auc, 2), esc(FLAG_SHORT[rb.flag]) + ' on these silent seasons; ' + fmt(spike.low.auc, 2) + ' to ' + fmt(spike.high.auc, 2) + ' as spikes matter less or more') +
@@ -3537,14 +3580,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       tile('Pays below', rb.base.breakEven.kind === 'below' ? fmt(rb.base.breakEven.value, 0) : '<small>' + esc(rb.base.breakEven.kind) + '</small>', 'player-days a league point, at these settings', 'warn') +
       tile('Pays at your rate', fmt(pays) + '<small>of ' + variants.length + '</small>', 'versions of the truth where acting beats doing nothing at ' + lam + ' days a point (set on the trade-off page)', pays > variants.length / 2 ? '' : 'bad') +
       '</div>');
-    html.push('<div class="note-card"><p class="from">Physio\'s note &middot; what nobody can see</p><p class="big">' + esc(swing[0].r.label) + ' moves the answer most.</p>' +
+    html.push('<div class="note-card"><p class="from">Physio\'s note &middot; what nobody can see</p><p class="big">It turns most on ' + esc(swing[0].r.label.toLowerCase()) + '.</p>' +
       '<p>If load spikes barely matter, the light is close to a coin toss (' + fmt(spike.low.auc, 2) + ') and resting flagged players saves ' + fmt(-spike.low.dNC, 1) + ' soft-tissue injuries a season; if they matter a lot, it scores ' + fmt(spike.high.auc, 2) + ' and saves ' + fmt(-spike.high.dNC, 1) + '. A club cannot tell which world it is in from one season, which is the Pilot page\'s point. ' +
       (hist ? 'And the risk model is only as good as its history: trained on one season it scores ' + fmt(hist.low.auc, 2) + ', on five ' + fmt(hist.high.auc, 2) + '.' : '') + '</p></div>');
     html.push('<div class="card"><p class="kicker">Exhibit H</p><h3>Which assumption moves the answer?</h3><div class="tickets" role="radiogroup" aria-label="Measure to show" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:6px 0 12px">' +
       Object.keys(HIDDEN_METRICS).map(function (k) { return '<input type="radio" name="hmetric" id="hm-' + k + '" value="' + k + '"' + (k === extra.hiddenMetric ? ' checked' : '') + '><label for="hm-' + k + '">' + esc(HIDDEN_METRICS[k].label) + '</label>'; }).join('') +
       '</div><p class="sub">Each bar runs from the assumption\'s low setting to its high one, with everything else held at the clipboard. The line is the clipboard itself. Hidden assumptions are marked; the rest are choices a club makes.</p><div class="chart" id="tornado"></div></div>');
     html.push('<div class="card"><p class="kicker">Exhibit I</p><h3>The two things nobody can see</h3><p class="sub">The same measure across how much load spikes cause injury and how common contact injuries are. The outlined square is the clipboard\'s world.</p><div class="chart" id="hidden-map">' + (mp ? '' : '<div class="busy" role="status"><span class="ball" aria-hidden="true"></span>Filling in the map</div>') + '</div></div>');
-    html.push('<div class="card"><p class="kicker">The workings</p><h3>Every version of the truth</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Version</th><th class="num">AUC</th><th class="num">Soft-tissue saved</th><th class="num">Days saved</th><th class="num">Points</th><th>Pays</th></tr></thead><tbody>' +
+    html.push('<div class="card"><p class="kicker">The workings</p><h3>Every version of the truth</h3><p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first"><thead><tr><th>Version</th><th class="num">AUC</th><th class="num">Soft-tissue saved</th><th class="num">Days saved</th><th class="num">Points</th><th>Pays</th></tr></thead><tbody>' +
       [['As on the clipboard', rb.base]].concat(rb.rows.reduce(function (a, r) {
         return a.concat([[r.label + ': ' + settingText(r.key, r.lowValue), r.low], [r.label + ': ' + settingText(r.key, r.highValue), r.high]]);
       }, [])).map(function (x, k) {
@@ -3566,7 +3609,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     rows.forEach(function (x) { if (x.lo === x.lo) vals.push(x.lo); if (x.hi === x.hi) vals.push(x.hi); });
     var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals), pad = (vmax - vmin) * 0.18 + (M_.d === 2 ? 0.01 : 0.5);
     vmin -= pad; vmax += pad;
-    var x0 = labelW + 8 + (narrow ? side : 0), x1 = W - side, top = 8;
+    var x0 = labelW + 8 + side, x1 = W - side, top = 8;
     var xs = function (v) { return x0 + (v - vmin) / (vmax - vmin) * (x1 - x0); };
     var H = top + rows.length * rowH + 34;
     var s = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="Tornado chart: how each assumption moves ' + esc(M_.label) + '">';
@@ -3583,7 +3626,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         var a = xs(Math.min(base, b[1])), w = Math.abs(xs(b[1]) - xs(base));
         s += '<rect x="' + a + '" y="' + by + '" width="' + Math.max(1.5, w) + '" height="' + bh + '" fill="' + b[3] + '" opacity=".85"><title>' + esc(x.r.label + ', ' + settingText(x.r.key, b[2]) + ': ' + fmt(b[1], M_.d)) + '</title></rect>';
         var right = Math.abs(b[1] - base) < 1e-9 ? b[0] === 'hi' : b[1] > base;
-        s += '<text x="' + (xs(b[1]) + (right ? 5 : -5)) + '" y="' + (by + 12) + '" text-anchor="' + (right ? 'start' : 'end') + '" font-size="11.5">' + esc(settingText(x.r.key, b[2])) + '</text>';
+        // When both settings push the same way, the nearer one is labelled on the other side of the line.
+        var other = b[0] === 'lo' ? x.hi : x.lo;
+        if (other === other && (other - base) * (b[1] - base) > 0 && Math.abs(b[1] - base) < Math.abs(other - base)) right = !right;
+        var lx = right === (b[1] > base) ? xs(b[1]) : xs(base);
+        s += '<text x="' + (lx + (right ? 5 : -5)) + '" y="' + (by + 12) + '" text-anchor="' + (right ? 'start' : 'end') + '" font-size="11.5">' + esc(settingText(x.r.key, b[2])) + '</text>';
       });
     });
     rows.forEach(function (x, k) {
@@ -3696,14 +3743,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         '<p>In ' + fmt(an.permutations) + ' reshuffles that keep each player\'s injuries and loads but slide the injury dates round the season, ' + pct(ew.p, 1) + ' scored at least as well. ' + fmt(an.positives) + ' injured weeks is a small sample, so treat any single season\'s score with care.</p>'
         : '<p class="big">Not enough injuries to test the ratios.</p><p>With fewer than three injured weeks, any score would be noise. The workload ratios and this week\'s flags below still work.</p>') + '</div>');
     html.push('<div class="card"><p class="kicker">The scorecard</p><h3>Did the ratios see it coming?</h3><div class="btn-row" style="margin:0 0 10px"><label for="log-only" style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Injuries to score against</label><select id="log-only" style="max-width:220px"><option value="non-contact"' + (an.only === 'non-contact' ? ' selected' : '') + '>Soft-tissue only</option><option value="all"' + (an.only === 'all' ? ' selected' : '') + '>All injuries</option></select></div>' +
-      '<div class="table-wrap"><table class="sheet-table"><thead><tr><th>Ratio</th><th class="num">Score (AUC)</th><th class="num">Chance of a score this good by luck</th><th class="num">Flagged at ' + fmt(an.threshold, 2) + '</th><th class="num">Hits per 100 flags</th><th class="num">Injuries caught</th></tr></thead><tbody>' +
+      '<p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first"><thead><tr><th>Ratio</th><th class="num">Score (AUC)</th><th class="num">Chance of a score this good by luck</th><th class="num">Flagged at ' + fmt(an.threshold, 2) + '</th><th class="num">Hits per 100 flags</th><th class="num">Injuries caught</th></tr></thead><tbody>' +
       an.results.map(function (r) {
         return '<tr><td><span class="swatch" style="background:' + COLORS[r.id] + '"></span>' + esc(FLAG_SHORT[r.id]) + '</td><td class="num">' + fmt(r.auc, 3) + '</td><td class="num">' + (r.p === undefined ? 'n/a' : pct(r.p, 1)) + '</td><td class="num">' + pct(r.atRule.share, 1) + '</td><td class="num">' + (r.atRule.flagged ? fmt(100 * r.atRule.precision, 1) : 'n/a') + '</td><td class="num">' + (an.positives ? pct(r.atRule.recall) : 'n/a') + '</td></tr>';
       }).join('') + '</tbody></table></div><p class="foot">' + fmt(an.rows) + ' player-weeks scored (one every seven days from day 28, leaving out a fortnight after each injury). The flag level comes from the clipboard.</p></div>');
     html.push('<div class="card" id="spike-card"><p class="kicker">Calibration</p><h3>What this logbook says about load spikes</h3><p class="sub">How much does a load spike raise soft-tissue risk in these players? A hazard model fitted to every player-day (minutes as exposure, fatigue against fitness as the spike) gives an estimate and a 95% interval. The hidden-truth page shows why this one number decides whether the light is worth acting on.</p><div id="spike-out"></div></div>');
     var opts = book.names.map(function (n, i) { return '<option value="' + i + '"' + (i === logState.player ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
     html.push('<div class="card"><p class="kicker">Player file</p><h3>One player\'s load</h3><div class="field" style="max-width:340px"><label for="log-player" class="sr-only">Choose a player</label><select id="log-player">' + opts + '</select></div><div class="chart" id="log-chart"></div><div class="chart" id="log-ratio" style="margin-top:8px"></div></div>');
-    html.push('<div class="card"><p class="kicker">This week\'s list</p><h3>Highest ratios on the last day</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Player</th><th class="num">EWMA ratio</th><th class="num">Rolling ratio</th><th class="num">Last 7 days</th><th class="num">Monotony</th><th class="num">Strain</th><th>Flag</th></tr></thead><tbody>' +
+    html.push('<div class="card"><p class="kicker">This week\'s list</p><h3>Ratios after the last logged day</h3><p class="swipe-hint">Swipe the table sideways for every column.</p><div class="table-wrap"><table class="sheet-table wide-first"><thead><tr><th>Player</th><th class="num">EWMA ratio</th><th class="num">Rolling ratio</th><th class="num">Last 7 days</th><th class="num">Monotony</th><th class="num">Strain</th><th>Flag</th></tr></thead><tbody>' +
       an.latest.slice(0, 12).map(function (r) {
         return '<tr><td>' + esc(r.name) + '</td><td class="num">' + fmt(r.ewma, 2) + '</td><td class="num">' + fmt(r.coupled, 2) + '</td><td class="num">' + fmt(r.acute, 0) + '</td><td class="num">' + fmt(r.monotony, 2) + '</td><td class="num">' + fmt(r.strain, 0) + '</td><td>' + (r.flagged ? '<b class="worse">Flagged</b>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div><div class="btn-row" style="margin-top:10px"><button type="button" class="btn ghost small" id="dl-flags">Download every player\'s ratios</button></div></div>');

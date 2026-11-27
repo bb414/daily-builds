@@ -15,9 +15,9 @@ There are two versions, built on the same model:
 
 The question behind these builds is why AI so often stalls at the pilot stage. A workload light is a small, well-documented example of the general problem:
 
-- **AI adoption beyond the pilot.** The benefit of the light is a counterfactual (injuries that did not happen), the events are rare and the season-to-season noise is large. In the default club, acting on the light prevents about 2.4 injuries a season, but a season's count varies by about 5.5 either way, so a one-season pilot shows an improvement only 57% of the time and would need about 84 seasons in each arm to detect the effect reliably. This is the "hard-to-measure benefits and unclear ROI" that executives describe as blocking scale-up, made concrete.
+- **AI adoption beyond the pilot.** The benefit of the light is a counterfactual (injuries that did not happen), the events are rare and the season-to-season noise is large. In the default club, acting on the light prevents about 2.4 injuries a season, but a season's count varies by about 5.5 either way, so a one-season pilot shows an improvement only 57% of the time and would need about 84 seasons in each arm to detect the effect reliably. It makes concrete the hard-to-measure benefits and unclear ROI often cited as blocking AI's scale-up.
 - **Human-AI interaction and over-reliance.** 97% of the times the coach rests a flagged player, nothing happens in the next fortnight. That feels like the light working, whether or not it does.
-- **Team and sports leadership.** Resting flagged players cuts days lost but costs about four league points a season and two of the first-choice XV in the cup final. The policy that loses the fewest days is not the one that wins the most matches.
+- **Team and sports leadership.** Resting flagged players cuts days lost but costs about four league points a season and two of the first-choice XV in the season's last cup tie. The policy that loses the fewest days is not the one that wins the most matches.
 
 The full argument, with numbers, is in [FINDINGS.md](FINDINGS.md).
 
@@ -33,10 +33,10 @@ start app\index.html       # Windows
 
 The app is styled as the club's match-day programme, with a floodlit ground on the cover, numbered shirts for pages, the coach's clipboard for settings (it folds away on a phone) and scoreboards for the headline figures. It opens on a season already played. Its eight pages:
 
-1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup final; the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; the inquest, which takes every injury in turn and shows the hidden factors behind it, what the light said the Thursday before, and whether resting that player for that one week would have avoided it (the season replayed on the same luck); availability through the season; the league table and every result.
+1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup (a semi-final, then the final or a third-place play-off); the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; the inquest, which takes every injury in turn and shows the hidden factors behind it, what the light said the Thursday before, and whether resting that player for that one week would have avoided it (the season replayed on the same luck); availability through the season; the league table and every result.
 2. **The warning light.** Thirty seasons with nobody acting on any flag, so five lights are scored against the same soft-tissue injuries: hits against false alarms (ROC curves), each light's score season by season, a scorecard, why the coupled and uncoupled ratios rank players identically but read "1.5" differently, and what the club's risk model learned.
 3. **The pilot season.** The before-and-after comparison a club would actually run, against the true effect on the same luck: what one pilot reports, how many seasons a fair comparison needs, what the coach sees after each rest, and what the light costs in league points.
-4. **Squad policies.** Pick the best, rest the flagged, cut training, planned rotation and pick on readiness, each over the same seasons with paired 95% intervals: injuries, days lost, points, league place and the first-choice XV in the final.
+4. **Squad policies.** Pick the best, rest the flagged, cut training, planned rotation and pick on readiness, each over the same seasons with paired 95% intervals: injuries, days lost, points, league place, the first-choice XV in the last cup tie and how often the cup is won.
 5. **The trade-off.** Every way the club could use its light (rest or cut training at each flag level), rotation at each streak length and picking on readiness, all over the same seasons. A slider sets how many player-days of injury a league point is worth; the page names the best option at that rate, the break-even rate of the clipboard's option, which options are efficient, and an order of merit, with the break-even line drawn on a chart of days saved against points lost.
 6. **The hidden truth.** Would the verdict survive if the truth were different? Seven assumptions (how much load spikes cause injury and how common contact injuries are, which no club can see, and five choices a club makes: the seasons its risk model learns from, training effort, the training a rested player keeps, the pre-season and graded return) are each pushed low and high, one at a time, over the same seasons. A tornado chart shows which one moves the light's accuracy, the injuries it saves, the points it costs or its break-even rate the most; a map shows the same across spike effect and contact rate together.
 7. **Your logbook.** Open or paste a session log (date, player, minutes and effort, or load, with injuries if you have them). The app works out every player's coupled, uncoupled and EWMA ratios, monotony and strain, this week's highest ratios, and, if injuries are recorded, whether the ratios anticipated them better than chance (a permutation test that slides each player's injuries round the season). It also fits a hazard model to the logbook to estimate how much load spikes raise soft-tissue risk in these players, with a 95% profile-likelihood interval: the one number the hidden-truth page shows the whole verdict turns on. The sample is a simulated season of 6,555 sessions, also in [`data/club_logbook.csv`](data/club_logbook.csv).
@@ -69,6 +69,7 @@ Python 3.10 or later, standard library only. From the project folder:
 ```bash
 python3 -m loadbearing season --seed 6                  # one season, replayed with the light ignored
 python3 -m loadbearing inquest --seed 6                 # why each injury happened, and could a rest have avoided it?
+python3 -m loadbearing inquest --seasons 20 --policy none   # the same, totalled over 20 seasons
 python3 -m loadbearing flags --seasons 30 --json results/flags.json
 python3 -m loadbearing compare --seasons 30 --csv results/policies.csv
 python3 -m loadbearing optimise --point-value 12 --all-lights   # every light, action and flag level
@@ -83,7 +84,7 @@ python3 -m loadbearing calibrate --logbook data/club_logbook.csv --tests data/ju
 python3 -m loadbearing report --out results/report.html
 ```
 
-Every simulation command takes the app's settings (`--policy`, `--flag`, `--threshold`, `--budget`, `--preseason`, `--intensity`, `--no-graded-return`, `--spike`, `--contact-scale`, `--squad-seed`) and defaults to the app's: rest anyone the risk model flags. `python3 -m loadbearing COMMAND --help` explains each one. The same command always prints the same numbers. On a two-core laptop the default runs take from under a second (`season`) to about half a minute (`compare`, `pilot`, `trial`, `report`) or a minute (`optimise`); `robustness --seasons 24 --map` takes a few minutes.
+Every simulation command takes the app's settings (`--policy`, `--flag`, `--threshold`, `--budget`, `--preseason`, `--intensity`, `--no-graded-return`, `--spike`, `--contact-scale`, `--squad-seed`, `--history-seasons`) and defaults to the app's: rest anyone the risk model flags. `python3 -m loadbearing COMMAND --help` explains each one. The same command always prints the same numbers. On a two-core laptop the default runs take from under a second (`season`) to about half a minute (`compare`, `pilot`, `trial`, `report`) or a minute (`optimise`); `optimise --all-lights`, `inquest --seasons 20` and `robustness --seasons 24 --map` take a few minutes each. [FINDINGS.md](FINDINGS.md) ends with the command behind every number it quotes.
 
 The data in `data/` comes from `python3 data/generate_logbook.py`, a seeded generator that rebuilds the files exactly: `club_logbook.csv` (one simulated season's 6,555 sessions with injuries, identical to the app's sample), `jump_tests.csv` (a countermovement-jump test every Monday for every fit player, made from each player's loads through a fitness-fatigue model with hidden parameters) and `jump_truth.csv` (those hidden parameters, so the calibration can be checked).
 
@@ -92,8 +93,10 @@ The data in `data/` comes from `python3 data/generate_logbook.py`, a seeded gene
 ```bash
 node --test tests/js/model.test.js                       # the browser app's model, in Node.js
 python3 -m unittest discover -s tests/python -t .        # the companion, and that both languages agree exactly
-python3 -m unittest discover -s tests/ui -t .            # the app in headless Chromium (needs Playwright for Python)
+python3 -m unittest discover -s tests/ui -t .            # the app in headless Chromium
 ```
+
+The Python tests take about two minutes and the browser tests about a minute and a half. The browser tests need Playwright for Python and its Chromium (`pip install playwright` then `python3 -m playwright install chromium`); without Playwright they are skipped.
 
 The agreement test runs the JavaScript model in Node.js on dozens of cases (seasons under every policy and light, the trained risk model, every analysis, the logbook, the CSV and date helpers) and checks the Python port returns the same numbers, bit for bit.
 
@@ -101,11 +104,11 @@ The agreement test runs the JavaScript model in Node.js on dozens of cases (seas
 
 | Part | Language | Lines (roughly) | What it does |
 |---|---|---|---|
-| `app/index.html` | HTML, CSS, JavaScript | 3,050 (model 1,320, interface 1,090, styles 410, markup 240) | The whole app: model, six pages, hand-drawn SVG charts, embedded fonts |
-| `loadbearing/model.py` | Python | 1,870 | The same model, number for number |
-| `loadbearing/cli.py`, `experiments.py`, `calibrate.py`, `report.py` | Python | 2,020 | Commands, multi-club trial design, sweeps, Banister calibration, HTML reports |
+| `app/index.html` | HTML, CSS, JavaScript | 3,970 (model 1,710, interface 1,530, styles 440, markup 260) | The whole app: model, eight pages, hand-drawn SVG charts, embedded fonts |
+| `loadbearing/model.py` | Python | 2,340 | The same model, number for number |
+| `loadbearing/cli.py`, `experiments.py`, `calibrate.py`, `report.py` | Python | 2,450 | Eleven commands, the multi-club trial, the trade-off across lights, pooled calibration, Banister fitting, HTML reports |
 | `data/generate_logbook.py` | Python | 160 | The seeded dataset |
-| `tests/` | JavaScript, Python | 1,890 | Model, agreement, companion and browser tests |
+| `tests/` | JavaScript, Python | 2,200 | Model, cross-language agreement, companion and browser tests |
 
 The browser app is the version anyone can open: it does the main job on its own. The companion is for heavier, repeatable work: running hundreds of seasons, designing a trial, fitting a model to a club's own test data and writing reports.
 
@@ -131,6 +134,6 @@ The browser app is the version anyone can open: it does the main job on its own.
 
 ## What could come next
 
-- A league-wide view: pool many clubs' logbooks (each analysed locally) to show how much evidence a governing body could gather in a season.
-- A cost model that puts a value on a player-day lost and a league point, so the rest-or-play decision becomes a decision under uncertainty with an explicit trade-off.
+- A league-wide view: let several clubs analyse their logbooks locally and share only the fitted spike effect and its uncertainty, to show how quickly a governing body could pin it down without pooling anyone's data.
+- Decisions under uncertainty about the hidden truth: choose the light's action by its expected value across the plausible spike effects, weighted by what the club's own logbook says, rather than at one assumed value.
 - Smarter actions than resting: modified sessions targeted by position, or graded return lengths tuned by the model.

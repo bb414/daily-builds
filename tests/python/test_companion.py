@@ -85,7 +85,7 @@ class CompanionTest(unittest.TestCase):
     def test_season(self):
         out = self.ok('season', '--seed', 3, '--json', self.path('season', 'season.json'),
                       '--matches-csv', self.path('season', 'matches.csv'), '--logbook', self.path('season', 'lb.csv'))
-        for text in ('Light ignored', 'Days lost', 'Cup final', 'Flags raised', 'Final league table'):
+        for text in ('Light ignored', 'Days lost', 'The cup', 'Flags raised', 'Final league table'):
             self.assertIn(text, out)
         res = model.run_season(dict(APP, seasonSeed=3))
         base = model.run_season({'policy': 'none', 'flag': 'model', 'seasonSeed': 3})
@@ -150,7 +150,8 @@ class CompanionTest(unittest.TestCase):
         for text in ('Spike effect', '95% interval', 'In plain English'):
             self.assertIn(text, out)
         doc = read_json(self.path('fit', 'f.json'))
-        book = model.read_logbook(model.parse_csv(open(os.path.join(DATA, 'club_logbook.csv'), encoding='utf-8').read()))
+        with open(os.path.join(DATA, 'club_logbook.csv'), encoding='utf-8') as fh:
+            book = model.read_logbook(model.parse_csv(fh.read()))
         self.assertEqual(model.fit_spike_effect(book, {})['b'], doc['b'])
 
     def test_fit_pooling_narrows_the_interval(self):

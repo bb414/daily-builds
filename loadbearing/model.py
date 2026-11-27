@@ -364,7 +364,7 @@ COMP_WEEKS = 30
 WEEKS = PRE_WEEKS + COMP_WEEKS
 SEASON_DAYS = WEEKS * 7   # 252, day 0 is the Monday of pre-season week 1
 TOTAL_DAYS = HIST + SEASON_DAYS
-COMP_PLAN = 'LLLLLBLLLLBLLLLBLLLBLLLLBLLCBC'  # L league, B bye, C cup semi-final and final
+COMP_PLAN = 'LLLLLBLLLLBLLLLBLLLBLLLLBLLCBC'  # L league, B bye, C cup: the semi-final, then the final or a third-place play-off
 _MATCH_DAY = 5            # Saturday
 _DECISION_DAY = 3         # Thursday: flags are read and the week is planned
 CTL_REF = 260             # in-season fitness of a regular starter (arbitrary units a day)
@@ -747,6 +747,8 @@ def simulate_season(ctx, S, season_seed, opts=None):
     excluded = [0] * P
     selection = None
     opp_index = 0
+    semi_won = False
+    last_starters = [0] * P
     lam_a, lam_c = 2 / (7 + 1), 2 / (28 + 1)
     forced_plays = rests = flags_raised = flag_weeks = 0
     model = ctx.get('model')
@@ -888,7 +890,8 @@ def simulate_season(ctx, S, season_seed, opts=None):
                      'rating': 0.85 * xi / 15 + 0.15 * bench / (len(SLOTS) - 15)}
 
     def play_match(d, w, info):
-        nonlocal opp_index
+        nonlocal opp_index, semi_won
+        stage = 'league'
         u, uf = match_rng.open(), match_rng.open()
         opponents = squad['opponents']
         if info['type'] == 'L':
@@ -899,10 +902,12 @@ def simulate_season(ctx, S, season_seed, opts=None):
             label = 'League round ' + _js_str(rnd + 1)
         else:
             by_rating = sorted(range(len(opponents)), key=lambda k: (-opponents[k]['rating'], k))
-            is_final = info['comp'] == COMP_WEEKS - 1
-            opp = by_rating[0] if is_final else by_rating[1]
-            home = None if is_final else True
-            label = 'Cup final' if is_final else 'Cup semi-final'
+            # The semi-final is at home to the second-best club; the winner meets the best in the final, the
+            # loser plays the third-best in a third-place play-off. Both are at a neutral ground.
+            stage = 'semi' if info['comp'] < COMP_WEEKS - 1 else 'final' if semi_won else 'playoff'
+            opp = by_rating[1] if stage == 'semi' else by_rating[0] if stage == 'final' else by_rating[2]
+            home = True if stage == 'semi' else None
+            label = {'semi': 'Cup semi-final', 'final': 'Cup final', 'playoff': 'Third-place play-off'}[stage]
         opp_rating = opponents[opp]['rating'] + inv_norm(uf)
         adv = 0 if home is None else 3 if home else -3
         margin = round_half_up(2.0 * (selection['rating'] - opp_rating) + adv + 12 * inv_norm(u))
@@ -911,11 +916,19 @@ def simulate_season(ctx, S, season_seed, opts=None):
             pts = 4 if result == 'W' else 2 if result == 'D' else 1 if margin >= -7 else 0
         else:
             pts = 0
+        if stage == 'semi':
+            semi_won = margin > 0
         best_playing = 0
         for pid in squad['bestXV']:
             if pid in selection['starters']:
                 best_playing += 1
-        matches.append({'week': w, 'day': d, 'label': label, 'type': info['type'], 'opponent': opp, 'home': home,
+        for k in range(P):
+            last_starters[k] = 0
+        for pid in selection['starters']:
+            if pid >= 0:
+                last_starters[pid] = 1
+        matches.append({'week': w, 'day': d, 'label': label, 'type': info['type'], 'stage': stage, 'opponent': opp,
+                        'home': home,
                         'rating': selection['rating'], 'oppRating': opp_rating, 'margin': margin, 'result': result,
                         'points': pts, 'bestXVPlaying': best_playing, 'starters': list(selection['starters']),
                         'bench': list(selection['bench'])})
@@ -942,7 +955,7 @@ def simulate_season(ctx, S, season_seed, opts=None):
                     wk['flags'].append(p1)
                 if collect_rows:
                     rows.append({'season': season_seed, 'week': w, 'day': d, 'player': p1, 'scores': sc,
-                                 'nc': 0, 'any': 0})
+                                 'nc': 0, 'any': 0, 'started': last_starters[p1]})
                 if is_flag and S['policy'] in ('rest', 'modify'):
                     mod_until[p1] = d + 6
                     mod_factor[p1] = S['restTraining'] if S['policy'] == 'rest' else 0.6
@@ -1064,7 +1077,8 @@ def simulate_season(ctx, S, season_seed, opts=None):
         'seed': season_seed, 'injuries': injuries, 'matches': matches, 'weekly': weekly,
         'injuriesTotal': len(injuries), 'nc': nc, 'contact': contact, 'inMatch': in_match, 'daysLost': days_lost,
         'points': points, 'wins': wins, 'draws': draws, 'losses': losses, 'position': table['position'],
-        'table': table['rows'], 'finalWon': final['result'] == 'W', 'finalBestXV': final['bestXVPlaying'],
+        'table': table['rows'], 'finalWon': final['stage'] == 'final' and final['result'] == 'W',
+        'finalStage': final['stage'], 'finalBestXV': final['bestXVPlaying'],
         'meanRating': mean_rating, 'flagsRaised': flags_raised, 'flagWeeks': flag_weeks, 'rests': rests,
         'forcedPlays': forced_plays,
     }
@@ -1565,8 +1579,15 @@ def evaluate_flags(settings, seeds):
         cut = S['threshold'] if f in _RATIO_FLAGS else ctx['cutoffs'][f]
         budget_cut = quantile(sort_numbers(sc), 1 - S['budget'] / 100)
         aucs = [o[f] for o in per_season if o[f] == o[f]]
+        flagged_n, flagged_started = 0, 0
+        # Of the flags raised once the league is under way, the share on players who started the latest match.
+        for k, r in enumerate(rows):
+            if sc[k] >= cut and r['week'] > PRE_WEEKS:
+                flagged_n += 1
+                flagged_started += r['started']
         flags.append({
             'id': f, 'label': FLAG_LABELS[f], 'auc': auc(sc, nc_lab), 'aucAny': auc(sc, any_lab),
+            'starterShare': flagged_started / flagged_n if flagged_n else math.nan,
             'seasonAuc': {'mean': mean(aucs), 'lo': quantile(sort_numbers(aucs), 0.1),
                           'hi': quantile(sort_numbers(aucs), 0.9)},
             'roc': roc_curve(sc, nc_lab, 50), 'atRule': confusion(sc, nc_lab, cut), 'rule': cut,
@@ -2220,8 +2241,31 @@ def analyse_logbook(book, opts=None):
             if t >= first:
                 e_a = lam_a * L[t] + (1 - lam_a) * e_a
                 e_c = lam_c * L[t] + (1 - lam_c) * e_c
+        # The same figures on the morning after the last logged day, which include that day's sessions.
+        n7 = n28 = n21 = 0
+        nv = []
+        for j2 in range(28):
+            v2 = L[T - 1 - j2] if T - 1 - j2 >= 0 else 0
+            n28 += v2
+            if j2 < 7:
+                n7 += v2
+                nv.append(v2)
+            else:
+                n21 += v2
+        n_ok = T - first >= 28
+        nm = n7 / 7
+        ns = 0
+        for q2 in range(7):
+            ns += (nv[q2] - nm) * (nv[q2] - nm)
+        ns = math.sqrt(ns / 7)
+        n_mono = min(nm / ns if ns > 0 else 5, 5) if n_ok else math.nan
+        nxt = {'acute': n7, 'chronic': n28 / 4, 'coupled': n7 / max(n28 / 4, 100) if n_ok else math.nan,
+               'uncoupled': n7 / max(n21 / 3, 100) if n_ok else math.nan,
+               'ewma': e_a / max(e_c, 100 / 7) if n_ok else math.nan, 'monotony': n_mono,
+               'strain': n7 * n_mono if n_ok else math.nan}
         series.append({'name': book['names'][p], 'coupled': coupled, 'uncoupled': uncoupled, 'ewma': ewma,
-                       'monotony': monotony, 'strain': strain, 'acute': acute, 'chronic': chronic, 'first': first})
+                       'monotony': monotony, 'strain': strain, 'acute': acute, 'chronic': chronic, 'first': first,
+                       'next': nxt})
     # Weekly decision points on the logbook's own weekday pattern: every seventh day from day 28.
     inj_by_player = [[] for _ in range(P)]
     out_by_player = [[] for _ in range(P)]
@@ -2278,12 +2322,11 @@ def analyse_logbook(book, opts=None):
         for k, r in enumerate(results):
             r['p'] = (exceed[k] + 1) / (perms + 1)
     # The latest week: who would be flagged on the last day of the logbook.
-    last_t = T - 1
-    latest = [{'player': k, 'name': se['name'], 'coupled': se['coupled'][last_t],
-               'uncoupled': se['uncoupled'][last_t], 'ewma': se['ewma'][last_t],
-               'monotony': se['monotony'][last_t], 'strain': se['strain'][last_t], 'acute': se['acute'][last_t],
-               'chronic': se['chronic'][last_t],
-               'flagged': se['ewma'][last_t] >= threshold or se['coupled'][last_t] >= threshold}
+    latest = [{'player': k, 'name': se['name'], 'coupled': se['next']['coupled'],
+               'uncoupled': se['next']['uncoupled'], 'ewma': se['next']['ewma'],
+               'monotony': se['next']['monotony'], 'strain': se['next']['strain'], 'acute': se['next']['acute'],
+               'chronic': se['next']['chronic'],
+               'flagged': se['next']['ewma'] >= threshold or se['next']['coupled'] >= threshold}
               for k, se in enumerate(series)]
     latest.sort(key=lambda x: -(x['ewma'] if x['ewma'] == x['ewma'] else -1))
     weekly_load = 0

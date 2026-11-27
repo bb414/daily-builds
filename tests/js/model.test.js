@@ -419,3 +419,17 @@ test('calibration recovers the spike effect from simulated logbooks, with an hon
   assert.equal(loadOnly.minutes[0][0], 50);
   assert.ok(M.fitSpikeEffect(loadOnly, {}).error);
 });
+
+test('the cup final is only played after a semi-final win; otherwise a third-place play-off', () => {
+  let finals = 0, playoffs = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const r = M.runSeason({ policy: 'none' }, seed);
+    const [semi, last] = r.matches.filter((m) => m.type === 'C');
+    assert.equal(semi.stage, 'semi');
+    assert.equal(last.stage, semi.margin > 0 ? 'final' : 'playoff');
+    assert.equal(r.finalWon, last.stage === 'final' && last.result === 'W');
+    assert.equal(r.finalStage, last.stage);
+    if (last.stage === 'final') finals += 1; else playoffs += 1;
+  }
+  assert.ok(finals > 0 && playoffs > 0);
+});

@@ -75,7 +75,7 @@ class AppTest(unittest.TestCase):
             self.assertEqual('true', page.get_attribute('#tab-' + name, 'aria-selected'))
             self.assertFalse(page.is_hidden('#view-' + name))
         self.assertEqual(5, page.locator('#light-out tbody tr').count())
-        self.assertEqual(7, page.locator('#rotation-out tbody tr').count())
+        self.assertEqual(8, page.locator('#rotation-out tbody tr').count())
         self.assertEqual(3, page.locator('#log-results .sheet-table').first.locator('tbody tr').count())
         self.assertEqual([], self.errors)
         self.assertEqual([], self.outside_requests())
@@ -181,6 +181,17 @@ class AppTest(unittest.TestCase):
         fc.value.set_files(path)
         fresh.wait_for_function("document.getElementById('flag').value === 'ewma'")
         self.assertTrue(fresh.is_checked('#pol-modify'))
+        # A file saved at the defaults restores the defaults, whatever is set when it is loaded.
+        plain = self.open()
+        with plain.expect_download() as dl2:
+            plain.click('#save-settings')
+        defaults = dl2.value.path()
+        with fresh.expect_file_chooser() as fc2:
+            fresh.click('#load-settings')
+        fc2.value.set_files(defaults)
+        fresh.wait_for_function("document.getElementById('flag').value === 'model'")
+        self.assertTrue(fresh.is_checked('#pol-rest'))
+        self.assertTrue(fresh.is_checked('#pre-gradual'))
 
     def test_a_broken_link_falls_back_to_the_defaults(self):
         page = self.open(url=APP + '#s=not-really-a-link')
