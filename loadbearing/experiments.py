@@ -265,3 +265,64 @@ def run_optimise(settings, seeds, all_lights=False, workers=None):
         a['frontier'] = not any(b is not a and b['dDays'] <= a['dDays'] and b['dPoints'] >= a['dPoints']
                                 and (b['dDays'] < a['dDays'] or b['dPoints'] > a['dPoints']) for b in rows)
     return {'seeds': list(seeds), 'flags': list(flags), 'rows': rows}
+
+
+# ---------- calibration: how many club-seasons pin down the spike effect? ----------
+LOGBOOK_HEADER = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury']
+
+
+def season_book(settings, seed):
+    """One simulated season as a club would log it, read back through the logbook reader."""
+    rows = model.season_logbook(settings, seed)['rows']
+    text = model.to_csv(LOGBOOK_HEADER, [[r[k] for k in LOGBOOK_HEADER] for r in rows])
+    return model.read_logbook(model.parse_csv(text))
+
+
+def pool_books(books):
+    """Several logbooks as one: every player kept apart, labelled by the book they came from."""
+    span = max(b['span'] for b in books)
+    out = {'names': [], 'start': min(b['start'] for b in books), 'span': span, 'loads': [], 'minutes': [],
+           'minutesKnown': True, 'injuries': [], 'sessions': 0, 'warnings': []}
+    for k, b in enumerate(books):
+        offset = len(out['names'])
+        pad = [0.0] * (span - b['span'])
+        out['names'] += [f'{n} ({k + 1})' for n in b['names']]
+        out['loads'] += [list(x) + pad for x in b['loads']]
+        out['minutes'] += [list(x) + pad for x in b['minutes']]
+        out['injuries'] += [dict(x, player=x['player'] + offset) for x in b['injuries']]
+        out['sessions'] += b['sessions']
+    return out
+
+
+def _spike_replicate(settings, n, rep):
+    S = model.with_defaults(dict(settings, policy='none'))
+    books = []
+    for k in range(n):
+        squad = 1 + (rep * n + k) % 20
+        books.append(season_book(dict(S, squadSeed=squad), 3000 + 100 * rep + k))
+    hr = model.hazard_rows(pool_books(books))
+    events = sum(r['y'] for r in hr['rows'])
+    fit = model.fit_hazard(hr['rows'])
+    return {'n': n, 'rep': rep, 'b': fit['b'], 'se': fit['seB'], 'events': events, 'rows': len(hr['rows'])}
+
+
+def spike_study(settings, season_counts, reps=4, workers=None):
+    """For each number of pooled club-seasons, fit the spike effect on several independent pools (different
+    squads and seasons): the typical estimate, the width of its 95% interval, how often that interval covers
+    the truth and how often it rules out 'no effect'."""
+    S = model.with_defaults(settings)
+    jobs = [(S, n, r) for n in season_counts for r in range(reps)]
+    fits = parallel_map(_spike_replicate, jobs, workers)
+    table = []
+    for n in season_counts:
+        mine = [f for f in fits if f['n'] == n]
+        widths = [2 * 1.959963984540054 * f['se'] for f in mine]
+        covered = [abs(f['b'] - S['spike']) <= 1.959963984540054 * f['se'] for f in mine]
+        shows = [f['b'] - 1.959963984540054 * f['se'] > 0 for f in mine]
+        table.append({'seasons': n, 'estimate': model.mean([f['b'] for f in mine]),
+                      'spread': model.sd([f['b'] for f in mine]), 'width': model.mean(widths),
+                      'coverage': sum(covered) / len(mine), 'showsHarm': sum(shows) / len(mine),
+                      'events': model.mean([f['events'] for f in mine])})
+    last = table[-1]
+    needed = math.ceil(last['seasons'] * (last['width'] / 1.0) ** 2) if last['width'] == last['width'] else None
+    return {'truth': S['spike'], 'reps': reps, 'table': table, 'fits': fits, 'seasonsForWidth1': needed}

@@ -145,6 +145,24 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(len(model.ASSUMPTIONS), len(doc['robustness']['rows']))
         self.assertEqual(15, len(doc['map']['cells']))
 
+    def test_fit_a_logbook(self):
+        out = self.ok('fit', os.path.join(DATA, 'club_logbook.csv'), '--json', self.path('fit', 'f.json'))
+        for text in ('Spike effect', '95% interval', 'In plain English'):
+            self.assertIn(text, out)
+        doc = read_json(self.path('fit', 'f.json'))
+        book = model.read_logbook(model.parse_csv(open(os.path.join(DATA, 'club_logbook.csv'), encoding='utf-8').read()))
+        self.assertEqual(model.fit_spike_effect(book, {})['b'], doc['b'])
+
+    def test_fit_pooling_narrows_the_interval(self):
+        study = experiments.spike_study({}, [1, 4], reps=2, workers=1)
+        self.assertEqual([1, 4], [t['seasons'] for t in study['table']])
+        self.assertLess(study['table'][1]['width'], study['table'][0]['width'])
+        pooled = experiments.pool_books([experiments.season_book({}, 1), experiments.season_book({}, 2)])
+        self.assertEqual(72, len(pooled['names']))
+        self.assertTrue(all(i['player'] < 72 for i in pooled['injuries']))
+        out = self.ok('fit', '--simulate', '1,2', '--reps', 1, '--workers', 1)
+        self.assertIn('club-seasons', out)
+
     def test_season_without_the_light_has_no_replay(self):
         out = self.ok('season', '--policy', 'none', '--seed', 2)
         self.assertIn('nothing to replay', out)

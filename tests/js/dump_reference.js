@@ -222,6 +222,12 @@ const inquests = [{ settings: { policy: 'rest', flag: 'model' }, seed: 6 }, { se
   return { settings: c.settings, seed: c.seed, out: M.inquest(c.settings, c.seed) };
 });
 
+// ---------- calibration from a logbook ----------
+const calBook = M.readLogbook(M.parseCSV(M.toCSV(['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'],
+  M.seasonLogbook({}, 2).rows.map(function (r) { return [r.date, r.player, r.position, r.session, r.minutes, r.rpe, r.injury]; }))));
+const calibration = { fit: M.fitSpikeEffect(calBook, { truth: 2 }), fitAll: M.fitSpikeEffect(calBook, { only: 'all' }),
+  rowsHead: M.hazardRows(calBook).rows.slice(0, 50), tiny: M.fitSpikeEffect(M.readLogbook(M.parseCSV('date,player,load\n2026-09-01,A,300\n')), {}) };
+
 // ---------- the trade-off ----------
 const tradeoffs = [{ settings: { flag: 'model' }, seeds: [101, 102] }, { settings: { flag: 'ewma', spike: 3 }, seeds: [5] }].map(function (c) {
   const out = M.tradeoff(c.settings, c.seeds);
@@ -278,5 +284,5 @@ const logbooks = tricky.map(function (text) {
 
 process.stdout.write(JSON.stringify(plain({
   calls: calls, rng: rng, constants: constants, seasons: seasons, prepared: prepared, series: series,
-  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, tradeoffs: tradeoffs, robust: robust, logbook: logbook, logbooks: logbooks
+  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, tradeoffs: tradeoffs, robust: robust, calibration: calibration, logbook: logbook, logbooks: logbooks
 })));

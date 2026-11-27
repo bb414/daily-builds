@@ -1951,6 +1951,134 @@ var LoadBearing = (function () {
     return out;
   }
 
+  /* ---------- calibration: what a logbook says about how much load spikes cause injury ---------- */
+  /* Player-days with exposure, as the hidden truth sees them: fatigue (7-day) and fitness (42-day) averages
+     including the day's own load, the spike above 10%, under-training, minutes and whether a soft-tissue
+     injury happened that day. The first 28 days of each player warm the averages up; a fortnight after each
+     injury is left out, because the player is already hurt. */
+  function hazardRows(book, only) {
+    var hasNC = book.injuries.some(function (x) { return x.type === 'non-contact'; });
+    only = only || (hasNC ? 'non-contact' : 'all');
+    var rows = [];
+    for (var p = 0; p < book.names.length; p++) {
+      var L = book.loads[p], Mn = book.minutes[p], T = book.span;
+      var first = 0;
+      while (first < T && !(L[first] > 0)) first++;
+      if (first >= T) continue;
+      var warm = 0, nWarm = 0;
+      for (var k = first; k < Math.min(T, first + 28); k++) { warm += L[k]; nWarm += 1; }
+      var atl = warm / nWarm, ctl = warm / nWarm;
+      var injDays = {}, out = {};
+      book.injuries.forEach(function (x) {
+        if (x.player !== p) return;
+        if (only === 'all' || x.type === only) injDays[x.day] = true;
+        for (var d = x.day + 1; d <= x.day + 14; d++) out[d] = true;
+      });
+      for (var t = first; t < T; t++) {
+        atl = atl + (L[t] - atl) / 7;
+        ctl = ctl + (L[t] - ctl) / 42;
+        if (t - first < 28 || out[t] || !(Mn[t] > 0)) continue;
+        rows.push({ spike: Math.max(0, atl / Math.max(ctl, 80) - SPIKE_FROM), under: Math.max(0, 1 - ctl / CTL_REF),
+          logMin: detLog(Mn[t]), y: injDays[t] ? 1 : 0 });
+      }
+    }
+    return { rows: rows, only: only };
+  }
+
+  /* Fisher scoring for a complementary log-log model: chance of injury = 1 - exp(-exp(a + c*under + b*spike) * minutes),
+     with b fixed when given (for the profile) or estimated. Returns the coefficients and the log-likelihood. */
+  function fitHazard(rows, fixedB, start) {
+    var est = fixedB === undefined || fixedB === null;
+    var k = est ? 3 : 2;
+    var beta = [detLog(0.00002), 0, 0];
+    if (start) beta = [start.a, start.c, est ? start.b : 0];
+    else {
+      var events = 0, expo = 0;
+      rows.forEach(function (r) { events += r.y; expo += detExp(r.logMin); });
+      if (events > 0) beta[0] = detLog(events / expo);
+    }
+    var ll = -Infinity, iterations = 0;
+    for (var it = 0; it < 40; it++) {
+      iterations += 1;
+      var g = [], H = [];
+      for (var a = 0; a < k; a++) { g.push(0); H.push([]); for (var c = 0; c < k; c++) H[a].push(0); }
+      ll = 0;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var x = est ? [1, row.under, row.spike] : [1, row.under];
+        var eta = beta[0] + beta[1] * row.under + (est ? beta[2] : fixedB) * row.spike + row.logMin;
+        var mu = detExp(eta), q = detExp(-mu), pr = 1 - q;
+        if (pr < 1e-300) pr = 1e-300;
+        ll += row.y ? detLog(pr) : -mu;
+        var score = row.y ? mu * q / pr : -mu;
+        var w = mu * mu * q / pr;
+        for (var a2 = 0; a2 < k; a2++) {
+          g[a2] += score * x[a2];
+          for (var c2 = 0; c2 < k; c2++) H[a2][c2] += w * x[a2] * x[c2];
+        }
+      }
+      var step = solveLinear(H, g), size = 0;
+      for (var j = 0; j < k; j++) {
+        var sj = clamp(step[j], -3, 3);
+        beta[j] += sj;
+        size = Math.max(size, Math.abs(sj));
+      }
+      if (size < 1e-7) break;
+    }
+    ll = 0;
+    var info = [];
+    for (var a3 = 0; a3 < k; a3++) { info.push([]); for (var c3 = 0; c3 < k; c3++) info[a3].push(0); }
+    rows.forEach(function (row) {
+      var mu = detExp(beta[0] + beta[1] * row.under + (est ? beta[2] : fixedB) * row.spike + row.logMin);
+      var q = detExp(-mu), pr = Math.max(1 - q, 1e-300);
+      ll += row.y ? detLog(pr) : -mu;
+      var x = est ? [1, row.under, row.spike] : [1, row.under], w = mu * mu * q / pr;
+      for (var a4 = 0; a4 < k; a4++) for (var c4 = 0; c4 < k; c4++) info[a4][c4] += w * x[a4] * x[c4];
+    });
+    var se = [];
+    for (var j2 = 0; j2 < k; j2++) {
+      var unit = [];
+      for (var u = 0; u < k; u++) unit.push(u === j2 ? 1 : 0);
+      var col = solveLinear(info, unit);
+      se.push(col[j2] > 0 ? Math.sqrt(col[j2]) : NaN);
+    }
+    return { a: beta[0], c: beta[1], b: est ? beta[2] : fixedB, ll: ll, iterations: iterations,
+      seB: est ? se[2] : NaN };
+  }
+
+  /* The spike effect's estimate and 95% profile-likelihood interval, on a grid of b from 0 to 6. */
+  function fitSpikeEffect(book, opts) {
+    opts = opts || {};
+    var hr = hazardRows(book, opts.only);
+    var rows = hr.rows, events = 0;
+    rows.forEach(function (r) { events += r.y; });
+    var spiky = rows.filter(function (r) { return r.spike > 0; }).length;
+    var out = { only: hr.only, rows: rows.length, events: events, spikyShare: rows.length ? spiky / rows.length : NaN,
+      b: NaN, ci: [NaN, NaN], profile: [], truth: opts.truth === undefined ? null : opts.truth };
+    if (events < 3 || spiky < 10) { out.error = 'Too few injuries or load spikes to estimate the effect.'; return out; }
+    var full = fitHazard(rows, null);
+    var bHat = clamp(full.b, 0, 6);
+    var llMax = bHat === full.b ? full.ll : fitHazard(rows, bHat, full).ll;
+    var grid = [];
+    for (var g = 0; g <= 24; g++) grid.push(g * 0.25);
+    var prev = full;
+    out.profile = grid.map(function (b) { var f = fitHazard(rows, b, prev); prev = f; return { b: b, ll: f.ll }; });
+    out.profile.forEach(function (pt) { if (pt.ll > llMax) llMax = pt.ll; });
+    var cut = llMax - 1.920729410347062;
+    var lo = 0, hi = 6, inside = out.profile.map(function (pt) { return pt.ll >= cut; });
+    var top = 0;
+    out.profile.forEach(function (pt, i) { if (pt.ll > out.profile[top].ll) top = i; });
+    var i1 = top;
+    while (i1 > 0 && inside[i1 - 1]) i1--;
+    if (i1 > 0) { var A = out.profile[i1 - 1], B = out.profile[i1]; lo = A.b + (cut - A.ll) / (B.ll - A.ll) * (B.b - A.b); }
+    var i2 = top;
+    while (i2 < out.profile.length - 1 && inside[i2 + 1]) i2++;
+    if (i2 < out.profile.length - 1) { var C = out.profile[i2], D = out.profile[i2 + 1]; hi = C.b + (cut - C.ll) / (D.ll - C.ll) * (D.b - C.b); }
+    out.b = bHat; out.ci = [lo, hi]; out.a = full.a; out.c = full.c; out.llMax = llMax;
+    out.ciOpen = [i1 === 0 && inside[0], i2 === out.profile.length - 1 && inside[out.profile.length - 1]];
+    return out;
+  }
+
   /* ---------- dates (civil calendar, no time zones) ---------- */
   function daysFromCivil(y, m, d) {
     y -= m <= 2 ? 1 : 0;
@@ -2069,7 +2197,8 @@ var LoadBearing = (function () {
       var inj = col.injury >= 0 ? String(row[col.injury] || '').trim().toLowerCase() : '';
       if (day === null || !name || !(ld >= 0) || ld > 5000) { skipped += 1; continue; }
       var type = !inj || NO_INJURY.indexOf(inj) >= 0 ? '' : inj.indexOf('contact') === 0 ? 'contact' : 'non-contact';
-      sessions.push({ day: day, player: name, load: ld, injury: type });
+      var mins = col.minutes >= 0 && String(row[col.minutes] || '').trim() !== '' && +row[col.minutes] >= 0 ? +row[col.minutes] : ld / 6;
+      sessions.push({ day: day, player: name, load: ld, minutes: mins, injury: type });
       if (day < minDay) minDay = day;
       if (day > maxDay) maxDay = day;
     }
@@ -2080,10 +2209,12 @@ var LoadBearing = (function () {
     var names = [], index = Object.create(null);
     sessions.forEach(function (s) { if (!(s.player in index)) { index[s.player] = names.length; names.push(s.player); } });
     var loads = names.map(function () { return new Float64Array(span); });
+    var minutes = names.map(function () { return new Float64Array(span); });
     var injuries = [];
     sessions.forEach(function (s) {
       var p = index[s.player];
       loads[p][s.day - minDay] += s.load;
+      minutes[p][s.day - minDay] += s.minutes;
       if (s.injury) injuries.push({ player: p, day: s.day - minDay, type: s.injury });
     });
     injuries.sort(function (a, b) { return a.player - b.player || a.day - b.day; });
@@ -2093,7 +2224,8 @@ var LoadBearing = (function () {
       if (!last || last.player !== x.player || x.day - last.day > 3) dedup.push(x);
     });
     if (span < 35) warnings.push('Less than five weeks of data: the 28-day ratios need four weeks before they mean anything.');
-    return { names: names, start: minDay, span: span, loads: loads, injuries: dedup, sessions: sessions.length, warnings: warnings };
+    return { names: names, start: minDay, span: span, loads: loads, minutes: minutes, minutesKnown: col.minutes >= 0,
+      injuries: dedup, sessions: sessions.length, warnings: warnings };
   }
 
   /* Workload ratios for every player and day, the weekly flags, and how well each ratio anticipated injuries. */
@@ -2221,6 +2353,7 @@ var LoadBearing = (function () {
     daysFromCivil: daysFromCivil, civilFromDays: civilFromDays, formatDay: formatDay, parseDay: parseDay,
     SEASON_START: SEASON_START, seasonLogbook: seasonLogbook, parseCSV: parseCSV, toCSV: toCSV,
     readLogbook: readLogbook, analyseLogbook: analyseLogbook, playerSeries: playerSeries,
+    hazardRows: hazardRows, fitHazard: fitHazard, fitSpikeEffect: fitSpikeEffect,
     FACTOR_LABELS: FACTOR_LABELS, injuryFactors: injuryFactors, inquest: inquest,
     tradeoffOptions: tradeoffOptions, breakEven: breakEven, tradeoff: tradeoff, bestOption: bestOption,
     ASSUMPTIONS: ASSUMPTIONS, lightEffect: lightEffect, robustness: robustness, robustnessMap: robustnessMap
@@ -3498,6 +3631,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       an.results.map(function (r) {
         return '<tr><td><span class="swatch" style="background:' + COLORS[r.id] + '"></span>' + esc(FLAG_SHORT[r.id]) + '</td><td class="num">' + fmt(r.auc, 3) + '</td><td class="num">' + (r.p === undefined ? 'n/a' : pct(r.p, 1)) + '</td><td class="num">' + pct(r.atRule.share, 1) + '</td><td class="num">' + (r.atRule.flagged ? fmt(100 * r.atRule.precision, 1) : 'n/a') + '</td><td class="num">' + (an.positives ? pct(r.atRule.recall) : 'n/a') + '</td></tr>';
       }).join('') + '</tbody></table></div><p class="foot">' + fmt(an.rows) + ' player-weeks scored (one every seven days from day 28, leaving out a fortnight after each injury). The flag level comes from the clipboard.</p></div>');
+    html.push('<div class="card" id="spike-card"><p class="kicker">Calibration</p><h3>What this logbook says about load spikes</h3><p class="sub">How much does a load spike raise soft-tissue risk in these players? A hazard model fitted to every player-day (minutes as exposure, fatigue against fitness as the spike) gives an estimate and a 95% interval. The hidden-truth page shows why this one number decides whether the light is worth acting on.</p><div id="spike-out"></div></div>');
     var opts = book.names.map(function (n, i) { return '<option value="' + i + '"' + (i === logState.player ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
     html.push('<div class="card"><p class="kicker">Player file</p><h3>One player\'s load</h3><div class="field" style="max-width:340px"><label for="log-player" class="sr-only">Choose a player</label><select id="log-player">' + opts + '</select></div><div class="chart" id="log-chart"></div><div class="chart" id="log-ratio" style="margin-top:8px"></div></div>');
     html.push('<div class="card"><p class="kicker">This week\'s list</p><h3>Highest ratios on the last day</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Player</th><th class="num">EWMA ratio</th><th class="num">Rolling ratio</th><th class="num">Last 7 days</th><th class="num">Monotony</th><th class="num">Strain</th><th>Flag</th></tr></thead><tbody>' +
@@ -3518,6 +3652,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       download('workload_ratios.csv', M.toCSV(['date', 'player', 'acute_7d', 'chronic_weekly', 'ratio_coupled', 'ratio_uncoupled', 'ratio_ewma', 'monotony', 'strain'], rows));
     });
     drawLogPlayer(book, an);
+    var spikeHost = $('spike-out');
+    busy(spikeHost, 'Fitting the hazard model');
+    run('fitSpikeEffect', [book, { only: an.only, truth: logState.sample ? M.DEFAULTS.spike : null }]).then(function (fit) {
+      if ($('spike-out') === spikeHost) drawSpikeFit(spikeHost, fit);
+    }).catch(function (e) { failed(spikeHost, e); });
+  }
+  function drawSpikeFit(host, fit) {
+    resetCharts(host);
+    if (fit.error) { host.innerHTML = '<div class="empty">' + esc(fit.error) + ' This needs at least three injuries in the logbook and some weeks where load jumps.</div>'; return; }
+    var mult = function (b) { return Math.exp(0.4 * b); };
+    var html = [];
+    html.push('<div class="scoreboard">' +
+      tile('Spike effect', fmt(fit.b, 1), fit.truth !== null && fit.truth !== undefined ? 'best estimate; the hidden truth in this sample is ' + fmt(fit.truth, 1) : 'best estimate of how much a load spike raises soft-tissue risk') +
+      tile('95% interval', fmt(fit.ci[0], 1) + '<small>to</small>' + fmt(fit.ci[1], 1) + (fit.ciOpen[1] ? '<small>+</small>' : ''), 'every value the data cannot rule out', 'warn') +
+      tile('A 1.5 week', '\u00d7' + fmt(mult(fit.ci[0]), 1) + ' <small>to</small> \u00d7' + fmt(mult(fit.ci[1]), 1), 'soft-tissue risk when fatigue runs 50% ahead of fitness, across the interval', 'words') +
+      tile('Evidence', fmt(fit.events), plural(fit.events, 'injury', 'injuries') + ' in ' + fmt(fit.rows) + ' player-days; ' + pct(fit.spikyShare) + ' of days carry a spike') +
+      '</div>');
+    var wide = fit.ci[1] - fit.ci[0];
+    html.push('<div class="note-card"><p class="from">Analyst\'s note &middot; calibration</p><p class="big">' + (wide > 2.5 ? 'One logbook cannot settle it.' : 'The logbook narrows it down.') + '</p>' +
+      '<p>These data are consistent with load spikes ' + (fit.ci[0] <= 0.05 ? 'doing no harm at all' : 'multiplying risk in a 1.5 week by ' + fmt(mult(fit.ci[0]), 1)) + ' and with them multiplying it by ' + fmt(mult(fit.ci[1]), 1) + '. ' +
+      'On the hidden-truth page, that range covers clubs where acting on the light pays and clubs where it does not. Pooling seasons or clubs is the only way to narrow it; the companion\'s fit command shows how many it takes.' +
+      (fit.truth !== null && fit.truth !== undefined ? ' This is the sample logbook, so the truth is known: ' + fmt(fit.truth, 1) + (fit.truth >= fit.ci[0] && fit.truth <= fit.ci[1] ? ', inside the interval.' : ', outside the interval this time.') : '') + '</p></div>');
+    html.push('<div class="chart" id="spike-chart"></div>');
+    host.innerHTML = html.join('');
+    chart($('spike-chart'), function () {
+      var pts = fit.profile.map(function (pt) { return [pt.b, Math.exp(pt.ll - fit.llMax)]; });
+      var refs = [{ axis: 'x', value: fit.b, color: COLORS.claret, width: 2.5, label: 'Estimate ' + fmt(fit.b, 1), anchor: fit.b > 4 ? 'end' : 'start' }];
+      if (fit.truth !== null && fit.truth !== undefined) refs.push({ axis: 'x', value: fit.truth, color: COLORS.pitch, dash: '6 4', label: 'Truth ' + fmt(fit.truth, 1), row: 1, anchor: fit.truth > fit.b ? 'start' : 'end' });
+      plot($('spike-chart'), {
+        height: 240, aria: 'Relative likelihood of each spike effect given the logbook',
+        x: { min: 0, max: 6, ticks: [0, 1, 2, 3, 4, 5, 6], label: 'Spike effect (how much load spikes raise soft-tissue risk)', format: function (v) { return fmt(v, 0); } },
+        y: { min: 0, max: 1.05, ticks: [0, 0.25, 0.5, 0.75, 1], label: 'Relative likelihood', format: function (v) { return fmt(v, 2); } },
+        bands: [{ from: fit.ci[0], to: fit.ci[1], color: COLORS.amber, opacity: 0.18, label: '95% interval' }],
+        series: [{ type: 'area', data: pts, color: COLORS.navy, opacity: 0.12 }, { type: 'line', data: pts, color: COLORS.navy, width: 3 }],
+        refs: refs
+      });
+    });
   }
   function drawLogPlayer(book, an) {
     var p = logState.player, se = an.series[p], L = book.loads[p];

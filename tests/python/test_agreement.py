@@ -177,6 +177,16 @@ class AgreementTest(unittest.TestCase):
         self.assertSame(ref['out'], model.robustness(ref['settings'], ref['seeds']), 'robustness')
         self.assertSame(ref['map'], model.robustness_map({'flag': 'model'}, [203], [0, 3], [0.6, 1.4]), 'robustnessMap')
 
+    def test_calibration(self):
+        ref = self.ref['calibration']
+        rows = model.season_logbook({}, 2)['rows']
+        book = model.read_logbook(model.parse_csv(model.to_csv(LOGBOOK_HEADER, [[r[k] for k in LOGBOOK_HEADER] for r in rows])))
+        self.assertSame(ref['rowsHead'], model.hazard_rows(book)['rows'][:50], 'hazardRows')
+        self.assertSame(ref['fit'], model.fit_spike_effect(book, {'truth': 2}), 'fitSpikeEffect')
+        self.assertSame(ref['fitAll'], model.fit_spike_effect(book, {'only': 'all'}), 'fitSpikeEffect all')
+        tiny = model.read_logbook(model.parse_csv('date,player,load\n2026-09-01,A,300\n'))
+        self.assertSame(ref['tiny'], model.fit_spike_effect(tiny, {}), 'fitSpikeEffect tiny')
+
     def test_season_logbook(self):
         ref = self.ref['logbook']
         lb = model.season_logbook(ref['settings'], ref['seed'])

@@ -205,12 +205,20 @@ class AppTest(unittest.TestCase):
         page.wait_for_selector('#log-ratio svg')
         self.assertIn('pasted rows', page.inner_text('#log-name'))
         self.assertEqual('3', page.inner_text('#log-results .tile .t-value').strip())
+        page.wait_for_selector('#spike-out')
         page.select_option('#log-only', 'all')
         page.wait_for_selector('#log-ratio svg')
         with page.expect_download() as dl:
             page.click('#dl-flags')
         self.assertTrue(dl.value.suggested_filename.endswith('.csv'))
         self.assertEqual([], self.errors)
+
+    def test_logbook_calibration_card(self):
+        page = self.open()
+        self.tab(page, 'logbook')
+        page.wait_for_selector('#spike-chart svg', timeout=60000)
+        self.assertIn('the truth is known', page.text_content('#spike-out .note-card'))
+        self.assertEqual(4, page.locator('#spike-out .tile').count())
 
     def test_logbook_file_upload_and_sample_download(self):
         page = self.open()

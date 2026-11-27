@@ -389,3 +389,33 @@ test('robustness pushes each assumption low and high and the light gets sharper 
   assert.equal(mp.cells.length, 2);
   assert.ok(mp.cells[1].auc > mp.cells[0].auc);
 });
+
+test('calibration recovers the spike effect from simulated logbooks, with an honest interval', () => {
+  const header = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
+  const bookOf = (settings, seed) => M.readLogbook(M.parseCSV(M.toCSV(header,
+    M.seasonLogbook(settings, seed).rows.map((r) => header.map((k) => r[k])))));
+  const book = bookOf({}, 2);
+  assert.ok(book.minutesKnown);
+  const hr = M.hazardRows(book);
+  assert.equal(hr.only, 'non-contact');
+  assert.ok(hr.rows.every((r) => r.spike >= 0 && r.under >= 0 && (r.y === 0 || r.y === 1)));
+  const fit = M.fitSpikeEffect(book, { truth: 2 });
+  assert.ok(fit.b >= 0 && fit.b <= 6);
+  assert.ok(fit.ci[0] <= fit.b && fit.b <= fit.ci[1]);
+  assert.ok(fit.ci[0] <= 2 && 2 <= fit.ci[1], 'the truth lies inside the interval for this season');
+  assert.equal(fit.profile.length, 25);
+  // The profile peaks at the estimate and the interval edges sit 1.92 log-likelihood units below the top.
+  fit.profile.forEach((pt) => assert.ok(pt.ll <= fit.llMax + 1e-9));
+  const full = M.fitHazard(hr.rows);
+  assert.ok(Math.abs(full.b - fit.b) < 1e-9 || fit.b === 0 || fit.b === 6);
+  assert.ok(full.seB > 0.3 && full.seB < 3);
+  // A season where spikes do no harm gives a lower estimate than one where they matter a lot.
+  const calm = M.fitSpikeEffect(bookOf({ spike: 0 }, 4), {});
+  const harsh = M.fitSpikeEffect(bookOf({ spike: 4 }, 4), {});
+  assert.ok(harsh.b > calm.b + 1, calm.b + ' ' + harsh.b);
+  // Without minutes, exposure falls back to load over six; without injuries there is nothing to fit.
+  const loadOnly = M.readLogbook(M.parseCSV('date,player,load\n2026-09-01,A,300\n2026-09-02,A,360\n'));
+  assert.equal(loadOnly.minutesKnown, false);
+  assert.equal(loadOnly.minutes[0][0], 50);
+  assert.ok(M.fitSpikeEffect(loadOnly, {}).error);
+});

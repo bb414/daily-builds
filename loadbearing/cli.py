@@ -552,6 +552,54 @@ def cmd_robustness(args):
     return 0
 
 
+def cmd_fit(args):
+    if args.logbook:
+        book = read_book(args.logbook)
+        fit = model.fit_spike_effect(book, {'only': args.only})
+        say(f'How much do load spikes raise soft-tissue risk in {args.logbook}?',
+            wrap('A complementary log-log hazard model fitted to every player-day: minutes as exposure, fatigue '
+                 '(7-day) against fitness (42-day) as the spike, under-training as a second factor. The interval is '
+                 'a 95% profile-likelihood interval over spike effects from 0 to 6.'))
+        if fit.get('error'):
+            say('', fit['error'])
+            write_json(args.json, fit)
+            return 0
+        mult = lambda b: math.exp(0.4 * b)
+        say('', key_values([
+            ('Spike effect', f"{fmt(fit['b'], 2)} (95% interval {fmt(fit['ci'][0], 2)} to {fmt(fit['ci'][1], 2)}"
+                             f"{' or more' if fit['ciOpen'][1] else ''})"),
+            ('A week at ratio 1.5', f"soft-tissue risk times {fmt(mult(fit['ci'][0]), 1)} to {fmt(mult(fit['ci'][1]), 1)}"),
+            ('Evidence', f"{fit['events']} injuries ({fit['only']}) in {fmt(fit['rows'], 0)} player-days; "
+                         f"{pct(fit['spikyShare'])} of days carry a spike"),
+        ]))
+        say(wrap('In plain English: the data cannot rule out any spike effect between '
+                 f"{fmt(fit['ci'][0], 1)} and {fmt(fit['ci'][1], 1)}. On the hidden-truth page that range covers clubs "
+                 'where acting on the light pays and clubs where it does not.'))
+        blank_if(args.json)
+        write_json(args.json, fit)
+        return 0
+    S = settings_from(args)
+    counts = args.simulate
+    study = experiments.spike_study(S, counts, args.reps, args.workers)
+    say(f"How many club-seasons pin down the spike effect? (truth {fmt(study['truth'], 1)}, {study['reps']} pools "
+        'for each size)',
+        wrap('Each pool is that many simulated seasons from different invented squads, logged as a club would log '
+             'them, then fitted together. Intervals are 95% Wald intervals from the fitted model.'))
+    say('', text_table(['Seasons pooled', 'Injuries', 'Mean estimate', 'Spread', 'Interval width', 'Covers truth',
+                        'Rules out no effect'],
+                       [[t['seasons'], fmt(t['events'], 0), fmt(t['estimate'], 2), fmt(t['spread'], 2),
+                         fmt(t['width'], 2), pct(t['coverage']), pct(t['showsHarm'])] for t in study['table']],
+                       right=[0, 1, 2, 3, 4, 5, 6]))
+    first, last = study['table'][0], study['table'][-1]
+    say(wrap(f"In plain English: one season's logbook gives an interval about {fmt(first['width'], 1)} wide on a scale "
+             f"where the truth is {fmt(study['truth'], 1)}; pooling {last['seasons']} seasons narrows it to about "
+             f"{fmt(last['width'], 1)}. Narrowing it to 1.0 would take roughly {study['seasonsForWidth1']} "
+             'club-seasons of logbooks, far more than any one club has.'))
+    blank_if(args.json)
+    write_json(args.json, {'settings': S, **study})
+    return 0
+
+
 def cmd_flags(args):
     S = settings_from(args)
     seeds = experiments.flag_seeds(args.seasons)
@@ -886,6 +934,8 @@ examples:
   python -m loadbearing inquest --seed 6
   python -m loadbearing optimise --point-value 12 --all-lights
   python -m loadbearing robustness --map
+  python -m loadbearing fit data/club_logbook.csv
+  python -m loadbearing fit --simulate 1,2,4,8
   python -m loadbearing flags --seasons 30 --json results/flags.json
   python -m loadbearing compare --flag ewma --csv results/policies.csv
   python -m loadbearing pilot --pairs 40
@@ -954,6 +1004,18 @@ def build_parser():
     p.add_argument('--point-value', type=float, default=12, metavar='DAYS',
                    help='player-days of injury one league point is worth (default 12)')
     p.add_argument('--map', action='store_true', help='also map spike effect against contact rate (slower)')
+    json_option(p)
+
+    p = command('fit', cmd_fit, 'Estimate how much load spikes raise soft-tissue risk',
+                'With a logbook: fits a hazard model to it and gives the spike effect with a 95% profile-likelihood\n'
+                'interval. Without one: pools simulated club-seasons in growing numbers to show how many it takes to\n'
+                'pin the effect down.')
+    p.add_argument('logbook', nargs='?', help='a session logbook CSV (date, player, minutes and rpe or load, injury)')
+    p.add_argument('--only', choices=['non-contact', 'all'], help='which injuries to model (default: soft-tissue if marked)')
+    p.add_argument('--simulate', type=int_list, default=[1, 2, 4, 8], metavar='N,N,...',
+                   help='without a logbook: numbers of seasons to pool (default 1,2,4,8)')
+    p.add_argument('--reps', type=COUNT, default=4, metavar='N', help='pools for each size (default 4)')
+    workers_option(p)
     json_option(p)
 
     p = command('flags', cmd_flags, 'Score every warning light over silent seasons',

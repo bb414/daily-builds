@@ -26,7 +26,7 @@ __all__ = [
     'civil_from_days', 'format_day', 'parse_day', 'SEASON_START', 'season_logbook', 'parse_csv', 'to_csv',
     'read_logbook', 'analyse_logbook', 'player_series', 'FACTOR_LABELS', 'injury_factors', 'inquest',
     'RATIO_LEVELS', 'BUDGET_LEVELS', 'ROTATE_LEVELS', 'tradeoff_options', 'break_even', 'tradeoff', 'best_option',
-    'ASSUMPTIONS', 'light_effect', 'robustness', 'robustness_map',
+    'ASSUMPTIONS', 'light_effect', 'robustness', 'robustness_map', 'hazard_rows', 'fit_hazard', 'fit_spike_effect',
 ]
 
 VERSION = '1.0'
@@ -1766,6 +1766,157 @@ def player_series(res, player):
     return out
 
 
+# ---------- calibration: what a logbook says about how much load spikes cause injury ----------
+def hazard_rows(book, only=None):
+    """Player-days with exposure as the hidden truth sees them (spike, under-training, log minutes, soft-tissue
+    injury that day), after a 28-day warm-up and leaving out a fortnight after each injury."""
+    has_nc = any(x['type'] == 'non-contact' for x in book['injuries'])
+    only = only or ('non-contact' if has_nc else 'all')
+    rows = []
+    for p in range(len(book['names'])):
+        L, Mn, T = book['loads'][p], book['minutes'][p], book['span']
+        first = 0
+        while first < T and not (L[first] > 0):
+            first += 1
+        if first >= T:
+            continue
+        warm, n_warm = 0, 0
+        for k in range(first, min(T, first + 28)):
+            warm += L[k]
+            n_warm += 1
+        atl = ctl = warm / n_warm
+        inj_days, out = set(), set()
+        for x in book['injuries']:
+            if x['player'] != p:
+                continue
+            if only == 'all' or x['type'] == only:
+                inj_days.add(x['day'])
+            for d in range(x['day'] + 1, x['day'] + 15):
+                out.add(d)
+        for t in range(first, T):
+            atl = atl + (L[t] - atl) / 7
+            ctl = ctl + (L[t] - ctl) / 42
+            if t - first < 28 or t in out or not (Mn[t] > 0):
+                continue
+            rows.append({'spike': max(0, atl / max(ctl, 80) - _SPIKE_FROM), 'under': max(0, 1 - ctl / CTL_REF),
+                         'logMin': det_log(Mn[t]), 'y': 1 if t in inj_days else 0})
+    return {'rows': rows, 'only': only}
+
+
+def fit_hazard(rows, fixed_b=None, start=None):
+    """Fisher scoring for chance = 1 - exp(-exp(a + c*under + b*spike) * minutes); b is estimated unless fixed."""
+    est = fixed_b is None
+    k = 3 if est else 2
+    beta = [det_log(0.00002), 0, 0]
+    if start:
+        beta = [start['a'], start['c'], start['b'] if est else 0]
+    else:
+        events, expo = 0, 0
+        for r in rows:
+            events += r['y']
+            expo += det_exp(r['logMin'])
+        if events > 0:
+            beta[0] = det_log(events / expo)
+    iterations = 0
+    for _ in range(40):
+        iterations += 1
+        g = [0] * k
+        H = [[0] * k for _ in range(k)]
+        for row in rows:
+            x = [1, row['under'], row['spike']] if est else [1, row['under']]
+            eta = beta[0] + beta[1] * row['under'] + (beta[2] if est else fixed_b) * row['spike'] + row['logMin']
+            mu = det_exp(eta)
+            q = det_exp(-mu)
+            pr = 1 - q
+            if pr < 1e-300:
+                pr = 1e-300
+            score = mu * q / pr if row['y'] else -mu
+            w = mu * mu * q / pr
+            for a2 in range(k):
+                g[a2] += score * x[a2]
+                for c2 in range(k):
+                    H[a2][c2] += w * x[a2] * x[c2]
+        step = solve_linear(H, g)
+        size = 0
+        for j in range(k):
+            sj = clamp(step[j], -3, 3)
+            beta[j] += sj
+            size = max(size, abs(sj))
+        if size < 1e-7:
+            break
+    ll = 0
+    info = [[0] * k for _ in range(k)]
+    for row in rows:
+        mu = det_exp(beta[0] + beta[1] * row['under'] + (beta[2] if est else fixed_b) * row['spike'] + row['logMin'])
+        q = det_exp(-mu)
+        pr = max(1 - q, 1e-300)
+        ll += det_log(pr) if row['y'] else -mu
+        x = [1, row['under'], row['spike']] if est else [1, row['under']]
+        w = mu * mu * q / pr
+        for a4 in range(k):
+            for c4 in range(k):
+                info[a4][c4] += w * x[a4] * x[c4]
+    se = []
+    for j2 in range(k):
+        col = solve_linear(info, [1 if u == j2 else 0 for u in range(k)])
+        se.append(math.sqrt(col[j2]) if col[j2] > 0 else math.nan)
+    return {'a': beta[0], 'c': beta[1], 'b': beta[2] if est else fixed_b, 'll': ll, 'iterations': iterations,
+            'seB': se[2] if est else math.nan}
+
+
+def fit_spike_effect(book, opts=None):
+    """The spike effect's estimate and 95% profile-likelihood interval, on a grid of b from 0 to 6."""
+    opts = opts or {}
+    hr = hazard_rows(book, opts.get('only'))
+    rows = hr['rows']
+    events = 0
+    for r in rows:
+        events += r['y']
+    spiky = sum(1 for r in rows if r['spike'] > 0)
+    out = {'only': hr['only'], 'rows': len(rows), 'events': events,
+           'spikyShare': spiky / len(rows) if rows else math.nan, 'b': math.nan, 'ci': [math.nan, math.nan],
+           'profile': [], 'truth': opts.get('truth')}
+    if events < 3 or spiky < 10:
+        out['error'] = 'Too few injuries or load spikes to estimate the effect.'
+        return out
+    full = fit_hazard(rows)
+    b_hat = clamp(full['b'], 0, 6)
+    ll_max = full['ll'] if b_hat == full['b'] else fit_hazard(rows, b_hat, full)['ll']
+    grid = [g * 0.25 for g in range(25)]
+    prev = full
+    profile = []
+    for b in grid:
+        f = fit_hazard(rows, b, prev)
+        prev = f
+        profile.append({'b': b, 'll': f['ll']})
+    out['profile'] = profile
+    for pt in profile:
+        if pt['ll'] > ll_max:
+            ll_max = pt['ll']
+    cut = ll_max - 1.920729410347062
+    lo, hi = 0, 6
+    inside = [pt['ll'] >= cut for pt in profile]
+    top = 0
+    for i, pt in enumerate(profile):
+        if pt['ll'] > profile[top]['ll']:
+            top = i
+    i1 = top
+    while i1 > 0 and inside[i1 - 1]:
+        i1 -= 1
+    if i1 > 0:
+        A, B = profile[i1 - 1], profile[i1]
+        lo = A['b'] + (cut - A['ll']) / (B['ll'] - A['ll']) * (B['b'] - A['b'])
+    i2 = top
+    while i2 < len(profile) - 1 and inside[i2 + 1]:
+        i2 += 1
+    if i2 < len(profile) - 1:
+        C, D = profile[i2], profile[i2 + 1]
+        hi = C['b'] + (cut - C['ll']) / (D['ll'] - C['ll']) * (D['b'] - C['b'])
+    out.update({'b': b_hat, 'ci': [lo, hi], 'a': full['a'], 'c': full['c'], 'llMax': ll_max,
+                'ciOpen': [i1 == 0 and inside[0], i2 == len(profile) - 1 and inside[-1]]})
+    return out
+
+
 # ---------- dates (civil calendar, no time zones) ----------
 def days_from_civil(y, m, d):
     """Days since 1970-01-01 of a proleptic Gregorian date."""
@@ -1969,7 +2120,12 @@ def read_logbook(table):
             inj_type = ''
         else:
             inj_type = 'contact' if inj.startswith('contact') else 'non-contact'
-        sessions.append({'day': day, 'player': name, 'load': ld, 'injury': inj_type})
+        mcell = _cell(row, col['minutes']) if col['minutes'] >= 0 else None
+        if col['minutes'] >= 0 and _js_str(_or(mcell, '')).strip(_JS_WS) != '' and _to_number(mcell) >= 0:
+            mins = _to_number(mcell)
+        else:
+            mins = ld / 6
+        sessions.append({'day': day, 'player': name, 'load': ld, 'minutes': mins, 'injury': inj_type})
         if day < min_day:
             min_day = day
         if day > max_day:
@@ -1988,10 +2144,12 @@ def read_logbook(table):
             index[s['player']] = len(names)
             names.append(s['player'])
     loads = [[0.0] * span for _ in names]
+    minutes = [[0.0] * span for _ in names]
     injuries = []
     for s in sessions:
         p = index[s['player']]
         loads[p][s['day'] - min_day] += s['load']
+        minutes[p][s['day'] - min_day] += s['minutes']
         if s['injury']:
             injuries.append({'player': p, 'day': s['day'] - min_day, 'type': s['injury']})
     injuries.sort(key=lambda x: (x['player'], x['day']))
@@ -2002,8 +2160,8 @@ def read_logbook(table):
             dedup.append(x)
     if span < 35:
         warnings.append('Less than five weeks of data: the 28-day ratios need four weeks before they mean anything.')
-    return {'names': names, 'start': min_day, 'span': span, 'loads': loads, 'injuries': dedup,
-            'sessions': len(sessions), 'warnings': warnings}
+    return {'names': names, 'start': min_day, 'span': span, 'loads': loads, 'minutes': minutes,
+            'minutesKnown': col['minutes'] >= 0, 'injuries': dedup, 'sessions': len(sessions), 'warnings': warnings}
 
 
 def analyse_logbook(book, opts=None):
