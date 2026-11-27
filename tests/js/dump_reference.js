@@ -216,6 +216,12 @@ const pilots = [{ settings: {}, pairs: 3 }, { settings: { policy: 'modify', flag
   return { settings: c.settings, pairs: c.pairs, out: M.pilotStudy(c.settings, c.pairs) };
 });
 
+// ---------- the inquest ----------
+const inquests = [{ settings: { policy: 'rest', flag: 'model' }, seed: 6 }, { settings: { policy: 'none', spike: 3 }, seed: 2 },
+  { settings: { policy: 'modify', flag: 'ewma', threshold: 1.3, contactScale: 0.5 }, seed: 9 }].map(function (c) {
+  return { settings: c.settings, seed: c.seed, out: M.inquest(c.settings, c.seed) };
+});
+
 // ---------- logbooks ----------
 const COLUMNS = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
 const lb = M.seasonLogbook({}, 1);
@@ -259,5 +265,5 @@ const logbooks = tricky.map(function (text) {
 
 process.stdout.write(JSON.stringify(plain({
   calls: calls, rng: rng, constants: constants, seasons: seasons, prepared: prepared, series: series,
-  evaluations: evaluations, comparisons: comparisons, pilots: pilots, logbook: logbook, logbooks: logbooks
+  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, logbook: logbook, logbooks: logbooks
 })));

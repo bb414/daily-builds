@@ -313,3 +313,29 @@ test('player series follow the season loads', () => {
   const total = Array.from(r.load[5]).reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(s.weekly.reduce((a, b) => a + b, 0) - total) < 1e-6 * total);
 });
+
+test('the inquest explains each injury exactly and replays one rest on the same luck', () => {
+  const S = M.withDefaults({ policy: 'none', flag: 'model' });
+  const q = M.inquest(S, 3);
+  const res = M.runSeason(S, 3);
+  assert.equal(q.items.length, res.injuriesTotal);
+  assert.equal(q.summary.nc + q.summary.contact, q.items.length);
+  q.items.forEach((it) => {
+    // The factors rebuild the injury's chance that day exactly.
+    const ref = it.type === 'nc' ? M.BASE.trainNC * 70 : M.BASE.trainC * S.contactScale * 80;
+    const chance = 1 - Math.exp(-ref * Math.exp(it.explain.logTotal));
+    assert.ok(Math.abs(chance - it.chance) < 1e-9 * Math.max(1, it.chance), it.name + ' ' + chance + ' ' + it.chance);
+    assert.ok(it.explain.factors.every((f) => M.FACTOR_LABELS[f.id]));
+    if (it.lights) {
+      assert.equal(typeof it.avoided, 'boolean');
+      M.FLAGS.forEach((f) => assert.ok(it.lights[f].rank >= 0 && it.lights[f].rank <= 1));
+    } else assert.equal(it.avoided, null);
+  });
+  assert.ok(q.summary.contactAvoidable >= q.summary.contactChecked * 0.7, 'a week off avoids most contact injuries');
+  // A forced rest keeps the player out of that week's match and cuts his training.
+  const target = q.items.find((it) => it.lights && it.setting === 'match');
+  const alt = M.runSeason(S, 3, { keepDaily: true, forceRest: { player: target.player, week: target.decisionWeek } });
+  const sat = M.HIST + target.decisionWeek * 7 + 5;
+  assert.notEqual(alt.kinds[target.player][sat], 3);
+  assert.equal(alt.status[target.player][M.HIST + target.decisionWeek * 7 + 3], 3);
+});

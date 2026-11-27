@@ -158,6 +158,11 @@ class AgreementTest(unittest.TestCase):
             py = model.pilot_study(case['settings'], case['pairs'])
             self.assertSame(case['out'], py, f'pilotStudy({case["settings"]}, {case["pairs"]})')
 
+    def test_inquest(self):
+        for case in self.ref['inquests']:
+            py = model.inquest(case['settings'], case['seed'])
+            self.assertSame(case['out'], py, f'inquest({case["settings"]}, {case["seed"]})')
+
     def test_season_logbook(self):
         ref = self.ref['logbook']
         lb = model.season_logbook(ref['settings'], ref['seed'])

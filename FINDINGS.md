@@ -60,6 +60,8 @@ The club plays a normal season, pilots the light the next, and compares. With th
 - A fair comparison would need 84 seasons with the light and 84 without to detect the true effect four times in five. One season gives 6% power.
 - 97% of acted-on flags were followed by a quiet fortnight. To a coach that looks like 138 successful interventions a season; in truth it took about 58 acted-on flags to prevent one injury.
 
+Hindsight makes this worse. The inquest replays a season once for every injury with only that player rested that week. Over 20 silent seasons, a rest would have avoided 68% of soft-tissue and 93% of contact injuries, so almost every injury looks preventable after the event, yet the AI had flagged only 24% of the soft-tissue injuries beforehand (the EWMA ratio at 1.5, 6%).
+
 The companion also designed a cluster-randomised trial across clubs. With three seasons per club, the power to detect the pooled effect (1.6 fewer injuries) was 0% with 4 clubs, 3% with 8, 6% with 16 and 13% with 32. The evidence a sport would need is out of reach of any single club and most leagues.
 
 ## Result 5: the verdict depends on something nobody can see

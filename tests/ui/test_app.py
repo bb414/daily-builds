@@ -96,6 +96,20 @@ class AppTest(unittest.TestCase):
         self.assertEqual([], self.errors)
         self.assertTrue(before)
 
+    def test_the_inquest_lists_injuries_and_opens_player_files(self):
+        page = self.open()
+        page.wait_for_selector('#inquest-out table')
+        soft = page.locator('#inquest-out tbody tr').count()
+        self.assertGreater(soft, 3)
+        page.click('label[for="inq-all"]')
+        page.wait_for_function('document.querySelectorAll("#inquest-out tbody tr").length > %d' % soft)
+        self.assertIn('acting on the light', page.text_content('#inquest-out .note-card'))
+        button = page.locator('#inquest-out button.linkish').nth(2)
+        name = button.text_content()
+        button.click()
+        page.wait_for_function('document.querySelector("#player-card .pname").textContent === %r' % name)
+        self.assertEqual([], self.errors)
+
     def test_ratio_and_budget_controls_follow_the_light(self):
         page = self.open()
         self.assertTrue(page.is_hidden('#threshold-field'))

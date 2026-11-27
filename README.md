@@ -33,7 +33,7 @@ start app\index.html       # Windows
 
 The app is styled as the club's match-day programme, with numbered shirts for pages and the coach's clipboard for settings. It opens on a season already played. Its six pages:
 
-1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup final; the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; availability through the season; the league table and every result.
+1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup final; the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; the inquest, which takes every injury in turn and shows the hidden factors behind it, what the light said the Thursday before, and whether resting that player for that one week would have avoided it (the season replayed on the same luck); availability through the season; the league table and every result.
 2. **The warning light.** Thirty seasons with nobody acting on any flag, so five lights are scored against the same soft-tissue injuries: hits against false alarms (ROC curves), each light's score season by season, a scorecard, why the coupled and uncoupled ratios rank players identically but read "1.5" differently, and what the club's risk model learned.
 3. **The pilot season.** The before-and-after comparison a club would actually run, against the true effect on the same luck: what one pilot reports, how many seasons a fair comparison needs, what the coach sees after each rest, and what the light costs in league points.
 4. **Squad policies.** Pick the best, rest the flagged, cut training, planned rotation and pick on readiness, each over the same seasons with paired 95% intervals: injuries, days lost, points, league place and the first-choice XV in the final.
@@ -60,6 +60,7 @@ Python 3.10 or later, standard library only. From the project folder:
 
 ```bash
 python3 -m loadbearing season --seed 6                  # one season, replayed with the light ignored
+python3 -m loadbearing inquest --seed 6                 # why each injury happened, and could a rest have avoided it?
 python3 -m loadbearing flags --seasons 30 --json results/flags.json
 python3 -m loadbearing compare --seasons 30 --csv results/policies.csv
 python3 -m loadbearing pilot --pairs 40                 # could a one-season pilot tell?

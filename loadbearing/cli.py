@@ -367,6 +367,44 @@ def cmd_season(args):
 
 
 # ---------- flags ----------
+def cmd_inquest(args):
+    S = settings_from(args)
+    S['seasonSeed'] = args.seed
+    out = model.inquest(S, args.seed)
+    sm = out['summary']
+    light = model.FLAG_LABELS[S['flag']]
+    say(f'The inquest: every injury of season {args.seed} at {model.CLUB}',
+        wrap(f'Settings: {report.settings_line(S)}. Each injury\'s true risk that day is split into its hidden '
+             'factors (against an average player in a typical session); "the light" is what it said the Thursday '
+             'before; "a rest" replays the season with only that player rested that week, on the same luck.'))
+    rows = []
+    for it in out['items']:
+        lights = it['lights']
+        said = ''
+        if lights:
+            said = ('flagged' if lights[S['flag']]['fired'] else 'quiet') + f", riskier than {pct(lights[S['flag']]['rank'])}"
+        rest = '' if it['avoided'] is None else 'avoided' if it['avoided'] else 'still injured'
+        rows.append([season_date(it['day']), it['name'], 'soft-tissue' if it['type'] == 'nc' else 'contact',
+                     it['setting'], it['days'], model.FACTOR_LABELS.get(it['explain']['main'], 'luck'),
+                     f"{fmt(it['explain']['personal'], 1)}x", said, rest])
+    say('', text_table(['Date', 'Player', 'Type', 'Setting', 'Days out', 'Main factor', 'Personal risk',
+                        f'The light ({light})', 'A rest that week'], rows, right=[4, 6]))
+    say(heading('Summary'), key_values([
+        ('Soft-tissue injuries', f"{sm['nc']}: the light flagged {sm['ncFlagged']} beforehand; a rest that week "
+                                 f"would have avoided {sm['ncAvoidable']} of the {sm['ncChecked']} that had a Thursday before them"),
+        ('Contact injuries', f"{sm['contact']}: flagged {sm['contactFlagged']}; a rest would have avoided "
+                             f"{sm['contactAvoidable']} of {sm['contactChecked']}"),
+        ('Main factors', ', '.join(f"{model.FACTOR_LABELS.get(k, 'luck').lower()} {v}"
+                                   for k, v in sorted(sm['mainCauses'].items(), key=lambda kv: (-kv[1], kv[0])))),
+    ]))
+    say(wrap('In plain English: hindsight makes almost every injury look preventable, because resting a player for '
+             'the week he was hurt nearly always avoids it. The light\'s job is to know which week in advance, and '
+             f"it flagged {sm['ncFlagged'] + sm['contactFlagged']} of {sm['nc'] + sm['contact']} injuries beforehand."))
+    blank_if(args.json)
+    write_json(args.json, {'settings': S, **out})
+    return 0
+
+
 def cmd_flags(args):
     S = settings_from(args)
     seeds = experiments.flag_seeds(args.seasons)
@@ -698,6 +736,7 @@ same command always prints the same numbers."""
 EPILOG = """\
 examples:
   python -m loadbearing season --seed 6
+  python -m loadbearing inquest --seed 6
   python -m loadbearing flags --seasons 30 --json results/flags.json
   python -m loadbearing compare --flag ewma --csv results/policies.csv
   python -m loadbearing pilot --pairs 40
@@ -736,6 +775,13 @@ def build_parser():
                    help=f'the season seed (default {APP_SEASON_SEED}, as in the app)')
     p.add_argument('--matches-csv', metavar='PATH', help='write every match to a CSV file')
     p.add_argument('--logbook', metavar='PATH', help='write the season as a club logbook CSV, one row per session')
+    json_option(p)
+
+    p = command('inquest', cmd_inquest, 'Explain every injury of one season',
+                'For each injury: its hidden risk factors, what each light said the Thursday before, and whether\n'
+                'resting that player that week would have avoided it (the season replayed on the same luck).')
+    p.add_argument('--seed', type=SEEDS, default=APP_SEASON_SEED,
+                   help=f'the season seed (default {APP_SEASON_SEED}, as in the app)')
     json_option(p)
 
     p = command('flags', cmd_flags, 'Score every warning light over silent seasons',

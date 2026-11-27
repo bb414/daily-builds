@@ -24,7 +24,7 @@ __all__ = [
     'boot_mean', 'FLAG_LABELS', 'POLICY_LABELS', 'METRICS', 'evaluate_flags', 'coupling_demo',
     'compare_policies', 'pilot_study', 'power_two_sample', 'seasons_for', 'coach_view', 'days_from_civil',
     'civil_from_days', 'format_day', 'parse_day', 'SEASON_START', 'season_logbook', 'parse_csv', 'to_csv',
-    'read_logbook', 'analyse_logbook', 'player_series',
+    'read_logbook', 'analyse_logbook', 'player_series', 'FACTOR_LABELS', 'injury_factors', 'inquest',
 ]
 
 VERSION = '1.0'
@@ -945,6 +945,11 @@ def simulate_season(ctx, S, season_seed, opts=None):
                     mod_factor[p1] = S['restTraining'] if S['policy'] == 'rest' else 0.6
                     if S['policy'] == 'rest':
                         excluded[p1] = 1
+                force = opts.get('forceRest')
+                if force and force.get('player') == p1 and force.get('week') == w:
+                    mod_until[p1] = d + 6
+                    mod_factor[p1] = S['restTraining']
+                    excluded[p1] = 1
             weekly.append(wk)
         if is_match_day:
             select_team(d)
@@ -1003,7 +1008,8 @@ def simulate_season(ctx, S, season_seed, opts=None):
                         'player': q, 'day': d, 'week': w, 'type': inj_type, 'days': days,
                         'setting': 'match' if kind == _MATCH else 'second' if kind == _SECOND else 'training',
                         'recurrence': recent, 'spike': tm[2], 'under': tm[3],
-                        'mult': tm[0] if inj_type == 'nc' else tm[1]})
+                        'mult': tm[0] if inj_type == 'nc' else tm[1], 'minutes': mn, 'kind': kind,
+                        'chance': p_nc if inj_type == 'nc' else p_c})
                     injured_until[q] = d + 1 + days
                     inj_start[q] = d
                     returned_day[q] = d + 1 + days
@@ -1160,6 +1166,102 @@ def run_season(settings=None, seed=None, opts=None):
     S = with_defaults(settings)
     ctx = prepare(S)
     return simulate_season(ctx, S, S['seasonSeed'] if seed is None else seed, opts)
+
+
+# ---------- the inquest: why each injury happened, and could a rest have avoided it? ----------
+FACTOR_LABELS = {'spike': 'Load spike', 'under': 'Under-trained', 'recent': 'Back from injury', 'frailty': 'Frailty',
+                 'age': 'Age', 'position': 'Position', 'fatigue': 'Fatigue in contact', 'exposure': 'Match or session'}
+
+
+def injury_factors(player, inj, S):
+    """The injury's true risk that day as log-multipliers against an average player in a typical session."""
+    br = _base_rates(inj['kind'], S['contactScale'])
+    if inj['type'] == 'nc':
+        f = [('spike', S['spike'] * inj['spike']), ('under', 0.8 * inj['under']),
+             ('recent', det_log(1.6) if inj['recurrence'] else 0), ('frailty', det_log(player['frailty'])),
+             ('age', 0.03 * (player['age'] - 26)),
+             ('exposure', det_log(br[0] * inj['minutes'] / (BASE['trainNC'] * 70)))]
+    else:
+        f = [('position', det_log(1.15 if player['unit'] == 'F' else 0.85)), ('frailty', 0.3 * det_log(player['frailty'])),
+             ('fatigue', det_log(1 + 0.5 * inj['spike'])),
+             ('exposure', det_log(br[1] * inj['minutes'] / (BASE['trainC'] * S['contactScale'] * 80)))]
+    total, personal, out = 0, 0, []
+    for key, value in f:
+        total += value
+        if key != 'exposure':
+            personal += value
+        out.append({'id': key, 'label': FACTOR_LABELS[key], 'value': value})
+    main = None
+    for x in out:
+        if (x['id'] != 'exposure' or inj['type'] != 'nc') and x['value'] > 0 and (main is None or x['value'] > main['value']):
+            main = x
+    return {'factors': out, 'logTotal': total, 'personal': det_exp(personal), 'main': main['id'] if main else 'luck'}
+
+
+def _active_flag_for(f, sc, S, ctx):
+    if f in _RATIO_FLAGS:
+        return sc[f] >= S['threshold']
+    return sc[f] >= ctx['cutoffs'][f]
+
+
+def inquest(settings=None, seed=None):
+    """Every injury of one season: its true risk factors, what each light said the Thursday before, and whether
+    resting that player for that week (same luck) would have avoided it."""
+    S = with_defaults(settings)
+    ctx = prepare(S)
+    sd0 = S['seasonSeed'] if seed is None else seed
+    res = simulate_season(ctx, S, sd0, {'collectRows': True})
+    players = ctx['squad']['players']
+    by_week = {}
+    for r in res['rows']:
+        by_week.setdefault(r['week'], []).append(r)
+    items = []
+    for inj in res['injuries']:
+        wk = math.floor((inj['day'] - _DECISION_DAY) / 7)
+        pl = players[inj['player']]
+        item = {'player': inj['player'], 'name': pl['name'], 'group': pl['group'], 'day': inj['day'],
+                'week': inj['week'], 'type': inj['type'], 'setting': inj['setting'], 'days': inj['days'],
+                'chance': inj['chance'], 'explain': injury_factors(pl, inj, S), 'decisionWeek': wk,
+                'lights': None, 'avoided': None, 'pointsCost': None}
+        rows_w = by_week.get(wk, []) if wk >= 0 else []
+        row = None
+        for r in rows_w:
+            if r['player'] == inj['player']:
+                row = r
+        if row is not None:
+            item['lights'] = {}
+            for f in FLAGS:
+                below = sum(1 for r in rows_w if r['scores'][f] < row['scores'][f])
+                item['lights'][f] = {'score': row['scores'][f], 'fired': _active_flag_for(f, row['scores'], S, ctx),
+                                     'rank': below / (len(rows_w) - 1) if len(rows_w) > 1 else 0}
+            alt = simulate_season(ctx, S, sd0, {'forceRest': {'player': inj['player'], 'week': wk}})
+            start = wk * 7 + _DECISION_DAY
+            hit = any(j['player'] == inj['player'] and start <= j['day'] <= start + 6 for j in alt['injuries'])
+            item['avoided'] = not hit
+            item['pointsCost'] = alt['points'] - res['points']
+        items.append(item)
+
+    def tally(kind, key=None):
+        return sum(1 for it in items if it['type'] == kind and (key is None or key(it)))
+
+    def flagged_by(it):
+        return it['lights'] is not None and it['lights'][S['flag']]['fired']
+
+    causes = {}
+    for it in items:
+        causes[it['explain']['main']] = causes.get(it['explain']['main'], 0) + 1
+    return {
+        'seed': sd0, 'flag': S['flag'], 'items': items,
+        'summary': {
+            'nc': tally('nc'), 'contact': tally('contact'),
+            'ncFlagged': tally('nc', flagged_by), 'contactFlagged': tally('contact', flagged_by),
+            'ncAvoidable': tally('nc', lambda it: it['avoided'] is True),
+            'contactAvoidable': tally('contact', lambda it: it['avoided'] is True),
+            'ncChecked': tally('nc', lambda it: it['avoided'] is not None),
+            'contactChecked': tally('contact', lambda it: it['avoided'] is not None),
+            'mainCauses': causes,
+        },
+    }
 
 
 # ---------- statistics helpers ----------

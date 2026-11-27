@@ -102,6 +102,16 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(cli.LOGBOOK_HEADER, logbook[0])
         self.assertGreater(len(logbook), 6000)
 
+    def test_inquest(self):
+        out = self.ok('inquest', '--seed', 3, '--policy', 'none', '--json', self.path('inquest', 'inquest.json'))
+        for text in ('The inquest', 'Hidden', 'A rest that week', 'Soft-tissue injuries', 'In plain English'):
+            self.assertIn(text, out.replace('hidden factors', 'Hidden'))
+        doc = read_json(self.path('inquest', 'inquest.json'))
+        ref = model.inquest({'policy': 'none', 'flag': 'model', 'seasonSeed': 3}, 3)
+        self.assertEqual(ref['summary'], doc['summary'])
+        self.assertEqual(len(ref['items']), len(doc['items']))
+        self.assertEqual(model.run_season({'policy': 'none', 'flag': 'model'}, 3)['injuriesTotal'], len(doc['items']))
+
     def test_season_without_the_light_has_no_replay(self):
         out = self.ok('season', '--policy', 'none', '--seed', 2)
         self.assertIn('nothing to replay', out)

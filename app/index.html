@@ -298,6 +298,9 @@ table.sheet-table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
 .sheet-table .ci { color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
 .policy-table td:first-child { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: 14px; white-space: nowrap; }
 .policy-table th { white-space: nowrap; }
+.linkish { background: none; border: 0; padding: 0; color: var(--claret); font-weight: 700; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; text-align: left; }
+.sheet-table.inquest td { vertical-align: middle; }
+.sheet-table td.nowrap { white-space: nowrap; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, .25); }
 .better { color: var(--pitch); font-weight: 700; }
 .worse { color: var(--claret); font-weight: 700; }
@@ -1246,6 +1249,11 @@ var LoadBearing = (function () {
             modFactor[p1] = S.policy === 'rest' ? S.restTraining : 0.6;
             if (S.policy === 'rest') excluded[p1] = 1;
           }
+          if (opts.forceRest && opts.forceRest.player === p1 && opts.forceRest.week === w) {
+            modUntil[p1] = d + 6;
+            modFactor[p1] = S.restTraining;
+            excluded[p1] = 1;
+          }
         }
         weekly.push(wk);
       }
@@ -1293,7 +1301,8 @@ var LoadBearing = (function () {
             var days = roundHalfUp(clamp(detExp(detLog(med) + sig * invNorm(u3)) * (recent ? 1.4 : 1), 2, 120));
             injuries.push({ player: q, day: d, week: w, type: type, days: days,
               setting: kind === KIND.MATCH ? 'match' : kind === KIND.SECOND ? 'second' : 'training',
-              recurrence: recent, spike: tm[2], under: tm[3], mult: type === 'nc' ? tm[0] : tm[1] });
+              recurrence: recent, spike: tm[2], under: tm[3], mult: type === 'nc' ? tm[0] : tm[1], minutes: mn, kind: kind,
+              chance: type === 'nc' ? pNC : pC });
             injuredUntil[q] = d + 1 + days;
             injStart[q] = d;
             returnedDay[q] = d + 1 + days;
@@ -1428,6 +1437,95 @@ var LoadBearing = (function () {
     var S = withDefaults(settings);
     var ctx = prepare(S);
     return simulateSeason(ctx, S, seed === undefined ? S.seasonSeed : seed, opts);
+  }
+
+  /* ---------- the inquest: why each injury happened, and could a rest have avoided it? ---------- */
+  var FACTOR_LABELS = { spike: 'Load spike', under: 'Under-trained', recent: 'Back from injury', frailty: 'Frailty',
+    age: 'Age', position: 'Position', fatigue: 'Fatigue in contact', exposure: 'Match or session' };
+
+  /* The injury's true risk that day as a sum of log-multipliers against an average player in a typical session:
+     a 70-minute training session for soft-tissue injuries, an 80-minute contact session for contact ones. */
+  function injuryFactors(player, inj, S) {
+    var f = [];
+    var br = baseRates(inj.kind, S.contactScale);
+    if (inj.type === 'nc') {
+      f.push(['spike', S.spike * inj.spike], ['under', 0.8 * inj.under], ['recent', inj.recurrence ? detLog(1.6) : 0],
+        ['frailty', detLog(player.frailty)], ['age', 0.03 * (player.age - 26)],
+        ['exposure', detLog(br[0] * inj.minutes / (BASE.trainNC * 70))]);
+    } else {
+      f.push(['position', detLog(player.unit === 'F' ? 1.15 : 0.85)], ['frailty', 0.3 * detLog(player.frailty)],
+        ['fatigue', detLog(1 + 0.5 * inj.spike)],
+        ['exposure', detLog(br[1] * inj.minutes / (BASE.trainC * S.contactScale * 80))]);
+    }
+    var total = 0, personal = 0;
+    var out = f.map(function (x) {
+      total += x[1];
+      if (x[0] !== 'exposure') personal += x[1];
+      return { id: x[0], label: FACTOR_LABELS[x[0]], value: x[1] };
+    });
+    var main = null;
+    out.forEach(function (x) {
+      if ((x.id !== 'exposure' || inj.type !== 'nc') && x.value > 0 && (!main || x.value > main.value)) main = x;
+    });
+    return { factors: out, logTotal: total, personal: detExp(personal), main: main ? main.id : 'luck' };
+  }
+
+  function inquest(settings, seed) {
+    var S = withDefaults(settings);
+    var ctx = prepare(S);
+    var sd0 = seed === undefined ? S.seasonSeed : seed;
+    var res = simulateSeason(ctx, S, sd0, { collectRows: true });
+    var players = ctx.squad.players;
+    var byWeek = {};
+    res.rows.forEach(function (r) { (byWeek[r.week] = byWeek[r.week] || []).push(r); });
+    var items = res.injuries.map(function (inj) {
+      var wk = Math.floor((inj.day - DECISION_DAY) / 7);
+      var item = { player: inj.player, name: players[inj.player].name, group: players[inj.player].group, day: inj.day,
+        week: inj.week, type: inj.type, setting: inj.setting, days: inj.days, chance: inj.chance,
+        explain: injuryFactors(players[inj.player], inj, S), decisionWeek: wk, lights: null, avoided: null, pointsCost: null };
+      var rowsW = wk >= 0 ? (byWeek[wk] || []) : [];
+      var row = null;
+      rowsW.forEach(function (r) { if (r.player === inj.player) row = r; });
+      if (row) {
+        item.lights = {};
+        FLAGS.forEach(function (f) {
+          var below = 0;
+          rowsW.forEach(function (r) { if (r.scores[f] < row.scores[f]) below += 1; });
+          item.lights[f] = { score: row.scores[f], fired: activeFlagFor(f, row.scores, S, ctx), rank: rowsW.length > 1 ? below / (rowsW.length - 1) : 0 };
+        });
+        var alt = simulateSeason(ctx, S, sd0, { forceRest: { player: inj.player, week: wk } });
+        var from = wk * 7 + DECISION_DAY, hit = false;
+        alt.injuries.forEach(function (j) { if (j.player === inj.player && j.day >= from && j.day <= from + 6) hit = true; });
+        item.avoided = !hit;
+        item.pointsCost = alt.points - res.points;
+      }
+      return item;
+    });
+    var tally = function (type, key) {
+      return items.filter(function (it) { return it.type === type && (key ? key(it) : true); }).length;
+    };
+    var flaggedBy = function (it) { return it.lights && it.lights[S.flag].fired; };
+    var avoided = function (it) { return it.avoided === true; };
+    return {
+      seed: sd0, flag: S.flag, items: items,
+      summary: {
+        nc: tally('nc'), contact: tally('contact'),
+        ncFlagged: tally('nc', flaggedBy), contactFlagged: tally('contact', flaggedBy),
+        ncAvoidable: tally('nc', avoided), contactAvoidable: tally('contact', avoided),
+        ncChecked: tally('nc', function (it) { return it.avoided !== null; }),
+        contactChecked: tally('contact', function (it) { return it.avoided !== null; }),
+        mainCauses: (function () {
+          var c = {};
+          items.forEach(function (it) { c[it.explain.main] = (c[it.explain.main] || 0) + 1; });
+          return c;
+        })()
+      }
+    };
+  }
+
+  function activeFlagFor(f, sc, S, ctx) {
+    if (RATIO_FLAGS[f]) return sc[f] >= S.threshold;
+    return sc[f] >= ctx.cutoffs[f];
   }
 
   /* ---------- statistics helpers ---------- */
@@ -1971,7 +2069,8 @@ var LoadBearing = (function () {
     pilotStudy: pilotStudy, powerTwoSample: powerTwoSample, seasonsFor: seasonsFor, coachView: coachView,
     daysFromCivil: daysFromCivil, civilFromDays: civilFromDays, formatDay: formatDay, parseDay: parseDay,
     SEASON_START: SEASON_START, seasonLogbook: seasonLogbook, parseCSV: parseCSV, toCSV: toCSV,
-    readLogbook: readLogbook, analyseLogbook: analyseLogbook, playerSeries: playerSeries
+    readLogbook: readLogbook, analyseLogbook: analyseLogbook, playerSeries: playerSeries,
+    FACTOR_LABELS: FACTOR_LABELS, injuryFactors: injuryFactors, inquest: inquest
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearing;
@@ -2034,6 +2133,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   var COLORS = {};
   function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
   function loadColors() {
+    FACTOR_COLORS = { spike: cssVar('--claret'), under: cssVar('--amber-deep'), recent: cssVar('--navy'), frailty: cssVar('--ink-soft'),
+      age: cssVar('--ink-faint'), position: cssVar('--pitch'), fatigue: cssVar('--claret-soft'), exposure: cssVar('--pitch') };
     ['none', 'rest', 'modify', 'rotate', 'readiness'].forEach(function (p) { COLORS[p] = cssVar('--c-' + p); });
     ['coupled', 'uncoupled', 'ewma', 'model', 'oracle'].forEach(function (f) { COLORS[f] = cssVar('--c-' + f); });
     ['claret', 'claret-deep', 'amber', 'amber-deep', 'amber-pale', 'ink', 'ink-soft', 'ink-faint', 'pitch', 'pitch-pale', 'navy',
@@ -2360,6 +2461,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     html.push('<div class="card"><p class="kicker">The availability board</p><h3>Every player, every week</h3><p class="sub">Darker squares are heavier weeks. Click a player to see his season below. Results run along the top.</p><div class="board-wrap" id="board"></div>' +
       '<div class="board-legend"><span><i style="background:#f6ead0"></i>Light week</span><span><i style="background:' + COLORS.claret + '"></i>Heavy week</span><span><i style="background:#2e2526"></i>Injured</span><span><i style="background:' + COLORS['pitch-pale'] + '"></i>Coming back</span><span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="' + COLORS.amber + '" stroke="#5a3b0a"/></svg>Flagged on Thursday</span><span><svg width="12" height="12" aria-hidden="true"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="#ffd27a" stroke="#241a1c"/></svg>Soft-tissue injury</span><span><svg width="12" height="12" aria-hidden="true"><path d="M2 2 L10 10 M10 2 L2 10" stroke="#fff" stroke-width="2.4"/><path d="M2 2 L10 10 M10 2 L2 10" stroke="#c0392b" stroke-width="1.4"/></svg>Contact injury</span></div></div>');
     html.push('<div class="card" id="player-card"></div>');
+    html.push('<div class="card" id="inquest-card"><p class="kicker">The inquest</p><h3>Why each injury happened</h3><div id="inquest-out"></div></div>');
     html.push('<div class="grid-2"><div class="card"><p class="kicker">Availability</p><h3>Who was fit to play</h3><p class="sub">Players injured each week, and how many of the first-choice XV started each match.</p><div class="chart" id="avail-chart"></div></div>' +
       '<div class="card"><p class="kicker">Final table</p><h3>The league</h3><div class="table-wrap" id="table-out"></div></div></div>');
     html.push('<div class="card"><p class="kicker">Fixtures and results</p><h3>The season\'s matches</h3><p class="sub">Margin of victory or defeat; cup ties are outlined in gold.</p><ul class="fixtures" id="fixtures"></ul></div>');
@@ -2367,6 +2469,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     drawBoard(res, ctx);
     drawPlayer(res, ctx);
     chart($('avail-chart'), function () { drawAvailability($('avail-chart'), res); });
+    renderInquest(ctx);
     $('table-out').innerHTML = '<table class="sheet-table"><caption class="sr-only">Final league table</caption><thead><tr><th class="num">Pos</th><th>Club</th><th class="num">Points</th><th class="num">Points diff</th></tr></thead><tbody>' +
       res.table.map(function (r) { return '<tr class="' + (r.us ? 'us' : '') + '"><td class="num">' + r.position + '</td><td>' + esc(r.name) + '</td><td class="num">' + r.points + '</td><td class="num">' + signed(r.diff) + '</td></tr>'; }).join('') + '</tbody></table>';
     $('fixtures').innerHTML = res.matches.map(function (mt) {
@@ -2397,6 +2500,76 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         'So this policy changed injuries by ' + signed(dI) + ', days lost by ' + signed(res.daysLost - base.daysLost) + ' and league points by ' + signed(dP) + '. Only a simulation can replay a season like this; the Pilot page shows what a real club would see instead.</p>');
     }
     return '<div class="note-card"><p class="from">Physio\'s note &middot; ' + esc(POLICY_SHORT[S.policy]) + ', ' + esc(name) + '</p>' + p.join('') + '</div>';
+  }
+
+  /* The inquest: every injury, its hidden factors, what the light said and whether a rest would have avoided it. */
+  var FACTOR_COLORS = {};
+  var inquestState = { all: false };
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dayMonth(z) { var c = M.civilFromDays(z); return c[2] + ' ' + MONTHS[c[1] - 1]; }
+  function renderInquest(ctx) {
+    var host = $('inquest-out'), key = 'inq' + JSON.stringify(S);
+    if (!host) return;
+    if (cache[key]) return drawInquest(cache[key], ctx);
+    busy(host, 'Replaying the season once for every injury');
+    run('inquest', [S, S.seasonSeed]).then(function (q) {
+      cache[key] = q;
+      if (view === 'season' && $('inquest-out') && key === 'inq' + JSON.stringify(S)) drawInquest(q, ctx);
+    }).catch(function (e) { failed(host, e); });
+  }
+  function factorBar(ex) {
+    var W = 190, H = 18, mid = 56, scale = 34, s = '<svg width="' + W + '" height="' + H + '" aria-hidden="true">';
+    s += '<line x1="' + mid + '" x2="' + mid + '" y1="0" y2="' + H + '" stroke="' + COLORS.ink + '"/>';
+    var pos = mid, neg = mid;
+    ex.factors.forEach(function (f) {
+      if (f.id === 'exposure' || Math.abs(f.value) < 0.005) return;
+      var w = Math.min(Math.abs(f.value) * scale, f.value > 0 ? W - pos : neg);
+      if (w <= 0) return;
+      var x = f.value > 0 ? pos : neg - w;
+      s += '<rect x="' + x.toFixed(1) + '" y="3" width="' + w.toFixed(1) + '" height="12" fill="' + FACTOR_COLORS[f.id] + '"><title>' + esc(f.label + ': ' + (f.value > 0 ? 'times ' : 'divided by ') + fmt(Math.exp(Math.abs(f.value)), 2)) + '</title></rect>';
+      if (f.value > 0) pos += w; else neg -= w;
+    });
+    return s + '</svg>';
+  }
+  function drawInquest(q, ctx) {
+    var host = $('inquest-out');
+    var sm = q.summary, light = FLAG_SHORT[S.flag];
+    var flaggedAll = sm.ncFlagged + sm.contactFlagged, all = sm.nc + sm.contact;
+    var html = [];
+    html.push('<p class="sub">Each injury\'s true risk that day, split into the hidden factors behind it (bars to the right raise it, to the left lower it, against an average player in the same session). Then what ' + esc(light) + ' said the Thursday before, and whether resting that player for that one week would have avoided it: the season replayed on the same luck with only that change.</p>');
+    html.push('<div class="note-card" style="margin-bottom:14px"><p class="from">Coroner\'s summary</p><p class="big">Hindsight makes ' + fmt(sm.ncAvoidable + sm.contactAvoidable) + ' of ' + fmt(sm.ncChecked + sm.contactChecked) + ' injuries look avoidable. The light flagged ' + fmt(flaggedAll) + ' of ' + fmt(all) + ' beforehand.</p>' +
+      '<p>A week off avoids almost any injury, because it changes what the player does on the day his luck runs out: all ' + fmt(sm.contactAvoidable) + ' contact injuries it would have avoided were simply matches not played. The hard part is knowing which week, and that is the light\'s whole job. Of the ' + fmt(sm.nc) + ' soft-tissue injuries, ' + fmt(sm.ncFlagged) + ' ' + (sm.ncFlagged === 1 ? 'was' : 'were') + ' flagged in advance.</p>' +
+      (S.policy === 'rest' || S.policy === 'modify' ? '<p>The coach is acting on the light this season, so any injury it flagged and the rest averted never happened and is not listed. Choose "Pick the best" on the clipboard to see every injury it could have caught.</p>' : '') + '</div>');
+    var showAll = inquestState.all;
+    html.push('<div class="btn-row" style="margin:0 0 8px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Show</span><div class="tickets" role="radiogroup" aria-label="Injuries to show" style="min-width:260px">' +
+      '<input type="radio" name="inq-show" id="inq-nc" value="nc"' + (showAll ? '' : ' checked') + '><label for="inq-nc">Soft-tissue (' + sm.nc + ')</label>' +
+      '<input type="radio" name="inq-show" id="inq-all" value="all"' + (showAll ? ' checked' : '') + '><label for="inq-all">All (' + all + ')</label></div></div>');
+    html.push('<div class="table-wrap"><table class="sheet-table inquest"><thead><tr><th>When</th><th>Player</th><th>Injury</th><th>Hidden factors</th><th>The light said</th><th>A rest that week</th></tr></thead><tbody>' +
+      q.items.filter(function (it) { return showAll || it.type === 'nc'; }).map(function (it) {
+        var l = it.lights ? it.lights[S.flag] : null;
+        var said = l ? (l.fired ? '<b class="worse">Flagged</b>' : 'Quiet') + ' <span class="ci">(riskier than ' + pct(l.rank) + ')</span>' : '<span class="ci">no reading yet</span>';
+        var rest = it.avoided === null ? '<span class="ci">n/a</span>' : it.avoided ? '<span class="better">Avoided</span>' : '<span class="worse">Still injured</span>';
+        return '<tr><td class="nowrap">' + esc(shortWeek(it.week)) + ' <span class="ci">' + esc(dayMonth(M.SEASON_START + M.HIST + it.day)) + '</span></td>' +
+          '<td class="nowrap"><button type="button" class="linkish" data-p="' + it.player + '">' + esc(it.name) + '</button> <span class="ci">' + esc(groupLabelOf(it.group)) + '</span></td>' +
+          '<td>' + (it.type === 'nc' ? 'Soft-tissue' : 'Contact') + ', ' + (it.setting === 'second' ? 'second team' : it.setting) + ' <span class="ci">' + plural(it.days, 'day') + ' out</span></td>' +
+          '<td class="nowrap">' + factorBar(it.explain) + '<br><span class="ci">' + esc(M.FACTOR_LABELS[it.explain.main] || 'Luck') + (it.type === 'nc' ? ', ' + fmt(it.explain.personal, 1) + ' times average' : '') + '</span></td>' +
+          '<td>' + said + '</td><td class="nowrap">' + rest + '</td></tr>';
+      }).join('') + '</tbody></table></div>');
+    html.push('<ul class="legend">' + ['spike', 'under', 'recent', 'frailty', 'age', 'position', 'fatigue'].map(function (k) {
+      return '<li><span class="key box" style="background:' + FACTOR_COLORS[k] + '"></span>' + esc(M.FACTOR_LABELS[k]) + '</li>';
+    }).join('') + '</ul>');
+    host.innerHTML = html.join('');
+    host.querySelectorAll('input[name="inq-show"]').forEach(function (rb) {
+      rb.addEventListener('change', function () { inquestState.all = this.value === 'all'; drawInquest(q, ctx); });
+    });
+    host.querySelectorAll('button.linkish').forEach(function (b) {
+      b.addEventListener('click', function () {
+        seasonState.player = +b.getAttribute('data-p');
+        var pick = $('player-pick');
+        if (pick) { pick.value = String(seasonState.player); pick.dispatchEvent(new Event('change')); }
+        $('player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }
 
   function weekStatus(res, p, w) {
