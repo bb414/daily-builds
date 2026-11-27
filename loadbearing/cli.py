@@ -382,13 +382,14 @@ def cmd_inquest(args):
         lights = it['lights']
         said = ''
         if lights:
-            said = ('flagged' if lights[S['flag']]['fired'] else 'quiet') + f", riskier than {pct(lights[S['flag']]['rank'])}"
+            said = ('flagged' if lights[S['flag']]['fired'] else 'quiet') + f" ({pct(lights[S['flag']]['rank'])})"
         rest = '' if it['avoided'] is None else 'avoided' if it['avoided'] else 'still injured'
         rows.append([season_date(it['day']), it['name'], 'soft-tissue' if it['type'] == 'nc' else 'contact',
                      it['setting'], it['days'], model.FACTOR_LABELS.get(it['explain']['main'], 'luck'),
                      f"{fmt(it['explain']['personal'], 1)}x", said, rest])
     say('', text_table(['Date', 'Player', 'Type', 'Setting', 'Days out', 'Main factor', 'Personal risk',
-                        f'The light ({light})', 'A rest that week'], rows, right=[4, 6]))
+                        'The light said', 'A rest that week'], rows, right=[4, 6]))
+    say(f'"The light said" is {light}, read the Thursday before, with the share of the squad it rated him riskier than.')
     say(heading('Summary'), key_values([
         ('Soft-tissue injuries', f"{sm['nc']}: the light flagged {sm['ncFlagged']} beforehand; a rest that week "
                                  f"would have avoided {sm['ncAvoidable']} of the {sm['ncChecked']} that had a Thursday before them"),

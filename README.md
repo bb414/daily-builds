@@ -31,7 +31,7 @@ xdg-open app/index.html    # Linux
 start app\index.html       # Windows
 ```
 
-The app is styled as the club's match-day programme, with numbered shirts for pages and the coach's clipboard for settings. It opens on a season already played. Its eight pages:
+The app is styled as the club's match-day programme, with a floodlit ground on the cover, numbered shirts for pages, the coach's clipboard for settings (it folds away on a phone) and scoreboards for the headline figures. It opens on a season already played. Its eight pages:
 
 1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup final; the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; the inquest, which takes every injury in turn and shows the hidden factors behind it, what the light said the Thursday before, and whether resting that player for that one week would have avoided it (the season replayed on the same luck); availability through the season; the league table and every result.
 2. **The warning light.** Thirty seasons with nobody acting on any flag, so five lights are scored against the same soft-tissue injuries: hits against false alarms (ROC curves), each light's score season by season, a scorecard, why the coupled and uncoupled ratios rank players identically but read "1.5" differently, and what the club's risk model learned.
@@ -46,13 +46,19 @@ The clipboard sets what the coach does, which light, its flag level, the pre-sea
 
 ![The availability board: one row per player and one column per week, shaded by load, with injuries, flags and results marked, and the player file below](docs/board.png)
 
+![The inquest: every soft-tissue injury of the season with the hidden factors behind it, what the light said the Thursday before and whether a rest that week would have avoided it](docs/inquest.png)
+
 ![The warning light page: four lights and a perfect-knowledge ceiling scored against the same injuries, with ROC curves and single-season scores](docs/light.png)
 
 ![The pilot season page: the true effect against what one pilot reports, and the number of seasons a fair comparison would need](docs/pilot.png)
 
 ![The squad policies page: five ways to manage the squad on the same seasons, with paired differences and intervals](docs/policies.png)
 
-![Your logbook: the sample logbook analysed, with the scorecard, a permutation test and one player's load and ratios](docs/logbook.png)
+![The trade-off page: every option as days saved against points lost, with the break-even line for the chosen worth of a league point](docs/tradeoff.png)
+
+![The hidden truth page: how the light's value moves as each assumption is pushed low and high](docs/hidden.png)
+
+![Your logbook: the sample logbook analysed, with the scorecard, a permutation test and the calibration of the spike effect](docs/logbook.png)
 
 ![The app on a phone](docs/phone.png)
 

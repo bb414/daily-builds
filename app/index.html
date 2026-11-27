@@ -180,6 +180,9 @@ main { min-width: 0; }
   max-height: calc(100vh - 70px); overflow: auto;
 }
 .sheet h2 { font-family: var(--display); font-weight: 900; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 2px; color: var(--claret); }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#clip-toggle, .clip-summary { display: none; }
+.clip-summary { font-size: 14px; margin: 4px 0 0; line-height: 1.4; }
 .sheet .hint { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; line-height: 1.4; }
 .field { margin: 0 0 14px; }
 .field > label, .field > .flabel { display: block; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); margin-bottom: 4px; }
@@ -221,7 +224,7 @@ input[type="range"]::-moz-range-thumb { width: 22px; height: 14px; border-radius
 .policy-list input:checked + label { border-color: var(--ink); box-shadow: 2px 2px 0 var(--rule); background: #fff9ec; }
 .policy-list input:checked + label b { color: var(--claret); }
 .policy-list input:focus-visible + label { outline: 3px solid var(--amber); outline-offset: 1px; }
-.switch { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; line-height: 1.35; }
+.field > label.switch { display: flex; gap: 8px; align-items: flex-start; font-family: var(--body); font-weight: 400; font-size: 14px; letter-spacing: 0; text-transform: none; cursor: pointer; line-height: 1.35; }
 .switch input { margin-top: 3px; accent-color: var(--claret); width: 16px; height: 16px; }
 details.more { border-top: 1px dashed var(--ink-faint); padding-top: 8px; margin-top: 6px; }
 details.more summary { cursor: pointer; font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 15px; color: var(--claret); margin-bottom: 8px; }
@@ -287,7 +290,12 @@ details.more summary { cursor: pointer; font-family: var(--display); font-weight
 .note-card .big { font-family: var(--display); font-weight: 900; font-size: 25px; line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; color: var(--claret); }
 
 /* tables: team sheets */
-.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  background: linear-gradient(90deg, var(--paper-light) 30%, rgba(250, 245, 234, 0)), linear-gradient(90deg, rgba(250, 245, 234, 0), var(--paper-light) 70%) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(36, 26, 28, .18), transparent), radial-gradient(farthest-side at 100% 50%, rgba(36, 26, 28, .18), transparent) 100% 0;
+  background-repeat: no-repeat; background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%; background-attachment: local, local, scroll, scroll;
+}
 table.sheet-table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
 .sheet-table caption { text-align: left; font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .12em; font-size: 14px; color: var(--claret); padding-bottom: 6px; }
 .sheet-table th { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 14px; text-align: left; border-bottom: 2px solid var(--ink); padding: 6px 8px; vertical-align: bottom; }
@@ -325,6 +333,7 @@ table.sheet-table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
 }
 
 /* the availability board (wall chart) */
+.board-hint { display: none; font-size: 13px; color: var(--ink-soft); margin: -4px 0 8px; font-style: italic; }
 .board-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--rule); background: #fffaf0; }
 .board-wrap svg { display: block; }
 .board-wrap text { font-family: var(--body); font-size: 11.5px; fill: var(--ink); }
@@ -396,6 +405,10 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
   .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
   .clipboard { position: relative; top: 0; }
   .sheet { max-height: none; }
+  #clip-toggle { display: inline-flex; }
+  .clipboard.collapsed .clip-summary { display: block; }
+  .clipboard.collapsed #clip-body { display: none; }
+  .board-hint { display: block; }
   .squad-nav ol { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px 16px 0; }
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .grid-2 > .card { margin-bottom: 0; }
@@ -410,6 +423,16 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
   .shirt-tab svg { width: 40px; height: 34px; }
   .shirt-tab .label { font-size: 13.5px; }
   .note-card .big { font-size: 22px; }
+  .sheet-table { font-size: 13.5px; }
+  .sheet-table td:first-child { min-width: 128px; }
+  .sheet-table th, .sheet-table td { padding: 6px 6px; }
+  .cover h1 { font-size: 64px; }
+  .cover .question { font-size: 17px; }
+  .cover .facts { font-size: 14px; gap: 4px 12px; }
+  .cover .facts b { font-size: 16px; }
+  .stamp { font-size: 12px; margin-bottom: 14px; }
+  .cover-tools { margin-bottom: 14px; gap: 6px; }
+  .cover-tools button { font-size: 12px; padding: 5px 9px; }
 }
 @media print {
   .cover-tools, .squad-nav, .clipboard { display: none; }
@@ -437,7 +460,7 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
       </div>
     </div>
     <svg class="scene" viewBox="0 0 600 340" role="img" aria-labelledby="scene-title">
-      <title id="scene-title">A floodlit rugby ground at dusk: the posts, a ball on a kicking tee, a warning lamp on the touchline glowing amber and a tackle bag with a GPS vest draped over it.</title>
+      <title id="scene-title">A floodlit rugby ground at dusk, with bunting strung between the floodlights: the posts, a ball on a kicking tee, a warning lamp on the touchline glowing amber and a tackle bag with a GPS vest draped over it.</title>
       <defs>
         <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stop-color="#f6c76a" stop-opacity=".95"/>
@@ -488,6 +511,9 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
       </g>
       <rect x="548" y="76" width="56" height="20" rx="2" fill="#1b0810"/>
       <g fill="#fff4d6"><circle cx="557" cy="86" r="3.6"/><circle cx="570" cy="86" r="3.6"/><circle cx="583" cy="86" r="3.6"/><circle cx="596" cy="86" r="3.6"/></g>
+      <!-- match-day bunting between the floodlights -->
+      <path d="M118 62 Q 340 150 560 86" fill="none" stroke="#1b0810" stroke-width="1.4"/>
+      <g opacity=".92"><path d="M122.8 63.9 L144.9 72.1 L133.9 84.1 Z" fill="#e3a33b"/><path d="M154.5 75.4 L176.6 82.6 L165.5 95.1 Z" fill="#a5566a"/><path d="M186.1 85.4 L208.3 91.5 L197.2 104.6 Z" fill="#e3a33b"/><path d="M217.8 93.9 L239.9 98.9 L228.9 112.5 Z" fill="#a5566a"/><path d="M249.4 100.8 L271.6 104.7 L260.5 118.9 Z" fill="#e3a33b"/><path d="M281.1 106.2 L303.2 109.0 L292.1 123.7 Z" fill="#a5566a"/><path d="M312.7 110.0 L334.8 111.7 L323.7 126.9 Z" fill="#e3a33b"/><path d="M344.2 112.2 L366.3 112.9 L355.3 128.7 Z" fill="#a5566a"/><path d="M375.8 112.9 L397.9 112.5 L386.8 128.8 Z" fill="#e3a33b"/><path d="M407.3 112.1 L429.4 110.6 L418.4 127.4 Z" fill="#a5566a"/><path d="M438.8 109.7 L460.9 107.1 L449.9 124.5 Z" fill="#e3a33b"/><path d="M470.3 105.8 L492.4 102.1 L481.4 120.0 Z" fill="#a5566a"/><path d="M501.8 100.3 L523.8 95.5 L512.8 114.0 Z" fill="#e3a33b"/><path d="M533.3 93.2 L555.3 87.4 L544.3 106.4 Z" fill="#a5566a"/></g>
       <!-- the pitch -->
       <rect x="0" y="262" width="600" height="78" fill="url(#turf)"/>
       <g clip-path="url(#pitch-clip)" fill="#33503a" opacity=".55">
@@ -561,7 +587,9 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
 <div class="layout" id="layout">
   <aside class="clipboard" aria-label="Club practice settings">
     <div class="sheet">
-      <h2>Club practice</h2>
+      <div class="sheet-head"><h2>Club practice</h2><button type="button" class="btn ghost small" id="clip-toggle" aria-expanded="true" aria-controls="clip-body">Hide</button></div>
+      <p class="clip-summary" id="clip-summary"></p>
+      <div id="clip-body">
       <p class="hint">Every page uses these settings. Change one and the open page works it out again.</p>
       <div class="field">
         <span class="flabel" id="policy-label">What the coach does</span>
@@ -623,6 +651,7 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
         </div>
       </details>
       <div class="btn-row" style="margin-top:8px"><button type="button" class="btn ghost small" id="reset">Back to the defaults</button></div>
+      </div>
     </div>
   </aside>
 
@@ -2498,6 +2527,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     $('graded').addEventListener('change', function () { S.gradedReturn = this.checked; changed(); });
     $('next-season').addEventListener('click', function () { S.seasonSeed = S.seasonSeed % 60 + 1; syncControls(); changed(); });
     $('reset').addEventListener('click', function () { S = copy(APP_DEFAULTS); syncControls(); changed(); });
+    var clip = document.querySelector('.clipboard'), tog = $('clip-toggle');
+    var setClip = function (open) {
+      clip.classList.toggle('collapsed', !open);
+      tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+      tog.textContent = open ? 'Hide' : 'Adjust';
+    };
+    tog.addEventListener('click', function () { setClip(clip.classList.contains('collapsed')); });
+    if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) setClip(false);
   }
   var RANGE_FORMAT = {};
   function bindRange(id, key, f) {
@@ -2524,6 +2561,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     $('threshold-field').hidden = !ratio;
     $('budget-field').hidden = ratio;
     $('flag-note').textContent = FLAG_NOTES[S.flag];
+    var level = ratio ? 'at a ratio of ' + fmt(S.threshold, 2) : 'riskiest ' + S.budget + '%';
+    $('clip-summary').innerHTML = '<b>' + esc(POLICY_SHORT[S.policy]) + '</b> &middot; ' + esc(FLAG_SHORT[S.flag]) + ' ' + esc(level) +
+      ' &middot; ' + (S.preseason === 'steep' ? 'full-load' : 'build-up') + ' pre-season &middot; season ' + S.seasonSeed;
   }
   var changeTimer = null;
   function changed() {
@@ -2749,7 +2789,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       tile('Cup final', last.result === 'W' ? 'Won' : last.result === 'D' ? 'Drew' : 'Lost', (last.margin === 0 ? 'level' : 'by ' + Math.abs(last.margin)) + ' against ' + esc(ctx.squad.opponents[last.opponent].name) + '; ' + last.bestXVPlaying + ' of the first-choice XV started', last.result === 'W' ? 'good' : 'warn') +
       '</div>');
     html.push(seasonNote(res, base, ctx, flagged, flagNC));
-    html.push('<div class="card"><p class="kicker">The availability board</p><h3>Every player, every week</h3><p class="sub">Darker squares are heavier weeks. Click a player to see his season below. Results run along the top.</p><div class="board-wrap" id="board"></div>' +
+    html.push('<div class="card"><p class="kicker">The availability board</p><h3>Every player, every week</h3><p class="sub">Darker squares are heavier weeks. Click a player to see his season below. Results run along the top.</p><p class="board-hint">Swipe sideways along the board for the whole season.</p><div class="board-wrap" id="board"></div>' +
       '<div class="board-legend"><span><i style="background:#f6ead0"></i>Light week</span><span><i style="background:' + COLORS.claret + '"></i>Heavy week</span><span><i style="background:#2e2526"></i>Injured</span><span><i style="background:' + COLORS['pitch-pale'] + '"></i>Coming back</span><span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="' + COLORS.amber + '" stroke="#5a3b0a"/></svg>Flagged on Thursday</span><span><svg width="12" height="12" aria-hidden="true"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="#ffd27a" stroke="#241a1c"/></svg>Soft-tissue injury</span><span><svg width="12" height="12" aria-hidden="true"><path d="M2 2 L10 10 M10 2 L2 10" stroke="#fff" stroke-width="2.4"/><path d="M2 2 L10 10 M10 2 L2 10" stroke="#c0392b" stroke-width="1.4"/></svg>Contact injury</span></div></div>');
     html.push('<div class="card" id="player-card"></div>');
     html.push('<div class="card" id="inquest-card"><p class="kicker">The inquest</p><h3>Why each injury happened</h3><div id="inquest-out"></div></div>');
@@ -2835,6 +2875,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     html.push('<div class="btn-row" style="margin:0 0 8px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Show</span><div class="tickets" role="radiogroup" aria-label="Injuries to show" style="min-width:260px">' +
       '<input type="radio" name="inq-show" id="inq-nc" value="nc"' + (showAll ? '' : ' checked') + '><label for="inq-nc">Soft-tissue (' + sm.nc + ')</label>' +
       '<input type="radio" name="inq-show" id="inq-all" value="all"' + (showAll ? ' checked' : '') + '><label for="inq-all">All (' + all + ')</label></div></div>');
+    if (!q.items.filter(function (it) { return showAll || it.type === 'nc'; }).length) {
+      html.push('<div class="empty">No ' + (showAll ? '' : 'soft-tissue ') + 'injuries this season. Try another season on the clipboard.</div>');
+      host.innerHTML = html.join('');
+      host.querySelectorAll('input[name="inq-show"]').forEach(function (rb) {
+        rb.addEventListener('change', function () { inquestState.all = this.value === 'all'; drawInquest(q, ctx); });
+      });
+      return;
+    }
     html.push('<div class="table-wrap"><table class="sheet-table inquest"><thead><tr><th>When</th><th>Player</th><th>Injury</th><th>Hidden factors</th><th>The light said</th><th>A rest that week</th></tr></thead><tbody>' +
       q.items.filter(function (it) { return showAll || it.type === 'nc'; }).map(function (it) {
         var l = it.lights ? it.lights[S.flag] : null;
@@ -3397,7 +3445,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       rows.forEach(function (r) {
         if (r.level === null) return;
         if (r.policy === 'modify' && r.level !== (RATIO_IDS[r.flag] ? 2.0 : 30)) return;
-        if (r.policy === 'rotate' && r.level > 4) return;
+        if (r.policy === 'rotate' && r.level > (chartWidth($('trade-chart')) < 520 ? 2 : 4)) return;
+        if (r.policy === 'rest' && chartWidth($('trade-chart')) < 520 && r.dDays > -40) return;
         labels.push({ x: r.dDays, y: r.dPoints, dx: 7, dy: -6, text: r.policy === 'rotate' ? r.level + ' in a row' : RATIO_IDS[r.flag] ? fmt(r.level, 1) : r.level + '%', color: COLORS[r.policy] });
       });
       var lineY = function (x) { return lam > 0 ? x / lam : (x < 0 ? -1e9 : 1e9); };
@@ -3492,7 +3541,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     if (mp) chart($('hidden-map'), function () { drawHiddenMap($('hidden-map'), mp, M_); });
   }
   function drawTornado(el, rb, M_) {
-    var W = chartWidth(el), narrow = W < 560, labelW = narrow ? 0 : 250, rowH = narrow ? 52 : 38;
+    var W = chartWidth(el), narrow = W < 560, labelW = narrow ? 0 : 250, rowH = narrow ? 52 : 38, side = narrow ? 74 : 92;
     var base = M_.get(rb.base);
     var rows = rb.rows.map(function (r) { return { r: r, lo: M_.get(r.low), hi: M_.get(r.high) }; })
       .sort(function (a, b) { return Math.abs(b.hi - b.lo) - Math.abs(a.hi - a.lo); });
@@ -3500,7 +3549,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     rows.forEach(function (x) { if (x.lo === x.lo) vals.push(x.lo); if (x.hi === x.hi) vals.push(x.hi); });
     var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals), pad = (vmax - vmin) * 0.18 + (M_.d === 2 ? 0.01 : 0.5);
     vmin -= pad; vmax += pad;
-    var x0 = labelW + 8, x1 = W - 10, top = 8;
+    var x0 = labelW + 8 + (narrow ? side : 0), x1 = W - side, top = 8;
     var xs = function (v) { return x0 + (v - vmin) / (vmax - vmin) * (x1 - x0); };
     var H = top + rows.length * rowH + 34;
     var s = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="Tornado chart: how each assumption moves ' + esc(M_.label) + '">';
@@ -3520,7 +3569,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         s += '<text x="' + (xs(b[1]) + (right ? 5 : -5)) + '" y="' + (by + 12) + '" text-anchor="' + (right ? 'start' : 'end') + '" font-size="11.5">' + esc(settingText(x.r.key, b[2])) + '</text>';
       });
     });
-    s += '<line x1="' + xs(base) + '" x2="' + xs(base) + '" y1="' + top + '" y2="' + (H - 26) + '" stroke="' + COLORS.ink + '" stroke-width="2"/>';
+    rows.forEach(function (x, k) {
+      var by = top + k * rowH + (narrow ? 22 : 10);
+      s += '<line x1="' + xs(base) + '" x2="' + xs(base) + '" y1="' + (by - 4) + '" y2="' + (by + 20) + '" stroke="' + COLORS.ink + '" stroke-width="2"/>';
+    });
     s += '</svg><ul class="legend"><li><span class="key box" style="background:' + COLORS.navy + '"></span>Low setting</li><li><span class="key box" style="background:' + COLORS.claret + '"></span>High setting</li><li><span class="key" style="background:' + COLORS.ink + '"></span>The clipboard: ' + esc(fmt(base, M_.d)) + ' ' + esc(M_.unit) + '</li></ul>';
     el.innerHTML = s;
   }
@@ -3740,13 +3792,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
       '<p><b>The warning lights</b> are read every Thursday from the loads alone. The two rolling ratios divide the last 7 days by the average week of the last 28 (coupled) or of the 21 before them (uncoupled). The EWMA ratio uses exponentially weighted 7-day and 28-day averages instead. The risk model is a logistic regression the club trains on its own last two seasons, using nine features from the logbook. The perfect-knowledge ceiling computes the true soft-tissue risk for the coming week, assuming it looks like the last: what any light could hope to reach.</p>' +
       '<p><b>The coach</b> picks a matchday 23 every Saturday by position, from the fittest best players, and acts on the light as the clipboard says. A rested player misses the match; a weaker replacement plays, sometimes out of position. Team strength is the starters\' ability times their match-day readiness, and the score margin against each invented opponent follows from the strength gap, home advantage and luck. The other eleven clubs play each other too, so there is a real league table.</p>' +
       '<h3>Why same-luck comparisons matter</h3><p>Every random draw in a season (each player\'s daily injury roll, effort noise and each match\'s bounce of the ball) is fixed in advance by the season number. Playing the same season under two policies therefore gives both the same luck, and the difference is the policy alone. A real club never gets this: it only ever sees each season once, under one policy. That gap is what the Pilot page measures.</p>' +
+      '<h3>Digging deeper</h3>' +
+      '<p><b>The inquest</b> (page 1) splits each injury\'s true risk that day into log-multipliers: the load spike, under-training, a recent return, frailty and age for soft-tissue injuries; position, frailty, fatigue and the match itself for contact ones. It then replays the season once per injury with only that player rested for that one week, on the same luck, to ask whether a rest would have avoided it.</p>' +
+      '<p><b>The trade-off</b> (page 5) plays every option over the same seasons and asks the club to name its exchange rate: how many player-days of injury a league point is worth. An option\'s value is the days it saves plus that rate times the points it gains. Its break-even rate is where its value crosses zero, and an option is efficient when no other option loses fewer days and wins more points.</p>' +
+      '<p><b>The hidden truth</b> (page 6) pushes seven assumptions low and high, one at a time, and replays the seasons each time: the light\'s AUC comes from seasons that ignore it, its value from paired seasons that act on it. The map crosses the two assumptions no club can see.</p>' +
+      '<p><b>Calibration</b> (page 7) fits a hazard model to a logbook: the chance of a soft-tissue injury on a day is 1 minus exp(minus exp(a + c times under-training + b times the spike) times minutes), fitted by Fisher scoring. Its 95% interval for the spike effect b is a profile-likelihood interval: every value whose best fit is within 1.92 log-likelihood units of the best overall.</p>' +
       '<h3>Words used here</h3><dl>' +
       '<dt>Session RPE load</dt><dd>Minutes times effort out of ten; a 75-minute session at 7 is 525.</dd>' +
       '<dt>Workload ratio (ACWR)</dt><dd>Recent load divided by longer-run load. Above about 1.5 is often called the danger zone.</dd>' +
       '<dt>AUC</dt><dd>The chance a light scores a soon-to-be-injured player above a player who stays fit: 0.5 is guessing, 1 is perfect.</dd>' +
       '<dt>Hits per 100 flags</dt><dd>Of every hundred flags, how many were followed by a soft-tissue injury within seven days (precision).</dd>' +
       '<dt>Power</dt><dd>The chance a fair comparison of a given size would detect an effect that is really there.</dd>' +
-      '<dt>Monotony and strain</dt><dd>A week\'s average daily load over its spread, and weekly load times monotony.</dd></dl>' +
+      '<dt>Monotony and strain</dt><dd>A week\'s average daily load over its spread, and weekly load times monotony.</dd>' +
+      '<dt>Break-even rate</dt><dd>The worth of a league point, in player-days of injury, at which an option stops paying.</dd>' +
+      '<dt>Efficient option</dt><dd>One that no other option beats on both days lost and points.</dd>' +
+      '<dt>Profile-likelihood interval</dt><dd>The range of an effect that the data cannot rule out at the 95% level.</dd></dl>' +
       '<h3>What it leaves out</h3><p>Everything here is invented: the club, the players, the league and the size of every effect. Real injury mechanisms are messier and more contested than any one model. The point is not the exact numbers but the shape of the evidence problem: rare events, a low ceiling, invisible benefits and a costly response. It is not medical or coaching advice.</p>' +
       '<h3>Background reading</h3><p>The workload ratio and its "sweet spot" come from Gabbett (2016) and Hulin and colleagues (2016); the EWMA version from Williams and colleagues (2017); the coupling critique from Lolli and colleagues (2019) and Impellizzeri and colleagues (2020); session RPE from Foster and colleagues (2001); the fitness-fatigue model from Banister and colleagues (1975).</p></div>';
   }
