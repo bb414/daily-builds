@@ -5,12 +5,659 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Load bearing</title>
 <style>
-/* STYLE */
+/* Load bearing: a match-day programme for an invented club. Claret and old-gold hoops on programme paper. */
+:root {
+  --claret: #6b1d33;
+  --claret-deep: #45101f;
+  --claret-soft: #a5566a;
+  --amber: #e3a33b;
+  --amber-deep: #b97812;
+  --amber-pale: #f4dca8;
+  --paper: #f2e9d6;
+  --paper-light: #faf5ea;
+  --paper-dark: #e6d8bb;
+  --ink: #241a1c;
+  --ink-soft: #5c4a4d;
+  --ink-faint: #8a7a72;
+  --rule: #cdb994;
+  --pitch: #3d5a3a;
+  --pitch-pale: #c9d6b8;
+  --navy: #26395a;
+  --slate: #1f1b1c;
+  --chalk: #fbf7ee;
+  --board: #7b5034;
+  --c-none: #241a1c;
+  --c-rest: #6b1d33;
+  --c-modify: #b97812;
+  --c-rotate: #26395a;
+  --c-readiness: #3d5a3a;
+  --c-coupled: #9b7b5b;
+  --c-uncoupled: #c9a77e;
+  --c-ewma: #26395a;
+  --c-model: #b97812;
+  --c-oracle: #3d5a3a;
+  --display: 'Big Shoulders Display', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --body: 'Bitter', Georgia, 'Times New Roman', serif;
+  --gap: 20px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(rgba(107, 29, 51, 0.075) 1px, transparent 1.4px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.025));
+  background-size: 7px 7px, 100% 100%;
+}
+a { color: var(--claret); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 20; background: var(--amber); color: var(--ink); padding: 8px 14px; font-family: var(--display); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.skip:focus { top: 12px; }
+
+/* ---------- the cover ---------- */
+.cover {
+  position: relative;
+  color: var(--chalk);
+  background: linear-gradient(180deg, #2c0a14 0%, #4a1222 46%, #6b1d33 100%);
+  overflow: hidden;
+}
+.cover::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(251, 247, 238, 0.06) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+  pointer-events: none;
+}
+.cover-inner {
+  position: relative;
+  max-width: 1240px; margin: 0 auto;
+  padding: 22px 24px 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; align-items: end;
+}
+.masthead {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+  font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--amber-pale);
+  border-top: 2px solid var(--amber); border-bottom: 1px solid rgba(227, 163, 59, .55);
+  padding: 6px 0 5px; margin-bottom: 14px;
+}
+.masthead .no { background: var(--amber); color: var(--claret-deep); padding: 1px 8px; letter-spacing: .1em; }
+.masthead .dot { opacity: .6; }
+.cover h1 {
+  font-family: var(--display); font-weight: 900; text-transform: uppercase;
+  font-size: clamp(60px, 8.6vw, 112px); line-height: .84; letter-spacing: .01em;
+  margin: 0 0 14px; color: var(--chalk);
+  text-shadow: 4px 4px 0 var(--claret-deep);
+}
+.cover h1 span { display: block; color: var(--amber); }
+.cover .question { font-size: clamp(17px, 2vw, 21px); line-height: 1.45; max-width: 34em; margin: 0 0 16px; color: #f6e8d6; }
+.cover .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 16px; padding: 0; list-style: none;
+  font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; color: #e9cfb4; }
+.cover .facts b { font-weight: 900; color: var(--chalk); font-size: 19px; margin-right: 3px; }
+.stamp {
+  display: inline-block; transform: rotate(-2deg);
+  border: 2px solid var(--amber); color: var(--amber-pale);
+  padding: 5px 12px; margin: 0 0 22px;
+  font-family: var(--display); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 14px;
+  box-shadow: inset 0 0 0 3px rgba(227, 163, 59, .25);
+}
+.cover-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+.cover-tools button {
+  background: transparent; border: 1px solid rgba(244, 220, 168, .6); color: var(--amber-pale);
+  font-family: var(--display); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px;
+  padding: 6px 12px; cursor: pointer;
+}
+.cover-tools button:hover { background: rgba(227, 163, 59, .16); }
+.scene { width: 100%; height: auto; display: block; }
+.hoops {
+  height: 30px;
+  background: repeating-linear-gradient(180deg, var(--amber) 0 7px, var(--claret) 7px 15px);
+  border-top: 3px solid var(--claret-deep);
+  border-bottom: 3px solid var(--claret-deep);
+}
+
+/* ---------- navigation: numbered shirts ---------- */
+.squad-nav { background: var(--paper-dark); border-bottom: 2px solid var(--rule); }
+.squad-nav ol {
+  max-width: 1240px; margin: 0 auto; padding: 10px 24px 0; list-style: none;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;
+}
+.shirt-tab {
+  width: 100%; background: none; border: 0; cursor: pointer; padding: 4px 2px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-bottom: 4px solid transparent;
+}
+.shirt-tab svg { width: 46px; height: 40px; transition: transform .15s ease; }
+.shirt-tab .label { font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 15px; color: var(--ink-soft); line-height: 1.1; text-align: center; }
+.shirt-tab:hover svg { transform: translateY(-2px); }
+.shirt-tab[aria-selected="true"] { border-bottom-color: var(--claret); }
+.shirt-tab[aria-selected="true"] .label { color: var(--claret); }
+.shirt-tab[aria-selected="true"] svg { transform: translateY(-3px) scale(1.06); }
+.shirt-tab .body { fill: var(--claret); }
+.shirt-tab .hoop { fill: var(--amber); }
+.shirt-tab .num { fill: var(--chalk); font-family: var(--display); font-weight: 900; font-size: 17px; }
+.shirt-tab[aria-selected="false"] .body { fill: #8f5f6b; }
+.shirt-tab[aria-selected="false"] .hoop { fill: #d8b77a; }
+
+/* ---------- layout ---------- */
+.layout {
+  max-width: 1240px; margin: 0 auto; padding: 24px;
+  display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 26px; align-items: start;
+}
+.layout.wide { grid-template-columns: minmax(0, 1fr); }
+.layout.wide .clipboard { display: none; }
+main { min-width: 0; }
+.view[hidden] { display: none; }
+
+/* ---------- the coach's clipboard (settings) ---------- */
+.clipboard {
+  position: sticky; top: 12px;
+  background: linear-gradient(135deg, #8a5c3d, var(--board) 60%, #6c442b);
+  border-radius: 10px; padding: 26px 10px 12px;
+  box-shadow: 0 2px 0 #4b2f1d, 4px 6px 14px rgba(36, 26, 28, .22);
+}
+.clipboard::before {
+  content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 118px; height: 30px; border-radius: 6px 6px 10px 10px;
+  background: linear-gradient(180deg, #e4e0d8, #a7a197 70%, #8d877d);
+  box-shadow: 0 2px 0 #5d584f, inset 0 -3px 0 rgba(0, 0, 0, .15);
+}
+.clipboard::after {
+  content: ''; position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+  width: 58px; height: 10px; border-radius: 6px; background: #6f6a61;
+}
+.sheet {
+  background-color: var(--chalk);
+  background-image: repeating-linear-gradient(180deg, transparent 0 27px, rgba(38, 57, 90, .09) 27px 28px);
+  border-radius: 3px; padding: 16px 16px 12px;
+  max-height: calc(100vh - 70px); overflow: auto;
+}
+.sheet h2 { font-family: var(--display); font-weight: 900; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 2px; color: var(--claret); }
+.sheet .hint { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; line-height: 1.4; }
+.field { margin: 0 0 14px; }
+.field > label, .field > .flabel { display: block; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); margin-bottom: 4px; }
+.field .note { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.35; }
+.field .value { float: right; font-family: var(--display); font-weight: 900; font-size: 16px; color: var(--claret); letter-spacing: .04em; }
+select {
+  width: 100%; appearance: none; -webkit-appearance: none;
+  background: var(--paper-light) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b1d33' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1.5px solid var(--ink); border-radius: 0; padding: 7px 30px 7px 9px; font-size: 15px;
+  box-shadow: 2px 2px 0 var(--rule);
+}
+input[type="range"] { width: 100%; appearance: none; -webkit-appearance: none; background: none; height: 26px; margin: 0; }
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 10px), var(--rule); }
+input[type="range"]::-moz-range-track { height: 4px; background: var(--rule); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 15px; margin-top: -6px; border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 35%, #d9a067, #9a5a2a 70%); border: 1.5px solid var(--ink);
+  box-shadow: inset 0 0 0 4px transparent;
+}
+input[type="range"]::-moz-range-thumb { width: 22px; height: 14px; border-radius: 50%; background: #b97a43; border: 1.5px solid var(--ink); }
+.tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tickets.three { grid-template-columns: 1fr 1fr 1fr; }
+.tickets input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.tickets label {
+  display: block; text-align: center; cursor: pointer; padding: 6px 4px;
+  border: 1.5px dashed var(--ink-faint); background: var(--paper-light);
+  font-family: var(--display); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; line-height: 1.15;
+}
+.tickets input:checked + label { border: 1.5px solid var(--claret); background: var(--claret); color: var(--chalk); }
+.tickets input:focus-visible + label { outline: 3px solid var(--amber); outline-offset: 2px; }
+.policy-list { display: grid; gap: 5px; }
+.policy-list input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.policy-list label {
+  display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: center; cursor: pointer;
+  padding: 6px 8px; background: var(--paper-light); border: 1.5px solid transparent;
+  font-size: 14px; line-height: 1.25;
+}
+.policy-list .jersey { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 13px; color: var(--chalk); }
+.policy-list input:checked + label { border-color: var(--ink); box-shadow: 2px 2px 0 var(--rule); background: #fff9ec; }
+.policy-list input:checked + label b { color: var(--claret); }
+.policy-list input:focus-visible + label { outline: 3px solid var(--amber); outline-offset: 1px; }
+.switch { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; line-height: 1.35; }
+.switch input { margin-top: 3px; accent-color: var(--claret); width: 16px; height: 16px; }
+details.more { border-top: 1px dashed var(--ink-faint); padding-top: 8px; margin-top: 6px; }
+details.more summary { cursor: pointer; font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 15px; color: var(--claret); margin-bottom: 8px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  background: var(--claret); color: var(--chalk); border: 0; padding: 8px 14px;
+  font-family: var(--display); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 15px;
+  box-shadow: 3px 3px 0 var(--claret-deep);
+}
+.btn:hover { background: #7d2640; }
+.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--claret-deep); }
+.btn.ghost { background: transparent; color: var(--claret); border: 1.5px solid var(--claret); box-shadow: 2px 2px 0 var(--rule); }
+.btn.ghost:hover { background: rgba(107, 29, 51, .07); }
+.btn.small { font-size: 13px; padding: 5px 10px; }
+.btn[disabled] { opacity: .5; cursor: progress; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---------- programme pages ---------- */
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; border-bottom: 3px double var(--claret); padding-bottom: 6px; margin-bottom: 14px; }
+.page-head .pg { font-family: var(--display); font-weight: 800; letter-spacing: .16em; text-transform: uppercase; font-size: 14px; color: var(--claret); }
+.page-head h2 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(30px, 4vw, 44px); line-height: .95; margin: 0; letter-spacing: .01em; }
+.lede { font-size: 17px; max-width: 46em; margin: 0 0 18px; }
+.lede b { color: var(--claret); }
+.card {
+  background: var(--paper-light); border: 1px solid var(--rule);
+  box-shadow: 4px 4px 0 rgba(69, 16, 31, .12);
+  padding: 18px 20px; margin: 0 0 var(--gap); position: relative;
+}
+.card h3 { font-family: var(--display); font-weight: 900; text-transform: uppercase; letter-spacing: .03em; font-size: 26px; line-height: 1; margin: 0 0 4px; }
+.card .kicker { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .16em; font-size: 13px; color: var(--claret); margin: 0 0 4px; }
+.card .sub { color: var(--ink-soft); font-size: 14.5px; margin: 0 0 12px; max-width: 52em; }
+.card .foot { font-size: 13px; color: var(--ink-soft); margin: 10px 0 0; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap); }
+.grid-2 > .card { margin-bottom: 0; }
+.grid-2 + .card, .grid-2 + .grid-2 { margin-top: var(--gap); }
+
+/* scoreboard tiles */
+.scoreboard { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 var(--gap); }
+.tile {
+  background: var(--slate); color: var(--chalk); padding: 12px 14px 12px;
+  border: 3px solid #3a3233; box-shadow: inset 0 0 0 1px #000, 3px 3px 0 rgba(69, 16, 31, .25);
+  position: relative; min-width: 0;
+}
+.tile::after { content: ''; position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #5a5051; box-shadow: 0 0 0 1px #000; }
+.tile .t-label { font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--amber); margin: 0 0 2px; padding-right: 10px; }
+.tile .t-value { font-family: var(--display); font-weight: 900; font-size: 46px; line-height: 1; letter-spacing: .02em; color: #fff7e6; white-space: nowrap; }
+.tile .t-value small { font-size: 22px; color: #e9d5bd; margin-left: 4px; letter-spacing: .04em; }
+.tile .t-note { font-size: 13px; line-height: 1.35; color: #d9cbbb; margin: 4px 0 0; }
+.tile.words .t-value { font-size: 30px; line-height: 1.05; white-space: normal; padding-top: 6px; }
+.tile.warn .t-value { color: #ffcf7a; }
+.tile.bad .t-value { color: #ff9f8f; }
+.tile.good .t-value { color: #cfe6b3; }
+
+/* physio's note (verdicts) */
+.note-card {
+  background: #fffdf6; border: 1px solid var(--rule); border-left: 8px solid var(--amber);
+  padding: 14px 18px 14px 18px; margin: 0 0 var(--gap); position: relative;
+  box-shadow: 4px 4px 0 rgba(69, 16, 31, .1);
+}
+.note-card .from { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .16em; font-size: 13px; color: var(--amber-deep); margin: 0 0 4px; }
+.note-card p { margin: 0 0 6px; font-size: 16.5px; }
+.note-card p:last-child { margin-bottom: 0; }
+.note-card .big { font-family: var(--display); font-weight: 900; font-size: 25px; line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; color: var(--claret); }
+
+/* tables: team sheets */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.sheet-table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+.sheet-table caption { text-align: left; font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .12em; font-size: 14px; color: var(--claret); padding-bottom: 6px; }
+.sheet-table th { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 14px; text-align: left; border-bottom: 2px solid var(--ink); padding: 6px 8px; vertical-align: bottom; }
+.sheet-table td { padding: 6px 8px; border-bottom: 1px dotted var(--ink-faint); vertical-align: top; }
+.sheet-table td.num, .sheet-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sheet-table tr.us td { background: #f8e5c3; font-weight: 700; }
+.sheet-table tr.ref td { background: rgba(36, 26, 28, .04); }
+.sheet-table .ci { color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
+.policy-table td:first-child { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: 14px; white-space: nowrap; }
+.policy-table th { white-space: nowrap; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, .25); }
+.better { color: var(--pitch); font-weight: 700; }
+.worse { color: var(--claret); font-weight: 700; }
+
+/* charts */
+.chart { width: 100%; min-height: 60px; position: relative; }
+.chart svg { display: block; overflow: visible; }
+.chart text { font-family: var(--body); font-size: 12px; fill: var(--ink-soft); }
+.chart .axis-title { font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12.5px; fill: var(--ink); }
+.chart .grid line { stroke: rgba(92, 74, 77, .16); }
+.chart .axis line, .chart .axis path { stroke: var(--ink); }
+.chart .ref-label { font-family: var(--display); font-weight: 800; letter-spacing: .06em; font-size: 12.5px; text-transform: uppercase; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.legend .key { width: 18px; height: 4px; display: inline-block; }
+.legend .key.dash { background: none !important; border-top: 3px dashed; height: 0; }
+.legend .key.dot { width: 11px; height: 11px; border-radius: 50%; }
+.legend .key.box { width: 12px; height: 12px; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; background: var(--slate); color: var(--chalk);
+  padding: 6px 9px; font-size: 13px; line-height: 1.35; max-width: 240px; box-shadow: 2px 2px 0 rgba(0, 0, 0, .3);
+}
+
+/* the availability board (wall chart) */
+.board-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--rule); background: #fffaf0; }
+.board-wrap svg { display: block; }
+.board-wrap text { font-family: var(--body); font-size: 11.5px; fill: var(--ink); }
+.board-wrap .grp { font-family: var(--display); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; fill: var(--claret); }
+.board-wrap .rowhit { fill: transparent; cursor: pointer; }
+.board-wrap .rowhit:hover, .board-wrap .rowhit.sel { fill: rgba(227, 163, 59, .22); }
+.board-wrap .res { font-family: var(--display); font-weight: 900; font-size: 11px; }
+.board-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; margin: 10px 0 0; }
+.board-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.board-legend i { display: inline-block; width: 14px; height: 12px; border: 1px solid rgba(0, 0, 0, .2); }
+
+/* fixtures strip */
+.fixtures { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.fixtures li { width: 34px; text-align: center; font-family: var(--display); font-weight: 900; font-size: 13px; line-height: 1; padding: 5px 0 4px; color: var(--chalk); }
+.fixtures li small { display: block; font-weight: 600; font-size: 10.5px; opacity: .9; margin-top: 2px; }
+.fixtures .W { background: var(--pitch); }
+.fixtures .L { background: var(--claret); }
+.fixtures .D { background: var(--ink-soft); }
+.fixtures .C { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+.player-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; margin-bottom: 6px; }
+.player-head .shirtno { font-family: var(--display); font-weight: 900; font-size: 30px; color: var(--claret); line-height: 1; }
+.player-head .pname { font-family: var(--display); font-weight: 900; font-size: 28px; text-transform: uppercase; line-height: 1; }
+.player-head .pmeta { color: var(--ink-soft); font-size: 14px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; padding: 0; list-style: none; }
+.pills li { background: var(--paper-dark); padding: 2px 9px; font-size: 13px; border-radius: 999px; }
+.pills li.inj { background: #f3d0c8; }
+.pills li.flag { background: var(--amber-pale); }
+
+/* loading and empty states */
+.busy { display: flex; align-items: center; gap: 12px; padding: 26px 18px; font-family: var(--display); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--claret); }
+.busy .ball { width: 34px; height: 22px; border-radius: 50%; background: radial-gradient(ellipse at 40% 35%, #d9a067, #8f5124 72%); border: 2px solid var(--ink); position: relative; animation: spin 1s linear infinite; }
+.busy .ball::after { content: ''; position: absolute; left: 50%; top: 3px; bottom: 3px; border-left: 2px dashed var(--chalk); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .busy .ball { animation: none; } * { transition: none !important; } }
+.empty { padding: 18px; border: 2px dashed var(--rule); color: var(--ink-soft); background: rgba(255, 255, 255, .4); }
+.error { padding: 12px 14px; border-left: 6px solid var(--claret); background: #f9e1dc; color: var(--claret-deep); margin: 0 0 12px; }
+.warnings { padding: 8px 14px; border-left: 6px solid var(--amber); background: #fbeccd; margin: 0 0 12px; font-size: 14px; }
+.warnings p { margin: 2px 0; }
+textarea { width: 100%; min-height: 110px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; padding: 8px; border: 1.5px solid var(--ink); background: var(--chalk); }
+.dropzone { border: 2px dashed var(--claret-soft); padding: 14px; background: rgba(255, 255, 255, .45); text-align: center; margin-bottom: 10px; }
+.dropzone.over { background: var(--amber-pale); }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--slate); color: var(--chalk); padding: 9px 16px; z-index: 30; font-family: var(--display); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; box-shadow: 3px 3px 0 var(--claret); }
+
+/* how it works */
+.prose { max-width: 46em; }
+.prose h3 { font-family: var(--display); font-weight: 900; font-size: 26px; text-transform: uppercase; margin: 22px 0 6px; letter-spacing: .02em; }
+.prose p, .prose li { font-size: 16.5px; }
+.prose dt { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: 16px; color: var(--claret); margin-top: 10px; }
+.prose dd { margin: 2px 0 0; }
+.diagram { width: 100%; height: auto; display: block; margin: 6px 0 10px; }
+.diagram text { font-family: var(--body); font-size: 14px; fill: var(--ink); }
+.diagram text.light { fill: var(--chalk); }
+.diagram text.gold { fill: var(--amber); }
+.diagram text.pale { fill: var(--amber-pale); }
+.diagram .dt { font-family: var(--display); font-weight: 900; text-transform: uppercase; letter-spacing: .04em; font-size: 16px; }
+
+footer.colophon { max-width: 1240px; margin: 10px auto 0; padding: 18px 24px 34px; border-top: 3px double var(--claret); font-size: 13.5px; color: var(--ink-soft); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; }
+footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--claret); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1040px) {
+  .layout { grid-template-columns: 260px minmax(0, 1fr); gap: 18px; padding: 18px; }
+  .scoreboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .cover-inner { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 0; }
+  .scene { max-width: 560px; margin: 0 auto; }
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .clipboard { position: relative; top: 0; }
+  .sheet { max-height: none; }
+  .squad-nav ol { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 16px 0; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .grid-2 > .card { margin-bottom: 0; }
+}
+@media (max-width: 480px) {
+  body { font-size: 15.5px; }
+  .card { padding: 14px 14px; }
+  .tile { padding: 10px 10px; }
+  .tile .t-value { font-size: 36px; }
+  .tile .t-label { font-size: 13px; letter-spacing: .1em; }
+  .masthead { font-size: 12.5px; letter-spacing: .12em; }
+  .shirt-tab svg { width: 40px; height: 34px; }
+  .shirt-tab .label { font-size: 13.5px; }
+  .note-card .big { font-size: 22px; }
+}
+@media print {
+  .cover-tools, .squad-nav, .clipboard { display: none; }
+  .layout { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
-<!-- MARKUP -->
-<script>
+<a class="skip" href="#main">Skip to the analysis</a>
+<header class="cover">
+  <div class="cover-inner">
+    <div class="cover-text">
+      <div class="masthead"><span class="no">No. 27</span><span>Hollowmere RFC</span><span class="dot">&middot;</span><span>Match-day programme</span><span class="dot">&middot;</span><span>Season 2026/27</span></div>
+      <h1>Load <span>bearing</span></h1>
+      <p class="question">Can a workload warning light really keep a rugby squad fit, and could one season of using it ever prove that it works?</p>
+      <ul class="facts" aria-label="The simulation in numbers">
+        <li><b>36</b>players</li><li><b>24</b>fixtures</li><li><b>5</b>warning lights</li><li><b>1</b>hidden truth</li>
+      </ul>
+      <p class="stamp">Invented club &middot; Simulated players &middot; Not medical advice</p>
+      <div class="cover-tools">
+        <button type="button" id="copy-link">Copy a link to these settings</button>
+        <button type="button" id="save-settings">Save settings</button>
+        <button type="button" id="load-settings">Load settings</button>
+        <input type="file" id="load-file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+    <svg class="scene" viewBox="0 0 600 340" role="img" aria-labelledby="scene-title">
+      <title id="scene-title">A floodlit rugby ground at dusk: the posts, a ball on a kicking tee, a warning lamp on the touchline glowing amber and a tackle bag with a GPS vest draped over it.</title>
+      <defs>
+        <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#f6c76a" stop-opacity=".95"/>
+          <stop offset=".45" stop-color="#e3a33b" stop-opacity=".45"/>
+          <stop offset="1" stop-color="#e3a33b" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="lamp" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#ffe6a8"/>
+          <stop offset=".5" stop-color="#e3a33b" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#e3a33b" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff1cf" stop-opacity=".34"/>
+          <stop offset="1" stop-color="#fff1cf" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="turf" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2b3f2c"/>
+          <stop offset="1" stop-color="#1d2b1f"/>
+        </linearGradient>
+        <clipPath id="pitch-clip"><path d="M0 262 L600 262 L600 340 L0 340 Z"/></clipPath>
+      </defs>
+      <circle cx="372" cy="250" r="190" fill="url(#glow)"/>
+      <g fill="#fbf7ee" opacity=".7">
+        <circle cx="40" cy="30" r="1.4"/><circle cx="150" cy="18" r="1.1"/><circle cx="250" cy="42" r="1.3"/>
+        <circle cx="470" cy="22" r="1.2"/><circle cx="560" cy="58" r="1.4"/><circle cx="520" cy="12" r="1"/>
+      </g>
+      <!-- the stand -->
+      <path d="M232 262 L232 222 L250 208 L508 208 L526 222 L526 262 Z" fill="#3a0d19"/>
+      <path d="M244 214 L514 214" stroke="#e3a33b" stroke-width="1.2" opacity=".5"/>
+      <g fill="#f4dca8" opacity=".55">
+        <rect x="252" y="228" width="3" height="3"/><rect x="266" y="236" width="3" height="3"/><rect x="281" y="229" width="3" height="3"/>
+        <rect x="300" y="240" width="3" height="3"/><rect x="452" y="230" width="3" height="3"/><rect x="470" y="238" width="3" height="3"/>
+        <rect x="489" y="227" width="3" height="3"/><rect x="503" y="241" width="3" height="3"/><rect x="436" y="242" width="3" height="3"/>
+      </g>
+      <!-- floodlight towers -->
+      <g stroke="#1b0810" stroke-width="2.2" fill="none">
+        <path d="M70 262 L86 70 M102 262 L92 70"/>
+        <path d="M73 230 L99 205 M76 195 L97 172 M79 160 L95 140 M82 125 L94 106 M84 95 L93 80 M99 230 L74 205 M97 195 L77 172 M95 160 L80 140 M94 125 L83 106"/>
+        <path d="M560 262 L572 92 M586 262 L578 92"/>
+        <path d="M562 232 L584 210 M565 198 L581 176 M568 164 L580 144 M584 232 L563 210 M581 198 L566 176"/>
+      </g>
+      <polygon points="60,66 120,66 300,262 40,262" fill="url(#beam)"/>
+      <polygon points="548,88 600,88 600,262 440,262" fill="url(#beam)"/>
+      <rect x="58" y="50" width="64" height="24" rx="2" fill="#1b0810"/>
+      <g fill="#fff4d6">
+        <circle cx="68" cy="58" r="4"/><circle cx="82" cy="58" r="4"/><circle cx="96" cy="58" r="4"/><circle cx="110" cy="58" r="4"/>
+        <circle cx="68" cy="68" r="3.4"/><circle cx="82" cy="68" r="3.4"/><circle cx="96" cy="68" r="3.4"/><circle cx="110" cy="68" r="3.4"/>
+      </g>
+      <rect x="548" y="76" width="56" height="20" rx="2" fill="#1b0810"/>
+      <g fill="#fff4d6"><circle cx="557" cy="86" r="3.6"/><circle cx="570" cy="86" r="3.6"/><circle cx="583" cy="86" r="3.6"/><circle cx="596" cy="86" r="3.6"/></g>
+      <!-- the pitch -->
+      <rect x="0" y="262" width="600" height="78" fill="url(#turf)"/>
+      <g clip-path="url(#pitch-clip)" fill="#33503a" opacity=".55">
+        <path d="M-40 340 L40 262 L110 262 L60 340 Z"/><path d="M140 340 L180 262 L250 262 L230 340 Z"/>
+        <path d="M320 340 L320 262 L390 262 L400 340 Z"/><path d="M500 340 L460 262 L530 262 L570 340 Z"/>
+      </g>
+      <path d="M0 268 L600 268" stroke="#fbf7ee" stroke-width="1.6" opacity=".75"/>
+      <path d="M30 310 L570 310" stroke="#fbf7ee" stroke-width="1" opacity=".25" stroke-dasharray="10 8"/>
+      <!-- the posts -->
+      <g>
+        <rect x="336" y="58" width="5" height="212" fill="#fbf7ee"/>
+        <rect x="408" y="58" width="5" height="212" fill="#fbf7ee"/>
+        <rect x="336" y="196" width="77" height="5" fill="#fbf7ee"/>
+        <g>
+          <rect x="330" y="232" width="17" height="40" fill="#6b1d33"/>
+          <rect x="330" y="240" width="17" height="6" fill="#e3a33b"/><rect x="330" y="254" width="17" height="6" fill="#e3a33b"/>
+          <rect x="402" y="232" width="17" height="40" fill="#6b1d33"/>
+          <rect x="402" y="240" width="17" height="6" fill="#e3a33b"/><rect x="402" y="254" width="17" height="6" fill="#e3a33b"/>
+        </g>
+      </g>
+      <!-- the kick -->
+      <path d="M232 292 C 270 170, 340 120, 372 150" fill="none" stroke="#f4dca8" stroke-width="2" stroke-dasharray="4 7" stroke-linecap="round"/>
+      <!-- ball on a tee -->
+      <path d="M218 318 L246 318 L240 304 L224 304 Z" fill="#e3a33b" stroke="#1b0810" stroke-width="1.5"/>
+      <g transform="translate(232 290) rotate(-62)">
+        <ellipse rx="27" ry="16.5" fill="#fbf7ee" stroke="#1b0810" stroke-width="2"/>
+        <path d="M-14 -14 C -10 -4, -10 4, -14 14" fill="none" stroke="#6b1d33" stroke-width="5"/>
+        <path d="M14 -14 C 10 -4, 10 4, 14 14" fill="none" stroke="#6b1d33" stroke-width="5"/>
+        <path d="M-6 -16 L6 -16" stroke="#1b0810" stroke-width="1.6"/>
+        <path d="M-3 -19 L-3 -13 M1 -19 L1 -13 M5 -19 L5 -13" stroke="#1b0810" stroke-width="1"/>
+      </g>
+      <!-- the warning lamp on the touchline -->
+      <circle cx="146" cy="214" r="34" fill="url(#lamp)"/>
+      <rect x="143" y="236" width="6" height="84" fill="#1b0810"/>
+      <rect x="130" y="186" width="32" height="56" rx="5" fill="#241a1c" stroke="#1b0810" stroke-width="2"/>
+      <circle cx="146" cy="199" r="7" fill="#5d2a2a"/>
+      <circle cx="146" cy="214" r="7" fill="#ffd27a"/>
+      <circle cx="146" cy="214" r="10" fill="none" stroke="#ffe6a8" stroke-width="1.5" opacity=".7"/>
+      <circle cx="146" cy="229" r="7" fill="#2a3b2a"/>
+      <rect x="112" y="246" width="68" height="17" fill="#e3a33b" stroke="#1b0810" stroke-width="1.5"/>
+      <text x="146" y="258.5" text-anchor="middle" font-family="Big Shoulders Display, Arial Narrow, sans-serif" font-weight="900" font-size="13" fill="#241a1c" letter-spacing="1">RATIO 1.5</text>
+      <!-- tackle bag with a GPS vest -->
+      <g transform="translate(470 250)">
+        <ellipse cx="34" cy="66" rx="36" ry="9" fill="#120a0c" opacity=".55"/>
+        <rect x="0" y="6" width="68" height="60" rx="8" fill="#6b1d33" stroke="#1b0810" stroke-width="2"/>
+        <rect x="0" y="22" width="68" height="9" fill="#e3a33b"/><rect x="0" y="42" width="68" height="9" fill="#e3a33b"/>
+        <ellipse cx="34" cy="7" rx="34" ry="8" fill="#842842" stroke="#1b0810" stroke-width="2"/>
+        <path d="M12 2 C 14 -12, 24 -16, 34 -16 C 44 -16, 54 -12, 56 2 L 52 30 L 16 30 Z" fill="#241a1c" stroke="#0e0709" stroke-width="1.5"/>
+        <path d="M26 -16 C 28 -6, 40 -6, 42 -16" fill="#6b1d33"/>
+        <rect x="29" y="-4" width="10" height="13" rx="2" fill="#3c3436"/>
+        <circle cx="34" cy="0" r="1.8" fill="#ffd27a"/>
+      </g>
+    </svg>
+  </div>
+  <div class="hoops" aria-hidden="true"></div>
+</header>
+
+<nav class="squad-nav" aria-label="Programme pages">
+  <ol role="tablist">
+    <li><button class="shirt-tab" role="tab" id="tab-season" aria-controls="view-season" aria-selected="true" data-view="season"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">1</text></svg><span class="label">The season</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-light" aria-controls="view-light" aria-selected="false" data-view="light"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">2</text></svg><span class="label">The warning light</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-pilot" aria-controls="view-pilot" aria-selected="false" data-view="pilot"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">3</text></svg><span class="label">The pilot season</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-rotation" aria-controls="view-rotation" aria-selected="false" data-view="rotation"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">4</text></svg><span class="label">Squad policies</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-logbook" aria-controls="view-logbook" aria-selected="false" data-view="logbook"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">5</text></svg><span class="label">Your logbook</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" data-view="how"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">6</text></svg><span class="label">How it works</span></button></li>
+  </ol>
+</nav>
+
+<div class="layout" id="layout">
+  <aside class="clipboard" aria-label="Club practice settings">
+    <div class="sheet">
+      <h2>Club practice</h2>
+      <p class="hint">Every page uses these settings. Change one and the open page works it out again.</p>
+      <div class="field">
+        <span class="flabel" id="policy-label">What the coach does</span>
+        <div class="policy-list" role="radiogroup" aria-labelledby="policy-label" id="policy-list"></div>
+      </div>
+      <div class="field">
+        <label for="flag">The warning light</label>
+        <select id="flag"></select>
+        <div class="note" id="flag-note"></div>
+      </div>
+      <div class="field" id="threshold-field">
+        <label for="threshold">Flag at a ratio of <span class="value" id="threshold-val">1.5</span></label>
+        <input type="range" id="threshold" min="1.1" max="2.2" step="0.05" value="1.5">
+        <div class="note">Practitioners often treat 1.5 as the danger zone.</div>
+      </div>
+      <div class="field" id="budget-field">
+        <label for="budget">Flag the riskiest <span class="value" id="budget-val">10%</span></label>
+        <input type="range" id="budget" min="2" max="30" step="1" value="10">
+        <div class="note">Share of player-weeks the light picks out, set on past seasons.</div>
+      </div>
+      <div class="field">
+        <span class="flabel" id="pre-label">Pre-season</span>
+        <div class="tickets" role="radiogroup" aria-labelledby="pre-label">
+          <input type="radio" name="preseason" id="pre-gradual" value="gradual" checked><label for="pre-gradual">Build up</label>
+          <input type="radio" name="preseason" id="pre-steep" value="steep"><label for="pre-steep">Full load at once</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="intensity">Training effort <span class="value" id="intensity-val">100%</span></label>
+        <input type="range" id="intensity" min="0.8" max="1.2" step="0.05" value="1">
+      </div>
+      <div class="field">
+        <label class="switch"><input type="checkbox" id="graded" checked> <span>Ten days of modified training after an injury before selection</span></label>
+      </div>
+      <div class="field">
+        <label for="season-seed">Season <span class="value" id="season-val">6</span></label>
+        <div class="btn-row">
+          <input type="range" id="season-seed" min="1" max="60" step="1" value="6" aria-describedby="season-note">
+          <button type="button" class="btn small" id="next-season">Play another season</button>
+        </div>
+        <div class="note" id="season-note">Each season has its own luck: knocks, bounces and form.</div>
+      </div>
+      <details class="more">
+        <summary>The hidden truth</summary>
+        <p class="hint">Nobody at a real club can see these. Change them to test whether the conclusions survive.</p>
+        <div class="field">
+          <label for="spike">Load spikes cause injuries <span class="value" id="spike-val">2.0</span></label>
+          <input type="range" id="spike" min="0" max="4" step="0.25" value="2">
+          <div class="note">0: spikes do no harm. 4: a big spike multiplies soft-tissue risk many times over.</div>
+        </div>
+        <div class="field">
+          <label for="contact">Contact injury rate <span class="value" id="contact-val">100%</span></label>
+          <input type="range" id="contact" min="0.5" max="1.5" step="0.1" value="1">
+        </div>
+        <div class="field">
+          <label for="squad-seed">Squad <span class="value" id="squad-val">7</span></label>
+          <input type="range" id="squad-seed" min="1" max="20" step="1" value="7">
+          <div class="note">A different invented squad: abilities, ages and hidden frailty.</div>
+        </div>
+      </details>
+      <div class="btn-row" style="margin-top:8px"><button type="button" class="btn ghost small" id="reset">Back to the defaults</button></div>
+    </div>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <section class="view" id="view-season" role="tabpanel" aria-labelledby="tab-season">
+      <div class="page-head"><span class="pg">Page 1</span><h2>The season</h2></div>
+      <p class="lede">One season of an invented club, day by day: training, matches, knocks and strains. <b>The warning light</b> reads every player's recent workload each Thursday, and the coach acts on it as set on the clipboard.</p>
+      <div id="season-out"></div>
+    </section>
+    <section class="view" id="view-light" role="tabpanel" aria-labelledby="tab-light" hidden>
+      <div class="page-head"><span class="pg">Page 2</span><h2>The warning light</h2></div>
+      <p class="lede">How well does each light pick out the players about to pick up a soft-tissue injury? Thirty seasons are played with <b>nobody acting on any flag</b>, so every light is scored against the same injuries, alongside a perfect-knowledge ceiling that knows the hidden truth but not the luck.</p>
+      <div id="light-out"></div>
+    </section>
+    <section class="view" id="view-pilot" role="tabpanel" aria-labelledby="tab-pilot" hidden>
+      <div class="page-head"><span class="pg">Page 3</span><h2>The pilot season</h2></div>
+      <p class="lede">The club plays one normal season, then pilots the light the next and compares injury counts. <b>Different seasons have different luck</b>, which the pilot cannot see. The simulation can: it also replays each season with and without the light, on exactly the same luck.</p>
+      <div id="pilot-out"></div>
+    </section>
+    <section class="view" id="view-rotation" role="tabpanel" aria-labelledby="tab-rotation" hidden>
+      <div class="page-head"><span class="pg">Page 4</span><h2>Squad policies</h2></div>
+      <p class="lede">Five ways to manage the squad, each played over the same seasons with the same luck, so the differences are the policy and nothing else. <b>Fewer injuries is not the same as more wins.</b></p>
+      <div id="rotation-out"></div>
+    </section>
+    <section class="view" id="view-logbook" role="tabpanel" aria-labelledby="tab-logbook" hidden>
+      <div class="page-head"><span class="pg">Page 5</span><h2>Your logbook</h2></div>
+      <p class="lede">Bring a club's own session log (date, player, minutes and effort, with injuries if you have them). The app works out every player's workload ratios, this week's flags and, if injuries are recorded, whether the ratios anticipated them better than chance. <b>Nothing leaves your browser.</b></p>
+      <div id="logbook-out"></div>
+    </section>
+    <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" hidden>
+      <div class="page-head"><span class="pg">Page 6</span><h2>How it works</h2></div>
+      <div id="how-out"></div>
+    </section>
+  </main>
+</div>
+<footer class="colophon">
+  <span><b>Load bearing</b> &middot; an invented club, invented players and an invented league. A simulation for thinking about evidence, not a coaching or medical tool.</span>
+  <span>Runs entirely in this page, offline.</span>
+</footer>
+<script id="model-src">
 /* MODEL START */
 /* Load bearing: the model. An invented rugby squad's season of training load, injuries, selection and results,
    four injury warning flags (and a perfect-knowledge ceiling), and the analyses built on them.
@@ -982,7 +1629,7 @@ var LoadBearing = (function () {
     var seasonSd = Math.sqrt(pooled.reduce(function (a, v) { return a + v * v; }, 0) / Math.max(1, pooled.length - 2));
     var count = function (f) { return measured.filter(f).length / pairs; };
     var power = [];
-    for (var n = 1; n <= 40; n++) power.push({ seasons: n, power: powerTwoSample(trueEffect, seasonSd, n) });
+    for (var n = 1; n <= 100; n++) power.push({ seasons: n, power: powerTwoSample(trueEffect, seasonSd, n) });
     var needed = seasonsFor(trueEffect, seasonSd, 0.8);
     var totalActions = actions.reduce(function (a, v) { return a + v; }, 0);
     var totalQuiet = quiet.reduce(function (a, v) { return a + v; }, 0);
@@ -1330,7 +1977,1096 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
 /* MODEL END */
 </script>
 <script>
-/* UI */
+/* Load bearing: the interface. Reads the clipboard, runs the model (in a background worker where the browser
+   allows it) and draws every page as a match-day programme. */
+(function () {
+  'use strict';
+  var M = LoadBearing;
+  var $ = function (id) { return document.getElementById(id); };
+  var MINUS = '−';
+
+  /* ---------- formatting ---------- */
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmt(x, d) {
+    if (x === null || x === undefined || x !== x) return 'n/a';
+    if (x === Infinity) return 'never';
+    d = d || 0;
+    var v = Math.abs(x).toFixed(d);
+    var parts = v.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (x < 0 && +v !== 0 ? MINUS : '') + parts.join('.');
+  }
+  function signed(x, d) {
+    if (x === null || x === undefined || x !== x) return 'n/a';
+    var v = +Math.abs(x).toFixed(d || 0);
+    return (v === 0 ? '' : x > 0 ? '+' : MINUS) + fmt(Math.abs(x), d);
+  }
+  function pct(x, d) { return x === x ? fmt(100 * x, d || 0) + '%' : 'n/a'; }
+  function ordinal(n) {
+    var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+  function plural(n, one, many) { return fmt(n) + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+  var FLAG_SHORT = { coupled: 'Rolling ratio (coupled)', uncoupled: 'Rolling ratio (uncoupled)', ewma: 'EWMA ratio',
+    model: 'Risk model (the AI)', oracle: 'Perfect knowledge' };
+  var FLAG_NOTES = {
+    coupled: 'Last 7 days of load over the average week of the last 28, which includes the last 7.',
+    uncoupled: 'Last 7 days over the average week of the 21 days before them.',
+    ewma: 'Exponentially weighted averages: a 7-day average over a 28-day one.',
+    model: 'A logistic regression the club trained on its last two seasons: nine features, few injuries.',
+    oracle: 'Knows the hidden injury mechanism and every player\'s frailty, but not the luck. No club has this.'
+  };
+  var POLICY_TINY = { none: 'Best', rest: 'Rest', modify: 'Cut', rotate: 'Rotate', readiness: 'Ready' };
+  var POLICY_SHORT = { none: 'Pick the best', rest: 'Rest the flagged', modify: 'Cut training', rotate: 'Rotate', readiness: 'Pick on readiness' };
+  var POLICY_NOTES = {
+    none: 'The light is on the wall but nobody acts on it.',
+    rest: 'A flagged player misses the match and does half his training that week.',
+    modify: 'A flagged player trains at 60% but can still be picked.',
+    rotate: 'Anyone with four starts in a row sits out the next game. No light.',
+    readiness: 'Pick on ability times freshness from the fitness-fatigue model. No light.'
+  };
+  var COLORS = {};
+  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function loadColors() {
+    ['none', 'rest', 'modify', 'rotate', 'readiness'].forEach(function (p) { COLORS[p] = cssVar('--c-' + p); });
+    ['coupled', 'uncoupled', 'ewma', 'model', 'oracle'].forEach(function (f) { COLORS[f] = cssVar('--c-' + f); });
+    ['claret', 'claret-deep', 'amber', 'amber-deep', 'amber-pale', 'ink', 'ink-soft', 'ink-faint', 'pitch', 'pitch-pale', 'navy',
+      'rule', 'paper-dark', 'chalk', 'claret-soft'].forEach(function (c) { COLORS[c] = cssVar('--' + c); });
+  }
+
+  /* ---------- settings ---------- */
+  var DEF = M.DEFAULTS;
+  var APP_DEFAULTS = (function () {
+    var o = {};
+    for (var k in DEF) o[k] = DEF[k];
+    o.policy = 'rest'; o.flag = 'model'; o.seasonSeed = 6;
+    return o;
+  })();
+  var S = copy(APP_DEFAULTS);
+  var view = 'season';
+  var extra = { pilotPairs: 40, rotationSeasons: 30, logThreshold: null };
+  function copy(o) { var r = {}; for (var k in o) r[k] = o[k]; return r; }
+
+  function readHash() {
+    var m = /[#&]s=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+    if (!m) return;
+    try {
+      var b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      var o = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      applyState(o);
+    } catch (e) { toast('That link could not be read, so the defaults are shown.'); }
+  }
+  function applyState(o) {
+    if (!o || typeof o !== 'object') return;
+    var clean = M.withDefaults(o.settings || o);
+    for (var k in APP_DEFAULTS) if ((o.settings || o)[k] !== undefined) S[k] = clean[k];
+    if (o.view && ['season', 'light', 'pilot', 'rotation', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
+    if (o.pilotPairs && [20, 40, 80].indexOf(+o.pilotPairs) >= 0) extra.pilotPairs = +o.pilotPairs;
+    if (o.rotationSeasons && [15, 30, 60].indexOf(+o.rotationSeasons) >= 0) extra.rotationSeasons = +o.rotationSeasons;
+  }
+  function stateObject() {
+    var diff = {};
+    for (var k in APP_DEFAULTS) if (S[k] !== APP_DEFAULTS[k]) diff[k] = S[k];
+    return { app: 'load-bearing', v: 1, view: view, settings: diff, pilotPairs: extra.pilotPairs, rotationSeasons: extra.rotationSeasons };
+  }
+  function shareLink() {
+    var json = JSON.stringify(stateObject());
+    var b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return location.href.split('#')[0] + '#s=' + b64;
+  }
+
+  /* ---------- clipboard controls ---------- */
+  function buildControls() {
+    var pl = $('policy-list');
+    pl.innerHTML = M.POLICIES.map(function (p, i) {
+      return '<input type="radio" name="policy" id="pol-' + p + '" value="' + p + '">' +
+        '<label for="pol-' + p + '"><span class="jersey" style="background:' + COLORS[p] + '">' + (i + 1) + '</span>' +
+        '<span><b>' + esc(POLICY_SHORT[p]) + '</b><br><span style="font-size:12.5px;color:var(--ink-soft)">' + esc(POLICY_NOTES[p]) + '</span></span></label>';
+    }).join('');
+    $('flag').innerHTML = M.FLAGS.map(function (f) { return '<option value="' + f + '">' + esc(FLAG_SHORT[f]) + '</option>'; }).join('');
+    pl.addEventListener('change', function (e) { if (e.target.name === 'policy') { S.policy = e.target.value; changed(); } });
+    $('flag').addEventListener('change', function () { S.flag = this.value; changed(); });
+    bindRange('threshold', 'threshold', function (v) { return v.toFixed(2).replace(/0$/, ''); });
+    bindRange('budget', 'budget', function (v) { return v + '%'; });
+    bindRange('intensity', 'intensity', function (v) { return Math.round(v * 100) + '%'; });
+    bindRange('season-seed', 'seasonSeed', function (v) { return String(v); });
+    bindRange('spike', 'spike', function (v) { return v.toFixed(2).replace(/0$/, ''); });
+    bindRange('contact', 'contactScale', function (v) { return Math.round(v * 100) + '%'; });
+    bindRange('squad-seed', 'squadSeed', function (v) { return String(v); });
+    document.querySelectorAll('input[name="preseason"]').forEach(function (r) {
+      r.addEventListener('change', function () { S.preseason = this.value; changed(); });
+    });
+    $('graded').addEventListener('change', function () { S.gradedReturn = this.checked; changed(); });
+    $('next-season').addEventListener('click', function () { S.seasonSeed = S.seasonSeed % 60 + 1; syncControls(); changed(); });
+    $('reset').addEventListener('click', function () { S = copy(APP_DEFAULTS); syncControls(); changed(); });
+  }
+  var RANGE_FORMAT = {};
+  function bindRange(id, key, f) {
+    RANGE_FORMAT[id] = f;
+    var el = $(id), timer = null;
+    el.addEventListener('input', function () {
+      var v = +el.value;
+      $(valId(id)).textContent = f(v);
+      S[key] = v;
+      clearTimeout(timer);
+      timer = setTimeout(changed, 180);
+    });
+  }
+  function valId(id) { return { 'season-seed': 'season-val', 'squad-seed': 'squad-val' }[id] || id + '-val'; }
+  function syncControls() {
+    var r = document.querySelector('#pol-' + S.policy); if (r) r.checked = true;
+    $('flag').value = S.flag;
+    var set = function (id, v) { $(id).value = v; $(valId(id)).textContent = RANGE_FORMAT[id](+v); };
+    set('threshold', S.threshold); set('budget', S.budget); set('intensity', S.intensity);
+    set('season-seed', S.seasonSeed); set('spike', S.spike); set('contact', S.contactScale); set('squad-seed', S.squadSeed);
+    $('pre-' + S.preseason).checked = true;
+    $('graded').checked = S.gradedReturn;
+    var ratio = S.flag === 'coupled' || S.flag === 'uncoupled' || S.flag === 'ewma';
+    $('threshold-field').hidden = !ratio;
+    $('budget-field').hidden = ratio;
+    $('flag-note').textContent = FLAG_NOTES[S.flag];
+  }
+  var changeTimer = null;
+  function changed() {
+    syncControls();
+    clearTimeout(changeTimer);
+    changeTimer = setTimeout(function () { render(view); }, 30);
+  }
+
+  /* ---------- background worker ---------- */
+  var worker = null, jobs = {}, jobSeq = 0, workerFailed = false;
+  function startWorker() {
+    try {
+      var src = $('model-src').textContent;
+      var body = src + '\nself.onmessage = function (e) { var d = e.data; try { var r = LoadBearing[d.fn].apply(null, d.args); self.postMessage({ id: d.id, result: r }); } catch (err) { self.postMessage({ id: d.id, error: String(err && err.message || err) }); } };';
+      var url = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      worker.onmessage = function (e) {
+        var j = jobs[e.data.id];
+        if (!j) return;
+        delete jobs[e.data.id];
+        if (e.data.error) j.reject(new Error(e.data.error)); else j.resolve(e.data.result);
+      };
+      worker.onerror = function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        workerFailed = true; worker = null;
+        var pending = jobs; jobs = {};
+        Object.keys(pending).forEach(function (id) { runHere(pending[id]); });
+      };
+    } catch (e) { worker = null; workerFailed = true; }
+  }
+  function runHere(j) {
+    setTimeout(function () {
+      try { j.resolve(M[j.fn].apply(null, j.args)); } catch (err) { j.reject(err); }
+    }, 20);
+  }
+  function run(fn, args) {
+    return new Promise(function (resolve, reject) {
+      var j = { fn: fn, args: args, resolve: resolve, reject: reject };
+      if (worker && !workerFailed) {
+        var id = ++jobSeq;
+        jobs[id] = j;
+        try { worker.postMessage({ id: id, fn: fn, args: args }); } catch (e) { delete jobs[id]; runHere(j); }
+      } else runHere(j);
+    });
+  }
+
+  /* ---------- charts ---------- */
+  function niceTicks(lo, hi, n) {
+    if (!(hi > lo)) { hi = lo + 1; }
+    var span = hi - lo, step = Math.pow(10, Math.floor(Math.log10(span / (n || 5))));
+    var err = (n || 5) / span * step;
+    if (err <= 0.15) step *= 10; else if (err <= 0.35) step *= 5; else if (err <= 0.75) step *= 2;
+    var out = [], start = Math.ceil(lo / step - 1e-9) * step;
+    for (var v = start; v <= hi + step * 1e-6; v += step) out.push(+v.toFixed(10));
+    return out;
+  }
+  function chartWidth(el) { return Math.max(260, Math.floor(el.clientWidth || el.parentNode.clientWidth || 600)); }
+
+  /* spec: { height, x: {min,max,ticks,label,format}, y: {...}, series: [...], refs: [...], bands: [...],
+     legend: [...], aria, labels: [...] } */
+  function plot(el, spec) {
+    var W = chartWidth(el), H = spec.height || 260;
+    var narrow = W < 460;
+    var m = { l: spec.marginLeft || (narrow ? 46 : 56), r: spec.marginRight || 16, t: spec.marginTop || 14, b: spec.x.label ? 46 : 30 };
+    var iw = W - m.l - m.r, ih = H - m.t - m.b;
+    var xs = function (v) { return m.l + (v - spec.x.min) / (spec.x.max - spec.x.min) * iw; };
+    var ys = function (v) { return m.t + ih - (v - spec.y.min) / (spec.y.max - spec.y.min) * ih; };
+    var xf = spec.x.format || function (v) { return fmt(v, 0); };
+    var yf = spec.y.format || function (v) { return fmt(v, 0); };
+    var xt = spec.x.ticks || niceTicks(spec.x.min, spec.x.max, narrow ? 4 : 7);
+    var yt = spec.y.ticks || niceTicks(spec.y.min, spec.y.max, 5);
+    var s = ['<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(spec.aria || '') + '">'];
+    (spec.bands || []).forEach(function (b) {
+      var x0 = xs(Math.max(b.from, spec.x.min)), x1 = xs(Math.min(b.to, spec.x.max));
+      s.push('<rect x="' + x0 + '" y="' + m.t + '" width="' + Math.max(0, x1 - x0) + '" height="' + ih + '" fill="' + b.color + '" opacity="' + (b.opacity || 0.12) + '"/>');
+      if (b.label) s.push('<text x="' + (x0 + 4) + '" y="' + (m.t + ih - 6) + '" class="ref-label" fill="' + (b.textColor || COLORS.ink) + '">' + esc(b.label) + '</text>');
+    });
+    s.push('<g class="grid">');
+    yt.forEach(function (v) { s.push('<line x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + ys(v) + '" y2="' + ys(v) + '"/>'); });
+    s.push('</g><g class="axis">');
+    s.push('<line x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih) + '"/>');
+    yt.forEach(function (v) { s.push('<text x="' + (m.l - 6) + '" y="' + (ys(v) + 4) + '" text-anchor="end">' + esc(yf(v)) + '</text>'); });
+    xt.forEach(function (v) {
+      s.push('<line x1="' + xs(v) + '" x2="' + xs(v) + '" y1="' + (m.t + ih) + '" y2="' + (m.t + ih + 4) + '"/>');
+      s.push('<text x="' + xs(v) + '" y="' + (m.t + ih + 17) + '" text-anchor="middle">' + esc(xf(v)) + '</text>');
+    });
+    s.push('</g>');
+    if (spec.x.label) s.push('<text class="axis-title" x="' + (m.l + iw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(spec.x.label) + '</text>');
+    if (spec.y.label) s.push('<text class="axis-title" transform="translate(13 ' + (m.t + ih / 2) + ') rotate(-90)" text-anchor="middle">' + esc(spec.y.label) + '</text>');
+    (spec.series || []).forEach(function (se) {
+      var d = se.data;
+      if (se.type === 'bars') {
+        var bw = se.barWidth ? se.barWidth * iw / (spec.x.max - spec.x.min) : Math.max(1, iw / d.length * 0.8);
+        d.forEach(function (p) {
+          if (!(p[1] === p[1])) return;
+          var y0 = ys(Math.max(spec.y.min, Math.min(0, spec.y.max))), y1 = ys(p[1]);
+          s.push('<rect x="' + (xs(p[0]) - bw / 2) + '" y="' + Math.min(y0, y1) + '" width="' + bw + '" height="' + Math.abs(y0 - y1) +
+            '" fill="' + (p[2] || se.color) + '"' + (se.opacity ? ' opacity="' + se.opacity + '"' : '') + '>' + (p[3] ? '<title>' + esc(p[3]) + '</title>' : '') + '</rect>');
+        });
+      } else if (se.type === 'points') {
+        d.forEach(function (p) {
+          if (!(p[1] === p[1])) return;
+          s.push('<circle cx="' + xs(p[0]) + '" cy="' + ys(p[1]) + '" r="' + (se.r || 3.5) + '" fill="' + (p[2] || se.color) + '"' +
+            (se.stroke ? ' stroke="' + se.stroke + '" stroke-width="1.5"' : '') + (se.opacity ? ' opacity="' + se.opacity + '"' : '') + '>' +
+            (p[3] ? '<title>' + esc(p[3]) + '</title>' : '') + '</circle>');
+        });
+      } else {
+        var path = '', open = false;
+        d.forEach(function (p) {
+          if (!(p[1] === p[1]) || !(p[0] === p[0])) { open = false; return; }
+          var y = Math.max(m.t - 2, Math.min(m.t + ih + 2, ys(p[1])));
+          path += (open ? 'L' : 'M') + xs(p[0]).toFixed(1) + ' ' + y.toFixed(1);
+          open = true;
+        });
+        if (se.type === 'area' && d.length) {
+          s.push('<path d="' + path + 'L' + xs(d[d.length - 1][0]).toFixed(1) + ' ' + ys(spec.y.min) + 'L' + xs(d[0][0]).toFixed(1) + ' ' + ys(spec.y.min) + 'Z" fill="' + se.color + '" opacity="' + (se.opacity || 0.25) + '"/>');
+        } else {
+          s.push('<path d="' + path + '" fill="none" stroke="' + se.color + '" stroke-width="' + (se.width || 2.5) + '"' +
+            (se.dash ? ' stroke-dasharray="' + se.dash + '"' : '') + ' stroke-linejoin="round" stroke-linecap="round"/>');
+        }
+      }
+    });
+    (spec.errorbars || []).forEach(function (e) {
+      if (e.xlo !== undefined) s.push('<line x1="' + xs(e.xlo) + '" x2="' + xs(e.xhi) + '" y1="' + ys(e.y) + '" y2="' + ys(e.y) + '" stroke="' + e.color + '" stroke-width="2"/>');
+      if (e.ylo !== undefined) s.push('<line x1="' + xs(e.x) + '" x2="' + xs(e.x) + '" y1="' + ys(e.ylo) + '" y2="' + ys(e.yhi) + '" stroke="' + e.color + '" stroke-width="2"/>');
+    });
+    (spec.refs || []).forEach(function (r) {
+      var c = r.color || COLORS.ink;
+      if (r.axis === 'x') {
+        if (r.value < spec.x.min || r.value > spec.x.max) return;
+        s.push('<line x1="' + xs(r.value) + '" x2="' + xs(r.value) + '" y1="' + m.t + '" y2="' + (m.t + ih) + '" stroke="' + c + '" stroke-width="' + (r.width || 2) + '"' + (r.dash ? ' stroke-dasharray="' + r.dash + '"' : '') + '/>');
+        if (r.label) {
+          var anchor = r.anchor || (xs(r.value) > m.l + iw * 0.7 ? 'end' : 'start');
+          s.push('<text class="ref-label" x="' + (xs(r.value) + (anchor === 'end' ? -5 : 5)) + '" y="' + (m.t + 12 + (r.row || 0) * 15) + '" text-anchor="' + anchor + '" fill="' + c + '">' + esc(r.label) + '</text>');
+        }
+      } else {
+        if (r.value < spec.y.min || r.value > spec.y.max) return;
+        s.push('<line x1="' + m.l + '" x2="' + (m.l + iw) + '" y1="' + ys(r.value) + '" y2="' + ys(r.value) + '" stroke="' + c + '" stroke-width="' + (r.width || 2) + '"' + (r.dash ? ' stroke-dasharray="' + r.dash + '"' : '') + '/>');
+        if (r.label) s.push('<text class="ref-label" x="' + (m.l + iw - 4) + '" y="' + (ys(r.value) - 5) + '" text-anchor="end" fill="' + c + '">' + esc(r.label) + '</text>');
+      }
+    });
+    (spec.labels || []).forEach(function (lb) {
+      s.push('<text class="ref-label" x="' + (xs(lb.x) + (lb.dx || 0)) + '" y="' + (ys(lb.y) + (lb.dy || 0)) + '" text-anchor="' + (lb.anchor || 'start') + '" fill="' + (lb.color || COLORS.ink) + '">' + esc(lb.text) + '</text>');
+    });
+    s.push('</svg>');
+    var legend = '';
+    if (spec.legend && spec.legend.length) {
+      legend = '<ul class="legend">' + spec.legend.map(function (l) {
+        var style = l.kind === 'dash' ? 'border-color:' + l.color : 'background:' + l.color;
+        return '<li><span class="key ' + (l.kind || '') + '" style="' + style + '"></span>' + esc(l.label) + '</li>';
+      }).join('') + '</ul>';
+    }
+    el.innerHTML = s.join('') + legend;
+  }
+
+  /* Charts are drawn at their container's real width, so text stays legible on a phone; redraw on resize. */
+  var drawers = [];
+  function chart(el, fn) { drawers.push({ el: el, fn: fn }); fn(); }
+  function resetCharts(container) { drawers = drawers.filter(function (d) { return !container.contains(d.el) && document.body.contains(d.el); }); }
+  var lastWidth = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (Math.abs(window.innerWidth - lastWidth) < 8) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(window.__lbResize);
+    window.__lbResize = setTimeout(function () {
+      drawers = drawers.filter(function (d) { return document.body.contains(d.el); });
+      drawers.forEach(function (d) { d.fn(); });
+    }, 120);
+  });
+
+  /* ---------- shared page pieces ---------- */
+  function tile(label, value, note, cls, unit) {
+    return '<div class="tile ' + (cls || '') + '"><p class="t-label">' + esc(label) + '</p><div class="t-value">' + value +
+      (unit ? '<small>' + esc(unit) + '</small>' : '') + '</div>' + (note ? '<p class="t-note">' + note + '</p>' : '') + '</div>';
+  }
+  function busy(el, text) { el.innerHTML = '<div class="busy" role="status"><span class="ball" aria-hidden="true"></span>' + esc(text) + '</div>'; }
+  function failed(el, err) { el.innerHTML = '<div class="error" role="alert">Something went wrong working this out: ' + esc(err && err.message || err) + '. Try the defaults.</div>'; }
+  function download(name, text, type) {
+    try {
+      var blob = new Blob([text], { type: type || 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    } catch (e) { toast('Downloads are blocked here.'); }
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.querySelector('.toast');
+    if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function weekLabel(w) { return w < M.PRE_WEEKS ? 'Pre-season week ' + (w + 1) : 'Week ' + (w - M.PRE_WEEKS + 1); }
+  function shortWeek(x) {
+    if (x < 0) return 'Off';
+    if (x < M.PRE_WEEKS) return 'P' + (Math.floor(x) + 1);
+    return 'W' + (Math.floor(x) - M.PRE_WEEKS + 1);
+  }
+
+  /* ================= PAGE 1: THE SEASON ================= */
+  var seasonState = { player: null };
+  function renderSeason() {
+    var out = $('season-out');
+    resetCharts(out);
+    var ctx = M.prepare(S);
+    var res = M.runSeason(S, S.seasonSeed, { keepDaily: true, collectRows: true });
+    var base = res;
+    if (S.policy !== 'none') { var b = copy(S); b.policy = 'none'; base = M.runSeason(b, S.seasonSeed); }
+    var players = ctx.squad.players;
+    if (seasonState.player === null || seasonState.player >= players.length) {
+      seasonState.player = res.injuries.length ? res.injuries[0].player : 0;
+    }
+    var last = res.matches[res.matches.length - 1];
+    var flagNC = 0, flagged = 0;
+    res.rows.forEach(function (r) { if (activeFlagged(r, ctx)) { flagged += 1; if (r.nc) flagNC += 1; } });
+    var html = [];
+    html.push('<div class="scoreboard">' +
+      tile('Injuries', fmt(res.injuriesTotal), fmt(res.nc) + ' soft-tissue, ' + fmt(res.contact) + ' contact', res.injuriesTotal > 34 ? 'bad' : '') +
+      tile('Days lost', fmt(res.daysLost), 'player-days out injured, about ' + fmt(res.daysLost / players.length, 0) + ' a player') +
+      tile('League', ordinal(res.position), fmt(res.points) + ' points, won ' + res.wins + ', drew ' + res.draws + ', lost ' + res.losses, res.position <= 2 ? 'good' : '') +
+      tile('Cup final', last.result === 'W' ? 'Won' : last.result === 'D' ? 'Drew' : 'Lost', (last.margin === 0 ? 'level' : 'by ' + Math.abs(last.margin)) + ' against ' + esc(ctx.squad.opponents[last.opponent].name) + '; ' + last.bestXVPlaying + ' of the first-choice XV started', last.result === 'W' ? 'good' : 'warn') +
+      '</div>');
+    html.push(seasonNote(res, base, ctx, flagged, flagNC));
+    html.push('<div class="card"><p class="kicker">The availability board</p><h3>Every player, every week</h3><p class="sub">Darker squares are heavier weeks. Click a player to see his season below. Results run along the top.</p><div class="board-wrap" id="board"></div>' +
+      '<div class="board-legend"><span><i style="background:#f6ead0"></i>Light week</span><span><i style="background:' + COLORS.claret + '"></i>Heavy week</span><span><i style="background:#2e2526"></i>Injured</span><span><i style="background:' + COLORS['pitch-pale'] + '"></i>Coming back</span><span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="' + COLORS.amber + '" stroke="#5a3b0a"/></svg>Flagged on Thursday</span><span><svg width="12" height="12" aria-hidden="true"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="#ffd27a" stroke="#241a1c"/></svg>Soft-tissue injury</span><span><svg width="12" height="12" aria-hidden="true"><path d="M2 2 L10 10 M10 2 L2 10" stroke="#fff" stroke-width="2.4"/><path d="M2 2 L10 10 M10 2 L2 10" stroke="#c0392b" stroke-width="1.4"/></svg>Contact injury</span></div></div>');
+    html.push('<div class="card" id="player-card"></div>');
+    html.push('<div class="grid-2"><div class="card"><p class="kicker">Availability</p><h3>Who was fit to play</h3><p class="sub">Players injured each week, and how many of the first-choice XV started each match.</p><div class="chart" id="avail-chart"></div></div>' +
+      '<div class="card"><p class="kicker">Final table</p><h3>The league</h3><div class="table-wrap" id="table-out"></div></div></div>');
+    html.push('<div class="card"><p class="kicker">Fixtures and results</p><h3>The season\'s matches</h3><p class="sub">Margin of victory or defeat; cup ties are outlined in gold.</p><ul class="fixtures" id="fixtures"></ul></div>');
+    out.innerHTML = html.join('');
+    drawBoard(res, ctx);
+    drawPlayer(res, ctx);
+    chart($('avail-chart'), function () { drawAvailability($('avail-chart'), res); });
+    $('table-out').innerHTML = '<table class="sheet-table"><caption class="sr-only">Final league table</caption><thead><tr><th class="num">Pos</th><th>Club</th><th class="num">Points</th><th class="num">Points diff</th></tr></thead><tbody>' +
+      res.table.map(function (r) { return '<tr class="' + (r.us ? 'us' : '') + '"><td class="num">' + r.position + '</td><td>' + esc(r.name) + '</td><td class="num">' + r.points + '</td><td class="num">' + signed(r.diff) + '</td></tr>'; }).join('') + '</tbody></table>';
+    $('fixtures').innerHTML = res.matches.map(function (mt) {
+      return '<li class="' + mt.result + (mt.type === 'C' ? ' C' : '') + '" title="' + esc(mt.label + ': ' + (mt.home === null ? 'neutral' : mt.home ? 'home' : 'away') + ' against ' + ctx.squad.opponents[mt.opponent].name + ', ' + (mt.margin > 0 ? 'won by ' : mt.margin < 0 ? 'lost by ' : 'drew ') + Math.abs(mt.margin)) + '">' +
+        mt.result + '<small>' + (mt.margin > 0 ? '+' : mt.margin < 0 ? MINUS : '') + Math.abs(mt.margin) + '</small></li>';
+    }).join('');
+  }
+
+  function activeFlagged(row, ctx) {
+    var f = S.flag;
+    if (f === 'coupled' || f === 'uncoupled' || f === 'ewma') return row.scores[f] >= S.threshold;
+    return row.scores[f] >= ctx.cutoffs[f];
+  }
+
+  function seasonNote(res, base, ctx, flagged, flagNC) {
+    var name = FLAG_SHORT[S.flag];
+    var p = [];
+    p.push('<p class="big">The light flagged ' + plural(flagged, 'player-week') + '. ' + (flagged ? fmt(flagNC) + ' of them ' + (flagNC === 1 ? 'was' : 'were') + ' followed by a soft-tissue injury within the week.' : '') + '</p>');
+    var share = res.flagWeeks ? flagged / res.flagWeeks : 0;
+    p.push('<p>' + esc(name) + ' picked out ' + pct(share) + ' of the weeks a player was fit. ');
+    if (S.policy === 'none') p.push('Nobody acted on it, so this season is what happens without it.</p>');
+    else if (S.policy === 'rest' || S.policy === 'modify') {
+      p.push((S.policy === 'rest' ? 'Every flagged player sat out that week\'s match and did half his training: ' + plural(res.rests, 'match', 'matches') + ' missed in all' + (res.forcedPlays ? ', and ' + plural(res.forcedPlays, 'flagged player') + ' still had to play because nobody else was fit' : '') + '.' : 'Every flagged player trained at 60% that week but stayed available.') + '</p>');
+    } else p.push('This policy ignores the light: ' + esc(POLICY_NOTES[S.policy]) + (res.rests ? ' ' + plural(res.rests, 'match', 'matches') + ' sat out.' : '') + '</p>');
+    if (S.policy !== 'none') {
+      var dI = res.injuriesTotal - base.injuriesTotal, dP = res.points - base.points;
+      p.push('<p><b>Same season, same luck, picking the best and ignoring the light:</b> ' + plural(base.injuriesTotal, 'injury', 'injuries') + ', ' + fmt(base.daysLost) + ' days lost and ' + fmt(base.points) + ' points (' + ordinal(base.position) + '). ' +
+        'So this policy changed injuries by ' + signed(dI) + ', days lost by ' + signed(res.daysLost - base.daysLost) + ' and league points by ' + signed(dP) + '. Only a simulation can replay a season like this; the Pilot page shows what a real club would see instead.</p>');
+    }
+    return '<div class="note-card"><p class="from">Physio\'s note &middot; ' + esc(POLICY_SHORT[S.policy]) + ', ' + esc(name) + '</p>' + p.join('') + '</div>';
+  }
+
+  function weekStatus(res, p, w) {
+    var counts = [0, 0, 0, 0];
+    for (var k = 0; k < 7; k++) counts[res.status[p][M.HIST + w * 7 + k]] += 1;
+    if (counts[1] >= 4) return 1;
+    if (counts[2] >= 4) return 2;
+    return 0;
+  }
+  function loadColor(v) {
+    var stops = [[0, [246, 234, 208]], [900, [236, 205, 160]], [1500, [214, 150, 120]], [2000, [164, 70, 82]], [2600, [107, 29, 51]], [3400, [69, 16, 31]]];
+    for (var i = 1; i < stops.length; i++) {
+      if (v <= stops[i][0]) {
+        var a = stops[i - 1], b = stops[i], t = (v - a[0]) / (b[0] - a[0]);
+        return 'rgb(' + [0, 1, 2].map(function (k) { return Math.round(a[1][k] + (b[1][k] - a[1][k]) * t); }).join(',') + ')';
+      }
+    }
+    return 'rgb(69,16,31)';
+  }
+
+  function drawBoard(res, ctx) {
+    var players = ctx.squad.players, W = M.WEEKS;
+    var host = $('board');
+    var avail = Math.max(300, host.clientWidth - 2);
+    var labelW = avail < 520 ? 92 : 118;
+    var cell = Math.max(12, Math.min(24, Math.floor((avail - labelW - 8) / W)));
+    var rowH = 15, top = 34, gap = 9;
+    var y = top, rowsY = [], groupLabels = [], lastGroup = null;
+    players.forEach(function (pl, i) {
+      if (pl.group !== lastGroup) { if (lastGroup !== null) y += gap; groupLabels.push({ y: y, g: pl.group }); lastGroup = pl.group; y += 12; }
+      rowsY[i] = y; y += rowH;
+    });
+    var Hh = y + 6, Ww = labelW + cell * W + 8;
+    var s = ['<svg width="' + Ww + '" height="' + Hh + '" role="img" aria-label="Availability board: one row per player and one column per week, shaded by weekly load, with injuries and flags marked."><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#2e2526"/><line x1="0" y1="0" x2="0" y2="5" stroke="#5a4d4f" stroke-width="2"/></pattern></defs>'];
+    // week headers and results
+    var byWeek = {};
+    res.matches.forEach(function (mt) { byWeek[mt.week] = mt; });
+    for (var w = 0; w < W; w++) {
+      var x = labelW + w * cell;
+      if (w === 0 || w === M.PRE_WEEKS || (w - M.PRE_WEEKS) % 5 === 0 && w > M.PRE_WEEKS) {
+        s.push('<text x="' + (x + 1) + '" y="10" font-size="10">' + (w < M.PRE_WEEKS ? 'Pre-season' : 'W' + (w - M.PRE_WEEKS + 1)) + '</text>');
+      }
+      var mt = byWeek[w];
+      if (mt) {
+        var c = mt.result === 'W' ? COLORS.pitch : mt.result === 'L' ? COLORS.claret : COLORS['ink-soft'];
+        s.push('<rect x="' + (x + 1) + '" y="15" width="' + (cell - 2) + '" height="13" fill="' + c + '"' + (mt.type === 'C' ? ' stroke="' + COLORS.amber + '" stroke-width="2"' : '') + '><title>' + esc(weekLabel(w) + ', ' + mt.label + ': ' + (mt.margin > 0 ? 'won by ' : mt.margin < 0 ? 'lost by ' : 'drew ') + Math.abs(mt.margin)) + '</title></rect>');
+        if (cell >= 14) s.push('<text class="res" x="' + (x + cell / 2) + '" y="25.5" text-anchor="middle" fill="#fff">' + mt.result + '</text>');
+      }
+    }
+    s.push('<line x1="' + (labelW + M.PRE_WEEKS * cell - 0.5) + '" x2="' + (labelW + M.PRE_WEEKS * cell - 0.5) + '" y1="14" y2="' + (Hh - 4) + '" stroke="' + COLORS.ink + '" stroke-width="1.5" stroke-dasharray="3 3"/>');
+    groupLabels.forEach(function (g) {
+      var label = M.GROUPS.filter(function (x) { return x.id === g.g; })[0].label;
+      s.push('<text class="grp" x="2" y="' + (g.y + 9) + '">' + esc(label) + '</text>');
+    });
+    var flagSet = {};
+    res.weekly.forEach(function (wk) { wk.flags.forEach(function (pid) { flagSet[pid + ':' + wk.week] = true; }); });
+    var injAt = {};
+    res.injuries.forEach(function (inj) { injAt[inj.player + ':' + inj.week] = inj; });
+    players.forEach(function (pl, i) {
+      var yy = rowsY[i];
+      s.push('<rect class="rowhit' + (seasonState.player === i ? ' sel' : '') + '" data-p="' + i + '" x="0" y="' + yy + '" width="' + Ww + '" height="' + rowH + '"><title>' + esc(pl.name + ', ' + groupLabelOf(pl.group)) + '</title></rect>');
+      s.push('<text x="4" y="' + (yy + 11) + '" pointer-events="none">' + esc(pl.name) + '</text>');
+      for (var w2 = 0; w2 < W; w2++) {
+        var st = weekStatus(res, i, w2), load = 0;
+        for (var k = 0; k < 7; k++) load += res.load[i][M.HIST + w2 * 7 + k];
+        var fill = st === 1 ? 'url(#hatch)' : st === 2 ? COLORS['pitch-pale'] : loadColor(load);
+        var x2 = labelW + w2 * cell;
+        s.push('<rect x="' + (x2 + 0.5) + '" y="' + (yy + 1) + '" width="' + (cell - 1) + '" height="' + (rowH - 2) + '" fill="' + fill + '" pointer-events="none"/>');
+        if (flagSet[i + ':' + w2]) s.push('<circle cx="' + (x2 + cell / 2) + '" cy="' + (yy + rowH / 2) + '" r="3.4" fill="' + COLORS.amber + '" stroke="#5a3b0a" stroke-width="1" pointer-events="none"/>');
+        var inj = injAt[i + ':' + w2];
+        if (inj) {
+          var cx = x2 + cell / 2, cy = yy + rowH / 2;
+          if (inj.type === 'nc') s.push('<path d="M' + cx + ' ' + (cy - 5) + ' L' + (cx + 5) + ' ' + cy + ' L' + cx + ' ' + (cy + 5) + ' L' + (cx - 5) + ' ' + cy + ' Z" fill="#ffd27a" stroke="#241a1c" stroke-width="1.2" pointer-events="none"/>');
+          else s.push('<path d="M' + (cx - 4) + ' ' + (cy - 4) + ' L' + (cx + 4) + ' ' + (cy + 4) + ' M' + (cx + 4) + ' ' + (cy - 4) + ' L' + (cx - 4) + ' ' + (cy + 4) + '" stroke="#fff" stroke-width="3.2" pointer-events="none"/><path d="M' + (cx - 4) + ' ' + (cy - 4) + ' L' + (cx + 4) + ' ' + (cy + 4) + ' M' + (cx + 4) + ' ' + (cy - 4) + ' L' + (cx - 4) + ' ' + (cy + 4) + '" stroke="#c0392b" stroke-width="1.8" pointer-events="none"/>');
+        }
+      }
+    });
+    s.push('</svg>');
+    host.innerHTML = s.join('');
+    host.querySelectorAll('.rowhit').forEach(function (r) {
+      r.addEventListener('click', function () {
+        seasonState.player = +r.getAttribute('data-p');
+        host.querySelectorAll('.rowhit').forEach(function (o) { o.classList.toggle('sel', o === r); });
+        drawPlayer(res, ctx);
+      });
+    });
+  }
+  function groupLabelOf(g) { return M.GROUPS.filter(function (x) { return x.id === g; })[0].label; }
+
+  function drawPlayer(res, ctx) {
+    var card = $('player-card');
+    resetCharts(card);
+    var pl = ctx.squad.players[seasonState.player];
+    var series = M.playerSeries(res, pl);
+    var injuries = res.injuries.filter(function (x) { return x.player === pl.id; });
+    var flags = [];
+    res.weekly.forEach(function (wk) { if (wk.flags.indexOf(pl.id) >= 0) flags.push(wk.week); });
+    var starts = res.matches.filter(function (mt) { return mt.starters.indexOf(pl.id) >= 0; }).length;
+    var opts = ctx.squad.players.map(function (p, i) { return '<option value="' + i + '"' + (i === pl.id ? ' selected' : '') + '>' + esc(p.name + ' (' + groupLabelOf(p.group) + ')') + '</option>'; }).join('');
+    card.innerHTML = '<p class="kicker">Player file</p><div class="player-head"><span class="pname">' + esc(pl.name) + '</span><span class="pmeta">' + esc(groupLabelOf(pl.group)) + ', number ' + pl.depth + ' in the pecking order, age ' + pl.age + ', ability ' + fmt(pl.ability, 0) + '</span></div>' +
+      '<div class="field" style="max-width:340px"><label for="player-pick" class="sr-only">Choose a player</label><select id="player-pick">' + opts + '</select></div>' +
+      '<ul class="pills"><li>' + plural(starts, 'start') + '</li><li class="flag">' + plural(flags.length, 'flagged week') + '</li>' +
+      injuries.map(function (inj) { return '<li class="inj">' + (inj.type === 'nc' ? 'Soft-tissue' : 'Contact') + ' injury, ' + weekLabel(inj.week).toLowerCase() + ', ' + inj.days + ' days out' + (inj.recurrence ? ' (soon after a return)' : '') + '</li>'; }).join('') +
+      (injuries.length ? '' : '<li>No injuries</li>') + '</ul>' +
+      '<div class="chart" id="pc-load"></div><div class="chart" id="pc-ratio" style="margin-top:8px"></div>';
+    $('player-pick').addEventListener('change', function () {
+      seasonState.player = +this.value;
+      document.querySelectorAll('#board .rowhit').forEach(function (o) { o.classList.toggle('sel', +o.getAttribute('data-p') === seasonState.player); });
+      drawPlayer(res, ctx);
+    });
+    var H = M.HIST;
+    var xOf = function (i) { return (i - H) / 7; };
+    var bars = [], fit = [], fat = [], ew = [], cp = [];
+    for (var i = 0; i < M.TOTAL_DAYS; i++) {
+      var kind = res.kinds[pl.id][i];
+      var col = kind === 3 ? COLORS.claret : kind === 4 ? COLORS['claret-soft'] : kind === 5 ? COLORS.pitch : COLORS['ink-faint'];
+      bars.push([xOf(i) + 0.07, res.load[pl.id][i], col]);
+      fit.push([xOf(i) + 0.07, series.fitness[i]]); fat.push([xOf(i) + 0.07, series.fatigue[i]]);
+      ew.push([xOf(i), series.ewma[i]]); cp.push([xOf(i), series.coupled[i]]);
+    }
+    var maxLoad = 0;
+    bars.forEach(function (b) { maxLoad = Math.max(maxLoad, b[1]); });
+    var injRefs = injuries.map(function (inj, k) { return { axis: 'x', value: inj.day / 7, color: inj.type === 'nc' ? COLORS['amber-deep'] : '#c0392b', dash: '5 3', label: (inj.type === 'nc' ? 'Soft-tissue' : 'Contact'), row: k % 2 }; });
+    var xSpec = { min: -4, max: M.WEEKS, ticks: [-4, 0, 6, 11, 16, 21, 26, 31, 36], format: function (v) { return v === -4 ? 'Off' : v === 0 ? 'Pre' : v === 36 ? 'End' : 'W' + (v - 5); } };
+    chart($('pc-load'), function () {
+      plot($('pc-load'), {
+        height: 220, aria: 'Daily training and match load for ' + pl.name + ' with fitness and fatigue lines',
+        x: xSpec, y: { min: 0, max: Math.max(800, Math.ceil(maxLoad / 100) * 100), label: 'Load a day' },
+        bands: [{ from: -4, to: 0, color: COLORS['ink-faint'], opacity: 0.1 }, { from: 0, to: M.PRE_WEEKS, color: COLORS.amber, opacity: 0.1, label: 'Pre-season' }],
+        series: [{ type: 'bars', data: bars, barWidth: 1 / 7 * 0.85 }, { type: 'line', data: fit, color: COLORS.navy, width: 2.5 }, { type: 'line', data: fat, color: COLORS['amber-deep'], width: 2 }],
+        refs: injRefs,
+        legend: [{ label: 'Match', color: COLORS.claret, kind: 'box' }, { label: 'Second-team or friendly', color: COLORS['claret-soft'], kind: 'box' }, { label: 'Training', color: COLORS['ink-faint'], kind: 'box' }, { label: 'Rehab', color: COLORS.pitch, kind: 'box' }, { label: 'Fitness (42-day average)', color: COLORS.navy }, { label: 'Fatigue (7-day average)', color: COLORS['amber-deep'] }]
+      });
+    });
+    var flagPts = flags.map(function (w) {
+      var i2 = H + w * 7 + 3;
+      return [xOf(i2), S.flag === 'coupled' || S.flag === 'uncoupled' ? series.coupled[i2] : series.ewma[i2], COLORS.amber, 'Flagged, ' + weekLabel(w)];
+    });
+    var maxR = 1.6;
+    ew.concat(cp).forEach(function (p) { if (p[1] === p[1]) maxR = Math.max(maxR, p[1]); });
+    chart($('pc-ratio'), function () {
+      plot($('pc-ratio'), {
+        height: 200, aria: 'Workload ratios for ' + pl.name + ' with the 1.5 danger line and flagged weeks',
+        x: xSpec, y: { min: 0, max: Math.min(4, Math.ceil(maxR * 2) / 2), label: 'Ratio', format: function (v) { return fmt(v, 1); } },
+        series: [{ type: 'line', data: cp, color: COLORS.coupled, width: 1.8, dash: '4 3' }, { type: 'line', data: ew, color: COLORS.ewma, width: 2.5 },
+          { type: 'points', data: flagPts, r: 5, stroke: '#5a3b0a' }],
+        refs: [{ axis: 'y', value: S.threshold, color: COLORS.claret, dash: '6 4', label: 'Flag at ' + fmt(S.threshold, 2) }].concat(injRefs.map(function (r) { var o = copy(r); o.label = ''; return o; })),
+        legend: [{ label: 'EWMA ratio', color: COLORS.ewma }, { label: 'Rolling ratio (coupled)', color: COLORS.coupled, kind: 'dash' }, { label: 'Flagged that Thursday (' + FLAG_SHORT[S.flag] + ')', color: COLORS.amber, kind: 'dot' }]
+      });
+    });
+  }
+
+  function drawAvailability(el, res) {
+    var injured = [], best = [];
+    for (var w = 0; w < M.WEEKS; w++) {
+      var n = 0;
+      for (var p = 0; p < res.status.length; p++) if (res.status[p][M.HIST + w * 7 + 5] === 1) n += 1;
+      injured.push([w + 0.5, n, COLORS.claret, weekLabel(w) + ': ' + n + ' injured']);
+    }
+    res.matches.forEach(function (mt) { best.push([mt.week + 0.5, mt.bestXVPlaying]); });
+    plot(el, {
+      height: 240, aria: 'Players injured each week and first-choice starters in each match',
+      x: { min: 0, max: M.WEEKS, ticks: [0, 6, 11, 16, 21, 26, 31, 36], format: function (v) { return v === 0 ? 'Pre' : v === 36 ? 'End' : 'W' + (v - 5); } },
+      y: { min: 0, max: 15, ticks: [0, 5, 10, 15], label: 'Players' },
+      series: [{ type: 'bars', data: injured, barWidth: 0.75 }, { type: 'line', data: best, color: COLORS.pitch, width: 2.5 }, { type: 'points', data: best, color: COLORS.pitch, r: 2.8 }],
+      legend: [{ label: 'Injured on match day', color: COLORS.claret, kind: 'box' }, { label: 'First-choice XV who started', color: COLORS.pitch }]
+    });
+  }
+
+  /* ================= PAGE 2: THE WARNING LIGHT ================= */
+  var SEEDS_LIGHT = (function () { var a = []; for (var i = 1; i <= 30; i++) a.push(i); return a; })();
+  function lightKey() { return JSON.stringify([S.squadSeed, S.preseason, S.intensity, S.gradedReturn, S.spike, S.contactScale, S.threshold, S.budget]); }
+  var cache = {};
+  function renderLight() {
+    var out = $('light-out'), key = 'light' + lightKey();
+    resetCharts(out);
+    if (cache[key]) return drawLight(cache[key]);
+    busy(out, 'Playing thirty silent seasons');
+    run('evaluateFlags', [S, SEEDS_LIGHT]).then(function (ev) {
+      ev.coupling = M.couplingDemo(3);
+      cache[key] = ev;
+      if (view === 'light' && key === 'light' + lightKey()) drawLight(ev);
+    }).catch(function (e) { failed(out, e); });
+  }
+  function drawLight(ev) {
+    var out = $('light-out');
+    resetCharts(out);
+    var by = {};
+    ev.flags.forEach(function (f) { by[f.id] = f; });
+    var real = ev.flags.filter(function (f) { return f.id !== 'oracle'; }).sort(function (a, b) { return b.auc - a.auc; });
+    var best = real[0], chosen = by[S.flag];
+    var html = [];
+    html.push('<div class="scoreboard">' +
+      tile('Best real light', fmt(best.auc, 2), esc(FLAG_SHORT[best.id]) + ': 0.5 is a coin toss, 1 is perfect') +
+      tile('The ceiling', fmt(by.oracle.auc, 2), 'perfect knowledge of the hidden truth, but not of the luck', 'warn') +
+      tile('One season reads', fmt(chosen.seasonAuc.lo, 2) + '<small>to</small>' + fmt(chosen.seasonAuc.hi, 2), esc(FLAG_SHORT[S.flag]) + ': the middle 80% of single-season scores') +
+      tile('Out of reach', pct(ev.contactShare), 'of injuries come from contact, which no load figure foresees', 'bad') +
+      '</div>');
+    var per100 = chosen.atRule.flagged ? 100 * chosen.atRule.precision : NaN;
+    html.push('<div class="note-card"><p class="from">Physio\'s note &middot; ' + esc(FLAG_SHORT[S.flag]) + '</p>' +
+      '<p class="big">Of every 100 flags, ' + (per100 === per100 ? fmt(per100, 1) : 'none') + ' ' + (per100 === 1 ? 'is' : 'are') + ' followed by a soft-tissue injury within a week.</p>' +
+      '<p>Across ' + fmt(ev.rows) + ' player-weeks, ' + pct(ev.baseRate, 1) + ' ended in a soft-tissue injury within seven days, so even a good light mostly flags players who would have been fine. At its rule, this light flags ' + pct(chosen.atRule.share, 1) + ' of player-weeks and catches ' + pct(chosen.atRule.recall) + ' of those injuries.' +
+      (best.id === 'model' ? '' : ' The risk model, trained on two seasons with ' + fmt(ev.historyInjuries) + ' soft-tissue injuries, scores ' + fmt(by.model.auc, 2) + '.') + '</p>' +
+      '<p>A single season is a small sample: the same light can read ' + fmt(chosen.seasonAuc.lo, 2) + ' one year and ' + fmt(chosen.seasonAuc.hi, 2) + ' the next, on nothing but luck.</p></div>');
+    html.push('<div class="grid-2"><div class="card"><p class="kicker">Exhibit A</p><h3>Hits against false alarms</h3><p class="sub">Each curve traces every possible flag level: up means more injuries caught, right means more fit players flagged. The diagonal is guessing.</p><div class="chart" id="roc"></div></div>' +
+      '<div class="card"><p class="kicker">Exhibit B</p><h3>One season at a time</h3><p class="sub">Each dot is one season\'s score for that light. A club judging its light on one season gets one of these dots.</p><div class="chart" id="strip"></div></div></div>');
+    html.push('<div class="card"><p class="kicker">The scorecard</p><h3>Every light against the same injuries</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Light</th><th class="num">AUC</th><th class="num">One season</th><th class="num">Flagged</th><th class="num">Hits per 100 flags</th><th class="num">Caught</th><th class="num">Caught at ' + S.budget + '%</th></tr></thead><tbody>' +
+      ev.flags.map(function (f) {
+        return '<tr' + (f.id === S.flag ? ' class="us"' : '') + '><td><span class="swatch" style="background:' + COLORS[f.id] + '"></span>' + esc(FLAG_SHORT[f.id]) + '<br><span class="ci">' + (f.id === 'coupled' || f.id === 'uncoupled' || f.id === 'ewma' ? 'rule: ratio of ' + fmt(S.threshold, 2) + ' or more' : 'rule: riskiest ' + S.budget + '% on past seasons') + '</span></td>' +
+          '<td class="num">' + fmt(f.auc, 3) + '</td><td class="num">' + fmt(f.seasonAuc.lo, 2) + ' to ' + fmt(f.seasonAuc.hi, 2) + '</td><td class="num">' + pct(f.atRule.share, 1) + '</td><td class="num">' + fmt(100 * f.atRule.precision, 1) + '</td><td class="num">' + pct(f.atRule.recall) + '</td><td class="num">' + pct(f.atBudget.recall) + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="foot">Scores use the soft-tissue injuries a load figure could in principle foresee; contact injuries are left out. "One season" is the middle 80% of thirty single-season scores. "Flagged" and "Caught" use each light\'s own rule; the last column flags the riskiest ' + S.budget + '% for every light, a like-for-like comparison.</p></div>');
+    html.push('<div class="grid-2"><div class="card"><p class="kicker">The coupling puzzle</p><h3>Same ranking, different scale</h3><p class="sub">The rolling ratio comes in two versions. The coupled one includes the latest week in its own baseline; the uncoupled one does not. One is a fixed function of the other, so they rank every player in exactly the same order and score exactly the same. What changes is what "1.5" means.</p><div class="chart" id="coupling"></div>' +
+      '<p class="foot">With independent random weeks, the coupled version\'s acute and chronic parts still correlate at ' + fmt(ev.coupling.corrCoupled, 2) + ' (against ' + fmt(ev.coupling.corrUncoupled, 2) + ' uncoupled), and it can never pass 4.0.</p></div>' +
+      '<div class="card"><p class="kicker">Inside the AI</p><h3>What the risk model learned</h3><p class="sub">Weights on each standardised feature, learned from ' + fmt(ev.historyRows) + ' player-weeks with just ' + fmt(ev.historyInjuries) + ' soft-tissue injuries. Positive pushes the risk up.</p><div class="chart" id="weights"></div></div></div>');
+    out.innerHTML = html.join('');
+    chart($('roc'), function () {
+      plot($('roc'), {
+        height: 300, aria: 'ROC curves for each warning light',
+        x: { min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1], label: 'Fit players flagged', format: function (v) { return Math.round(v * 100) + '%'; } },
+        y: { min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1], label: 'Injuries caught', format: function (v) { return Math.round(v * 100) + '%'; } },
+        series: [{ type: 'line', data: [[0, 0], [1, 1]], color: COLORS['ink-faint'], width: 1.5, dash: '4 4' }].concat(ev.flags.filter(function (f) { return f.id !== 'uncoupled'; }).map(function (f) {
+          return { type: 'line', data: f.roc, color: COLORS[f.id], width: f.id === S.flag ? 3.5 : 2.2, dash: f.id === 'oracle' ? '7 4' : null };
+        })),
+        legend: ev.flags.filter(function (f) { return f.id !== 'uncoupled'; }).map(function (f) { return { label: FLAG_SHORT[f.id].replace(' (coupled)', ' (either version)') + ' ' + fmt(f.auc, 2), color: COLORS[f.id], kind: f.id === 'oracle' ? 'dash' : '' }; })
+      });
+    });
+    chart($('strip'), function () {
+      var pts = [], ids = ['coupled', 'ewma', 'model', 'oracle'];
+      ids.forEach(function (f, k) {
+        ev.perSeason.forEach(function (o, j) { pts.push([k + 0.5 + ((j * 37) % 23 - 11) / 40, o[f], COLORS[f], 'Season ' + o.seed + ': ' + fmt(o[f], 2)]); });
+      });
+      plot($('strip'), {
+        height: 300, aria: 'Single-season AUC for each light',
+        x: { min: 0, max: ids.length, ticks: ids.map(function (f, k) { return k + 0.5; }), format: function (v) { return ['Rolling', 'EWMA', 'AI', 'Perfect'][Math.floor(v)]; } },
+        y: { min: 0.3, max: 1, ticks: [0.3, 0.5, 0.7, 0.9], label: 'Score for one season', format: function (v) { return fmt(v, 1); } },
+        series: [{ type: 'points', data: pts, r: 4, opacity: 0.75 }],
+        refs: [{ axis: 'y', value: 0.5, color: COLORS.claret, dash: '5 4', label: 'Coin toss' }]
+      });
+    });
+    chart($('coupling'), function () {
+      var curve = [];
+      for (var c = 0.5; c <= 2.81; c += 0.05) curve.push([c, 3 * c / (4 - c)]);
+      plot($('coupling'), {
+        height: 250, aria: 'The uncoupled ratio as a function of the coupled ratio',
+        x: { min: 0.5, max: 2.8, ticks: [0.5, 1, 1.5, 2, 2.5], label: 'Coupled ratio', format: function (v) { return fmt(v, 1); } },
+        y: { min: 0, max: 8, ticks: [0, 2, 4, 6, 8], label: 'Uncoupled ratio', format: function (v) { return fmt(v, 0); } },
+        series: [{ type: 'line', data: curve, color: COLORS.navy, width: 3 }],
+        refs: [{ axis: 'x', value: 1.5, color: COLORS.claret, dash: '5 4', label: 'Coupled 1.5' }, { axis: 'y', value: 1.8, color: COLORS['amber-deep'], dash: '5 4', label: '= uncoupled 1.8' }]
+      });
+    });
+    chart($('weights'), function () {
+      var w = ev.model.w.slice(1), maxAbs = 0.2;
+      w.forEach(function (v) { maxAbs = Math.max(maxAbs, Math.abs(v)); });
+      var el = $('weights'), W = chartWidth(el), rowH = 26, labelW = Math.min(190, W * 0.48), H = w.length * rowH + 30;
+      var mid = labelW + (W - labelW - 12) / 2, half = (W - labelW - 12) / 2;
+      var s = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="Risk model weights">';
+      s += '<line x1="' + mid + '" x2="' + mid + '" y1="4" y2="' + (H - 22) + '" stroke="' + COLORS.ink + '"/>';
+      w.forEach(function (v, k) {
+        var y = 6 + k * rowH, len = Math.abs(v) / maxAbs * half;
+        s += '<text x="' + (labelW - 8) + '" y="' + (y + 15) + '" text-anchor="end">' + esc(M.FEATURES[k]) + '</text>';
+        s += '<rect x="' + (v >= 0 ? mid : mid - len) + '" y="' + (y + 4) + '" width="' + len + '" height="15" fill="' + (v >= 0 ? COLORS.claret : COLORS.pitch) + '"><title>' + esc(M.FEATURES[k] + ': ' + fmt(v, 2)) + '</title></rect>';
+      });
+      s += '<text x="' + (mid - 6) + '" y="' + (H - 6) + '" text-anchor="end">lowers risk</text><text x="' + (mid + 6) + '" y="' + (H - 6) + '">raises risk</text></svg>';
+      el.innerHTML = s;
+    });
+  }
+
+  /* ================= PAGE 3: THE PILOT SEASON ================= */
+  function pilotKey() { var c = copy(S); delete c.seasonSeed; return JSON.stringify([c, extra.pilotPairs]); }
+  function renderPilot() {
+    var out = $('pilot-out'), key = 'pilot' + pilotKey();
+    resetCharts(out);
+    if (cache[key]) return drawPilot(cache[key]);
+    busy(out, 'Running ' + extra.pilotPairs + ' pilot seasons');
+    run('pilotStudy', [S, extra.pilotPairs]).then(function (ps) {
+      cache[key] = ps;
+      if (view === 'pilot' && key === 'pilot' + pilotKey()) drawPilot(ps);
+    }).catch(function (e) { failed(out, e); });
+  }
+  function drawPilot(ps) {
+    var out = $('pilot-out');
+    resetCharts(out);
+    var pol = ps.policy, html = [];
+    var usesLight = pol === 'rest' || pol === 'modify';
+    html.push('<div class="btn-row" style="margin:0 0 14px"><span class="flabel" style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Pilot seasons simulated</span><div class="tickets three" role="radiogroup" aria-label="Pilot seasons simulated" style="min-width:220px">' +
+      [20, 40, 80].map(function (n) { return '<input type="radio" name="pairs" id="pairs-' + n + '" value="' + n + '"' + (n === extra.pilotPairs ? ' checked' : '') + '><label for="pairs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
+    if (S.policy === 'none') html.push('<div class="warnings"><p>The clipboard says nobody acts on the light, so this page pilots <b>resting anyone flagged</b> instead.</p></div>');
+    html.push('<div class="scoreboard">' +
+      tile('True effect', signed(ps.trueEffect, 1), 'injuries a season, same luck with and without (' + signed(ps.trueNC, 1) + ' soft-tissue)', ps.trueEffect < 0 ? 'good' : 'bad') +
+      tile('Pilot looks better', pct(ps.looksBetter), 'chance a one-season before-and-after shows fewer injuries; ' + pct(ps.looksWorse) + ' it shows more') +
+      tile('Seasons needed', ps.seasonsNeeded === Infinity ? 'never' : fmt(ps.seasonsNeeded), 'in each arm to detect the true effect four times in five', 'warn') +
+      tile('League points', signed(ps.pointsEffect, 1), 'a season, from resting or rotating players', ps.pointsEffect < -0.5 ? 'bad' : '') +
+      '</div>');
+    var note = [];
+    note.push('<p class="big">' + (usesLight ? pct(ps.quietShare) + ' of the times the coach acted on a flag, nothing happened in the next fortnight.' : 'This policy does not use the light, so the coach sees nothing to credit.') + '</p>');
+    if (usesLight) note.push('<p>To a coach that looks like ' + fmt(ps.actionsPerSeason, 0) + ' successful interventions a season. The simulation knows better: the light prevented ' + fmt(-ps.trueEffect, 1) + ' injuries a season, so it took about ' + (ps.actionsPerInjuryPrevented === Infinity ? 'an endless number of' : fmt(ps.actionsPerInjuryPrevented, 0)) + ' acted-on flags to prevent one. Rests that "worked" are mostly rests that were never needed.</p>');
+    note.push('<p>One season of injuries varies by about ' + fmt(ps.seasonSd, 1) + ' either way on luck alone, against a true effect of ' + fmt(Math.abs(ps.trueEffect), 1) + '. A before-and-after pilot compares two seasons, so its verdict swings by ' + fmt(ps.measuredSd, 1) + ' injuries: a board that funds the light on a good pilot is mostly funding a lucky year.</p>');
+    html.push('<div class="note-card"><p class="from">Physio\'s note &middot; piloting "' + esc(POLICY_SHORT[pol]) + '" with ' + esc(FLAG_SHORT[S.flag]) + '</p>' + note.join('') + '</div>');
+    html.push('<div class="grid-2"><div class="card"><p class="kicker">Exhibit C</p><h3>What one pilot season reports</h3><p class="sub">Each bar counts pilots that reported that change in injuries against the season before. The true effect is the same in every one.</p><div class="chart" id="pilot-hist"></div></div>' +
+      '<div class="card"><p class="kicker">Exhibit D</p><h3>How many seasons to know?</h3><p class="sub">The chance a fair comparison of this many seasons with the light and without it would detect the true effect.</p><div class="chart" id="pilot-power"></div></div></div>');
+    html.push('<div class="card"><p class="kicker">The ledger</p><h3>What the pilot saw and what really happened</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Measure</th><th class="num">A season</th><th>What it means</th></tr></thead><tbody>' +
+      '<tr><td>Injuries in a normal season</td><td class="num">' + fmt(ps.baseMean, 1) + '</td><td>the club\'s starting point, with ' + fmt(ps.seasonSd, 1) + ' either way from luck</td></tr>' +
+      '<tr><td>Change a one-season pilot reports, on average</td><td class="num">' + signed(ps.measuredMean, 1) + '</td><td>right on average, but any one pilot lands anywhere in Exhibit C</td></tr>' +
+      '<tr><td>True change, same luck</td><td class="num">' + signed(ps.trueEffect, 1) + '</td><td>95% interval ' + signed(ps.trueEffectCI[0], 1) + ' to ' + signed(ps.trueEffectCI[1], 1) + '; ' + signed(ps.trueNC, 1) + ' of it soft-tissue, the rest contact injuries avoided by playing less</td></tr>' +
+      '<tr><td>Days lost to injury</td><td class="num">' + signed(ps.trueDays, 0) + '</td><td>player-days, same luck</td></tr>' +
+      '<tr><td>League points</td><td class="num">' + signed(ps.pointsEffect, 1) + '</td><td>95% interval ' + signed(ps.pointsCI[0], 1) + ' to ' + signed(ps.pointsCI[1], 1) + '</td></tr>' +
+      '<tr><td>Matches missed by rested players</td><td class="num">' + fmt(ps.matchesMissed, 0) + '</td><td>player-matches sat out</td></tr>' +
+      '<tr><td>Pilots showing at least 20% fewer injuries</td><td class="num">' + pct(ps.looksGreat) + '</td><td>the share that would make a convincing slide for the board</td></tr>' +
+      '</tbody></table></div></div>');
+    out.innerHTML = html.join('');
+    out.querySelectorAll('input[name="pairs"]').forEach(function (r) {
+      r.addEventListener('change', function () { extra.pilotPairs = +this.value; renderPilot(); });
+    });
+    chart($('pilot-hist'), function () {
+      var lo = Math.min.apply(null, ps.measured), hi = Math.max.apply(null, ps.measured);
+      var bw = Math.max(1, Math.ceil((hi - lo + 1) / 14));
+      var start = Math.floor(lo / bw) * bw, bins = {};
+      ps.measured.forEach(function (v) { var b = Math.floor((v - start) / bw); bins[b] = (bins[b] || 0) + 1; });
+      var data = [], maxC = 1;
+      Object.keys(bins).forEach(function (b) {
+        var x0 = start + (+b) * bw;
+        data.push([x0 + bw / 2, bins[b], x0 + bw / 2 < 0 ? COLORS.pitch : COLORS.claret, bins[b] + ' pilots between ' + x0 + ' and ' + (x0 + bw - 1)]);
+        maxC = Math.max(maxC, bins[b]);
+      });
+      plot($('pilot-hist'), {
+        height: 270, aria: 'Histogram of the change in injuries one pilot season reports',
+        x: { min: start - bw, max: start + (Math.floor((hi - start) / bw) + 2) * bw, label: 'Injuries, pilot season minus the season before' },
+        y: { min: 0, max: Math.ceil(maxC * 1.15), label: 'Pilots' },
+        series: [{ type: 'bars', data: data, barWidth: bw * 0.86 }],
+        refs: [{ axis: 'x', value: 0, color: COLORS.ink, width: 1.5, label: 'No change', anchor: 'start' }, { axis: 'x', value: ps.trueEffect, color: COLORS['amber-deep'], width: 3, label: 'True effect', row: 1, anchor: ps.trueEffect <= 0 ? 'end' : 'start' }],
+        legend: [{ label: 'Looks better', color: COLORS.pitch, kind: 'box' }, { label: 'Looks worse', color: COLORS.claret, kind: 'box' }, { label: 'True effect', color: COLORS['amber-deep'] }]
+      });
+    });
+    chart($('pilot-power'), function () {
+      plot($('pilot-power'), {
+        height: 270, aria: 'Power against seasons in each arm',
+        x: { min: 1, max: 100, ticks: [1, 20, 40, 60, 80, 100], label: 'Seasons with the light, and as many without' },
+        y: { min: 0, max: 1, ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], label: 'Chance of detecting it', format: function (v) { return Math.round(v * 100) + '%'; } },
+        series: [{ type: 'area', data: ps.power.map(function (p) { return [p.seasons, p.power]; }), color: COLORS.navy, opacity: 0.15 }, { type: 'line', data: ps.power.map(function (p) { return [p.seasons, p.power]; }), color: COLORS.navy, width: 3 }],
+        refs: [{ axis: 'y', value: 0.8, color: COLORS.claret, dash: '6 4', label: 'Four times in five' }, { axis: 'x', value: 1, color: COLORS['amber-deep'], dash: '3 3', label: 'One season: ' + pct(ps.power[0].power) }]
+      });
+    });
+  }
+
+  /* ================= PAGE 4: SQUAD POLICIES ================= */
+  function rotationKey() { var c = copy(S); delete c.seasonSeed; delete c.policy; return JSON.stringify([c, extra.rotationSeasons]); }
+  function renderRotation() {
+    var out = $('rotation-out'), key = 'rot' + rotationKey();
+    resetCharts(out);
+    if (cache[key]) return drawRotation(cache[key]);
+    busy(out, 'Playing ' + extra.rotationSeasons + ' seasons five ways');
+    var seeds = [];
+    for (var i = 1; i <= extra.rotationSeasons; i++) seeds.push(100 + i);
+    run('comparePolicies', [S, seeds]).then(function (cp) {
+      cache[key] = cp;
+      if (view === 'rotation' && key === 'rot' + rotationKey()) drawRotation(cp);
+    }).catch(function (e) { failed(out, e); });
+  }
+  function drawRotation(cp) {
+    var out = $('rotation-out');
+    resetCharts(out);
+    var t = {};
+    cp.table.forEach(function (r) { t[r.policy] = r; });
+    var html = [];
+    html.push('<div class="btn-row" style="margin:0 0 14px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons simulated</span><div class="tickets three" role="radiogroup" aria-label="Seasons simulated" style="min-width:220px">' +
+      [15, 30, 60].map(function (n) { return '<input type="radio" name="rseasons" id="rs-' + n + '" value="' + n + '"' + (n === extra.rotationSeasons ? ' checked' : '') + '><label for="rs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
+    var byPts = cp.table.slice().sort(function (a, b) { return b.metrics.points.mean - a.metrics.points.mean; });
+    var byDays = cp.table.slice().sort(function (a, b) { return a.metrics.daysLost.mean - b.metrics.daysLost.mean; });
+    html.push('<div class="scoreboard">' +
+      tile('Most points', esc(POLICY_SHORT[byPts[0].policy]), fmt(byPts[0].metrics.points.mean, 1) + ' a season, ' + signed(byPts[0].metrics.points.diff, 1) + ' against picking the best', 'good words') +
+      tile('Fewest days lost', esc(POLICY_SHORT[byDays[0].policy]), fmt(byDays[0].metrics.daysLost.mean, 0) + ' player-days, ' + signed(byDays[0].metrics.daysLost.diff, 0) + ' against picking the best', 'words') +
+      tile('Resting costs', signed(t.rest.metrics.points.diff, 1), 'points a season to rest the flagged (' + esc(FLAG_SHORT[S.flag]) + ')', t.rest.metrics.points.diff < -0.5 ? 'bad' : '') +
+      tile('Best XV in the final', fmt(t.rest.metrics.finalBestXV.mean, 1) + '<small>/15</small>', 'when resting the flagged, against ' + fmt(t.none.metrics.finalBestXV.mean, 1) + ' picking the best', 'warn') +
+      '</div>');
+    var same = byPts[0].policy === byDays[0].policy;
+    html.push('<div class="note-card"><p class="from">Coach\'s note &middot; ' + cp.seeds.length + ' seasons, same luck for every policy</p><p class="big">' +
+      (same ? esc(POLICY_SHORT[byPts[0].policy]) + ' wins on both counts here.' : 'The policy that loses the fewest days is not the one that wins the most points.') + '</p>' +
+      '<p>Resting flagged players saves ' + fmt(-t.rest.metrics.daysLost.diff, 0) + ' player-days a season, ' + signed(t.rest.metrics.nc.diff, 1) + ' soft-tissue and ' + signed(t.rest.metrics.contact.diff, 1) + ' contact injuries: most of the saving is simply less rugby played, which also means a weaker team on the day. ' +
+      'Planned rotation does something similar without any light. Picking on readiness changes almost nothing about injuries but keeps the strongest side on the pitch.</p></div>');
+    var metricsShown = [['injuriesTotal', 'Injuries', 1, -1], ['nc', 'Soft-tissue injuries', 1, -1], ['daysLost', 'Player-days lost', 0, -1], ['points', 'League points', 1, 1], ['position', 'League place', 1, -1], ['finalBestXV', 'Best XV in the final', 1, 1], ['rests', 'Matches sat out', 0, 0]];
+    html.push('<div class="card"><p class="kicker">The team sheet</p><h3>Five policies, same seasons</h3><p class="sub">Average a season. Underneath each figure, the difference from picking the best with its 95% interval; green is better, claret worse.</p><div class="table-wrap"><table class="sheet-table policy-table"><thead><tr><th>Average a season</th>' +
+      cp.table.map(function (r) { return '<th class="num"><span class="swatch" style="background:' + COLORS[r.policy] + '"></span>' + esc(POLICY_SHORT[r.policy]) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      metricsShown.map(function (m) {
+        return '<tr><td>' + esc(m[1]) + '</td>' + cp.table.map(function (r) {
+          var v = r.metrics[m[0]], cls = '';
+          if (r.policy !== 'none' && m[3] !== 0 && (v.lo > 0 || v.hi < 0)) cls = (v.diff * m[3] > 0) ? 'better' : 'worse';
+          return '<td class="num">' + fmt(v.mean, m[2]) + (r.policy === 'none' ? '<br><span class="ci">reference</span>' : '<br><span class="ci ' + cls + '">' + signed(v.diff, m[2]) + ' [' + signed(v.lo, m[2]) + ', ' + signed(v.hi, m[2]) + ']</span>') + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div><p class="foot">Flag-based policies use ' + esc(FLAG_SHORT[S.flag]) + ' as set on the clipboard. Intervals are bootstrapped from the paired season-by-season differences.</p></div>');
+    html.push('<div class="grid-2"><div class="card"><p class="kicker">Exhibit E</p><h3>Injuries against wins</h3><p class="sub">Change against picking the best, with 95% intervals. Up is more points; left is fewer days lost.</p><div class="chart" id="rot-scatter"></div></div>' +
+      '<div class="card"><p class="kicker">Exhibit F</p><h3>Fit for the final?</h3><p class="sub">How many of the first-choice XV start the cup final, on average.</p><div class="chart" id="rot-final"></div></div></div>');
+    out.innerHTML = html.join('');
+    out.querySelectorAll('input[name="rseasons"]').forEach(function (r) {
+      r.addEventListener('change', function () { extra.rotationSeasons = +this.value; renderRotation(); });
+    });
+    chart($('rot-scatter'), function () {
+      var xs = [], ys = [];
+      cp.table.forEach(function (r) { xs.push(r.metrics.daysLost.lo, r.metrics.daysLost.hi); ys.push(r.metrics.points.lo, r.metrics.points.hi); });
+      var xmin = Math.min.apply(null, xs.concat([0])), xmax = Math.max.apply(null, xs.concat([0]));
+      var ymin = Math.min.apply(null, ys.concat([0])), ymax = Math.max.apply(null, ys.concat([0]));
+      var px = (xmax - xmin) * 0.12 + 5, py = (ymax - ymin) * 0.15 + 0.5;
+      plot($('rot-scatter'), {
+        height: 300, aria: 'Change in days lost against change in league points for each policy',
+        x: { min: xmin - px, max: xmax + px, label: 'Change in days lost' },
+        y: { min: ymin - py, max: ymax + py, label: 'Change in points', format: function (v) { return fmt(v, 0); } },
+        refs: [{ axis: 'x', value: 0, color: COLORS['ink-faint'], width: 1 }, { axis: 'y', value: 0, color: COLORS['ink-faint'], width: 1 }],
+        errorbars: cp.table.reduce(function (a, r) {
+          return a.concat([{ y: r.metrics.points.diff, xlo: r.metrics.daysLost.lo, xhi: r.metrics.daysLost.hi, color: COLORS[r.policy] },
+            { x: r.metrics.daysLost.diff, ylo: r.metrics.points.lo, yhi: r.metrics.points.hi, color: COLORS[r.policy] }]);
+        }, []),
+        series: [{ type: 'points', r: 6.5, stroke: '#fff', data: cp.table.map(function (r) { return [r.metrics.daysLost.diff, r.metrics.points.diff, COLORS[r.policy], POLICY_SHORT[r.policy]]; }) }],
+        labels: cp.table.map(function (r) { return { x: r.metrics.daysLost.diff, y: r.metrics.points.diff, dx: 9, dy: -8, text: POLICY_TINY[r.policy], color: COLORS[r.policy] }; }),
+        legend: cp.table.map(function (r) { return { label: POLICY_SHORT[r.policy], color: COLORS[r.policy], kind: 'dot' }; })
+      });
+    });
+    chart($('rot-final'), function () {
+      plot($('rot-final'), {
+        height: 300, aria: 'First-choice XV starting the cup final under each policy',
+        x: { min: 0, max: cp.table.length, ticks: cp.table.map(function (r, k) { return k + 0.5; }), format: function (v) { return POLICY_TINY[cp.table[Math.floor(v)].policy]; } },
+        y: { min: 0, max: 15, ticks: [0, 5, 10, 15], label: 'Of the best XV' },
+        series: [{ type: 'bars', barWidth: 0.6, data: cp.table.map(function (r, k) { return [k + 0.5, r.metrics.finalBestXV.mean, COLORS[r.policy], POLICY_SHORT[r.policy] + ': ' + fmt(r.metrics.finalBestXV.mean, 1)]; }) }],
+        labels: cp.table.map(function (r, k) { return { x: k + 0.5, y: r.metrics.finalBestXV.mean, dy: -6, anchor: 'middle', text: fmt(r.metrics.finalBestXV.mean, 1) }; })
+      });
+    });
+  }
+
+  /* ================= PAGE 5: YOUR LOGBOOK ================= */
+  var logState = { text: null, name: 'the sample logbook', book: null, result: null, player: 0, only: null, sample: true };
+  var SAMPLE_HEADER = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
+  function sampleText() {
+    var lb = M.seasonLogbook({}, 1);
+    return M.toCSV(SAMPLE_HEADER, lb.rows.map(function (r) { return [r.date, r.player, r.position, r.session, r.minutes, r.rpe, r.injury]; }));
+  }
+  function renderLogbook() {
+    var out = $('logbook-out');
+    resetCharts(out);
+    if (logState.text === null) { logState.text = sampleText(); logState.sample = true; }
+    var html = [];
+    html.push('<div class="card"><p class="kicker">Bring your data</p><h3>The logbook</h3>' +
+      '<div class="dropzone" id="dropzone"><p style="margin:0 0 8px">Drop a CSV file here, or</p><div class="btn-row" style="justify-content:center">' +
+      '<button type="button" class="btn small" id="open-csv">Open a CSV file</button><input type="file" id="csv-file" accept=".csv,.txt,text/csv" hidden>' +
+      '<button type="button" class="btn ghost small" id="use-sample">Use the sample logbook</button>' +
+      '<button type="button" class="btn ghost small" id="dl-sample">Download the sample</button></div></div>' +
+      '<details><summary style="cursor:pointer;font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--claret)">Paste rows instead</summary>' +
+      '<label for="paste" class="sr-only">Paste logbook rows</label><textarea id="paste" placeholder="date,player,minutes,rpe,injury&#10;2026-09-01,A. Player,75,7,&#10;2026-09-03,A. Player,60,6,non-contact"></textarea>' +
+      '<div class="btn-row" style="margin-top:6px"><button type="button" class="btn small" id="read-paste">Read these rows</button></div></details>' +
+      '<p class="foot">Columns: <b>date</b> (2026-09-05 or 05/09/2026), <b>player</b>, then <b>minutes</b> and <b>rpe</b> (effort out of 10) or a <b>load</b> column. An optional <b>injury</b> column marks the session an injury happened in ("contact" or anything else for soft-tissue). Now showing: <b id="log-name">' + esc(logState.name) + '</b>.</p></div>');
+    html.push('<div id="log-results"></div>');
+    out.innerHTML = html.join('');
+    $('open-csv').addEventListener('click', function () { $('csv-file').click(); });
+    $('csv-file').addEventListener('change', function () { if (this.files[0]) readFile(this.files[0]); this.value = ''; });
+    $('use-sample').addEventListener('click', function () { logState.text = sampleText(); logState.name = 'the sample logbook'; logState.sample = true; logState.player = 0; analyseLog(); });
+    $('dl-sample').addEventListener('click', function () { download('hollowmere_logbook.csv', sampleText()); });
+    $('read-paste').addEventListener('click', function () {
+      var t = $('paste').value;
+      if (!t.trim()) { toast('Paste some rows first.'); return; }
+      logState.text = t; logState.name = 'pasted rows'; logState.sample = false; logState.player = 0; analyseLog();
+    });
+    var dz = $('dropzone');
+    ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('over'); }); });
+    dz.addEventListener('drop', function (e) { var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) readFile(f); });
+    analyseLog();
+  }
+  function readFile(f) {
+    if (f.size > 20 * 1024 * 1024) { toast('That file is over 20 MB.'); return; }
+    var r = new FileReader();
+    r.onload = function () { logState.text = String(r.result); logState.name = f.name; logState.sample = false; logState.player = 0; analyseLog(); };
+    r.onerror = function () { toast('That file could not be read.'); };
+    r.readAsText(f);
+  }
+  function analyseLog() {
+    var host = $('log-results');
+    if (!host) return;
+    resetCharts(host);
+    var nameEl = $('log-name'); if (nameEl) nameEl.textContent = logState.name;
+    var book = M.readLogbook(M.parseCSV(logState.text));
+    if (book.error) { host.innerHTML = '<div class="error" role="alert">' + esc(book.error) + '</div>'; return; }
+    busy(host, 'Reading ' + fmt(book.sessions) + ' sessions');
+    var opts = { threshold: S.threshold, permutations: 200, seed: 1 };
+    if (logState.only) opts.only = logState.only;
+    run('analyseLogbook', [book, opts]).then(function (an) {
+      logState.book = book; logState.result = an;
+      drawLog(book, an);
+    }).catch(function (e) { failed(host, e); });
+  }
+  function drawLog(book, an) {
+    var host = $('log-results');
+    resetCharts(host);
+    if (logState.player >= book.names.length) logState.player = 0;
+    var html = [];
+    if (book.warnings.length) html.push('<div class="warnings">' + book.warnings.map(function (w) { return '<p>' + esc(w) + '</p>'; }).join('') + '</div>');
+    html.push('<div class="scoreboard">' +
+      tile('Players', fmt(book.names.length), fmt(book.sessions) + ' sessions') +
+      tile('Weeks', fmt(book.span / 7, 0), M.formatDay(book.start) + ' to ' + M.formatDay(book.start + book.span - 1)) +
+      tile('Average week', fmt(an.meanWeekly, 0), 'load per player (minutes times effort)') +
+      tile('Injuries counted', fmt(an.counted), (an.only === 'all' ? 'all recorded injuries' : 'soft-tissue only') + ', of ' + fmt(an.injuries) + ' recorded') +
+      '</div>');
+    var ew = an.results.filter(function (r) { return r.id === 'ewma'; })[0];
+    var hasTest = an.positives >= 3;
+    html.push('<div class="note-card"><p class="from">Analyst\'s note &middot; ' + esc(logState.name) + '</p>' +
+      (hasTest ? '<p class="big">The EWMA ratio scored ' + fmt(ew.auc, 2) + ' on these injuries' + (ew.p < 0.05 ? ', better than chance would explain.' : ', which chance alone could produce.') + '</p>' +
+        '<p>In ' + fmt(an.permutations) + ' reshuffles that keep each player\'s injuries and loads but slide the injury dates round the season, ' + pct(ew.p, 1) + ' scored at least as well. ' + fmt(an.positives) + ' injured weeks is a small sample, so treat any single season\'s score with care.</p>'
+        : '<p class="big">Not enough injuries to test the ratios.</p><p>With fewer than three injured weeks, any score would be noise. The workload ratios and this week\'s flags below still work.</p>') + '</div>');
+    html.push('<div class="card"><p class="kicker">The scorecard</p><h3>Did the ratios see it coming?</h3><div class="btn-row" style="margin:0 0 10px"><label for="log-only" style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Injuries to score against</label><select id="log-only" style="max-width:220px"><option value="non-contact"' + (an.only === 'non-contact' ? ' selected' : '') + '>Soft-tissue only</option><option value="all"' + (an.only === 'all' ? ' selected' : '') + '>All injuries</option></select></div>' +
+      '<div class="table-wrap"><table class="sheet-table"><thead><tr><th>Ratio</th><th class="num">Score (AUC)</th><th class="num">Chance of a score this good by luck</th><th class="num">Flagged at ' + fmt(an.threshold, 2) + '</th><th class="num">Hits per 100 flags</th><th class="num">Injuries caught</th></tr></thead><tbody>' +
+      an.results.map(function (r) {
+        return '<tr><td><span class="swatch" style="background:' + COLORS[r.id] + '"></span>' + esc(FLAG_SHORT[r.id]) + '</td><td class="num">' + fmt(r.auc, 3) + '</td><td class="num">' + (r.p === undefined ? 'n/a' : pct(r.p, 1)) + '</td><td class="num">' + pct(r.atRule.share, 1) + '</td><td class="num">' + (r.atRule.flagged ? fmt(100 * r.atRule.precision, 1) : 'n/a') + '</td><td class="num">' + (an.positives ? pct(r.atRule.recall) : 'n/a') + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="foot">' + fmt(an.rows) + ' player-weeks scored (one every seven days from day 28, leaving out a fortnight after each injury). The flag level comes from the clipboard.</p></div>');
+    var opts = book.names.map(function (n, i) { return '<option value="' + i + '"' + (i === logState.player ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
+    html.push('<div class="card"><p class="kicker">Player file</p><h3>One player\'s load</h3><div class="field" style="max-width:340px"><label for="log-player" class="sr-only">Choose a player</label><select id="log-player">' + opts + '</select></div><div class="chart" id="log-chart"></div><div class="chart" id="log-ratio" style="margin-top:8px"></div></div>');
+    html.push('<div class="card"><p class="kicker">This week\'s list</p><h3>Highest ratios on the last day</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Player</th><th class="num">EWMA ratio</th><th class="num">Rolling ratio</th><th class="num">Last 7 days</th><th class="num">Monotony</th><th class="num">Strain</th><th>Flag</th></tr></thead><tbody>' +
+      an.latest.slice(0, 12).map(function (r) {
+        return '<tr><td>' + esc(r.name) + '</td><td class="num">' + fmt(r.ewma, 2) + '</td><td class="num">' + fmt(r.coupled, 2) + '</td><td class="num">' + fmt(r.acute, 0) + '</td><td class="num">' + fmt(r.monotony, 2) + '</td><td class="num">' + fmt(r.strain, 0) + '</td><td>' + (r.flagged ? '<b class="worse">Flagged</b>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div><div class="btn-row" style="margin-top:10px"><button type="button" class="btn ghost small" id="dl-flags">Download every player\'s ratios</button></div></div>');
+    host.innerHTML = html.join('');
+    $('log-only').addEventListener('change', function () { logState.only = this.value; analyseLog(); });
+    $('log-player').addEventListener('change', function () { logState.player = +this.value; drawLogPlayer(book, an); });
+    $('dl-flags').addEventListener('click', function () {
+      var rows = [];
+      an.series.forEach(function (se) {
+        for (var t = 0; t < an.span; t++) {
+          if (!(se.coupled[t] === se.coupled[t])) continue;
+          rows.push([M.formatDay(an.start + t), se.name, se.acute[t].toFixed(0), se.chronic[t].toFixed(0), se.coupled[t].toFixed(3), se.uncoupled[t].toFixed(3), se.ewma[t].toFixed(3), se.monotony[t].toFixed(3), se.strain[t].toFixed(0)]);
+        }
+      });
+      download('workload_ratios.csv', M.toCSV(['date', 'player', 'acute_7d', 'chronic_weekly', 'ratio_coupled', 'ratio_uncoupled', 'ratio_ewma', 'monotony', 'strain'], rows));
+    });
+    drawLogPlayer(book, an);
+  }
+  function drawLogPlayer(book, an) {
+    var p = logState.player, se = an.series[p], L = book.loads[p];
+    var bars = [], ew = [], cp = [], maxL = 0, maxR = 1.6;
+    for (var t = 0; t < an.span; t++) {
+      bars.push([t / 7 + 0.07, L[t], COLORS['claret-soft']]); maxL = Math.max(maxL, L[t]);
+      ew.push([t / 7, se.ewma[t]]); cp.push([t / 7, se.coupled[t]]);
+      if (se.ewma[t] === se.ewma[t]) maxR = Math.max(maxR, se.ewma[t]);
+      if (se.coupled[t] === se.coupled[t]) maxR = Math.max(maxR, se.coupled[t]);
+    }
+    var injRefs = book.injuries.filter(function (x) { return x.player === p; }).map(function (x, k) {
+      return { axis: 'x', value: x.day / 7, color: x.type === 'contact' ? '#c0392b' : COLORS['amber-deep'], dash: '5 3', label: x.type === 'contact' ? 'Contact' : 'Soft-tissue', row: k % 2 };
+    });
+    var weeks = an.span / 7;
+    var xSpec = { min: 0, max: weeks, label: 'Weeks from ' + M.formatDay(an.start) };
+    chart($('log-chart'), function () {
+      plot($('log-chart'), { height: 200, aria: 'Daily load for ' + book.names[p], x: xSpec, y: { min: 0, max: Math.max(600, Math.ceil(maxL / 100) * 100), label: 'Load a day' },
+        series: [{ type: 'bars', data: bars, barWidth: 1 / 7 * 0.85 }], refs: injRefs });
+    });
+    chart($('log-ratio'), function () {
+      plot($('log-ratio'), { height: 200, aria: 'Workload ratios for ' + book.names[p], x: xSpec,
+        y: { min: 0, max: Math.min(4, Math.ceil(maxR * 2) / 2), label: 'Ratio', format: function (v) { return fmt(v, 1); } },
+        series: [{ type: 'line', data: cp, color: COLORS.coupled, width: 1.8, dash: '4 3' }, { type: 'line', data: ew, color: COLORS.ewma, width: 2.5 }],
+        refs: [{ axis: 'y', value: an.threshold, color: COLORS.claret, dash: '6 4', label: 'Flag at ' + fmt(an.threshold, 2) }].concat(injRefs.map(function (r) { var o = copy(r); o.label = ''; return o; })),
+        legend: [{ label: 'EWMA ratio', color: COLORS.ewma }, { label: 'Rolling ratio (coupled)', color: COLORS.coupled, kind: 'dash' }] });
+    });
+  }
+
+  /* ================= PAGE 6: HOW IT WORKS ================= */
+  function renderHow() {
+    var out = $('how-out');
+    if (out.getAttribute('data-done')) return;
+    out.setAttribute('data-done', '1');
+    out.innerHTML = '<div class="card prose" style="max-width:none">' +
+      '<p class="kicker">The machinery</p><h3 style="margin-top:0">One season, day by day</h3>' +
+      '<svg class="diagram" viewBox="0 0 900 250" role="img" aria-label="How load, fitness, fatigue, luck and the warning light connect to injuries and results">' +
+      '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#241a1c"/></marker></defs>' +
+      '<g stroke="#241a1c" stroke-width="2" fill="none" marker-end="url(#arr)"><path d="M150 70 L215 70"/><path d="M370 55 L440 40"/><path d="M370 85 L440 110"/><path d="M590 40 L655 70"/><path d="M590 110 L655 85"/><path d="M290 110 L290 165"/><path d="M370 190 L455 190"/><path d="M600 190 L680 190 L680 120"/><path d="M470 220 C 420 248, 130 248, 80 104"/></g>' +
+      '<g><rect x="10" y="40" width="140" height="60" fill="#f4dca8" stroke="#241a1c" stroke-width="2"/><text class="dt" x="80" y="66" text-anchor="middle">Training</text><text x="80" y="86" text-anchor="middle">minutes x effort</text>' +
+      '<rect x="215" y="40" width="155" height="70" fill="#faf5ea" stroke="#241a1c" stroke-width="2"/><text class="dt" x="292" y="66" text-anchor="middle">Fitness and</text><text class="dt" x="292" y="86" text-anchor="middle">fatigue</text><text x="292" y="103" text-anchor="middle" font-size="12">42-day and 7-day</text>' +
+      '<rect x="440" y="10" width="150" height="60" fill="#6b1d33" stroke="#241a1c" stroke-width="2"/><text class="dt light" x="515" y="36" text-anchor="middle">Hidden risk</text><text class="pale" x="515" y="56" text-anchor="middle" font-size="12.5">spikes, frailty, age</text>' +
+      '<rect x="440" y="85" width="150" height="55" fill="#faf5ea" stroke="#241a1c" stroke-width="2"/><text class="dt" x="515" y="110" text-anchor="middle">Readiness</text><text x="515" y="128" text-anchor="middle" font-size="12.5">match-day form</text>' +
+      '<rect x="655" y="40" width="200" height="75" fill="#241a1c" stroke="#241a1c" stroke-width="2"/><text class="dt gold" x="755" y="66" text-anchor="middle">Injuries and results</text><text class="light" x="755" y="87" text-anchor="middle" font-size="12.5">plus luck: every knock,</text><text class="light" x="755" y="103" text-anchor="middle" font-size="12.5">bounce and tackle</text>' +
+      '<rect x="215" y="165" width="155" height="55" fill="#e3a33b" stroke="#241a1c" stroke-width="2"/><text class="dt" x="292" y="190" text-anchor="middle">Warning light</text><text x="292" y="208" text-anchor="middle" font-size="12.5">reads Thursday</text>' +
+      '<rect x="455" y="165" width="145" height="55" fill="#faf5ea" stroke="#241a1c" stroke-width="2"/><text class="dt" x="527" y="190" text-anchor="middle">The coach</text><text x="527" y="208" text-anchor="middle" font-size="12.5">rests, cuts, picks</text></g>' +
+      '<text x="150" y="244" font-size="12.5">rest: less training, fewer matches</text></svg>' +
+      '<p>Every day, each of 36 invented players trains, plays, rests or rehabilitates. Each session\'s load is its minutes times the player\'s rating of effort out of ten (session RPE), with a little day-to-day noise. Two running averages follow from it: <b>fitness</b>, a 42-day average that builds slowly, and <b>fatigue</b>, a 7-day average that rises and falls with each week.</p>' +
+      '<p><b>The hidden truth.</b> Every session carries a small chance of injury. A <b>soft-tissue</b> injury is more likely when fatigue runs well ahead of fitness (a load spike), when a player is under-trained, older, came back from injury in the last six weeks, or is simply more fragile than most (a hidden frailty that nobody at the club can see). A <b>contact</b> injury happens mostly in matches and depends on minutes played, position and a little on fatigue. Then luck decides. The clipboard\'s "hidden truth" settings change how much spikes matter and how common contact injuries are.</p>' +
+      '<p><b>The warning lights</b> are read every Thursday from the loads alone. The two rolling ratios divide the last 7 days by the average week of the last 28 (coupled) or of the 21 before them (uncoupled). The EWMA ratio uses exponentially weighted 7-day and 28-day averages instead. The risk model is a logistic regression the club trains on its own last two seasons, using nine features from the logbook. The perfect-knowledge ceiling computes the true soft-tissue risk for the coming week, assuming it looks like the last: what any light could hope to reach.</p>' +
+      '<p><b>The coach</b> picks a matchday 23 every Saturday by position, from the fittest best players, and acts on the light as the clipboard says. A rested player misses the match; a weaker replacement plays, sometimes out of position. Team strength is the starters\' ability times their match-day readiness, and the score margin against each invented opponent follows from the strength gap, home advantage and luck. The other eleven clubs play each other too, so there is a real league table.</p>' +
+      '<h3>Why same-luck comparisons matter</h3><p>Every random draw in a season (each player\'s daily injury roll, effort noise and each match\'s bounce of the ball) is fixed in advance by the season number. Playing the same season under two policies therefore gives both the same luck, and the difference is the policy alone. A real club never gets this: it only ever sees each season once, under one policy. That gap is what the Pilot page measures.</p>' +
+      '<h3>Words used here</h3><dl>' +
+      '<dt>Session RPE load</dt><dd>Minutes times effort out of ten; a 75-minute session at 7 is 525.</dd>' +
+      '<dt>Workload ratio (ACWR)</dt><dd>Recent load divided by longer-run load. Above about 1.5 is often called the danger zone.</dd>' +
+      '<dt>AUC</dt><dd>The chance a light scores a soon-to-be-injured player above a player who stays fit: 0.5 is guessing, 1 is perfect.</dd>' +
+      '<dt>Hits per 100 flags</dt><dd>Of every hundred flags, how many were followed by a soft-tissue injury within seven days (precision).</dd>' +
+      '<dt>Power</dt><dd>The chance a fair comparison of a given size would detect an effect that is really there.</dd>' +
+      '<dt>Monotony and strain</dt><dd>A week\'s average daily load over its spread, and weekly load times monotony.</dd></dl>' +
+      '<h3>What it leaves out</h3><p>Everything here is invented: the club, the players, the league and the size of every effect. Real injury mechanisms are messier and more contested than any one model. The point is not the exact numbers but the shape of the evidence problem: rare events, a low ceiling, invisible benefits and a costly response. It is not medical or coaching advice.</p>' +
+      '<h3>Background reading</h3><p>The workload ratio and its "sweet spot" come from Gabbett (2016) and Hulin and colleagues (2016); the EWMA version from Williams and colleagues (2017); the coupling critique from Lolli and colleagues (2019) and Impellizzeri and colleagues (2020); session RPE from Foster and colleagues (2001); the fitness-fatigue model from Banister and colleagues (1975).</p></div>';
+  }
+
+  /* ---------- routing ---------- */
+  var RENDER = { season: renderSeason, light: renderLight, pilot: renderPilot, rotation: renderRotation, logbook: renderLogbook, how: renderHow };
+  function render(v) {
+    try { RENDER[v](); } catch (e) { failed($(v + '-out'), e); }
+  }
+  function show(v, focus) {
+    view = v;
+    document.querySelectorAll('.shirt-tab').forEach(function (b) {
+      var on = b.getAttribute('data-view') === v;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
+    document.querySelectorAll('.view').forEach(function (s) { s.hidden = s.id !== 'view-' + v; });
+    $('layout').classList.toggle('wide', v === 'how');
+    render(v);
+    if (focus) $('main').focus({ preventScroll: true });
+  }
+  function bindTabs() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.shirt-tab'));
+    tabs.forEach(function (b, i) {
+      b.addEventListener('click', function () { show(b.getAttribute('data-view')); });
+      b.addEventListener('keydown', function (e) {
+        var k = e.key, j = -1;
+        if (k === 'ArrowRight') j = (i + 1) % tabs.length;
+        else if (k === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+        else if (k === 'Home') j = 0;
+        else if (k === 'End') j = tabs.length - 1;
+        if (j >= 0) { e.preventDefault(); tabs[j].focus(); show(tabs[j].getAttribute('data-view')); }
+      });
+    });
+  }
+  function bindCoverTools() {
+    $('copy-link').addEventListener('click', function () {
+      var link = shareLink();
+      try { history.replaceState(null, '', link); } catch (e) { /* some frames refuse; the link is still copied */ }
+      var done = function () { toast('Link copied'); };
+      var fallback = function () {
+        var ta = document.createElement('textarea');
+        ta.value = link; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        ta.remove();
+        toast(ok ? 'Link copied' : 'The link is in the address bar');
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fallback);
+      else fallback();
+    });
+    $('save-settings').addEventListener('click', function () {
+      download('load-bearing-settings.json', JSON.stringify(stateObject(), null, 2) + '\n', 'application/json');
+    });
+    $('load-settings').addEventListener('click', function () { $('load-file').click(); });
+    $('load-file').addEventListener('change', function () {
+      var f = this.files[0];
+      this.value = '';
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        try {
+          var o = JSON.parse(String(r.result));
+          if (!o || o.app !== 'load-bearing') throw new Error('not a settings file');
+          applyState(o); syncControls(); show(view); toast('Settings loaded');
+        } catch (e) { toast('That is not a Load bearing settings file.'); }
+      };
+      r.readAsText(f);
+    });
+  }
+
+  function init() {
+    loadColors();
+    buildControls();
+    readHash();
+    syncControls();
+    bindTabs();
+    bindCoverTools();
+    startWorker();
+    show(view);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 <style id="fonts">
 /* Fonts: Big Shoulders Display (copyright The Big Shoulders Project Authors) and Bitter (copyright The Bitter Project Authors),

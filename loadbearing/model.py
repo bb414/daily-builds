@@ -1409,7 +1409,7 @@ def pilot_study(settings, pairs):
     def count(f):
         return _div(len([v for i, v in enumerate(measured) if f(v, i)]), pairs)
 
-    power = [{'seasons': n, 'power': power_two_sample(true_effect, season_sd, n)} for n in range(1, 41)]
+    power = [{'seasons': n, 'power': power_two_sample(true_effect, season_sd, n)} for n in range(1, 101)]
     needed = seasons_for(true_effect, season_sd, 0.8)
     total_actions, total_quiet = _sum(actions), _sum(quiet)
     return {
