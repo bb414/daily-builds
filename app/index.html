@@ -3378,7 +3378,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
             { x: r.metrics.daysLost.diff, ylo: r.metrics.points.lo, yhi: r.metrics.points.hi, color: COLORS[r.policy] }]);
         }, []),
         series: [{ type: 'points', r: 6.5, stroke: '#fff', data: cp.table.map(function (r) { return [r.metrics.daysLost.diff, r.metrics.points.diff, COLORS[r.policy], POLICY_SHORT[r.policy]]; }) }],
-        labels: cp.table.map(function (r) { var ref = r.policy === 'none'; return { x: r.metrics.daysLost.diff, y: r.metrics.points.diff, dx: ref ? -9 : 9, dy: ref ? 18 : -8, anchor: ref ? 'end' : 'start', text: POLICY_TINY[r.policy], color: COLORS[r.policy] }; }),
+        labels: cp.table.map(function (r) { var left = r.policy === 'readiness'; return { x: r.metrics.daysLost.diff, y: r.metrics.points.diff, dx: left ? -9 : 9, dy: -9, anchor: left ? 'end' : 'start', text: POLICY_TINY[r.policy], color: COLORS[r.policy] }; }),
         legend: cp.table.map(function (r) { return { label: POLICY_SHORT[r.policy], color: COLORS[r.policy], kind: 'dot' }; })
       });
     });
@@ -3506,7 +3506,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
         if (r.policy === 'rotate' && r.level > (chartWidth($('trade-chart')) < 520 ? 2 : 4)) return;
         if (r.policy === 'rest' && (r.level === 5 || r.level === 1.3)) return;
         if (r.policy === 'rest' && chartWidth($('trade-chart')) < 520 && r.dDays > -40) return;
-        labels.push({ x: r.dDays, y: r.dPoints, dx: 7, dy: -6, text: r.policy === 'rotate' ? r.level + ' in a row' : RATIO_IDS[r.flag] ? fmt(r.level, 1) : r.level + '%', color: COLORS[r.policy] });
+        var west = r.policy === 'modify';
+        labels.push({ x: r.dDays, y: r.dPoints, dx: west ? -8 : 7, dy: west ? 4 : -6, anchor: west ? 'end' : 'start', text: r.policy === 'rotate' ? r.level + ' in a row' : RATIO_IDS[r.flag] ? fmt(r.level, 1) : r.level + '%', color: COLORS[r.policy] });
       });
       var lineY = function (x) { return lam > 0 ? x / lam : (x < 0 ? -1e9 : 1e9); };
       series.unshift({ type: 'line', data: lam > 0 ? [[x0, lineY(x0)], [x1, lineY(x1)]] : [[0, ymin - py], [0, ymax + py]], color: COLORS.claret, width: 2, dash: '7 5' });
