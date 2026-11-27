@@ -493,16 +493,19 @@ def with_defaults(s=None):
         for j in s:
             if s[j] is not None and j in DEFAULTS:
                 out[j] = s[j]
-    out['threshold'] = clamp(_to_number(out['threshold']), 1.0, 3.0)
-    out['budget'] = clamp(_to_number(out['budget']), 1, 50)
-    out['intensity'] = clamp(_to_number(out['intensity']), 0.7, 1.3)
-    out['rotateAfter'] = clamp(_floor(_to_number(out['rotateAfter'])), 2, 10)
-    out['restTraining'] = clamp(_to_number(out['restTraining']), 0, 1)
-    out['spike'] = clamp(_to_number(out['spike']), 0, 4)
-    out['contactScale'] = clamp(_to_number(out['contactScale']), 0, 3)
-    out['historySeasons'] = clamp(_floor(_to_number(out['historySeasons'])), 1, 6)
-    out['squadSeed'] = _to_uint32(_floor(_to_number(out['squadSeed'])))
-    out['seasonSeed'] = _to_uint32(_floor(_to_number(out['seasonSeed'])))
+    def num(k):
+        x = _to_number(out[k])
+        return x if x == x and x not in (math.inf, -math.inf) else DEFAULTS[k]
+    out['threshold'] = clamp(num('threshold'), 1.0, 3.0)
+    out['budget'] = clamp(num('budget'), 1, 50)
+    out['intensity'] = clamp(num('intensity'), 0.7, 1.3)
+    out['rotateAfter'] = clamp(_floor(num('rotateAfter')), 2, 10)
+    out['restTraining'] = clamp(num('restTraining'), 0, 1)
+    out['spike'] = clamp(num('spike'), 0, 4)
+    out['contactScale'] = clamp(num('contactScale'), 0, 3)
+    out['historySeasons'] = clamp(_floor(num('historySeasons')), 1, 6)
+    out['squadSeed'] = _to_uint32(_floor(num('squadSeed')))
+    out['seasonSeed'] = _to_uint32(_floor(num('seasonSeed')))
     if out['policy'] not in POLICIES:
         out['policy'] = 'none'
     if out['flag'] not in FLAGS:

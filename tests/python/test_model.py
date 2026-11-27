@@ -129,7 +129,8 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(2.0, S['spike'])
         self.assertNotIn('unknown', S)
         self.assertIs(True, model.with_defaults({'gradedReturn': 'false'})['gradedReturn'])
-        self.assertTrue(math.isnan(model.with_defaults({'threshold': 'abc'})['threshold']))
+        self.assertEqual(model.DEFAULTS['threshold'], model.with_defaults({'threshold': 'abc'})['threshold'])
+        self.assertEqual(model.DEFAULTS['spike'], model.with_defaults({'spike': float('inf')})['spike'])
 
 
 class SquadTest(unittest.TestCase):
@@ -474,7 +475,7 @@ class AnalysesTest(unittest.TestCase):
         out = model.pilot_study({}, 1)
         self.assertEqual('rest', out['policy'])
         power = [p['power'] for p in out['power']]
-        self.assertEqual(40, len(power))
+        self.assertEqual(100, len(power))
         self.assertTrue(all(a <= b for a, b in zip(power, power[1:])))
         self.assertEqual(out['measured'], [out['after'][0] - out['before'][0]])
 
