@@ -135,6 +135,16 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(5, policies.count('rotate'))
         self.assertEqual(set(model.FLAGS), {r['flag'] for r in out['rows'] if r['policy'] == 'rest'})
 
+    def test_robustness(self):
+        out = self.ok('robustness', '--seasons', 1, '--map', '--json', self.path('rob', 'r.json'))
+        for text in ('The hidden truth', 'How much load spikes cause injury (hidden)', 'Pays below', 'In plain English'):
+            self.assertIn(text, out)
+        doc = read_json(self.path('rob', 'r.json'))
+        ref = model.robustness(dict(APP), [201])
+        self.assertEqual(ref['base']['auc'], doc['robustness']['base']['auc'])
+        self.assertEqual(len(model.ASSUMPTIONS), len(doc['robustness']['rows']))
+        self.assertEqual(15, len(doc['map']['cells']))
+
     def test_season_without_the_light_has_no_replay(self):
         out = self.ok('season', '--policy', 'none', '--seed', 2)
         self.assertIn('nothing to replay', out)

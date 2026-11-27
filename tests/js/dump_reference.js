@@ -229,6 +229,12 @@ const tradeoffs = [{ settings: { flag: 'model' }, seeds: [101, 102] }, { setting
     breakEvens: [[-10, -2], [-10, 0], [0, 0], [5, 1], [5, -1], [0, 1]].map(function (a) { return M.breakEven(a[0], a[1]); }) };
 });
 
+// ---------- robustness ----------
+const robust = { settings: { policy: 'rest', flag: 'ewma', threshold: 1.3 }, seeds: [201, 202] };
+robust.out = M.robustness(robust.settings, robust.seeds);
+robust.map = M.robustnessMap({ flag: 'model' }, [203], [0, 3], [0.6, 1.4]);
+robust.assumptions = M.ASSUMPTIONS;
+
 // ---------- logbooks ----------
 const COLUMNS = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
 const lb = M.seasonLogbook({}, 1);
@@ -272,5 +278,5 @@ const logbooks = tricky.map(function (text) {
 
 process.stdout.write(JSON.stringify(plain({
   calls: calls, rng: rng, constants: constants, seasons: seasons, prepared: prepared, series: series,
-  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, tradeoffs: tradeoffs, logbook: logbook, logbooks: logbooks
+  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, tradeoffs: tradeoffs, robust: robust, logbook: logbook, logbooks: logbooks
 })));

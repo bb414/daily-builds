@@ -171,6 +171,12 @@ class AgreementTest(unittest.TestCase):
             pairs = [(-10, -2), (-10, 0), (0, 0), (5, 1), (5, -1), (0, 1)]
             self.assertSame(case['breakEvens'], [model.break_even(a, b) for a, b in pairs], 'breakEven')
 
+    def test_robustness(self):
+        ref = self.ref['robust']
+        self.assertSame(ref['assumptions'], model.ASSUMPTIONS, 'ASSUMPTIONS')
+        self.assertSame(ref['out'], model.robustness(ref['settings'], ref['seeds']), 'robustness')
+        self.assertSame(ref['map'], model.robustness_map({'flag': 'model'}, [203], [0, 3], [0.6, 1.4]), 'robustnessMap')
+
     def test_season_logbook(self):
         ref = self.ref['logbook']
         lb = model.season_logbook(ref['settings'], ref['seed'])

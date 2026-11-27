@@ -26,6 +26,7 @@ __all__ = [
     'civil_from_days', 'format_day', 'parse_day', 'SEASON_START', 'season_logbook', 'parse_csv', 'to_csv',
     'read_logbook', 'analyse_logbook', 'player_series', 'FACTOR_LABELS', 'injury_factors', 'inquest',
     'RATIO_LEVELS', 'BUDGET_LEVELS', 'ROTATE_LEVELS', 'tradeoff_options', 'break_even', 'tradeoff', 'best_option',
+    'ASSUMPTIONS', 'light_effect', 'robustness', 'robustness_map',
 ]
 
 VERSION = '1.0'
@@ -1260,6 +1261,80 @@ def best_option(rows, lam):
         if v > best_v + 1e-12:
             best, best_v = i, v
     return {'index': best, 'value': best_v}
+
+
+# ---------- robustness: would the verdict survive a different hidden truth? ----------
+ASSUMPTIONS = [
+    {'key': 'spike', 'label': 'How much load spikes cause injury', 'low': 0.5, 'high': 3.5, 'hidden': True},
+    {'key': 'contactScale', 'label': 'How common contact injuries are', 'low': 0.6, 'high': 1.4, 'hidden': True},
+    {'key': 'historySeasons', 'label': 'Seasons the risk model learns from', 'low': 1, 'high': 5, 'hidden': False},
+    {'key': 'intensity', 'label': 'Training effort', 'low': 0.85, 'high': 1.15, 'hidden': False},
+    {'key': 'restTraining', 'label': 'Training a rested player keeps', 'low': 0.25, 'high': 0.75, 'hidden': False},
+    {'key': 'preseason', 'label': 'Pre-season', 'low': 'gradual', 'high': 'steep', 'hidden': False},
+    {'key': 'gradedReturn', 'label': 'Graded return after injury', 'low': False, 'high': True, 'hidden': False},
+]
+
+
+def light_effect(settings, seeds):
+    """The light's accuracy (AUC on silent seasons) and its value when acted on, over paired seasons."""
+    S = with_defaults(settings)
+    if S['policy'] == 'none':
+        S['policy'] = 'rest'
+    ctx = prepare(S)
+    off = with_defaults(S)
+    off['policy'] = 'none'
+    scores, labels, d_nc, d_inj, d_days, d_pts = [], [], [], [], [], []
+    for seed in seeds:
+        a = simulate_season(ctx, off, seed, {'collectRows': True})
+        b = simulate_season(ctx, S, seed)
+        for r in a['rows']:
+            scores.append(r['scores'][S['flag']])
+            labels.append(r['nc'])
+        d_nc.append(b['nc'] - a['nc'])
+        d_inj.append(b['injuriesTotal'] - a['injuriesTotal'])
+        d_days.append(b['daysLost'] - a['daysLost'])
+        d_pts.append(b['points'] - a['points'])
+    md, mp = mean(d_days), mean(d_pts)
+    return {'auc': auc(scores, labels), 'dNC': mean(d_nc), 'dInjuries': mean(d_inj), 'dDays': md, 'dPoints': mp,
+            'breakEven': break_even(md, mp), 'seasons': len(seeds)}
+
+
+def robustness(settings, seeds):
+    """light_effect() at the settings, then with each assumption pushed low and high, one at a time."""
+    S = with_defaults(settings)
+    if S['policy'] == 'none':
+        S['policy'] = 'rest'
+    base = light_effect(S, seeds)
+    rows = []
+    for a in ASSUMPTIONS:
+        lo, hi = with_defaults(S), with_defaults(S)
+        lo[a['key']] = a['low']
+        hi[a['key']] = a['high']
+        rows.append({'key': a['key'], 'label': a['label'], 'hidden': a['hidden'], 'lowValue': a['low'],
+                     'highValue': a['high'], 'baseValue': S[a['key']], 'low': light_effect(lo, seeds),
+                     'high': light_effect(hi, seeds)})
+    return {'policy': S['policy'], 'flag': S['flag'], 'seeds': list(seeds), 'base': base, 'rows': rows}
+
+
+def robustness_map(settings, seeds, spikes=None, contacts=None):
+    """light_effect() across the two most contested hidden parameters."""
+    S = with_defaults(settings)
+    if S['policy'] == 'none':
+        S['policy'] = 'rest'
+    spikes = [0, 1, 2, 3, 4] if spikes is None else list(spikes)
+    contacts = [0.6, 1, 1.4] if contacts is None else list(contacts)
+    cells = []
+    for c in contacts:
+        for sp in spikes:
+            s2 = with_defaults(S)
+            s2['spike'] = sp
+            s2['contactScale'] = c
+            e = light_effect(s2, seeds)
+            e['spike'] = sp
+            e['contactScale'] = c
+            cells.append(e)
+    return {'policy': S['policy'], 'flag': S['flag'], 'seeds': list(seeds), 'spikes': spikes, 'contacts': contacts,
+            'cells': cells}
 
 
 # ---------- the inquest: why each injury happened, and could a rest have avoided it? ----------

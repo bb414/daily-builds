@@ -475,6 +475,83 @@ def cmd_optimise(args):
     return 0
 
 
+def setting_text(key, v):
+    """A short phrase for one assumption's setting."""
+    if key == 'spike':
+        return f'spikes {fmt(v, 1)}'
+    if key in ('contactScale', 'intensity', 'restTraining'):
+        return f"{round(v * 100)}% {dict(contactScale='contact', intensity='effort', restTraining='kept')[key]}"
+    if key == 'historySeasons':
+        return plural(v, 'season')
+    if key == 'preseason':
+        return 'full load' if v == 'steep' else 'build up'
+    if key == 'gradedReturn':
+        return 'graded' if v else 'straight back'
+    return str(v)
+
+
+def pays_text(b):
+    if b['kind'] in ('always', 'never'):
+        return 'at any rate' if b['kind'] == 'always' else 'never'
+    return f"{'under' if b['kind'] == 'below' else 'over'} {plural(round(b['value']), 'day')} a point"
+
+
+def cmd_robustness(args):
+    S = settings_from(args)
+    seeds = [200 + k for k in range(1, args.seasons + 1)]
+    rb = model.robustness(S, seeds)
+    light = model.FLAG_LABELS[rb['flag']]
+    say(f'The hidden truth: would the verdict survive? {light}, {POLICY_SHORT[rb["policy"]].lower()}, '
+        f'{len(seeds)} seasons (seeds {seeds[0]} to {seeds[-1]})',
+        wrap(f'Settings: {report.settings_line(S)}. Each assumption is pushed low and high, one at a time. Each '
+             'version plays the seasons twice on the same luck, acting on the light and ignoring it; the AUC comes '
+             'from the seasons that ignore it.'))
+
+    def cells(e):
+        return [fmt(e['auc'], 3), fmt(-e['dNC'], 1), fmt(-e['dDays'], 0), signed(e['dPoints'], 1), pays_text(e['breakEven'])]
+    rows = [['As set', ''] + cells(rb['base'])]
+    for r in rb['rows']:
+        name = r['label'] + (' (hidden)' if r['hidden'] else '')
+        rows.append([name, setting_text(r['key'], r['lowValue'])] + cells(r['low']))
+        rows.append(['', setting_text(r['key'], r['highValue'])] + cells(r['high']))
+    say('', text_table(['Assumption', 'Setting', 'AUC', 'Soft-tissue saved', 'Days saved', 'Points', 'Pays'], rows,
+                       right=[2, 3, 4, 5]))
+    lam = args.point_value
+    variants = [rb['base']] + [e for r in rb['rows'] for e in (r['low'], r['high'])]
+    pays = sum(1 for e in variants if -e['dDays'] + lam * e['dPoints'] > 0)
+
+    def swing(r):
+        a, b = r['low']['breakEven']['value'], r['high']['breakEven']['value']
+        return abs((b or 0) - (a or 0))
+    biggest = max(rb['rows'], key=swing)
+    spike = next(r for r in rb['rows'] if r['key'] == 'spike')
+    hist = next(r for r in rb['rows'] if r['key'] == 'historySeasons')
+    out = {'settings': S, 'pointValue': lam, 'robustness': rb}
+    if args.map:
+        mp = model.robustness_map(S, seeds)
+        out['map'] = mp
+        grid = []
+        for c in reversed(mp['contacts']):
+            line = [f'{round(c * 100)}% contact']
+            for sp in mp['spikes']:
+                cell = next(x for x in mp['cells'] if x['spike'] == sp and x['contactScale'] == c)
+                b = cell['breakEven']
+                line.append(fmt(b['value'], 0) if b['kind'] == 'below' else b['kind'])
+            grid.append(line)
+        say(heading('Pays below (player-days a league point), by spike effect and contact rate'),
+            text_table([''] + [f'spikes {fmt(sp, 0)}' for sp in mp['spikes']], grid,
+                       right=list(range(1, len(mp['spikes']) + 1))))
+    say(wrap(f"In plain English: the light's AUC runs from {fmt(spike['low']['auc'], 2)} to "
+             f"{fmt(spike['high']['auc'], 2)} as load spikes matter less or more, and the soft-tissue injuries saved "
+             f"from {fmt(-spike['low']['dNC'], 1)} to {fmt(-spike['high']['dNC'], 1)} a season. Trained on one season the "
+             f"risk model scores {fmt(hist['low']['auc'], 2)}, on five {fmt(hist['high']['auc'], 2)}. The break-even "
+             f"worth of a point moves most with: {biggest['label'].lower()}. Acting on the light beats doing nothing "
+             f"at {fmt(lam, 0)} player-days a point in {pays} of {len(variants)} versions."))
+    blank_if(args.json)
+    write_json(args.json, out)
+    return 0
+
+
 def cmd_flags(args):
     S = settings_from(args)
     seeds = experiments.flag_seeds(args.seasons)
@@ -808,6 +885,7 @@ examples:
   python -m loadbearing season --seed 6
   python -m loadbearing inquest --seed 6
   python -m loadbearing optimise --point-value 12 --all-lights
+  python -m loadbearing robustness --map
   python -m loadbearing flags --seasons 30 --json results/flags.json
   python -m loadbearing compare --flag ewma --csv results/policies.csv
   python -m loadbearing pilot --pairs 40
@@ -865,6 +943,17 @@ def build_parser():
     p.add_argument('--all-lights', action='store_true', help='compare all five lights at once (about five times slower)')
     p.add_argument('--csv', metavar='PATH', help='write every option to a CSV file')
     workers_option(p)
+    json_option(p)
+
+    p = command('robustness', cmd_robustness, 'Ask whether the verdict survives a different hidden truth',
+                'Pushes each assumption (how much load spikes cause injury, the contact rate, the seasons the risk\n'
+                'model learns from, training effort, training kept when rested, pre-season, graded return) low and\n'
+                'high, one at a time, and scores the light and its value again. --map adds the grid of spike effect\n'
+                'against contact rate.')
+    p.add_argument('--seasons', type=COUNT, default=12, metavar='N', help='seasons, seeds 201 to 200+N (default 12)')
+    p.add_argument('--point-value', type=float, default=12, metavar='DAYS',
+                   help='player-days of injury one league point is worth (default 12)')
+    p.add_argument('--map', action='store_true', help='also map spike effect against contact rate (slower)')
     json_option(p)
 
     p = command('flags', cmd_flags, 'Score every warning light over silent seasons',

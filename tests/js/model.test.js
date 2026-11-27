@@ -366,3 +366,26 @@ test('the trade-off lists every option, marks the efficient ones and finds break
   const rest = to.rows.filter((r) => r.policy === 'rest');
   assert.ok(rest[rest.length - 1].dDays < rest[0].dDays);
 });
+
+test('robustness pushes each assumption low and high and the light gets sharper when spikes matter more', () => {
+  const seeds = [201, 202, 203, 204, 205, 206];
+  const rb = M.robustness({ policy: 'none', flag: 'ewma' }, seeds);
+  assert.equal(rb.policy, 'rest');
+  assert.equal(rb.rows.length, M.ASSUMPTIONS.length);
+  rb.rows.forEach((r) => {
+    ['low', 'high'].forEach((k) => {
+      assert.ok(r[k].auc > 0.3 && r[k].auc < 0.95);
+      assert.equal(r[k].seasons, seeds.length);
+      assert.ok(['below', 'above', 'always', 'never'].includes(r[k].breakEven.kind));
+    });
+  });
+  const spike = rb.rows.find((r) => r.key === 'spike');
+  assert.ok(spike.high.auc > spike.low.auc + 0.05, spike.low.auc + ' ' + spike.high.auc);
+  assert.ok(-spike.high.dNC > -spike.low.dNC);
+  // A setting already at its low value reproduces the base result exactly.
+  const pre = rb.rows.find((r) => r.key === 'preseason');
+  assert.deepEqual(pre.low, rb.base);
+  const mp = M.robustnessMap({ flag: 'ewma' }, [201], [0, 4], [1]);
+  assert.equal(mp.cells.length, 2);
+  assert.ok(mp.cells[1].auc > mp.cells[0].auc);
+});

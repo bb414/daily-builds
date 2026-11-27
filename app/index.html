@@ -127,7 +127,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .squad-nav { background: var(--paper-dark); border-bottom: 2px solid var(--rule); }
 .squad-nav ol {
   max-width: 1240px; margin: 0 auto; padding: 10px 24px 0; list-style: none;
-  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px;
 }
 .shirt-tab {
   width: 100%; background: none; border: 0; cursor: pointer; padding: 4px 2px 10px;
@@ -552,8 +552,9 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
     <li><button class="shirt-tab" role="tab" id="tab-pilot" aria-controls="view-pilot" aria-selected="false" data-view="pilot"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">3</text></svg><span class="label">The pilot season</span></button></li>
     <li><button class="shirt-tab" role="tab" id="tab-rotation" aria-controls="view-rotation" aria-selected="false" data-view="rotation"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">4</text></svg><span class="label">Squad policies</span></button></li>
     <li><button class="shirt-tab" role="tab" id="tab-tradeoff" aria-controls="view-tradeoff" aria-selected="false" data-view="tradeoff"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">5</text></svg><span class="label">The trade-off</span></button></li>
-    <li><button class="shirt-tab" role="tab" id="tab-logbook" aria-controls="view-logbook" aria-selected="false" data-view="logbook"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">6</text></svg><span class="label">Your logbook</span></button></li>
-    <li><button class="shirt-tab" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" data-view="how"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">7</text></svg><span class="label">How it works</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-hidden" aria-controls="view-hidden" aria-selected="false" data-view="hidden"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">6</text></svg><span class="label">The hidden truth</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-logbook" aria-controls="view-logbook" aria-selected="false" data-view="logbook"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">7</text></svg><span class="label">Your logbook</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" data-view="how"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">8</text></svg><span class="label">How it works</span></button></li>
   </ol>
 </nav>
 
@@ -651,13 +652,18 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
       <p class="lede">Every way the club could use its light, at every flag level, plus rotation and picking on readiness, each played over the same seasons. Fewer days lost costs league points, so the right choice depends on one question only the club can answer: <b>how many player-days of injury is a league point worth?</b></p>
       <div id="tradeoff-out"></div>
     </section>
+    <section class="view" id="view-hidden" role="tabpanel" aria-labelledby="tab-hidden" hidden>
+      <div class="page-head"><span class="pg">Page 6</span><h2>The hidden truth</h2></div>
+      <p class="lede">Every page so far rests on one version of the truth. How much load spikes really cause injury is still argued over, and no club can see it. So would the verdict survive if the truth were different? Each assumption is pushed <b>low and high, one at a time</b>, over the same seasons, and the light is scored again: how accurate it is, and what acting on it is worth.</p>
+      <div id="hidden-out"></div>
+    </section>
     <section class="view" id="view-logbook" role="tabpanel" aria-labelledby="tab-logbook" hidden>
-      <div class="page-head"><span class="pg">Page 6</span><h2>Your logbook</h2></div>
+      <div class="page-head"><span class="pg">Page 7</span><h2>Your logbook</h2></div>
       <p class="lede">Bring a club's own session log (date, player, minutes and effort, with injuries if you have them). The app works out every player's workload ratios, this week's flags and, if injuries are recorded, whether the ratios anticipated them better than chance. <b>Nothing leaves your browser.</b></p>
       <div id="logbook-out"></div>
     </section>
     <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" hidden>
-      <div class="page-head"><span class="pg">Page 7</span><h2>How it works</h2></div>
+      <div class="page-head"><span class="pg">Page 8</span><h2>How it works</h2></div>
       <div id="how-out"></div>
     </section>
   </main>
@@ -1523,6 +1529,67 @@ var LoadBearing = (function () {
     return { index: best, value: bestV };
   }
 
+  /* ---------- robustness: would the verdict survive a different hidden truth? ---------- */
+  var ASSUMPTIONS = [
+    { key: 'spike', label: 'How much load spikes cause injury', low: 0.5, high: 3.5, hidden: true },
+    { key: 'contactScale', label: 'How common contact injuries are', low: 0.6, high: 1.4, hidden: true },
+    { key: 'historySeasons', label: 'Seasons the risk model learns from', low: 1, high: 5, hidden: false },
+    { key: 'intensity', label: 'Training effort', low: 0.85, high: 1.15, hidden: false },
+    { key: 'restTraining', label: 'Training a rested player keeps', low: 0.25, high: 0.75, hidden: false },
+    { key: 'preseason', label: 'Pre-season', low: 'gradual', high: 'steep', hidden: false },
+    { key: 'gradedReturn', label: 'Graded return after injury', low: false, high: true, hidden: false }
+  ];
+
+  /* The light's accuracy (AUC on silent seasons) and its value when acted on, over paired seasons. */
+  function lightEffect(settings, seeds) {
+    var S = withDefaults(settings);
+    if (S.policy === 'none') S.policy = 'rest';
+    var ctx = prepare(S);
+    var off = withDefaults(S); off.policy = 'none';
+    var scores = [], labels = [], dNC = [], dInj = [], dDays = [], dPts = [];
+    seeds.forEach(function (seed) {
+      var a = simulateSeason(ctx, off, seed, { collectRows: true });
+      var b = simulateSeason(ctx, S, seed);
+      a.rows.forEach(function (r) { scores.push(r.scores[S.flag]); labels.push(r.nc); });
+      dNC.push(b.nc - a.nc); dInj.push(b.injuriesTotal - a.injuriesTotal);
+      dDays.push(b.daysLost - a.daysLost); dPts.push(b.points - a.points);
+    });
+    var md = mean(dDays), mp = mean(dPts);
+    return { auc: auc(scores, labels), dNC: mean(dNC), dInjuries: mean(dInj), dDays: md, dPoints: mp,
+      breakEven: breakEven(md, mp), seasons: seeds.length };
+  }
+
+  function robustness(settings, seeds) {
+    var S = withDefaults(settings);
+    if (S.policy === 'none') S.policy = 'rest';
+    var base = lightEffect(S, seeds);
+    var rows = ASSUMPTIONS.map(function (a) {
+      var lo = withDefaults(S), hi = withDefaults(S);
+      lo[a.key] = a.low; hi[a.key] = a.high;
+      return { key: a.key, label: a.label, hidden: a.hidden, lowValue: a.low, highValue: a.high, baseValue: S[a.key],
+        low: lightEffect(lo, seeds), high: lightEffect(hi, seeds) };
+    });
+    return { policy: S.policy, flag: S.flag, seeds: seeds.slice(), base: base, rows: rows };
+  }
+
+  /* The light's value across the two most contested hidden parameters. */
+  function robustnessMap(settings, seeds, spikes, contacts) {
+    var S = withDefaults(settings);
+    if (S.policy === 'none') S.policy = 'rest';
+    spikes = spikes || [0, 1, 2, 3, 4];
+    contacts = contacts || [0.6, 1, 1.4];
+    var cells = [];
+    contacts.forEach(function (c) {
+      spikes.forEach(function (sp) {
+        var s2 = withDefaults(S); s2.spike = sp; s2.contactScale = c;
+        var e = lightEffect(s2, seeds);
+        e.spike = sp; e.contactScale = c;
+        cells.push(e);
+      });
+    });
+    return { policy: S.policy, flag: S.flag, seeds: seeds.slice(), spikes: spikes.slice(), contacts: contacts.slice(), cells: cells };
+  }
+
   /* ---------- the inquest: why each injury happened, and could a rest have avoided it? ---------- */
   var FACTOR_LABELS = { spike: 'Load spike', under: 'Under-trained', recent: 'Back from injury', frailty: 'Frailty',
     age: 'Age', position: 'Position', fatigue: 'Fatigue in contact', exposure: 'Match or session' };
@@ -2155,7 +2222,8 @@ var LoadBearing = (function () {
     SEASON_START: SEASON_START, seasonLogbook: seasonLogbook, parseCSV: parseCSV, toCSV: toCSV,
     readLogbook: readLogbook, analyseLogbook: analyseLogbook, playerSeries: playerSeries,
     FACTOR_LABELS: FACTOR_LABELS, injuryFactors: injuryFactors, inquest: inquest,
-    tradeoffOptions: tradeoffOptions, breakEven: breakEven, tradeoff: tradeoff, bestOption: bestOption
+    tradeoffOptions: tradeoffOptions, breakEven: breakEven, tradeoff: tradeoff, bestOption: bestOption,
+    ASSUMPTIONS: ASSUMPTIONS, lightEffect: lightEffect, robustness: robustness, robustnessMap: robustnessMap
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearing;
@@ -2236,7 +2304,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   })();
   var S = copy(APP_DEFAULTS);
   var view = 'season';
-  var extra = { pilotPairs: 40, rotationSeasons: 30, pointValue: 12, tradeSeasons: 20 };
+  var extra = { pilotPairs: 40, rotationSeasons: 30, pointValue: 12, tradeSeasons: 20, hiddenSeasons: 12, hiddenMetric: 'breakeven' };
   function copy(o) { var r = {}; for (var k in o) r[k] = o[k]; return r; }
 
   function readHash() {
@@ -2253,7 +2321,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     if (!o || typeof o !== 'object') return;
     var clean = M.withDefaults(o.settings || o);
     for (var k in APP_DEFAULTS) if ((o.settings || o)[k] !== undefined) S[k] = clean[k];
-    if (o.view && ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
+    if (o.view && ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'hidden', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
+    if (o.hiddenSeasons && [8, 12, 24].indexOf(+o.hiddenSeasons) >= 0) extra.hiddenSeasons = +o.hiddenSeasons;
+    if (o.hiddenMetric && HIDDEN_METRICS[o.hiddenMetric]) extra.hiddenMetric = o.hiddenMetric;
     if (o.pointValue !== undefined && +o.pointValue >= 0 && +o.pointValue <= 60) extra.pointValue = +o.pointValue;
     if (o.tradeSeasons && [12, 20, 40].indexOf(+o.tradeSeasons) >= 0) extra.tradeSeasons = +o.tradeSeasons;
     if (o.pilotPairs && [20, 40, 80].indexOf(+o.pilotPairs) >= 0) extra.pilotPairs = +o.pilotPairs;
@@ -2263,7 +2333,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     var diff = {};
     for (var k in APP_DEFAULTS) if (S[k] !== APP_DEFAULTS[k]) diff[k] = S[k];
     return { app: 'load-bearing', v: 1, view: view, settings: diff, pilotPairs: extra.pilotPairs, rotationSeasons: extra.rotationSeasons,
-      pointValue: extra.pointValue, tradeSeasons: extra.tradeSeasons };
+      pointValue: extra.pointValue, tradeSeasons: extra.tradeSeasons, hiddenSeasons: extra.hiddenSeasons, hiddenMetric: extra.hiddenMetric };
   }
   function shareLink() {
     var json = JSON.stringify(stateObject());
@@ -3210,7 +3280,142 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     });
   }
 
-  /* ================= PAGE 6: YOUR LOGBOOK ================= */
+  /* ================= PAGE 6: THE HIDDEN TRUTH ================= */
+  var HIDDEN_METRICS = {
+    breakeven: { label: 'Pays below', unit: 'days a point', get: function (e) { return e.breakEven.kind === 'below' ? e.breakEven.value : e.breakEven.kind === 'always' ? 99 : NaN; }, d: 0, better: 1 },
+    nc: { label: 'Soft-tissue saved', unit: 'a season', get: function (e) { return -e.dNC; }, d: 1, better: 1 },
+    days: { label: 'Days saved', unit: 'a season', get: function (e) { return -e.dDays; }, d: 0, better: 1 },
+    points: { label: 'Points change', unit: 'a season', get: function (e) { return e.dPoints; }, d: 1, better: 1 },
+    auc: { label: 'Light\'s AUC', unit: 'silent seasons', get: function (e) { return e.auc; }, d: 2, better: 1 }
+  };
+  function settingText(key, v) {
+    if (key === 'spike') return 'spikes ' + fmt(v, 1);
+    if (key === 'contactScale') return Math.round(v * 100) + '% contact';
+    if (key === 'historySeasons') return v + (v === 1 ? ' season' : ' seasons');
+    if (key === 'intensity') return Math.round(v * 100) + '% effort';
+    if (key === 'restTraining') return Math.round(v * 100) + '% kept';
+    if (key === 'preseason') return v === 'steep' ? 'full load' : 'build up';
+    if (key === 'gradedReturn') return v ? 'graded' : 'straight back';
+    return String(v);
+  }
+  function hiddenKey() { var c = copy(S); delete c.seasonSeed; return JSON.stringify([c, extra.hiddenSeasons]); }
+  function renderHidden() {
+    var out = $('hidden-out'), key = 'hid' + hiddenKey();
+    resetCharts(out);
+    if (cache[key] && cache[key + 'map']) return drawHidden(cache[key], cache[key + 'map']);
+    busy(out, 'Replaying ' + extra.hiddenSeasons + ' seasons under fifteen versions of the truth');
+    var seeds = [];
+    for (var i = 1; i <= extra.hiddenSeasons; i++) seeds.push(200 + i);
+    var still = function () { return view === 'hidden' && key === 'hid' + hiddenKey(); };
+    run('robustness', [S, seeds]).then(function (rb) {
+      cache[key] = rb;
+      if (!still()) return null;
+      drawHidden(rb, null);
+      return run('robustnessMap', [S, seeds.slice(0, Math.max(6, Math.round(seeds.length * 2 / 3)))]);
+    }).then(function (mp) {
+      if (!mp) return;
+      cache[key + 'map'] = mp;
+      if (still()) drawHidden(cache[key], mp);
+    }).catch(function (e) { failed(out, e); });
+  }
+  function drawHidden(rb, mp) {
+    var out = $('hidden-out');
+    resetCharts(out);
+    var M_ = HIDDEN_METRICS[extra.hiddenMetric], lam = extra.pointValue;
+    var variants = [rb.base];
+    rb.rows.forEach(function (r) { variants.push(r.low, r.high); });
+    var pays = variants.filter(function (e) { return -e.dDays + lam * e.dPoints > 0; }).length;
+    var swing = rb.rows.map(function (r) { var a = M_.get(r.low), b = M_.get(r.high); return { r: r, size: Math.abs((b === b ? b : 0) - (a === a ? a : 0)) }; })
+      .sort(function (x, y) { return y.size - x.size; });
+    var hist = rb.rows.filter(function (r) { return r.key === 'historySeasons'; })[0];
+    var spike = rb.rows.filter(function (r) { return r.key === 'spike'; })[0];
+    var html = [];
+    html.push('<div class="btn-row" style="margin:0 0 14px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons for each version</span><div class="tickets three" role="radiogroup" aria-label="Seasons for each version of the truth" style="min-width:220px">' +
+      [8, 12, 24].map(function (n) { return '<input type="radio" name="hseasons" id="hs-' + n + '" value="' + n + '"' + (n === extra.hiddenSeasons ? ' checked' : '') + '><label for="hs-' + n + '">' + n + '</label>'; }).join('') + '</div></div>');
+    html.push('<div class="scoreboard">' +
+      tile('Light\'s AUC', fmt(rb.base.auc, 2), esc(FLAG_SHORT[rb.flag]) + ' on these silent seasons; ' + fmt(spike.low.auc, 2) + ' to ' + fmt(spike.high.auc, 2) + ' as spikes matter less or more') +
+      tile('Soft-tissue saved', fmt(-rb.base.dNC, 1), 'a season by ' + esc(POLICY_SHORT[rb.policy].toLowerCase()) + '; ' + fmt(-spike.low.dNC, 1) + ' to ' + fmt(-spike.high.dNC, 1) + ' across the spike range', 'good') +
+      tile('Pays below', rb.base.breakEven.kind === 'below' ? fmt(rb.base.breakEven.value, 0) : '<small>' + esc(rb.base.breakEven.kind) + '</small>', 'player-days a league point, at these settings', 'warn') +
+      tile('Pays at your rate', fmt(pays) + '<small>of ' + variants.length + '</small>', 'versions of the truth where acting beats doing nothing at ' + lam + ' days a point (set on the trade-off page)', pays > variants.length / 2 ? '' : 'bad') +
+      '</div>');
+    html.push('<div class="note-card"><p class="from">Physio\'s note &middot; what nobody can see</p><p class="big">' + esc(swing[0].r.label) + ' moves the answer most.</p>' +
+      '<p>If load spikes barely matter, the light is close to a coin toss (' + fmt(spike.low.auc, 2) + ') and resting flagged players saves ' + fmt(-spike.low.dNC, 1) + ' soft-tissue injuries a season; if they matter a lot, it scores ' + fmt(spike.high.auc, 2) + ' and saves ' + fmt(-spike.high.dNC, 1) + '. A club cannot tell which world it is in from one season, which is the Pilot page\'s point. ' +
+      (hist ? 'And the risk model is only as good as its history: trained on one season it scores ' + fmt(hist.low.auc, 2) + ', on five ' + fmt(hist.high.auc, 2) + '.' : '') + '</p></div>');
+    html.push('<div class="card"><p class="kicker">Exhibit H</p><h3>Which assumption moves the answer?</h3><div class="tickets" role="radiogroup" aria-label="Measure to show" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:6px 0 12px">' +
+      Object.keys(HIDDEN_METRICS).map(function (k) { return '<input type="radio" name="hmetric" id="hm-' + k + '" value="' + k + '"' + (k === extra.hiddenMetric ? ' checked' : '') + '><label for="hm-' + k + '">' + esc(HIDDEN_METRICS[k].label) + '</label>'; }).join('') +
+      '</div><p class="sub">Each bar runs from the assumption\'s low setting to its high one, with everything else held at the clipboard. The line is the clipboard itself. Hidden assumptions are marked; the rest are choices a club makes.</p><div class="chart" id="tornado"></div></div>');
+    html.push('<div class="card"><p class="kicker">Exhibit I</p><h3>The two things nobody can see</h3><p class="sub">The same measure across how much load spikes cause injury and how common contact injuries are. The outlined square is the clipboard\'s world.</p><div class="chart" id="hidden-map">' + (mp ? '' : '<div class="busy" role="status"><span class="ball" aria-hidden="true"></span>Filling in the map</div>') + '</div></div>');
+    html.push('<div class="card"><p class="kicker">The workings</p><h3>Every version of the truth</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Version</th><th class="num">AUC</th><th class="num">Soft-tissue saved</th><th class="num">Days saved</th><th class="num">Points</th><th>Pays</th></tr></thead><tbody>' +
+      [['As on the clipboard', rb.base]].concat(rb.rows.reduce(function (a, r) {
+        return a.concat([[r.label + ': ' + settingText(r.key, r.lowValue), r.low], [r.label + ': ' + settingText(r.key, r.highValue), r.high]]);
+      }, [])).map(function (x, k) {
+        var e = x[1];
+        return '<tr' + (k === 0 ? ' class="us"' : '') + '><td>' + esc(x[0]) + '</td><td class="num">' + fmt(e.auc, 3) + '</td><td class="num">' + fmt(-e.dNC, 1) + '</td><td class="num">' + fmt(-e.dDays, 0) + '</td><td class="num">' + signed(e.dPoints, 1) + '</td><td>' + esc(breakEvenText(e.breakEven, {})) + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="foot">Each version plays ' + rb.seeds.length + ' seasons twice on the same luck, once acting on ' + esc(FLAG_SHORT[rb.flag]) + ' (' + esc(POLICY_SHORT[rb.policy].toLowerCase()) + ') and once ignoring it; the AUC comes from the seasons that ignore it.</p></div>');
+    out.innerHTML = html.join('');
+    out.querySelectorAll('input[name="hseasons"]').forEach(function (rbn) { rbn.addEventListener('change', function () { extra.hiddenSeasons = +this.value; renderHidden(); }); });
+    out.querySelectorAll('input[name="hmetric"]').forEach(function (rbn) { rbn.addEventListener('change', function () { extra.hiddenMetric = this.value; drawHidden(rb, mp); }); });
+    chart($('tornado'), function () { drawTornado($('tornado'), rb, M_); });
+    if (mp) chart($('hidden-map'), function () { drawHiddenMap($('hidden-map'), mp, M_); });
+  }
+  function drawTornado(el, rb, M_) {
+    var W = chartWidth(el), narrow = W < 560, labelW = narrow ? 0 : 250, rowH = narrow ? 52 : 38;
+    var base = M_.get(rb.base);
+    var rows = rb.rows.map(function (r) { return { r: r, lo: M_.get(r.low), hi: M_.get(r.high) }; })
+      .sort(function (a, b) { return Math.abs(b.hi - b.lo) - Math.abs(a.hi - a.lo); });
+    var vals = [base];
+    rows.forEach(function (x) { if (x.lo === x.lo) vals.push(x.lo); if (x.hi === x.hi) vals.push(x.hi); });
+    var vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals), pad = (vmax - vmin) * 0.18 + (M_.d === 2 ? 0.01 : 0.5);
+    vmin -= pad; vmax += pad;
+    var x0 = labelW + 8, x1 = W - 10, top = 8;
+    var xs = function (v) { return x0 + (v - vmin) / (vmax - vmin) * (x1 - x0); };
+    var H = top + rows.length * rowH + 34;
+    var s = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="Tornado chart: how each assumption moves ' + esc(M_.label) + '">';
+    niceTicks(vmin, vmax, narrow ? 4 : 6).forEach(function (t) {
+      s += '<line x1="' + xs(t) + '" x2="' + xs(t) + '" y1="' + top + '" y2="' + (H - 26) + '" stroke="rgba(92,74,77,.16)"/><text x="' + xs(t) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(fmt(t, M_.d)) + '</text>';
+    });
+    rows.forEach(function (x, k) {
+      var y = top + k * rowH, by = y + (narrow ? 22 : 10), bh = 16;
+      var label = esc(x.r.label) + (x.r.hidden ? ' (hidden)' : '');
+      if (narrow) s += '<text x="0" y="' + (y + 14) + '" style="font-weight:700">' + label + '</text>';
+      else s += '<text x="' + labelW + '" y="' + (by + 12) + '" text-anchor="end" style="font-weight:700">' + label + '</text>';
+      [['lo', x.lo, x.r.lowValue, COLORS.navy], ['hi', x.hi, x.r.highValue, COLORS.claret]].forEach(function (b) {
+        if (!(b[1] === b[1])) return;
+        var a = xs(Math.min(base, b[1])), w = Math.abs(xs(b[1]) - xs(base));
+        s += '<rect x="' + a + '" y="' + by + '" width="' + Math.max(1.5, w) + '" height="' + bh + '" fill="' + b[3] + '" opacity=".85"><title>' + esc(x.r.label + ', ' + settingText(x.r.key, b[2]) + ': ' + fmt(b[1], M_.d)) + '</title></rect>';
+        var right = Math.abs(b[1] - base) < 1e-9 ? b[0] === 'hi' : b[1] > base;
+        s += '<text x="' + (xs(b[1]) + (right ? 5 : -5)) + '" y="' + (by + 12) + '" text-anchor="' + (right ? 'start' : 'end') + '" font-size="11.5">' + esc(settingText(x.r.key, b[2])) + '</text>';
+      });
+    });
+    s += '<line x1="' + xs(base) + '" x2="' + xs(base) + '" y1="' + top + '" y2="' + (H - 26) + '" stroke="' + COLORS.ink + '" stroke-width="2"/>';
+    s += '</svg><ul class="legend"><li><span class="key box" style="background:' + COLORS.navy + '"></span>Low setting</li><li><span class="key box" style="background:' + COLORS.claret + '"></span>High setting</li><li><span class="key" style="background:' + COLORS.ink + '"></span>The clipboard: ' + esc(fmt(base, M_.d)) + ' ' + esc(M_.unit) + '</li></ul>';
+    el.innerHTML = s;
+  }
+  function drawHiddenMap(el, mp, M_) {
+    var W = chartWidth(el), cols = mp.spikes.length, rowsN = mp.contacts.length;
+    var left = 64, top = 6, cw = Math.min(110, (W - left - 8) / cols), ch = 52;
+    var vals = mp.cells.map(function (c) { return M_.get(c); }).filter(function (v) { return v === v; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    var H = top + rowsN * ch + 50;
+    var s = '<svg width="' + (left + cw * cols + 8) + '" height="' + H + '" role="img" aria-label="Map of ' + esc(M_.label) + ' across spike effect and contact injury rate">';
+    mp.cells.forEach(function (c) {
+      var i = mp.spikes.indexOf(c.spike), j = mp.contacts.indexOf(c.contactScale);
+      var v = M_.get(c), t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+      var fill = v === v ? loadColor(600 + t * 2800) : '#ddd';
+      var x = left + i * cw, y = top + (rowsN - 1 - j) * ch;
+      var isBase = Math.abs(c.spike - S.spike) < 1e-9 && Math.abs(c.contactScale - S.contactScale) < 1e-9;
+      s += '<rect x="' + (x + 1) + '" y="' + (y + 1) + '" width="' + (cw - 2) + '" height="' + (ch - 2) + '" fill="' + fill + '"' + (isBase ? ' stroke="' + COLORS.amber + '" stroke-width="4"' : '') + '><title>' + esc('Spikes ' + fmt(c.spike, 1) + ', contact ' + Math.round(c.contactScale * 100) + '%: ' + fmt(v, M_.d)) + '</title></rect>';
+      s += '<text x="' + (x + cw / 2) + '" y="' + (y + ch / 2 + 5) + '" text-anchor="middle" style="font-weight:700;fill:' + (t > 0.45 ? '#fff' : COLORS.ink) + '">' + (v === v ? esc(v >= 99 && extra.hiddenMetric === 'breakeven' ? 'any' : fmt(v, M_.d)) : 'never') + '</text>';
+    });
+    mp.contacts.forEach(function (c, j) { s += '<text x="' + (left - 6) + '" y="' + (top + (rowsN - 1 - j) * ch + ch / 2 + 4) + '" text-anchor="end">' + Math.round(c * 100) + '%</text>'; });
+    mp.spikes.forEach(function (sp, i) { s += '<text x="' + (left + i * cw + cw / 2) + '" y="' + (top + rowsN * ch + 16) + '" text-anchor="middle">' + fmt(sp, 0) + '</text>'; });
+    s += '<text class="axis-title" x="' + (left + cw * cols / 2) + '" y="' + (H - 6) + '" text-anchor="middle">How much load spikes cause injury</text>';
+    s += '<text class="axis-title" transform="translate(12 ' + (top + rowsN * ch / 2) + ') rotate(-90)" text-anchor="middle">Contact rate</text></svg>';
+    s += '<p class="foot">' + esc(M_.label) + ' (' + esc(M_.unit) + '), ' + mp.seeds.length + ' seasons a square.</p>';
+    el.innerHTML = s;
+  }
+
+  /* ================= PAGE 7: YOUR LOGBOOK ================= */
   var logState = { text: null, name: 'the sample logbook', book: null, result: null, player: 0, only: null, sample: true };
   var SAMPLE_HEADER = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
   function sampleText() {
@@ -3341,7 +3546,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     });
   }
 
-  /* ================= PAGE 7: HOW IT WORKS ================= */
+  /* ================= PAGE 8: HOW IT WORKS ================= */
   function renderHow() {
     var out = $('how-out');
     if (out.getAttribute('data-done')) return;
@@ -3376,7 +3581,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   }
 
   /* ---------- routing ---------- */
-  var RENDER = { season: renderSeason, light: renderLight, pilot: renderPilot, rotation: renderRotation, tradeoff: renderTradeoff, logbook: renderLogbook, how: renderHow };
+  var RENDER = { season: renderSeason, light: renderLight, pilot: renderPilot, rotation: renderRotation, tradeoff: renderTradeoff, hidden: renderHidden, logbook: renderLogbook, how: renderHow };
   function render(v) {
     try { RENDER[v](); } catch (e) { failed($(v + '-out'), e); }
   }

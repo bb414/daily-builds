@@ -17,9 +17,9 @@ except ImportError:  # pragma: no cover
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APP = (ROOT / 'app' / 'index.html').as_uri()
-TABS = ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'logbook', 'how']
+TABS = ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'hidden', 'logbook', 'how']
 READY = {'season': '#board svg', 'light': '#roc svg', 'pilot': '#pilot-power svg', 'rotation': '#rot-scatter svg',
-         'tradeoff': '#trade-chart svg',
+         'tradeoff': '#trade-chart svg', 'hidden': '#hidden-map svg',
          'logbook': '#log-ratio svg', 'how': '.diagram'}
 
 
@@ -123,6 +123,15 @@ class AppTest(unittest.TestCase):
         page.dispatch_event('#point-value', 'input')
         page.wait_for_function("document.querySelector('#trade-body .tile .t-value').textContent.indexOf('readiness') >= 0")
         self.assertIn('50 player-days', page.text_content('#point-value-val'))
+        self.assertEqual([], self.errors)
+
+    def test_the_hidden_truth_page_switches_measure(self):
+        page = self.open()
+        self.tab(page, 'hidden')
+        self.assertEqual(2 * 7, page.locator('#tornado rect').count())
+        page.click('label[for="hm-auc"]')
+        page.wait_for_function("document.querySelector('#tornado .legend').textContent.indexOf('silent seasons') >= 0")
+        self.assertEqual(15, page.locator('#hidden-map rect').count())
         self.assertEqual([], self.errors)
 
     def test_ratio_and_budget_controls_follow_the_light(self):
