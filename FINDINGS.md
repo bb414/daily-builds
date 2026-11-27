@@ -50,6 +50,8 @@ Over 30 seasons with identical luck, against picking the best team and ignoring 
 - **Planned rotation** (rest anyone with four starts in a row) saved 0.9 injuries and cost 5.3 points.
 - **Picking on readiness** (ability times freshness) changed injuries by almost nothing and gained 0.3 points.
 
+Which option is best depends on what a league point is worth to the club in player-days of injury, a judgement no simulation can make. Searching every action and flag level over 20 paired seasons, resting the AI's riskiest 10% pays only if a point is worth less than about 15 player-days; resting its riskiest 30% saves 114 days but costs 15 points. Picking on readiness beat doing nothing at any rate (8 fewer days lost and 0.5 more points), so it becomes the best choice once a point is worth 12 player-days or more.
+
 The contact injuries avoided by resting are simply rugby not played. A surprise came from acting on the perfect-knowledge light: it saved the same 1.6 soft-tissue injuries as the AI but cost 6.5 points, because the players at genuinely high risk are mostly regular starters (89% of its flags went to someone who started the previous match, against 40% for the AI). Knowing the risk better does not make resting cheaper.
 
 ## Result 4: a pilot season cannot tell

@@ -112,6 +112,29 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(len(ref['items']), len(doc['items']))
         self.assertEqual(model.run_season({'policy': 'none', 'flag': 'model'}, 3)['injuriesTotal'], len(doc['items']))
 
+    def test_optimise(self):
+        out = self.ok('optimise', '--seasons', 2, '--point-value', 8, '--workers', 1, '--csv', self.path('opt', 'o.csv'),
+                      '--json', self.path('opt', 'o.json'))
+        for text in ('The trade-off', 'Pays when', 'Best option by the worth of a league point', 'In plain English'):
+            self.assertIn(text, out)
+        ref = model.tradeoff(dict(APP), [101, 102])
+        doc = read_json(self.path('opt', 'o.json'))
+        self.assertEqual(len(ref['rows']), len(doc['rows']))
+        self.assertEqual([r['dDays'] for r in ref['rows']], [r['dDays'] for r in doc['rows']])
+        rows = read_rows(self.path('opt', 'o.csv'))
+        self.assertEqual('option', rows[0][0])
+        self.assertEqual(len(ref['rows']), len(rows) - 1)
+        values = [float(r[4]) for r in rows[1:]]
+        self.assertEqual(sorted(values, reverse=True), values)
+
+    def test_optimise_all_lights_shares_the_common_options(self):
+        out = experiments.run_optimise(dict(APP), [101], all_lights=True, workers=1)
+        policies = [r['policy'] for r in out['rows']]
+        self.assertEqual(1, policies.count('none'))
+        self.assertEqual(1, policies.count('readiness'))
+        self.assertEqual(5, policies.count('rotate'))
+        self.assertEqual(set(model.FLAGS), {r['flag'] for r in out['rows'] if r['policy'] == 'rest'})
+
     def test_season_without_the_light_has_no_replay(self):
         out = self.ok('season', '--policy', 'none', '--seed', 2)
         self.assertIn('nothing to replay', out)

@@ -339,3 +339,30 @@ test('the inquest explains each injury exactly and replays one rest on the same 
   assert.notEqual(alt.kinds[target.player][sat], 3);
   assert.equal(alt.status[target.player][M.HIST + target.decisionWeek * 7 + 3], 3);
 });
+
+test('the trade-off lists every option, marks the efficient ones and finds break-even rates', () => {
+  const opts = M.tradeoffOptions({ flag: 'model' });
+  assert.equal(opts.length, 1 + 2 * 6 + 5 + 1);
+  assert.equal(M.tradeoffOptions({ flag: 'ewma' }).length, 1 + 2 * 7 + 5 + 1);
+  const to = M.tradeoff({ flag: 'model' }, [101, 102, 103]);
+  assert.equal(to.rows.length, opts.length);
+  assert.equal(to.rows[0].dDays, 0);
+  assert.equal(to.rows[0].dPoints, 0);
+  const front = to.rows.filter((r) => r.frontier);
+  assert.ok(front.length >= 2);
+  front.forEach((a) => to.rows.forEach((b) => assert.ok(!(b.dDays < a.dDays && b.dPoints > a.dPoints))));
+  // The best option at a rate has the highest value, and doing nothing is always available at zero.
+  [0, 5, 12, 40].forEach((lam) => {
+    const b = M.bestOption(to.rows, lam);
+    assert.ok(b.value >= 0);
+    to.rows.forEach((r) => assert.ok(-r.dDays + lam * r.dPoints <= b.value + 1e-9));
+  });
+  assert.deepEqual(M.breakEven(-10, -2), { kind: 'below', value: 5 });
+  assert.deepEqual(M.breakEven(-10, 1), { kind: 'always', value: null });
+  assert.deepEqual(M.breakEven(0, 0), { kind: 'never', value: null });
+  assert.deepEqual(M.breakEven(6, 2), { kind: 'above', value: 3 });
+  assert.deepEqual(M.breakEven(6, -2), { kind: 'never', value: null });
+  // Resting more players saves more days than resting fewer, on average over the same seasons.
+  const rest = to.rows.filter((r) => r.policy === 'rest');
+  assert.ok(rest[rest.length - 1].dDays < rest[0].dDays);
+});

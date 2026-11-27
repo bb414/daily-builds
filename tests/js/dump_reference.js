@@ -222,6 +222,13 @@ const inquests = [{ settings: { policy: 'rest', flag: 'model' }, seed: 6 }, { se
   return { settings: c.settings, seed: c.seed, out: M.inquest(c.settings, c.seed) };
 });
 
+// ---------- the trade-off ----------
+const tradeoffs = [{ settings: { flag: 'model' }, seeds: [101, 102] }, { settings: { flag: 'ewma', spike: 3 }, seeds: [5] }].map(function (c) {
+  const out = M.tradeoff(c.settings, c.seeds);
+  return { settings: c.settings, seeds: c.seeds, out: out, best: [0, 5, 12, 40].map(function (l) { return M.bestOption(out.rows, l); }),
+    breakEvens: [[-10, -2], [-10, 0], [0, 0], [5, 1], [5, -1], [0, 1]].map(function (a) { return M.breakEven(a[0], a[1]); }) };
+});
+
 // ---------- logbooks ----------
 const COLUMNS = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
 const lb = M.seasonLogbook({}, 1);
@@ -265,5 +272,5 @@ const logbooks = tricky.map(function (text) {
 
 process.stdout.write(JSON.stringify(plain({
   calls: calls, rng: rng, constants: constants, seasons: seasons, prepared: prepared, series: series,
-  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, logbook: logbook, logbooks: logbooks
+  evaluations: evaluations, comparisons: comparisons, pilots: pilots, inquests: inquests, tradeoffs: tradeoffs, logbook: logbook, logbooks: logbooks
 })));

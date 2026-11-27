@@ -242,3 +242,26 @@ def report_analyses(settings, seasons, pairs, workers=None):
     jobs = [('compare', settings, seasons), ('pilot', settings, pairs), ('flags', settings, seasons)]
     compare, pilot, flags = parallel_map(run_analysis, jobs, workers)
     return {'flags': flags, 'compare': compare, 'pilot': pilot}
+
+
+# ---------- the trade-off across every light ----------
+def _tradeoff_for(settings, seeds):
+    return model.tradeoff(settings, seeds)
+
+
+def run_optimise(settings, seeds, all_lights=False, workers=None):
+    """The trade-off for the chosen light, or for all five lights at once. With all_lights the shared options
+    (doing nothing, rotation, readiness) appear once and the efficient set is recomputed across every light."""
+    S = model.with_defaults(settings)
+    flags = model.FLAGS if all_lights else [S['flag']]
+    results = parallel_map(_tradeoff_for, [(dict(S, flag=f), list(seeds)) for f in flags], workers)
+    rows = []
+    for k, res in enumerate(results):
+        for r in res['rows']:
+            if k > 0 and r['policy'] not in ('rest', 'modify'):
+                continue
+            rows.append(r)
+    for a in rows:
+        a['frontier'] = not any(b is not a and b['dDays'] <= a['dDays'] and b['dPoints'] >= a['dPoints']
+                                and (b['dDays'] < a['dDays'] or b['dPoints'] > a['dPoints']) for b in rows)
+    return {'seeds': list(seeds), 'flags': list(flags), 'rows': rows}

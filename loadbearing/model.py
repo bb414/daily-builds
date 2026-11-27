@@ -25,6 +25,7 @@ __all__ = [
     'compare_policies', 'pilot_study', 'power_two_sample', 'seasons_for', 'coach_view', 'days_from_civil',
     'civil_from_days', 'format_day', 'parse_day', 'SEASON_START', 'season_logbook', 'parse_csv', 'to_csv',
     'read_logbook', 'analyse_logbook', 'player_series', 'FACTOR_LABELS', 'injury_factors', 'inquest',
+    'RATIO_LEVELS', 'BUDGET_LEVELS', 'ROTATE_LEVELS', 'tradeoff_options', 'break_even', 'tradeoff', 'best_option',
 ]
 
 VERSION = '1.0'
@@ -430,7 +431,7 @@ def make_squad(squad_seed):
                     break
             used.add(name)
             group.append({'name': name, 'group': g['id'], 'unit': g['unit'], 'ability': ability, 'age': age,
-                          'frailty': frailty, 'offLoad': off_load, 'rpeBias': rpe_bias, 'prior': prior})
+                          'frailty': frailty, 'frailtyContact': det_exp(0.3 * det_log(frailty)), 'offLoad': off_load, 'rpeBias': rpe_bias, 'prior': prior})
         group.sort(key=lambda p: -p['ability'])
         for k, p in enumerate(group):
             p['depth'] = k + 1
@@ -545,7 +546,8 @@ def truth_mult(p, atl, ctl, recent, spike_effect):
     spike = _max(0, ratio - _SPIKE_FROM)
     under = _max(0, 1 - ctl / CTL_REF)
     nc = p['frailty'] * det_exp(0.03 * (p['age'] - 26) + spike_effect * spike + 0.8 * under) * (1.6 if recent else 1)
-    c = (1.15 if p['unit'] == 'F' else 0.85) * det_exp(0.3 * det_log(p['frailty'])) * (1 + 0.5 * spike)
+    fc = p['frailtyContact'] if 'frailtyContact' in p else det_exp(0.3 * det_log(p['frailty']))
+    c = (1.15 if p['unit'] == 'F' else 0.85) * fc * (1 + 0.5 * spike)
     return [nc, c, spike, under]
 
 
@@ -997,9 +999,18 @@ def simulate_season(ctx, S, season_seed, opts=None):
                 recent = d - returned_day[q] < 42
                 tm = truth_mult(pl, atl_new, ctl_new, recent, S['spike'])
                 br = _base_rates(kind, S['contactScale'])
-                p_nc = 1 - det_exp(-br[0] * mn * tm[0])
-                p_c = 1 - det_exp(-br[1] * mn * tm[1])
-                inj_type = 'nc' if u1 < p_nc else 'contact' if u2 < p_c else None
+                # The chance 1 - exp(-h) never exceeds the hazard h, so the exponential is only needed below h.
+                h_nc, h_c = br[0] * mn * tm[0], br[1] * mn * tm[1]
+                p_nc = p_c = 0
+                inj_type = None
+                if u1 < h_nc:
+                    p_nc = 1 - det_exp(-h_nc)
+                    if u1 < p_nc:
+                        inj_type = 'nc'
+                if inj_type is None and u2 < h_c:
+                    p_c = 1 - det_exp(-h_c)
+                    if u2 < p_c:
+                        inj_type = 'contact'
                 if inj_type:
                     med, sig = (10, 0.75) if inj_type == 'nc' else (13, 0.95)
                     days = round_half_up(clamp(det_exp(det_log(med) + sig * inv_norm(u3)) * (1.4 if recent else 1),
@@ -1166,6 +1177,89 @@ def run_season(settings=None, seed=None, opts=None):
     S = with_defaults(settings)
     ctx = prepare(S)
     return simulate_season(ctx, S, S['seasonSeed'] if seed is None else seed, opts)
+
+
+# ---------- the trade-off: player-days lost against league points ----------
+RATIO_LEVELS = [1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 2.0]
+BUDGET_LEVELS = [3, 5, 10, 15, 20, 30]
+ROTATE_LEVELS = [2, 3, 4, 6, 8]
+
+
+def tradeoff_options(settings=None):
+    """Every option for the club's light: each action at each flag level, rotation at each streak length and
+    picking on readiness, with doing nothing first."""
+    S = with_defaults(settings)
+    out = [{'policy': 'none', 'level': None}]
+    ratio = S['flag'] in _RATIO_FLAGS
+    for act in ('rest', 'modify'):
+        for lv in (RATIO_LEVELS if ratio else BUDGET_LEVELS):
+            o = {'policy': act, 'flag': S['flag'], 'level': lv}
+            o['threshold' if ratio else 'budget'] = lv
+            out.append(o)
+    for n in ROTATE_LEVELS:
+        out.append({'policy': 'rotate', 'rotateAfter': n, 'level': n})
+    out.append({'policy': 'readiness', 'level': None})
+    return out
+
+
+def break_even(d_days, d_points):
+    """When an option beats doing nothing, given how many player-days one league point is worth."""
+    if d_days < 0 and d_points < 0:
+        return {'kind': 'below', 'value': d_days / d_points}
+    if d_days <= 0 and d_points >= 0:
+        return {'kind': 'never' if d_days == 0 and d_points == 0 else 'always', 'value': None}
+    if d_days > 0 and d_points > 0:
+        return {'kind': 'above', 'value': d_days / d_points}
+    return {'kind': 'never', 'value': None}
+
+
+def tradeoff(settings, seeds):
+    """Every option played over the same seasons: changes from doing nothing, intervals, break-even rates
+    and which options are efficient (no other loses fewer days and wins more points)."""
+    S = with_defaults(settings)
+    options = tradeoff_options(S)
+    runs = []
+    for o in options:
+        s2 = with_defaults(S)
+        for k in o:
+            if k in DEFAULTS:
+                s2[k] = o[k]
+        ctx = prepare(s2)
+        season_runs = []
+        for seed in seeds:
+            r = simulate_season(ctx, s2, seed)
+            season_runs.append({'days': r['daysLost'], 'points': r['points'], 'injuries': r['injuriesTotal'],
+                                'nc': r['nc'], 'final': r['finalBestXV'], 'rests': r['rests']})
+        runs.append(season_runs)
+    base = runs[0]
+    rows = []
+    for i, o in enumerate(options):
+        def diff(key):
+            return [r[key] - base[k][key] for k, r in enumerate(runs[i])]
+        dd, dp, di, dn, df = diff('days'), diff('points'), diff('injuries'), diff('nc'), diff('final')
+        m_days, m_points = mean(dd), mean(dp)
+        rows.append({
+            'policy': o['policy'], 'flag': o.get('flag'), 'level': o['level'],
+            'days': mean([r['days'] for r in runs[i]]), 'points': mean([r['points'] for r in runs[i]]),
+            'dDays': m_days, 'dPoints': m_points, 'dInjuries': mean(di), 'dNC': mean(dn), 'dFinal': mean(df),
+            'rests': mean([r['rests'] for r in runs[i]]),
+            'daysCI': boot_mean(dd, 300 + 2 * i), 'pointsCI': boot_mean(dp, 301 + 2 * i),
+            'breakEven': break_even(m_days, m_points), 'frontier': False,
+        })
+    for a in rows:
+        a['frontier'] = not any(b is not a and b['dDays'] <= a['dDays'] and b['dPoints'] >= a['dPoints']
+                                and (b['dDays'] < a['dDays'] or b['dPoints'] > a['dPoints']) for b in rows)
+    return {'seeds': list(seeds), 'flag': S['flag'], 'rows': rows}
+
+
+def best_option(rows, lam):
+    """The option with the most value when a league point is worth lam player-days."""
+    best, best_v = 0, -math.inf
+    for i, r in enumerate(rows):
+        v = -r['dDays'] + lam * r['dPoints']
+        if v > best_v + 1e-12:
+            best, best_v = i, v
+    return {'index': best, 'value': best_v}
 
 
 # ---------- the inquest: why each injury happened, and could a rest have avoided it? ----------

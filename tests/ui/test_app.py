@@ -17,8 +17,9 @@ except ImportError:  # pragma: no cover
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APP = (ROOT / 'app' / 'index.html').as_uri()
-TABS = ['season', 'light', 'pilot', 'rotation', 'logbook', 'how']
+TABS = ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'logbook', 'how']
 READY = {'season': '#board svg', 'light': '#roc svg', 'pilot': '#pilot-power svg', 'rotation': '#rot-scatter svg',
+         'tradeoff': '#trade-chart svg',
          'logbook': '#log-ratio svg', 'how': '.diagram'}
 
 
@@ -108,6 +109,20 @@ class AppTest(unittest.TestCase):
         name = button.text_content()
         button.click()
         page.wait_for_function('document.querySelector("#player-card .pname").textContent === %r' % name)
+        self.assertEqual([], self.errors)
+
+    def test_the_trade_off_responds_to_the_worth_of_a_point(self):
+        page = self.open()
+        self.tab(page, 'tradeoff')
+        rows = page.locator('#trade-body tbody tr').count()
+        self.assertEqual(19, rows)
+        page.fill('#point-value', '0')
+        page.dispatch_event('#point-value', 'input')
+        page.wait_for_function("document.querySelector('#trade-body .tile .t-value').textContent.indexOf('30%') >= 0")
+        page.fill('#point-value', '50')
+        page.dispatch_event('#point-value', 'input')
+        page.wait_for_function("document.querySelector('#trade-body .tile .t-value').textContent.indexOf('readiness') >= 0")
+        self.assertIn('50 player-days', page.text_content('#point-value-val'))
         self.assertEqual([], self.errors)
 
     def test_ratio_and_budget_controls_follow_the_light(self):

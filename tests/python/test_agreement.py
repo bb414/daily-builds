@@ -163,6 +163,14 @@ class AgreementTest(unittest.TestCase):
             py = model.inquest(case['settings'], case['seed'])
             self.assertSame(case['out'], py, f'inquest({case["settings"]}, {case["seed"]})')
 
+    def test_tradeoff(self):
+        for case in self.ref['tradeoffs']:
+            py = model.tradeoff(case['settings'], case['seeds'])
+            self.assertSame(case['out'], py, f'tradeoff({case["settings"]}, {case["seeds"]})')
+            self.assertSame(case['best'], [model.best_option(py['rows'], lam) for lam in (0, 5, 12, 40)], 'bestOption')
+            pairs = [(-10, -2), (-10, 0), (0, 0), (5, 1), (5, -1), (0, 1)]
+            self.assertSame(case['breakEvens'], [model.break_even(a, b) for a, b in pairs], 'breakEven')
+
     def test_season_logbook(self):
         ref = self.ref['logbook']
         lb = model.season_logbook(ref['settings'], ref['seed'])

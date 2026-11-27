@@ -127,7 +127,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .squad-nav { background: var(--paper-dark); border-bottom: 2px solid var(--rule); }
 .squad-nav ol {
   max-width: 1240px; margin: 0 auto; padding: 10px 24px 0; list-style: none;
-  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
 }
 .shirt-tab {
   width: 100%; background: none; border: 0; cursor: pointer; padding: 4px 2px 10px;
@@ -396,7 +396,7 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
   .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
   .clipboard { position: relative; top: 0; }
   .sheet { max-height: none; }
-  .squad-nav ol { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 16px 0; }
+  .squad-nav ol { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px 16px 0; }
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .grid-2 > .card { margin-bottom: 0; }
 }
@@ -551,8 +551,9 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
     <li><button class="shirt-tab" role="tab" id="tab-light" aria-controls="view-light" aria-selected="false" data-view="light"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">2</text></svg><span class="label">The warning light</span></button></li>
     <li><button class="shirt-tab" role="tab" id="tab-pilot" aria-controls="view-pilot" aria-selected="false" data-view="pilot"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">3</text></svg><span class="label">The pilot season</span></button></li>
     <li><button class="shirt-tab" role="tab" id="tab-rotation" aria-controls="view-rotation" aria-selected="false" data-view="rotation"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">4</text></svg><span class="label">Squad policies</span></button></li>
-    <li><button class="shirt-tab" role="tab" id="tab-logbook" aria-controls="view-logbook" aria-selected="false" data-view="logbook"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">5</text></svg><span class="label">Your logbook</span></button></li>
-    <li><button class="shirt-tab" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" data-view="how"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">6</text></svg><span class="label">How it works</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-tradeoff" aria-controls="view-tradeoff" aria-selected="false" data-view="tradeoff"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">5</text></svg><span class="label">The trade-off</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-logbook" aria-controls="view-logbook" aria-selected="false" data-view="logbook"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">6</text></svg><span class="label">Your logbook</span></button></li>
+    <li><button class="shirt-tab" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" data-view="how"><svg viewBox="0 0 46 40" aria-hidden="true"><path class="body" d="M14 2 L4 8 L1 18 L9 21 L10 38 L36 38 L37 21 L45 18 L42 8 L32 2 C30 6 26 8 23 8 C20 8 16 6 14 2 Z"/><rect class="hoop" x="9.6" y="24" width="27" height="4"/><text class="num" x="23" y="21" text-anchor="middle">7</text></svg><span class="label">How it works</span></button></li>
   </ol>
 </nav>
 
@@ -645,13 +646,18 @@ footer.colophon b { font-family: var(--display); letter-spacing: .1em; text-tran
       <p class="lede">Five ways to manage the squad, each played over the same seasons with the same luck, so the differences are the policy and nothing else. <b>Fewer injuries is not the same as more wins.</b></p>
       <div id="rotation-out"></div>
     </section>
+    <section class="view" id="view-tradeoff" role="tabpanel" aria-labelledby="tab-tradeoff" hidden>
+      <div class="page-head"><span class="pg">Page 5</span><h2>The trade-off</h2></div>
+      <p class="lede">Every way the club could use its light, at every flag level, plus rotation and picking on readiness, each played over the same seasons. Fewer days lost costs league points, so the right choice depends on one question only the club can answer: <b>how many player-days of injury is a league point worth?</b></p>
+      <div id="tradeoff-out"></div>
+    </section>
     <section class="view" id="view-logbook" role="tabpanel" aria-labelledby="tab-logbook" hidden>
-      <div class="page-head"><span class="pg">Page 5</span><h2>Your logbook</h2></div>
+      <div class="page-head"><span class="pg">Page 6</span><h2>Your logbook</h2></div>
       <p class="lede">Bring a club's own session log (date, player, minutes and effort, with injuries if you have them). The app works out every player's workload ratios, this week's flags and, if injuries are recorded, whether the ratios anticipated them better than chance. <b>Nothing leaves your browser.</b></p>
       <div id="logbook-out"></div>
     </section>
     <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" hidden>
-      <div class="page-head"><span class="pg">Page 6</span><h2>How it works</h2></div>
+      <div class="page-head"><span class="pg">Page 7</span><h2>How it works</h2></div>
       <div id="how-out"></div>
     </section>
   </main>
@@ -840,6 +846,7 @@ var LoadBearing = (function () {
         } while (used[name]);
         used[name] = true;
         group.push({ name: name, group: g.id, unit: g.unit, ability: ability, age: age, frailty: frailty,
+          frailtyContact: detExp(0.3 * detLog(frailty)),
           offLoad: offLoad, rpeBias: rpeBias, prior: prior });
       }
       group.sort(function (a, b) { return b.ability - a.ability; });
@@ -938,7 +945,8 @@ var LoadBearing = (function () {
     var spike = Math.max(0, ratio - SPIKE_FROM);
     var under = Math.max(0, 1 - ctl / CTL_REF);
     var nc = p.frailty * detExp(0.03 * (p.age - 26) + spikeEffect * spike + 0.8 * under) * (recent ? 1.6 : 1);
-    var c = (p.unit === 'F' ? 1.15 : 0.85) * detExp(0.3 * detLog(p.frailty)) * (1 + 0.5 * spike);
+    var fc = p.frailtyContact !== undefined ? p.frailtyContact : detExp(0.3 * detLog(p.frailty));
+    var c = (p.unit === 'F' ? 1.15 : 0.85) * fc * (1 + 0.5 * spike);
     return [nc, c, spike, under];
   }
 
@@ -1293,9 +1301,10 @@ var LoadBearing = (function () {
           var recent = d - returnedDay[q] < 42;
           var tm = truthMult(pl, atlNew, ctlNew, recent, S.spike);
           var br = baseRates(kind, S.contactScale);
-          var pNC = 1 - detExp(-br[0] * mn * tm[0]);
-          var pC = 1 - detExp(-br[1] * mn * tm[1]);
-          var type = u1 < pNC ? 'nc' : u2 < pC ? 'contact' : null;
+          // The chance 1 - exp(-h) never exceeds the hazard h, so the exponential is only needed when the draw is below h.
+          var hNC = br[0] * mn * tm[0], hC = br[1] * mn * tm[1], pNC = 0, pC = 0, type = null;
+          if (u1 < hNC) { pNC = 1 - detExp(-hNC); if (u1 < pNC) type = 'nc'; }
+          if (!type && u2 < hC) { pC = 1 - detExp(-hC); if (u2 < pC) type = 'contact'; }
           if (type) {
             var med = type === 'nc' ? 10 : 13, sig = type === 'nc' ? 0.75 : 0.95;
             var days = roundHalfUp(clamp(detExp(detLog(med) + sig * invNorm(u3)) * (recent ? 1.4 : 1), 2, 120));
@@ -1437,6 +1446,81 @@ var LoadBearing = (function () {
     var S = withDefaults(settings);
     var ctx = prepare(S);
     return simulateSeason(ctx, S, seed === undefined ? S.seasonSeed : seed, opts);
+  }
+
+  /* ---------- the trade-off: player-days lost against league points ---------- */
+  var RATIO_LEVELS = [1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 2.0];
+  var BUDGET_LEVELS = [3, 5, 10, 15, 20, 30];
+  var ROTATE_LEVELS = [2, 3, 4, 6, 8];
+
+  /* Every option the club could choose for its light: each action at each flag level, rotation at each streak
+     length and picking on readiness, with doing nothing first. */
+  function tradeoffOptions(settings) {
+    var S = withDefaults(settings), out = [{ policy: 'none', level: null }];
+    var ratio = !!RATIO_FLAGS[S.flag];
+    ['rest', 'modify'].forEach(function (act) {
+      (ratio ? RATIO_LEVELS : BUDGET_LEVELS).forEach(function (lv) {
+        var o = { policy: act, flag: S.flag, level: lv };
+        if (ratio) o.threshold = lv; else o.budget = lv;
+        out.push(o);
+      });
+    });
+    ROTATE_LEVELS.forEach(function (n) { out.push({ policy: 'rotate', rotateAfter: n, level: n }); });
+    out.push({ policy: 'readiness', level: null });
+    return out;
+  }
+
+  /* When an option beats doing nothing, given how many player-days lost one league point is worth (lambda):
+     its value is (days saved) + lambda * (points gained). */
+  function breakEven(dDays, dPoints) {
+    if (dDays < 0 && dPoints < 0) return { kind: 'below', value: dDays / dPoints };
+    if (dDays <= 0 && dPoints >= 0) return { kind: dDays === 0 && dPoints === 0 ? 'never' : 'always', value: null };
+    if (dDays > 0 && dPoints > 0) return { kind: 'above', value: dDays / dPoints };
+    return { kind: 'never', value: null };
+  }
+
+  function tradeoff(settings, seeds) {
+    var S = withDefaults(settings);
+    var options = tradeoffOptions(S);
+    var runs = options.map(function (o) {
+      var s2 = withDefaults(S);
+      for (var k in o) if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) s2[k] = o[k];
+      var ctx = prepare(s2);
+      return seeds.map(function (seed) {
+        var r = simulateSeason(ctx, s2, seed);
+        return { days: r.daysLost, points: r.points, injuries: r.injuriesTotal, nc: r.nc, final: r.finalBestXV, rests: r.rests };
+      });
+    });
+    var base = runs[0];
+    var rows = options.map(function (o, i) {
+      var diff = function (key) { return runs[i].map(function (r, k) { return r[key] - base[k][key]; }); };
+      var dd = diff('days'), dp = diff('points'), di = diff('injuries'), dn = diff('nc'), df = diff('final');
+      var mDays = mean(dd), mPoints = mean(dp);
+      return {
+        policy: o.policy, flag: o.flag || null, level: o.level,
+        days: mean(runs[i].map(function (r) { return r.days; })), points: mean(runs[i].map(function (r) { return r.points; })),
+        dDays: mDays, dPoints: mPoints, dInjuries: mean(di), dNC: mean(dn), dFinal: mean(df),
+        rests: mean(runs[i].map(function (r) { return r.rests; })),
+        daysCI: bootMean(dd, 300 + 2 * i), pointsCI: bootMean(dp, 301 + 2 * i),
+        breakEven: breakEven(mDays, mPoints), frontier: false
+      };
+    });
+    rows.forEach(function (a) {
+      a.frontier = !rows.some(function (b) {
+        return b !== a && b.dDays <= a.dDays && b.dPoints >= a.dPoints && (b.dDays < a.dDays || b.dPoints > a.dPoints);
+      });
+    });
+    return { seeds: seeds.slice(), flag: S.flag, rows: rows };
+  }
+
+  /* The option with the most value at a given worth of a league point, in player-days. */
+  function bestOption(rows, lambda) {
+    var best = 0, bestV = -Infinity;
+    rows.forEach(function (r, i) {
+      var v = -r.dDays + lambda * r.dPoints;
+      if (v > bestV + 1e-12) { bestV = v; best = i; }
+    });
+    return { index: best, value: bestV };
   }
 
   /* ---------- the inquest: why each injury happened, and could a rest have avoided it? ---------- */
@@ -2070,7 +2154,8 @@ var LoadBearing = (function () {
     daysFromCivil: daysFromCivil, civilFromDays: civilFromDays, formatDay: formatDay, parseDay: parseDay,
     SEASON_START: SEASON_START, seasonLogbook: seasonLogbook, parseCSV: parseCSV, toCSV: toCSV,
     readLogbook: readLogbook, analyseLogbook: analyseLogbook, playerSeries: playerSeries,
-    FACTOR_LABELS: FACTOR_LABELS, injuryFactors: injuryFactors, inquest: inquest
+    FACTOR_LABELS: FACTOR_LABELS, injuryFactors: injuryFactors, inquest: inquest,
+    tradeoffOptions: tradeoffOptions, breakEven: breakEven, tradeoff: tradeoff, bestOption: bestOption
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearing;
@@ -2151,7 +2236,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   })();
   var S = copy(APP_DEFAULTS);
   var view = 'season';
-  var extra = { pilotPairs: 40, rotationSeasons: 30, logThreshold: null };
+  var extra = { pilotPairs: 40, rotationSeasons: 30, pointValue: 12, tradeSeasons: 20 };
   function copy(o) { var r = {}; for (var k in o) r[k] = o[k]; return r; }
 
   function readHash() {
@@ -2168,14 +2253,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     if (!o || typeof o !== 'object') return;
     var clean = M.withDefaults(o.settings || o);
     for (var k in APP_DEFAULTS) if ((o.settings || o)[k] !== undefined) S[k] = clean[k];
-    if (o.view && ['season', 'light', 'pilot', 'rotation', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
+    if (o.view && ['season', 'light', 'pilot', 'rotation', 'tradeoff', 'logbook', 'how'].indexOf(o.view) >= 0) view = o.view;
+    if (o.pointValue !== undefined && +o.pointValue >= 0 && +o.pointValue <= 60) extra.pointValue = +o.pointValue;
+    if (o.tradeSeasons && [12, 20, 40].indexOf(+o.tradeSeasons) >= 0) extra.tradeSeasons = +o.tradeSeasons;
     if (o.pilotPairs && [20, 40, 80].indexOf(+o.pilotPairs) >= 0) extra.pilotPairs = +o.pilotPairs;
     if (o.rotationSeasons && [15, 30, 60].indexOf(+o.rotationSeasons) >= 0) extra.rotationSeasons = +o.rotationSeasons;
   }
   function stateObject() {
     var diff = {};
     for (var k in APP_DEFAULTS) if (S[k] !== APP_DEFAULTS[k]) diff[k] = S[k];
-    return { app: 'load-bearing', v: 1, view: view, settings: diff, pilotPairs: extra.pilotPairs, rotationSeasons: extra.rotationSeasons };
+    return { app: 'load-bearing', v: 1, view: view, settings: diff, pilotPairs: extra.pilotPairs, rotationSeasons: extra.rotationSeasons,
+      pointValue: extra.pointValue, tradeSeasons: extra.tradeSeasons };
   }
   function shareLink() {
     var json = JSON.stringify(stateObject());
@@ -2996,7 +3084,133 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     });
   }
 
-  /* ================= PAGE 5: YOUR LOGBOOK ================= */
+  /* ================= PAGE 5: THE TRADE-OFF ================= */
+  function optionLabel(o) {
+    var lv = o.level === null ? '' : RATIO_IDS[o.flag] ? 'at ' + fmt(o.level, 1) : 'at ' + o.level + '%';
+    if (o.policy === 'none') return 'Pick the best, ignore the light';
+    if (o.policy === 'rest') return 'Rest the flagged, ' + lv;
+    if (o.policy === 'modify') return 'Cut training, ' + lv;
+    if (o.policy === 'rotate') return 'Rotate after ' + o.level + ' starts';
+    return 'Pick on readiness';
+  }
+  var RATIO_IDS = { coupled: true, uncoupled: true, ewma: true };
+  function breakEvenText(b, r) {
+    if (r && r.policy === 'none') return 'the reference';
+    if (b.kind === 'always') return 'at any rate';
+    if (b.kind === 'never') return 'never';
+    return (b.kind === 'below' ? 'under ' : 'over ') + fmt(b.value, 0) + ' days a point';
+  }
+  function breakEvenSentence(b) {
+    if (b.kind === 'always') return 'pays at any rate';
+    if (b.kind === 'never') return 'never pays';
+    return 'pays only if a league point is worth ' + (b.kind === 'below' ? 'under ' : 'over ') + fmt(b.value, 0) + ' player-days';
+  }
+  function tradeKey() { var c = copy(S); delete c.seasonSeed; delete c.policy; delete c.threshold; delete c.budget; return JSON.stringify([c, extra.tradeSeasons]); }
+  function renderTradeoff() {
+    var out = $('tradeoff-out'), key = 'trade' + tradeKey();
+    resetCharts(out);
+    if (cache[key]) return drawTradeoff(cache[key]);
+    busy(out, 'Playing every option over ' + extra.tradeSeasons + ' seasons');
+    var seeds = [];
+    for (var i = 1; i <= extra.tradeSeasons; i++) seeds.push(100 + i);
+    run('tradeoff', [S, seeds]).then(function (to) {
+      cache[key] = to;
+      if (view === 'tradeoff' && key === 'trade' + tradeKey()) drawTradeoff(to);
+    }).catch(function (e) { failed(out, e); });
+  }
+  function drawTradeoff(to) {
+    var out = $('tradeoff-out');
+    resetCharts(out);
+    var lam = extra.pointValue, rows = to.rows;
+    var best = rows[M.bestOption(rows, lam).index];
+    var current = rows.filter(function (r) {
+      if (r.policy !== S.policy) return false;
+      if (r.policy === 'rest' || r.policy === 'modify') return r.level === (RATIO_IDS[S.flag] ? S.threshold : S.budget);
+      if (r.policy === 'rotate') return r.level === S.rotateAfter;
+      return true;
+    })[0];
+    var html = [];
+    html.push('<div class="card" style="padding:14px 20px"><div class="field" style="margin:0"><label for="point-value">A league point is worth <span class="value" id="point-value-val">' + lam + ' player-days</span></label>' +
+      '<input type="range" id="point-value" min="0" max="50" step="1" value="' + lam + '"><div class="note">How many player-days of injury the club would accept to gain one league point. A season has about ' + fmt(rows[0].days, 0) + ' days lost and ' + fmt(rows[0].points, 0) + ' points.</div></div>' +
+      '<div class="btn-row" style="margin-top:10px"><span style="font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Seasons simulated</span><div class="tickets three" role="radiogroup" aria-label="Seasons simulated for the trade-off" style="min-width:220px">' +
+      [12, 20, 40].map(function (n) { return '<input type="radio" name="tseasons" id="ts-' + n + '" value="' + n + '"' + (n === extra.tradeSeasons ? ' checked' : '') + '><label for="ts-' + n + '">' + n + '</label>'; }).join('') + '</div></div></div>');
+    html.push('<div id="trade-body"></div>');
+    out.innerHTML = html.join('');
+    var slider = $('point-value'), t = null;
+    slider.addEventListener('input', function () {
+      extra.pointValue = +slider.value;
+      $('point-value-val').textContent = slider.value + ' player-days';
+      clearTimeout(t);
+      t = setTimeout(function () { drawTradeBody(to, current); }, 60);
+    });
+    out.querySelectorAll('input[name="tseasons"]').forEach(function (rb) {
+      rb.addEventListener('change', function () { extra.tradeSeasons = +this.value; renderTradeoff(); });
+    });
+    drawTradeBody(to, current);
+  }
+  function drawTradeBody(to, current) {
+    var host = $('trade-body');
+    resetCharts(host);
+    var lam = extra.pointValue, rows = to.rows;
+    var bi = M.bestOption(rows, lam), best = rows[bi.index];
+    var front = rows.filter(function (r) { return r.frontier; }).length;
+    var html = [];
+    html.push('<div class="scoreboard">' +
+      tile('Best at this rate', esc(optionLabel(best)), best.policy === 'none' ? 'nothing beats doing nothing' : signed(best.dDays, 0) + ' days lost, ' + signed(best.dPoints, 1) + ' points a season', 'good words') +
+      tile('Your clipboard', current ? esc(optionLabel(current)) : 'Not on the list', current ? (current.policy === 'none' ? 'the reference everything is measured against' : breakEvenSentence(current.breakEven)) : 'set a level from the list to compare it', 'words') +
+      tile('Days for a point', current && current.breakEven.value !== null ? fmt(current.breakEven.value, 0) : current && current.policy !== 'none' ? '<small>' + esc(breakEvenText(current.breakEven)) + '</small>' : 'n/a', 'the break-even rate for your clipboard\'s option', 'warn') +
+      tile('Efficient options', fmt(front) + '<small>of ' + rows.length + '</small>', 'no other option loses fewer days and wins more points') +
+      '</div>');
+    var gap = current ? (-best.dDays + lam * best.dPoints) - (-current.dDays + lam * current.dPoints) : 0;
+    html.push('<div class="note-card"><p class="from">Chairman\'s note &middot; a league point worth ' + lam + ' player-days</p><p class="big">' +
+      (best.policy === 'none' ? 'At this rate, nothing on the list is worth doing.' : esc(optionLabel(best)) + ' gives the most at this rate.') + '</p>' +
+      '<p>' + (current && current !== best ? 'The clipboard\'s choice, ' + esc(optionLabel(current).toLowerCase()) + ', ' + breakEvenSentence(current.breakEven) + '; at ' + lam + ' days a point it gives up the equivalent of ' + fmt(gap, 0) + ' player-days a season against the best option. ' : '') +
+      'Resting flagged players buys days at a falling rate: each step up in how many it flags costs more points per day saved. Picking on readiness never costs points, but it saves few days. Slide the rate to see where the answer changes; the line on the chart moves with it.</p></div>');
+    html.push('<div class="card"><p class="kicker">Exhibit G</p><h3>Days saved against points lost</h3><p class="sub">Each dot is one option, as a change from picking the best and ignoring the light. Left is fewer player-days lost, up is more points. Options above the dashed line beat doing nothing at your rate; ringed dots are efficient.</p><div class="chart" id="trade-chart"></div></div>');
+    var sorted = rows.map(function (r, i) { return { r: r, v: -r.dDays + lam * r.dPoints }; }).sort(function (a, b) { return b.v - a.v; });
+    html.push('<div class="card"><p class="kicker">The order of merit</p><h3>Every option, best first at your rate</h3><div class="table-wrap"><table class="sheet-table"><thead><tr><th>Option</th><th class="num">Value</th><th class="num">Injuries</th><th class="num">Days lost</th><th class="num">Points</th><th class="num">Best XV in final</th><th>Pays when</th></tr></thead><tbody>' +
+      sorted.map(function (o) {
+        var r = o.r;
+        return '<tr' + (r === best ? ' class="us"' : r === current ? ' class="ref"' : '') + '><td><span class="swatch" style="background:' + COLORS[r.policy] + '"></span>' + esc(optionLabel(r)) + (r.frontier ? ' <span class="ci">efficient</span>' : '') + '</td>' +
+          '<td class="num">' + signed(o.v, 0) + '</td><td class="num">' + signed(r.dInjuries, 1) + '</td><td class="num">' + signed(r.dDays, 0) + '<br><span class="ci">[' + signed(r.daysCI[0], 0) + ', ' + signed(r.daysCI[1], 0) + ']</span></td>' +
+          '<td class="num">' + signed(r.dPoints, 1) + '<br><span class="ci">[' + signed(r.pointsCI[0], 1) + ', ' + signed(r.pointsCI[1], 1) + ']</span></td><td class="num">' + signed(r.dFinal, 1) + '</td><td>' + esc(breakEvenText(r.breakEven, r)) + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="foot">Value is player-days saved plus your rate times points gained, a season, against picking the best. Changes are averages over ' + to.seeds.length + ' seasons with the same luck for every option, with 95% intervals. Flag-based options use ' + esc(FLAG_SHORT[to.flag]) + '.</p></div>');
+    host.innerHTML = html.join('');
+    chart($('trade-chart'), function () {
+      var xs = rows.map(function (r) { return r.dDays; }), ys = rows.map(function (r) { return r.dPoints; });
+      var xmin = Math.min.apply(null, xs), xmax = Math.max.apply(null, xs.concat([0]));
+      var ymin = Math.min.apply(null, ys), ymax = Math.max.apply(null, ys.concat([0]));
+      var px = (xmax - xmin) * 0.1 + 4, py = (ymax - ymin) * 0.1 + 0.5;
+      var x0 = xmin - px, x1 = xmax + px;
+      var series = [], labels = [];
+      ['rest', 'modify', 'rotate'].forEach(function (pol) {
+        var pts = rows.filter(function (r) { return r.policy === pol; }).map(function (r) { return [r.dDays, r.dPoints]; });
+        series.push({ type: 'line', data: pts, color: COLORS[pol], width: 1.6, dash: '3 3' });
+      });
+      var fr = rows.filter(function (r) { return r.frontier; }).sort(function (a, b) { return a.dDays - b.dDays; });
+      series.push({ type: 'line', data: fr.map(function (r) { return [r.dDays, r.dPoints]; }), color: COLORS.ink, width: 1.2 });
+      series.push({ type: 'points', r: 8, stroke: COLORS.ink, data: fr.map(function (r) { return [r.dDays, r.dPoints, '#fff', optionLabel(r)]; }) });
+      series.push({ type: 'points', r: 5.5, data: rows.map(function (r) { return [r.dDays, r.dPoints, COLORS[r.policy], optionLabel(r) + ': ' + signed(r.dDays, 0) + ' days, ' + signed(r.dPoints, 1) + ' points']; }) });
+      rows.forEach(function (r) {
+        if (r.level === null) return;
+        if (r.policy === 'modify' && r.level !== (RATIO_IDS[r.flag] ? 2.0 : 30)) return;
+        if (r.policy === 'rotate' && r.level > 4) return;
+        labels.push({ x: r.dDays, y: r.dPoints, dx: 7, dy: -6, text: r.policy === 'rotate' ? r.level + ' in a row' : RATIO_IDS[r.flag] ? fmt(r.level, 1) : r.level + '%', color: COLORS[r.policy] });
+      });
+      var lineY = function (x) { return lam > 0 ? x / lam : (x < 0 ? -1e9 : 1e9); };
+      series.unshift({ type: 'line', data: lam > 0 ? [[x0, lineY(x0)], [x1, lineY(x1)]] : [[0, ymin - py], [0, ymax + py]], color: COLORS.claret, width: 2, dash: '7 5' });
+      plot($('trade-chart'), {
+        height: 360, aria: 'Change in player-days lost against change in league points for every option',
+        x: { min: x0, max: x1, label: 'Change in player-days lost a season' },
+        y: { min: ymin - py, max: ymax + py, label: 'Change in points', format: function (v) { return fmt(v, 0); } },
+        refs: [{ axis: 'x', value: 0, color: COLORS['ink-faint'], width: 1 }, { axis: 'y', value: 0, color: COLORS['ink-faint'], width: 1 }],
+        series: series, labels: labels,
+        legend: [{ label: 'Rest the flagged', color: COLORS.rest, kind: 'dot' }, { label: 'Cut training', color: COLORS.modify, kind: 'dot' }, { label: 'Rotate', color: COLORS.rotate, kind: 'dot' }, { label: 'Pick on readiness', color: COLORS.readiness, kind: 'dot' }, { label: 'Break-even at your rate', color: COLORS.claret, kind: 'dash' }]
+      });
+    });
+  }
+
+  /* ================= PAGE 6: YOUR LOGBOOK ================= */
   var logState = { text: null, name: 'the sample logbook', book: null, result: null, player: 0, only: null, sample: true };
   var SAMPLE_HEADER = ['date', 'player', 'position', 'session', 'minutes', 'rpe', 'injury'];
   function sampleText() {
@@ -3127,7 +3341,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
     });
   }
 
-  /* ================= PAGE 6: HOW IT WORKS ================= */
+  /* ================= PAGE 7: HOW IT WORKS ================= */
   function renderHow() {
     var out = $('how-out');
     if (out.getAttribute('data-done')) return;
@@ -3162,7 +3376,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = LoadBearin
   }
 
   /* ---------- routing ---------- */
-  var RENDER = { season: renderSeason, light: renderLight, pilot: renderPilot, rotation: renderRotation, logbook: renderLogbook, how: renderHow };
+  var RENDER = { season: renderSeason, light: renderLight, pilot: renderPilot, rotation: renderRotation, tradeoff: renderTradeoff, logbook: renderLogbook, how: renderHow };
   function render(v) {
     try { RENDER[v](); } catch (e) { failed($(v + '-out'), e); }
   }

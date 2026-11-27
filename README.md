@@ -6,8 +6,8 @@ Load bearing is a laboratory for a question every club with a training-load dash
 
 There are two versions, built on the same model:
 
-- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It plays a season and shows every player's week on an availability board, scores five warning lights against the same injuries, runs the pilot-season experiment, compares five ways of managing the squad, and analyses your own club's session logbook.
-- **The Python companion** (`loadbearing/`). The same model, reproducing every number exactly, plus what a browser does less well: batch experiments with paired statistics, the power of a trial across many clubs, sweeps of any setting, fitting the Banister fitness-fatigue model to performance tests, analysing a logbook with an HTML report, and a self-contained report of the main analyses ([an example](docs/report.html)). Standard library only.
+- **The browser app** (`app/index.html`). Double-click it: no installs, no internet connection, nothing sent anywhere. It plays a season and shows every player's week on an availability board, explains every injury, scores five warning lights against the same injuries, runs the pilot-season experiment, compares five ways of managing the squad, finds the best way to use the light for what a league point is worth to you, and analyses your own club's session logbook.
+- **The Python companion** (`loadbearing/`). The same model, reproducing every number exactly, plus what a browser does less well: batch experiments with paired statistics, the trade-off across all five lights at once, the power of a trial across many clubs, sweeps of any setting, fitting the Banister fitness-fatigue model to performance tests, analysing a logbook with an HTML report, and a self-contained report of the main analyses ([an example](docs/report.html)). Standard library only.
 
 ![The first page: the match-day programme cover with floodlit posts and a touchline warning lamp, then the season's scoreboard and the physio's note](docs/season.png)
 
@@ -31,14 +31,15 @@ xdg-open app/index.html    # Linux
 start app\index.html       # Windows
 ```
 
-The app is styled as the club's match-day programme, with numbered shirts for pages and the coach's clipboard for settings. It opens on a season already played. Its six pages:
+The app is styled as the club's match-day programme, with numbered shirts for pages and the coach's clipboard for settings. It opens on a season already played. Its seven pages:
 
 1. **The season.** One season, day by day, with the coach acting on the light as the clipboard says. A scoreboard of injuries, days lost, the league and the cup final; the physio's note, which also replays the same season with the light ignored; an availability board of every player and every week (load, injuries, flags, results); a player file with daily load, fitness and fatigue, and his workload ratios; the inquest, which takes every injury in turn and shows the hidden factors behind it, what the light said the Thursday before, and whether resting that player for that one week would have avoided it (the season replayed on the same luck); availability through the season; the league table and every result.
 2. **The warning light.** Thirty seasons with nobody acting on any flag, so five lights are scored against the same soft-tissue injuries: hits against false alarms (ROC curves), each light's score season by season, a scorecard, why the coupled and uncoupled ratios rank players identically but read "1.5" differently, and what the club's risk model learned.
 3. **The pilot season.** The before-and-after comparison a club would actually run, against the true effect on the same luck: what one pilot reports, how many seasons a fair comparison needs, what the coach sees after each rest, and what the light costs in league points.
 4. **Squad policies.** Pick the best, rest the flagged, cut training, planned rotation and pick on readiness, each over the same seasons with paired 95% intervals: injuries, days lost, points, league place and the first-choice XV in the final.
-5. **Your logbook.** Open or paste a session log (date, player, minutes and effort, or load, with injuries if you have them). The app works out every player's coupled, uncoupled and EWMA ratios, monotony and strain, this week's highest ratios, and, if injuries are recorded, whether the ratios anticipated them better than chance (a permutation test that slides each player's injuries round the season). The sample is a simulated season of 6,555 sessions, also in [`data/club_logbook.csv`](data/club_logbook.csv).
-6. **How it works.** The machinery, the words used, what it leaves out and background reading.
+5. **The trade-off.** Every way the club could use its light (rest or cut training at each flag level), rotation at each streak length and picking on readiness, all over the same seasons. A slider sets how many player-days of injury a league point is worth; the page names the best option at that rate, the break-even rate of the clipboard's option, which options are efficient, and an order of merit, with the break-even line drawn on a chart of days saved against points lost.
+6. **Your logbook.** Open or paste a session log (date, player, minutes and effort, or load, with injuries if you have them). The app works out every player's coupled, uncoupled and EWMA ratios, monotony and strain, this week's highest ratios, and, if injuries are recorded, whether the ratios anticipated them better than chance (a permutation test that slides each player's injuries round the season). The sample is a simulated season of 6,555 sessions, also in [`data/club_logbook.csv`](data/club_logbook.csv).
+7. **How it works.** The machinery, the words used, what it leaves out and background reading.
 
 The clipboard sets what the coach does, which light, its flag level, the pre-season, training effort, graded return after injury and which season to play. Under "The hidden truth" you can change what no real club can see: how strongly load spikes cause injury, how common contact injuries are, and the squad itself. The buttons on the cover copy a link that restores every setting, or save and load settings as a small JSON file. Logbook ratios can be downloaded as CSV.
 
@@ -63,6 +64,7 @@ python3 -m loadbearing season --seed 6                  # one season, replayed w
 python3 -m loadbearing inquest --seed 6                 # why each injury happened, and could a rest have avoided it?
 python3 -m loadbearing flags --seasons 30 --json results/flags.json
 python3 -m loadbearing compare --seasons 30 --csv results/policies.csv
+python3 -m loadbearing optimise --point-value 12 --all-lights   # every light, action and flag level
 python3 -m loadbearing pilot --pairs 40                 # could a one-season pilot tell?
 python3 -m loadbearing trial --clubs 4,8,16,32          # power of a trial across clubs
 python3 -m loadbearing sweep --param spike --values 0,1,2,3,4

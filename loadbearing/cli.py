@@ -405,6 +405,76 @@ def cmd_inquest(args):
     return 0
 
 
+LIGHT_NAMES = {'coupled': 'coupled ratio', 'uncoupled': 'uncoupled ratio', 'ewma': 'EWMA ratio', 'model': 'risk model',
+               'oracle': 'perfect knowledge'}
+
+
+def option_label(r):
+    """A plain name for one trade-off option."""
+    if r['policy'] == 'none':
+        return 'Pick the best, ignore the light'
+    if r['policy'] in ('rest', 'modify'):
+        level = fmt(r['level'], 1) if r['flag'] in ('coupled', 'uncoupled', 'ewma') else f"{r['level']}%"
+        verb = 'Rest the flagged' if r['policy'] == 'rest' else 'Cut training'
+        return f"{verb}, {LIGHT_NAMES[r['flag']]} at {level}"
+    if r['policy'] == 'rotate':
+        return f"Rotate after {r['level']} starts"
+    return 'Pick on readiness'
+
+
+def break_even_text(b, r):
+    if r['policy'] == 'none':
+        return 'reference'
+    if b['kind'] in ('always', 'never'):
+        return 'any rate' if b['kind'] == 'always' else 'never'
+    return f"{'under' if b['kind'] == 'below' else 'over'} {plural(round(b['value']), 'day')} a point"
+
+
+def cmd_optimise(args):
+    S = settings_from(args)
+    seeds = [100 + k for k in range(1, args.seasons + 1)]
+    out = experiments.run_optimise(S, seeds, args.all_lights, args.workers)
+    rows, lam = out['rows'], args.point_value
+    what = 'all five lights' if args.all_lights else model.FLAG_LABELS[S['flag']].lower()
+    say(f'The trade-off: every option for {what} over {len(seeds)} seasons (seeds {seeds[0]} to {seeds[-1]})',
+        wrap(f'Settings: {report.settings_line(S)}. Each option plays the same seasons with the same luck; changes '
+             f'are against picking the best and ignoring the light. Value = player-days saved + {fmt(lam, 0)} x '
+             'points gained, a season (a league point taken as worth that many player-days lost).'))
+    ranked = sorted(rows, key=lambda r: (-(-r['dDays'] + lam * r['dPoints']), option_label(r)))
+    table = [[option_label(r), signed(-r['dDays'] + lam * r['dPoints'], 0), signed(r['dInjuries'], 1),
+              signed(r['dDays'], 0), signed(r['dPoints'], 1), signed(r['dFinal'], 1),
+              break_even_text(r['breakEven'], r), 'yes' if r['frontier'] else ''] for r in ranked]
+    say('', text_table(['Option', 'Value', 'Injuries', 'Days lost', 'Points', 'Best XV in final', 'Pays when',
+                        'Efficient'], table, right=[1, 2, 3, 4, 5]))
+    best = ranked[0]
+    switch = []
+    previous = None
+    for value in range(0, 61):
+        idx = model.best_option(rows, value)['index']
+        if idx != previous:
+            switch.append((value, option_label(rows[idx])))
+            previous = idx
+    say(heading('Best option by the worth of a league point'),
+        key_values([(f'From {v} player-days', label) for v, label in switch]))
+    say(wrap(f'In plain English: if a league point is worth {fmt(lam, 0)} player-days of injury, the best option is '
+             f'"{option_label(best).lower()}" ({signed(best["dDays"], 0)} days lost, {signed(best["dPoints"], 1)} '
+             f'points a season). {sum(1 for r in rows if r["frontier"])} of {len(rows)} options are efficient.'))
+    blank_if(args.csv, args.json)
+    if args.csv:
+        save(args.csv, model.to_csv(
+            ['option', 'policy', 'flag', 'level', 'value', 'd_injuries', 'd_soft_tissue', 'd_days_lost', 'd_days_lo',
+             'd_days_hi', 'd_points', 'd_points_lo', 'd_points_hi', 'd_first_choice_xv_in_final', 'break_even_kind',
+             'break_even_days_per_point', 'efficient'],
+            [[option_label(r), r['policy'], r['flag'] or '', '' if r['level'] is None else r['level'],
+              f"{-r['dDays'] + lam * r['dPoints']:.2f}", f"{r['dInjuries']:.3f}", f"{r['dNC']:.3f}",
+              f"{r['dDays']:.2f}", f"{r['daysCI'][0]:.2f}", f"{r['daysCI'][1]:.2f}", f"{r['dPoints']:.3f}",
+              f"{r['pointsCI'][0]:.3f}", f"{r['pointsCI'][1]:.3f}", f"{r['dFinal']:.3f}", r['breakEven']['kind'],
+              '' if r['breakEven']['value'] is None else f"{r['breakEven']['value']:.2f}",
+              'yes' if r['frontier'] else 'no'] for r in ranked]))
+    write_json(args.json, {'settings': S, 'pointValue': lam, **out})
+    return 0
+
+
 def cmd_flags(args):
     S = settings_from(args)
     seeds = experiments.flag_seeds(args.seasons)
@@ -737,6 +807,7 @@ EPILOG = """\
 examples:
   python -m loadbearing season --seed 6
   python -m loadbearing inquest --seed 6
+  python -m loadbearing optimise --point-value 12 --all-lights
   python -m loadbearing flags --seasons 30 --json results/flags.json
   python -m loadbearing compare --flag ewma --csv results/policies.csv
   python -m loadbearing pilot --pairs 40
@@ -782,6 +853,18 @@ def build_parser():
                 'resting that player that week would have avoided it (the season replayed on the same luck).')
     p.add_argument('--seed', type=SEEDS, default=APP_SEASON_SEED,
                    help=f'the season seed (default {APP_SEASON_SEED}, as in the app)')
+    json_option(p)
+
+    p = command('optimise', cmd_optimise, 'Find the best way to use the light for a given worth of a league point',
+                'Plays every option (rest or cut training at each flag level, rotation at each streak length,\n'
+                'picking on readiness) over the same seasons, ranks them by player-days saved plus the worth of\n'
+                'the points gained, marks the efficient ones and shows where the best option changes.')
+    p.add_argument('--seasons', type=COUNT, default=20, metavar='N', help='seasons, seeds 101 to 100+N (default 20)')
+    p.add_argument('--point-value', type=float, default=12, metavar='DAYS',
+                   help='player-days of injury one league point is worth (default 12, as in the app)')
+    p.add_argument('--all-lights', action='store_true', help='compare all five lights at once (about five times slower)')
+    p.add_argument('--csv', metavar='PATH', help='write every option to a CSV file')
+    workers_option(p)
     json_option(p)
 
     p = command('flags', cmd_flags, 'Score every warning light over silent seasons',
