@@ -2,12 +2,12 @@
   "name": "Benjamin Brighton",
   "title": "One new project every day",
   "tagline": "Small projects on the questions I keep coming back to: why AI stalls at the pilot stage, fintech, markets, retail, carbon and more. Practice, not polish.",
-  "how": "Each project starts with a question drawn from my research, my work and my business. Every idea is mine: I decide the question, the angle and what each project should show, and use AI tools to write the code. The apps run in your browser, work offline and use synthetic data.",
+  "how": "Each project starts with a question or a job drawn from my research, my work and my business. Every idea is mine: I decide the question, the angle and what each project should do, and use AI tools to write the code. The apps run in your browser, work offline and open on sample data; the newer tools also take your own, which never leaves your device.",
   "about": [
     "I'm a final-year Business and Management with Legal Studies student at the University of Sussex. One question runs through most of what I do: why does AI so often stall at the pilot stage, in companies and in people's everyday lives?",
     "The ideas come from my own experience: interviewing senior executives about AI transformation as a research associate, building AI tools and CRM reports in a global sales team, and growing a confectionery business I co-founded from an online shop to ten outlets. Each project takes one of those questions, turns it into a small tool you can try and writes up what it shows.",
     "Some are about AI adoption, how people and AI make decisions together, fintech and AI regulation. Others come from the things I do outside my degree: consulting, trading challenges, retail forecasting, carbon, sport and languages.",
-    "They are practice pieces, not finished products: quick, focused and sometimes rough at the edges. The numbers come from invented, synthetic data, so treat them as ways of thinking about a problem rather than forecasts."
+    "They are practice pieces, not finished products: quick, focused and sometimes rough at the edges. The sample numbers are invented, so treat them as ways of thinking about a problem rather than forecasts, but more and more of the tools are built to be used on your own data."
   ],
   "links": [
     {
@@ -19,8 +19,8 @@
       "url": "https://github.com/bb414"
     }
   ],
-  "footer": "One new project every day. Synthetic data, nothing confidential, everything runs in your browser.",
-  "projectNote": "The app above runs entirely in your browser on synthetic data. The full source code, including any companion version and its tests, is on GitHub.",
+  "footer": "One new project every day. Nothing confidential, everything runs in your browser.",
+  "projectNote": "The app above runs entirely in your browser and opens on sample data. Anything you load into it stays on your device. The full source code, including any companion version and its tests, is on GitHub.",
   "featured": [
     "build/2026-11-25-missing-minutes",
     "build/2026-11-24-pilot-purgatory-simulator",
@@ -173,6 +173,29 @@
       ],
       "blurb": "Tools for learning Czech, Slovak and Mandarin.",
       "color": "#ca8a04"
+    },
+    {
+      "id": "careers",
+      "name": "Study and careers",
+      "keywords": [
+        "study and careers",
+        "career",
+        "application",
+        "revision"
+      ],
+      "blurb": "Applications, CVs, revision and reading lists.",
+      "color": "#c026d3"
+    },
+    {
+      "id": "societies",
+      "name": "Societies and events",
+      "keywords": [
+        "societ",
+        "event",
+        "committee"
+      ],
+      "blurb": "Running a society, a team or an event.",
+      "color": "#92400e"
     },
     {
       "id": "fun",

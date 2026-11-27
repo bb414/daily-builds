@@ -60,6 +60,8 @@ class Categories(unittest.TestCase):
             "Sales operations and CRM analytics": "sales",
             "Team and sports leadership": "sport",
             "Language learning (Czech)": "languages",
+            "Study and careers: CV tailoring": "careers",
+            "Societies and events: event run sheets": "societies",
             "Minecraft tools": "fun",
             "Something new entirely": "other",
         }
