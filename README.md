@@ -29,9 +29,9 @@ Open `app/index.html` (double-click it; no installation, no internet). It opens 
 | A. The AI's draft (needed) | What the assistant gave you | Paste, or .txt, .md, .html, .docx |
 | B. Your final version | What you will hand in. Claims are then checked in this text, and each is labelled kept from the AI, edited, reworded or your own | As above |
 | C. Your notes or sources | Reading or lecture notes, extracts. Figures, years and quotations are compared with them | As above |
-| D. Reference list | Only if it is not under a "References" or "Bibliography" heading in your text. Harvard, APA or numbered, or the export from your reference manager | As above, or RIS (.ris) and BibTeX (.bib) exports from Zotero, Mendeley, EndNote or a library database; `data/references.ris` and `data/references.bib` are examples |
+| D. Reference list | Only if it is not under a "References" or "Bibliography" heading in your text. Harvard, APA, numbered or Vancouver, or the export from your reference manager | As above, or RIS (.ris) and BibTeX (.bib) exports from Zotero, Mendeley, EndNote or a library database; `data/references.ris` and `data/references.bib` are examples |
 | E. Your prompt | What you asked for. Asking for statistics, quotes or references makes those claims count for more | Paste |
-| F. Session log | One row per AI session: date, assignment, tool, purpose, prompt in brief, what you used, changed and checked, minutes, person | CSV with commas, semicolons or tabs, any column order, UK or ISO dates; `data/session-log-template.csv` is the template (also a download in the app) |
+| F. Session log | One row per AI session: date, assignment, tool, purpose, prompt in brief, what you used, changed and checked, minutes, person | CSV with commas, semicolons or tabs, any column order, UK or ISO dates or spreadsheet date numbers, and question-style headings such as a Google Form export gives ("Which AI tool did you use?"); `data/session-log-template.csv` is the template (also a download in the app) |
 
 Messy pastes are fine: smart quotes, non-breaking and zero-width spaces, Markdown marks, superscript or `[^1]` footnote markers, entries split over two lines or run together in the reference list are all tidied, and the page says what it tidied. A file it cannot read (a PDF, an image, a CSV that is not a session log, a row with a date like 31/13/2026) gets a plain message saying why.
 
@@ -74,7 +74,7 @@ python companion/checked_by_me.py project --draft draft.md --final final.md --se
 
 What the companion adds to the app:
 
-- **`batch`** checks every draft in a folder (.txt, .md, .html, .docx; a file named `something-final.md` is read as the final version of `something.md`) and writes one self-contained HTML proof report plus a one-line-per-file CSV. Useful for a whole term's assignments, or for a teacher looking at a class's drafts with their permission.
+- **`batch`** checks every draft in a folder (.txt, .md, .html, .docx; a file named `something-final.md` is read as the final version of `something.md`; reports this tool wrote earlier are skipped) and writes one self-contained HTML proof report plus a one-line-per-file CSV. Useful for a whole term's assignments, or for a teacher looking at a class's drafts with their permission.
 - **`gate`** is a pre-submission check for a team's document workflow (a Git hook, a CI step or a shared-drive script): it exits 1 while any high-risk claim (or, with `--level`, medium or low) is still unmarked, 2 when a file cannot be read, and 0 when everything has been looked at. It reads the marks from saved projects, folders of them, or a draft plus the checklist CSV the app downloads. `--refs` also holds on unmarked references that need fixing or look made up.
 - **`merge`** joins several people's session logs (different column orders, delimiters and date styles) into one log, merges a session two people both logged, and writes a team declaration in Markdown with each session, who ran it and a per-person summary.
 - **`cohort`** is for a teacher or team lead who has collected people's saved project files (with their permission): one HTML overview and a CSV of how AI was used across the group (tools, purposes, declared levels), how much AI wording ended up in each final text, how much was checked, chat leftovers and made-up-looking references still open, and whose declared level of AI use does not match the comparison with their AI draft, with "where to focus next" notes worked out from the figures. It shows counts, never anyone's text, and `--anonymise` replaces names with numbers. `data/class/` holds eight invented students' projects to try it on.
@@ -84,8 +84,8 @@ What the companion adds to the app:
 ## Tests
 
 ```
-node --test tests/*.test.js                       # the model, run from the built page
-cd tests && python -m unittest discover -s .      # companion, agreement and browser tests
+node --test tests/*.test.js                       # the model, run from the built page (25 tests)
+cd tests && python -m unittest discover -s .      # companion, agreement and browser tests (50 tests)
 ```
 
 - `tests/model.test.js`: dates, CSV, cleaning, sentence splitting, citations, every planted problem in the sample, the reference checks, the changes, statuses and sign-off, session logs, the declaration's honesty about unchecked claims, project round trips, Word files, and speed on a long draft.
@@ -115,11 +115,11 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 
 | Part | Language | Lines (roughly) |
 |---|---|---|
-| The model: cleaning, sentences, claim rules and scores, notes comparison, references, changes, session logs, declarations, files (`src/model.js`) | JavaScript | 2,050 |
-| The interface: views, hero drawing, uploads, Word files, downloads, printing, saving (`src/ui.js`, `src/shell.html`, `src/style.css`) | JavaScript, HTML, CSS | 1,850 |
-| The companion: the same model line for line (`companion/checkedbyme/model.py`), the commands, batch report, gate and merge | Python | 3,150 |
-| Tests | JavaScript, Python | 1,180 |
-| Sample generator, build and screenshot scripts (`tools/`) | Python | 480 |
+| The model: cleaning, sentences, claim rules and scores, notes comparison, references (text, RIS, BibTeX), changes, re-checking, session logs, declarations, proof copies, files (`src/model.js`) | JavaScript | 2,400 |
+| The interface: views, hero drawing, uploads, Word files, downloads, printing, saving (`src/ui.js`, `src/shell.html`, `src/style.css`) | JavaScript, HTML, CSS | 1,950 |
+| The companion: the same model line for line (`companion/checkedbyme/model.py`, 2,800), the commands, batch and group reports, gate, merge and recheck | Python | 4,000 |
+| Tests | JavaScript, Python | 1,500 |
+| Sample generator, build and screenshot scripts (`tools/`) | Python | 600 |
 
 `tools/build_app.py` writes `app/index.html` from `src/`, with the fonts as base64 (Instrument Serif, Instrument Sans and Spline Sans Mono, SIL Open Font License, see `src/fonts/OFL.txt`). The model block sits between `/* MODEL START */` and `/* MODEL END */` and exports itself to Node, which is how the tests run it.
 

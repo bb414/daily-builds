@@ -161,6 +161,8 @@
       var d2 = validDay(+m[3], monthFrom(m[2]), +m[1]);
       return d2 === null ? { day: null, note: 'no such date' } : { day: d2, note: null };
     }
+    m = /^([0-9]{5})(?:\.[0-9]+)?$/.exec(s);
+    if (m && +m[1] >= 20000 && +m[1] <= 80000) return { day: daysFromCivil(1899, 12, 30) + +m[1], note: 'read as a spreadsheet date number' };
     m = /^(?:[A-Za-z]+,? )?([A-Za-z]+)\.? ([0-9]{1,2})(?:st|nd|rd|th)?,? ([0-9]{4})$/.exec(s);
     if (m && monthFrom(m[1])) {
       var d3 = validDay(+m[3], monthFrom(m[1]), +m[2]);
@@ -1239,6 +1241,14 @@
 
   function stripMarks(s) { return collapse(s.replace(/[*_]/g, '')); }
 
+  var VAN_NAME = '[' + CAP + '][' + LET + "'\\-]+(?: [" + CAP + '][' + LET + "'\\-]+)? [A-Z]{1,3}";
+  var VAN_RE = new RegExp('^((?:' + VAN_NAME + ', )*' + VAN_NAME + '(?:, et al)?)\\. (.+)$');
+
+  // "221-9" in medical styles means 221 to 229.
+  function expandPage(a, b) {
+    return b.length < a.length && +b < +a ? a.slice(0, a.length - b.length) + b : b;
+  }
+
   function parseEntry(text, label) {
     var e = { label: label || '', text: stripMarks(text), raw: text, authors: '', year: '', title: '', container: '',
       volume: '', issue: '', pages: '', doi: '', doiMarked: false, url: '', urlTail: '', accessed: '', publisher: '', type: 'other', citeKey: '' };
@@ -1269,8 +1279,17 @@
     var lm = /^(?:\[([0-9]{1,3})\]|([0-9]{1,3})[.)]) +/.exec(body);
     if (lm) { if (!e.label) e.label = lm[1] || lm[2]; body = body.slice(lm[0].length); }
     var ym = new RegExp('\\((' + YEAR + '[a-z]?|n\\.d\\.|[0-9]{4}[a-z]?)\\)').exec(body);
-    var yearEnd = -1;
-    if (ym) { e.year = ym[1]; e.authors = trim(body.slice(0, ym.index)).replace(/[,.]$/, ''); yearEnd = ym.index + ym[0].length; }
+    var yearEnd = -1, tm = null, after2 = '', rest = '';
+    // Vancouver style ("Marsh K, Ode T. Title. J Enzyme Res. 2019;12(4):221-9."): authors first, year late.
+    var van = ym ? null : VAN_RE.exec(body);
+    if (van) {
+      e.authors = van[1];
+      var vdot = van[2].search(/[.?!] /);
+      e.title = vdot >= 0 ? van[2].slice(0, vdot) : van[2];
+      after2 = vdot >= 0 ? van[2].slice(vdot + 1) : '';
+      var vy = new RegExp('(?:^|[ ,.;])(' + YEAR + ')(?=[.,;:]|$| )').exec(after2);
+      if (vy) e.year = vy[1];
+    } else if (ym) { e.year = ym[1]; e.authors = trim(body.slice(0, ym.index)).replace(/[,.]$/, ''); yearEnd = ym.index + ym[0].length; }
     else {
       ym = new RegExp('(?:^|[ ,.])(' + YEAR + '[a-z]?|[0-9]{4}[a-z]?|n\\.d\\.)(?=[.,;:]|$| )').exec(body);
       if (ym) {
@@ -1281,11 +1300,13 @@
       }
     }
     e.authors = stripMarks(e.authors);
-    var rest = yearEnd >= 0 ? body.slice(yearEnd) : body;
-    rest = rest.replace(/^[).,: ]+/, '');
-    var tm = /^'([^']+)'|^"([^"]+)"/.exec(rest);
-    var after2 = '';
-    if (tm) { e.title = tm[1] || tm[2]; after2 = rest.slice(tm[0].length); }
+    if (!van) {
+      rest = yearEnd >= 0 ? body.slice(yearEnd) : body;
+      rest = rest.replace(/^[).,: ]+/, '');
+      tm = /^'([^']+)'|^"([^"]+)"/.exec(rest);
+    }
+    if (van) { /* title and the rest were read above */ }
+    else if (tm) { e.title = tm[1] || tm[2]; after2 = rest.slice(tm[0].length); }
     else {
       var im = /^\*([^*]+)\*/.exec(rest);
       if (im) { e.title = im[1]; after2 = rest.slice(im[0].length); e.container = ''; e.italicTitle = true; }
@@ -1310,8 +1331,9 @@
       var vm2 = /, ([0-9]{1,4}),/.exec(plain);
       if (vm2 && e.container) e.volume = vm2[1];
     }
-    var pm = /\bpp?\.? ?([0-9]+) ?[-\u2013] ?([0-9]+)/.exec(plain) || /\), ?([0-9]+) ?[-\u2013] ?([0-9]+)/.exec(plain) || /, ([0-9]+) ?[-\u2013] ?([0-9]+)\.?$/.exec(plain);
-    if (pm) e.pages = pm[1] + '-' + pm[2];
+    var pm = /\bpp?\.? ?([0-9]+) ?[-\u2013] ?([0-9]+)/.exec(plain) || /\), ?([0-9]+) ?[-\u2013] ?([0-9]+)/.exec(plain) || /, ([0-9]+) ?[-\u2013] ?([0-9]+)\.?$/.exec(plain) ||
+      /:([0-9]+) ?[-\u2013] ?([0-9]+)/.exec(plain);
+    if (pm) e.pages = pm[1] + '-' + expandPage(pm[1], pm[2]);
     else {
       var pm2 = /\b(?:p\.|article|art\.) ?(e?[0-9]+)/i.exec(plain);
       if (pm2) e.pages = pm2[1];
@@ -1321,7 +1343,7 @@
       e.container = trim(plain.slice(0, cut2 < 0 ? plain.length : cut2).replace(/[.,]$/, ''));
     }
     var pubm = /(?:^|\. )([A-Z][A-Za-z .'\-]{1,40}): ([A-Z][^.:]{1,80})\.?/.exec(plain);
-    if (pubm && !e.volume) e.publisher = trim(pubm[2]);
+    if (pubm && !e.volume) e.publisher = trim(pubm[2].replace(/ *;.*$/, ''));
     if (e.volume || (e.pages && e.container && /-/.test(e.pages))) e.type = 'journal';
     else if (tm && e.container && !e.publisher) e.type = 'journal';
     else if (e.publisher || /\b(?:ed\.|edn|edition)\b/i.test(plain)) e.type = 'book';

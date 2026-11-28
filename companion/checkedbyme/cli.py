@@ -125,6 +125,18 @@ def slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "file"
 
 
+def is_own_report(path):
+    """An HTML report written earlier by the batch or cohort command, which is not a draft."""
+    if not path.lower().endswith((".html", ".htm")):
+        return False
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            head = fh.read(4000)
+    except OSError:
+        return False
+    return "<title>Checked by me: " in head
+
+
 def cmd_batch(args):
     as_of = as_of_arg(args.as_of)
     if not os.path.isdir(args.folder):
@@ -134,6 +146,13 @@ def cmd_batch(args):
     if not pairs:
         raise SystemExit("No drafts (%s) found in %s." % (", ".join(DRAFT_SUFFIXES), args.folder))
     items, csv_rows = [], []
+    out_path = os.path.abspath(args.out)
+    skipped = [n for n, d, f in pairs if os.path.abspath(d) == out_path or is_own_report(d)]
+    pairs = [(n, d, f) for n, d, f in pairs if n not in skipped]
+    if skipped:
+        print("Skipped %s made by this tool: %s" % (M.plural(len(skipped), "report"), ", ".join(skipped)))
+    if not pairs:
+        raise SystemExit("No drafts to check in %s." % args.folder)
     for name, draft, final in pairs:
         item = {"name": name + (" + " + os.path.basename(final) if final else ""), "anchor": slug(name)}
         try:

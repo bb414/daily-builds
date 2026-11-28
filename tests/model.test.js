@@ -282,6 +282,22 @@ test('fresh-eyes findings: forms headings, source labels, real journals and hone
   assert.ok(work('assisted', []).indexOf('none has been marked as checked yet') > 0);
 });
 
+test('Vancouver references, abbreviated page ranges and spreadsheet dates', function () {
+  var e = M.parseEntry('1. Marsh K, Ode T. Thermal profiles of catalase. J Enzyme Res. 2019;12(4):221-9. doi:10.5555/jer.2019.12', '');
+  assert.deepStrictEqual([e.authors, e.year, e.title, e.container, e.volume, e.issue, e.pages, e.type],
+    ['Marsh K, Ode T', '2019', 'Thermal profiles of catalase', 'J Enzyme Res', '12', '4', '221-229', 'journal']);
+  assert.deepStrictEqual(M.checkEntry(e, AS_OF).issues, []);
+  var b = M.parseEntry('Marsh K. Enzymes at work. 2nd ed. Leeds: Fenwick Press; 2017.', '');
+  assert.deepStrictEqual([b.title, b.publisher, b.year, b.type], ['Enzymes at work', 'Fenwick Press', '2017', 'book']);
+  assert.deepStrictEqual(M.parseDate('45602'), { day: M.daysFromCivil(2024, 11, 6), note: 'read as a spreadsheet date number' });
+  var html = '<p>Of course! Here&#39;s a revised paragraph:</p><p>Activity peaked at <strong>37&nbsp;\u00b0C</strong> [1].</p>' +
+    '<p>References</p><p>1. Marsh K, Ode T. Thermal profiles. J Enzyme Res. 2019;12(4):221-9.</p>';
+  var a = M.analyse({ draft: html, asOf: AS_OF });
+  assert.strictEqual(a.refs.entries.length, 1);
+  assert.strictEqual(a.refs.entries[0].cited, 1);
+  assert.ok(a.claims.some(function (c) { return c.kinds.indexOf('leftover') >= 0; }));
+});
+
 test('word files become Markdown-like text with headings, lists and footnotes', function () {
   var t = M.docxText('<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Intro</w:t></w:r></w:p><w:p><w:r><w:t>Text &amp; more</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p>',
     '<w:footnote w:id="0"><w:p><w:r><w:t>x</w:t></w:r></w:p></w:footnote><w:footnote w:id="1"><w:p><w:r><w:t>Smith (2020) Title.</w:t></w:r></w:p></w:footnote>');

@@ -184,7 +184,7 @@ class Agreement(unittest.TestCase):
         dates = ["2026-11-05", "05/11/2026", "5/11/26", "11/25/2026", "31/13/2026", "29/02/2028", "29/02/2027", "5 Nov 2026",
                  "5th November 2026", "Thursday, 5 November 2026", "Nov 5, 2026", "November 5th 2026", "2026/11/05", "05.11.2026",
                  "05-11-2026 14:03:11", "2026-11-05T10:00:00Z", "5 Sept 2026", "5 Noo 2026", "", "  ", "soon", "1/1/70", "1/1/69",
-                 "0/1/2026", "2026-02-30", "\u0665/11/2026", "5\n11\n2026", "3,Dec,2026"]
+                 "0/1/2026", "2026-02-30", "\u0665/11/2026", "5\n11\n2026", "3,Dec,2026", "45602", "45602.75", "19999", "80001", "12345"]
         self.compare([{"fn": "parseDate", "args": [d]} for d in dates])
 
     def test_sentence_splitting_and_words(self):
@@ -215,7 +215,10 @@ class Agreement(unittest.TestCase):
     def test_reference_entries(self):
         lines = REF_LINES + [r for r in sample("references.txt").split("\n") if r.strip()] + [
             "Ng, T. (2022) 'Title', Review, e12345.", "", "(2020)", "Anon. (2019) Untitled.", "Smith, J. (2019b) Book. 2nd edn. Leeds: Press.",
-            "Smith J, Jones K. Title of article. J Things. 2020;3(2):10-20. doi: 10.5555/abc", "https://only.a.url/here"]
+            "Smith J, Jones K. Title of article. J Things. 2020;3(2):10-20. doi: 10.5555/abc", "https://only.a.url/here",
+            "1. Marsh K, Ode T. Thermal profiles of catalase. J Enzyme Res. 2019;12(4):221-9. doi:10.5555/jer.2019.12",
+            "Marsh K. Enzymes at work. 2nd ed. Leeds: Fenwick Press; 2017.", "Ng T, Lee A, et al. Ten. BMJ. 2020;370:m1-9.",
+            "Brown A (2018) Vancouver with year. J X. 1(2):5-1."]
         self.compare([{"fn": "parseEntry", "args": [r, ""]} for r in lines] + [{"fn": "splitEntries", "args": [sample("messy-paste.txt").split("\n")]}])
 
     def test_reference_manager_exports(self):

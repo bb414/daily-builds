@@ -128,6 +128,9 @@ class Commands(unittest.TestCase):
             out_html, out_csv = os.path.join(d, "report.html"), os.path.join(d, "summary.csv")
             code, out, _ = run("batch", d, "--out", out_html, "--csv", out_csv, "--notes", os.path.join(DATA, "notes.md"), "--as-of", "2026-11-28")
             self.assertEqual(code, 0)
+            code, again, _ = run("batch", d, "--out", os.path.join(d, "second.html"), "--as-of", "2026-11-28")
+            self.assertIn("Skipped 1 report made by this tool: report.html", again)
+            self.assertIn("Checked 4 files", again)
             with open(out_html, encoding="utf-8") as fh:
                 page = fh.read()
             for name in ("ai-draft.md + ai-draft-final.md", "messy-paste.txt", "word-essay.docx", "broken.docx", "not a valid .docx"):

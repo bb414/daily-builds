@@ -153,6 +153,9 @@ def parse_date(text):
     if m and month_from(m.group(2)):
         d2 = valid_day(int(m.group(3)), month_from(m.group(2)), int(m.group(1)))
         return {"day": None, "note": "no such date"} if d2 is None else {"day": d2, "note": None}
+    m = re.match(r"([0-9]{5})(?:\.[0-9]+)?\Z", s, A)
+    if m and 20000 <= int(m.group(1)) <= 80000:
+        return {"day": days_from_civil(1899, 12, 30) + int(m.group(1)), "note": "read as a spreadsheet date number"}
     m = _D_US.match(s)
     if m and month_from(m.group(1)):
         d3 = valid_day(int(m.group(3)), month_from(m.group(1)), int(m.group(2)))
@@ -1412,6 +1415,15 @@ def strip_marks(s):
     return collapse(re.sub(r"[*_]", "", s))
 
 
+VAN_NAME = "[" + CAP + "][" + LET + "'\\-]+(?: [" + CAP + "][" + LET + "'\\-]+)? [A-Z]{1,3}"
+VAN_RE = re.compile("^((?:" + VAN_NAME + ", )*" + VAN_NAME + "(?:, et al)?)\\. (.+)\\Z", A)
+
+
+def expand_page(a, b):
+    """"221-9" in medical styles means 221 to 229."""
+    return a[:len(a) - len(b)] + b if len(b) < len(a) and int(b) < int(a) else b
+
+
 def _search_pos(pattern, s, flags=A):
     m = re.search(pattern, s, flags)
     return m.start() if m else -1
@@ -1456,8 +1468,18 @@ def parse_entry(text, label=""):
             e["label"] = lm.group(1) or lm.group(2)
         body = body[lm.end():]
     ym = re.search("\\((" + YEAR + "[a-z]?|n\\.d\\.|[0-9]{4}[a-z]?)\\)", body, A)
-    year_end = -1
-    if ym:
+    year_end, tm, after2, rest = -1, None, "", ""
+    # Vancouver style ("Marsh K, Ode T. Title. J Enzyme Res. 2019;12(4):221-9."): authors first, year late.
+    van = None if ym else VAN_RE.match(body)
+    if van:
+        e["authors"] = van.group(1)
+        vdot = _search_pos(r"[.?!] ", van.group(2))
+        e["title"] = van.group(2)[:vdot] if vdot >= 0 else van.group(2)
+        after2 = van.group(2)[vdot + 1:] if vdot >= 0 else ""
+        vy = re.search("(?:^|[ ,.;])(" + YEAR + ")(?=[.,;:]|\\Z| )", after2, A)
+        if vy:
+            e["year"] = vy.group(1)
+    elif ym:
         e["year"] = ym.group(1)
         e["authors"] = re.sub(r"[,.]\Z", "", trim(body[:ym.start()]))
         year_end = ym.end()
@@ -1469,11 +1491,14 @@ def parse_entry(text, label=""):
             e["authors"] = re.sub(r"[,.]\Z", "", trim(body[:ys]))
             year_end = ys + len(ym.group(1))
     e["authors"] = strip_marks(e["authors"])
-    rest = body[year_end:] if year_end >= 0 else body
-    rest = re.sub(r"^[).,: ]+", "", rest)
-    tm = re.match(r"'([^']+)'|\"([^\"]+)\"", rest, A)
+    if not van:
+        rest = body[year_end:] if year_end >= 0 else body
+        rest = re.sub(r"^[).,: ]+", "", rest)
+        tm = re.match(r"'([^']+)'|\"([^\"]+)\"", rest, A)
     italic_title = False
-    if tm:
+    if van:
+        pass
+    elif tm:
         e["title"] = tm.group(1) or tm.group(2)
         after2 = rest[tm.end():]
     else:
@@ -1508,9 +1533,10 @@ def parse_entry(text, label=""):
             e["volume"] = vm2.group(1)
     pm = (re.search("\\bpp?\\.? ?([0-9]+) ?[-\u2013] ?([0-9]+)", plain, A)
           or re.search("\\), ?([0-9]+) ?[-\u2013] ?([0-9]+)", plain, A)
-          or re.search(", ([0-9]+) ?[-\u2013] ?([0-9]+)\\.?\\Z", plain, A))
+          or re.search(", ([0-9]+) ?[-\u2013] ?([0-9]+)\\.?\\Z", plain, A)
+          or re.search(":([0-9]+) ?[-\u2013] ?([0-9]+)", plain, A))
     if pm:
-        e["pages"] = pm.group(1) + "-" + pm.group(2)
+        e["pages"] = pm.group(1) + "-" + expand_page(pm.group(1), pm.group(2))
     else:
         pm2 = re.search(r"\b(?:p\.|article|art\.) ?(e?[0-9]+)", plain, AI)
         if pm2:
@@ -1520,7 +1546,7 @@ def parse_entry(text, label=""):
         e["container"] = trim(re.sub(r"[.,]\Z", "", plain[:len(plain) if cut2 < 0 else cut2]))
     pubm = re.search(r"(?:^|\. )([A-Z][A-Za-z .'\-]{1,40}): ([A-Z][^.:]{1,80})\.?", plain, A)
     if pubm and not e["volume"]:
-        e["publisher"] = trim(pubm.group(2))
+        e["publisher"] = trim(re.sub(r" *;.*\Z", "", pubm.group(2)))
     if e["volume"] or (e["pages"] and e["container"] and "-" in e["pages"]):
         e["type"] = "journal"
     elif tm and e["container"] and not e["publisher"]:
