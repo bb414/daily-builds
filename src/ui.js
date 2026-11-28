@@ -114,7 +114,7 @@
     var last = S.reports.slice(-list.length);
     var added = 0, dupes = 0, bad = 0;
     last.forEach(function (r) { added += r.added; dupes += r.duplicates; if (!r.ok) bad++; });
-    toast(bad ? bad + (bad === 1 ? ' file' : ' files') + ' could not be read: see the import log' : added + ' new fills added' + (dupes ? ', ' + dupes + ' already in the journal' : ''));
+    toast(bad ? bad + (bad === 1 ? ' file' : ' files') + ' could not be read: see the import log' : M.plural(added, 'new fill') + ' added' + (dupes ? ', ' + dupes + ' already in the journal' : ''));
     show('fills');
   }
 
@@ -308,6 +308,8 @@
 
   function renderNotice() {
     var el = $('#notice');
+    var foot = document.getElementById('foot-text');
+    if (foot) foot.innerHTML = '<strong>Round trips</strong> reads exports in your browser and keeps them there. ' + (S.sample ? 'The sample is invented: the team, accounts, tickers and the Larkfield 50 index future are all made up. ' : '') + 'Not financial advice: it describes trades you have already made.';
     var since = sinceOpened();
     if (since && since.fills > 0) {
       el.innerHTML = '<p><strong>Since you opened ' + esc(S.opened.label) + ':</strong> ' + M.plural(since.fills, 'new fill') + ', ' + M.plural(since.trades.length, 'trade') + ' closed (' + esc(m(since.net, { sign: true })) + ' after fees), ' +
@@ -341,6 +343,8 @@
       panel.hidden = !on;
     });
     renderView(view);
+    if (view === 'review') drawEquity();
+    if (view === 'days') drawDayChart();
     if (focus) document.getElementById('tab-' + view).focus();
   }
 
@@ -413,11 +417,11 @@
           (src.first !== null && src.first !== undefined ? ' &middot; ' + esc(M.fmtDayMonthYear(src.first)) + ' to ' + esc(M.fmtDayMonthYear(src.last)) : '') +
           (src.saved ? ' &middot; saved in the journal' : '') + '</p>';
         html += '<ul class="counts">' +
-          '<li><b>' + src.added + '</b> fills added</li>' +
+          '<li><b>' + src.added + '</b> ' + (src.added === 1 ? 'fill' : 'fills') + ' added</li>' +
           (src.duplicates ? '<li><b>' + src.duplicates + '</b> already in the journal, skipped</li>' : '') +
-          (src.feesAdded ? '<li><b>' + src.feesAdded + '</b> fee rows attached</li>' : '') +
-          (src.counts ? '<li><b>' + src.counts.skipped + '</b> rows set aside</li>' : '') +
-          (src.counts && src.counts.blank ? '<li><b>' + src.counts.blank + '</b> blank lines</li>' : '') + '</ul>';
+          (src.feesAdded ? '<li><b>' + src.feesAdded + '</b> ' + (src.feesAdded === 1 ? 'fee row' : 'fee rows') + ' attached</li>' : '') +
+          (src.counts ? '<li><b>' + src.counts.skipped + '</b> ' + (src.counts.skipped === 1 ? 'row' : 'rows') + ' set aside</li>' : '') +
+          (src.counts && src.counts.blank ? '<li><b>' + src.counts.blank + '</b> blank ' + (src.counts.blank === 1 ? 'line' : 'lines') + '</li>' : '') + '</ul>';
       }
       var cols = src.columns || {};
       var names = { date: 'Date', time: 'Time', symbol: 'Symbol', qty: 'Quantity', price: 'Price', side: 'Side', fees: 'Fees', currency: 'Currency', account: 'Account', mult: 'Multiplier', status: 'Status', orderId: 'Order ID', execId: 'Fill ID', openClose: 'Open or close', asset: 'Asset type', recordType: 'Row type', amount: 'Amount', description: 'Description' };
@@ -481,11 +485,11 @@
     // Open positions and unmatched closes.
     html += '<section class="sheet"><span class="eyebrow">Still open</span><h2>Open positions</h2><p class="intro">Positions not yet back to flat at the end of the fills. Their profit counts once they close.</p>';
     if (res.open.length) {
-      html += '<div class="table-wrap"><table class="ledger"><thead><tr><th>Symbol</th><th>Account</th><th>Side</th><th class="num">Open</th><th class="num">Avg cost</th><th>Since</th></tr></thead><tbody>' +
+      html += '<div class="table-wrap"><table class="ledger"><thead><tr><th>Symbol</th><th class="hide-sm">Account</th><th>Side</th><th class="num">Open</th><th class="num">Avg cost</th><th>Since</th></tr></thead><tbody>' +
         res.open.map(function (t) {
           var q = 0, v = 0;
           t.openLots.forEach(function (l) { q += l.q; v += l.price * l.q; });
-          return '<tr><td><button type="button" class="linkish" data-trade="' + esc(t.id) + '">' + esc(t.symbol) + '</button></td><td>' + esc(t.account) + '</td><td><span class="side-tag side-' + (t.dir > 0 ? 'long' : 'short') + '">' + sideWord(t).toUpperCase() + '</span></td><td class="num">' + esc(M.fmtQty(q)) + '</td><td class="num">' + esc(avgPrice(q ? v / q : 0)) + '</td><td>' + esc(M.fmtShort(t.openDay)) + '</td></tr>';
+          return '<tr><td><button type="button" class="linkish" data-trade="' + esc(t.id) + '">' + esc(t.symbol) + '</button></td><td class="hide-sm">' + esc(t.account) + '</td><td><span class="side-tag side-' + (t.dir > 0 ? 'long' : 'short') + '">' + sideWord(t).toUpperCase() + '</span></td><td class="num">' + esc(M.fmtQty(q)) + '</td><td class="num">' + esc(avgPrice(q ? v / q : 0)) + '</td><td>' + esc(M.fmtShort(t.openDay)) + '</td></tr>';
         }).join('') + '</tbody></table></div>';
     } else html += '<p class="muted">Every position is back to flat.</p>';
     if (res.unmatched.length) {
@@ -521,12 +525,12 @@
       '<button type="button" class="btn btn-line btn-small" data-action="fills-csv">Download fills CSV</button></div>';
     if (rows.length) {
       var shown = rows.slice(-f.limit).reverse();
-      html += '<div class="table-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Time</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Fees</th><th>Trade</th><th>Account</th></tr></thead><tbody>' +
+      html += '<div class="table-wrap"><table class="ledger"><thead><tr><th>When</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num hide-sm">Fees</th><th class="hide-sm">Trade</th><th class="hide-sm">Account</th></tr></thead><tbody>' +
         shown.map(function (x) {
           var legs = res.legsByFill[x.key] || [];
-          return '<tr><td class="mono" style="font-size:.76rem">' + esc(M.toIso(x.day)) + '</td><td class="mono" style="font-size:.76rem">' + esc(M.fmtTimeLong(x.sec)) + '</td><td><strong>' + esc(x.symbol) + '</strong></td>' +
+          return '<tr><td class="mono nowrap" style="font-size:.74rem" title="' + esc(M.toIso(x.day)) + '">' + esc(M.fmtShort(x.day) + ' ' + String(M.civil(x.day)[0]).slice(2)) + '<br>' + esc(M.fmtTimeLong(x.sec)) + '</td><td><strong>' + esc(x.symbol) + '</strong><span class="show-sm">' + tradeLinks(legs) + '</span></td>' +
             '<td><span class="side-tag side-' + x.side + '">' + (x.side === 'B' ? 'BUY' : 'SELL') + '</span></td><td class="num">' + esc(M.fmtQty(x.q)) + '</td><td class="num">' + esc(M.fmtPrice(x.price, true)) + '</td>' +
-            '<td class="num">' + esc(M.money(res.feeOf[x.key], '')) + '</td><td>' + (legs.length ? legs.map(function (l) { return '<button type="button" class="linkish" data-trade="' + esc(l.trade) + '">' + esc(l.role) + '</button>'; }).join(' ') : '<span class="flag-breach">no opening fill</span>') + '</td><td style="font-size:.8rem">' + esc(x.account) + '</td></tr>';
+            '<td class="num hide-sm">' + esc(M.money(res.feeOf[x.key], '')) + '</td><td class="hide-sm">' + tradeLinks(legs) + '</td><td class="hide-sm" style="font-size:.8rem">' + esc(x.account) + '</td></tr>';
         }).join('') + '</tbody></table></div>';
       html += '<div class="more-row"><span class="muted">Showing the latest ' + shown.length + ' of ' + rows.length + ' fills.</span>' + (rows.length > f.limit ? '<button type="button" class="btn btn-line btn-small" data-action="fills-more">Show 200 more</button>' : '') + '</div>';
     } else html += '<p class="empty">No fills to show.</p>';
@@ -579,7 +583,7 @@
     var f = S.trades, res = S.result;
     var list = tradeFilter();
     if (f.selected && !tradeById(f.selected)) f.selected = null;
-    if (!f.selected && list.length) f.selected = list[0].id;
+    if (!f.selected && list.length && !isNarrow()) f.selected = list[0].id;
     var setups = {};
     res.trades.forEach(function (t) { if (t.setup) setups[t.setup] = true; });
     (S.base.settings.setups || []).forEach(function (s) { setups[s] = true; });
@@ -593,11 +597,18 @@
       '<label class="check"><input type="checkbox" id="tr-needs"' + (f.needs ? ' checked' : '') + '> Needs journal notes</label>' +
       (S.opened ? '<label class="check"><input type="checkbox" id="tr-fresh"' + (f.fresh ? ' checked' : '') + '> New since the journal was opened</label>' : '') +
       '</div>';
+    // On a phone the ticket opens under the trade you picked; on a wide screen it sits beside the list.
+    var narrow = isNarrow();
+    var shown = list.slice(0, f.limit);
+    var selectedShown = shown.some(function (t) { return t.id === f.selected; });
+    var ticket = ticketHtml(f.selected ? tradeById(f.selected) : null, list);
     html += '<div class="split">';
     // The list.
     html += '<section class="sheet plain" aria-label="Trades"><span class="eyebrow">The journal</span><h2>Round trips</h2>';
     if (list.length) {
-      html += '<ul class="trade-list">' + list.slice(0, f.limit).map(function (t) {
+      if (narrow && f.selected && !selectedShown) html += '<div class="trade-ticket" id="trade-ticket">' + ticket + '</div>';
+      if (narrow && !f.selected) html += '<p class="hint">Tap a trade to open its ticket and journal.</p>';
+      html += '<ul class="trade-list">' + shown.map(function (t) {
         var net = t.netBase === null ? t.net : t.netBase, cur = t.netBase === null ? t.currency : base();
         return '<li><button type="button" class="trade-row" data-select="' + esc(t.id) + '"' + (t.id === f.selected ? ' aria-current="true"' : '') + '>' +
           '<span class="tr-date">' + esc(M.fmtShort(t.openDay)) + '<br>' + esc(M.fmtTime(t.openSec)) + '</span>' +
@@ -606,14 +617,14 @@
           '<span class="tr-net ' + (t.status === 'open' ? '' : cls(net)) + '">' + (t.status === 'open' ? 'open' : esc(M.money(net, cur, { sign: true }))) + '</span>' +
           '<span class="tr-r">' + esc(t.r === null ? '' : M.fmtR(t.r)) + '</span>' +
           ((t.breaches.length || t.mistakes.length) ? '<span class="tr-flags">' + (t.breaches.length ? '<span class="flag-breach">' + t.breaches.length + (t.breaches.length === 1 ? ' rule broken' : ' rules broken') + '</span>' : '') + t.mistakes.map(function (x) { return '<span class="chip mistake">' + esc(x) + '</span>'; }).join('') + '</span>' : '') +
-          '</button></li>';
+          '</button></li>' + (narrow && t.id === f.selected ? '<li class="inline-ticket"><div class="trade-ticket" id="trade-ticket">' + ticket + '</div></li>' : '');
       }).join('') + '</ul>';
       html += '<p class="count-line">' + Math.min(list.length, f.limit) + ' of ' + list.length + ' trades shown.' + (list.length > f.limit ? ' <button type="button" class="linkish" data-action="trades-more">Show more</button>' : '') + '</p>';
     } else html += '<p class="empty">No trades match these filters.</p>';
     html += '<div class="btn-row" style="margin-top:12px"><button type="button" class="btn btn-line btn-small" data-action="trades-csv">Download round trips CSV</button><button type="button" class="btn btn-line btn-small" data-action="save">Save journal file</button></div>';
     html += '</section>';
     // The ticket.
-    html += '<div class="trade-ticket" id="trade-ticket">' + ticketHtml(f.selected ? tradeById(f.selected) : null, list) + '</div>';
+    if (!narrow) html += '<div class="trade-ticket" id="trade-ticket">' + ticket + '</div>';
     html += '</div>';
     panel.innerHTML = html;
   }
@@ -640,9 +651,9 @@
       '</dl>';
     if (t.netBase !== null && cur !== base() && t.status === 'closed') html += '<p class="hint">In ' + esc(base()) + ': ' + esc(m(t.netBase, { sign: true })) + ' at ' + esc(String(t.rate)) + '.</p>';
     // Fills.
-    html += '<h3>Fills</h3><div class="table-wrap"><table class="ledger"><thead><tr><th>When</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Fee</th><th>Role</th></tr></thead><tbody>' +
+    html += '<h3>Fills</h3><div class="table-wrap"><table class="ledger"><thead><tr><th>When</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num hide-sm">Fee</th><th>Role</th></tr></thead><tbody>' +
       t.legs.map(function (l) {
-        return '<tr><td class="mono" style="font-size:.74rem">' + esc((l.day !== t.openDay ? M.fmtShort(l.day) + ' ' : '') + M.fmtTimeLong(l.sec)) + '</td><td><span class="side-tag side-' + l.side + '">' + (l.side === 'B' ? 'BUY' : 'SELL') + '</span></td><td class="num">' + esc(M.fmtQty(l.q)) + '</td><td class="num">' + esc(M.fmtPrice(l.price, true)) + '</td><td class="num">' + esc(M.money(l.fee, '')) + '</td><td>' + esc(l.role) + '</td></tr>';
+        return '<tr><td class="mono" style="font-size:.74rem">' + esc((l.day !== t.openDay ? M.fmtShort(l.day) + ' ' : '') + M.fmtTimeLong(l.sec)) + '</td><td><span class="side-tag side-' + l.side + '">' + (l.side === 'B' ? 'BUY' : 'SELL') + '</span></td><td class="num">' + esc(M.fmtQty(l.q)) + '</td><td class="num">' + esc(M.fmtPrice(l.price, true)) + '</td><td class="num hide-sm">' + esc(M.money(l.fee, '')) + '</td><td>' + esc(l.role) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     if (t.matches.length) {
       html += '<details><summary class="linkish">How the closes were matched (first in, first out)</summary><ul class="breach-list" style="margin-top:6px">' + t.matches.map(function (x) {
@@ -677,6 +688,10 @@
     html += '</article>';
     return html;
   }
+  function tradeLinks(legs) {
+    return legs.length ? legs.map(function (l) { return '<button type="button" class="linkish" data-trade="' + esc(l.trade) + '">' + esc(l.role) + '</button>'; }).join(' ') : '<span class="flag-breach">no opening fill</span>';
+  }
+  function isNarrow() { return !!(window.matchMedia && window.matchMedia('(max-width: 1040px)').matches); }
   function fig(label, value, klass) { return '<div class="fig"><dt>' + esc(label) + '</dt><dd class="' + (klass || '') + '">' + esc(value) + '</dd></div>'; }
 
   function saveJournalFromTicket(full) {
@@ -978,13 +993,17 @@
       '</dl>';
     html += '<div class="chart chart-paper" id="day-chart"></div><ul class="chart-legend"><li><i style="background:var(--ink)"></i>Running total after fees through the day</li></ul>';
     if (dd.breaches.length) html += '<h3>Rules broken that day</h3>' + breachListHtml(dd.breaches);
-    html += '<h3>Fill by fill</h3><div class="table-wrap"><table class="ledger"><thead><tr><th>Time</th><th>Symbol</th><th>Account</th><th class="num">Realised</th><th class="num">Fees</th><th class="num">Running total</th><th>Trade</th></tr></thead><tbody>' +
+    html += '<h3>Fill by fill</h3><div class="table-wrap"><table class="ledger"><thead><tr><th>Time</th><th>Symbol</th><th class="hide-sm">Account</th><th class="num">Realised</th><th class="num hide-sm">Fees</th><th class="num">Running total</th><th class="hide-sm">Trade</th></tr></thead><tbody>' +
       dd.rows.map(function (r) {
-        return '<tr><td class="mono" style="font-size:.74rem">' + esc(M.fmtTimeLong(r.sec)) + '</td><td><strong>' + esc(r.symbol) + '</strong></td><td style="font-size:.8rem">' + esc(r.account) + '</td>' +
-          '<td class="num ' + cls(r.pnl) + '">' + (r.pnl ? esc(m(r.pnl, { sign: true })) : '') + '</td><td class="num">' + esc(m(r.fees)) + '</td><td class="num ' + cls(r.total) + '">' + esc(m(r.total, { sign: true })) + '</td>' +
-          '<td>' + r.trades.map(function (id) { var t = tradeById(id); return t ? '<button type="button" class="linkish" data-trade="' + esc(id) + '">' + esc(sideWord(t).toLowerCase()) + '</button>' : ''; }).join(' ') + '</td></tr>';
+        return '<tr><td class="mono" style="font-size:.74rem">' + esc(M.fmtTimeLong(r.sec)) + '</td><td><strong>' + esc(r.symbol) + '</strong><span class="show-sm">' + dayLinks(r) + '</span></td><td class="hide-sm" style="font-size:.8rem">' + esc(r.account) + '</td>' +
+          '<td class="num ' + cls(r.pnl) + '">' + (r.pnl ? esc(m(r.pnl, { sign: true })) : '') + '</td><td class="num hide-sm">' + esc(m(r.fees)) + '</td><td class="num ' + cls(r.total) + '">' + esc(m(r.total, { sign: true })) + '</td>' +
+          '<td class="hide-sm">' + dayLinks(r) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     return html + '</article>';
+  }
+
+  function dayLinks(r) {
+    return r.trades.map(function (id) { var t = tradeById(id); return t ? '<button type="button" class="linkish" data-trade="' + esc(id) + '">' + esc(sideWord(t).toLowerCase()) + '</button>' : ''; }).join(' ');
   }
 
   function drawDayChart() {
@@ -1081,9 +1100,9 @@
     res.trades.forEach(function (t) { currencies[t.currency] = true; });
     html += '<div class="grid-2"><section class="sheet"><span class="eyebrow">Accounts</span><h2>Starting balances</h2><p class="intro">The % rules, the drawdown percentage and the Sharpe ratio need each account\'s starting balance, in its own currency.</p>';
     if (res.accounts.length) {
-      html += '<div class="table-wrap"><table class="ledger acct-table"><thead><tr><th>Account</th><th>Currency</th><th>Starting balance</th><th>Long only</th></tr></thead><tbody>' + res.accounts.map(function (a, i) {
+      html += '<div class="table-wrap"><table class="ledger acct-table"><thead><tr><th>Account</th><th class="hide-sm">Currency</th><th>Starting balance</th><th>Long only</th></tr></thead><tbody>' + res.accounts.map(function (a, i) {
         var s = M.accountSettings(set, a);
-        return '<tr><td><strong>' + esc(a) + '</strong></td><td>' + esc(s.currency || currencyOf(a)) + '</td><td><label class="sr" for="acct-start-' + i + '">Starting balance for ' + esc(a) + '</label><input type="text" inputmode="decimal" class="inline-input" id="acct-start-' + i + '" data-role="acct-start" data-account="' + esc(a) + '" value="' + esc(s.start || '') + '" placeholder="e.g. 100000"></td>' +
+        return '<tr><td><strong>' + esc(a) + '</strong><span class="show-sm muted">' + esc(s.currency || currencyOf(a)) + '</span></td><td class="hide-sm">' + esc(s.currency || currencyOf(a)) + '</td><td><label class="sr" for="acct-start-' + i + '">Starting balance for ' + esc(a) + '</label><input type="text" inputmode="decimal" class="inline-input" id="acct-start-' + i + '" data-role="acct-start" data-account="' + esc(a) + '" value="' + esc(s.start || '') + '" placeholder="e.g. 100000"></td>' +
           '<td><label class="check"><input type="checkbox" id="acct-long-' + i + '" data-role="acct-long" data-account="' + esc(a) + '"' + (s.longOnly ? ' checked' : '') + '><span class="sr">Long only for ' + esc(a) + '</span></label></td></tr>';
       }).join('') + '</tbody></table></div><p class="hint">Long only: a sale with nothing held closes shares bought before the exports start, instead of opening a short.</p>';
     } else html += '<p class="muted">Accounts appear here once fills are loaded.</p>';
@@ -1182,7 +1201,15 @@
     if (!el) return;
     if (el.hasAttribute('data-go')) { show(el.getAttribute('data-go')); if (el.getAttribute('data-go') === 'fills') { var tray = document.getElementById('intray'); if (tray) tray.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
     if (el.hasAttribute('data-trade')) { openTrade(el.getAttribute('data-trade')); return; }
-    if (el.hasAttribute('data-select')) { S.trades.selected = el.getAttribute('data-select'); S.dirty.trades = true; renderView('trades'); var tk = document.getElementById('trade-ticket'); if (tk && window.innerWidth < 1040) tk.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (el.hasAttribute('data-select')) {
+      var picked = el.getAttribute('data-select');
+      S.trades.selected = S.trades.selected === picked && isNarrow() ? null : picked;
+      S.dirty.trades = true;
+      renderView('trades');
+      var row = document.querySelector('[data-select="' + (window.CSS && CSS.escape ? CSS.escape(picked) : picked) + '"]');
+      if (row && isNarrow()) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (el.hasAttribute('data-week')) { S.review.week = +el.getAttribute('data-week'); S.review.all = false; reanalyseLight(); return; }
     if (el.hasAttribute('data-day')) { S.days.day = +el.getAttribute('data-day'); S.dirty.days = true; renderView('days'); var dt = document.getElementById('day-ticket'); if (dt) dt.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (el.hasAttribute('data-breakdown')) { S.breakdown = el.getAttribute('data-breakdown'); S.dirty.review = true; renderView('review'); return; }
@@ -1211,7 +1238,16 @@
         toast('Removed the export');
         break;
       case 'sample': S.opened = null; loadSample(); show('review'); toast('Showing the invented sample again'); break;
-      case 'clear': startFresh(); storeDel(STORE_KEY); reimport(); show('fills'); toast('Cleared: add your fills export to start'); break;
+      case 'clear':
+        if (!S.sample && el.getAttribute('data-armed') !== '1') {
+          el.setAttribute('data-armed', '1');
+          var was = el.textContent;
+          el.textContent = 'Click again to clear everything';
+          toast('This clears the journal and the copy in this browser. Save the journal file first if you want to keep it.');
+          setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = was; }, 5000);
+          break;
+        }
+        startFresh(); storeDel(STORE_KEY); reimport(); show('fills'); toast('Cleared: add your fills export to start'); break;
       case 'resume': var saved = S.resume; S.resume = null; openJournal(saved.journal, 'your saved journal'); break;
       case 'forget': S.resume = null; storeDel(STORE_KEY); renderNotice(); break;
       case 'carry-add':
@@ -1463,10 +1499,16 @@
     document.getElementById('hero-open').addEventListener('click', function () { document.getElementById('file-journal').click(); });
     initDrop();
     var resizeTimer = null;
-    window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (S.view === 'review') drawEquity(); if (S.view === 'days') drawDayChart(); }, 150); });
+    window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () {
+        if (S.view === 'review') drawEquity();
+        if (S.view === 'days') drawDayChart();
+        var narrow = isNarrow();
+        if (narrow !== S.narrow) { S.narrow = narrow; S.dirty.trades = true; if (S.view === 'trades') renderView('trades'); }
+      }, 150); });
     window.addEventListener('afterprint', function () { document.body.classList.remove('print-review'); });
     var saved = storeGet(STORE_KEY);
     if (saved) { try { S.resume = JSON.parse(saved); if (!S.resume || !S.resume.journal) S.resume = null; } catch (e) { S.resume = null; } }
+    S.narrow = isNarrow();
     loadSample();
     show('review');
   }

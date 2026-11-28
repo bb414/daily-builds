@@ -103,7 +103,7 @@ def cmd_weekly(args):
     print('Inbox: %s.' % (plural(len(summary['inbox']), 'export') if summary['inbox'] else 'nothing new'))
     for f in summary['inbox']:
         if f['ok']:
-            print('  %s: %d new fills, %d already in the journal, %d rows set aside' % (f['file'], f['added'], f['duplicates'], f['skipped']))
+            print('  %s: %s, %d already in the journal, %s set aside' % (f['file'], plural(f['added'], 'new fill'), f['duplicates'], plural(f['skipped'], 'row')))
         else:
             print('  %s: not read (%s)' % (f['file'], f['error']))
     print('Journal now holds %s (%d new); %s closed since the last run.' % (plural(summary['fills'], 'fill'), summary['added'], plural(summary['newlyClosed'], 'trade')))
@@ -135,7 +135,9 @@ def cmd_period(args):
         days = [t['closeDay'] for t in res['closed']]
         start = from_iso(args.start_date) if args.start_date else (min(days) if days else None)
         end = from_iso(args.end_date) if args.end_date else (max(days) if days else None)
-    if start is None or end is None or end < start:
+    if start is not None and end is not None and end < start:
+        raise SystemExit('The --from date is after the --to date.')
+    if start is None or end is None:
         raise SystemExit('Give a month (--month 2026-10) or dates (--from 2026-10-01 --to 2026-10-31) with closed trades in between.')
     write_text(args.out, period_report(res, start, end, args.account_filter or ''))
     print('Wrote %s for %s to %s' % (args.out, to_iso(start), to_iso(end)))

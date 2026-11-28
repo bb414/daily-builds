@@ -419,6 +419,17 @@ test('an opening position typed in for a close with no opening fill', function (
   assert.equal(M.readProject(saved).state.carry.length, 1);
 });
 
+test('wording for one of a kind: one line, one trade, one previous week', function () {
+  var rep = M.readExport('a.csv', 'Exported 2026\n' + HEAD + '\n2026-11-16,10:00:00,A,QX,Buy,1,5,0,1\n2026-11-16,11:00:00,A,QX,Sell,1,6,0,2\n2026-11-23,10:00:00,A,QX,Buy,1,5,0,3\n2026-11-23,11:00:00,A,QX,Sell,1,4,0,4\n', {});
+  assert.ok(rep.notes.indexOf('1 line above the header was ignored.') >= 0);
+  var r = run([{ name: 'a.csv', text: 'Exported 2026\n' + HEAD + '\n2026-11-16,10:00:00,A,QX,Buy,1,5,0,1\n2026-11-16,11:00:00,A,QX,Sell,1,6,0,2\n2026-11-23,10:00:00,A,QX,Buy,1,5,0,3\n2026-11-23,11:00:00,A,QX,Sell,1,4,0,4\n' }]).result;
+  var text = M.reviewText(M.weekReview(r, { week: M.fromIso('2026-11-23') }), r);
+  assert.match(text, /The trade: QX long 23 Nov -\$1\.00/);
+  assert.match(text, /The only trade broke at least one rule; it made -\$1\.00\./);
+  assert.match(text, /over the previous week with trades/);
+  assert.doesNotMatch(text, /Worst:/);
+});
+
 test('no em dashes in the model or the text it writes', function () {
   var src = fs.readFileSync(path.join(ROOT, 'src', 'model.js'), 'utf8');
   assert.equal(src.indexOf('\u2014'), -1);

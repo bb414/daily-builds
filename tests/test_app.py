@@ -236,6 +236,32 @@ class AppTest(unittest.TestCase):
         self.assertEqual(rows[0][0], 'Date')
         self.assertEqual(len(rows), 50)
 
+    def test_phone_trades_open_under_the_row_and_charts_follow_the_width(self):
+        page = self.open()
+        page.click('#tab-days')
+        page.set_viewport_size({'width': 390, 'height': 844})
+        page.click('#tab-review')
+        page.click('#tab-days')
+        self.assertLessEqual(int(page.get_attribute('#day-chart svg', 'width')), 390)
+        page.click('#tab-trades')
+        self.assertEqual(page.locator('#trade-ticket').count(), 0)
+        page.click('.trade-row >> nth=2')
+        self.assertEqual(page.locator('.inline-ticket #trade-ticket').count(), 1)
+        self.assertEqual(page.evaluate("document.querySelector('.inline-ticket').previousElementSibling.querySelector('.trade-row').getAttribute('aria-current')"), 'true')
+        page.click('.trade-row >> nth=2')
+        self.assertEqual(page.locator('#trade-ticket').count(), 0)
+        self.assertLessEqual(page.evaluate('document.documentElement.scrollWidth'), 390)
+
+    def test_clearing_your_own_journal_asks_twice(self):
+        page = self.open()
+        page.set_input_files('#file-exports', os.path.join(DATA, 'template.csv'))
+        page.wait_for_selector('.source')
+        self.assertNotIn('invented', page.inner_text('footer'))
+        page.click('.btn-danger[data-action="clear"]')
+        self.assertIn('template.csv', page.inner_text('#view-fills'))
+        page.click('.btn-danger[data-action="clear"]')
+        self.assertIn('No exports yet', page.inner_text('#view-fills'))
+
     def test_inside_a_frame(self):
         frame_page = os.path.join(self.tmp.name, 'frame.html')
         with open(frame_page, 'w', encoding='utf-8') as fh:
@@ -245,6 +271,7 @@ class AppTest(unittest.TestCase):
         frame.wait_for_selector('#review-sheet')
         self.assertIn('+$1,595.71', frame.inner_text('#headline'))
         frame.click('#tab-trades')
+        frame.click('.trade-row >> nth=0')
         self.assertTrue(frame.is_visible('#trade-ticket'))
 
     def test_phone_width_has_no_sideways_scroll(self):

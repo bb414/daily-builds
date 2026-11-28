@@ -104,8 +104,10 @@ def review_notes(rv):
         notes.append(plural(rv['broke']['n'], 'trade') + ' broke at least one rule and made ' + money(rv['broke']['net'], base, sign=True) + '; the '
                      + plural(rv['kept']['n'], 'trade') + ' that kept to every rule made ' + money(rv['kept']['net'], base, sign=True) + '.')
     elif rv['broke']['n']:
-        notes.append(('The only trade' if rv['broke']['n'] == 1 else 'All %d trades' % rv['broke']['n']) + ' broke at least one rule, and made '
-                     + money(rv['broke']['net'], base, sign=True) + ' between them.')
+        if rv['broke']['n'] == 1:
+            notes.append('The only trade broke at least one rule; it made ' + money(rv['broke']['net'], base, sign=True) + '.')
+        else:
+            notes.append('All %d trades broke at least one rule, and made ' % rv['broke']['n'] + money(rv['broke']['net'], base, sign=True) + ' between them.')
     else:
         notes.append('Every trade kept to the rules this week.')
     if s['avgHoldWin'] is not None and s['avgHoldLoss'] is not None and s['avgHoldLoss'] >= s['avgHoldWin'] * 1.5 and s['avgHoldLoss'] >= 120:
@@ -127,7 +129,7 @@ def review_notes(rv):
         notes.append('Trades opened ' + hours[0]['label'] + ' were the weakest hour: ' + money(hours[0]['net'], base, sign=True) + ' over ' + plural(hours[0]['n'], 'trade') + '.')
     if rv['prev'] and rv['prev']['expectancy'] is not None and s['expectancy'] is not None:
         notes.append('Expectancy ' + money(rnd(s['expectancy']), base, sign=True) + ' a trade, against ' + money(rnd(rv['prev']['expectancy']), base, sign=True)
-                     + ' over the previous ' + plural(rv['prev']['weeks'], 'week') + ' with trades.')
+                     + ' over the previous ' + ('week' if rv['prev']['weeks'] == 1 else '%d weeks' % rv['prev']['weeks']) + ' with trades.')
     if rv['untagged'] or rv['noRisk']:
         parts = []
         if rv['untagged']:
@@ -186,8 +188,11 @@ def review_text(rv, result):
                      + ('n/a' if s['avgLoss'] is None else money(rnd(s['avgLoss']), base))
                      + ('; average ' + fmt_r(s['avgR']) + ' on ' + plural(s['rCount'], 'trade') + ' with planned risk' if s['rCount'] else ''))
         best, worst = by_id[s['best']['id']], by_id[s['worst']['id']]
-        lines.append('Best: ' + trade_name(best) + ' ' + money(s['best']['net'], base, sign=True) + (' (' + best['setup'] + ')' if best['setup'] else '')
-                     + '. Worst: ' + trade_name(worst) + ' ' + money(s['worst']['net'], base, sign=True) + (' (' + worst['setup'] + ')' if worst['setup'] else ''))
+        if s['n'] == 1:
+            lines.append('The trade: ' + trade_name(best) + ' ' + money(s['best']['net'], base, sign=True) + (' (' + best['setup'] + ')' if best['setup'] else ''))
+        else:
+            lines.append('Best: ' + trade_name(best) + ' ' + money(s['best']['net'], base, sign=True) + (' (' + best['setup'] + ')' if best['setup'] else '')
+                         + '. Worst: ' + trade_name(worst) + ' ' + money(s['worst']['net'], base, sign=True) + (' (' + worst['setup'] + ')' if worst['setup'] else ''))
         lines.append('Largest drop from a high this week: ' + money(s['maxDD'], base) + '; longest losing run: ' + plural(s['maxLossStreak'], 'trade'))
         setups = [r['label'] + ' ' + money(r['net'], base, sign=True) + ' (%d)' % r['n'] for r in rv['bySetup'][:6]]
         if setups:

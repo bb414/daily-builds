@@ -322,7 +322,7 @@ def read_export(name, text, opts=None):
     out['headerCells'] = [trim(x) for x in rows[hi]]
     out['headerLine'] = lines[hi]
     if hi > 0:
-        out['notes'].append('%d %s above the header were ignored.' % (hi, 'line' if hi == 1 else 'lines'))
+        out['notes'].append('1 line above the header was ignored.' if hi == 1 else '%d lines above the header were ignored.' % hi)
     header = rows[hi]
     body = rows[hi + 1:]
     body_lines = lines[hi + 1:]

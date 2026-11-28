@@ -5,7 +5,7 @@ import copy
 import os
 import shutil
 
-from .common import cmp, sort_by, to_iso, week_start
+from .common import cmp, plural, sort_by, to_iso, week_start
 from .days import days_csv
 from .matching import RULES, analyse, empty_state, import_files
 from .outputs import breaches_csv, csv_lines, fills_csv, project_file, read_project, trades_csv
@@ -98,7 +98,7 @@ def team_review(folder, settings_path=None, week=None, default_start=None):
             if not rep['ok']:
                 problems.append('%s, %s: %s' % (mbr['name'], rep['name'], rep['error']))
             elif rep['counts']['skipped']:
-                problems.append('%s, %s: %d rows set aside (%s)' % (mbr['name'], rep['name'], rep['counts']['skipped'],
+                problems.append('%s, %s: %s set aside (%s)' % (mbr['name'], rep['name'], plural(rep['counts']['skipped'], 'row'),
                                                                      '; '.join(sorted({s['reason'] for s in rep['skipped']}))[:200]))
         st = with_default_start(imp['state'], default_start)
         res = analyse(st)
@@ -125,6 +125,8 @@ def team_review(folder, settings_path=None, week=None, default_start=None):
         })
         for w in res['warnings']:
             problems.append('%s: %s' % (m['name'], w['text']))
+        if not start:
+            problems.append('%s has no starting balance, so the drawdown %%, Sharpe and Sortino figures are blank: set one in their journal or use --start.' % m['name'])
     return {'members': rows, 'week': week, 'base': base, 'rules': RULES, 'problems': problems}
 
 

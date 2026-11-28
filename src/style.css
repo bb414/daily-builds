@@ -396,6 +396,8 @@ table.ledger { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .ledger th.num { font-family: var(--display); font-size: .64rem; }
 .ledger tbody tr:hover { background: rgba(38, 48, 122, .04); }
 .ledger tfoot td { font-weight: 700; border-top: 2px solid var(--graphite); }
+.nowrap { white-space: nowrap; }
+.show-sm { display: none; }
 .side-tag {
   display: inline-block; min-width: 3.6em; text-align: center; padding: 1px 6px; border-radius: 2px; font-family: var(--mono); font-size: .7rem; font-weight: 600;
   letter-spacing: .06em; border: 1.5px solid currentColor;
@@ -569,7 +571,8 @@ button.cal-cell:hover { border-color: var(--ink); }
   .hero-scene { max-width: 640px; }
   .headline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split { grid-template-columns: minmax(0, 1fr); }
-  .trade-ticket { position: static; order: -1; }
+  .trade-ticket { position: static; }
+  .inline-ticket { padding: 10px 0 16px; border-bottom: 2px solid var(--ink); }
   .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
@@ -594,6 +597,14 @@ button.cal-cell:hover { border-color: var(--ink); }
   .trade-row { grid-template-columns: 4.6em minmax(0, 1fr) 5.6em; }
   .trade-row .tr-r { display: none; }
   .intray { padding: 16px 12px; }
+  .hide-sm { display: none; }
+  .show-sm { display: block; font-size: .74rem; }
+  table.ledger { font-size: .82rem; }
+  .ledger th, .ledger td { padding: 6px 4px; }
+  .ledger td.num { font-size: .72rem; }
+  .ledger th, .ledger th.num { letter-spacing: .02em; font-size: .56rem; }
+  .side-tag { min-width: 0; padding: 1px 4px; font-size: .6rem; }
+  .acct-table input { width: 6.2em; }
   .chooser { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .chooser .inline-select { width: 100%; }
   .rule-item { grid-template-columns: minmax(0, 1fr); }

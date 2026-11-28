@@ -462,7 +462,7 @@
     }
     out.headerCells = rows[hi].map(trim);
     out.headerLine = lines[hi];
-    if (hi > 0) out.notes.push(hi + (hi === 1 ? ' line' : ' lines') + ' above the header were ignored.');
+    if (hi > 0) out.notes.push(hi === 1 ? '1 line above the header was ignored.' : hi + ' lines above the header were ignored.');
     var header = rows[hi];
     var body = [], bodyLines = [];
     for (var b = hi + 1; b < rows.length; b++) { body.push(rows[b]); bodyLines.push(lines[b]); }
@@ -1864,7 +1864,8 @@
     if (rv.broke.n && rv.kept.n) {
       notes.push(plural(rv.broke.n, 'trade') + ' broke at least one rule and made ' + money(rv.broke.net, base, { sign: true }) + '; the ' + plural(rv.kept.n, 'trade') + ' that kept to every rule made ' + money(rv.kept.net, base, { sign: true }) + '.');
     } else if (rv.broke.n) {
-      notes.push((rv.broke.n === 1 ? 'The only trade' : 'All ' + rv.broke.n + ' trades') + ' broke at least one rule, and made ' + money(rv.broke.net, base, { sign: true }) + ' between them.');
+      notes.push(rv.broke.n === 1 ? 'The only trade broke at least one rule; it made ' + money(rv.broke.net, base, { sign: true }) + '.'
+        : 'All ' + rv.broke.n + ' trades broke at least one rule, and made ' + money(rv.broke.net, base, { sign: true }) + ' between them.');
     } else {
       notes.push('Every trade kept to the rules this week.');
     }
@@ -1882,7 +1883,7 @@
     var hours = rv.byHour.filter(function (r) { return r.n >= 3 && r.key !== '99'; }).sort(function (a, b) { return (a.net - b.net) || cmp(a.key, b.key); });
     if (hours.length >= 2 && hours[0].net < 0) notes.push('Trades opened ' + hours[0].label + ' were the weakest hour: ' + money(hours[0].net, base, { sign: true }) + ' over ' + plural(hours[0].n, 'trade') + '.');
     if (rv.prev && rv.prev.expectancy !== null && s.expectancy !== null) {
-      notes.push('Expectancy ' + money(rnd(s.expectancy), base, { sign: true }) + ' a trade, against ' + money(rnd(rv.prev.expectancy), base, { sign: true }) + ' over the previous ' + plural(rv.prev.weeks, 'week') + ' with trades.');
+      notes.push('Expectancy ' + money(rnd(s.expectancy), base, { sign: true }) + ' a trade, against ' + money(rnd(rv.prev.expectancy), base, { sign: true }) + ' over the previous ' + (rv.prev.weeks === 1 ? 'week' : rv.prev.weeks + ' weeks') + ' with trades.');
     }
     if (rv.untagged || rv.noRisk) {
       var parts = [];
@@ -1911,7 +1912,8 @@
       L.push('Win rate ' + fmtPct(s.winRate) + ' (' + s.wins + ' won, ' + s.losses + ' lost' + (s.flat ? ', ' + s.flat + ' flat' : '') + '), expectancy ' + money(rnd(s.expectancy), base, { sign: true }) + ' a trade, profit factor ' + (s.profitFactor === null ? 'n/a (no losses)' : fmtNum(s.profitFactor, 2)));
       L.push('Average win ' + (s.avgWin === null ? 'n/a' : money(rnd(s.avgWin), base)) + ', average loss ' + (s.avgLoss === null ? 'n/a' : money(rnd(s.avgLoss), base)) + (s.rCount ? '; average ' + fmtR(s.avgR) + ' on ' + plural(s.rCount, 'trade') + ' with planned risk' : ''));
       var best = byId[s.best.id], worst = byId[s.worst.id];
-      L.push('Best: ' + tradeName(best) + ' ' + money(s.best.net, base, { sign: true }) + (best.setup ? ' (' + best.setup + ')' : '') + '. Worst: ' + tradeName(worst) + ' ' + money(s.worst.net, base, { sign: true }) + (worst.setup ? ' (' + worst.setup + ')' : ''));
+      if (s.n === 1) L.push('The trade: ' + tradeName(best) + ' ' + money(s.best.net, base, { sign: true }) + (best.setup ? ' (' + best.setup + ')' : ''));
+      else L.push('Best: ' + tradeName(best) + ' ' + money(s.best.net, base, { sign: true }) + (best.setup ? ' (' + best.setup + ')' : '') + '. Worst: ' + tradeName(worst) + ' ' + money(s.worst.net, base, { sign: true }) + (worst.setup ? ' (' + worst.setup + ')' : ''));
       L.push('Largest drop from a high this week: ' + money(s.maxDD, base) + '; longest losing run: ' + plural(s.maxLossStreak, 'trade'));
       var setups = rv.bySetup.slice(0, 6).map(function (r) { return r.label + ' ' + money(r.net, base, { sign: true }) + ' (' + r.n + ')'; });
       if (setups.length) L.push('Setups: ' + setups.join('; '));
