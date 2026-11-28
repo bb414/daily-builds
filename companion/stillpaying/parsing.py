@@ -446,6 +446,10 @@ _SIGN_IN = js_regex(r'^(c|cr|credit|in|money in|paid in|deposit)')
 
 WARN_UNKNOWN_HEADER = ('The column names were not ones this tool knows, so the columns were worked out from what '
                        'they contain. Check them with Change columns.')
+_CARD_NAME = js_regex(r'card|credit|amex|visa|mastercard', 'i')
+_REPAYMENT = js_regex(r'PAYMENT|THANK YOU|REPAYMENT|RECEIVED|DIRECT DEBIT', 'i')
+WARN_MOSTLY_IN = ('Most amounts in this file are positive, so they were read as money coming in. If this is a credit '
+                  'card export where spending shows as positive, choose "Positive is money out" under Change columns.')
 WARN_NO_HEADER = ('No header row was found, so the columns were worked out from what they contain. '
                   'Check the column choices below.')
 WARN_FLIPPED = ('Most amounts in this file are positive, so positive amounts were read as money spent (the way '
@@ -622,12 +626,18 @@ def parse_csv(text, name=None, options=None):
     flipped = False
     if 'amount' in mapping and 'sign' not in mapping and raw:
         pos = len([t for t in raw if t['amount'] > 0])
-        if sign_mode == 'positive-out' or (sign_mode == 'auto' and len(raw) >= 5 and pos / len(raw) > 0.7):
+        mostly_positive = len(raw) >= 5 and pos / len(raw) > 0.7
+        # Only treat positive amounts as spending when something says this is a card: its name, or a repayment line.
+        card_hint = bool(_CARD_NAME.search(result['name'] + ' ' + result['account'])) or any(
+            t['amount'] < 0 and _REPAYMENT.search(t['desc']) for t in raw)
+        if sign_mode == 'positive-out' or (sign_mode == 'auto' and mostly_positive and card_hint):
             for t in raw:
                 t['amount'] = -t['amount']
             flipped = True
             if sign_mode == 'auto':
                 result['warnings'].append(WARN_FLIPPED)
+        elif sign_mode == 'auto' and mostly_positive:
+            result['warnings'].append(WARN_MOSTLY_IN)
     if 'balance' in mapping and not flipped and raw:
         # The balance after the last payment: the last row of the latest day, whichever way round the file is sorted.
         with_bal = [t for t in raw if t['balance'] is not None]
@@ -659,7 +669,8 @@ def parse_csv(text, name=None, options=None):
                         'description': describe_layout(mapping, headers, flipped, order)}
     result['ok'] = len(result['transactions']) > 0
     if not result['ok'] and not result.get('error'):
-        result['error'] = 'No payments could be read from this file. The rows it skipped are listed with reasons.'
+        result['error'] = ('No payments could be read from this file. The rows it skipped are listed with reasons.'
+                           if result['skipped'] else 'The file has a header row but no payments under it.')
     finish_range(result)
     return result
 

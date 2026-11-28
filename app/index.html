@@ -1255,10 +1255,16 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     var flipped = false;
     if (map.amount !== undefined && map.sign === undefined && raw.length) {
       var pos = raw.filter(function (t) { return t.amount > 0; }).length;
-      if (signMode === 'positive-out' || (signMode === 'auto' && raw.length >= 5 && pos / raw.length > 0.7)) {
+      var mostlyPositive = raw.length >= 5 && pos / raw.length > 0.7;
+      // Only treat positive amounts as spending when something says this is a card: its name, or a repayment line.
+      var cardHint = /card|credit|amex|visa|mastercard/i.test(result.name + ' ' + result.account) ||
+        raw.some(function (t) { return t.amount < 0 && /PAYMENT|THANK YOU|REPAYMENT|RECEIVED|DIRECT DEBIT/i.test(t.desc); });
+      if (signMode === 'positive-out' || (signMode === 'auto' && mostlyPositive && cardHint)) {
         raw.forEach(function (t) { t.amount = -t.amount; });
         flipped = true;
         if (signMode === 'auto') result.warnings.push('Most amounts in this file are positive, so positive amounts were read as money spent (the way credit card exports usually work). Switch this if it is wrong.');
+      } else if (signMode === 'auto' && mostlyPositive) {
+        result.warnings.push('Most amounts in this file are positive, so they were read as money coming in. If this is a credit card export where spending shows as positive, choose "Positive is money out" under Change columns.');
       }
     }
     if (map.balance !== undefined && !flipped && raw.length) {
@@ -1286,7 +1292,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
       description: describeLayout(map, headers, flipped, order)
     };
     result.ok = result.transactions.length > 0;
-    if (!result.ok && !result.error) result.error = 'No payments could be read from this file. The rows it skipped are listed with reasons.';
+    if (!result.ok && !result.error) result.error = result.skipped.length ? 'No payments could be read from this file. The rows it skipped are listed with reasons.' : 'The file has a header row but no payments under it.';
     finishRange(result);
     return result;
   }
@@ -2716,40 +2722,50 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
     return (c ^ 0xffffffff) >>> 0;
   }
+  /** UTF-8 bytes of some text, as a Uint8Array. */
   function utf8Bytes(text) {
+    text = String(text);
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text);
     var out = [];
-    Array.from(String(text)).forEach(function (ch) {
-      var c = ch.codePointAt(0);
+    for (var i = 0; i < text.length; i++) {
+      var c = text.codePointAt(i);
+      if (c > 0xffff) i++;
       if (c < 0x80) out.push(c);
       else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
       else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
       else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
-    });
-    return out;
+    }
+    return new Uint8Array(out);
   }
-  /** A zip archive of stored (uncompressed) files, dated 1 January 1980 so the bytes never change. */
+  /**
+   * A zip archive of stored (uncompressed) files, dated 1 January 1980 so the
+   * bytes never change. Built from typed arrays so a large workbook stays quick.
+   */
   function zipStore(files) {
-    var out = [], central = [];
-    var u16 = function (a, v) { a.push(v & 255, (v >>> 8) & 255); };
-    var u32 = function (a, v) { a.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255); };
+    var chunks = [], central = [], offset = 0;
+    var le = function (values) {
+      // values: [number, byteCount] pairs, little-endian.
+      var size = 0;
+      values.forEach(function (v) { size += v[1]; });
+      var b = new Uint8Array(size), p = 0;
+      values.forEach(function (v) { for (var k = 0; k < v[1]; k++) b[p++] = Math.floor(v[0] / Math.pow(256, k)) & 255; });
+      return b;
+    };
     files.forEach(function (f) {
-      var name = utf8Bytes(f.name), data = utf8Bytes(f.text), crc = crc32(data), offset = out.length;
-      var head = [];
-      u32(head, 0x04034b50); u16(head, 20); u16(head, 0x0800); u16(head, 0); u16(head, 0); u16(head, 33);
-      u32(head, crc); u32(head, data.length); u32(head, data.length); u16(head, name.length); u16(head, 0);
-      Array.prototype.push.apply(out, head); Array.prototype.push.apply(out, name);
-      for (var i = 0; i < data.length; i++) out.push(data[i]);
-      var c = [];
-      u32(c, 0x02014b50); u16(c, 20); u16(c, 20); u16(c, 0x0800); u16(c, 0); u16(c, 0); u16(c, 33);
-      u32(c, crc); u32(c, data.length); u32(c, data.length); u16(c, name.length); u16(c, 0); u16(c, 0); u16(c, 0); u16(c, 0); u32(c, 0); u32(c, offset);
-      Array.prototype.push.apply(c, name);
-      central.push(c);
+      var name = utf8Bytes(f.name), data = utf8Bytes(f.text), crc = crc32(data);
+      var head = le([[0x04034b50, 4], [20, 2], [0x0800, 2], [0, 2], [0, 2], [33, 2], [crc, 4], [data.length, 4], [data.length, 4], [name.length, 2], [0, 2]]);
+      chunks.push(head, name, data);
+      central.push(le([[0x02014b50, 4], [20, 2], [20, 2], [0x0800, 2], [0, 2], [0, 2], [33, 2], [crc, 4], [data.length, 4], [data.length, 4], [name.length, 2], [0, 2], [0, 2], [0, 2], [0, 2], [0, 4], [offset, 4]]), name);
+      offset += head.length + name.length + data.length;
     });
-    var cdStart = out.length, cdSize = 0;
-    central.forEach(function (c) { cdSize += c.length; Array.prototype.push.apply(out, c); });
-    var end = [];
-    u32(end, 0x06054b50); u16(end, 0); u16(end, 0); u16(end, files.length); u16(end, files.length); u32(end, cdSize); u32(end, cdStart); u16(end, 0);
-    Array.prototype.push.apply(out, end);
+    var cdSize = 0;
+    central.forEach(function (c) { cdSize += c.length; });
+    var end = le([[0x06054b50, 4], [0, 2], [0, 2], [files.length, 2], [files.length, 2], [cdSize, 4], [offset, 4], [0, 2]]);
+    var all = chunks.concat(central, [end]);
+    var total = 0;
+    all.forEach(function (c) { total += c.length; });
+    var out = new Uint8Array(total), at = 0;
+    all.forEach(function (c) { out.set(c, at); at += c.length; });
     return out;
   }
 

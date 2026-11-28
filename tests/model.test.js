@@ -92,6 +92,17 @@ test('awkward layouts: no header, semicolons with comma decimals, credit card si
   assert.equal(quoted.transactions[1].desc, 'SAYS "HI"');
 });
 
+test('an export of mostly money in is not mistaken for a credit card', () => {
+  const savings = 'Date,Description,Amount\n' + [1, 2, 3, 4, 5, 6].map((m) => '28/0' + m + '/2026,FROM CURRENT ACCOUNT,100.00').join('\n') + '\n15/06/2026,CASH OUT,-20.00\n';
+  const st = M.parseCsv(savings, 'easy-saver.csv');
+  assert.equal(st.layout.signConvention, 'negative-out');
+  assert.equal(st.transactions.filter((t) => t.amount > 0).length, 6);
+  assert.match(st.warnings[0], /read as money coming in/);
+  const named = M.parseCsv(savings, 'credit-card.csv');
+  assert.equal(named.layout.signConvention, 'positive-out', 'a card in the file name is enough to flip');
+  assert.match(M.parseCsv('Date,Description,Amount\n', 'h.csv').error, /header row but no payments/);
+});
+
 test('files that are not statements get a plain message, not a crash', () => {
   assert.match(M.parseCsv('', 'e.csv').error, /empty/);
   assert.match(M.parseCsv('%PDF-1.7 ...', 'a.pdf').error, /PDF/);

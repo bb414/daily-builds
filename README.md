@@ -66,6 +66,10 @@ It finds **22 regular payments**: weekly, fortnightly, every-four-weeks and mont
 - Pixelbox TV stopped in July. Three single payments that look like yearly renewals (home insurance, web hosting and a chess app) are listed as possible regulars, with the date each is likely to come round again.
 - Payday (the last Friday of the month) falls on Christmas Day, so the next one is expected on Thursday 24 December, and £766.01 is due before then.
 
+In the app the student has also added a £35 yearly railcard by hand (paid from an account not loaded), which brings the meter to £841.85 a month.
+
+**Will the money last?** The current account's export ends on 27 November with a balance of £544.99. With the student's everyday spending (£12.91 a day over the last 91 days, outside regular payments and transfers) and the three cancellations they have marked, the runway shows the account going into its overdraft on 1 December when the rent leaves, past the £1,000 limit on Monday 4 January and lowest at -£1,268.53 on 11 January, the day before the £3,514.67 maintenance loan instalment (added as one-off money in) arrives. Nothing is left for everyday spending before payday without going overdrawn: a warning worth having in November rather than January.
+
 The sample is shown reopened a month after an earlier review on 20 October, and the plan leads with the most useful finding of all: **Gadgetguard Phone Cover took £4.99 on 8 November, after the student decided to cancel it on 20 October.**
 
 ## Why it matters
