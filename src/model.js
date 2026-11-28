@@ -630,7 +630,7 @@
     /\bas of my (?:last|latest|most recent) (?:update|training|knowledge)\b/gi,
     /\bknowledge cut-?off\b/gi,
     /\bi (?:hope|trust) (?:this|that) helps\b/gi,
-    /\blet me know if\b/gi,
+    /\blet me know if you(?:'d| would) like (?:me to|a |an |any |another|more|further)|\blet me know if (?:you need )?any (?:further |other |more )?(?:changes|adjustments|edits|tweaks|revisions)\b/gi,
     /^(?:sure|certainly|of course|absolutely|great question)!/gi,
     /^(?:sure|certainly|absolutely|of course)[,.]? (?:here|i can|i'll|i will|let me|below)\b/gi,
     /\bhere(?:'s| is) (?:a|an|the|your) (?:[a-z-]+ ){0,3}(?:version|draft|rewrite|revision|summary|essay|section|paragraph|outline)\b/gi,
@@ -641,8 +641,7 @@
     /\bregenerate(?: response)?\b/gi,
     /\bi (?:cannot|can't|am unable to|don't have the ability to) (?:browse|access|search)\b/gi,
     /\bi don't have access to (?:real-time|current|the internet)\b/gi,
-    /\bfeel free to\b/gi,
-    /\b(?:do you want|would you like) me to\b/gi
+    /\b(?:do you want|would you like) me to (?:expand|shorten|rewrite|revise|adjust|add|make|create|draft|write|tailor|format|summari[sz]e|tweak|continue)\b/gi
   ];
   var ABSOLUTE_RE = /\b(?:always|never|every|everyone|everybody|nobody|no one|entirely|completely|totally|undoubtedly|unquestionably|definitely|certainly|clearly|obviously|proven|proves|prove|guarantees?|guaranteed|without exception|universally|unprecedented|beyond doubt|the (?:first|only|single most|most|best|worst|largest|biggest|smallest|highest|lowest|greatest|fastest|leading))\b/gi;
   var VAGUE_RE = /\b(?:studies|research|evidence|data|surveys|experts|scientists|researchers|economists|analysts)(?: (?:have|has))? (?:show|shows|shown|suggest|suggests|suggested|prove|proves|proven|agree|agrees|indicate|indicates|confirm|confirms|say|says|believe|believes|found)\b|\bit is (?:widely|generally|commonly|well) (?:known|accepted|believed|agreed|established)\b|\b(?:many|most|some) (?:studies|experts|researchers|scientists|people) (?:say|believe|agree|argue|suggest|have found)\b|\baccording to (?:experts|research|studies|many|some|scientists)\b/gi;
@@ -1092,15 +1091,22 @@
   }
   M.lcsOps = lcsOps;
 
-  // Draft sentences that share at least one content word with the given tokens, in order.
+  // The draft sentences sharing most content words with the given tokens (at most CANDIDATES of them,
+  // most shared first, then in order), so long texts that repeat themselves stay quick.
+  M.CANDIDATES = 25;
   function candidates(index, toks) {
-    var seen = dict(), out = [];
+    var count = dict(), out = [], seenTok = dict();
     for (var i = 0; i < toks.length; i++) {
-      if (!hasOwn(index, toks[i])) continue;
+      if (!hasOwn(index, toks[i]) || hasOwn(seenTok, toks[i])) continue;
+      seenTok[toks[i]] = true;
       var lst = index[toks[i]];
-      for (var j = 0; j < lst.length; j++) if (!hasOwn(seen, lst[j])) { seen[lst[j]] = true; out.push(lst[j]); }
+      for (var j = 0; j < lst.length; j++) {
+        if (!hasOwn(count, lst[j])) { count[lst[j]] = 0; out.push(lst[j]); }
+        count[lst[j]]++;
+      }
     }
-    return out.sort(function (a, b) { return a - b; });
+    out.sort(function (a, b) { return count[b] - count[a] || a - b; });
+    return out.slice(0, M.CANDIDATES).sort(function (a, b) { return a - b; });
   }
 
   function analyseChanges(draftSents, finalSents) {

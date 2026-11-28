@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -292,6 +293,30 @@ class Commands(unittest.TestCase):
         self.assertIn("Could not open", err)
         code, _, err = run("check", os.path.join(DATA, "ai-draft.md"), "--as-of", "someday")
         self.assertIn('Could not read the date "someday"', err)
+
+
+@unittest.skipUnless(shutil.which("soffice"), "LibreOffice is not installed")
+class Spreadsheets(unittest.TestCase):
+    def test_exported_csv_files_open_in_libreoffice(self):
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest("openpyxl is not installed")
+        p = M.read_project(sample("sample-project.json"))
+        a = M.analyse(dict(p["texts"], asOf=AS_OF))
+        with tempfile.TemporaryDirectory() as d:
+            files = {"claims": M.claims_csv(a, p["checks"]), "refs": M.refs_csv(a, p["refChecks"]), "sessions": M.sessions_csv(p["sessions"])}
+            for name, text in files.items():
+                with open(os.path.join(d, name + ".csv"), "w", encoding="utf-8", newline="") as fh:
+                    fh.write(text)
+            subprocess.run(["soffice", "--headless", "--convert-to", "xlsx", "--infilter=CSV:44,34,76,1", "--outdir", d]
+                           + [os.path.join(d, n + ".csv") for n in files], capture_output=True, timeout=180)
+            for name, text in files.items():
+                rows = list(openpyxl.load_workbook(os.path.join(d, name + ".xlsx")).active.iter_rows(values_only=True))
+                self.assertEqual(len(rows), len(M.parse_csv(text)["rows"]), name)
+            claims = list(openpyxl.load_workbook(os.path.join(d, "claims.xlsx")).active.iter_rows(values_only=True))
+            self.assertEqual(claims[0][4], "Sentence")
+            self.assertTrue(any("caf\u00e9s" in str(r[4]) for r in claims[1:]))
 
 
 class Repository(unittest.TestCase):

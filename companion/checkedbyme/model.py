@@ -684,7 +684,7 @@ LEFTOVER_RES = [re.compile(p, AI) for p in [
     r"\bas of my (?:last|latest|most recent) (?:update|training|knowledge)\b",
     r"\bknowledge cut-?off\b",
     r"\bi (?:hope|trust) (?:this|that) helps\b",
-    r"\blet me know if\b",
+    r"\blet me know if you(?:'d| would) like (?:me to|a |an |any |another|more|further)|\blet me know if (?:you need )?any (?:further |other |more )?(?:changes|adjustments|edits|tweaks|revisions)\b",
     r"^(?:sure|certainly|of course|absolutely|great question)!",
     r"^(?:sure|certainly|absolutely|of course)[,.]? (?:here|i can|i'll|i will|let me|below)\b",
     r"\bhere(?:'s| is) (?:a|an|the|your) (?:[a-z-]+ ){0,3}(?:version|draft|rewrite|revision|summary|essay|section|paragraph|outline)\b",
@@ -695,8 +695,7 @@ LEFTOVER_RES = [re.compile(p, AI) for p in [
     r"\bregenerate(?: response)?\b",
     r"\bi (?:cannot|can't|am unable to|don't have the ability to) (?:browse|access|search)\b",
     r"\bi don't have access to (?:real-time|current|the internet)\b",
-    r"\bfeel free to\b",
-    r"\b(?:do you want|would you like) me to\b",
+    r"\b(?:do you want|would you like) me to (?:expand|shorten|rewrite|revise|adjust|add|make|create|draft|write|tailor|format|summari[sz]e|tweak|continue)\b",
 ]]
 ABSOLUTE_RE = re.compile(r"\b(?:always|never|every|everyone|everybody|nobody|no one|entirely|completely|totally|"
                          r"undoubtedly|unquestionably|definitely|certainly|clearly|obviously|proven|proves|prove|"
@@ -1258,12 +1257,20 @@ def lcs_ops(a, b):
     return ops
 
 
+CANDIDATES = 25
+
+
 def candidates(index, toks):
-    seen = set()
+    """The draft sentences sharing most content words with the tokens (at most CANDIDATES, most shared first)."""
+    count, seen_tok = {}, set()
     for t in toks:
-        for d in index.get(t, ()):
-            seen.add(d)
-    return sorted(seen)
+        if t not in index or t in seen_tok:
+            continue
+        seen_tok.add(t)
+        for d in index[t]:
+            count[d] = count.get(d, 0) + 1
+    best = sorted(count, key=lambda d: (-count[d], d))[:CANDIDATES]
+    return sorted(best)
 
 
 def _split_tokens(text):

@@ -58,6 +58,15 @@ test('cleaning a messy paste counts what it tidied and keeps the words', functio
   assert.ok(text.indexOf('in 2023[1]') >= 0, 'footnote markers become [1]');
 });
 
+test('ordinary email phrasing is not mistaken for chat leftovers', function () {
+  ['Let me know if you have any questions.', 'Would you like me to send the slides?', 'Feel free to call me.'].forEach(function (t) {
+    assert.ok(!M.scanSentence(t).kinds.leftover, t);
+  });
+  ["Let me know if you'd like a shorter version.", 'Would you like me to expand on section 2?', 'As an AI, I cannot browse.'].forEach(function (t) {
+    assert.ok(M.scanSentence(t).kinds.leftover, t);
+  });
+});
+
 test('sentences do not break at et al., initials, page numbers or titles', function () {
   var s = M.splitSentences('Hartwell et al. (2019) found it (p. 14). Dr. A. B. Smith agreed. Then e.g. this. Repair caf\u00e9s. According to them.');
   assert.deepStrictEqual(s, ['Hartwell et al. (2019) found it (p. 14).', 'Dr. A. B. Smith agreed.', 'Then e.g. this.', 'Repair caf\u00e9s.', 'According to them.']);

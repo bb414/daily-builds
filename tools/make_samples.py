@@ -300,11 +300,6 @@ SESSIONS = [
 SESSION_HEADER = ["Date", "Assignment", "Tool", "Purpose", "Prompt summary", "What I used", "What I changed",
                   "What I checked", "Minutes"]
 
-TEMPLATE_ROWS = [
-    ("2026-11-02", "Module code and assignment", "The AI tool you used", "What you used it for",
-     "Your prompt in one line", "What you kept from its answer", "What you changed", "What you checked, and against what", "15"),
-]
-
 
 def csv_line(cells):
     out = []
@@ -408,8 +403,6 @@ def main(argv):
 
     lines = [csv_line(SESSION_HEADER)] + [csv_line(r) for r in SESSIONS]
     write("session-log.csv", "\n".join(lines) + "\n")
-    lines = [csv_line(SESSION_HEADER)] + [csv_line(r) for r in TEMPLATE_ROWS]
-    write("session-log-template.csv", "\n".join(lines) + "\n")
 
     for name, (header, rows) in TEAM.items():
         if len(header) == 1:
@@ -445,6 +438,7 @@ def main(argv):
     except ImportError:
         print("Companion not found: skipped data/sample-project.json")
     else:
+        write("session-log-template.csv", sample_project.M.SESSION_TEMPLATE)
         write("sample-project.json", sample_project.build(OUT))
         write("class/rowan-tilsley.checked-by-me.json", sample_project.build(OUT))
         for i, (name, how, level, share) in enumerate(CLASS):

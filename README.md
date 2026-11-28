@@ -84,7 +84,7 @@ What the companion adds to the app:
 ## Tests
 
 ```
-node --test tests/*.test.js                       # the model, run from the built page (19 tests)
+node --test tests/*.test.js                       # the model, run from the built page
 cd tests && python -m unittest discover -s .      # companion, agreement and browser tests
 ```
 
@@ -137,7 +137,8 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 
 - It never checks anything online, so it cannot tell whether a source exists or a figure is right: it tells you what to check and records what you say you checked. "Verified" means you looked, not that the tool did.
 - It is not a plagiarism or AI-writing detector, and its "word for word" share only compares your text with the AI draft you paste.
-- Pattern rules miss claims made in plain words with no figure, name, quotation or citation, and flag some harmless ones ("the first chapter").
+- Pattern rules miss claims made in plain words with no figure, name, quotation or citation, and flag some harmless ones ("the first chapter"). In an email, a human closing such as "I hope this helps" is still flagged as chat text; mark it verified if you meant it.
+- On a very long text (tens of thousands of words) each sentence is compared with the 25 AI sentences sharing most words with it, and the checklist shows a hundred statements at a time.
 - Notes are compared by shared words, so a note phrased very differently from the sentence will not be found, and two different figures in one note can confuse it.
 - Citation matching uses the first author's surname and the year, a number, or a citation key; unusual styles (some law and humanities footnote styles) are read less well. RIS and BibTeX records are read field by field, so a record with a field in an unusual tag may lose it.
 - The declaration wording is a sensible default, not any particular university's form; choose the layout that fits and edit the text if your institution asks for something specific.

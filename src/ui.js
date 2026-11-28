@@ -13,7 +13,7 @@
     sessions: [], project: copy(EMPTY_PROJECT), checks: {}, refChecks: {},
     analysis: null, summary: null, view: 'check', isSample: false, dirty: false,
     filter: { risk: 'all', kind: 'all', status: 'all', conflicts: false, order: 'risk', since: false }, baseline: { text: '', on: '' }, versions: null,
-    showDiff: true, sessionMsgs: [], fieldMsgs: {}, editing: -1, showAllSessions: true, pickField: null
+    showDiff: true, limit: 100, sessionMsgs: [], fieldMsgs: {}, editing: -1, showAllSessions: true, pickField: null
   };
   var today = todayDay();
 
@@ -32,7 +32,6 @@
   function say(text) { var l = $('live'); l.textContent = ''; setTimeout(function () { l.textContent = text; }, 30); }
   function storeGet() { try { return window.localStorage.getItem(STORE_KEY); } catch (e) { return null; } }
   function storeSet(v) { try { window.localStorage.setItem(STORE_KEY, v); return true; } catch (e) { return false; } }
-  function storeDrop() { try { window.localStorage.removeItem(STORE_KEY); } catch (e) { /* storage blocked */ } }
   function wordsIn(text) { var m = String(text || '').match(/[A-Za-z0-9\u00c0-\u017f']+/g); return m ? m.length : 0; }
   function slugName(s) {
     var t = String(s || 'checked-by-me').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -517,8 +516,13 @@
       '<label><span>Order</span><select id="f-order" data-act="order"><option value="risk"' + (f.order === 'risk' ? ' selected' : '') + '>Highest risk first</option><option value="text"' + (f.order === 'text' ? ' selected' : '') + '>As in the text</option></select></label>' +
       (a.notesGiven ? '<label class="check-inline"><input type="checkbox" id="f-conf" data-act="conflicts"' + (f.conflicts ? ' checked' : '') + '> Only where my notes disagree</label>' : '') +
       (S.versions ? '<label class="check-inline"><input type="checkbox" id="f-since" data-act="since"' + (f.since ? ' checked' : '') + '> Only new or edited since my last check</label>' : '') +
-      '<span class="filters-count">' + list.length + ' of ' + a.claims.length + ' shown</span></div>';
-    html += list.length ? '<ol class="queries">' + list.map(claimHtml).join('') + '</ol>' : '<div class="empty"><p>No statement matches these filters.</p></div>';
+      '<span class="filters-count">' + list.length + ' of ' + a.claims.length + ' match</span></div>';
+    var shown = list.slice(0, S.limit);
+    html += list.length ? '<ol class="queries">' + shown.map(claimHtml).join('') + '</ol>' : '<div class="empty"><p>No statement matches these filters.</p></div>';
+    if (list.length > shown.length) {
+      html += '<div class="more-row"><button type="button" class="btn" id="btn-more" data-act="more">Show ' + Math.min(100, list.length - shown.length) + ' more</button><span class="small">' +
+        esc(plural(list.length - shown.length, 'statement') + ' further down the list') + '</span></div>';
+    }
     var keys = {};
     a.claims.forEach(function (c) { keys[c.key] = true; });
     if (S.versions) S.versions.changed.concat(S.versions.gone).forEach(function (x) { keys[x.key] = true; });
@@ -1033,7 +1037,12 @@
     var a = S.analysis;
     if (act === 'mark') setMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
     else if (act === 'refmark') setRefMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
-    else if (act === 'risk') { S.filter.risk = t.getAttribute('data-risk'); renderCheck(); }
+    else if (act === 'risk') { S.filter.risk = t.getAttribute('data-risk'); S.limit = 100; renderCheck(); }
+    else if (act === 'more') {
+      S.limit += 100; renderCheck();
+      var next = document.querySelectorAll('#view-check li.query')[S.limit - 100];
+      if (next) { var b = next.querySelector('button'); if (b) b.focus(); }
+    }
     else if (act === 'md-proof') download(slugName(S.project.title || 'text') + '-proof-copy.md', M.annotatedMarkdown(a, S.checks, S.refChecks, S.project.title, today), 'text/markdown;charset=utf-8');
     else if (act === 'csv-claims') download(slugName(S.project.title || 'claims') + '-checklist.csv', M.claimsCsv(a, S.checks), 'text/csv;charset=utf-8');
     else if (act === 'csv-refs') download(slugName(S.project.title || 'references') + '-references.csv', M.refsCsv(a, S.refChecks), 'text/csv;charset=utf-8');
@@ -1070,6 +1079,7 @@
     } else if (act === 'save-session') {
       var v = readSessionForm();
       if (!v.tool && !v.purpose) { showNotice('Give the session at least a tool or a purpose.', 'err'); return; }
+      if (v.minutes && !/^[0-9]{1,4}$/.test(v.minutes)) { showNotice('Minutes should be a whole number, such as 15.', 'err'); return; }
       var cs = M.cleanSession(v);
       var pd = M.parseDate(v.date);
       if (v.date && pd.day === null) { showNotice('Could not read the date "' + v.date + '". Use a form like 2026-11-05 or 5/11/2026.', 'err'); return; }
@@ -1102,11 +1112,11 @@
 
   function onChange(e) {
     var t = e.target, act = t.getAttribute && t.getAttribute('data-act');
-    if (act === 'kind') { S.filter.kind = t.value; renderCheck(); }
-    else if (act === 'status-filter') { S.filter.status = t.value; renderCheck(); }
-    else if (act === 'order') { S.filter.order = t.value; renderCheck(); }
-    else if (act === 'conflicts') { S.filter.conflicts = t.checked; renderCheck(); }
-    else if (act === 'since') { S.filter.since = t.checked; renderCheck(); }
+    if (act === 'kind') { S.filter.kind = t.value; S.limit = 100; renderCheck(); }
+    else if (act === 'status-filter') { S.filter.status = t.value; S.limit = 100; renderCheck(); }
+    else if (act === 'order') { S.filter.order = t.value; S.limit = 100; renderCheck(); }
+    else if (act === 'conflicts') { S.filter.conflicts = t.checked; S.limit = 100; renderCheck(); }
+    else if (act === 'since') { S.filter.since = t.checked; S.limit = 100; renderCheck(); }
     else if (act === 'diff') { S.showDiff = t.checked; renderChanges(); }
     else if (act === 'project' && t.type !== 'text') {
       S.project[t.getAttribute('data-field')] = t.value;

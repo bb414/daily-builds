@@ -8,7 +8,6 @@ browser is not installed.
 """
 
 import datetime
-import json
 import os
 import tempfile
 import unittest
@@ -304,6 +303,22 @@ class App(unittest.TestCase):
         frame.locator("#tab-changes").click()
         self.assertIn("word for word", frame.locator("#view-changes").inner_text())
         self.assertEqual(errors, [])
+
+    def test_a_long_text_stays_responsive(self):
+        page = self.open()
+        page.click("#btn-own")
+        draft = sample("ai-draft.md").split("## References")[0]
+        big = "\n\n".join([draft] * 60)
+        t0 = datetime.datetime.now()
+        page.evaluate("""(t) => { const d = document.getElementById('in-draft'); d.value = t; d.dispatchEvent(new Event('input', {bubbles: true})); }""", big)
+        page.wait_for_function("document.getElementById('ts-check').textContent.indexOf('open') >= 0", timeout=30000)
+        page.click("#tab-check")
+        self.assertEqual(page.locator("#view-check li.query").count(), 100)
+        page.click("#btn-more")
+        self.assertEqual(page.locator("#view-check li.query").count(), 200)
+        self.assertLess((datetime.datetime.now() - t0).total_seconds(), 20)
+        page.evaluate("localStorage.clear()")
+        self.assert_quiet()
 
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(width=390)

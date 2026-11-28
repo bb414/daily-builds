@@ -348,6 +348,7 @@ select:focus, input:focus { border-color: var(--blue); outline: none; box-shadow
 .empty h3 { font: 400 28px/1.2 var(--serif); margin: 0 0 8px; color: var(--ink); }
 .empty p { margin: 0 auto 12px; max-width: 40em; }
 .orphans { margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+.more-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; }
 .since {
   display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin: 0 0 12px; padding: 12px 14px;
   border: 1.5px solid var(--blue); border-left-width: 6px; border-radius: 3px; background: rgba(219, 230, 243, .55);
