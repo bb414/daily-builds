@@ -65,7 +65,7 @@ def detect(path):
     """Which kind of input a file is: exams, topics, availability or calendar (or None)."""
     try:
         text = read(path)
-    except (OSError, UnicodeDecodeError):
+    except OSError:
         return None, None
     low = text[:4000].lower()
     if m.is_html_table(text):
@@ -126,6 +126,9 @@ def gather(args):
             kind, _text = detect(path)
             if kind is None:
                 print('Skipped %s: not an exam timetable, topic list, availability file or calendar.' % name)
+                continue
+            if kind == 'availability' and files['availability']:
+                print('Skipped %s: only one availability file is used (%s).' % (name, os.path.basename(files['availability'][0])))
                 continue
             print('%-28s read as %s' % (name, kind))
             files[kind].append(path)
@@ -294,6 +297,9 @@ def cmd_today(args):
 
 def cmd_tick(args):
     today = parse_day(args.date) if args.date else real_today()
+    if args.day and not args.date:
+        # Ticking a day's sessions means they were done on that day.
+        today = max(today, parse_day(args.day, 'day'))
     p = load_project(args.project, today)
     plan = m.build_plan(p)
     ids = list(args.ids)
@@ -344,7 +350,7 @@ def cmd_retro(args):
     if not ad['days']:
         print('Nothing to look back on yet: no sessions were planned before %s.' % m.fmt_short(today))
         return 0
-    print('How you kept to the plan, %s days up to %s: %s of %s done (%d%%).' % (ad['days'], m.fmt_short(today - 1), m.fmt_hours(ad['done']), m.fmt_hours(ad['planned']), ad['pct']))
+    print('How you kept to the plan, %s up to %s: %s of %s done (%d%%).' % (m.plural(ad['days'], 'day'), m.fmt_short(today - 1), m.fmt_hours(ad['done']), m.fmt_hours(ad['planned']), ad['pct']))
     print('\nBy weekday')
     for w in ad['weekdays']:
         if not w['planned']:
@@ -428,8 +434,13 @@ def cmd_group(args):
 def cmd_check(args):
     today = parse_day(args.date) if args.date else real_today()
     status = 0
-    for path in args.files:
-        kind, text = detect(path)
+    # Topics are matched to the exams in the same check, as they are in a plan.
+    files = [(path,) + tuple(detect(path)) for path in args.files]
+    exams = []
+    for path, kind, text in files:
+        if text is not None and kind == 'exams':
+            exams += m.read_exams(text, ref=today)['exams']
+    for path, kind, text in files:
         print('== %s: %s' % (path, kind or 'not recognised'))
         if text is None:
             print('   could not be read as text')
@@ -441,11 +452,11 @@ def cmd_check(args):
                 print('   %-8s %-36s %s %s %s %s' % (e['code'], e['name'][:36], 'date TBC   ' if e['day'] is None else m.fmt_short(e['day']).ljust(11),
                                                   m.fmt_time(e['start']), m.fmt_dur(e['duration']), e['room']))
         elif kind == 'topics':
-            res = m.read_topics(text)
+            res = m.read_topics(text, exams)
             for t in res['topics']:
                 print('   %-8s %-40s confidence %d, %s' % (t['code'], t['name'][:40], t['conf'], m.size_label(t['size'])))
         elif kind == 'availability':
-            res = m.read_availability(text)
+            res = m.read_availability(text, None, today)
             for i, w in enumerate(res['week']):
                 print('   %s %s-%s up to %s' % (m.WD3[i], m.fmt_time(w['from']), m.fmt_time(w['to']), m.fmt_hours(w['minutes'])))
             for v in res['overrides']:

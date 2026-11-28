@@ -27,7 +27,7 @@ def import_files(project, exams_path=None, topics_path=None, availability_path=N
         project['topics'] = res['topics']
         project['sources'].append({'kind': 'topics', 'name': os.path.basename(topics_path), 'summary': m.import_summary('topics', res)})
     if availability_path:
-        res = m.read_availability(read(availability_path), project['week'])
+        res = m.read_availability(read(availability_path), project['week'], today)
         project['week'] = res['week']
         project['overrides'] = res['overrides']
         project['sources'].append({'kind': 'availability', 'name': os.path.basename(availability_path), 'summary': m.import_summary('availability', res)})

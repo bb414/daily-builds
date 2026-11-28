@@ -11,6 +11,21 @@ import unittest
 
 from helpers import FROM, NODE, TODAY, first_difference, m, plain, py_project_job, run_bridge, sample_text
 
+# A sixth-former's statement of entry: board paper codes, sessions not times.
+ALEVEL = ('Northfield Examinations Board\tStatement of entry\tSummer 2027\nCandidate 4417\tHollin Park Sixth Form\n\n'
+          'Code\tSubject\tPaper\tDate\tSession\tDuration\n'
+          '4821/1\tBiology\tPaper 1\t12/05/2027\tAM\t2h\n4821/2\tBiology\tPaper 2\t21/05/2027\tPM\t2h\n'
+          '4835/1\tMathematics\tPaper 1\t13/05/2027\tPM\t2h\n4835/2\tMathematics\tPaper 2\t04/06/2027\tAM\t2h\n'
+          '4807/1\tEconomics\tPaper 1\t15/05/2027\tAM\t2h\n4835/1\tMathematics\tPaper 1\t13/05/2027\tPM\t2h\n'
+          '4870/1\tFurther Mathematics\tPaper 1\t18/05/2027\tPM\t1h 30m\n')
+# The same statement copied out of a PDF: one line per paper, no columns.
+ALEVEL_LINES = ('Statement of entry, summer 2027\nCode Subject Paper Date Session Duration\n'
+                '4821/1 Biology Paper 1 12/05/2027 AM 2h\n4821/2 Biology Paper 2 21/05/2027 PM 2h\n'
+                '4835/1 Mathematics Paper 1 Thu 13 May 2027 afternoon 2 hours\n(K431/02) Biology A 14 June 2027 9:00\n'
+                '4807/1 Economics Paper 1 15/05/2027 a.m. 2h\n')
+ALEVEL_TOPICS = ['Biology:\n- Cell biology (3, M)\n- Genetics (1, L)\nMathematics:\n- Proof (4, S)\nFurther Mathematics:\n- Complex numbers (2, M)\nEconomics\n- Markets (3)\nMusic:\n- Harmony\n',
+                 'Subject,Topic,Confidence,Size\nBiology,Cell biology,3,M\nmathematics,Calculus,2,L\n4807,Markets,3,M\nFurther maths,Matrices,2,S\n']
+
 
 def random_project(seed):
     """A made-up but plausible project: odd exam clashes, every setting, busy times and dated changes."""
@@ -61,6 +76,7 @@ def random_project(seed):
     st['busyGap'] = rng.choice([0, 15, 30])
     st['examGap'] = rng.choice([0, 30, 45, 90])
     st['examDay'] = rng.choice(['after', 'off', 'normal'])
+    st['pace'] = rng.choice(['spread', 'spread', 'early'])
     p = m.clean_project(plain(p), start)
     return m.project_file(p), start
 
@@ -155,6 +171,7 @@ class AgreementTest(unittest.TestCase):
         topics.append({'text': sample_text('topics-pasted.txt'), 'exams': []})
         cals = [{'text': sample_text(n), 'from': FROM - 7, 'to': FROM + 70} for n in ['alex/busy-calendar.ics', 'group/sam/busy-calendar.ics', 'group/priya/busy-calendar.ics', 'exam-timetable.ics']]
         avail = [{'text': sample_text(n)} for n in ['alex/availability.csv', 'group/sam/availability.csv', 'group/priya/availability.csv']]
+        avail += [{'text': 'Day,From,To,Hours\nMon,07:00:00,12:00:00,4\n12 Jan,,,0\n1 Sept - 3 Sept,,,off\n', 'ref': ref} for ref in (TODAY, TODAY + 400)]
         busy = [{'text': sample_text(n), 'from': FROM - 7, 'to': FROM + 70} for n in ['group/sam/shift-rota.csv', 'alex/busy-calendar.ics', 'alex/topics.csv']]
         js = run_bridge({'exams': exams, 'topics': topics, 'calendars': cals, 'availability': avail, 'busy': busy})
         for i, x in enumerate(busy):
@@ -168,13 +185,13 @@ class AgreementTest(unittest.TestCase):
         for i, x in enumerate(cals):
             self.compare(m.read_calendar(x['text'], x['from'], x['to']), js['calendars'][i], 'calendar %d' % i)
         for i, x in enumerate(avail):
-            self.compare(m.read_availability(x['text']), js['availability'][i], 'availability %d' % i)
+            self.compare(m.read_availability(x['text'], None, x.get('ref')), js['availability'][i], 'availability %d' % i)
         self.assertEqual(js['templates'], [m.exam_template(), m.topic_template()])
 
     def test_messy_inputs_and_small_parsers(self):
         dates = ['11/01/2027', '1/2/27', '2027-01-11', 'Mon 11 Jan', '11th January 2027', 'January 11, 2027', 'Jan 11', '31/02/2027', 'TBC', '',
                  '11-Jan-27', 'Friday 22nd January 2027', '20270111T093000Z', '13.01.2027 14:00', 'sometime', '29/02/2028', '1 Sept 2027', '12 June']
-        times = ['09:30', '9.30am', '2pm', '2:00', '1400', 'noon', '12am', '24:00', '9', '7 p.m.', '0930', 'half nine', '13:75']
+        times = ['09:30', '9.30am', '2pm', '2:00', '1400', 'noon', '12am', '24:00', '9', '7 p.m.', '0930', 'half nine', '13:75', '07:30', '7:30', '07:30:00', '7.30', '05:00 AM']
         durations = ['2 hours', '2h', '120', '1h 30m', '1:30', '90 mins', '2.5 hrs', '(3 hours)', '1.25', 'two hours', '2 hrs 15 mins', '15']
         conf = ['2', '2/5', 'conf 4', 'amber', 'GREEN', '★★★☆☆', '45%', 'L', '3h', '90 min', 'xl', 'huge', '7',
                 'Prospect theory (2, L)', 'Chapter 3', 'Nash equilibrium - conf 2 - large', 'Elasticity [1/5] [4h]', 'Week 5: markets', 'Supply - big']
@@ -192,16 +209,27 @@ class AgreementTest(unittest.TestCase):
             '<html><body><table><tr><th>Code</th><th>Exam date</th><th>Venue</th></tr><tr><td>XYZ1001</td><td>Tue 12 Jan 2027, 9:30&ndash;11:00</td><td>Hall &amp; Annex</td></tr>'
             '<tr><td>XYZ1002<td>14/01/2027 14:00-16:00<td>Hall</tr></table>', '<table><tr><td>nothing</td></tr></table>',
             ''.join(chr((i * 37) % 256) for i in range(3000)), 'ABC1234 \x00\x01\x02 11/01/2027',
+            ALEVEL, ALEVEL_LINES,
+            'Paper,Subject,Date,AM/PM\n1,History,14/05/2027,a.m.\n2,History,20/05/2027,p.m.\nK431/03,Biology,09/06/2027,Morning session\n',
+            'Component code,Title,Date,Session\nK431/01,Biology A,13/05/2027,Afternoon\n6QX0/01,Mathematics,04/06/2027,PM\nECO3112/2,Behavioural Economics,05/06/2027,AM\n4821/1,Biology,12/05/2027,Evening\n',
         ]
+        alevel_exams = plain(m.read_exams(ALEVEL, ref=TODAY)['exams'])
         messy_topics = ['Topic\nNo module\n', 'ABC1234:\n- One (9)\n- Two (2, M)\n- Two (2, M)\n', '# Heading without code\n- x\n', '', 'Module,Topic,Confidence,Size\nABC1234,One,high,huge\nABC1234,Two,6,3 lectures\n']
         messy_cals = ['BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=America/New_York:20261201T090000\nDURATION:PT1H30M\nRRULE:FREQ=DAILY;COUNT=3\nSUMMARY:Call\nEND:VEVENT\n'
                       'BEGIN:VEVENT\nDTSTART:20261203T100000\nRRULE:FREQ=MONTHLY;BYMONTHDAY=3\nSUMMARY:Monthly\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:No start\nEND:VEVENT\nEND:VCALENDAR',
-                      'nope']
+                      'nope',
+                      'BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:a\nDTSTART:20270322T090000Z\nDTEND:20270322T100000Z\nRRULE:FREQ=WEEKLY;COUNT=3\nEXDATE:20270405T090000Z\nSUMMARY:Lecture\nEND:VEVENT\n'
+                      'BEGIN:VEVENT\nUID:a\nRECURRENCE-ID:20270329T090000Z\nDTSTART:20270330T090000Z\nDURATION:PT1H\nSUMMARY:Lecture (moved)\nEND:VEVENT\n'
+                      'BEGIN:VEVENT\nDTSTART:20270301T120000\nDURATION:PT1H\nRRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20270307T235959Z\nSUMMARY:Shift\nEND:VEVENT\n'
+                      'BEGIN:VEVENT\nDTSTART:20270112T180000\nDURATION:PT2H\nRRULE:FREQ=MONTHLY;BYDAY=2TU,-1FR;COUNT=5\nSUMMARY:Society\nEND:VEVENT\n'
+                      'BEGIN:VEVENT\nDTSTART:20270131T090000\nDURATION:PT1H\nRRULE:FREQ=MONTHLY;BYMONTHDAY=-1;INTERVAL= 2\nSUMMARY:Rent\nEND:VEVENT\n'
+                      'BEGIN:VEVENT\nDTSTART:20270301T233000Z\nDURATION:PT1H\nRRULE:FREQ=DAILY;UNTIL=20270402T090000Z\nSUMMARY:Night\nEND:VEVENT\nEND:VCALENDAR']
         code_lists = ['eco3112, FIN 3020; LAW3207\nECO3112', 'nothing here', 'ABC 1234 DEF5678X', '', 'MOD-1001 mod 1002']
         js = run_bridge({'dates': dates, 'times': times, 'durations': durations, 'confidence': conf, 'delimited': delimited, 'folds': folds,
-                         'slugs': slugs, 'codes': codes, 'utc': utc, 'codeLists': code_lists,
-                         'exams': [{'text': t, 'ref': TODAY} for t in messy_exams], 'topics': [{'text': t, 'exams': []} for t in messy_topics],
-                         'calendars': [{'text': t, 'from': FROM, 'to': FROM + 60} for t in messy_cals]})
+                         'slugs': slugs, 'codes': codes, 'utc': utc, 'codeLists': code_lists, 'sizes': [15, 60, 120, 150, 180, 300, 420, 500, 1000],
+                         'exams': [{'text': t, 'ref': TODAY} for t in messy_exams],
+                         'topics': [{'text': t, 'exams': []} for t in messy_topics] + [{'text': t, 'exams': alevel_exams} for t in ALEVEL_TOPICS],
+                         'calendars': [{'text': t, 'from': FROM, 'to': FROM + 200} for t in messy_cals]})
         self.compare([[m.parse_date(s, 'DMY', 20788), m.parse_date(s, 'MDY', 20788), m.find_date(s, 'DMY', 20788)] for s in dates], js['dates'], 'dates')
         self.compare([[m.parse_time(s), m.find_times(s), m.parse_clock(s)] for s in times], js['times'], 'times')
         self.compare([[m.parse_duration(s, ''), m.parse_duration(s, 'min'), m.parse_duration(s, 'hour')] for s in durations], js['durations'], 'durations')
@@ -212,14 +240,19 @@ class AgreementTest(unittest.TestCase):
         self.compare([[m.find_code(s), m.norm_code(s)] for s in codes], js['codes'], 'codes')
         self.compare([list(m.utc_to_london(a, b)) for a, b in utc], js['utc'], 'utc')
         self.compare([m.parse_code_list(s) for s in code_lists], js['codeLists'], 'code lists')
+        self.compare([m.size_label(n) for n in [15, 60, 120, 150, 180, 300, 420, 500, 1000]], js['sizes'], 'size labels')
         for i, t in enumerate(messy_exams):
             self.compare(m.read_exams(t, ref=TODAY), js['exams'][i], 'messy exams %d' % i)
         for i, t in enumerate(messy_topics):
             r = m.read_topics(t, exams=[])
             m.assign_topic_ids(r['topics'])
             self.compare(r, js['topics'][i], 'messy topics %d' % i)
+        for i, t in enumerate(ALEVEL_TOPICS):
+            r = m.read_topics(t, exams=alevel_exams)
+            m.assign_topic_ids(r['topics'])
+            self.compare(r, js['topics'][len(messy_topics) + i], 'A-level topics %d' % i)
         for i, t in enumerate(messy_cals):
-            self.compare(m.read_calendar(t, FROM, FROM + 60), js['calendars'][i], 'messy calendar %d' % i)
+            self.compare(m.read_calendar(t, FROM, FROM + 200), js['calendars'][i], 'messy calendar %d' % i)
 
     def test_damaged_project_files_are_cleaned_the_same_way(self):
         texts = [
@@ -230,6 +263,9 @@ class AgreementTest(unittest.TestCase):
             '"settled":["learn:x:1","nope",3],"overrides":[{"day":"2026-12-05","minutes":"60"},{"day":"bad"},{"day":"2026-12-05","minutes":0}],'
             '"busy":[{"day":"2026-12-05","start":600,"end":500},{"day":"2026-12-06","start":600,"end":700}],"planFrom":"2026-12-01","asOf":"nonsense"}',
             '{"exams":[]}', '[]', '{"app":"exam-season","version":99}',
+            '{"app":"exam-season","exams":[{"code":"ABC1234","day":99999999},{"code":"ABC1235","day":"2031-01-10"},{"code":"ABC1236","day":1e300}],'
+            '"topics":[{"code":"ABC1234","name":"Half \\ud83d emoji \\ud83d\\ude00 whole \\ude00"}],"planFrom":"2026-11-30"}',
+            '{"app":"exam-season","exams":[],"version":NaN}', '{"app":"exam-season","exams":[],"version":-Infinity}',
         ]
         js = run_bridge({'cleaned': texts})['cleaned']
         for i, t in enumerate(texts):

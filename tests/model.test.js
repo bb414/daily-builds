@@ -595,3 +595,93 @@ test('a large plan stays quick', function () {
   assert.ok(plan.sessions.length > 500);
   assert.ok(ms < 5000, 'took ' + ms + ' ms');
 });
+
+test('a statement of entry: board paper codes, AM and PM sessions and a Paper column', function () {
+  var text = 'Northfield Examinations Board\tStatement of entry\nCode\tSubject\tPaper\tDate\tSession\tDuration\n' +
+    '4821/1\tBiology\tPaper 1\t12/05/2027\tAM\t2h\n4821/2\tBiology\tPaper 2\t21/05/2027\tPM\t2h\n4835/1\tMathematics\tPaper 1\t13/05/2027\tPM\t2h\n';
+  var r = M.readExams(text, { ref: D(2027, 1, 1) });
+  assert.deepEqual(r.exams.map(function (e) { return [e.code, e.name, e.start, e.note]; }), [
+    ['4821', 'Biology Paper 1', 540, 'Paper code 4821/1'],
+    ['4835', 'Mathematics Paper 1', 810, 'Paper code 4835/1'],
+    ['4821', 'Biology Paper 2', 810, 'Paper code 4821/2']
+  ]);
+  var notes = r.messages.map(function (m) { return m.text; }).join(' ');
+  assert.match(notes, /3 exams give only a session \(AM or PM\), so morning is read as 09:00 and afternoon as 13:30/);
+  assert.match(notes, /Board paper codes such as 4821\/1 are read by subject \(4821\)/);
+  // Topics under a subject heading find the subject's papers.
+  var t = M.readTopics('Biology:\n- Cell biology (3, M)\nMathematics:\n- Proof (4, S)\n', { exams: r.exams });
+  assert.deepEqual(t.topics.map(function (x) { return x.code; }), ['4821', '4835']);
+  assert.equal(t.messages.filter(function (m) { return m.level === 'warn'; }).length, 0);
+  // Copied out of a PDF as loose lines.
+  var lines = M.readExams('4821/1 Biology Paper 1 12/05/2027 AM 2h\n4807/1 Economics Paper 1 15/05/2027 afternoon 2 hours\n', { ref: D(2027, 1, 1) });
+  assert.deepEqual(lines.exams.map(function (e) { return [e.code, e.name, e.start, e.duration]; }), [['4821', 'Biology Paper 1', 540, 120], ['4807', 'Economics Paper 1', 810, 120]]);
+});
+
+test('with time to spare, new topics go at a steady pace instead of all at the start', function () {
+  var exams = 'Code,Title,Date,Start,Duration\nBIO1001,Biology,12/05/2027,09:00,120\nMAT1001,Maths,14/05/2027,09:00,120\n';
+  var p = M.newProject(D(2027, 3, 1));
+  p.exams = M.readExams(exams, { ref: D(2027, 1, 1) }).exams;
+  p.topics = M.readTopics('BIO1001:\n- Cells (2, L)\n- Genes (3, M)\nMAT1001:\n- Calculus (2, L)\n- Vectors (3, M)\n', { exams: p.exams }).topics;
+  M.assignTopicIds(p.topics);
+  function lastLearn(pace) {
+    p.settings.pace = pace;
+    var q = M.cleanProject(JSON.parse(M.projectFile(p)), D(2027, 3, 1));
+    var plan = M.buildPlan(q), last = 0;
+    plan.sessions.forEach(function (se) { if (se.kind === 'learn') last = Math.max(last, se.day); });
+    return { last: last, plan: plan };
+  }
+  var early = lastLearn('early'), spread = lastLearn('spread');
+  assert.ok(early.last < D(2027, 3, 10), 'as early as possible: learnt in the first days');
+  assert.ok(spread.last > D(2027, 4, 1), 'steady: learning reaches into April');
+  spread.plan.exams.forEach(function (e) { assert.ok(spread.last <= e.aimBy, 'and still finishes before the aim'); });
+  // A full plan (the sample) is not slowed down.
+  var fresh = freshProject();
+  assert.equal(fresh.settings.pace, 'spread');
+  assert.equal(planOf(fresh).sessions.length, 302);
+});
+
+test('calendar repeats: UTC times follow the clock change, weekday lists, nth weekdays and exact end times', function () {
+  function cal(body) { return 'BEGIN:VCALENDAR\r\n' + body + 'END:VCALENDAR\r\n'; }
+  // A weekly 09:00 UTC lecture is 09:00 in winter and 10:00 in summer; a UTC skip still matches.
+  var r = M.readCalendar(cal('BEGIN:VEVENT\r\nUID:a\r\nDTSTART:20270322T090000Z\r\nDTEND:20270322T100000Z\r\nRRULE:FREQ=WEEKLY;COUNT=3\r\nEXDATE:20270405T090000Z\r\nSUMMARY:Lecture\r\nEND:VEVENT\r\n'), D(2027, 3, 1), D(2027, 4, 30));
+  assert.deepEqual(r.busy.map(function (b) { return [M.isoDay(b.day), b.start, b.end]; }), [['2027-03-22', 540, 600], ['2027-03-29', 600, 660]]);
+  // Every weekday, as a daily rule.
+  var w = M.readCalendar(cal('BEGIN:VEVENT\r\nDTSTART:20270301T120000\r\nDURATION:PT1H\r\nRRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20270307T235959Z\r\nSUMMARY:Shift\r\nEND:VEVENT\r\n'), D(2027, 3, 1), D(2027, 3, 31));
+  assert.equal(w.busy.length, 5);
+  // The second Tuesday and the last day of each month.
+  var m2 = M.readCalendar(cal('BEGIN:VEVENT\r\nDTSTART:20270112T180000\r\nDURATION:PT2H\r\nRRULE:FREQ=MONTHLY;BYDAY=2TU;COUNT=3\r\nSUMMARY:Society\r\nEND:VEVENT\r\n' +
+    'BEGIN:VEVENT\r\nDTSTART:20270131T090000\r\nDURATION:PT1H\r\nRRULE:FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=3\r\nSUMMARY:Rent\r\nEND:VEVENT\r\n'), D(2027, 1, 1), D(2027, 4, 30));
+  assert.deepEqual(m2.busy.filter(function (b) { return b.label === 'Society'; }).map(function (b) { return M.isoDay(b.day); }), ['2027-01-12', '2027-02-09', '2027-03-09']);
+  assert.deepEqual(m2.busy.filter(function (b) { return b.label === 'Rent'; }).map(function (b) { return M.isoDay(b.day); }), ['2027-01-31', '2027-02-28', '2027-03-31']);
+  // An end time earlier in the day than the event leaves that day out.
+  var u = M.readCalendar(cal('BEGIN:VEVENT\r\nDTSTART:20270301T180000Z\r\nDURATION:PT1H\r\nRRULE:FREQ=DAILY;UNTIL=20270303T090000Z\r\nSUMMARY:Gym\r\nEND:VEVENT\r\n'), D(2027, 3, 1), D(2027, 3, 31));
+  assert.equal(u.busy.length, 2);
+});
+
+test('times as written: 07:30 is morning, and shifts and availability are never moved to the afternoon', function () {
+  assert.equal(M.parseTime('07:30'), 450);
+  assert.equal(M.parseTime('2:00'), 840, 'an exam at "2:00" is in the afternoon');
+  assert.equal(M.parseClock('07:30:00'), 450);
+  assert.equal(M.parseClock('7:30am'), 450);
+  assert.equal(M.parseClock('7.30'), 450);
+  var rota = M.readBusy('Date,Start,Finish,Role\n05/03/2027,07:30:00,15:30:00,Cafe\n', D(2027, 3, 1), D(2027, 3, 31));
+  assert.deepEqual(rota.busy.map(function (b) { return [b.start, b.end]; }), [[450, 930]]);
+  var av = M.readAvailability('Day,From,To,Hours\nMon,07:00:00,12:00:00,4\n12 Jan,,,0\n', null, D(2027, 9, 1));
+  assert.equal(av.week[0].from, 420);
+  assert.equal(av.week[0].minutes, 240);
+  assert.equal(M.isoDay(av.overrides[0].day), '2028-01-12', 'a date with no year is read near today');
+});
+
+test('damaged project files: no NaN, no endless plans, no broken characters', function () {
+  var p = JSON.parse(M.projectFile(freshProject()));
+  p.exams[0].day = 99999999;
+  p.topics[0].name = 'Half an emoji \ud83d';
+  var q = M.readProject(JSON.stringify(p), FROM).project;
+  assert.equal(q.exams.filter(function (e) { return e.day === null; }).length, 1);
+  assert.equal(q.topics[0].name, 'Half an emoji \ufffd');
+  assert.equal(M.readProject('{"app":"exam-season","exams":[],"version":NaN}', FROM).project, null);
+  var far = M.readProject(JSON.stringify(Object.assign(p, { exams: [Object.assign(p.exams[1], { day: '2031-01-10' })] })), FROM).project;
+  var plan = planOf(far);
+  assert.equal(plan.sessions.length, 0);
+  assert.match(plan.notes.map(function (n) { return n.text; }).join(' '), /more than two years away/);
+});

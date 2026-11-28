@@ -67,6 +67,9 @@ var ExamSeason = (function () {
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 
+  // The first n characters of a text (an emoji counts as one).
+  function firstChars(s, n) { return Array.from(String(s)).slice(0, n).join(''); }
+
   M.trim = trim;
   M.slugify = slugify;
   M.scaleDecimal = scaleDecimal;
@@ -253,9 +256,10 @@ var ExamSeason = (function () {
   }
 
   // Read a clock time: "09:30", "9.30", "9:30am", "2pm", "1400", "noon".
-  // Hours from 1 to 7 without am or pm are taken as afternoon (nobody sits
-  // an exam at 2 in the morning).
-  function parseTime(text) {
+  // An exam time "2:00" (one digit, no am or pm, hours 1 to 7) is taken as
+  // the afternoon: nobody sits an exam at 2 in the morning. "07:30" and any
+  // clock time for availability or shifts (clock true) are read as written.
+  function parseTime(text, clock) {
     var s = lower(trim(text)).replace(/[ \t]+/g, '').replace(/\./g, function (c, i, all) {
       return i > 0 && /[0-9]/.test(all.charAt(i - 1)) && /[0-9]/.test(all.charAt(i + 1)) ? ':' : '';
     });
@@ -271,7 +275,7 @@ var ExamSeason = (function () {
         if (h < 1 || h > 12) return null;
         if (m[3] === 'pm' && h < 12) h += 12;
         if (m[3] === 'am' && h === 12) h = 0;
-      } else if (h >= 1 && h <= 7) {
+      } else if (!clock && m[1].length === 1 && h >= 1 && h <= 7) {
         h += 12;
       }
     } else {
@@ -451,24 +455,24 @@ var ExamSeason = (function () {
   }
 
   function htmlCellText(s) {
-    s = s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ');
+    s = s.replace(/<br[ \t\n\r\f\v]*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ');
     return squash(decodeEntities(s).replace(/[\t\r\n]+/g, ' '));
   }
 
-  function isHtmlTable(text) { return /<tr[\s>]/i.test(text) && /<t[dh][\s>]/i.test(text); }
+  function isHtmlTable(text) { return /<tr[ \t\n\r\f\v>]/i.test(text) && /<t[dh][ \t\n\r\f\v>]/i.test(text); }
 
   function htmlRows(text) {
     var src = String(text).replace(/<!--[\s\S]*?-->/g, function (c) { return c.replace(/[^\n]/g, ' '); });
-    var re = /<tr(?:\s[^>]*)?>/gi, m, starts = [];
+    var re = /<tr(?:[ \t\n\r\f\v][^>]*)?>/gi, m, starts = [];
     while ((m = re.exec(src)) !== null) starts.push([m.index, m.index + m[0].length]);
     var rows = [], pos = 0, line = 1;
     for (var i = 0; i < starts.length; i++) {
       for (; pos < starts[i][0]; pos++) if (src.charAt(pos) === '\n') line++;
       var endAt = i + 1 < starts.length ? starts[i + 1][0] : src.length;
       var chunk = src.slice(starts[i][1], endAt);
-      var close = chunk.search(/<\/tr\s*>/i);
+      var close = chunk.search(/<\/tr[ \t\n\r\f\v]*>/i);
       if (close >= 0) chunk = chunk.slice(0, close);
-      var cells = [], cre = /<t[dh](?:\s[^>]*)?>([\s\S]*?)(?:<\/t[dh]\s*>|(?=<t[dh][\s>])|$)/gi, cm;
+      var cells = [], cre = /<t[dh](?:[ \t\n\r\f\v][^>]*)?>([\s\S]*?)(?:<\/t[dh][ \t\n\r\f\v]*>|(?=<t[dh][ \t\n\r\f\v>])|$)/gi, cm;
       while ((cm = cre.exec(chunk)) !== null) cells.push(htmlCellText(cm[1]));
       rows.push({ cells: cells, line: line });
     }
@@ -627,7 +631,7 @@ var ExamSeason = (function () {
     code: ['module code', 'module', 'course code', 'unit code', 'code', 'paper code', 'subject code', 'module id', 'exam code', 'component code', 'assessment code', 'module ref', 'module no'],
     name: ['module title', 'module name', 'title', 'course title', 'course name', 'course', 'unit title', 'unit name', 'unit', 'paper', 'paper title', 'exam title', 'subject', 'module description', 'assessment title', 'examination', 'exam', 'exam name'],
     date: ['date', 'exam date', 'day date', 'date of exam', 'examination date', 'day', 'exam day', 'date and time', 'date time', 'start date', 'when'],
-    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at'],
+    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at', 'session', 'am pm', 'am or pm', 'exam session'],
     end: ['end', 'end time', 'finish', 'finish time', 'to', 'until', 'ends', 'exam end'],
     duration: ['duration', 'length', 'duration mins', 'duration minutes', 'duration hrs', 'duration hours', 'exam duration', 'mins', 'minutes', 'hours', 'hrs', 'length mins', 'length hours'],
     room: ['venue', 'room', 'location', 'building', 'hall', 'exam venue', 'exam room', 'place', 'centre', 'campus'],
@@ -663,6 +667,76 @@ var ExamSeason = (function () {
     return Object.keys(map).length >= 3;
   }
 
+  // School statements of entry give a session, not a time: morning exams
+  // start at 09:00 and afternoon exams at 13:30.
+  var SESSION_RE = /(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?(?= |$)/i;
+  var SESSION_END_RE = /(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?$/i;
+  function sessionMinute(word) {
+    var w = lower(word);
+    return w.charAt(0) === 'p' || w === 'afternoon' ? 810 : 540;
+  }
+  // The start a cell gives by its session word alone, or null.
+  function sessionStart(text) {
+    var m = SESSION_END_RE.exec(squash(text));
+    return m ? sessionMinute(m[2]) : null;
+  }
+  // A session word anywhere in a line: {min, index, length} or null.
+  function findSession(text) {
+    var m = SESSION_RE.exec(String(text));
+    if (!m) return null;
+    return { min: sessionMinute(m[2]), index: m.index + m[1].length, length: m[0].length - m[1].length };
+  }
+
+  // An exam board paper code such as 4821/1 or K431/02: the part before
+  // the slash names the subject, so its papers share one set of topics.
+  var BOARD_RE = /^([A-Z0-9]{4,7}) ?\/ ?([A-Z0-9]{1,4})$/;
+  var BOARD_FIND_RE = /(^|[ (])([A-Za-z0-9]{4,7}) ?\/ ?([A-Za-z0-9]{1,4})(?=[ ),;:]|$)/;
+  function boardCode(text) {
+    var m = BOARD_RE.exec(trim(String(text).toUpperCase()));
+    if (!m || !/[0-9]/.test(m[1])) return null;
+    return { code: m[1], paper: m[1] + '/' + m[2] };
+  }
+  function findBoardCode(text) {
+    var m = BOARD_FIND_RE.exec(String(text));
+    if (!m || !/[0-9]/.test(m[2])) return null;
+    var code = m[2].toUpperCase();
+    return { code: code, paper: code + '/' + m[3].toUpperCase(), index: m.index + m[1].length, length: m[0].length - m[1].length };
+  }
+
+  // A "Paper" column beside a subject column: its text is added to the
+  // title so each paper has its own name ("Biology Paper 1").
+  var PART_HEADERS = ['paper', 'paper number', 'paper no', 'paper name', 'part'];
+  function paperColumn(map, header) {
+    var used = {};
+    Object.keys(map).forEach(function (k) { used[map[k]] = true; });
+    for (var i = 0; i < header.length && map.part === undefined; i++) {
+      if (!used[i] && PART_HEADERS.indexOf(normHeader(header[i])) >= 0) map.part = i;
+    }
+    if (map.part === undefined && map.name !== undefined && normHeader(header[map.name]) === 'paper') {
+      for (var j = 0; j < header.length; j++) {
+        if (!used[j] && normHeader(header[j]) === 'subject') { map.part = map.name; map.name = j; break; }
+      }
+    }
+  }
+
+  function withPart(name, part) {
+    part = squash(part);
+    if (!part || lower(name).indexOf(lower(part)) >= 0) return name;
+    return trim(name + ' ' + (/^[0-9][0-9A-Za-z]{0,2}$/.test(part) ? 'Paper ' + part : part));
+  }
+
+  // One message for each kind of guess made across the whole timetable.
+  function examGuessMessages(out) {
+    var bySession = 0, first = null;
+    out.exams.forEach(function (e) {
+      if (e.fromSession) bySession++;
+      if (e.paper && first === null) first = e;
+    });
+    if (bySession) out.messages.push({ level: 'info', text: plural(bySession, 'exam') + (bySession === 1 ? ' gives' : ' give') + ' only a session (AM or PM), so morning is read as 09:00 and afternoon as 13:30, the usual start times. Check the exact times on your statement of entry.' });
+    if (first) out.messages.push({ level: 'info', text: 'Board paper codes such as ' + first.paper + ' are read by subject (' + first.code + '), so all papers in a subject share its topics. Each paper code is kept in its notes.' });
+    out.exams.forEach(function (e) { delete e.fromSession; delete e.paper; });
+  }
+
   // Read an exam timetable from text: a portal CSV or TSV export, a table
   // pasted from a web page, loose lines, or an .ics calendar.
   // Returns {exams, messages, format, rows}.
@@ -671,14 +745,14 @@ var ExamSeason = (function () {
     var ref = opts.ref === undefined || opts.ref === null ? dayFromYmd(2026, 9, 1) : opts.ref;
     text = String(text === null || text === undefined ? '' : text);
     var out = { exams: [], messages: [], format: '', rows: 0, skipped: 0 };
-    if (/^\s*%PDF/.test(text)) {
+    if (/^[ \t\n\r\f\v]*%PDF/.test(text)) {
       out.format = 'pdf';
       out.messages.push({ level: 'error', text: 'This is a PDF file. Open it, select the timetable table, copy it and paste it here, or download the CSV or calendar (.ics) version from your student portal.' });
       return out;
     }
-    if (/^\s*PK/.test(text) && text.indexOf('[Content_Types]') >= 0) {
+    if (/^[ \t\n\r\f\v]*PK/.test(text) && text.indexOf('[Content_Types]') >= 0) {
       out.format = 'xlsx';
-      out.messages.push({ level: 'error', text: 'This looks like an Excel workbook. Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.' });
+      out.messages.push({ level: 'error', text: 'This looks like a spreadsheet workbook (.xlsx). Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.' });
       return out;
     }
     if (/BEGIN:VCALENDAR/i.test(text)) return readExamsIcs(text, out, opts);
@@ -708,6 +782,7 @@ var ExamSeason = (function () {
     }
     out.format = table.delim === 'html' ? 'html' : table.delim === '\t' ? 'table' : table.delim === '  ' ? 'spaced' : 'csv';
     var header = rows[headerAt].cells;
+    paperColumn(map, header);
     var unit = map.duration !== undefined ? durationUnit(header[map.duration]) : '';
     var orderInfo = dateOrderOf(rows.slice(headerAt + 1).map(function (r) { return cell(r.cells, map.date); }));
     var order = orderInfo.order;
@@ -723,7 +798,7 @@ var ExamSeason = (function () {
       }
       var ex = examFromCells(cells, map, unit, ref, line, out.messages, order);
       if (!ex) { out.skipped++; continue; }
-      var key = ex.code + '|' + (ex.day === null ? 'tbc' : ex.day) + '|' + ex.start;
+      var key = ex.code + '|' + (ex.day === null ? 'tbc' : ex.day) + '|' + ex.start + (ex.paper ? '|' + ex.paper : '');
       if (seen[key]) {
         out.skipped++;
         out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' repeats ' + ex.code + (ex.day === null ? '' : ' on ' + fmtShort(ex.day)) + ', so it was skipped.' });
@@ -739,16 +814,18 @@ var ExamSeason = (function () {
     if (blank > 0) out.messages.push({ level: 'info', text: plural(blank, 'blank row') + ' skipped.' });
     if (headerAt > 0) out.messages.push({ level: 'info', text: 'The table starts at line ' + rows[headerAt].line + '; the ' + plural(headerAt, 'line') + ' above it were read as a title, not exams.' });
     dateOrderMessages(orderInfo, out);
+    examGuessMessages(out);
     finishExams(out);
     return out;
   }
 
   function examFromCells(cells, map, unit, ref, line, messages, order) {
     var codeCell = cell(cells, map.code), nameCell = cell(cells, map.name);
-    var code = '', name = '';
+    var code = '', name = '', board = null;
     if (codeCell) {
       var f = findCode(codeCell.toUpperCase());
-      code = f ? f.code : codeCell.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+      board = f ? null : boardCode(codeCell);
+      code = f ? f.code : board ? board.code : codeCell.toUpperCase().replace(/[^A-Z0-9]+/g, '');
       if (f && !nameCell) name = stripCode(codeCell, f.code);
     }
     if (nameCell) {
@@ -760,7 +837,10 @@ var ExamSeason = (function () {
       messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' has no module code or title, so it was skipped.' });
       return null;
     }
+    var partCell = cell(cells, map.part);
+    if (!code && boardCode(partCell)) { board = boardCode(partCell); code = board.code; partCell = ''; }
     if (!code) code = slugify(name).toUpperCase().replace(/-/g, '').slice(0, 10);
+    name = withPart(name || code, partCell);
     var dateCell = cell(cells, map.date);
     var day = null, tbc = false;
     var lowDate = lower(squash(dateCell));
@@ -793,6 +873,12 @@ var ExamSeason = (function () {
       }
     }
     if (start === null) { start = startFromDate; if (end === null) end = endFromDate; }
+    var fromSession = false;
+    if (start === null) {
+      start = startCell ? sessionStart(startCell) : null;
+      if (start === null && day !== null) start = sessionStart(dateCell);
+      fromSession = start !== null;
+    }
     if (endCell) {
       end = parseTime(endCell);
       if (end === null) { var te = findTimes(endCell); if (te.length) end = te[0].min; }
@@ -816,11 +902,16 @@ var ExamSeason = (function () {
     duration = clamp(duration, 15, 1440);
     var type = cell(cells, map.type), notes = cell(cells, map.notes);
     var resit = /\b(resit|re-sit|referral|reassessment|re-assessment|deferred|supplementary)\b/i.test(type + ' ' + notes + ' ' + nameCell);
-    return {
-      id: '', code: code, name: name || code, day: day, start: start, duration: duration,
+    var note = squash(notes);
+    if (board) note = 'Paper code ' + board.paper + (note ? '; ' + note : '');
+    var ex = {
+      id: '', code: code, name: name, day: day, start: start, duration: duration,
       room: squash(cell(cells, map.room)), seat: squash(cell(cells, map.seat)), type: squash(type),
-      resit: resit, tbc: tbc, note: squash(notes), line: line
+      resit: resit, tbc: tbc, note: note, line: line
     };
+    if (fromSession) ex.fromSession = true;
+    if (board) ex.paper = board.paper;
+    return ex;
   }
 
   // Lines with no header row: look for a module code, a date and times.
@@ -831,11 +922,12 @@ var ExamSeason = (function () {
     for (var i = 0; i < lines.length; i++) {
       var raw = squash(lines[i]), line = i + 1;
       if (!raw) continue;
-      var code = findCode(raw);
+      var code = findCode(raw), paper = null;
+      if (!code) { paper = findBoardCode(raw); code = paper; }
       var date = findDate(raw, 'DMY', ref);
       if (!code && !date) {
         if (out.exams.length === 0) continue;
-        out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' was not read: no module code or date in "' + raw.slice(0, 60) + '".' });
+        out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' was not read: no module code or date in "' + firstChars(raw, 60) + '".' });
         continue;
       }
       out.rows++;
@@ -860,6 +952,11 @@ var ExamSeason = (function () {
       for (var k = times.length - 1; k >= 0 && k >= times.length - 2; k--) {
         rest = rest.slice(0, times[k].index) + ' ' + rest.slice(times[k].index + times[k].length);
       }
+      var session = times.length ? null : findSession(rest);
+      if (session) {
+        start = session.min;
+        rest = rest.slice(0, session.index) + ' ' + rest.slice(session.index + session.length);
+      }
       var duration = null;
       var dm = /(?:^|[^0-9a-z])(\(?[0-9]+(?:\.[0-9]+)? ?(?:h|hr|hrs|hours?)\.?(?: ?[0-9]+ ?(?:m|min|mins|minutes?))?\)?|\(?[0-9]+ ?(?:min|mins|minutes)\)?)(?![a-z])/i.exec(rest);
       if (dm) {
@@ -870,8 +967,10 @@ var ExamSeason = (function () {
       if (duration === null) duration = 120;
       var name = trim(squash(rest.replace(/\b(tbc|tba|to be confirmed)\b/ig, ' ').replace(/[\-\u2013|,;:]+( |$)/g, ' ').replace(/[()]/g, ' ')));
       var resit = /\b(resit|re-sit|referral|reassessment)\b/i.test(raw);
-      var ex = { id: '', code: code.code, name: name || code.code, day: day, start: start, duration: clamp(duration, 15, 1440), room: '', seat: '', type: resit ? 'Resit' : '', resit: resit, tbc: tbc, note: '', line: line };
-      var key = ex.code + '|' + (day === null ? 'tbc' : day) + '|' + start;
+      var ex = { id: '', code: code.code, name: name || code.code, day: day, start: start, duration: clamp(duration, 15, 1440), room: '', seat: '', type: resit ? 'Resit' : '', resit: resit, tbc: tbc, note: paper ? 'Paper code ' + paper.paper : '', line: line };
+      if (session) ex.fromSession = true;
+      if (paper) ex.paper = paper.paper;
+      var key = ex.code + '|' + (day === null ? 'tbc' : day) + '|' + start + (paper ? '|' + paper.paper : '');
       if (seen[key]) { out.skipped++; continue; }
       seen[key] = true;
       out.exams.push(ex);
@@ -881,6 +980,7 @@ var ExamSeason = (function () {
     } else {
       out.messages.push({ level: 'info', text: 'No header row was found, so each line was read by looking for a module code, a date and times.' });
     }
+    examGuessMessages(out);
     finishExams(out);
     return out;
   }
@@ -903,7 +1003,7 @@ var ExamSeason = (function () {
       var f = findCode(e.summary) || findCode(e.description);
       var code = f ? f.code : slugify(e.summary).toUpperCase().replace(/-/g, '').slice(0, 10);
       var name = f && findCode(e.summary) ? stripCode(e.summary, code) : squash(e.summary);
-      name = trim(name.replace(/\b(examination|exam)\b\s*$/i, '').replace(/[\-:\u2013 ]+$/, '')) || code;
+      name = trim(name.replace(/\b(examination|exam)\b[ \t\n\r\f\v]*$/i, '').replace(/[\-:\u2013 ]+$/, '')) || code;
       var dur = 120;
       if (e.end) dur = (e.end.day - e.start.day) * 1440 + e.end.min - e.start.min;
       else if (e.durationMin !== null) dur = e.durationMin;
@@ -1084,13 +1184,17 @@ var ExamSeason = (function () {
     if (f) return f.code;
     var t = normHeader(text);
     if (!t) return null;
-    var best = null;
+    // An exact title wins, then a title that starts with the text
+    // ("Biology" for "Biology Paper 1"), then one that contains it.
+    var best = null, bestRank = 3;
     for (var i = 0; i < exams.length; i++) {
       var n = normHeader(exams[i].name);
       if (!n) continue;
-      if (t === n || (' ' + t + ' ').indexOf(' ' + n + ' ') >= 0 || (t.length >= 6 && (' ' + n + ' ').indexOf(' ' + t + ' ') >= 0)) {
-        if (best === null) best = exams[i].code;
-      }
+      var rank = 3;
+      if (t === n) rank = 0;
+      else if (n.indexOf(t + ' paper') === 0 || (t.length >= 6 && n.indexOf(t + ' ') === 0)) rank = 1;
+      else if ((' ' + t + ' ').indexOf(' ' + n + ' ') >= 0 || (t.length >= 6 && (' ' + n + ' ').indexOf(' ' + t + ' ') >= 0)) rank = 2;
+      if (rank < bestRank) { best = exams[i].code; bestRank = rank; }
     }
     return best;
   }
@@ -1102,7 +1206,7 @@ var ExamSeason = (function () {
     var exams = opts.exams || [];
     text = String(text === null || text === undefined ? '' : text);
     var out = { topics: [], messages: [], format: '', rows: 0, skipped: 0 };
-    if (/^\s*%PDF/.test(text)) {
+    if (/^[ \t\n\r\f\v]*%PDF/.test(text)) {
       out.messages.push({ level: 'error', text: 'This is a PDF file. Copy the list of topics out of it and paste it here instead.' });
       return out;
     }
@@ -1126,7 +1230,7 @@ var ExamSeason = (function () {
     var add = function (code, name, conf, size, mode, line, note) {
       out.rows++;
       if (!name) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' has no topic name, so it was skipped.' }); return; }
-      if (!code) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' ("' + name.slice(0, 40) + '") is not under a module, so it was skipped. Put the module code before it or on a heading line.' }); return; }
+      if (!code) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' ("' + firstChars(name, 40) + '") is not under a module, so it was skipped. Put the module code before it or on a heading line.' }); return; }
       if (conf === null) { noConf++; conf = 3; }
       if (size === null) { noSize++; size = SIZES.m; }
       out.topics.push({ id: '', code: code, name: name, conf: conf, size: size, mode: mode || 'full', note: note || '', line: line });
@@ -1198,7 +1302,7 @@ var ExamSeason = (function () {
           var hc = findCode(htxt);
           current = matchModule(htxt, exams) || (hc ? hc.code : normCode(htxt));
           if (!matchModule(htxt, exams) && !hc) {
-            out.messages.push({ level: 'warn', line: ln, text: 'Line ' + ln + ': the heading "' + htxt.slice(0, 40) + '" has no module code and does not match an exam title, so its topics are filed under ' + current + '.' });
+            out.messages.push({ level: 'warn', line: ln, text: 'Line ' + ln + ': the heading "' + firstChars(htxt, 40) + '" has no module code and does not match an exam title, so its topics are filed under ' + current + '.' });
           }
           continue;
         }
@@ -1327,7 +1431,7 @@ var ExamSeason = (function () {
     var tz = params.TZID ? lower(params.TZID) : '';
     if (m[7] || tz === 'utc' || tz === 'etc/utc' || tz === 'z') {
       var t = utcToLondon(day, min);
-      return { day: t[0], min: t[1], allDay: false };
+      return { day: t[0], min: t[1], allDay: false, uday: day, umin: min };
     }
     if (tz && LONDONISH.indexOf(tz) < 0 && zones) zones[params.TZID] = true;
     return { day: day, min: min, allDay: false };
@@ -1389,42 +1493,89 @@ var ExamSeason = (function () {
     return out;
   }
 
+  // The whole number a piece of text starts with, or null.
+  function leadInt(v) {
+    var m = /^[ \t]*([+\-]?[0-9]+)/.exec(String(v));
+    return m ? parseInt(m[1], 10) : null;
+  }
+
   function parseRrule(value, zones) {
-    var r = { freq: '', interval: 1, count: null, until: null, byday: [], bymonthday: null };
+    var r = { freq: '', interval: 1, count: null, until: null, byday: [], bydayN: [], bymonthday: null };
     value.split(';').forEach(function (part) {
       var eq = part.indexOf('=');
       if (eq < 0) return;
       var k = part.slice(0, eq).toUpperCase(), v = part.slice(eq + 1);
       if (k === 'FREQ') r.freq = v.toUpperCase();
-      else if (k === 'INTERVAL') r.interval = Math.max(1, parseInt(v, 10) || 1);
-      else if (k === 'COUNT') r.count = Math.max(0, parseInt(v, 10) || 0);
+      else if (k === 'INTERVAL') r.interval = Math.max(1, leadInt(v) || 1);
+      else if (k === 'COUNT') r.count = Math.max(0, leadInt(v) || 0);
       else if (k === 'UNTIL') r.until = icsTime(v, {}, zones);
       else if (k === 'BYDAY') {
         v.split(',').forEach(function (d) {
           var mm = /([+\-]?[0-9]*)(MO|TU|WE|TH|FR|SA|SU)$/i.exec(trim(d));
-          if (mm) r.byday.push(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(mm[2].toUpperCase()));
+          if (!mm) return;
+          var wd = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(mm[2].toUpperCase());
+          r.byday.push(wd);
+          r.bydayN.push([leadInt(mm[1]) || 0, wd]);
         });
-      } else if (k === 'BYMONTHDAY') r.bymonthday = parseInt(v, 10) || null;
+      } else if (k === 'BYMONTHDAY') r.bymonthday = leadInt(v) || null;
     });
     r.byday.sort(function (a, b) { return a - b; });
     return r;
   }
 
-  // The start days of a recurring event's occurrences, up to lastDay.
+  // The days of the month a monthly rule picks: "2TU" is the second
+  // Tuesday, "-1FR" the last Friday, BYMONTHDAY=-1 the last day.
+  function monthDays(y, m, r, dom0) {
+    var dim = daysInMonth(y, m), out = [];
+    if (r.bydayN.length) {
+      var first = makeDay(y, m, 1);
+      r.bydayN.forEach(function (bd) {
+        var all = [];
+        for (var d = first + ((bd[1] - weekday(first)) % 7 + 7) % 7; d < first + dim; d += 7) all.push(d);
+        if (bd[0] === 0) all.forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+        else {
+          var pick = bd[0] > 0 ? all[bd[0] - 1] : all[all.length + bd[0]];
+          if (pick !== undefined && out.indexOf(pick) < 0) out.push(pick);
+        }
+      });
+      return out.sort(function (a, b) { return a - b; });
+    }
+    var dom = r.bymonthday === null ? dom0 : r.bymonthday < 0 ? dim + 1 + r.bymonthday : r.bymonthday;
+    var dd = dom >= 1 && dom <= dim ? makeDay(y, m, dom) : null;
+    return dd === null ? [] : [dd];
+  }
+
+  // The start days of a recurring event's occurrences, up to lastDay. An
+  // event written in UTC repeats at the same UTC time, so its days are
+  // counted in UTC and turned into UK time one by one (see occurrences).
   function occurrenceDays(ev, lastDay, messages) {
-    var r = ev.rrule, start = ev.start.day, out = [];
+    var r = ev.rrule, utc = ev.start.uday !== undefined, out = [];
+    var start = utc ? ev.start.uday : ev.start.day, smin = utc ? ev.start.umin : ev.start.min;
     if (!r || !r.freq) return [start];
-    var untilDay = r.until ? r.until.day : null;
-    var limit = 3000, n = 0;
+    var u = r.until, limit = 3000, n = 0;
+    function beforeUntil(d) {
+      if (!u) return true;
+      if (u.allDay || ev.start.allDay) return d <= u.day;
+      var both = utc && u.uday !== undefined;
+      var ud = both ? u.uday : u.day, um = both ? u.umin : u.min;
+      return d < ud || (d === ud && smin <= um);
+    }
     function take(d) {
-      if (untilDay !== null && d > untilDay) return false;
+      if (!beforeUntil(d)) return false;
       if (r.count !== null && n >= r.count) return false;
       n++;
       if (d <= lastDay) out.push(d);
       return d <= lastDay;
     }
     if (r.freq === 'DAILY') {
-      for (var k = 0; k < limit; k++) if (!take(start + k * r.interval)) break;
+      for (var k = 0; k < limit * 7; k++) {
+        var dk = start + k * r.interval;
+        if (r.byday.length && r.byday.indexOf(weekday(dk)) < 0) {
+          if (dk > lastDay) break;
+          continue;
+        }
+        if (!take(dk)) break;
+      }
     } else if (r.freq === 'WEEKLY') {
       var days = r.byday.length ? r.byday : [weekday(start)];
       var weekStart = start - weekday(start);
@@ -1437,14 +1588,14 @@ var ExamSeason = (function () {
         }
       }
     } else if (r.freq === 'MONTHLY') {
-      var t = ymdFromDay(start), dom = r.bymonthday || t[2];
-      for (var mo = 0; mo < limit; mo++) {
+      var t = ymdFromDay(start), stop = false;
+      for (var mo = 0; mo < limit && !stop; mo++) {
         var total = t[1] - 1 + mo * r.interval;
-        var y = t[0] + floorDiv(total, 12), mth = total % 12 + 1;
-        var dd = makeDay(y, mth, dom);
-        if (dd === null) continue;
-        if (dd < start) continue;
-        if (!take(dd)) break;
+        var list = monthDays(t[0] + floorDiv(total, 12), total % 12 + 1, r, t[2]);
+        for (var q = 0; q < list.length; q++) {
+          if (list[q] < start) continue;
+          if (!take(list[q])) { stop = true; break; }
+        }
       }
     } else if (r.freq === 'YEARLY') {
       var ty = ymdFromDay(start);
@@ -1458,6 +1609,14 @@ var ExamSeason = (function () {
       return [start];
     }
     return out;
+  }
+
+  // Each occurrence as [day, minute] in UK time.
+  function occurrences(ev, lastDay, messages) {
+    var utc = ev.start.uday !== undefined;
+    return occurrenceDays(ev, utc ? lastDay + 1 : lastDay, messages).map(function (d) {
+      return utc ? utcToLondon(d, ev.start.umin) : [d, ev.start.min];
+    });
   }
 
   // Busy times from a calendar between two days, as one-day pieces.
@@ -1481,16 +1640,18 @@ var ExamSeason = (function () {
       out.events++;
       var label = e.summary || 'Busy';
       var len;
-      if (e.end) len = (e.end.day - e.start.day) * 1440 + (e.end.min - e.start.min);
+      if (e.end && e.start.uday !== undefined && e.end.uday !== undefined) len = (e.end.uday - e.start.uday) * 1440 + (e.end.umin - e.start.umin);
+      else if (e.end) len = (e.end.day - e.start.day) * 1440 + (e.end.min - e.start.min);
       else if (e.durationMin !== null) len = e.durationMin;
       else len = e.start.allDay ? 1440 : 60;
       if (len <= 0) len = e.start.allDay ? 1440 : 60;
-      var days = e.recurrenceId ? [e.start.day] : occurrenceDays(e, toDay, out.messages);
-      days.forEach(function (d) {
-        if (!e.recurrenceId && e.uid && moved[e.uid + '|' + d + '|' + (e.start.allDay ? 0 : e.start.min)]) return;
+      var occ = e.recurrenceId ? [[e.start.day, e.start.min]] : occurrences(e, toDay, out.messages);
+      occ.forEach(function (o) {
+        var d = o[0], smin = o[1];
+        if (!e.recurrenceId && e.uid && moved[e.uid + '|' + d + '|' + (e.start.allDay ? 0 : smin)]) return;
         for (var x = 0; x < e.exdates.length; x++) {
           var xd = e.exdates[x];
-          if (xd.day === d && (xd.allDay || e.start.allDay || xd.min === e.start.min)) return;
+          if (xd.day === d && (xd.allDay || e.start.allDay || xd.min === smin)) return;
         }
         if (e.start.allDay) {
           if (allDayEvents.indexOf(label) < 0) allDayEvents.push(label);
@@ -1500,7 +1661,7 @@ var ExamSeason = (function () {
           }
           return;
         }
-        var t0 = d * 1440 + e.start.min, t1 = t0 + len;
+        var t0 = d * 1440 + smin, t1 = t0 + len;
         while (t0 < t1) {
           var dd = floorDiv(t0, 1440), dayEnd = (dd + 1) * 1440;
           var piece = Math.min(t1, dayEnd);
@@ -1636,7 +1797,7 @@ var ExamSeason = (function () {
 
   var DEFAULT_SETTINGS = {
     learnMin: 50, reviewMin: 25, breakMin: 10, taperDays: 3, papers: 2, maxShare: 50,
-    reviewShare: 40, busyGap: 15, examGap: 45, examDay: 'after', paperMax: 180
+    reviewShare: 40, busyGap: 15, examGap: 45, examDay: 'after', paperMax: 180, pace: 'spread'
   };
   var REVIEW_GAPS = [1, 3, 7, 14, 28];
   var CONF_PCT = [150, 125, 100, 75, 50];
@@ -1677,12 +1838,18 @@ var ExamSeason = (function () {
     return d;
   }
 
-  function strOr(v, d) { return typeof v === 'string' ? v : d; }
+  // Strings from a project file, with any broken half of an emoji (a lone
+  // surrogate) replaced, so every file written from them is valid text.
+  var LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+  function strOr(v, d) { return typeof v === 'string' ? v.replace(LONE_SURROGATE, '\uFFFD') : d; }
 
+  // A day from a project file, kept only if it falls between 2000 and 2099.
+  var DAY_MIN = 10957, DAY_MAX = 47481;
   function dayOr(v, d) {
-    if (typeof v === 'number' && isFinite(v)) return Math.floor(v);
-    if (typeof v === 'string') { var x = fromIso(v); if (x !== null) return x; }
-    return d;
+    var x = null;
+    if (typeof v === 'number' && isFinite(v)) x = Math.floor(v);
+    else if (typeof v === 'string') x = fromIso(v);
+    return x !== null && x >= DAY_MIN && x <= DAY_MAX ? x : d;
   }
 
   function cleanSettings(s) {
@@ -1699,6 +1866,7 @@ var ExamSeason = (function () {
     o.examGap = clamp(intOr(s.examGap, o.examGap), 0, 180);
     o.examDay = ['after', 'off', 'normal'].indexOf(s.examDay) >= 0 ? s.examDay : o.examDay;
     o.paperMax = clamp(intOr(s.paperMax, o.paperMax), 30, 300);
+    o.pace = ['spread', 'early'].indexOf(s.pace) >= 0 ? s.pace : o.pace;
     return o;
   }
   M.cleanSettings = cleanSettings;
@@ -1822,13 +1990,12 @@ var ExamSeason = (function () {
     if (s === '24:00' || s === 'midnight') return 1440;
     var m = /^([0-9]{1,2})$/.exec(s);
     if (m) { var h = parseInt(m[1], 10); return h <= 24 ? h * 60 : null; }
-    var m2 = /^([0-9]{1,2})[:.]([0-9]{2})$/.exec(s);
+    var m2 = /^([0-9]{1,2})[:.]([0-9]{2})(?::[0-9]{2})?$/.exec(s);
     if (m2) {
       var hh = parseInt(m2[1], 10), mm = parseInt(m2[2], 10);
       return hh <= 23 && mm <= 59 ? hh * 60 + mm : null;
     }
-    var t = parseTime(s);
-    return t;
+    return parseTime(s, true);
   }
   M.parseClock = parseClock;
 
@@ -1856,7 +2023,8 @@ var ExamSeason = (function () {
   // Read a weekly template and dated changes. Rows name a weekday (or
   // "weekdays", "weekends") or a date or date range, with the window and
   // the hours you can revise that day ("off" or 0 blocks the day).
-  function readAvailability(text, base) {
+  // ref is the day a date with no year is read near (usually today).
+  function readAvailability(text, base, ref) {
     var out = { week: (base || defaultWeek()).map(function (w) { return { from: w.from, to: w.to, minutes: w.minutes }; }), overrides: [], messages: [], rows: 0, weekRows: 0 };
     if (looksBinary(text)) {
       out.messages.push({ level: 'error', text: BINARY_MESSAGE });
@@ -1902,7 +2070,7 @@ var ExamSeason = (function () {
         continue;
       }
       var range = dayTxt.split(/ +(?:-|–|to|until) +|–/);
-      var d1 = parseDate(range[0], 'DMY', null), d2 = range.length > 1 ? parseDate(range[1], 'DMY', null) : d1;
+      var d1 = parseDate(range[0], 'DMY', ref), d2 = range.length > 1 ? parseDate(range[1], 'DMY', ref) : d1;
       if (d1 === null || d2 === null) {
         out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': "' + dayTxt + '" is not a weekday or a date, so the row was skipped.' });
         continue;
@@ -2040,12 +2208,14 @@ var ExamSeason = (function () {
     var history = project.done.filter(function (d) { return settledSet[d.id]; });
 
     var dated = project.exams.filter(function (e) { return e.day !== null; });
-    var upcoming = dated.filter(function (e) { return e.day >= from; });
+    // Plans reach two years ahead at most; a later date is almost always a typo.
+    var upcoming = dated.filter(function (e) { return e.day >= from && e.day <= from + 730; });
     project.exams.forEach(function (e) {
       if (e.day === null) notes.push({ level: 'warn', exam: e.id, text: e.code + ' ' + e.name + ': date to be confirmed, so it is not planned yet. Add the date when it is published.' });
     });
     dated.forEach(function (e) {
       if (e.day < from) notes.push({ level: 'info', exam: e.id, text: e.code + ' ' + e.name + ' was on ' + fmtShort(e.day) + ', before this plan starts, so it is not planned.' });
+      if (e.day > from + 730) notes.push({ level: 'warn', exam: e.id, text: e.code + ' ' + e.name + ' is on ' + fmtDay(e.day) + ', more than two years away, so it is not planned. Check the year.' });
     });
     var plan = {
       from: from, fromMin: project.planFromMin, last: from, settings: s, exams: [], days: [], sessions: [], notes: notes,
@@ -2234,6 +2404,22 @@ var ExamSeason = (function () {
     plan.exams.forEach(function (e) { remaining[e.id] = 0; });
     states.forEach(function (st) { if (st.done < st.count) remaining[st.exam.id] += (st.count - st.done) * st.len; });
 
+    // With time to spare, a module's new learning goes at a steady pace
+    // that would finish it a little (a quarter) faster than its aim needs,
+    // instead of filling the first weeks and leaving the last ones empty.
+    // Time to spare means the learning and the first three reviews still
+    // to do take under four fifths of the free time before the aim, for
+    // the module and for the plan as a whole.
+    var credit = {}, lastAim = from;
+    plan.exams.forEach(function (e) { credit[e.id] = 0; lastAim = Math.max(lastAim, e.aimBy); });
+    function needLeft() {
+      var need = {}, total = 0;
+      plan.exams.forEach(function (e) { need[e.id] = Math.max(0, remaining[e.id]); });
+      states.forEach(function (st) { need[st.exam.id] += Math.max(0, Math.min(3, st.rmax) - st.reviews) * s.reviewMin; });
+      plan.exams.forEach(function (e) { total += need[e.id]; });
+      return { byExam: need, total: total };
+    }
+
     // Fill each day in time order.
     for (var x = 0; x < nDays; x++) {
       fillDay(days[x], x);
@@ -2253,6 +2439,18 @@ var ExamSeason = (function () {
         return { exam: e, list: list, pos: 0 };
       });
       var finalTurn = 0;
+      var paced = {};
+      var need = s.pace === 'spread' && !dd.reserved.length ? needLeft() : null;
+      if (need && need.total * 5 < capBetween(x, Math.min(lastAim - from, nDays - 1)) * 4) {
+        var free0 = Math.max(0, dd.cap - dd.used);
+        plan.exams.forEach(function (e) {
+          if (remaining[e.id] <= 0 || d > e.aimBy) return;
+          var span = capBetween(x, Math.min(e.aimBy - from, nDays - 1));
+          if (span <= 0 || need.byExam[e.id] * 5 >= span * 4) return;
+          credit[e.id] += ceilDiv(remaining[e.id] * free0 * 5, span * 4);
+          paced[e.id] = true;
+        });
+      }
 
       function candidates() {
         var out = [];
@@ -2271,7 +2469,7 @@ var ExamSeason = (function () {
           var st2 = states[i];
           var e = st2.exam;
           if (st2.done < st2.count) {
-            if (d <= e.learnBy) {
+            if (d <= e.learnBy && !(paced[e.id] && credit[e.id] <= 0)) {
               anyLearn = true;
               out.push({ kind: 'learn', st: st2, exam: e, code: e.code, len: st2.len, today: st2.lastDay === d });
             }
@@ -2358,6 +2556,7 @@ var ExamSeason = (function () {
           st.done++;
           st.planned++;
           remaining[e.id] -= c.len;
+          if (paced[e.id]) credit[e.id] -= c.len;
           if (st.done >= st.count) {
             st.learnedDay = d;
             st.due = st.step < st.rmax ? d + REVIEW_GAPS[Math.min(st.step, REVIEW_GAPS.length - 1)] : null;
@@ -2913,7 +3112,9 @@ var ExamSeason = (function () {
         lines.push('BEGIN:VALARM');
         lines.push('ACTION:DISPLAY');
         lines.push('DESCRIPTION:' + icsEscape('Exam tomorrow: ' + e.code + ' ' + e.name));
-        lines.push('TRIGGER:-PT18H');
+        // At 18:00 the evening before, whatever time the exam starts.
+        var before = e.start + 360;
+        lines.push('TRIGGER:-PT' + floorDiv(before, 60) + 'H' + (before % 60 ? before % 60 + 'M' : ''));
         lines.push('END:VALARM');
         lines.push('END:VEVENT');
       });
@@ -2939,7 +3140,7 @@ var ExamSeason = (function () {
     list.forEach(function (se) { mins += se.min; });
     if (list.length) lines.push('  ' + plural(list.length, 'session') + ', ' + fmtDur(mins) + ' of revision.');
     plan.exams.forEach(function (e) {
-      if (e.day > day) lines.push('  ' + e.code + ' in ' + plural(e.day - day, 'day') + ' (' + fmtShort(e.day) + ')');
+      if (e.day > day) lines.push('  ' + e.code + ' ' + e.name + ' in ' + plural(e.day - day, 'day') + ' (' + fmtShort(e.day) + ')');
     });
     return lines.join('\n') + '\n';
   }

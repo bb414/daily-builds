@@ -26,12 +26,13 @@ Everything runs in your browser or on your own computer. Nothing you load is sen
 ### What it reads
 
 - **Exam timetables**: CSV or TSV exports with columns named the way portals name them (Module code, Module title, Exam date, Start time, Duration (mins), Venue, Seat Number, Assessment type and many variants); the timetable page saved from your browser (.html, read from its table); tables pasted from a web page or a PDF (tabs or runs of spaces), with title lines above the header, repeated headers and blank rows; loose lines with no header at all ("ECO3112 Behavioural Economics 13/01/2027 14:00 2h"); and exam calendars (.ics), where lectures in the same file are left out.
-- **Dates and times**: `13/01/2027`, `13/1/27`, `2027-01-13`, `13 Jan 2027`, `Wednesday 13th January 2027`, `13-Jan-27`, `January 13, 2027`, a date and a time (or a time range such as `09:30-12:30`) in one cell, and "TBC", "TBA" or "to be confirmed" (listed but not planned until you add the date). Numeric dates are read day first unless the column shows otherwise (a date such as `01/13/2027` means the file puts the month first, as American exports do); when every date could be read either way, the app says it assumed UK order. Times as `14:00`, `2pm`, `9.30am` or `1400`; lengths as `2 hours`, `2h`, `1h 30m`, `2:30`, `90 mins`, or a number in a column whose header says minutes or hours.
+- **School statements of entry** (A level and GCSE): board paper codes such as `4821/1` and `4821/2` are read as one subject (`4821`), so its papers share one list of topics, with each paper code kept in the exam's notes; a Paper column is added to the title ("Biology Paper 1"); and a session of AM or PM (or morning and afternoon) is read as the usual 09:00 or 13:30 start, with a note to check. Copied out of a PDF as loose lines works too, and topics under a heading such as "Biology:" find that subject's papers.
+- **Dates and times**: `13/01/2027`, `13/1/27`, `2027-01-13`, `13 Jan 2027`, `Wednesday 13th January 2027`, `13-Jan-27`, `January 13, 2027`, a date and a time (or a time range such as `09:30-12:30`) in one cell, and "TBC", "TBA" or "to be confirmed" (listed but not planned until you add the date). Numeric dates are read day first unless the column shows otherwise (a date such as `01/13/2027` means the file puts the month first, as American exports do); when every date could be read either way, the app says it assumed UK order. Times as `14:00`, `07:30`, `2pm`, `9.30am` or `1400` (an exam at "2:00" is read as 14:00); lengths as `2 hours`, `2h`, `1h 30m`, `2:30`, `90 mins`, or a number in a column whose header says minutes or hours.
 - **Topics**: a CSV with Module, Topic, Confidence and Size columns (in any order, with extra columns ignored), or a pasted list under headings (a module code, a module title that matches an exam, or any line ending with a colon). Confidence can be `1` to `5`, `2/5`, `conf 2`, stars, `40%`, or red, amber and green; size can be XS, S, M, L, XL (1, 2, 3, 5 and 7 hours), `3h` or `90 min`. A trailing number on its own stays part of the title ("Chapter 3").
-- **Calendars (.ics)**: weekly, daily, monthly and yearly repeats with an end date or a count, skipped dates, moved and cancelled events, events marked free, overnight events, UTC times (converted to UK time, British Summer Time included) and time zones. All-day entries (birthdays, "Home for Christmas") are listed but not counted as busy, with a button to block those days.
+- **Calendars (.ics)**: weekly, daily, monthly and yearly repeats with an end date or a count (including "every weekday", "the second Tuesday" and "the last day of the month"), skipped dates, moved and cancelled events, events marked free, overnight events, UTC times (converted to UK time, British Summer Time included, for every repeat) and time zones. All-day entries (birthdays, "Home for Christmas") are listed but not counted as busy, with a button to block those days.
 - **Work rotas (CSV)**: a date, a start and a finish (or hours) on each row, with the role or place if given; shifts past midnight carry on into the next day.
 - **Availability (CSV)**: rows of Day, From, To, Hours and Note, where a day is a weekday, "weekdays", "weekends", a date or a range ("24/12/2026 - 26/12/2026"); 0 or "off" blocks the day.
-- Every row it could not use is listed with the line number and the reason. A PDF, an Excel workbook, an image or any other file that is not text gets a plain message saying what to do instead.
+- Every row it could not use is listed with the line number and the reason. A PDF, a spreadsheet workbook (.xlsx), an image or any other file that is not text gets a plain message saying what to do instead.
 - **A whole university's timetable** (universities often publish every exam in one file): when a file lists more than 40 exams, the app asks for your module codes and keeps only those (the companion takes `--modules`). A 50,000-row file is read in about a second.
 - **Checks** then look for the slips that make a bad plan, in plain English: an exam at 02:00 (am and pm mixed up), an exam lasting 6 hours or 20 minutes (minutes and hours mixed up), a date more than eight months away (the wrong year), two exams that overlap, a module with no topics, a module whose topics are all left at the default rating, a topic sized at 50 hours, a day with more than ten hours of revision, a week with almost none, and more hours needed than you have.
 
@@ -47,10 +48,10 @@ ABC1234,Example module,11/01/2027,09:30,2 hours,Main Hall,101,Unseen exam
 | From the app | What it is |
 |---|---|
 | The plan | Every session with its time, module, topic and what to do (learn part 2 of 4, review 3, timed past paper, final review), on a wall-planner calendar, as a week timetable by the clock (sessions among your lectures, shifts and exams) and as a list. |
-| Calendar file (`.ics`) | All sessions and the exams (with a reminder the evening before), for Google, Apple or Outlook calendar, with an optional alert 10 or 30 minutes before each session. Also for one day, or from today on. |
+| Calendar file (`.ics`) | All sessions and the exams (with a reminder the evening before), for the calendar on your phone or computer, with an optional alert 10 or 30 minutes before each session. Also for one day, or from today on. |
 | Sessions (`.csv`) | One row per session with a Done column, for a spreadsheet. |
 | Wall planner | A printable A4 landscape planner, one month per page, or the week timetable on a page of its own. |
-| Checklist (`.md`) | The plan from today as a Markdown checklist (`- [ ] 09:00-09:25 ...`), for Notion, Obsidian, Apple Notes or any notes app that ticks boxes. |
+| Checklist (`.md`) | The plan from today as a Markdown checklist (`- [ ] 09:00-09:25 ...`), for any notes app that ticks boxes. |
 | On track? | For each exam: hours needed, done, still planned and missed, a verdict (on track, tight, behind or not enough time) with the reasons, and what to drop or shorten. Also as CSV. |
 | Topic tracker | Every topic's learning (done, planned, missed), each review and how it went, the next session and a one-word state, filterable by module and state. |
 | How you keep to the plan | From your own ticks and misses, the share of planned time you actually do on each weekday, with a one-click suggestion when a weekday keeps slipping (for example, plan the 1.5 hours you really do on Saturdays, not 3). |
@@ -74,11 +75,11 @@ Pressing **Re-plan from today** files the 8 sessions as missed, keeps every tick
 
 ## Why it matters
 
-This sits in the **Study and careers** theme of the brief: a revision planner for a job students do every exam season, usually badly. It is also a small study in the brief's wider question of why tools stall after the first try. A planner is only useful if people still use it on day ten, so this one is built for the day things go wrong (ticks never move the plan; one button re-plans without losing progress), and it is deliberately rule-based and explained rather than a black box: every session can be traced to a rule in plain English, and the same inputs always give the same plan.
+This sits in the **Study and careers** theme of the [brief for these daily builds](https://github.com/bb414/daily-builds/blob/main/BRIEF.md): a revision planner for a job students do every exam season, usually badly. It is also a small study in the brief's wider question of why tools stall after the first try. A planner is only useful if people still use it on day ten, so this one is built for the day things go wrong (ticks never move the plan; one button re-plans without losing progress), and it is deliberately rule-based and explained rather than a black box: every session can be traced to a rule in plain English, and the same inputs always give the same plan.
 
 ## Open the app and run the companion
 
-- **The app**: open `app/index.html` in any modern browser (double-click it). It needs no internet connection and no installation, and it works inside a frame.
+- **The app**: open `app/index.html` in any modern browser (double-click it). It needs no internet connection and no installation, and it works inside a frame (a frame that is sandboxed may block downloads and printing; open the file directly for those).
 - **The companion** (Python 3.9 or later, standard library only):
 
 ```
@@ -100,13 +101,13 @@ It does what a browser is not good at:
 ## Tests
 
 ```
-node --test tests/*.test.js                   # the browser model: 32 tests
+node --test tests/*.test.js                   # the browser model: 37 tests
 cd tests && python -m unittest discover        # companion, agreement, browser and repository tests
 ```
 
-- `tests/model.test.js` checks the model in Node: every input format above, the calendar rules, and the plan's promises (sessions only in free time inside your window and hours, weak topics first, review gaps never shorter than the rules, no new topics in the taper, the day before kept, one past paper a day, modules mixed every ordinary day, the same plan every time, ticks that never move it and re-plans that keep them).
+- `tests/model.test.js` checks the model in Node: every input format above (a sixth-former's statement of entry among them), the calendar rules (UTC repeats across the clock change, weekday lists, nth weekdays, exact end times), times as written, and the plan's promises (sessions only in free time inside your window and hours, weak topics first, review gaps never shorter than the rules, no new topics in the taper, the day before kept, one past paper a day, modules mixed every ordinary day, the same plan every time, a steady pace when there is time to spare, ticks that never move it, re-plans that keep them, and damaged project files).
 - `tests/test_agreement.py` runs the browser model (taken from the MODEL block inside `app/index.html`) in Node and the Python companion on the same inputs and compares everything: parsed files, every session of every plan, the verdicts and the exact bytes of every exported file. It covers the sample at several points in time, the study group, 40 randomly generated projects with odd clashes and every setting, a 12-exam, 480-topic project, messy strings and damaged project files.
-- `tests/test_companion.py` covers the command line, the morning job, the study group (no member is booked when busy, double-booked or on an exam day), the HTML reports and the calendar files read back with the `icalendar` library where it is installed.
+- `tests/test_companion.py` covers the command line, the morning job (with `--dry-run` and `--alarm`), a statement of entry from check to tick, the study group (27 sessions for the sample; no member is booked when busy, double-booked, on an exam day or on a day kept for another exam), the HTML reports and the calendar files read back with the `icalendar` library where it is installed.
 - `tests/test_app.py` drives the app in headless Chromium with Playwright: the sample, keyboard tabs, labels on every control, the messy paste, a bad file, topic, calendar and availability uploads, ticking, re-planning, every download opened and checked, reopening a saved plan, the app inside a frame, no console errors, no network requests and no sideways scroll at 390 pixels.
 - `tests/test_repo.py` checks the built app is current and the text is clean.
 
@@ -140,12 +141,12 @@ Tests that need Node, Playwright or `icalendar` skip cleanly when they are missi
 
 | Part | Language | Lines (roughly) | What it does |
 |---|---|---|---|
-| `src/model.js` | JavaScript | 2,680 | Reading timetables, topics, availability and calendars; the planner; progress and on-track checks; every exported file. Runs in the browser and in Node for the tests. |
-| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 1,800 | The five views, imports, ticking and re-planning, downloads and the wall-planner design. |
+| `src/model.js` | JavaScript | 3,270 | Reading timetables, topics, availability and calendars; the planner; progress and on-track checks; every exported file. Runs in the browser and in Node for the tests. |
+| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 2,230 | The six views, imports, ticking and re-planning, downloads and the wall-planner design. |
 | `app/index.html` | (built) | | The single self-contained app, assembled by `tools/build_app.py` with the fonts and the sample plan inside it. |
-| `companion/` | Python | 3,740 | The same model, function for function, plus the folder reader, the morning job, ticking from the command line, the study-group planner and HTML reports. |
-| `tests/` | JavaScript, Python | 1,390 | Model tests, agreement tests, companion tests, browser tests and repository checks. |
-| `tools/` | Python | 480 | Builds the app, makes the seeded sample data and takes the screenshots. |
+| `companion/` | Python | 4,550 | The same model, function for function, plus the folder reader, the morning job, ticking from the command line, the study-group planner and HTML reports. |
+| `tests/` | JavaScript, Python | 1,900 | Model tests, agreement tests, companion tests, browser tests and repository checks. |
+| `tools/` | Python | 530 | Builds the app, makes the seeded sample data and takes the screenshots. |
 
 ## How it works
 
@@ -153,7 +154,7 @@ Tests that need Node, Playwright or `icalendar` skip cleanly when they are missi
 2. **How long each topic needs.** Size times a confidence factor (150% for confidence 1 down to 50% for 5), rounded up to whole learning sessions (50 minutes by default).
 3. **Your free time.** Each day's window from your week or a dated change, minus busy times with a gap either side and the exam itself, capped at your hours. On an exam day you revise only after the exam, for half your hours (adjustable).
 4. **Kept days and past papers first.** The day before each exam is kept for a final review of every topic, weakest first. Then two timed past papers per exam are booked as late as possible in its last fortnight, at most one a day.
-5. **Filling each day in time order.** Each free slot gets the best session that fits: first, the unfinished topics of an exam whose new topics stop within three days; then the first three spaced reviews that are due (1, 3 and 7 days apart, then 14 and 28); then new learning for the module with the least slack (hours free before its aim, a week before new topics stop, minus the learning it still needs), weakest and biggest topics first; then later top-up reviews. No module takes more than half a day, two sessions in a row are from different modules, and a topic gets one session a day, unless nothing else fits.
+5. **Filling each day in time order.** Each free slot gets the best session that fits: first, the unfinished topics of an exam whose new topics stop within three days; then the first three spaced reviews that are due (1, 3 and 7 days apart, then 14 and 28); then new learning for the module with the least slack (hours free before its aim, a week before new topics stop, minus the learning it still needs), weakest and biggest topics first; then later top-up reviews. No module takes more than half a day, two sessions in a row are from different modules, and a topic gets one session a day, unless nothing else fits. When there is time to spare (the learning and first reviews still to do fit in under four fifths of the free time before the aim, for the module and for the plan as a whole), a module's new topics go at a steady pace that would finish them a quarter sooner than needed, rather than filling the first weeks and leaving the last ones empty; "as early as possible" under *Your time* turns this off.
 6. **Progress.** The plan depends only on the inputs, the day it was planned from and the sessions done before then, so ticking never moves it. Re-planning files unticked past sessions as missed, settles every tick and plans again from today. A review rated shaky sends its topic back to the start of the ladder of gaps (the next review is a day later), OK moves it one step and solid two.
 7. **On track?** Hours needed are first learning, three spaced reviews and a final review per topic, plus the past papers. Learning that does not fit before new topics stop means not enough time; a missing past paper, final review or second review means tight; unticked past sessions mean behind.
 
@@ -164,7 +165,8 @@ The same logic lives in `src/model.js` and `companion/examseason/model.py`; the 
 - It knows only what you tell it: confidence ratings are your own guess, and it cannot see past papers, mark schemes or how a module is weighted.
 - Sessions have fixed lengths, so short gaps between commitments (under 25 minutes) go unused.
 - All times are UK time. Calendar times in other time zones are read as UK clock times, with a note.
-- A module with two exams learns its topics for the first one; later papers get past papers and a final review.
+- A module with two exams (or a subject with three papers) learns all its topics for the first one; later papers get past papers and a final review. It does not know which topics each paper covers.
+- A statement of entry that gives only AM or PM is planned with the usual 09:00 and 13:30 starts; check the real times.
 - The study-group mode needs each member's plan file; it suggests times, it does not send invitations.
 
 ## What could come next

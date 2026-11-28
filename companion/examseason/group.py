@@ -61,12 +61,12 @@ def intersect(a, b):
 
 
 def kept_days(project):
-    """Days a member keeps for an exam (the day before each one), from their own plan."""
+    """Days a member keeps for an exam (the day before each one), from their own plan: {day: set of codes}."""
     plan = m.build_plan(project)
     out = {}
     for e in plan['exams']:
         if e['finalDay'] is not None:
-            out[e['finalDay']] = e['code']
+            out.setdefault(e['finalDay'], set()).add(e['code'])
     return out
 
 
@@ -154,7 +154,7 @@ def best_slot(mod, mems, first_day, last_day, length, spread):
         frees = []
         for mem in mems:
             taken = mem['taken'].get(day, [])
-            if (day in mem['kept'] and mem['kept'][day] != mod['code']) or (spread and taken):
+            if (day in mem['kept'] and mem['kept'][day] != {mod['code']}) or (spread and taken):
                 frees.append([])
                 continue
             ivs, cap = free_time(mem['project'], day)

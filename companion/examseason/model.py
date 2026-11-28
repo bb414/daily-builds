@@ -41,7 +41,14 @@ def lower(s):
     return str(s).lower()
 
 
+# Strings compare as JavaScript compares them: by UTF-16 code units, which
+# differs from code points only for characters such as emoji.
+ASTRAL = re.compile('[' + chr(0x10000) + '-' + chr(0x10FFFF) + ']')
+
+
 def cmp(a, b):
+    if isinstance(a, str) and isinstance(b, str) and (ASTRAL.search(a) or ASTRAL.search(b)):
+        a, b = a.encode('utf-16-be', 'surrogatepass'), b.encode('utf-16-be', 'surrogatepass')
     return -1 if a < b else (1 if a > b else 0)
 
 
@@ -275,7 +282,7 @@ def _dots_to_colons(s, require_before=True):
 RE_TIME = re.compile(r'^([0-9]{1,2})(?:[:h]([0-9]{2}))?(?::00)?(am|pm)?$', A)
 
 
-def parse_time(text):
+def parse_time(text, clock=False):
     s = re.sub(r'[ \t]+', '', lower(trim(text)))
     s = _dots_to_colons(s)
     if not s:
@@ -295,7 +302,7 @@ def parse_time(text):
                 h += 12
             if m.group(3) == 'am' and h == 12:
                 h = 0
-        elif 1 <= h <= 7:
+        elif not clock and len(m.group(1)) == 1 and 1 <= h <= 7:
             h += 12
     else:
         m = re.match(r'^([0-9]{2})([0-9]{2})$', s, A)
@@ -659,7 +666,7 @@ EXAM_SYNONYMS = {
     'code': ['module code', 'module', 'course code', 'unit code', 'code', 'paper code', 'subject code', 'module id', 'exam code', 'component code', 'assessment code', 'module ref', 'module no'],
     'name': ['module title', 'module name', 'title', 'course title', 'course name', 'course', 'unit title', 'unit name', 'unit', 'paper', 'paper title', 'exam title', 'subject', 'module description', 'assessment title', 'examination', 'exam', 'exam name'],
     'date': ['date', 'exam date', 'day date', 'date of exam', 'examination date', 'day', 'exam day', 'date and time', 'date time', 'start date', 'when'],
-    'start': ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at'],
+    'start': ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at', 'session', 'am pm', 'am or pm', 'exam session'],
     'end': ['end', 'end time', 'finish', 'finish time', 'to', 'until', 'ends', 'exam end'],
     'duration': ['duration', 'length', 'duration mins', 'duration minutes', 'duration hrs', 'duration hours', 'exam duration', 'mins', 'minutes', 'hours', 'hrs', 'length mins', 'length hours'],
     'room': ['venue', 'room', 'location', 'building', 'hall', 'exam venue', 'exam room', 'place', 'centre', 'campus'],
@@ -698,17 +705,104 @@ def is_exam_header_row(cells):
     return len(map_columns(cells, EXAM_SYNONYMS, [])) >= 3
 
 
+# School statements of entry give a session, not a time: morning exams
+# start at 09:00 and afternoon exams at 13:30.
+SESSION_RE = re.compile(r'(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?(?= |$)', AI)
+SESSION_END_RE = re.compile(r'(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?$', AI)
+
+
+def session_minute(word):
+    w = lower(word)
+    return 810 if w[:1] == 'p' or w == 'afternoon' else 540
+
+
+def session_start(text):
+    m = SESSION_END_RE.search(squash(text))
+    return session_minute(m.group(2)) if m else None
+
+
+def find_session(text):
+    m = SESSION_RE.search(str(text))
+    if not m:
+        return None
+    return {'min': session_minute(m.group(2)), 'index': m.start() + len(m.group(1)), 'length': len(m.group(0)) - len(m.group(1))}
+
+
+# An exam board paper code such as 4821/1 or K431/02: the part before
+# the slash names the subject, so its papers share one set of topics.
+BOARD_RE = re.compile(r'^([A-Z0-9]{4,7}) ?/ ?([A-Z0-9]{1,4})$', A)
+BOARD_FIND_RE = re.compile(r'(^|[ (])([A-Za-z0-9]{4,7}) ?/ ?([A-Za-z0-9]{1,4})(?=[ ),;:]|$)', A)
+
+
+def board_code(text):
+    m = BOARD_RE.search(trim(str(text).upper()))
+    if not m or not re.search(r'[0-9]', m.group(1), A):
+        return None
+    return {'code': m.group(1), 'paper': m.group(1) + '/' + m.group(2)}
+
+
+def find_board_code(text):
+    m = BOARD_FIND_RE.search(str(text))
+    if not m or not re.search(r'[0-9]', m.group(2), A):
+        return None
+    code = m.group(2).upper()
+    return {'code': code, 'paper': code + '/' + m.group(3).upper(), 'index': m.start() + len(m.group(1)), 'length': len(m.group(0)) - len(m.group(1))}
+
+
+# A "Paper" column beside a subject column: its text is added to the
+# title so each paper has its own name ("Biology Paper 1").
+PART_HEADERS = ['paper', 'paper number', 'paper no', 'paper name', 'part']
+
+
+def paper_column(mp, header):
+    used = set(mp.values())
+    for i, h in enumerate(header):
+        if 'part' in mp:
+            break
+        if i not in used and norm_header(h) in PART_HEADERS:
+            mp['part'] = i
+    if 'part' not in mp and 'name' in mp and norm_header(header[mp['name']]) == 'paper':
+        for j, h in enumerate(header):
+            if j not in used and norm_header(h) == 'subject':
+                mp['part'] = mp['name']
+                mp['name'] = j
+                break
+
+
+def with_part(name, part):
+    part = squash(part)
+    if not part or lower(part) in lower(name):
+        return name
+    return trim(name + ' ' + ('Paper ' + part if re.match(r'^[0-9][0-9A-Za-z]{0,2}$', part, A) else part))
+
+
+def exam_guess_messages(out):
+    by_session, first = 0, None
+    for e in out['exams']:
+        if e.get('fromSession'):
+            by_session += 1
+        if e.get('paper') and first is None:
+            first = e
+    if by_session:
+        out['messages'].append({'level': 'info', 'text': plural(by_session, 'exam') + (' gives' if by_session == 1 else ' give') + ' only a session (AM or PM), so morning is read as 09:00 and afternoon as 13:30, the usual start times. Check the exact times on your statement of entry.'})
+    if first:
+        out['messages'].append({'level': 'info', 'text': 'Board paper codes such as %s are read by subject (%s), so all papers in a subject share its topics. Each paper code is kept in its notes.' % (first['paper'], first['code'])})
+    for e in out['exams']:
+        e.pop('fromSession', None)
+        e.pop('paper', None)
+
+
 def read_exams(text, ref=None):
     ref = DEFAULT_REF if ref is None else ref
     text = '' if text is None else str(text)
     out = {'exams': [], 'messages': [], 'format': '', 'rows': 0, 'skipped': 0}
-    if re.match(r'^\s*%PDF', text, A):
+    if re.match(r'^[ \t\n\r\f\v]*%PDF', text, A):
         out['format'] = 'pdf'
         out['messages'].append({'level': 'error', 'text': 'This is a PDF file. Open it, select the timetable table, copy it and paste it here, or download the CSV or calendar (.ics) version from your student portal.'})
         return out
-    if re.match(r'^\s*PK', text, A) and '[Content_Types]' in text:
+    if re.match(r'^[ \t\n\r\f\v]*PK', text, A) and '[Content_Types]' in text:
         out['format'] = 'xlsx'
-        out['messages'].append({'level': 'error', 'text': 'This looks like an Excel workbook. Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.'})
+        out['messages'].append({'level': 'error', 'text': 'This looks like a spreadsheet workbook (.xlsx). Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.'})
         return out
     if re.search(r'BEGIN:VCALENDAR', text, AI):
         return read_exams_ics(text, out)
@@ -735,6 +829,7 @@ def read_exams(text, ref=None):
         return read_exam_lines(text, out, ref)
     out['format'] = 'html' if table['delim'] == 'html' else ('table' if table['delim'] == '\t' else ('spaced' if table['delim'] == '  ' else 'csv'))
     header = rows[header_at]['cells']
+    paper_column(mp, header)
     unit = duration_unit(header[mp['duration']]) if 'duration' in mp else ''
     order_info = date_order_of([cell(r['cells'], mp.get('date')) for r in rows[header_at + 1:]])
     order = order_info['order']
@@ -753,7 +848,7 @@ def read_exams(text, ref=None):
         if not ex:
             out['skipped'] += 1
             continue
-        key = '%s|%s|%s' % (ex['code'], 'tbc' if ex['day'] is None else ex['day'], ex['start'])
+        key = '%s|%s|%s' % (ex['code'], 'tbc' if ex['day'] is None else ex['day'], ex['start']) + ('|' + ex['paper'] if ex.get('paper') else '')
         if key in seen:
             out['skipped'] += 1
             out['messages'].append({'level': 'info', 'line': line, 'text': 'Line %d repeats %s%s, so it was skipped.' % (line, ex['code'], '' if ex['day'] is None else ' on ' + fmt_short(ex['day']))})
@@ -771,16 +866,18 @@ def read_exams(text, ref=None):
     if header_at > 0:
         out['messages'].append({'level': 'info', 'text': 'The table starts at line %d; the %s above it were read as a title, not exams.' % (rows[header_at]['line'], plural(header_at, 'line'))})
     date_order_messages(order_info, out)
+    exam_guess_messages(out)
     finish_exams(out)
     return out
 
 
 def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
     code_cell, name_cell = cell(cells, mp.get('code')), cell(cells, mp.get('name'))
-    code, name = '', ''
+    code, name, board = '', '', None
     if code_cell:
         f = find_code(code_cell.upper())
-        code = f['code'] if f else re.sub(r'[^A-Z0-9]+', '', code_cell.upper(), flags=A)
+        board = None if f else board_code(code_cell)
+        code = f['code'] if f else (board['code'] if board else re.sub(r'[^A-Z0-9]+', '', code_cell.upper(), flags=A))
         if f and not name_cell:
             name = strip_code(code_cell, f['code'])
     if name_cell:
@@ -791,8 +888,14 @@ def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
     if not code and not name:
         messages.append({'level': 'warn', 'line': line, 'text': 'Line %d has no module code or title, so it was skipped.' % line})
         return None
+    part_cell = cell(cells, mp.get('part'))
+    if not code and board_code(part_cell):
+        board = board_code(part_cell)
+        code = board['code']
+        part_cell = ''
     if not code:
         code = slugify(name).upper().replace('-', '')[:10]
+    name = with_part(name or code, part_cell)
     date_cell = cell(cells, mp.get('date'))
     day, tbc = None, False
     low_date = lower(squash(date_cell))
@@ -829,6 +932,12 @@ def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
         start = start_from_date
         if end is None:
             end = end_from_date
+    from_session = False
+    if start is None:
+        start = session_start(start_cell) if start_cell else None
+        if start is None and day is not None:
+            start = session_start(date_cell)
+        from_session = start is not None
     if end_cell:
         end = parse_time(end_cell)
         if end is None:
@@ -855,11 +964,19 @@ def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
     duration = clamp(duration, 15, 1440)
     typ, notes = cell(cells, mp.get('type')), cell(cells, mp.get('notes'))
     resit = bool(re.search(r'\b(resit|re-sit|referral|reassessment|re-assessment|deferred|supplementary)\b', typ + ' ' + notes + ' ' + name_cell, AI))
-    return {
-        'id': '', 'code': code, 'name': name or code, 'day': day, 'start': start, 'duration': duration,
+    note = squash(notes)
+    if board:
+        note = 'Paper code ' + board['paper'] + ('; ' + note if note else '')
+    ex = {
+        'id': '', 'code': code, 'name': name, 'day': day, 'start': start, 'duration': duration,
         'room': squash(cell(cells, mp.get('room'))), 'seat': squash(cell(cells, mp.get('seat'))), 'type': squash(typ),
-        'resit': resit, 'tbc': tbc, 'note': squash(notes), 'line': line,
+        'resit': resit, 'tbc': tbc, 'note': note, 'line': line,
     }
+    if from_session:
+        ex['fromSession'] = True
+    if board:
+        ex['paper'] = board['paper']
+    return ex
 
 
 RE_LINE_DURATION = re.compile(r'(?:^|[^0-9a-z])(\(?[0-9]+(?:\.[0-9]+)? ?(?:h|hr|hrs|hours?)\.?(?: ?[0-9]+ ?(?:m|min|mins|minutes?))?\)?|\(?[0-9]+ ?(?:min|mins|minutes)\)?)(?![a-z])', AI)
@@ -873,7 +990,10 @@ def read_exam_lines(text, out, ref):
         raw, line = squash(l), i + 1
         if not raw:
             continue
-        code = find_code(raw)
+        code, paper = find_code(raw), None
+        if not code:
+            paper = find_board_code(raw)
+            code = paper
         date = find_date(raw, 'DMY', ref)
         if not code and not date:
             if not out['exams']:
@@ -902,6 +1022,10 @@ def read_exam_lines(text, out, ref):
         while k >= 0 and k >= len(times) - 2:
             rest = rest[:times[k]['index']] + ' ' + rest[times[k]['index'] + times[k]['length']:]
             k -= 1
+        session = None if times else find_session(rest)
+        if session:
+            start = session['min']
+            rest = rest[:session['index']] + ' ' + rest[session['index'] + session['length']:]
         duration = None
         dm = RE_LINE_DURATION.search(rest)
         if dm:
@@ -917,8 +1041,12 @@ def read_exam_lines(text, out, ref):
         name = trim(squash(name))
         resit = bool(re.search(r'\b(resit|re-sit|referral|reassessment)\b', raw, AI))
         ex = {'id': '', 'code': code['code'], 'name': name or code['code'], 'day': day, 'start': start, 'duration': clamp(duration, 15, 1440),
-              'room': '', 'seat': '', 'type': 'Resit' if resit else '', 'resit': resit, 'tbc': tbc, 'note': '', 'line': line}
-        key = '%s|%s|%s' % (ex['code'], 'tbc' if day is None else day, start)
+              'room': '', 'seat': '', 'type': 'Resit' if resit else '', 'resit': resit, 'tbc': tbc, 'note': 'Paper code ' + paper['paper'] if paper else '', 'line': line}
+        if session:
+            ex['fromSession'] = True
+        if paper:
+            ex['paper'] = paper['paper']
+        key = '%s|%s|%s' % (ex['code'], 'tbc' if day is None else day, start) + ('|' + paper['paper'] if paper else '')
         if key in seen:
             out['skipped'] += 1
             continue
@@ -928,6 +1056,7 @@ def read_exam_lines(text, out, ref):
         out['messages'].append({'level': 'error', 'text': 'No exams found. Paste the timetable with its header row (module, date, time), or use the template.'})
     else:
         out['messages'].append({'level': 'info', 'text': 'No header row was found, so each line was read by looking for a module code, a date and times.'})
+    exam_guess_messages(out)
     finish_exams(out)
     return out
 
@@ -1159,14 +1288,22 @@ def match_module(text, exams):
     t = norm_header(text)
     if not t:
         return None
-    best = None
+    # An exact title wins, then a title that starts with the text
+    # ("Biology" for "Biology Paper 1"), then one that contains it.
+    best, best_rank = None, 3
     for e in exams:
         n = norm_header(e['name'])
         if not n:
             continue
-        if t == n or (' ' + n + ' ') in (' ' + t + ' ') or (len(t) >= 6 and (' ' + t + ' ') in (' ' + n + ' ')):
-            if best is None:
-                best = e['code']
+        rank = 3
+        if t == n:
+            rank = 0
+        elif n.startswith(t + ' paper') or (len(t) >= 6 and n.startswith(t + ' ')):
+            rank = 1
+        elif (' ' + n + ' ') in (' ' + t + ' ') or (len(t) >= 6 and (' ' + t + ' ') in (' ' + n + ' ')):
+            rank = 2
+        if rank < best_rank:
+            best, best_rank = e['code'], rank
     return best
 
 
@@ -1174,7 +1311,7 @@ def read_topics(text, exams=None, code=''):
     exams = exams or []
     text = '' if text is None else str(text)
     out = {'topics': [], 'messages': [], 'format': '', 'rows': 0, 'skipped': 0}
-    if re.match(r'^\s*%PDF', text, A):
+    if re.match(r'^[ \t\n\r\f\v]*%PDF', text, A):
         out['messages'].append({'level': 'error', 'text': 'This is a PDF file. Copy the list of topics out of it and paste it here instead.'})
         return out
     if looks_binary(text):
@@ -1418,7 +1555,7 @@ def ics_time(value, params, zones):
     tz = lower(params['TZID']) if params.get('TZID') else ''
     if m.group(7) or tz in ('utc', 'etc/utc', 'z'):
         t = utc_to_london(day, minute)
-        return {'day': t[0], 'min': t[1], 'allDay': False}
+        return {'day': t[0], 'min': t[1], 'allDay': False, 'uday': day, 'umin': minute}
     if tz and tz not in LONDONISH and zones is not None:
         zones[params['TZID']] = True
     return {'day': day, 'min': minute, 'allDay': False}
@@ -1509,7 +1646,7 @@ def parse_ics(text):
 
 
 def parse_rrule(value, zones):
-    r = {'freq': '', 'interval': 1, 'count': None, 'until': None, 'byday': [], 'bymonthday': None}
+    r = {'freq': '', 'interval': 1, 'count': None, 'until': None, 'byday': [], 'bydayN': [], 'bymonthday': None}
     for part in value.split(';'):
         eq = part.find('=')
         if eq < 0:
@@ -1526,8 +1663,11 @@ def parse_rrule(value, zones):
         elif k == 'BYDAY':
             for d in v.split(','):
                 mm = re.search(r'([+\-]?[0-9]*)(MO|TU|WE|TH|FR|SA|SU)$', trim(d), AI)
-                if mm:
-                    r['byday'].append(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].index(mm.group(2).upper()))
+                if not mm:
+                    continue
+                wd = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].index(mm.group(2).upper())
+                r['byday'].append(wd)
+                r['bydayN'].append([_js_int(mm.group(1)) or 0, wd])
         elif k == 'BYMONTHDAY':
             r['bymonthday'] = _js_int(v) or None
     r['byday'].sort()
@@ -1540,16 +1680,55 @@ def _js_int(v):
     return int(m.group(1)) if m else None
 
 
+def month_days(y, m, r, dom0):
+    dim, out = days_in_month(y, m), []
+    if r['bydayN']:
+        first = make_day(y, m, 1)
+        for n, wd in r['bydayN']:
+            alldays = []
+            d = first + ((wd - weekday(first)) % 7 + 7) % 7
+            while d < first + dim:
+                alldays.append(d)
+                d += 7
+            if n == 0:
+                for x in alldays:
+                    if x not in out:
+                        out.append(x)
+            else:
+                pick = None
+                if n > 0 and n <= len(alldays):
+                    pick = alldays[n - 1]
+                elif n < 0 and -n <= len(alldays):
+                    pick = alldays[len(alldays) + n]
+                if pick is not None and pick not in out:
+                    out.append(pick)
+        return sorted(out)
+    dom = dom0 if r['bymonthday'] is None else (dim + 1 + r['bymonthday'] if r['bymonthday'] < 0 else r['bymonthday'])
+    dd = make_day(y, m, dom) if 1 <= dom <= dim else None
+    return [] if dd is None else [dd]
+
+
 def occurrence_days(ev, last_day, messages):
-    r, start, out = ev['rrule'], ev['start']['day'], []
+    r, utc, out = ev['rrule'], 'uday' in ev['start'], []
+    start = ev['start']['uday'] if utc else ev['start']['day']
+    smin = ev['start']['umin'] if utc else ev['start']['min']
     if not r or not r['freq']:
         return [start]
-    until_day = r['until']['day'] if r['until'] else None
-    limit = 3000
+    u, limit = r['until'], 3000
     state = {'n': 0}
 
+    def before_until(d):
+        if not u:
+            return True
+        if u['allDay'] or ev['start']['allDay']:
+            return d <= u['day']
+        both = utc and 'uday' in u
+        ud = u['uday'] if both else u['day']
+        um = u['umin'] if both else u['min']
+        return d < ud or (d == ud and smin <= um)
+
     def take(d):
-        if until_day is not None and d > until_day:
+        if not before_until(d):
             return False
         if r['count'] is not None and state['n'] >= r['count']:
             return False
@@ -1559,8 +1738,13 @@ def occurrence_days(ev, last_day, messages):
         return d <= last_day
 
     if r['freq'] == 'DAILY':
-        for k in range(limit):
-            if not take(start + k * r['interval']):
+        for k in range(limit * 7):
+            dk = start + k * r['interval']
+            if r['byday'] and weekday(dk) not in r['byday']:
+                if dk > last_day:
+                    break
+                continue
+            if not take(dk):
                 break
     elif r['freq'] == 'WEEKLY':
         days = r['byday'] if r['byday'] else [weekday(start)]
@@ -1578,17 +1762,17 @@ def occurrence_days(ev, last_day, messages):
             w += 1
     elif r['freq'] == 'MONTHLY':
         t = ymd_from_day(start)
-        dom = r['bymonthday'] or t[2]
-        for mo in range(limit):
+        stop = False
+        mo = 0
+        while mo < limit and not stop:
             total = t[1] - 1 + mo * r['interval']
-            y, mth = t[0] + total // 12, total % 12 + 1
-            dd = make_day(y, mth, dom)
-            if dd is None:
-                continue
-            if dd < start:
-                continue
-            if not take(dd):
-                break
+            for dd in month_days(t[0] + total // 12, total % 12 + 1, r, t[2]):
+                if dd < start:
+                    continue
+                if not take(dd):
+                    stop = True
+                    break
+            mo += 1
     elif r['freq'] == 'YEARLY':
         ty = ymd_from_day(start)
         for yy in range(200):
@@ -1601,6 +1785,12 @@ def occurrence_days(ev, last_day, messages):
         messages.append({'level': 'info', 'text': '"%s" repeats in a way this tool does not follow (%s), so only its first time was used.' % (ev['summary'] or 'An event', r['freq'])})
         return [start]
     return out
+
+
+def occurrences(ev, last_day, messages):
+    utc = 'uday' in ev['start']
+    days = occurrence_days(ev, last_day + 1 if utc else last_day, messages)
+    return [list(utc_to_london(d, ev['start']['umin'])) if utc else [d, ev['start']['min']] for d in days]
 
 
 def read_calendar(text, from_day, to_day):
@@ -1624,7 +1814,9 @@ def read_calendar(text, from_day, to_day):
             continue
         out['events'] += 1
         label = e['summary'] or 'Busy'
-        if e['end']:
+        if e['end'] and 'uday' in e['start'] and 'uday' in e['end']:
+            length = (e['end']['uday'] - e['start']['uday']) * 1440 + (e['end']['umin'] - e['start']['umin'])
+        elif e['end']:
             length = (e['end']['day'] - e['start']['day']) * 1440 + (e['end']['min'] - e['start']['min'])
         elif e['durationMin'] is not None:
             length = e['durationMin']
@@ -1632,13 +1824,13 @@ def read_calendar(text, from_day, to_day):
             length = 1440 if e['start']['allDay'] else 60
         if length <= 0:
             length = 1440 if e['start']['allDay'] else 60
-        days = [e['start']['day']] if e['recurrenceId'] else occurrence_days(e, to_day, out['messages'])
-        for d in days:
-            if not e['recurrenceId'] and e['uid'] and ('%s|%d|%d' % (e['uid'], d, 0 if e['start']['allDay'] else e['start']['min'])) in moved:
+        occ = [[e['start']['day'], e['start']['min']]] if e['recurrenceId'] else occurrences(e, to_day, out['messages'])
+        for d, smin in occ:
+            if not e['recurrenceId'] and e['uid'] and ('%s|%d|%d' % (e['uid'], d, 0 if e['start']['allDay'] else smin)) in moved:
                 continue
             skip = False
             for xd in e['exdates']:
-                if xd['day'] == d and (xd['allDay'] or e['start']['allDay'] or xd['min'] == e['start']['min']):
+                if xd['day'] == d and (xd['allDay'] or e['start']['allDay'] or xd['min'] == smin):
                     skip = True
                     break
             if skip:
@@ -1651,7 +1843,7 @@ def read_calendar(text, from_day, to_day):
                     if from_day <= d + k <= to_day:
                         out['allDay'].append({'day': d + k, 'label': label})
                 continue
-            t0 = d * 1440 + e['start']['min']
+            t0 = d * 1440 + smin
             t1 = t0 + length
             while t0 < t1:
                 dd = t0 // 1440
@@ -1789,7 +1981,7 @@ def import_summary(kind, res):
 
 DEFAULT_SETTINGS = {
     'learnMin': 50, 'reviewMin': 25, 'breakMin': 10, 'taperDays': 3, 'papers': 2, 'maxShare': 50,
-    'reviewShare': 40, 'busyGap': 15, 'examGap': 45, 'examDay': 'after', 'paperMax': 180,
+    'reviewShare': 40, 'busyGap': 15, 'examGap': 45, 'examDay': 'after', 'paperMax': 180, 'pace': 'spread',
 }
 REVIEW_GAPS = [1, 3, 7, 14, 28]
 CONF_PCT = [150, 125, 100, 75, 50]
@@ -1832,18 +2024,26 @@ def int_or(v, d):
     return d
 
 
+# Strings from a project file, with any broken half of an emoji (a lone
+# surrogate) replaced, so every file written from them is valid text.
+LONE_SURROGATE = re.compile('[' + chr(0xD800) + '-' + chr(0xDFFF) + ']')
+
+
 def str_or(v, d):
-    return v if isinstance(v, str) else d
+    return LONE_SURROGATE.sub(chr(0xFFFD), v) if isinstance(v, str) else d
+
+
+# A day from a project file, kept only if it falls between 2000 and 2099.
+DAY_MIN, DAY_MAX = 10957, 47481
 
 
 def day_or(v, d):
+    x = None
     if _is_number(v):
-        return int(v // 1)
-    if isinstance(v, str):
+        x = int(v // 1)
+    elif isinstance(v, str):
         x = from_iso(v)
-        if x is not None:
-            return x
-    return d
+    return x if x is not None and DAY_MIN <= x <= DAY_MAX else d
 
 
 def clean_settings(s):
@@ -1856,6 +2056,7 @@ def clean_settings(s):
     o['papers'] = clamp(int_or(s.get('papers'), o['papers']), 0, 6)
     o['maxShare'] = clamp(int_or(s.get('maxShare'), o['maxShare']), 25, 100)
     o['reviewShare'] = clamp(int_or(s.get('reviewShare'), o['reviewShare']), 10, 100)
+    o['pace'] = s.get('pace') if s.get('pace') in ('spread', 'early') else o['pace']
     o['busyGap'] = clamp(int_or(s.get('busyGap'), o['busyGap']), 0, 120)
     o['examGap'] = clamp(int_or(s.get('examGap'), o['examGap']), 0, 180)
     o['examDay'] = s.get('examDay') if s.get('examDay') in ('after', 'off', 'normal') else o['examDay']
@@ -2007,11 +2208,11 @@ def parse_clock(text):
     if m:
         h = int(m.group(1))
         return h * 60 if h <= 24 else None
-    m2 = re.match(r'^([0-9]{1,2})[:.]([0-9]{2})$', s, A)
+    m2 = re.match(r'^([0-9]{1,2})[:.]([0-9]{2})(?::[0-9]{2})?$', s, A)
     if m2:
         hh, mm = int(m2.group(1)), int(m2.group(2))
         return hh * 60 + mm if hh <= 23 and mm <= 59 else None
-    return parse_time(s)
+    return parse_time(s, True)
 
 
 def parse_hours(text):
@@ -2041,7 +2242,7 @@ AVAIL_SYNONYMS = {
 }
 
 
-def read_availability(text, base=None):
+def read_availability(text, base=None, ref=None):
     out = {'week': [{'from': w['from'], 'to': w['to'], 'minutes': w['minutes']} for w in (base or default_week())],
            'overrides': [], 'messages': [], 'rows': 0, 'weekRows': 0}
     if looks_binary(text):
@@ -2099,8 +2300,8 @@ def read_availability(text, base=None):
                     w['minutes'] = w['to'] - w['from']
             continue
         rng = re.split(r' +(?:-|\u2013|to|until) +|\u2013', day_txt)
-        d1 = parse_date(rng[0], 'DMY', None)
-        d2 = parse_date(rng[1], 'DMY', None) if len(rng) > 1 else d1
+        d1 = parse_date(rng[0], 'DMY', ref)
+        d2 = parse_date(rng[1], 'DMY', ref) if len(rng) > 1 else d1
         if d1 is None or d2 is None:
             out['messages'].append({'level': 'warn', 'line': line, 'text': 'Line %d: "%s" is not a weekday or a date, so the row was skipped.' % (line, day_txt)})
             continue
@@ -2248,13 +2449,16 @@ def build_plan(project):
     history = [d for d in project['done'] if d['id'] in settled_set]
 
     dated = [e for e in project['exams'] if e['day'] is not None]
-    upcoming = [e for e in dated if e['day'] >= frm]
+    # Plans reach two years ahead at most; a later date is almost always a typo.
+    upcoming = [e for e in dated if frm <= e['day'] <= frm + 730]
     for e in project['exams']:
         if e['day'] is None:
             notes.append({'level': 'warn', 'exam': e['id'], 'text': '%s %s: date to be confirmed, so it is not planned yet. Add the date when it is published.' % (e['code'], e['name'])})
     for e in dated:
         if e['day'] < frm:
             notes.append({'level': 'info', 'exam': e['id'], 'text': '%s %s was on %s, before this plan starts, so it is not planned.' % (e['code'], e['name'], fmt_short(e['day']))})
+        if e['day'] > frm + 730:
+            notes.append({'level': 'warn', 'exam': e['id'], 'text': '%s %s is on %s, more than two years away, so it is not planned. Check the year.' % (e['code'], e['name'], fmt_day(e['day']))})
     plan = {'from': frm, 'fromMin': project['planFromMin'], 'last': frm, 'settings': s, 'exams': [], 'days': [], 'sessions': [],
             'notes': notes, 'topics': [], 'byExam': {}, 'byId': {}}
     if not upcoming:
@@ -2441,10 +2645,37 @@ def build_plan(project):
         if st['done'] < st['count']:
             remaining[st['exam']['id']] += (st['count'] - st['done']) * st['len']
 
+    # With time to spare, a module's new learning goes at a steady pace
+    # that would finish it a little (a quarter) faster than its aim needs,
+    # instead of filling the first weeks and leaving the last ones empty.
+    # Time to spare means the learning and the first three reviews still
+    # to do take under four fifths of the free time before the aim, for
+    # the module and for the plan as a whole.
+    credit = {e['id']: 0 for e in plan['exams']}
+    last_aim = max([frm] + [e['aimBy'] for e in plan['exams']])
+
+    def need_left():
+        need = {e['id']: max(0, remaining[e['id']]) for e in plan['exams']}
+        for st in states:
+            need[st['exam']['id']] += max(0, min(3, st['rmax']) - st['reviews']) * s['reviewMin']
+        return {'byExam': need, 'total': sum(need[e['id']] for e in plan['exams'])}
+
     def fill_day(dd, x):
         d = dd['day']
         if dd['cap'] - dd['used'] < s['reviewMin'] and not dd['reserved']:
             return
+        paced = {}
+        need = need_left() if s['pace'] == 'spread' and not dd['reserved'] else None
+        if need and need['total'] * 5 < cap_between(x, min(last_aim - frm, n_days - 1)) * 4:
+            free0 = max(0, dd['cap'] - dd['used'])
+            for e in plan['exams']:
+                if remaining[e['id']] <= 0 or d > e['aimBy']:
+                    continue
+                span = cap_between(x, min(e['aimBy'] - frm, n_days - 1))
+                if span <= 0 or need['byExam'][e['id']] * 5 >= span * 4:
+                    continue
+                credit[e['id']] += ceil_div(remaining[e['id']] * free0 * 5, span * 4)
+                paced[e['id']] = True
         mod_min = {}
         for se in dd['sessions']:
             mod_min[se['code']] = mod_min.get(se['code'], 0) + se['min']
@@ -2469,7 +2700,7 @@ def build_plan(project):
             for st2 in states:
                 e = st2['exam']
                 if st2['done'] < st2['count']:
-                    if d <= e['learnBy']:
+                    if d <= e['learnBy'] and not (paced.get(e['id']) and credit[e['id']] <= 0):
                         any_learn = True
                         out.append({'kind': 'learn', 'st': st2, 'exam': e, 'code': e['code'], 'len': st2['len'], 'today': st2['lastDay'] == d})
                 elif st2['due'] is not None and st2['due'] <= d <= e['day'] - 2:
@@ -2550,6 +2781,8 @@ def build_plan(project):
                 st['done'] += 1
                 st['planned'] += 1
                 remaining[e['id']] -= c['len']
+                if paced.get(e['id']):
+                    credit[e['id']] -= c['len']
                 if st['done'] >= st['count']:
                     st['learnedDay'] = d
                     st['due'] = d + REVIEW_GAPS[min(st['step'], len(REVIEW_GAPS) - 1)] if st['step'] < st['rmax'] else None
@@ -3082,7 +3315,9 @@ def sessions_ics(project, plan, from_day=None, to_day=None, name=None, skip_done
                 lines.append('LOCATION:' + ics_escape(e['room']))
             lines += ['DESCRIPTION:' + ics_escape(('Seat ' + e['seat'] + '. ' if e['seat'] else '') + 'Bring your student card. Arrive 30 minutes early.'),
                       'CATEGORIES:Exam', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + ics_escape('Exam tomorrow: ' + e['code'] + ' ' + e['name']),
-                      'TRIGGER:-PT18H', 'END:VALARM', 'END:VEVENT']
+                      # At 18:00 the evening before, whatever time the exam starts.
+                      'TRIGGER:-PT%dH%s' % ((e['start'] + 360) // 60, '%dM' % ((e['start'] + 360) % 60) if (e['start'] + 360) % 60 else ''),
+                      'END:VALARM', 'END:VEVENT']
     lines.append('END:VCALENDAR')
     return '\r\n'.join(ics_fold(l) for l in lines) + '\r\n'
 
@@ -3108,7 +3343,7 @@ def day_text(project, plan, day):
         lines.append('  %s, %s of revision.' % (plural(len(lst), 'session'), fmt_dur(mins)))
     for e in plan['exams']:
         if e['day'] > day:
-            lines.append('  %s in %s (%s)' % (e['code'], plural(e['day'] - day, 'day'), fmt_short(e['day'])))
+            lines.append('  %s %s in %s (%s)' % (e['code'], e['name'], plural(e['day'] - day, 'day'), fmt_short(e['day'])))
     return '\n'.join(lines) + '\n'
 
 
@@ -3160,9 +3395,13 @@ def project_file(project):
     return json.dumps(o, indent=1, ensure_ascii=False) + '\n'
 
 
+def _no_constant(name):
+    raise ValueError('JSON has no ' + name)  # as in JavaScript: NaN and Infinity are not JSON
+
+
 def read_project(text, today):
     try:
-        obj = json.loads(strip_bom(str(text)))
+        obj = json.loads(strip_bom(str(text)), parse_constant=_no_constant)
     except ValueError:
         return {'project': None, 'messages': [{'level': 'error', 'text': 'This is not a project file (it is not valid JSON). Choose a file saved from Exam season.'}]}
     if not isinstance(obj, dict) or (obj.get('app') != 'exam-season' and not isinstance(obj.get('exams'), list)):

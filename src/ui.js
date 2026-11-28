@@ -22,6 +22,8 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
   function esc(s) {
     return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
@@ -146,12 +148,17 @@
   function changed(msg) {
     var p = state.project;
     // A plan that has not started yet keeps its start day.
-    if (p.planFrom < state.today) M.replan(p, state.plan, state.today, 0);
+    if (p.planFrom < state.today) M.replan(p, state.plan, state.today, replanMinute());
     if (state.isSample) state.isSample = false;
     recompute();
     persist();
     renderAll();
     if (msg) toast(msg);
+  }
+
+  // Re-planning today starts from now, so nothing lands earlier today.
+  function replanMinute() {
+    return state.project.asOf === null && state.today === realToday() ? nowMinutes() : 0;
   }
 
   // A light change (a tick) that does not move the plan.
@@ -281,7 +288,7 @@
     p.topics = kept;
     M.assignTopicIds(p.topics);
     addSource('topics', name, res);
-    changed((replace ? 'Replaced your topics: ' : 'Added ') + added + ' topics.');
+    changed((replace ? 'Replaced your topics: ' : 'Added ') + plural(added, 'topic') + '.');
   }
 
   function importCalendar(text, name) {
@@ -308,7 +315,7 @@
 
   function importAvailability(text, name) {
     if (text === null) { state.imports.availability = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }] }; renderAll(); return; }
-    var res = M.readAvailability(text, state.project.week);
+    var res = M.readAvailability(text, state.isSample ? null : state.project.week, state.today);
     state.imports.availability = { name: name || 'availability', messages: res.messages, count: res.rows };
     if (!res.rows) { renderAll(); afterImport('[data-drop=availability]', state.imports.availability); return; }
     ensureOwn();
@@ -440,19 +447,19 @@
     $('#stickers').innerHTML = html.join('');
   }
 
+  var lastBanner = null;
   function renderBanner() {
-    var b = $('#banner'), p = state.project;
+    var b = $('#banner'), p = state.project, html = '';
     if (state.isSample) {
-      b.innerHTML = '<div class="note-strip"><span>You are looking at an <b>invented</b> final-year student\'s plan: five January exams, 40 topics, lectures, cafe shifts and rugby, planned from ' +
+      html = '<div class="note-strip"><span>You are looking at an <b>invented</b> final-year student\'s plan: five January exams, 40 topics, lectures, cafe shifts and rugby, planned from ' +
         esc(M.fmtShort(p.planFrom)) + ' and ticked off for ten days (one day missed), as if today were <b>' + esc(M.fmtDay(state.today)) + '</b>.</span>' +
         '<span class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="start-own">Use your own timetable</button>' +
         '<button type="button" class="btn btn-small" data-action="try-messy">Try a messy pasted timetable</button></span></div>';
     } else if (state.restored) {
-      b.innerHTML = '<div class="note-strip"><span>Welcome back: this is your plan as you left it in this browser. Save the plan file now and then to keep it safe.</span>' +
+      html = '<div class="note-strip"><span>Welcome back: this is your plan as you left it in this browser. Save the plan file now and then to keep it safe.</span>' +
         '<span class="btn-row"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="show-sample">Show the sample instead</button></span></div>';
-    } else {
-      b.innerHTML = '';
     }
+    if (html !== lastBanner) { b.innerHTML = html; lastBanner = html; }
   }
 
   // ------------------------------------------------------------------
@@ -553,9 +560,11 @@
       p.topics.forEach(function (t, i) { if (t.code === code) list.push([t, i]); });
       var mins = 0;
       list.forEach(function (x) { if (x[0].mode !== 'drop') mins += M.learnSessions(x[0], s) * M.learnLength(x[0], s); });
-      h.push('<div class="card mod taped m' + examColour(code) + '"><div class="card-head"><div><h3>' + esc(code) + ' ' + esc(ex ? ex.name : '') + '</h3><div class="small muted">' +
-        (ex ? (ex.day === null ? 'Exam date to be confirmed' : 'Exam ' + esc(M.fmtDay(ex.day)) + ' at ' + M.fmtTime(ex.start)) : '<span class="tag red">no exam for this module</span>') + '</div></div>' +
-        '<div class="hours" title="First learning, before reviews">' + list.length + ' topics<br>' + hoursText(mins) + ' to learn</div></div><div class="card-body">');
+      var mine = p.exams.filter(function (e) { return e.code === code; });
+      var when = ex ? (ex.day === null ? 'Exam date to be confirmed' : 'Exam ' + esc(M.fmtDay(ex.day)) + ' at ' + M.fmtTime(ex.start)) : '<span class="tag red">no exam for this module</span>';
+      if (mine.length > 1) when = mine.length + ' exams: ' + mine.map(function (e) { return e.day === null ? 'date to be confirmed' : esc(M.fmtShort(e.day)); }).join(', ');
+      h.push('<div class="card mod taped m' + examColour(code) + '"><div class="card-head"><div><h3>' + esc(code) + ' ' + esc(sharedTitle(mine)) + '</h3><div class="small muted">' + when + '</div></div>' +
+        '<div class="hours" title="First learning, before reviews">' + plural(list.length, 'topic') + '<br>' + hoursText(mins) + ' to learn</div></div><div class="card-body">');
       if (!list.length) h.push('<p class="small muted">No topics yet for this module.</p>');
       list.forEach(function (x) {
         var t = x[0], i = x[1];
@@ -625,7 +634,7 @@
     // Calendar import and availability file
     h.push('<div class="cols" style="margin-top:30px">');
     var cal = ['<div class="card taped plain"><div class="card-head"><h3>Busy times from your calendar or rota</h3><span class="tag">.ics or CSV</span></div><div class="card-body">' +
-      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file or a shift rota</p><p class="formats">Your university timetable feed, or an export from Google, Apple or Outlook calendar (.ics): weekly repeats, skipped dates, moved and cancelled events are followed, and all-day entries are listed but not counted as busy. Or a rota as CSV with a date, a start and a finish (or hours) on each row; shifts past midnight carry on into the next day. Load as many as you have.</p>' +
+      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file or a shift rota</p><p class="formats">Your university timetable feed, or an export from your phone or computer calendar (.ics): weekly repeats, skipped dates, moved and cancelled events are followed, and all-day entries are listed but not counted as busy. Or a rota as CSV with a date, a start and a finish (or hours) on each row; shifts past midnight carry on into the next day. Load as many as you have.</p>' +
       '<div class="btn-row"><span class="btn btn-small btn-marker file-btn">Choose a calendar or rota<input type="file" id="cal-file" accept=".ics,.csv,.tsv,.txt,text/calendar,text/csv" aria-label="Choose a calendar or rota file"></span>' +
       (p.busy.length ? '<button type="button" class="btn-link" data-action="clear-busy">Remove all busy times</button>' : '') + '</div>' + importReport(state.imports.calendar, 'busy time') + '</div>'];
     var summ = M.busySummary(p.busy.filter(function (b) { return b.day >= horizonFrom; }));
@@ -654,7 +663,7 @@
 
     // Settings
     var preset = PRESETS.filter(function (x) { return x[1] === s.learnMin && x[2] === s.reviewMin && x[3] === s.breakMin; })[0];
-    h.push('<div class="card plain" style="margin-top:30px"><div class="card-head"><h3>How sessions are sized</h3><button type="button" class="btn-link" data-action="reset-settings">Back to the defaults</button></div><div class="card-body"><div class="settings-grid">' +
+    h.push('<div class="card plain" style="margin-top:30px"><div class="card-head"><h3>How sessions are sized and paced</h3><button type="button" class="btn-link" data-action="reset-settings">Back to the defaults</button></div><div class="card-body"><div class="settings-grid">' +
       '<div class="field"><label for="set-preset">Session style</label><select id="set-preset">' + PRESETS.map(function (x) { return '<option value="' + x[0] + '"' + (preset && preset[0] === x[0] ? ' selected' : '') + '>' + esc(x[4]) + '</option>'; }).join('') +
       (preset ? '' : '<option value="" selected>Your own lengths</option>') + '</select><span class="hint">Sets the three lengths below in one go.</span></div>' +
       setting('learnMin', 'Learning session (minutes)', s.learnMin, 15, 180, 5, 'New material, in one sitting.') +
@@ -665,9 +674,24 @@
       setting('maxShare', 'Most of a day on one module (%)', s.maxShare, 25, 100, 5, 'Keeps modules mixed in every day.') +
       setting('busyGap', 'Gap around commitments (minutes)', s.busyGap, 0, 120, 5, 'Travel and a breather around lectures and shifts.') +
       '<div class="field"><label for="set-examDay">On an exam day</label><select id="set-examDay" data-setting="examDay"><option value="after"' + (s.examDay === 'after' ? ' selected' : '') + '>Revise after the exam, half the hours</option><option value="off"' + (s.examDay === 'off' ? ' selected' : '') + '>No revision</option><option value="normal"' + (s.examDay === 'normal' ? ' selected' : '') + '>Normal hours around the exam</option></select><span class="hint">What else happens on the day of an exam.</span></div>' +
+      '<div class="field"><label for="set-pace">With time to spare</label><select id="set-pace" data-setting="pace"><option value="spread"' + (s.pace === 'spread' ? ' selected' : '') + '>Spread new topics out at a steady pace</option><option value="early"' + (s.pace === 'early' ? ' selected' : '') + '>Learn everything as early as possible</option></select><span class="hint">Steady keeps days lighter and leaves reviews for the last weeks.</span></div>' +
       '<div class="field"><label for="set-planFrom">Plan starts on</label><input type="date" id="set-planFrom" value="' + M.isoDay(p.planFrom) + '" data-setting="planFrom"' + (p.done.length ? ' disabled' : '') + '><span class="hint">' + (p.done.length ? 'Fixed once you have ticked sessions off; use Re-plan instead.' : 'Usually today.') + '</span></div>' +
       '</div></div></div>');
     $('#view-time').innerHTML = h.join('');
+  }
+
+  // The title a module's exams share: "Biology" for "Biology Paper 1" and
+  // "Biology Paper 2".
+  function sharedTitle(exams) {
+    if (!exams.length) return '';
+    var words = exams[0].name.split(' ');
+    exams.forEach(function (e) {
+      var w = e.name.split(' '), k = 0;
+      while (k < words.length && k < w.length && words[k].toLowerCase() === w[k].toLowerCase()) k++;
+      words = words.slice(0, k);
+    });
+    while (words.length && /^(paper|part|unit|component|-|:)$/i.test(words[words.length - 1])) words.pop();
+    return words.length ? words.join(' ') : exams[0].name;
   }
 
   var PRESETS = [
@@ -713,7 +737,7 @@
     var h = [];
     h.push('<div class="print-head"><h2>' + esc(p.name) + '</h2><span>Revision wall planner · made ' + esc(M.fmtDay(p.planFrom)) + ' · Exam season</span></div>');
     h.push('<div class="view-head"><div><h2>Your plan</h2><p class="intro">' + (plan.sessions.length ?
-      plan.sessions.length + ' sessions on ' + sm.studyDays + ' days from ' + esc(M.fmtShort(plan.from)) + ' to ' + esc(M.fmtShort(plan.last)) + ': <b class="mono">' + hoursText(sm.learnMin) + '</b> learning, <b class="mono">' + hoursText(sm.reviewMin) + '</b> spaced reviews, <b class="mono">' + hoursText(sm.paperMin) + '</b> past papers and <b class="mono">' + hoursText(sm.finalMin) + '</b> final reviews. Click a day to see its sessions.'
+      plural(plan.sessions.length, 'session') + ' on ' + plural(sm.studyDays, 'day') + ' from ' + esc(M.fmtShort(plan.from)) + ' to ' + esc(M.fmtShort(plan.last)) + ': <b class="mono">' + hoursText(sm.learnMin) + '</b> learning, <b class="mono">' + hoursText(sm.reviewMin) + '</b> spaced reviews, <b class="mono">' + hoursText(sm.paperMin) + '</b> past papers and <b class="mono">' + hoursText(sm.finalMin) + '</b> final reviews. Click a day to see its sessions.'
       : 'No sessions yet. Load your exam timetable and topics under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.') + '</p></div>' +
       '<div class="plan-tools no-print"><span class="seg" role="group" aria-label="Show the plan as"><button type="button" data-mode="calendar" aria-pressed="' + (state.planMode === 'calendar') + '">Calendar</button><button type="button" data-mode="week" aria-pressed="' + (state.planMode === 'week') + '">Week</button><button type="button" data-mode="list" aria-pressed="' + (state.planMode === 'list') + '">List</button></span>' +
       '<button type="button" class="btn btn-small btn-blue" data-action="ics-all">Calendar file (.ics)</button><label class="alarm-pick"><span>Reminders</span><select id="alarm" aria-label="Reminder before each session in the calendar file"><option value="0"' + (state.alarm === 0 ? ' selected' : '') + '>none</option><option value="10"' + (state.alarm === 10 ? ' selected' : '') + '>10 min before</option><option value="30"' + (state.alarm === 30 ? ' selected' : '') + '>30 min before</option></select></label>' +
@@ -848,7 +872,7 @@
           inner += '<span class="chip m' + plan.byExam[s.exam].colour + ' k-' + s.kind + (isDone(s.id) ? ' done' : '') + '"><span class="cc">' + esc(s.code.replace(/[0-9]+[A-Z]?$/, '')) + '</span><span class="ck">' + esc(s.kind === 'paper' ? 'past paper' : s.title) + '</span></span>';
         });
         if (list.length > shown.length) inner += '<span class="more">+' + (list.length - shown.length) + ' more</span>';
-        var label = M.fmtDay(day) + ': ' + (list.length ? list.length + ' sessions, ' + M.fmtDur(mins) : 'no sessions') + ((examOn[day] || []).length ? ', exam ' + examOn[day].map(function (e) { return e.code; }).join(' and ') : '');
+        var label = M.fmtDay(day) + ': ' + (list.length ? plural(list.length, 'session') + ', ' + M.fmtDur(mins) : 'no sessions') + ((examOn[day] || []).length ? ', exam ' + examOn[day].map(function (e) { return e.code; }).join(' and ') : '');
         if (inPlan) h.push('<button type="button" class="' + cls + '" data-day="' + day + '" aria-pressed="' + (state.selected === day) + '" aria-label="' + esc(label) + '">' + inner + '</button>');
         else h.push('<div class="' + cls + '" aria-hidden="true">' + inner + '</div>');
       }
@@ -968,9 +992,9 @@
     var missedN = st.missed.length, missedMin = 0;
     st.missed.forEach(function (s) { missedMin += s.min; });
     h.push('<div class="card taped" style="--tape:repeating-linear-gradient(45deg,#ff9fcb 0 6px,#ffd0e5 6px 12px)"><div class="card-head"><h3>Fell behind?</h3></div><div class="card-body">' +
-      (missedN ? '<p><b class="mono">' + missedN + '</b> sessions (' + hoursText(missedMin) + ') from ' + esc(M.fmtShort(p.planFrom)) + ' to ' + esc(M.fmtShort(today - 1)) + ' are not ticked off.</p>' : '<p>Nothing missed since the plan was made on ' + esc(M.fmtShort(p.planFrom)) + '.</p>') +
+      (missedN ? '<p><b class="mono">' + missedN + '</b> ' + (missedN === 1 ? 'session' : 'sessions') + ' (' + hoursText(missedMin) + ') from ' + esc(M.fmtShort(p.planFrom)) + ' to ' + esc(M.fmtShort(today - 1)) + ' are not ticked off.</p>' : '<p>Nothing missed since the plan was made on ' + esc(M.fmtShort(p.planFrom)) + '.</p>') +
       (st.shakyNew ? '<p><b class="mono">' + st.shakyNew + '</b> ' + (st.shakyNew === 1 ? 'review was' : 'reviews were') + ' shaky since then: re-planning brings ' + (st.shakyNew === 1 ? 'that topic' : 'those topics') + ' back the next day.</p>' : '') +
-      '<div class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="replan"' + (missedN || p.planFrom < today ? '' : '') + '>Re-plan from today</button></div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="replan">Re-plan from today</button></div>' +
       '<p class="hint" style="margin-top:8px">Re-planning keeps every tick, files the unticked sessions as missed, and rebuilds the rest of the plan from today with the same rules.</p>' +
       '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn btn-small" data-action="block-today">Can\'t revise today: block it and re-plan</button></div></div></div>');
     h.push('</div>');
@@ -991,7 +1015,7 @@
         var names = r.quick.map(function (id) { var tp = null; p.topics.forEach(function (x) { if (x.id === id) tp = x; }); return tp ? tp.name + ' (confidence ' + tp.conf + ')' : id; });
         fix = '<div class="fix"><b>What to drop or shorten</b><ul>' +
           (names.length ? '<li>Give your strongest topics a quick look and one review instead of full learning: ' + esc(names.join(', ')) + '. That frees about ' + hoursText(r.quickSaves) + '. <button type="button" class="btn-link" data-action="quick-apply" data-exam="' + esc(r.id) + '">Do this</button></li>' : '') +
-          (r.extraDays ? '<li>Or find room for <b class="mono">' + r.extraSessions + '</b> more ' + p.settings.learnMin + '-minute ' + (r.extraSessions === 1 ? 'session' : 'sessions') + ' before new topics stop on ' + esc(M.fmtShort(plan.byExam[r.id].learnBy)) + ': an extra hour on ' + (r.extraSessions === 1 ? 'one' : r.extraSessions) + ' of the ' + r.extraDays + ' free days, under <button type="button" class="btn-link" data-go="time">Your time</button>.</li>' : '') +
+          (r.extraDays ? '<li>Or find room for <b class="mono">' + r.extraSessions + '</b> more ' + p.settings.learnMin + '-minute ' + (r.extraSessions === 1 ? 'session' : 'sessions') + ' before new topics stop on ' + esc(M.fmtShort(plan.byExam[r.id].learnBy)) + ': ' + M.fmtDur(p.settings.learnMin + p.settings.breakMin) + ' more on ' + (r.extraSessions === 1 ? 'one' : r.extraSessions) + ' of the ' + r.extraDays + ' free days, under <button type="button" class="btn-link" data-go="time">Your time</button>.</li>' : '') +
           '<li>Or set a topic you can afford to lose to "Drop" under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.</li></ul></div>';
       }
       h.push('<div class="card ontrack m' + r.colour + ' mod ' + (i % 2 ? 'tilt-r' : 'tilt-l') + '"><div class="card-head"><div><h3>' + esc(r.code) + ' ' + esc(r.name) + '</h3><div class="when">' + esc(M.fmtDay(r.day)) + ' · ' + (r.verdict === 'sat' ? 'sat' : r.daysLeft === 0 ? 'today' : r.daysLeft + (r.daysLeft === 1 ? ' day' : ' days') + ' to go') + '</div></div><span class="verdict ' + r.verdict + '">' + esc(r.headline) + '</span></div><div class="card-body">' +
@@ -1003,7 +1027,7 @@
     // How you keep to the plan, by weekday
     var ad = M.adherence(p, plan, today);
     if (ad.days >= 3) {
-      h.push('<h3 style="margin-top:32px">How you keep to the plan</h3><p class="small muted" style="max-width:60em">From your ticks and missed sessions over ' + ad.days + ' days: you have done <b class="mono">' + ad.pct + '%</b> of the time planned. A plan you can keep beats an ambitious one you cannot.</p><div class="card plain" style="max-width:760px"><div class="card-body"><div class="wchart">');
+      h.push('<h3 style="margin-top:32px">How you keep to the plan</h3><p class="small muted" style="max-width:60em">From your ticks and missed sessions over ' + plural(ad.days, 'day') + ': you have done <b class="mono">' + ad.pct + '%</b> of the time planned. A plan you can keep beats an ambitious one you cannot.</p><div class="card plain" style="max-width:760px"><div class="card-body"><div class="wchart">');
       ad.weekdays.forEach(function (w) {
         if (!w.planned) return;
         h.push('<div class="wbar"><span class="wl">' + M.WEEKDAYS[w.weekday] + 's</span><span class="track" role="img" aria-label="' + esc(M.WEEKDAYS[w.weekday] + 's: ' + w.pct + '% of ' + M.fmtHours(w.planned) + ' planned done over ' + w.days + ' days') + '">' +
@@ -1030,11 +1054,11 @@
       (by[d] || []).forEach(function (s) { planned += s.min; if (!isDone(s.id)) undone += s.min; });
       var dn = doneByDay[d] || 0, ms = (missedByDay[d] || 0) + (d < today ? undone : 0);
       var cls = dn && !ms ? 'full' : dn && ms ? 'part' : ms ? 'miss' : 'none';
-      h.push('<div class="sday ' + cls + (d === today ? ' now' : '') + '" title="' + esc(M.fmtDay(d) + ': ' + M.fmtDur(dn) + ' done' + (ms ? ', ' + M.fmtDur(ms) + ' missed' : '')) + '"><span class="d">' + esc(M.fmtShort(d).slice(0, 3)) + ' ' + M.ymdFromDay(d)[2] + '</span><span class="v">' + (dn ? M.tenths(dn).replace(/\.0$/, '') + 'h' : ms ? '×' : '–') + '</span></div>');
+      h.push('<div class="sday ' + cls + (d === today ? ' now' : '') + '" title="' + esc(M.fmtDay(d) + ': ' + M.fmtDur(dn) + ' done' + (ms ? ', ' + M.fmtDur(ms) + ' missed' : '')) + '"><span class="d">' + esc(M.fmtShort(d).slice(0, 3)) + ' ' + M.ymdFromDay(d)[2] + '</span><span class="v">' + (dn ? M.tenths(dn).replace(/\.0$/, '') + 'h' : ms ? '×' : '–') + '</span><span class="k">' + (cls === 'none' && planned ? 'to do' : ({ full: 'done', part: 'part', miss: 'missed', none: 'free' })[cls]) + '</span></div>');
     }
     h.push('</div><p class="small muted" style="margin-top:8px">Green: everything done · half yellow: some done · red stripes: missed · grey: nothing planned.</p>');
     if (p.missed.length) {
-      h.push('<details style="margin-top:14px"><summary>' + p.missed.length + ' sessions filed as missed when you re-planned</summary><ul class="small">' +
+      h.push('<details style="margin-top:14px"><summary>' + plural(p.missed.length, 'session') + ' filed as missed when you re-planned</summary><ul class="small">' +
         p.missed.slice(-40).map(function (m) { return '<li>' + esc(M.fmtShort(m.day)) + ': ' + esc(m.title) + '</li>'; }).join('') + '</ul></details>');
     }
     h.push('<div class="btn-row" style="margin-top:22px"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="status-csv">On-track table (CSV)</button><button type="button" class="btn btn-small" data-action="ics-ahead">Sessions from today (.ics)</button></div>');
@@ -1111,10 +1135,11 @@
     var cards = [
       ['m0', 'How long each topic needs', '<p>A topic\'s size is the first learning it needs at middling confidence: S is 2 hours, M is 3, L is 5 (XS 1, XL 7), or the hours you type. Confidence scales it: 1 needs 150%, 2 needs 125%, 3 needs 100%, 4 needs 75% and 5 needs 50%. That is rounded up to whole ' + s.learnMin + '-minute learning sessions. A topic marked Quick gets one ' + s.reviewMin + '-minute look and one review; Drop leaves it out.</p>'],
       ['m1', 'Weak and heavy topics first', '<p>Within each module, topics are learnt in order of confidence (weakest first), then size (biggest first), then the order you listed them. So the topics most likely to go wrong get the most time and the most reviews.</p>'],
-      ['m2', 'Which module next', '<p>Every module aims to finish its new topics a week before they stop (see the taper), so its last topics still get reviews. The next learning session goes to the module with the least slack: the hours of free time left before that aim, minus the hours of learning it still needs. Early exams come first without starving later ones.</p>'],
+      ['m2', 'Which module next', '<p>Every module aims to finish its new topics a week before they stop (see the taper), so its last topics still get reviews. The next learning session goes to the module with the least slack: the hours of free time left before that aim, minus the hours of learning it still needs. Early exams come first without starving later ones.</p>' +
+        (s.pace === 'spread' ? '<p>When a module has time to spare, its new topics go at a steady pace that would finish them a quarter sooner than they need to, so days stay lighter and the last weeks still have reviews. (Choose "as early as possible" under Your time to use every free hour instead.)</p>' : '<p>New topics are learnt as early as your free time allows (you chose "as early as possible" under Your time).</p>')],
       ['m3', 'Mixed, never one module all day', '<p>No module takes more than ' + s.maxShare + '% of a day\'s revision, and two sessions in a row are from different modules, whenever another module has something to do. A topic gets at most one session a day. These only relax when nothing else fits.</p>'],
       ['m4', 'Spaced reviews at growing gaps', '<p>Once a topic is learnt, it comes back for ' + s.reviewMin + '-minute reviews ' + gaps.join(', ').replace(/, ([0-9]+)$/, ' and $1') + ' days apart, each gap counted from the review before. The first three reviews come before new learning (up to ' + s.reviewShare + '% of a day); later top-ups only fill spare time. A review that slips simply happens the next free day.</p>'],
-      ['m5', 'A taper into each exam', '<p>New topics stop ' + s.taperDays + ' days before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
+      ['m5', 'A taper into each exam', '<p>New topics stop ' + plural(s.taperDays, 'day') + ' before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
       ['m0', 'The day before is kept for that exam', '<p>The day before each exam (or the nearest free day up to three days before) is kept for it: one final review of every topic, weakest first, and nothing new. On an exam day you ' + (s.examDay === 'after' ? 'revise only after the exam, for at most half your usual hours' : s.examDay === 'off' ? 'do no revision' : 'revise your normal hours around the exam') + '.</p>'],
       ['m1', 'Your time comes first', '<p>Sessions only go inside your window for the day, up to your hours, never over a busy time from your calendar (with ' + s.busyGap + ' minutes either side) or within ' + s.examGap + ' minutes of an exam. Each session is followed by a ' + s.breakMin + '-minute break. Blocked days get nothing.</p>'],
       ['m4', 'Shaky, OK or solid', '<p>When you tick a review off you can say how it went. Once you re-plan, a shaky review starts that topic\'s ladder of gaps again (it comes back the next day), OK moves it one step and solid moves it two. Unrated reviews count as OK.</p>'],
@@ -1133,7 +1158,30 @@
   // Render all and navigation
   // ------------------------------------------------------------------
 
+  // Every change redraws the page, so the control that had the focus gets
+  // it back afterwards (found again by its id or its data- attributes).
+  function focusKey() {
+    var a = document.activeElement, main = $('#main');
+    if (!a || a === document.body || !main || !main.contains(a)) return null;
+    if (a.id) return '#' + (window.CSS && CSS.escape ? CSS.escape(a.id) : a.id);
+    var tag = a.tagName.toLowerCase(), sel = tag;
+    for (var i = 0; i < a.attributes.length; i++) {
+      var at = a.attributes[i];
+      if (/^data-/.test(at.name) && at.name !== 'data-sure') sel += '[' + at.name + '="' + String(at.value).replace(/["\\]/g, '\\$&') + '"]';
+    }
+    return sel === tag ? null : sel;
+  }
+
   function renderAll() {
+    var key = focusKey();
+    renderPage();
+    if (!key) return;
+    var el = null;
+    try { el = document.querySelector(key); } catch (e) { el = null; }
+    if (el && el !== document.activeElement && typeof el.focus === 'function') el.focus({ preventScroll: true });
+  }
+
+  function renderPage() {
     renderHero();
     renderStickers();
     renderBanner();
@@ -1206,7 +1254,7 @@
       return;
     }
     var s = JSON.parse(JSON.stringify(p.settings));
-    s[key] = key === 'examDay' ? value : parseInt(value, 10);
+    s[key] = key === 'examDay' || key === 'pace' ? value : parseInt(value, 10);
     p.settings = M.cleanSettings(s);
     changed(null);
   }
@@ -1244,7 +1292,7 @@
       case 'start-own': startOwn(); break;
       case 'show-sample': forget(); state.restored = false; loadSample(); state.view = 'plan'; renderAll(); break;
       case 'open-project': $('#file-project').click(); break;
-      case 'save-project': download(fileSafe(p.name) + '.json', M.projectFile(p), 'application/json'); toast('Saved the plan file. Open it here any time to carry on.'); break;
+      case 'save-project': download(fileSafe(p.name) + '.json', M.projectFile(p), 'application/json'); toast('Downloading ' + fileSafe(p.name) + '.json: open it here any time to carry on. (If no download appears, this page is in a frame that blocks them; open app/index.html directly.)'); break;
       case 'read-exams': importExams($('#exam-text').value, 'pasted text'); break;
       case 'read-topics': importTopics($('#topic-text').value, 'pasted list', false); break;
       case 'replace-topics': importTopics($('#topic-text').value, 'pasted list', true); break;
@@ -1261,7 +1309,10 @@
       case 'template-topics': download('topics-template.csv', M.topicTemplate(), 'text/csv;charset=utf-8'); break;
       case 'del-exam': p.exams.splice(parseInt(t.getAttribute('data-i'), 10), 1); changed('Exam removed.'); break;
       case 'del-topic': p.topics.splice(parseInt(t.getAttribute('data-i'), 10), 1); changed('Topic removed.'); break;
-      case 'clear-topics': if (window.confirm('Remove all ' + p.topics.length + ' topics?')) { p.topics = []; changed('All topics removed.'); } break;
+      case 'clear-topics':
+        if (t.getAttribute('data-sure') === 'yes') { p.topics = []; changed('All topics removed.'); }
+        else { t.setAttribute('data-sure', 'yes'); t.textContent = 'Press again to remove all ' + plural(p.topics.length, 'topic'); }
+        break;
       case 'clear-busy': p.busy = []; p.allDay = []; p.sources = p.sources.filter(function (s) { return s.kind !== 'calendar'; }); changed('Busy times removed.'); break;
       case 'del-override': var dday = parseInt(t.getAttribute('data-day'), 10); p.overrides = p.overrides.filter(function (v) { return v.day !== dday; }); changed('Change removed.'); break;
       case 'block-allday':
@@ -1271,7 +1322,7 @@
         break;
       case 'save-availability': download('availability.csv', M.availabilityCsv(p), 'text/csv;charset=utf-8'); break;
       case 'reset-settings': p.settings = M.cleanSettings({}); changed('Settings back to the defaults.'); break;
-      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name, alarm: state.alarm }), 'text/calendar;charset=utf-8'); toast('Calendar file saved: import it into Google, Apple or Outlook calendar.'); break;
+      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name, alarm: state.alarm }), 'text/calendar;charset=utf-8'); toast('Downloading the calendar file: import it into the calendar on your phone or computer.'); break;
       case 'markdown': download(fileSafe(p.name) + '.md', M.checklistMarkdown(p, plan, state.today, null), 'text/markdown;charset=utf-8'); toast('Checklist saved from today on: paste or open it in your notes app.'); break;
       case 'week-prev': state.weekStart -= 7; renderPlan(); break;
       case 'week-next': state.weekStart += 7; renderPlan(); break;
@@ -1290,9 +1341,10 @@
         copyText(M.dayText(p, plan, d2), function (ok) { toast(ok ? 'Copied ' + M.fmtShort(d2) + ' as text.' : 'Copying is blocked here; use the .ics or CSV instead.'); });
         break;
       case 'replan':
-        M.replan(p, plan, state.today, p.asOf === null && state.today === realToday() ? nowMinutes() : 0);
+        var missedBefore = p.missed.length;
+        M.replan(p, plan, state.today, replanMinute());
         ensureOwnKeep(); recompute(); persist(); renderAll();
-        toast('Re-planned from ' + M.fmtShort(state.today) + '. Ticks kept; ' + p.missed.length + ' sessions filed as missed.');
+        toast('Re-planned from ' + M.fmtShort(state.today) + '. Ticks kept; ' + plural(p.missed.length - missedBefore, 'session') + ' filed as missed.');
         break;
       case 'block-today':
         M.setOverride(p, state.today, 0, 'Could not revise');
@@ -1312,7 +1364,7 @@
         state.status.exams.forEach(function (x) { if (x.id === t.getAttribute('data-exam')) r = x; });
         if (r) {
           p.topics.forEach(function (tp) { if (r.quick.indexOf(tp.id) >= 0) tp.mode = 'quick'; });
-          changed(r.quick.length + ' topics switched to a quick look.');
+          changed(plural(r.quick.length, 'topic') + ' switched to a quick look.');
         }
         break;
       default: break;
@@ -1326,10 +1378,12 @@
   function onChange(ev) {
     var t = ev.target;
     if (t.id === 'file-project' && t.files && t.files[0]) { var f = t.files[0]; readFile(f, function (txt) { openProjectText(txt, f.name); }); t.value = ''; return; }
-    if (t.id === 'exam-file' && t.files[0]) { var f1 = t.files[0]; readFile(f1, function (txt) { importExams(txt, f1.name); }); return; }
-    if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); return; }
-    if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); return; }
-    if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); return; }
+    // Each file input is cleared once read, so choosing the same file again
+    // (after fixing it) reads it again.
+    if (t.id === 'exam-file' && t.files[0]) { var f1 = t.files[0]; readFile(f1, function (txt) { importExams(txt, f1.name); }); t.value = ''; return; }
+    if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); t.value = ''; return; }
+    if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); t.value = ''; return; }
+    if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); t.value = ''; return; }
     if (t.id === 'alarm') { state.alarm = parseInt(t.value, 10) || 0; try { localStorage.setItem(STORE + '-alarm', String(state.alarm)); } catch (e) { /* storage blocked */ } return; }
     if (t.hasAttribute('data-filter')) { state.topicFilter[t.getAttribute('data-filter')] = t.value; renderTopics(); var fb = $('#' + t.id); if (fb) fb.focus(); return; }
     if (t.id === 'today-is') {

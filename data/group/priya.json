@@ -17,7 +17,8 @@
   "busyGap": 15,
   "examGap": 45,
   "examDay": "after",
-  "paperMax": 180
+  "paperMax": 180,
+  "pace": "spread"
  },
  "exams": [
   {

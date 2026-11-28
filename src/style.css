@@ -209,6 +209,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 .drop-title { font-family: var(--display); font-weight: 800; font-size: 18px; margin: 0 0 4px; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.file-btn:focus-within { outline: 3px solid var(--print); outline-offset: 2px; }
 .formats { font-size: 13.5px; color: var(--pencil); margin: 6px 0 10px; }
 
 /* Messages as margin notes */
@@ -405,6 +406,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 .sday { width: 62px; text-align: center; padding: 6px 2px; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); font-size: 11px; }
 .sday .d { font-family: var(--mono); display: block; color: var(--pencil); }
 .sday .v { font-family: var(--display); font-weight: 800; font-size: 16px; display: block; }
+.sday .k { display: block; font-size: 9.5px; line-height: 1.1; color: var(--pencil); white-space: nowrap; }
 .sday.full { background: var(--h2); }
 .sday.part { background: linear-gradient(180deg, #fff 0 45%, var(--h0) 45%); }
 .sday.miss { background: repeating-linear-gradient(45deg, #ffd6d1 0 4px, #fff 4px 8px); }

@@ -160,6 +160,29 @@ class AppTest(unittest.TestCase):
         page.wait_for_function("document.querySelector('#view-time').innerText.includes('Read 17 busy times from shift-rota.csv')")
         self.assertIn('Bar (Fox and Lantern)', page.inner_text('#view-time'))
 
+    def test_a_statement_of_entry_focus_kept_and_a_second_press_to_clear(self):
+        page = self.open()
+        page.click('[data-action=start-own]')
+        statement = self.write('statement.txt', 'Code\tSubject\tPaper\tDate\tSession\tDuration\n4821/1\tBiology\tPaper 1\t12/05/2027\tAM\t2h\n'
+                               '4821/2\tBiology\tPaper 2\t21/05/2027\tPM\t2h\n4835/1\tMathematics\tPaper 1\t13/05/2027\tPM\t2h\n')
+        page.set_input_files('#exam-file', statement)
+        page.wait_for_function("document.querySelector('#view-exams').innerText.includes('Read 3 exams from statement.txt')")
+        self.assertEqual(page.input_value('.exam-row:not(.head) input[data-field=start] >> nth=0'), '09:00')
+        page.set_input_files('#topic-file', self.write('topics.txt', 'Biology:\n- Cells (2, L)\n- Genes (3, M)\nMathematics:\n- Calculus (2, L)\n'))
+        page.wait_for_function("document.querySelector('#view-exams').innerText.includes('2 exams: Wed 12 May, Fri 21 May')")
+        self.assertIn('4821 Biology', page.inner_text('.module-cards'))
+        # Choosing a confidence keeps the keyboard focus on that button after the page is redrawn.
+        page.focus('button[data-topic="0"][data-conf="4"]')
+        page.keyboard.press('Enter')
+        page.wait_for_function("document.querySelector('button[data-topic=\"0\"][data-conf=\"4\"]').getAttribute('aria-pressed') === 'true'")
+        self.assertEqual(page.evaluate("document.activeElement.getAttribute('data-conf')"), '4')
+        # Removing every topic asks for a second press (no pop-up, so it works in a frame too).
+        page.click('[data-action=clear-topics]')
+        self.assertIn('Press again', page.inner_text('[data-action=clear-topics]'))
+        page.click('[data-action=clear-topics]')
+        page.wait_for_function("document.querySelector('#view-exams').innerText.includes('All topics removed') || !document.querySelector('[data-action=clear-topics]')")
+        self.assertEqual(page.inner_text('.module-cards').count('No topics yet for this module.'), 2)
+
     def test_a_whole_university_timetable_is_cut_down(self):
         rows = ['Module Code,Module Title,Exam Date,Start Time,Duration (mins)']
         rows += ['UNI%04d,Module %d,%02d/01/2027,09:30,120' % (i, i, 4 + i % 20) for i in range(300)]

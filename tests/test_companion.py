@@ -207,6 +207,40 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('The next fourteen days', page)
         self.assertIn('Where each topic stands', page)
 
+    def test_the_morning_job_options(self):
+        shutil.copy(os.path.join(DATA, 'sample-project.json'), self.path('s.json'))
+        before = text_of(self.path('s.json'))
+        code, out = run_cli('today', self.path('s.json'), '--date', '2026-12-10', '--out-dir', self.path('dry'), '--dry-run', '--alarm', '30')
+        self.assertEqual(code, 0)
+        self.assertEqual(text_of(self.path('s.json')), before, 'a dry run changes nothing')
+        ics = text_of(self.path('dry', 'revision-2026-12-10.ics'), newline='')
+        self.assertIn('TRIGGER:-PT30M', ics)
+        self.assertNotIn('TRIGGER:-PT10M', ics)
+        code, out = run_cli('plan', '--folder', os.path.join(DATA, 'alex'), '--start', '2026-11-30', '--out', self.path('a.json'),
+                            '--markdown', self.path('a.md'), '--ics', self.path('a.ics'))
+        md = text_of(self.path('a.md'))
+        self.assertTrue(md.startswith('# '))
+        self.assertEqual(md.count('\n- [ ] '), 302)
+        self.assertIn('TRIGGER:-PT15H30M', text_of(self.path('a.ics'), newline=''), 'exam reminders at 18:00 the evening before a 09:30 exam')
+
+    def test_a_sixth_formers_statement_of_entry(self):
+        with open(self.path('statement.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('Code\tSubject\tPaper\tDate\tSession\tDuration\n4821/1\tBiology\tPaper 1\t12/05/2027\tAM\t2h\n'
+                     '4821/2\tBiology\tPaper 2\t21/05/2027\tPM\t2h\n4835/1\tMathematics\tPaper 1\t13/05/2027\tPM\t2h\n')
+        with open(self.path('topics.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('Biology:\n- Cells (2, L)\n- Genes (3, M)\nMathematics:\n- Calculus (2, L)\n')
+        code, out = run_cli('check', self.path('statement.txt'), self.path('topics.txt'), '--date', '2027-03-01')
+        self.assertIn('4821     Cells', out, 'topics are matched to the exams in the same check')
+        self.assertNotIn('does not match an exam title', out)
+        code, out = run_cli('plan', '--exams', self.path('statement.txt'), '--topics', self.path('topics.txt'), '--start', '2027-03-01',
+                            '--out', self.path('p.json'))
+        self.assertIn('4821 has 2 exams', out)
+        code, out = run_cli('tick', self.path('p.json'), '--day', '2027-03-01')
+        p = m.read_project(text_of(self.path('p.json')), m.day_from_ymd(2027, 3, 1))['project']
+        self.assertTrue(p['done'] and all(d['day'] == m.day_from_ymd(2027, 3, 1) for d in p['done']), 'ticked on the day named')
+        code, out = run_cli('today', self.path('p.json'), '--date', '2027-03-02', '--dry-run')
+        self.assertIn('4821 Biology Paper 1 in 71 days', out)
+
     def test_retro_looks_back_by_weekday_and_module(self):
         code, out = run_cli('retro', os.path.join(DATA, 'sample-project.json'), '--date', '2026-12-10')
         self.assertEqual(code, 0)
@@ -260,8 +294,9 @@ class GroupTest(unittest.TestCase):
         mems = self.members()
         result = group.plan_group(mems, FROM, length=90)
         self.assertEqual([x['code'] for x in result['modules']], ['ECO3112', 'FIN3020', 'LAW3207', 'DAT3301'])
-        self.assertGreater(len(result['sessions']), 20)
+        self.assertEqual(len(result['sessions']), 27, 'the README gives this number')
         by = {x['name']: x['project'] for x in mems}
+        kept = {x['name']: group.kept_days(x['project']) for x in mems}
         seen = {}
         for se in result['sessions']:
             self.assertLessEqual(se['day'], se['examDay'] - 2)
@@ -271,6 +306,7 @@ class GroupTest(unittest.TestCase):
                 ivs, cap = group.free_time(p, se['day'])
                 self.assertTrue(any(iv[0] <= se['start'] and se['end'] <= iv[1] for iv in ivs), '%s is free for %s' % (name, se['id']))
                 self.assertFalse(any(e['day'] == se['day'] for e in p['exams']), 'not on an exam day')
+                self.assertTrue(kept[name].get(se['day'], {se['code']}) == {se['code']}, 'not on a day kept for another exam')
                 for other in seen.get((name, se['day']), []):
                     self.assertTrue(se['start'] >= other[1] or se['end'] <= other[0], 'no double booking')
                 seen.setdefault((name, se['day']), []).append((se['start'], se['end']))

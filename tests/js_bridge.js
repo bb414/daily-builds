@@ -72,7 +72,7 @@ function main() {
   });
   out.calendars = (job.calendars || []).map(function (x) { return M.readCalendar(x.text, x.from, x.to); });
   out.busy = (job.busy || []).map(function (x) { return M.readBusy(x.text, x.from, x.to); });
-  out.availability = (job.availability || []).map(function (x) { return M.readAvailability(x.text); });
+  out.availability = (job.availability || []).map(function (x) { return M.readAvailability(x.text, null, x.ref); });
   out.dates = (job.dates || []).map(function (s) { return [M.parseDate(s, 'DMY', 20788), M.parseDate(s, 'MDY', 20788), M.findDate(s, 'DMY', 20788)]; });
   out.times = (job.times || []).map(function (s) { return [M.parseTime(s), M.findTimes(s), M.parseClock(s)]; });
   out.durations = (job.durations || []).map(function (s) { return [M.parseDuration(s, ''), M.parseDuration(s, 'min'), M.parseDuration(s, 'hour')]; });
@@ -83,6 +83,7 @@ function main() {
   out.codes = (job.codes || []).map(function (s) { return [M.findCode(s), M.normCode(s)]; });
   out.utc = (job.utc || []).map(function (x) { return M.utcToLondon(x[0], x[1]); });
   out.codeLists = (job.codeLists || []).map(function (s) { return M.parseCodeList(s); });
+  out.sizes = (job.sizes || []).map(function (n) { return M.sizeLabel(n); });
   out.cleaned = (job.cleaned || []).map(function (t) { var r = M.readProject(t, 20788); return r.project ? M.projectFile(r.project) : r.messages; });
   out.templates = [M.examTemplate(), M.topicTemplate()];
   process.stdout.write(JSON.stringify(out));

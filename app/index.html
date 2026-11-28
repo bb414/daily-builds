@@ -224,6 +224,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 .drop-title { font-family: var(--display); font-weight: 800; font-size: 18px; margin: 0 0 4px; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.file-btn:focus-within { outline: 3px solid var(--print); outline-offset: 2px; }
 .formats { font-size: 13.5px; color: var(--pencil); margin: 6px 0 10px; }
 
 /* Messages as margin notes */
@@ -420,6 +421,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 .sday { width: 62px; text-align: center; padding: 6px 2px; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); font-size: 11px; }
 .sday .d { font-family: var(--mono); display: block; color: var(--pencil); }
 .sday .v { font-family: var(--display); font-weight: 800; font-size: 16px; display: block; }
+.sday .k { display: block; font-size: 9.5px; line-height: 1.1; color: var(--pencil); white-space: nowrap; }
 .sday.full { background: var(--h2); }
 .sday.part { background: linear-gradient(180deg, #fff 0 45%, var(--h0) 45%); }
 .sday.miss { background: repeating-linear-gradient(45deg, #ffd6d1 0 4px, #fff 4px 8px); }
@@ -631,7 +633,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
         <g transform="translate(486 74)">
           <circle r="62" fill="#ffe74a" filter="url(#soft)"/>
           <circle r="54" fill="none" stroke="#1d2141" stroke-width="1.5" stroke-dasharray="3 4" opacity=".55"/>
-          <text y="-14" text-anchor="middle" font-family="Sometype Mono, monospace" font-size="11" fill="#1d2141" letter-spacing="1">FIRST EXAM IN</text>
+          <text y="-14" text-anchor="middle" font-family="Sometype Mono, monospace" font-size="11" fill="#1d2141" letter-spacing="1">NEXT EXAM IN</text>
           <text y="24" text-anchor="middle" font-family="Shantell Sans, cursive" font-weight="800" font-size="40" fill="#1d2141" id="hero-count">32</text>
           <text y="42" text-anchor="middle" font-family="Sometype Mono, monospace" font-size="11" fill="#1d2141" id="hero-count-label">DAYS</text>
         </g>
@@ -688,7 +690,7 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 <input type="file" id="file-project" class="visually-hidden" tabindex="-1" aria-label="Open a saved plan file" accept=".json,application/json">
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script id="samples" type="application/json">{"project": "{\n \"app\": \"exam-season\",\n \"version\": 1,\n \"name\": \"Alex's January exams\",\n \"student\": \"Alex Marlow (invented), final year, Brackenmoor University (invented)\",\n \"planFrom\": \"2026-11-30\",\n \"planFromMin\": 0,\n \"asOf\": \"2026-12-10\",\n \"settings\": {\n  \"learnMin\": 50,\n  \"reviewMin\": 25,\n  \"breakMin\": 10,\n  \"taperDays\": 3,\n  \"papers\": 2,\n  \"maxShare\": 50,\n  \"reviewShare\": 40,\n  \"busyGap\": 15,\n  \"examGap\": 45,\n  \"examDay\": \"after\",\n  \"paperMax\": 180\n },\n \"exams\": [\n  {\n   \"id\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Strategic Management\",\n   \"day\": \"2027-01-11\",\n   \"start\": 570,\n   \"duration\": 120,\n   \"room\": \"Great Hall\",\n   \"seat\": \"G-114\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Behavioural Economics\",\n   \"day\": \"2027-01-13\",\n   \"start\": 840,\n   \"duration\": 120,\n   \"room\": \"Sports Centre, Hall B\",\n   \"seat\": \"B-027\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Corporate Finance\",\n   \"day\": \"2027-01-15\",\n   \"start\": 570,\n   \"duration\": 180,\n   \"room\": \"Great Hall\",\n   \"seat\": \"G-086\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Competition and Consumer Law\",\n   \"day\": \"2027-01-19\",\n   \"start\": 840,\n   \"duration\": 120,\n   \"room\": \"Wren Building 1.12\",\n   \"seat\": \"41\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Business Analytics\",\n   \"day\": \"2027-01-22\",\n   \"start\": 570,\n   \"duration\": 150,\n   \"room\": \"Computer Lab 3\",\n   \"seat\": \"PC-19\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  }\n ],\n \"topics\": [\n  {\n   \"id\": \"mgt3104-porter-s-five-forces\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Porter's five forces\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-resource-based-view\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Resource-based view\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-dynamic-capabilities\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Dynamic capabilities\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-corporate-strategy-and-diversification\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Corporate strategy and diversification\",\n   \"conf\": 5,\n   \"size\": 300,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-mergers-and-acquisitions\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Mergers and acquisitions\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-strategy-in-emerging-markets\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Strategy in emerging markets\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-blue-ocean-strategy\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Blue ocean strategy\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-business-models-and-platforms\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Business models and platforms\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-prospect-theory\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Prospect theory\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-mental-accounting\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Mental accounting\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-present-bias-and-discounting\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Present bias and discounting\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-nudges-and-choice-architecture\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Nudges and choice architecture\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-social-preferences-and-fairness\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Social preferences and fairness\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-heuristics-and-biases\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Heuristics and biases\",\n   \"conf\": 1,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"eco3112-behavioural-finance\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Behavioural finance\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-field-experiments\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Field experiments\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-capital-budgeting-and-npv\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Capital budgeting and NPV\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-cost-of-capital-wacc\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Cost of capital (WACC)\",\n   \"conf\": 1,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"fin3020-capital-structure\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Capital structure\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-dividend-policy\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Dividend policy\",\n   \"conf\": 1,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"fin3020-real-options\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Real options\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-dcf-valuation\",\n   \"code\": \"FIN3020\",\n   \"name\": \"DCF valuation\",\n   \"conf\": 2,\n   \"size\": 300,\n   \"mode\": \"full\",\n   \"note\": \"long reading list\"\n  },\n  {\n   \"id\": \"fin3020-working-capital\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Working capital\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-leveraged-buyouts\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Leveraged buyouts\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-anti-competitive-agreements\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Anti-competitive agreements\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-abuse-of-dominance\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Abuse of dominance\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-merger-control\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Merger control\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-market-definition\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Market definition\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-consumer-rights-and-remedies\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Consumer rights and remedies\",\n   \"conf\": 1,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"law3207-unfair-contract-terms\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Unfair contract terms\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-digital-markets-regulation\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Digital markets regulation\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-enforcement-and-fines\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Enforcement and fines\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-linear-regression\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Linear regression\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-logistic-regression\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Logistic regression\",\n   \"conf\": 5,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-decision-trees-and-forests\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Decision trees and forests\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-clustering\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Clustering\",\n   \"conf\": 5,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-time-series-forecasting\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Time series forecasting\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-model-evaluation\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Model evaluation\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-data-visualisation\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Data visualisation\",\n   \"conf\": 5,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-a-b-testing\",\n   \"code\": \"DAT3301\",\n   \"name\": \"A/B testing\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  }\n ],\n \"week\": [\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 300\n  },\n  {\n   \"from\": 600,\n   \"to\": 1200,\n   \"minutes\": 180\n  },\n  {\n   \"from\": 600,\n   \"to\": 1140,\n   \"minutes\": 300\n  }\n ],\n \"overrides\": [\n  {\n   \"day\": \"2026-12-19\",\n   \"minutes\": 120,\n   \"label\": \"Travelling home\",\n   \"from\": 840,\n   \"to\": 1200\n  },\n  {\n   \"day\": \"2026-12-24\",\n   \"minutes\": 0,\n   \"label\": \"Christmas Eve\"\n  },\n  {\n   \"day\": \"2026-12-25\",\n   \"minutes\": 0,\n   \"label\": \"Christmas Day\"\n  },\n  {\n   \"day\": \"2026-12-26\",\n   \"minutes\": 0,\n   \"label\": \"Boxing Day\"\n  },\n  {\n   \"day\": \"2026-12-31\",\n   \"minutes\": 120,\n   \"label\": \"New Year's Eve\",\n   \"from\": 600,\n   \"to\": 960\n  },\n  {\n   \"day\": \"2027-01-01\",\n   \"minutes\": 0,\n   \"label\": \"New Year's Day\"\n  },\n  {\n   \"day\": \"2027-01-03\",\n   \"minutes\": 120,\n   \"label\": \"Travelling back\",\n   \"from\": 900,\n   \"to\": 1260\n  }\n ],\n \"busy\": [\n  {\n   \"day\": \"2026-11-23\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-24\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-24\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-11-25\",\n   \"start\": 540,\n   \"end\": 660,\n   \"label\": \"FIN3020 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-26\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"LAW3207 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-26\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-11-27\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-11-28\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-11-30\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-01\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-01\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-02\",\n   \"start\": 780,\n   \"end\": 1080,\n   \"label\": \"Rugby: away fixture\"\n  },\n  {\n   \"day\": \"2026-12-03\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-12-03\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-04\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-12-04\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"LAW3207 Lecture (moved)\"\n  },\n  {\n   \"day\": \"2026-12-05\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-12-07\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-08\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-08\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-09\",\n   \"start\": 540,\n   \"end\": 660,\n   \"label\": \"FIN3020 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-09\",\n   \"start\": 780,\n   \"end\": 1050,\n   \"label\": \"Rugby: home fixture\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"LAW3207 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-11\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-12-12\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-12-15\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-17\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-19\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2027-01-06\",\n   \"start\": 660,\n   \"end\": 720,\n   \"label\": \"Dentist\"\n  },\n  {\n   \"day\": \"2027-01-07\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2027-01-07\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Consulting Society AGM\"\n  },\n  {\n   \"day\": \"2027-01-09\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2027-01-14\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2027-01-16\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  }\n ],\n \"allDay\": [\n  {\n   \"day\": \"2026-12-19\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-20\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-21\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-22\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-23\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-24\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-25\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-26\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-27\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-28\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-29\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-30\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-31\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-01\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-02\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-03\",\n   \"label\": \"Home for Christmas\"\n  }\n ],\n \"sources\": [\n  {\n   \"kind\": \"exams\",\n   \"name\": \"exam-timetable.csv\",\n   \"summary\": \"5 exams\"\n  },\n  {\n   \"kind\": \"topics\",\n   \"name\": \"topics.csv\",\n   \"summary\": \"40 topics in 5 modules\"\n  },\n  {\n   \"kind\": \"availability\",\n   \"name\": \"availability.csv\",\n   \"summary\": \"7 weekday rows and 7 dated changes\"\n  },\n  {\n   \"kind\": \"calendar\",\n   \"name\": \"busy-calendar.ics\",\n   \"summary\": \"36 busy times from 19 events, all-day entries on 16 days not counted\"\n  }\n ],\n \"done\": [\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 1 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 1 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-present-bias-and-discounting:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Present bias and discounting (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 1 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 1 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 1 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 2 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 2 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 2 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 2 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 3 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 3 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 3 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 3 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 3 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 4 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 4 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 4 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:1\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:2\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:5\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 5 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:5\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 5 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:4\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 4 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:2\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:3\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-heuristics-and-biases:1\",\n   \"day\": \"2026-12-04\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"learn:eco3112-present-bias-and-discounting:3\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Present bias and discounting (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:5\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 5 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:3\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-porter-s-five-forces:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (learn, part 1 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:fin3020-cost-of-capital-wacc:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:2\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:4\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 4 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:6\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 6 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-dynamic-capabilities:1\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (learn, part 1 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-porter-s-five-forces:2\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (learn, part 2 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:3\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:5\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 5 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-dynamic-capabilities:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (learn, part 2 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-behavioural-finance:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:fin3020-dividend-policy:1\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"review:mgt3104-porter-s-five-forces:1\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (review)\",\n   \"rating\": 3\n  },\n  {\n   \"id\": \"review:mgt3104-resource-based-view:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (review)\",\n   \"rating\": 3\n  },\n  {\n   \"id\": \"learn:eco3112-nudges-and-choice-architecture:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Nudges and choice architecture (learn, part 1 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:6\",\n   \"day\": \"2026-12-09\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 6 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-social-preferences-and-fairness:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:fin3020-cost-of-capital-wacc:2\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:mgt3104-dynamic-capabilities:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (review)\",\n   \"rating\": 3\n  }\n ],\n \"settled\": [],\n \"missed\": []\n}\n", "messy": "Brackenmoor University  Examination timetable, January 2027\nCandidate 2210457    BSc Management and Economics, final year\n\nModule\tTitle\tDate\tTime\tLength\tRoom\nMGT3104\tStrategic Management\tMon 11 Jan 2027\t9.30am\t2 hrs\tGreat Hall\nECO3112\tBehavioural Economics\t13/01/2027\t14:00\t2h\tSports Centre, Hall B\nModule\tTitle\tDate\tTime\tLength\tRoom\nFIN3020\tCorporate Finance\t2027-01-15\t09:30\t3 hours\tGreat Hall\n\nLAW3207\tCompetition and Consumer Law\t19-Jan-27\t2pm\t120 mins\tWren Building 1.12\nDAT3301\tBusiness Analytics\tFriday 22nd January 2027\t09:30\t2:30\tComputer Lab 3\nMKT2210\tMarketing Research (resit)\tTBC\tTBC\t\tTBC\n", "pasted": "MGT3104 Strategic Management\n- Porter's five forces (4, M)\n- Resource-based view (3, M)\n- Dynamic capabilities [2/5] [L]\n- Blue ocean strategy - conf 4 - small\n- Business models and platforms\n\nBehavioural Economics:\n* Prospect theory (2, L)\n* Mental accounting (3)\n* Nudges and choice architecture, 4, S\n* Present bias and discounting (red, 3h)\n\n"}</script>
+<script id="samples" type="application/json">{"project": "{\n \"app\": \"exam-season\",\n \"version\": 1,\n \"name\": \"Alex's January exams\",\n \"student\": \"Alex Marlow (invented), final year, Brackenmoor University (invented)\",\n \"planFrom\": \"2026-11-30\",\n \"planFromMin\": 0,\n \"asOf\": \"2026-12-10\",\n \"settings\": {\n  \"learnMin\": 50,\n  \"reviewMin\": 25,\n  \"breakMin\": 10,\n  \"taperDays\": 3,\n  \"papers\": 2,\n  \"maxShare\": 50,\n  \"reviewShare\": 40,\n  \"busyGap\": 15,\n  \"examGap\": 45,\n  \"examDay\": \"after\",\n  \"paperMax\": 180,\n  \"pace\": \"spread\"\n },\n \"exams\": [\n  {\n   \"id\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Strategic Management\",\n   \"day\": \"2027-01-11\",\n   \"start\": 570,\n   \"duration\": 120,\n   \"room\": \"Great Hall\",\n   \"seat\": \"G-114\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Behavioural Economics\",\n   \"day\": \"2027-01-13\",\n   \"start\": 840,\n   \"duration\": 120,\n   \"room\": \"Sports Centre, Hall B\",\n   \"seat\": \"B-027\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Corporate Finance\",\n   \"day\": \"2027-01-15\",\n   \"start\": 570,\n   \"duration\": 180,\n   \"room\": \"Great Hall\",\n   \"seat\": \"G-086\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Competition and Consumer Law\",\n   \"day\": \"2027-01-19\",\n   \"start\": 840,\n   \"duration\": 120,\n   \"room\": \"Wren Building 1.12\",\n   \"seat\": \"41\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Business Analytics\",\n   \"day\": \"2027-01-22\",\n   \"start\": 570,\n   \"duration\": 150,\n   \"room\": \"Computer Lab 3\",\n   \"seat\": \"PC-19\",\n   \"type\": \"Unseen examination\",\n   \"resit\": false,\n   \"note\": \"\"\n  }\n ],\n \"topics\": [\n  {\n   \"id\": \"mgt3104-porter-s-five-forces\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Porter's five forces\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-resource-based-view\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Resource-based view\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-dynamic-capabilities\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Dynamic capabilities\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-corporate-strategy-and-diversification\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Corporate strategy and diversification\",\n   \"conf\": 5,\n   \"size\": 300,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-mergers-and-acquisitions\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Mergers and acquisitions\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-strategy-in-emerging-markets\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Strategy in emerging markets\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-blue-ocean-strategy\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Blue ocean strategy\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"mgt3104-business-models-and-platforms\",\n   \"code\": \"MGT3104\",\n   \"name\": \"Business models and platforms\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-prospect-theory\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Prospect theory\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-mental-accounting\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Mental accounting\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-present-bias-and-discounting\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Present bias and discounting\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-nudges-and-choice-architecture\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Nudges and choice architecture\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-social-preferences-and-fairness\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Social preferences and fairness\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-heuristics-and-biases\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Heuristics and biases\",\n   \"conf\": 1,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"eco3112-behavioural-finance\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Behavioural finance\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"eco3112-field-experiments\",\n   \"code\": \"ECO3112\",\n   \"name\": \"Field experiments\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-capital-budgeting-and-npv\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Capital budgeting and NPV\",\n   \"conf\": 4,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-cost-of-capital-wacc\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Cost of capital (WACC)\",\n   \"conf\": 1,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"fin3020-capital-structure\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Capital structure\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-dividend-policy\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Dividend policy\",\n   \"conf\": 1,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"fin3020-real-options\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Real options\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-dcf-valuation\",\n   \"code\": \"FIN3020\",\n   \"name\": \"DCF valuation\",\n   \"conf\": 2,\n   \"size\": 300,\n   \"mode\": \"full\",\n   \"note\": \"long reading list\"\n  },\n  {\n   \"id\": \"fin3020-working-capital\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Working capital\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"fin3020-leveraged-buyouts\",\n   \"code\": \"FIN3020\",\n   \"name\": \"Leveraged buyouts\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-anti-competitive-agreements\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Anti-competitive agreements\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-abuse-of-dominance\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Abuse of dominance\",\n   \"conf\": 2,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-merger-control\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Merger control\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-market-definition\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Market definition\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-consumer-rights-and-remedies\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Consumer rights and remedies\",\n   \"conf\": 1,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"missed the lectures\"\n  },\n  {\n   \"id\": \"law3207-unfair-contract-terms\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Unfair contract terms\",\n   \"conf\": 4,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-digital-markets-regulation\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Digital markets regulation\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"law3207-enforcement-and-fines\",\n   \"code\": \"LAW3207\",\n   \"name\": \"Enforcement and fines\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-linear-regression\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Linear regression\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-logistic-regression\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Logistic regression\",\n   \"conf\": 5,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-decision-trees-and-forests\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Decision trees and forests\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-clustering\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Clustering\",\n   \"conf\": 5,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-time-series-forecasting\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Time series forecasting\",\n   \"conf\": 3,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-model-evaluation\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Model evaluation\",\n   \"conf\": 2,\n   \"size\": 180,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-data-visualisation\",\n   \"code\": \"DAT3301\",\n   \"name\": \"Data visualisation\",\n   \"conf\": 5,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  },\n  {\n   \"id\": \"dat3301-a-b-testing\",\n   \"code\": \"DAT3301\",\n   \"name\": \"A/B testing\",\n   \"conf\": 3,\n   \"size\": 120,\n   \"mode\": \"full\",\n   \"note\": \"\"\n  }\n ],\n \"week\": [\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 360\n  },\n  {\n   \"from\": 540,\n   \"to\": 1260,\n   \"minutes\": 300\n  },\n  {\n   \"from\": 600,\n   \"to\": 1200,\n   \"minutes\": 180\n  },\n  {\n   \"from\": 600,\n   \"to\": 1140,\n   \"minutes\": 300\n  }\n ],\n \"overrides\": [\n  {\n   \"day\": \"2026-12-19\",\n   \"minutes\": 120,\n   \"label\": \"Travelling home\",\n   \"from\": 840,\n   \"to\": 1200\n  },\n  {\n   \"day\": \"2026-12-24\",\n   \"minutes\": 0,\n   \"label\": \"Christmas Eve\"\n  },\n  {\n   \"day\": \"2026-12-25\",\n   \"minutes\": 0,\n   \"label\": \"Christmas Day\"\n  },\n  {\n   \"day\": \"2026-12-26\",\n   \"minutes\": 0,\n   \"label\": \"Boxing Day\"\n  },\n  {\n   \"day\": \"2026-12-31\",\n   \"minutes\": 120,\n   \"label\": \"New Year's Eve\",\n   \"from\": 600,\n   \"to\": 960\n  },\n  {\n   \"day\": \"2027-01-01\",\n   \"minutes\": 0,\n   \"label\": \"New Year's Day\"\n  },\n  {\n   \"day\": \"2027-01-03\",\n   \"minutes\": 120,\n   \"label\": \"Travelling back\",\n   \"from\": 900,\n   \"to\": 1260\n  }\n ],\n \"busy\": [\n  {\n   \"day\": \"2026-11-23\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-24\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-24\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-11-25\",\n   \"start\": 540,\n   \"end\": 660,\n   \"label\": \"FIN3020 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-26\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"LAW3207 Lecture\"\n  },\n  {\n   \"day\": \"2026-11-26\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-11-27\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-11-28\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-11-30\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-01\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-01\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-02\",\n   \"start\": 780,\n   \"end\": 1080,\n   \"label\": \"Rugby: away fixture\"\n  },\n  {\n   \"day\": \"2026-12-03\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-12-03\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-04\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-12-04\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"LAW3207 Lecture (moved)\"\n  },\n  {\n   \"day\": \"2026-12-05\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-12-07\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"MGT3104 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-08\",\n   \"start\": 840,\n   \"end\": 960,\n   \"label\": \"ECO3112 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-08\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-09\",\n   \"start\": 540,\n   \"end\": 660,\n   \"label\": \"FIN3020 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-09\",\n   \"start\": 780,\n   \"end\": 1050,\n   \"label\": \"Rugby: home fixture\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 600,\n   \"end\": 720,\n   \"label\": \"LAW3207 Lecture\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 780,\n   \"end\": 840,\n   \"label\": \"FIN3020 Seminar\"\n  },\n  {\n   \"day\": \"2026-12-10\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-11\",\n   \"start\": 660,\n   \"end\": 780,\n   \"label\": \"DAT3301 Computer lab\"\n  },\n  {\n   \"day\": \"2026-12-12\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2026-12-15\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Rugby training\"\n  },\n  {\n   \"day\": \"2026-12-17\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2026-12-19\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2027-01-06\",\n   \"start\": 660,\n   \"end\": 720,\n   \"label\": \"Dentist\"\n  },\n  {\n   \"day\": \"2027-01-07\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2027-01-07\",\n   \"start\": 1080,\n   \"end\": 1200,\n   \"label\": \"Consulting Society AGM\"\n  },\n  {\n   \"day\": \"2027-01-09\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  },\n  {\n   \"day\": \"2027-01-14\",\n   \"start\": 1020,\n   \"end\": 1260,\n   \"label\": \"Shift at Wren Lane Coffee (evening)\"\n  },\n  {\n   \"day\": \"2027-01-16\",\n   \"start\": 480,\n   \"end\": 840,\n   \"label\": \"Shift at Wren Lane Coffee\"\n  }\n ],\n \"allDay\": [\n  {\n   \"day\": \"2026-12-19\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-20\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-21\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-22\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-23\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-24\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-25\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-26\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-27\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-28\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-29\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-30\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2026-12-31\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-01\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-02\",\n   \"label\": \"Home for Christmas\"\n  },\n  {\n   \"day\": \"2027-01-03\",\n   \"label\": \"Home for Christmas\"\n  }\n ],\n \"sources\": [\n  {\n   \"kind\": \"exams\",\n   \"name\": \"exam-timetable.csv\",\n   \"summary\": \"5 exams\"\n  },\n  {\n   \"kind\": \"topics\",\n   \"name\": \"topics.csv\",\n   \"summary\": \"40 topics in 5 modules\"\n  },\n  {\n   \"kind\": \"availability\",\n   \"name\": \"availability.csv\",\n   \"summary\": \"7 weekday rows and 7 dated changes\"\n  },\n  {\n   \"kind\": \"calendar\",\n   \"name\": \"busy-calendar.ics\",\n   \"summary\": \"36 busy times from 19 events, all-day entries on 16 days not counted\"\n  }\n ],\n \"done\": [\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 1 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 1 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-present-bias-and-discounting:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Present bias and discounting (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 1 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 1 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 1 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:1\",\n   \"day\": \"2026-11-30\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 2 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 2 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 2 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:2\",\n   \"day\": \"2026-12-01\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 2 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 3 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 3 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 3 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 3 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:3\",\n   \"day\": \"2026-12-02\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 3 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 4 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-heuristics-and-biases:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (learn, part 4 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:4\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 4 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:1\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:2\",\n   \"day\": \"2026-12-03\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-behavioural-finance:5\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (learn, part 5 of 5)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-cost-of-capital-wacc:5\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (learn, part 5 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:4\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 4 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:2\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-resource-based-view:3\",\n   \"day\": \"2026-12-04\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-heuristics-and-biases:1\",\n   \"day\": \"2026-12-04\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Heuristics and biases (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"learn:eco3112-present-bias-and-discounting:3\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Present bias and discounting (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 1 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:5\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 5 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-blue-ocean-strategy:3\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Blue ocean strategy (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-porter-s-five-forces:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (learn, part 1 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:fin3020-cost-of-capital-wacc:1\",\n   \"day\": \"2026-12-06\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:2\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 2 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:4\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 4 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dividend-policy:6\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (learn, part 6 of 6)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-dynamic-capabilities:1\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (learn, part 1 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-porter-s-five-forces:2\",\n   \"day\": \"2026-12-07\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (learn, part 2 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:eco3112-social-preferences-and-fairness:3\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (learn, part 3 of 3)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:5\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 5 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:mgt3104-dynamic-capabilities:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 50,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (learn, part 2 of 2)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-behavioural-finance:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Behavioural finance (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:fin3020-dividend-policy:1\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Dividend policy (review)\",\n   \"rating\": 1\n  },\n  {\n   \"id\": \"review:mgt3104-porter-s-five-forces:1\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Porter's five forces (review)\",\n   \"rating\": 3\n  },\n  {\n   \"id\": \"review:mgt3104-resource-based-view:2\",\n   \"day\": \"2026-12-08\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Resource-based view (review)\",\n   \"rating\": 3\n  },\n  {\n   \"id\": \"learn:eco3112-nudges-and-choice-architecture:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 50,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Nudges and choice architecture (learn, part 1 of 4)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"learn:fin3020-dcf-valuation:6\",\n   \"day\": \"2026-12-09\",\n   \"min\": 50,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 DCF valuation (learn, part 6 of 8)\",\n   \"rating\": 0\n  },\n  {\n   \"id\": \"review:eco3112-social-preferences-and-fairness:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"eco3112\",\n   \"code\": \"ECO3112\",\n   \"title\": \"ECO3112 Social preferences and fairness (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:fin3020-cost-of-capital-wacc:2\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"fin3020\",\n   \"code\": \"FIN3020\",\n   \"title\": \"FIN3020 Cost of capital (WACC) (review)\",\n   \"rating\": 2\n  },\n  {\n   \"id\": \"review:mgt3104-dynamic-capabilities:1\",\n   \"day\": \"2026-12-09\",\n   \"min\": 25,\n   \"exam\": \"mgt3104\",\n   \"code\": \"MGT3104\",\n   \"title\": \"MGT3104 Dynamic capabilities (review)\",\n   \"rating\": 3\n  }\n ],\n \"settled\": [],\n \"missed\": []\n}\n", "messy": "Brackenmoor University  Examination timetable, January 2027\nCandidate 2210457    BSc Management and Economics, final year\n\nModule\tTitle\tDate\tTime\tLength\tRoom\nMGT3104\tStrategic Management\tMon 11 Jan 2027\t9.30am\t2 hrs\tGreat Hall\nECO3112\tBehavioural Economics\t13/01/2027\t14:00\t2h\tSports Centre, Hall B\nModule\tTitle\tDate\tTime\tLength\tRoom\nFIN3020\tCorporate Finance\t2027-01-15\t09:30\t3 hours\tGreat Hall\n\nLAW3207\tCompetition and Consumer Law\t19-Jan-27\t2pm\t120 mins\tWren Building 1.12\nDAT3301\tBusiness Analytics\tFriday 22nd January 2027\t09:30\t2:30\tComputer Lab 3\nMKT2210\tMarketing Research (resit)\tTBC\tTBC\t\tTBC\n", "pasted": "MGT3104 Strategic Management\n- Porter's five forces (4, M)\n- Resource-based view (3, M)\n- Dynamic capabilities [2/5] [L]\n- Blue ocean strategy - conf 4 - small\n- Business models and platforms\n\nBehavioural Economics:\n* Prospect theory (2, L)\n* Mental accounting (3)\n* Nudges and choice architecture, 4, S\n* Present bias and discounting (red, 3h)\n\n"}</script>
 <script>
 /* MODEL START */
 /*
@@ -758,6 +760,9 @@ var ExamSeason = (function () {
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+  // The first n characters of a text (an emoji counts as one).
+  function firstChars(s, n) { return Array.from(String(s)).slice(0, n).join(''); }
 
   M.trim = trim;
   M.slugify = slugify;
@@ -945,9 +950,10 @@ var ExamSeason = (function () {
   }
 
   // Read a clock time: "09:30", "9.30", "9:30am", "2pm", "1400", "noon".
-  // Hours from 1 to 7 without am or pm are taken as afternoon (nobody sits
-  // an exam at 2 in the morning).
-  function parseTime(text) {
+  // An exam time "2:00" (one digit, no am or pm, hours 1 to 7) is taken as
+  // the afternoon: nobody sits an exam at 2 in the morning. "07:30" and any
+  // clock time for availability or shifts (clock true) are read as written.
+  function parseTime(text, clock) {
     var s = lower(trim(text)).replace(/[ \t]+/g, '').replace(/\./g, function (c, i, all) {
       return i > 0 && /[0-9]/.test(all.charAt(i - 1)) && /[0-9]/.test(all.charAt(i + 1)) ? ':' : '';
     });
@@ -963,7 +969,7 @@ var ExamSeason = (function () {
         if (h < 1 || h > 12) return null;
         if (m[3] === 'pm' && h < 12) h += 12;
         if (m[3] === 'am' && h === 12) h = 0;
-      } else if (h >= 1 && h <= 7) {
+      } else if (!clock && m[1].length === 1 && h >= 1 && h <= 7) {
         h += 12;
       }
     } else {
@@ -1143,24 +1149,24 @@ var ExamSeason = (function () {
   }
 
   function htmlCellText(s) {
-    s = s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ');
+    s = s.replace(/<br[ \t\n\r\f\v]*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ');
     return squash(decodeEntities(s).replace(/[\t\r\n]+/g, ' '));
   }
 
-  function isHtmlTable(text) { return /<tr[\s>]/i.test(text) && /<t[dh][\s>]/i.test(text); }
+  function isHtmlTable(text) { return /<tr[ \t\n\r\f\v>]/i.test(text) && /<t[dh][ \t\n\r\f\v>]/i.test(text); }
 
   function htmlRows(text) {
     var src = String(text).replace(/<!--[\s\S]*?-->/g, function (c) { return c.replace(/[^\n]/g, ' '); });
-    var re = /<tr(?:\s[^>]*)?>/gi, m, starts = [];
+    var re = /<tr(?:[ \t\n\r\f\v][^>]*)?>/gi, m, starts = [];
     while ((m = re.exec(src)) !== null) starts.push([m.index, m.index + m[0].length]);
     var rows = [], pos = 0, line = 1;
     for (var i = 0; i < starts.length; i++) {
       for (; pos < starts[i][0]; pos++) if (src.charAt(pos) === '\n') line++;
       var endAt = i + 1 < starts.length ? starts[i + 1][0] : src.length;
       var chunk = src.slice(starts[i][1], endAt);
-      var close = chunk.search(/<\/tr\s*>/i);
+      var close = chunk.search(/<\/tr[ \t\n\r\f\v]*>/i);
       if (close >= 0) chunk = chunk.slice(0, close);
-      var cells = [], cre = /<t[dh](?:\s[^>]*)?>([\s\S]*?)(?:<\/t[dh]\s*>|(?=<t[dh][\s>])|$)/gi, cm;
+      var cells = [], cre = /<t[dh](?:[ \t\n\r\f\v][^>]*)?>([\s\S]*?)(?:<\/t[dh][ \t\n\r\f\v]*>|(?=<t[dh][ \t\n\r\f\v>])|$)/gi, cm;
       while ((cm = cre.exec(chunk)) !== null) cells.push(htmlCellText(cm[1]));
       rows.push({ cells: cells, line: line });
     }
@@ -1319,7 +1325,7 @@ var ExamSeason = (function () {
     code: ['module code', 'module', 'course code', 'unit code', 'code', 'paper code', 'subject code', 'module id', 'exam code', 'component code', 'assessment code', 'module ref', 'module no'],
     name: ['module title', 'module name', 'title', 'course title', 'course name', 'course', 'unit title', 'unit name', 'unit', 'paper', 'paper title', 'exam title', 'subject', 'module description', 'assessment title', 'examination', 'exam', 'exam name'],
     date: ['date', 'exam date', 'day date', 'date of exam', 'examination date', 'day', 'exam day', 'date and time', 'date time', 'start date', 'when'],
-    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at'],
+    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at', 'session', 'am pm', 'am or pm', 'exam session'],
     end: ['end', 'end time', 'finish', 'finish time', 'to', 'until', 'ends', 'exam end'],
     duration: ['duration', 'length', 'duration mins', 'duration minutes', 'duration hrs', 'duration hours', 'exam duration', 'mins', 'minutes', 'hours', 'hrs', 'length mins', 'length hours'],
     room: ['venue', 'room', 'location', 'building', 'hall', 'exam venue', 'exam room', 'place', 'centre', 'campus'],
@@ -1355,6 +1361,76 @@ var ExamSeason = (function () {
     return Object.keys(map).length >= 3;
   }
 
+  // School statements of entry give a session, not a time: morning exams
+  // start at 09:00 and afternoon exams at 13:30.
+  var SESSION_RE = /(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?(?= |$)/i;
+  var SESSION_END_RE = /(^| )(a\.?m\.?|morning|p\.?m\.?|afternoon)( session)?$/i;
+  function sessionMinute(word) {
+    var w = lower(word);
+    return w.charAt(0) === 'p' || w === 'afternoon' ? 810 : 540;
+  }
+  // The start a cell gives by its session word alone, or null.
+  function sessionStart(text) {
+    var m = SESSION_END_RE.exec(squash(text));
+    return m ? sessionMinute(m[2]) : null;
+  }
+  // A session word anywhere in a line: {min, index, length} or null.
+  function findSession(text) {
+    var m = SESSION_RE.exec(String(text));
+    if (!m) return null;
+    return { min: sessionMinute(m[2]), index: m.index + m[1].length, length: m[0].length - m[1].length };
+  }
+
+  // An exam board paper code such as 4821/1 or K431/02: the part before
+  // the slash names the subject, so its papers share one set of topics.
+  var BOARD_RE = /^([A-Z0-9]{4,7}) ?\/ ?([A-Z0-9]{1,4})$/;
+  var BOARD_FIND_RE = /(^|[ (])([A-Za-z0-9]{4,7}) ?\/ ?([A-Za-z0-9]{1,4})(?=[ ),;:]|$)/;
+  function boardCode(text) {
+    var m = BOARD_RE.exec(trim(String(text).toUpperCase()));
+    if (!m || !/[0-9]/.test(m[1])) return null;
+    return { code: m[1], paper: m[1] + '/' + m[2] };
+  }
+  function findBoardCode(text) {
+    var m = BOARD_FIND_RE.exec(String(text));
+    if (!m || !/[0-9]/.test(m[2])) return null;
+    var code = m[2].toUpperCase();
+    return { code: code, paper: code + '/' + m[3].toUpperCase(), index: m.index + m[1].length, length: m[0].length - m[1].length };
+  }
+
+  // A "Paper" column beside a subject column: its text is added to the
+  // title so each paper has its own name ("Biology Paper 1").
+  var PART_HEADERS = ['paper', 'paper number', 'paper no', 'paper name', 'part'];
+  function paperColumn(map, header) {
+    var used = {};
+    Object.keys(map).forEach(function (k) { used[map[k]] = true; });
+    for (var i = 0; i < header.length && map.part === undefined; i++) {
+      if (!used[i] && PART_HEADERS.indexOf(normHeader(header[i])) >= 0) map.part = i;
+    }
+    if (map.part === undefined && map.name !== undefined && normHeader(header[map.name]) === 'paper') {
+      for (var j = 0; j < header.length; j++) {
+        if (!used[j] && normHeader(header[j]) === 'subject') { map.part = map.name; map.name = j; break; }
+      }
+    }
+  }
+
+  function withPart(name, part) {
+    part = squash(part);
+    if (!part || lower(name).indexOf(lower(part)) >= 0) return name;
+    return trim(name + ' ' + (/^[0-9][0-9A-Za-z]{0,2}$/.test(part) ? 'Paper ' + part : part));
+  }
+
+  // One message for each kind of guess made across the whole timetable.
+  function examGuessMessages(out) {
+    var bySession = 0, first = null;
+    out.exams.forEach(function (e) {
+      if (e.fromSession) bySession++;
+      if (e.paper && first === null) first = e;
+    });
+    if (bySession) out.messages.push({ level: 'info', text: plural(bySession, 'exam') + (bySession === 1 ? ' gives' : ' give') + ' only a session (AM or PM), so morning is read as 09:00 and afternoon as 13:30, the usual start times. Check the exact times on your statement of entry.' });
+    if (first) out.messages.push({ level: 'info', text: 'Board paper codes such as ' + first.paper + ' are read by subject (' + first.code + '), so all papers in a subject share its topics. Each paper code is kept in its notes.' });
+    out.exams.forEach(function (e) { delete e.fromSession; delete e.paper; });
+  }
+
   // Read an exam timetable from text: a portal CSV or TSV export, a table
   // pasted from a web page, loose lines, or an .ics calendar.
   // Returns {exams, messages, format, rows}.
@@ -1363,14 +1439,14 @@ var ExamSeason = (function () {
     var ref = opts.ref === undefined || opts.ref === null ? dayFromYmd(2026, 9, 1) : opts.ref;
     text = String(text === null || text === undefined ? '' : text);
     var out = { exams: [], messages: [], format: '', rows: 0, skipped: 0 };
-    if (/^\s*%PDF/.test(text)) {
+    if (/^[ \t\n\r\f\v]*%PDF/.test(text)) {
       out.format = 'pdf';
       out.messages.push({ level: 'error', text: 'This is a PDF file. Open it, select the timetable table, copy it and paste it here, or download the CSV or calendar (.ics) version from your student portal.' });
       return out;
     }
-    if (/^\s*PK/.test(text) && text.indexOf('[Content_Types]') >= 0) {
+    if (/^[ \t\n\r\f\v]*PK/.test(text) && text.indexOf('[Content_Types]') >= 0) {
       out.format = 'xlsx';
-      out.messages.push({ level: 'error', text: 'This looks like an Excel workbook. Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.' });
+      out.messages.push({ level: 'error', text: 'This looks like a spreadsheet workbook (.xlsx). Save it as CSV (File, Save as, CSV) and load that, or copy the rows and paste them here.' });
       return out;
     }
     if (/BEGIN:VCALENDAR/i.test(text)) return readExamsIcs(text, out, opts);
@@ -1400,6 +1476,7 @@ var ExamSeason = (function () {
     }
     out.format = table.delim === 'html' ? 'html' : table.delim === '\t' ? 'table' : table.delim === '  ' ? 'spaced' : 'csv';
     var header = rows[headerAt].cells;
+    paperColumn(map, header);
     var unit = map.duration !== undefined ? durationUnit(header[map.duration]) : '';
     var orderInfo = dateOrderOf(rows.slice(headerAt + 1).map(function (r) { return cell(r.cells, map.date); }));
     var order = orderInfo.order;
@@ -1415,7 +1492,7 @@ var ExamSeason = (function () {
       }
       var ex = examFromCells(cells, map, unit, ref, line, out.messages, order);
       if (!ex) { out.skipped++; continue; }
-      var key = ex.code + '|' + (ex.day === null ? 'tbc' : ex.day) + '|' + ex.start;
+      var key = ex.code + '|' + (ex.day === null ? 'tbc' : ex.day) + '|' + ex.start + (ex.paper ? '|' + ex.paper : '');
       if (seen[key]) {
         out.skipped++;
         out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' repeats ' + ex.code + (ex.day === null ? '' : ' on ' + fmtShort(ex.day)) + ', so it was skipped.' });
@@ -1431,16 +1508,18 @@ var ExamSeason = (function () {
     if (blank > 0) out.messages.push({ level: 'info', text: plural(blank, 'blank row') + ' skipped.' });
     if (headerAt > 0) out.messages.push({ level: 'info', text: 'The table starts at line ' + rows[headerAt].line + '; the ' + plural(headerAt, 'line') + ' above it were read as a title, not exams.' });
     dateOrderMessages(orderInfo, out);
+    examGuessMessages(out);
     finishExams(out);
     return out;
   }
 
   function examFromCells(cells, map, unit, ref, line, messages, order) {
     var codeCell = cell(cells, map.code), nameCell = cell(cells, map.name);
-    var code = '', name = '';
+    var code = '', name = '', board = null;
     if (codeCell) {
       var f = findCode(codeCell.toUpperCase());
-      code = f ? f.code : codeCell.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+      board = f ? null : boardCode(codeCell);
+      code = f ? f.code : board ? board.code : codeCell.toUpperCase().replace(/[^A-Z0-9]+/g, '');
       if (f && !nameCell) name = stripCode(codeCell, f.code);
     }
     if (nameCell) {
@@ -1452,7 +1531,10 @@ var ExamSeason = (function () {
       messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' has no module code or title, so it was skipped.' });
       return null;
     }
+    var partCell = cell(cells, map.part);
+    if (!code && boardCode(partCell)) { board = boardCode(partCell); code = board.code; partCell = ''; }
     if (!code) code = slugify(name).toUpperCase().replace(/-/g, '').slice(0, 10);
+    name = withPart(name || code, partCell);
     var dateCell = cell(cells, map.date);
     var day = null, tbc = false;
     var lowDate = lower(squash(dateCell));
@@ -1485,6 +1567,12 @@ var ExamSeason = (function () {
       }
     }
     if (start === null) { start = startFromDate; if (end === null) end = endFromDate; }
+    var fromSession = false;
+    if (start === null) {
+      start = startCell ? sessionStart(startCell) : null;
+      if (start === null && day !== null) start = sessionStart(dateCell);
+      fromSession = start !== null;
+    }
     if (endCell) {
       end = parseTime(endCell);
       if (end === null) { var te = findTimes(endCell); if (te.length) end = te[0].min; }
@@ -1508,11 +1596,16 @@ var ExamSeason = (function () {
     duration = clamp(duration, 15, 1440);
     var type = cell(cells, map.type), notes = cell(cells, map.notes);
     var resit = /\b(resit|re-sit|referral|reassessment|re-assessment|deferred|supplementary)\b/i.test(type + ' ' + notes + ' ' + nameCell);
-    return {
-      id: '', code: code, name: name || code, day: day, start: start, duration: duration,
+    var note = squash(notes);
+    if (board) note = 'Paper code ' + board.paper + (note ? '; ' + note : '');
+    var ex = {
+      id: '', code: code, name: name, day: day, start: start, duration: duration,
       room: squash(cell(cells, map.room)), seat: squash(cell(cells, map.seat)), type: squash(type),
-      resit: resit, tbc: tbc, note: squash(notes), line: line
+      resit: resit, tbc: tbc, note: note, line: line
     };
+    if (fromSession) ex.fromSession = true;
+    if (board) ex.paper = board.paper;
+    return ex;
   }
 
   // Lines with no header row: look for a module code, a date and times.
@@ -1523,11 +1616,12 @@ var ExamSeason = (function () {
     for (var i = 0; i < lines.length; i++) {
       var raw = squash(lines[i]), line = i + 1;
       if (!raw) continue;
-      var code = findCode(raw);
+      var code = findCode(raw), paper = null;
+      if (!code) { paper = findBoardCode(raw); code = paper; }
       var date = findDate(raw, 'DMY', ref);
       if (!code && !date) {
         if (out.exams.length === 0) continue;
-        out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' was not read: no module code or date in "' + raw.slice(0, 60) + '".' });
+        out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' was not read: no module code or date in "' + firstChars(raw, 60) + '".' });
         continue;
       }
       out.rows++;
@@ -1552,6 +1646,11 @@ var ExamSeason = (function () {
       for (var k = times.length - 1; k >= 0 && k >= times.length - 2; k--) {
         rest = rest.slice(0, times[k].index) + ' ' + rest.slice(times[k].index + times[k].length);
       }
+      var session = times.length ? null : findSession(rest);
+      if (session) {
+        start = session.min;
+        rest = rest.slice(0, session.index) + ' ' + rest.slice(session.index + session.length);
+      }
       var duration = null;
       var dm = /(?:^|[^0-9a-z])(\(?[0-9]+(?:\.[0-9]+)? ?(?:h|hr|hrs|hours?)\.?(?: ?[0-9]+ ?(?:m|min|mins|minutes?))?\)?|\(?[0-9]+ ?(?:min|mins|minutes)\)?)(?![a-z])/i.exec(rest);
       if (dm) {
@@ -1562,8 +1661,10 @@ var ExamSeason = (function () {
       if (duration === null) duration = 120;
       var name = trim(squash(rest.replace(/\b(tbc|tba|to be confirmed)\b/ig, ' ').replace(/[\-\u2013|,;:]+( |$)/g, ' ').replace(/[()]/g, ' ')));
       var resit = /\b(resit|re-sit|referral|reassessment)\b/i.test(raw);
-      var ex = { id: '', code: code.code, name: name || code.code, day: day, start: start, duration: clamp(duration, 15, 1440), room: '', seat: '', type: resit ? 'Resit' : '', resit: resit, tbc: tbc, note: '', line: line };
-      var key = ex.code + '|' + (day === null ? 'tbc' : day) + '|' + start;
+      var ex = { id: '', code: code.code, name: name || code.code, day: day, start: start, duration: clamp(duration, 15, 1440), room: '', seat: '', type: resit ? 'Resit' : '', resit: resit, tbc: tbc, note: paper ? 'Paper code ' + paper.paper : '', line: line };
+      if (session) ex.fromSession = true;
+      if (paper) ex.paper = paper.paper;
+      var key = ex.code + '|' + (day === null ? 'tbc' : day) + '|' + start + (paper ? '|' + paper.paper : '');
       if (seen[key]) { out.skipped++; continue; }
       seen[key] = true;
       out.exams.push(ex);
@@ -1573,6 +1674,7 @@ var ExamSeason = (function () {
     } else {
       out.messages.push({ level: 'info', text: 'No header row was found, so each line was read by looking for a module code, a date and times.' });
     }
+    examGuessMessages(out);
     finishExams(out);
     return out;
   }
@@ -1595,7 +1697,7 @@ var ExamSeason = (function () {
       var f = findCode(e.summary) || findCode(e.description);
       var code = f ? f.code : slugify(e.summary).toUpperCase().replace(/-/g, '').slice(0, 10);
       var name = f && findCode(e.summary) ? stripCode(e.summary, code) : squash(e.summary);
-      name = trim(name.replace(/\b(examination|exam)\b\s*$/i, '').replace(/[\-:\u2013 ]+$/, '')) || code;
+      name = trim(name.replace(/\b(examination|exam)\b[ \t\n\r\f\v]*$/i, '').replace(/[\-:\u2013 ]+$/, '')) || code;
       var dur = 120;
       if (e.end) dur = (e.end.day - e.start.day) * 1440 + e.end.min - e.start.min;
       else if (e.durationMin !== null) dur = e.durationMin;
@@ -1776,13 +1878,17 @@ var ExamSeason = (function () {
     if (f) return f.code;
     var t = normHeader(text);
     if (!t) return null;
-    var best = null;
+    // An exact title wins, then a title that starts with the text
+    // ("Biology" for "Biology Paper 1"), then one that contains it.
+    var best = null, bestRank = 3;
     for (var i = 0; i < exams.length; i++) {
       var n = normHeader(exams[i].name);
       if (!n) continue;
-      if (t === n || (' ' + t + ' ').indexOf(' ' + n + ' ') >= 0 || (t.length >= 6 && (' ' + n + ' ').indexOf(' ' + t + ' ') >= 0)) {
-        if (best === null) best = exams[i].code;
-      }
+      var rank = 3;
+      if (t === n) rank = 0;
+      else if (n.indexOf(t + ' paper') === 0 || (t.length >= 6 && n.indexOf(t + ' ') === 0)) rank = 1;
+      else if ((' ' + t + ' ').indexOf(' ' + n + ' ') >= 0 || (t.length >= 6 && (' ' + n + ' ').indexOf(' ' + t + ' ') >= 0)) rank = 2;
+      if (rank < bestRank) { best = exams[i].code; bestRank = rank; }
     }
     return best;
   }
@@ -1794,7 +1900,7 @@ var ExamSeason = (function () {
     var exams = opts.exams || [];
     text = String(text === null || text === undefined ? '' : text);
     var out = { topics: [], messages: [], format: '', rows: 0, skipped: 0 };
-    if (/^\s*%PDF/.test(text)) {
+    if (/^[ \t\n\r\f\v]*%PDF/.test(text)) {
       out.messages.push({ level: 'error', text: 'This is a PDF file. Copy the list of topics out of it and paste it here instead.' });
       return out;
     }
@@ -1818,7 +1924,7 @@ var ExamSeason = (function () {
     var add = function (code, name, conf, size, mode, line, note) {
       out.rows++;
       if (!name) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' has no topic name, so it was skipped.' }); return; }
-      if (!code) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' ("' + name.slice(0, 40) + '") is not under a module, so it was skipped. Put the module code before it or on a heading line.' }); return; }
+      if (!code) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ' ("' + firstChars(name, 40) + '") is not under a module, so it was skipped. Put the module code before it or on a heading line.' }); return; }
       if (conf === null) { noConf++; conf = 3; }
       if (size === null) { noSize++; size = SIZES.m; }
       out.topics.push({ id: '', code: code, name: name, conf: conf, size: size, mode: mode || 'full', note: note || '', line: line });
@@ -1890,7 +1996,7 @@ var ExamSeason = (function () {
           var hc = findCode(htxt);
           current = matchModule(htxt, exams) || (hc ? hc.code : normCode(htxt));
           if (!matchModule(htxt, exams) && !hc) {
-            out.messages.push({ level: 'warn', line: ln, text: 'Line ' + ln + ': the heading "' + htxt.slice(0, 40) + '" has no module code and does not match an exam title, so its topics are filed under ' + current + '.' });
+            out.messages.push({ level: 'warn', line: ln, text: 'Line ' + ln + ': the heading "' + firstChars(htxt, 40) + '" has no module code and does not match an exam title, so its topics are filed under ' + current + '.' });
           }
           continue;
         }
@@ -2019,7 +2125,7 @@ var ExamSeason = (function () {
     var tz = params.TZID ? lower(params.TZID) : '';
     if (m[7] || tz === 'utc' || tz === 'etc/utc' || tz === 'z') {
       var t = utcToLondon(day, min);
-      return { day: t[0], min: t[1], allDay: false };
+      return { day: t[0], min: t[1], allDay: false, uday: day, umin: min };
     }
     if (tz && LONDONISH.indexOf(tz) < 0 && zones) zones[params.TZID] = true;
     return { day: day, min: min, allDay: false };
@@ -2081,42 +2187,89 @@ var ExamSeason = (function () {
     return out;
   }
 
+  // The whole number a piece of text starts with, or null.
+  function leadInt(v) {
+    var m = /^[ \t]*([+\-]?[0-9]+)/.exec(String(v));
+    return m ? parseInt(m[1], 10) : null;
+  }
+
   function parseRrule(value, zones) {
-    var r = { freq: '', interval: 1, count: null, until: null, byday: [], bymonthday: null };
+    var r = { freq: '', interval: 1, count: null, until: null, byday: [], bydayN: [], bymonthday: null };
     value.split(';').forEach(function (part) {
       var eq = part.indexOf('=');
       if (eq < 0) return;
       var k = part.slice(0, eq).toUpperCase(), v = part.slice(eq + 1);
       if (k === 'FREQ') r.freq = v.toUpperCase();
-      else if (k === 'INTERVAL') r.interval = Math.max(1, parseInt(v, 10) || 1);
-      else if (k === 'COUNT') r.count = Math.max(0, parseInt(v, 10) || 0);
+      else if (k === 'INTERVAL') r.interval = Math.max(1, leadInt(v) || 1);
+      else if (k === 'COUNT') r.count = Math.max(0, leadInt(v) || 0);
       else if (k === 'UNTIL') r.until = icsTime(v, {}, zones);
       else if (k === 'BYDAY') {
         v.split(',').forEach(function (d) {
           var mm = /([+\-]?[0-9]*)(MO|TU|WE|TH|FR|SA|SU)$/i.exec(trim(d));
-          if (mm) r.byday.push(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(mm[2].toUpperCase()));
+          if (!mm) return;
+          var wd = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(mm[2].toUpperCase());
+          r.byday.push(wd);
+          r.bydayN.push([leadInt(mm[1]) || 0, wd]);
         });
-      } else if (k === 'BYMONTHDAY') r.bymonthday = parseInt(v, 10) || null;
+      } else if (k === 'BYMONTHDAY') r.bymonthday = leadInt(v) || null;
     });
     r.byday.sort(function (a, b) { return a - b; });
     return r;
   }
 
-  // The start days of a recurring event's occurrences, up to lastDay.
+  // The days of the month a monthly rule picks: "2TU" is the second
+  // Tuesday, "-1FR" the last Friday, BYMONTHDAY=-1 the last day.
+  function monthDays(y, m, r, dom0) {
+    var dim = daysInMonth(y, m), out = [];
+    if (r.bydayN.length) {
+      var first = makeDay(y, m, 1);
+      r.bydayN.forEach(function (bd) {
+        var all = [];
+        for (var d = first + ((bd[1] - weekday(first)) % 7 + 7) % 7; d < first + dim; d += 7) all.push(d);
+        if (bd[0] === 0) all.forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+        else {
+          var pick = bd[0] > 0 ? all[bd[0] - 1] : all[all.length + bd[0]];
+          if (pick !== undefined && out.indexOf(pick) < 0) out.push(pick);
+        }
+      });
+      return out.sort(function (a, b) { return a - b; });
+    }
+    var dom = r.bymonthday === null ? dom0 : r.bymonthday < 0 ? dim + 1 + r.bymonthday : r.bymonthday;
+    var dd = dom >= 1 && dom <= dim ? makeDay(y, m, dom) : null;
+    return dd === null ? [] : [dd];
+  }
+
+  // The start days of a recurring event's occurrences, up to lastDay. An
+  // event written in UTC repeats at the same UTC time, so its days are
+  // counted in UTC and turned into UK time one by one (see occurrences).
   function occurrenceDays(ev, lastDay, messages) {
-    var r = ev.rrule, start = ev.start.day, out = [];
+    var r = ev.rrule, utc = ev.start.uday !== undefined, out = [];
+    var start = utc ? ev.start.uday : ev.start.day, smin = utc ? ev.start.umin : ev.start.min;
     if (!r || !r.freq) return [start];
-    var untilDay = r.until ? r.until.day : null;
-    var limit = 3000, n = 0;
+    var u = r.until, limit = 3000, n = 0;
+    function beforeUntil(d) {
+      if (!u) return true;
+      if (u.allDay || ev.start.allDay) return d <= u.day;
+      var both = utc && u.uday !== undefined;
+      var ud = both ? u.uday : u.day, um = both ? u.umin : u.min;
+      return d < ud || (d === ud && smin <= um);
+    }
     function take(d) {
-      if (untilDay !== null && d > untilDay) return false;
+      if (!beforeUntil(d)) return false;
       if (r.count !== null && n >= r.count) return false;
       n++;
       if (d <= lastDay) out.push(d);
       return d <= lastDay;
     }
     if (r.freq === 'DAILY') {
-      for (var k = 0; k < limit; k++) if (!take(start + k * r.interval)) break;
+      for (var k = 0; k < limit * 7; k++) {
+        var dk = start + k * r.interval;
+        if (r.byday.length && r.byday.indexOf(weekday(dk)) < 0) {
+          if (dk > lastDay) break;
+          continue;
+        }
+        if (!take(dk)) break;
+      }
     } else if (r.freq === 'WEEKLY') {
       var days = r.byday.length ? r.byday : [weekday(start)];
       var weekStart = start - weekday(start);
@@ -2129,14 +2282,14 @@ var ExamSeason = (function () {
         }
       }
     } else if (r.freq === 'MONTHLY') {
-      var t = ymdFromDay(start), dom = r.bymonthday || t[2];
-      for (var mo = 0; mo < limit; mo++) {
+      var t = ymdFromDay(start), stop = false;
+      for (var mo = 0; mo < limit && !stop; mo++) {
         var total = t[1] - 1 + mo * r.interval;
-        var y = t[0] + floorDiv(total, 12), mth = total % 12 + 1;
-        var dd = makeDay(y, mth, dom);
-        if (dd === null) continue;
-        if (dd < start) continue;
-        if (!take(dd)) break;
+        var list = monthDays(t[0] + floorDiv(total, 12), total % 12 + 1, r, t[2]);
+        for (var q = 0; q < list.length; q++) {
+          if (list[q] < start) continue;
+          if (!take(list[q])) { stop = true; break; }
+        }
       }
     } else if (r.freq === 'YEARLY') {
       var ty = ymdFromDay(start);
@@ -2150,6 +2303,14 @@ var ExamSeason = (function () {
       return [start];
     }
     return out;
+  }
+
+  // Each occurrence as [day, minute] in UK time.
+  function occurrences(ev, lastDay, messages) {
+    var utc = ev.start.uday !== undefined;
+    return occurrenceDays(ev, utc ? lastDay + 1 : lastDay, messages).map(function (d) {
+      return utc ? utcToLondon(d, ev.start.umin) : [d, ev.start.min];
+    });
   }
 
   // Busy times from a calendar between two days, as one-day pieces.
@@ -2173,16 +2334,18 @@ var ExamSeason = (function () {
       out.events++;
       var label = e.summary || 'Busy';
       var len;
-      if (e.end) len = (e.end.day - e.start.day) * 1440 + (e.end.min - e.start.min);
+      if (e.end && e.start.uday !== undefined && e.end.uday !== undefined) len = (e.end.uday - e.start.uday) * 1440 + (e.end.umin - e.start.umin);
+      else if (e.end) len = (e.end.day - e.start.day) * 1440 + (e.end.min - e.start.min);
       else if (e.durationMin !== null) len = e.durationMin;
       else len = e.start.allDay ? 1440 : 60;
       if (len <= 0) len = e.start.allDay ? 1440 : 60;
-      var days = e.recurrenceId ? [e.start.day] : occurrenceDays(e, toDay, out.messages);
-      days.forEach(function (d) {
-        if (!e.recurrenceId && e.uid && moved[e.uid + '|' + d + '|' + (e.start.allDay ? 0 : e.start.min)]) return;
+      var occ = e.recurrenceId ? [[e.start.day, e.start.min]] : occurrences(e, toDay, out.messages);
+      occ.forEach(function (o) {
+        var d = o[0], smin = o[1];
+        if (!e.recurrenceId && e.uid && moved[e.uid + '|' + d + '|' + (e.start.allDay ? 0 : smin)]) return;
         for (var x = 0; x < e.exdates.length; x++) {
           var xd = e.exdates[x];
-          if (xd.day === d && (xd.allDay || e.start.allDay || xd.min === e.start.min)) return;
+          if (xd.day === d && (xd.allDay || e.start.allDay || xd.min === smin)) return;
         }
         if (e.start.allDay) {
           if (allDayEvents.indexOf(label) < 0) allDayEvents.push(label);
@@ -2192,7 +2355,7 @@ var ExamSeason = (function () {
           }
           return;
         }
-        var t0 = d * 1440 + e.start.min, t1 = t0 + len;
+        var t0 = d * 1440 + smin, t1 = t0 + len;
         while (t0 < t1) {
           var dd = floorDiv(t0, 1440), dayEnd = (dd + 1) * 1440;
           var piece = Math.min(t1, dayEnd);
@@ -2328,7 +2491,7 @@ var ExamSeason = (function () {
 
   var DEFAULT_SETTINGS = {
     learnMin: 50, reviewMin: 25, breakMin: 10, taperDays: 3, papers: 2, maxShare: 50,
-    reviewShare: 40, busyGap: 15, examGap: 45, examDay: 'after', paperMax: 180
+    reviewShare: 40, busyGap: 15, examGap: 45, examDay: 'after', paperMax: 180, pace: 'spread'
   };
   var REVIEW_GAPS = [1, 3, 7, 14, 28];
   var CONF_PCT = [150, 125, 100, 75, 50];
@@ -2369,12 +2532,18 @@ var ExamSeason = (function () {
     return d;
   }
 
-  function strOr(v, d) { return typeof v === 'string' ? v : d; }
+  // Strings from a project file, with any broken half of an emoji (a lone
+  // surrogate) replaced, so every file written from them is valid text.
+  var LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+  function strOr(v, d) { return typeof v === 'string' ? v.replace(LONE_SURROGATE, '\uFFFD') : d; }
 
+  // A day from a project file, kept only if it falls between 2000 and 2099.
+  var DAY_MIN = 10957, DAY_MAX = 47481;
   function dayOr(v, d) {
-    if (typeof v === 'number' && isFinite(v)) return Math.floor(v);
-    if (typeof v === 'string') { var x = fromIso(v); if (x !== null) return x; }
-    return d;
+    var x = null;
+    if (typeof v === 'number' && isFinite(v)) x = Math.floor(v);
+    else if (typeof v === 'string') x = fromIso(v);
+    return x !== null && x >= DAY_MIN && x <= DAY_MAX ? x : d;
   }
 
   function cleanSettings(s) {
@@ -2391,6 +2560,7 @@ var ExamSeason = (function () {
     o.examGap = clamp(intOr(s.examGap, o.examGap), 0, 180);
     o.examDay = ['after', 'off', 'normal'].indexOf(s.examDay) >= 0 ? s.examDay : o.examDay;
     o.paperMax = clamp(intOr(s.paperMax, o.paperMax), 30, 300);
+    o.pace = ['spread', 'early'].indexOf(s.pace) >= 0 ? s.pace : o.pace;
     return o;
   }
   M.cleanSettings = cleanSettings;
@@ -2514,13 +2684,12 @@ var ExamSeason = (function () {
     if (s === '24:00' || s === 'midnight') return 1440;
     var m = /^([0-9]{1,2})$/.exec(s);
     if (m) { var h = parseInt(m[1], 10); return h <= 24 ? h * 60 : null; }
-    var m2 = /^([0-9]{1,2})[:.]([0-9]{2})$/.exec(s);
+    var m2 = /^([0-9]{1,2})[:.]([0-9]{2})(?::[0-9]{2})?$/.exec(s);
     if (m2) {
       var hh = parseInt(m2[1], 10), mm = parseInt(m2[2], 10);
       return hh <= 23 && mm <= 59 ? hh * 60 + mm : null;
     }
-    var t = parseTime(s);
-    return t;
+    return parseTime(s, true);
   }
   M.parseClock = parseClock;
 
@@ -2548,7 +2717,8 @@ var ExamSeason = (function () {
   // Read a weekly template and dated changes. Rows name a weekday (or
   // "weekdays", "weekends") or a date or date range, with the window and
   // the hours you can revise that day ("off" or 0 blocks the day).
-  function readAvailability(text, base) {
+  // ref is the day a date with no year is read near (usually today).
+  function readAvailability(text, base, ref) {
     var out = { week: (base || defaultWeek()).map(function (w) { return { from: w.from, to: w.to, minutes: w.minutes }; }), overrides: [], messages: [], rows: 0, weekRows: 0 };
     if (looksBinary(text)) {
       out.messages.push({ level: 'error', text: BINARY_MESSAGE });
@@ -2594,7 +2764,7 @@ var ExamSeason = (function () {
         continue;
       }
       var range = dayTxt.split(/ +(?:-|–|to|until) +|–/);
-      var d1 = parseDate(range[0], 'DMY', null), d2 = range.length > 1 ? parseDate(range[1], 'DMY', null) : d1;
+      var d1 = parseDate(range[0], 'DMY', ref), d2 = range.length > 1 ? parseDate(range[1], 'DMY', ref) : d1;
       if (d1 === null || d2 === null) {
         out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': "' + dayTxt + '" is not a weekday or a date, so the row was skipped.' });
         continue;
@@ -2732,12 +2902,14 @@ var ExamSeason = (function () {
     var history = project.done.filter(function (d) { return settledSet[d.id]; });
 
     var dated = project.exams.filter(function (e) { return e.day !== null; });
-    var upcoming = dated.filter(function (e) { return e.day >= from; });
+    // Plans reach two years ahead at most; a later date is almost always a typo.
+    var upcoming = dated.filter(function (e) { return e.day >= from && e.day <= from + 730; });
     project.exams.forEach(function (e) {
       if (e.day === null) notes.push({ level: 'warn', exam: e.id, text: e.code + ' ' + e.name + ': date to be confirmed, so it is not planned yet. Add the date when it is published.' });
     });
     dated.forEach(function (e) {
       if (e.day < from) notes.push({ level: 'info', exam: e.id, text: e.code + ' ' + e.name + ' was on ' + fmtShort(e.day) + ', before this plan starts, so it is not planned.' });
+      if (e.day > from + 730) notes.push({ level: 'warn', exam: e.id, text: e.code + ' ' + e.name + ' is on ' + fmtDay(e.day) + ', more than two years away, so it is not planned. Check the year.' });
     });
     var plan = {
       from: from, fromMin: project.planFromMin, last: from, settings: s, exams: [], days: [], sessions: [], notes: notes,
@@ -2926,6 +3098,22 @@ var ExamSeason = (function () {
     plan.exams.forEach(function (e) { remaining[e.id] = 0; });
     states.forEach(function (st) { if (st.done < st.count) remaining[st.exam.id] += (st.count - st.done) * st.len; });
 
+    // With time to spare, a module's new learning goes at a steady pace
+    // that would finish it a little (a quarter) faster than its aim needs,
+    // instead of filling the first weeks and leaving the last ones empty.
+    // Time to spare means the learning and the first three reviews still
+    // to do take under four fifths of the free time before the aim, for
+    // the module and for the plan as a whole.
+    var credit = {}, lastAim = from;
+    plan.exams.forEach(function (e) { credit[e.id] = 0; lastAim = Math.max(lastAim, e.aimBy); });
+    function needLeft() {
+      var need = {}, total = 0;
+      plan.exams.forEach(function (e) { need[e.id] = Math.max(0, remaining[e.id]); });
+      states.forEach(function (st) { need[st.exam.id] += Math.max(0, Math.min(3, st.rmax) - st.reviews) * s.reviewMin; });
+      plan.exams.forEach(function (e) { total += need[e.id]; });
+      return { byExam: need, total: total };
+    }
+
     // Fill each day in time order.
     for (var x = 0; x < nDays; x++) {
       fillDay(days[x], x);
@@ -2945,6 +3133,18 @@ var ExamSeason = (function () {
         return { exam: e, list: list, pos: 0 };
       });
       var finalTurn = 0;
+      var paced = {};
+      var need = s.pace === 'spread' && !dd.reserved.length ? needLeft() : null;
+      if (need && need.total * 5 < capBetween(x, Math.min(lastAim - from, nDays - 1)) * 4) {
+        var free0 = Math.max(0, dd.cap - dd.used);
+        plan.exams.forEach(function (e) {
+          if (remaining[e.id] <= 0 || d > e.aimBy) return;
+          var span = capBetween(x, Math.min(e.aimBy - from, nDays - 1));
+          if (span <= 0 || need.byExam[e.id] * 5 >= span * 4) return;
+          credit[e.id] += ceilDiv(remaining[e.id] * free0 * 5, span * 4);
+          paced[e.id] = true;
+        });
+      }
 
       function candidates() {
         var out = [];
@@ -2963,7 +3163,7 @@ var ExamSeason = (function () {
           var st2 = states[i];
           var e = st2.exam;
           if (st2.done < st2.count) {
-            if (d <= e.learnBy) {
+            if (d <= e.learnBy && !(paced[e.id] && credit[e.id] <= 0)) {
               anyLearn = true;
               out.push({ kind: 'learn', st: st2, exam: e, code: e.code, len: st2.len, today: st2.lastDay === d });
             }
@@ -3050,6 +3250,7 @@ var ExamSeason = (function () {
           st.done++;
           st.planned++;
           remaining[e.id] -= c.len;
+          if (paced[e.id]) credit[e.id] -= c.len;
           if (st.done >= st.count) {
             st.learnedDay = d;
             st.due = st.step < st.rmax ? d + REVIEW_GAPS[Math.min(st.step, REVIEW_GAPS.length - 1)] : null;
@@ -3605,7 +3806,9 @@ var ExamSeason = (function () {
         lines.push('BEGIN:VALARM');
         lines.push('ACTION:DISPLAY');
         lines.push('DESCRIPTION:' + icsEscape('Exam tomorrow: ' + e.code + ' ' + e.name));
-        lines.push('TRIGGER:-PT18H');
+        // At 18:00 the evening before, whatever time the exam starts.
+        var before = e.start + 360;
+        lines.push('TRIGGER:-PT' + floorDiv(before, 60) + 'H' + (before % 60 ? before % 60 + 'M' : ''));
         lines.push('END:VALARM');
         lines.push('END:VEVENT');
       });
@@ -3631,7 +3834,7 @@ var ExamSeason = (function () {
     list.forEach(function (se) { mins += se.min; });
     if (list.length) lines.push('  ' + plural(list.length, 'session') + ', ' + fmtDur(mins) + ' of revision.');
     plan.exams.forEach(function (e) {
-      if (e.day > day) lines.push('  ' + e.code + ' in ' + plural(e.day - day, 'day') + ' (' + fmtShort(e.day) + ')');
+      if (e.day > day) lines.push('  ' + e.code + ' ' + e.name + ' in ' + plural(e.day - day, 'day') + ' (' + fmtShort(e.day) + ')');
     });
     return lines.join('\n') + '\n';
   }
@@ -3786,6 +3989,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
   function esc(s) {
     return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
@@ -3910,12 +4115,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
   function changed(msg) {
     var p = state.project;
     // A plan that has not started yet keeps its start day.
-    if (p.planFrom < state.today) M.replan(p, state.plan, state.today, 0);
+    if (p.planFrom < state.today) M.replan(p, state.plan, state.today, replanMinute());
     if (state.isSample) state.isSample = false;
     recompute();
     persist();
     renderAll();
     if (msg) toast(msg);
+  }
+
+  // Re-planning today starts from now, so nothing lands earlier today.
+  function replanMinute() {
+    return state.project.asOf === null && state.today === realToday() ? nowMinutes() : 0;
   }
 
   // A light change (a tick) that does not move the plan.
@@ -4045,7 +4255,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     p.topics = kept;
     M.assignTopicIds(p.topics);
     addSource('topics', name, res);
-    changed((replace ? 'Replaced your topics: ' : 'Added ') + added + ' topics.');
+    changed((replace ? 'Replaced your topics: ' : 'Added ') + plural(added, 'topic') + '.');
   }
 
   function importCalendar(text, name) {
@@ -4072,7 +4282,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
 
   function importAvailability(text, name) {
     if (text === null) { state.imports.availability = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }] }; renderAll(); return; }
-    var res = M.readAvailability(text, state.project.week);
+    var res = M.readAvailability(text, state.isSample ? null : state.project.week, state.today);
     state.imports.availability = { name: name || 'availability', messages: res.messages, count: res.rows };
     if (!res.rows) { renderAll(); afterImport('[data-drop=availability]', state.imports.availability); return; }
     ensureOwn();
@@ -4204,19 +4414,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     $('#stickers').innerHTML = html.join('');
   }
 
+  var lastBanner = null;
   function renderBanner() {
-    var b = $('#banner'), p = state.project;
+    var b = $('#banner'), p = state.project, html = '';
     if (state.isSample) {
-      b.innerHTML = '<div class="note-strip"><span>You are looking at an <b>invented</b> final-year student\'s plan: five January exams, 40 topics, lectures, cafe shifts and rugby, planned from ' +
+      html = '<div class="note-strip"><span>You are looking at an <b>invented</b> final-year student\'s plan: five January exams, 40 topics, lectures, cafe shifts and rugby, planned from ' +
         esc(M.fmtShort(p.planFrom)) + ' and ticked off for ten days (one day missed), as if today were <b>' + esc(M.fmtDay(state.today)) + '</b>.</span>' +
         '<span class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="start-own">Use your own timetable</button>' +
         '<button type="button" class="btn btn-small" data-action="try-messy">Try a messy pasted timetable</button></span></div>';
     } else if (state.restored) {
-      b.innerHTML = '<div class="note-strip"><span>Welcome back: this is your plan as you left it in this browser. Save the plan file now and then to keep it safe.</span>' +
+      html = '<div class="note-strip"><span>Welcome back: this is your plan as you left it in this browser. Save the plan file now and then to keep it safe.</span>' +
         '<span class="btn-row"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="show-sample">Show the sample instead</button></span></div>';
-    } else {
-      b.innerHTML = '';
     }
+    if (html !== lastBanner) { b.innerHTML = html; lastBanner = html; }
   }
 
   // ------------------------------------------------------------------
@@ -4317,9 +4527,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       p.topics.forEach(function (t, i) { if (t.code === code) list.push([t, i]); });
       var mins = 0;
       list.forEach(function (x) { if (x[0].mode !== 'drop') mins += M.learnSessions(x[0], s) * M.learnLength(x[0], s); });
-      h.push('<div class="card mod taped m' + examColour(code) + '"><div class="card-head"><div><h3>' + esc(code) + ' ' + esc(ex ? ex.name : '') + '</h3><div class="small muted">' +
-        (ex ? (ex.day === null ? 'Exam date to be confirmed' : 'Exam ' + esc(M.fmtDay(ex.day)) + ' at ' + M.fmtTime(ex.start)) : '<span class="tag red">no exam for this module</span>') + '</div></div>' +
-        '<div class="hours" title="First learning, before reviews">' + list.length + ' topics<br>' + hoursText(mins) + ' to learn</div></div><div class="card-body">');
+      var mine = p.exams.filter(function (e) { return e.code === code; });
+      var when = ex ? (ex.day === null ? 'Exam date to be confirmed' : 'Exam ' + esc(M.fmtDay(ex.day)) + ' at ' + M.fmtTime(ex.start)) : '<span class="tag red">no exam for this module</span>';
+      if (mine.length > 1) when = mine.length + ' exams: ' + mine.map(function (e) { return e.day === null ? 'date to be confirmed' : esc(M.fmtShort(e.day)); }).join(', ');
+      h.push('<div class="card mod taped m' + examColour(code) + '"><div class="card-head"><div><h3>' + esc(code) + ' ' + esc(sharedTitle(mine)) + '</h3><div class="small muted">' + when + '</div></div>' +
+        '<div class="hours" title="First learning, before reviews">' + plural(list.length, 'topic') + '<br>' + hoursText(mins) + ' to learn</div></div><div class="card-body">');
       if (!list.length) h.push('<p class="small muted">No topics yet for this module.</p>');
       list.forEach(function (x) {
         var t = x[0], i = x[1];
@@ -4389,7 +4601,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     // Calendar import and availability file
     h.push('<div class="cols" style="margin-top:30px">');
     var cal = ['<div class="card taped plain"><div class="card-head"><h3>Busy times from your calendar or rota</h3><span class="tag">.ics or CSV</span></div><div class="card-body">' +
-      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file or a shift rota</p><p class="formats">Your university timetable feed, or an export from Google, Apple or Outlook calendar (.ics): weekly repeats, skipped dates, moved and cancelled events are followed, and all-day entries are listed but not counted as busy. Or a rota as CSV with a date, a start and a finish (or hours) on each row; shifts past midnight carry on into the next day. Load as many as you have.</p>' +
+      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file or a shift rota</p><p class="formats">Your university timetable feed, or an export from your phone or computer calendar (.ics): weekly repeats, skipped dates, moved and cancelled events are followed, and all-day entries are listed but not counted as busy. Or a rota as CSV with a date, a start and a finish (or hours) on each row; shifts past midnight carry on into the next day. Load as many as you have.</p>' +
       '<div class="btn-row"><span class="btn btn-small btn-marker file-btn">Choose a calendar or rota<input type="file" id="cal-file" accept=".ics,.csv,.tsv,.txt,text/calendar,text/csv" aria-label="Choose a calendar or rota file"></span>' +
       (p.busy.length ? '<button type="button" class="btn-link" data-action="clear-busy">Remove all busy times</button>' : '') + '</div>' + importReport(state.imports.calendar, 'busy time') + '</div>'];
     var summ = M.busySummary(p.busy.filter(function (b) { return b.day >= horizonFrom; }));
@@ -4418,7 +4630,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
 
     // Settings
     var preset = PRESETS.filter(function (x) { return x[1] === s.learnMin && x[2] === s.reviewMin && x[3] === s.breakMin; })[0];
-    h.push('<div class="card plain" style="margin-top:30px"><div class="card-head"><h3>How sessions are sized</h3><button type="button" class="btn-link" data-action="reset-settings">Back to the defaults</button></div><div class="card-body"><div class="settings-grid">' +
+    h.push('<div class="card plain" style="margin-top:30px"><div class="card-head"><h3>How sessions are sized and paced</h3><button type="button" class="btn-link" data-action="reset-settings">Back to the defaults</button></div><div class="card-body"><div class="settings-grid">' +
       '<div class="field"><label for="set-preset">Session style</label><select id="set-preset">' + PRESETS.map(function (x) { return '<option value="' + x[0] + '"' + (preset && preset[0] === x[0] ? ' selected' : '') + '>' + esc(x[4]) + '</option>'; }).join('') +
       (preset ? '' : '<option value="" selected>Your own lengths</option>') + '</select><span class="hint">Sets the three lengths below in one go.</span></div>' +
       setting('learnMin', 'Learning session (minutes)', s.learnMin, 15, 180, 5, 'New material, in one sitting.') +
@@ -4429,9 +4641,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       setting('maxShare', 'Most of a day on one module (%)', s.maxShare, 25, 100, 5, 'Keeps modules mixed in every day.') +
       setting('busyGap', 'Gap around commitments (minutes)', s.busyGap, 0, 120, 5, 'Travel and a breather around lectures and shifts.') +
       '<div class="field"><label for="set-examDay">On an exam day</label><select id="set-examDay" data-setting="examDay"><option value="after"' + (s.examDay === 'after' ? ' selected' : '') + '>Revise after the exam, half the hours</option><option value="off"' + (s.examDay === 'off' ? ' selected' : '') + '>No revision</option><option value="normal"' + (s.examDay === 'normal' ? ' selected' : '') + '>Normal hours around the exam</option></select><span class="hint">What else happens on the day of an exam.</span></div>' +
+      '<div class="field"><label for="set-pace">With time to spare</label><select id="set-pace" data-setting="pace"><option value="spread"' + (s.pace === 'spread' ? ' selected' : '') + '>Spread new topics out at a steady pace</option><option value="early"' + (s.pace === 'early' ? ' selected' : '') + '>Learn everything as early as possible</option></select><span class="hint">Steady keeps days lighter and leaves reviews for the last weeks.</span></div>' +
       '<div class="field"><label for="set-planFrom">Plan starts on</label><input type="date" id="set-planFrom" value="' + M.isoDay(p.planFrom) + '" data-setting="planFrom"' + (p.done.length ? ' disabled' : '') + '><span class="hint">' + (p.done.length ? 'Fixed once you have ticked sessions off; use Re-plan instead.' : 'Usually today.') + '</span></div>' +
       '</div></div></div>');
     $('#view-time').innerHTML = h.join('');
+  }
+
+  // The title a module's exams share: "Biology" for "Biology Paper 1" and
+  // "Biology Paper 2".
+  function sharedTitle(exams) {
+    if (!exams.length) return '';
+    var words = exams[0].name.split(' ');
+    exams.forEach(function (e) {
+      var w = e.name.split(' '), k = 0;
+      while (k < words.length && k < w.length && words[k].toLowerCase() === w[k].toLowerCase()) k++;
+      words = words.slice(0, k);
+    });
+    while (words.length && /^(paper|part|unit|component|-|:)$/i.test(words[words.length - 1])) words.pop();
+    return words.length ? words.join(' ') : exams[0].name;
   }
 
   var PRESETS = [
@@ -4477,7 +4704,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     var h = [];
     h.push('<div class="print-head"><h2>' + esc(p.name) + '</h2><span>Revision wall planner · made ' + esc(M.fmtDay(p.planFrom)) + ' · Exam season</span></div>');
     h.push('<div class="view-head"><div><h2>Your plan</h2><p class="intro">' + (plan.sessions.length ?
-      plan.sessions.length + ' sessions on ' + sm.studyDays + ' days from ' + esc(M.fmtShort(plan.from)) + ' to ' + esc(M.fmtShort(plan.last)) + ': <b class="mono">' + hoursText(sm.learnMin) + '</b> learning, <b class="mono">' + hoursText(sm.reviewMin) + '</b> spaced reviews, <b class="mono">' + hoursText(sm.paperMin) + '</b> past papers and <b class="mono">' + hoursText(sm.finalMin) + '</b> final reviews. Click a day to see its sessions.'
+      plural(plan.sessions.length, 'session') + ' on ' + plural(sm.studyDays, 'day') + ' from ' + esc(M.fmtShort(plan.from)) + ' to ' + esc(M.fmtShort(plan.last)) + ': <b class="mono">' + hoursText(sm.learnMin) + '</b> learning, <b class="mono">' + hoursText(sm.reviewMin) + '</b> spaced reviews, <b class="mono">' + hoursText(sm.paperMin) + '</b> past papers and <b class="mono">' + hoursText(sm.finalMin) + '</b> final reviews. Click a day to see its sessions.'
       : 'No sessions yet. Load your exam timetable and topics under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.') + '</p></div>' +
       '<div class="plan-tools no-print"><span class="seg" role="group" aria-label="Show the plan as"><button type="button" data-mode="calendar" aria-pressed="' + (state.planMode === 'calendar') + '">Calendar</button><button type="button" data-mode="week" aria-pressed="' + (state.planMode === 'week') + '">Week</button><button type="button" data-mode="list" aria-pressed="' + (state.planMode === 'list') + '">List</button></span>' +
       '<button type="button" class="btn btn-small btn-blue" data-action="ics-all">Calendar file (.ics)</button><label class="alarm-pick"><span>Reminders</span><select id="alarm" aria-label="Reminder before each session in the calendar file"><option value="0"' + (state.alarm === 0 ? ' selected' : '') + '>none</option><option value="10"' + (state.alarm === 10 ? ' selected' : '') + '>10 min before</option><option value="30"' + (state.alarm === 30 ? ' selected' : '') + '>30 min before</option></select></label>' +
@@ -4612,7 +4839,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
           inner += '<span class="chip m' + plan.byExam[s.exam].colour + ' k-' + s.kind + (isDone(s.id) ? ' done' : '') + '"><span class="cc">' + esc(s.code.replace(/[0-9]+[A-Z]?$/, '')) + '</span><span class="ck">' + esc(s.kind === 'paper' ? 'past paper' : s.title) + '</span></span>';
         });
         if (list.length > shown.length) inner += '<span class="more">+' + (list.length - shown.length) + ' more</span>';
-        var label = M.fmtDay(day) + ': ' + (list.length ? list.length + ' sessions, ' + M.fmtDur(mins) : 'no sessions') + ((examOn[day] || []).length ? ', exam ' + examOn[day].map(function (e) { return e.code; }).join(' and ') : '');
+        var label = M.fmtDay(day) + ': ' + (list.length ? plural(list.length, 'session') + ', ' + M.fmtDur(mins) : 'no sessions') + ((examOn[day] || []).length ? ', exam ' + examOn[day].map(function (e) { return e.code; }).join(' and ') : '');
         if (inPlan) h.push('<button type="button" class="' + cls + '" data-day="' + day + '" aria-pressed="' + (state.selected === day) + '" aria-label="' + esc(label) + '">' + inner + '</button>');
         else h.push('<div class="' + cls + '" aria-hidden="true">' + inner + '</div>');
       }
@@ -4732,9 +4959,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     var missedN = st.missed.length, missedMin = 0;
     st.missed.forEach(function (s) { missedMin += s.min; });
     h.push('<div class="card taped" style="--tape:repeating-linear-gradient(45deg,#ff9fcb 0 6px,#ffd0e5 6px 12px)"><div class="card-head"><h3>Fell behind?</h3></div><div class="card-body">' +
-      (missedN ? '<p><b class="mono">' + missedN + '</b> sessions (' + hoursText(missedMin) + ') from ' + esc(M.fmtShort(p.planFrom)) + ' to ' + esc(M.fmtShort(today - 1)) + ' are not ticked off.</p>' : '<p>Nothing missed since the plan was made on ' + esc(M.fmtShort(p.planFrom)) + '.</p>') +
+      (missedN ? '<p><b class="mono">' + missedN + '</b> ' + (missedN === 1 ? 'session' : 'sessions') + ' (' + hoursText(missedMin) + ') from ' + esc(M.fmtShort(p.planFrom)) + ' to ' + esc(M.fmtShort(today - 1)) + ' are not ticked off.</p>' : '<p>Nothing missed since the plan was made on ' + esc(M.fmtShort(p.planFrom)) + '.</p>') +
       (st.shakyNew ? '<p><b class="mono">' + st.shakyNew + '</b> ' + (st.shakyNew === 1 ? 'review was' : 'reviews were') + ' shaky since then: re-planning brings ' + (st.shakyNew === 1 ? 'that topic' : 'those topics') + ' back the next day.</p>' : '') +
-      '<div class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="replan"' + (missedN || p.planFrom < today ? '' : '') + '>Re-plan from today</button></div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="replan">Re-plan from today</button></div>' +
       '<p class="hint" style="margin-top:8px">Re-planning keeps every tick, files the unticked sessions as missed, and rebuilds the rest of the plan from today with the same rules.</p>' +
       '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn btn-small" data-action="block-today">Can\'t revise today: block it and re-plan</button></div></div></div>');
     h.push('</div>');
@@ -4755,7 +4982,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
         var names = r.quick.map(function (id) { var tp = null; p.topics.forEach(function (x) { if (x.id === id) tp = x; }); return tp ? tp.name + ' (confidence ' + tp.conf + ')' : id; });
         fix = '<div class="fix"><b>What to drop or shorten</b><ul>' +
           (names.length ? '<li>Give your strongest topics a quick look and one review instead of full learning: ' + esc(names.join(', ')) + '. That frees about ' + hoursText(r.quickSaves) + '. <button type="button" class="btn-link" data-action="quick-apply" data-exam="' + esc(r.id) + '">Do this</button></li>' : '') +
-          (r.extraDays ? '<li>Or find room for <b class="mono">' + r.extraSessions + '</b> more ' + p.settings.learnMin + '-minute ' + (r.extraSessions === 1 ? 'session' : 'sessions') + ' before new topics stop on ' + esc(M.fmtShort(plan.byExam[r.id].learnBy)) + ': an extra hour on ' + (r.extraSessions === 1 ? 'one' : r.extraSessions) + ' of the ' + r.extraDays + ' free days, under <button type="button" class="btn-link" data-go="time">Your time</button>.</li>' : '') +
+          (r.extraDays ? '<li>Or find room for <b class="mono">' + r.extraSessions + '</b> more ' + p.settings.learnMin + '-minute ' + (r.extraSessions === 1 ? 'session' : 'sessions') + ' before new topics stop on ' + esc(M.fmtShort(plan.byExam[r.id].learnBy)) + ': ' + M.fmtDur(p.settings.learnMin + p.settings.breakMin) + ' more on ' + (r.extraSessions === 1 ? 'one' : r.extraSessions) + ' of the ' + r.extraDays + ' free days, under <button type="button" class="btn-link" data-go="time">Your time</button>.</li>' : '') +
           '<li>Or set a topic you can afford to lose to "Drop" under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.</li></ul></div>';
       }
       h.push('<div class="card ontrack m' + r.colour + ' mod ' + (i % 2 ? 'tilt-r' : 'tilt-l') + '"><div class="card-head"><div><h3>' + esc(r.code) + ' ' + esc(r.name) + '</h3><div class="when">' + esc(M.fmtDay(r.day)) + ' · ' + (r.verdict === 'sat' ? 'sat' : r.daysLeft === 0 ? 'today' : r.daysLeft + (r.daysLeft === 1 ? ' day' : ' days') + ' to go') + '</div></div><span class="verdict ' + r.verdict + '">' + esc(r.headline) + '</span></div><div class="card-body">' +
@@ -4767,7 +4994,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     // How you keep to the plan, by weekday
     var ad = M.adherence(p, plan, today);
     if (ad.days >= 3) {
-      h.push('<h3 style="margin-top:32px">How you keep to the plan</h3><p class="small muted" style="max-width:60em">From your ticks and missed sessions over ' + ad.days + ' days: you have done <b class="mono">' + ad.pct + '%</b> of the time planned. A plan you can keep beats an ambitious one you cannot.</p><div class="card plain" style="max-width:760px"><div class="card-body"><div class="wchart">');
+      h.push('<h3 style="margin-top:32px">How you keep to the plan</h3><p class="small muted" style="max-width:60em">From your ticks and missed sessions over ' + plural(ad.days, 'day') + ': you have done <b class="mono">' + ad.pct + '%</b> of the time planned. A plan you can keep beats an ambitious one you cannot.</p><div class="card plain" style="max-width:760px"><div class="card-body"><div class="wchart">');
       ad.weekdays.forEach(function (w) {
         if (!w.planned) return;
         h.push('<div class="wbar"><span class="wl">' + M.WEEKDAYS[w.weekday] + 's</span><span class="track" role="img" aria-label="' + esc(M.WEEKDAYS[w.weekday] + 's: ' + w.pct + '% of ' + M.fmtHours(w.planned) + ' planned done over ' + w.days + ' days') + '">' +
@@ -4794,11 +5021,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       (by[d] || []).forEach(function (s) { planned += s.min; if (!isDone(s.id)) undone += s.min; });
       var dn = doneByDay[d] || 0, ms = (missedByDay[d] || 0) + (d < today ? undone : 0);
       var cls = dn && !ms ? 'full' : dn && ms ? 'part' : ms ? 'miss' : 'none';
-      h.push('<div class="sday ' + cls + (d === today ? ' now' : '') + '" title="' + esc(M.fmtDay(d) + ': ' + M.fmtDur(dn) + ' done' + (ms ? ', ' + M.fmtDur(ms) + ' missed' : '')) + '"><span class="d">' + esc(M.fmtShort(d).slice(0, 3)) + ' ' + M.ymdFromDay(d)[2] + '</span><span class="v">' + (dn ? M.tenths(dn).replace(/\.0$/, '') + 'h' : ms ? '×' : '–') + '</span></div>');
+      h.push('<div class="sday ' + cls + (d === today ? ' now' : '') + '" title="' + esc(M.fmtDay(d) + ': ' + M.fmtDur(dn) + ' done' + (ms ? ', ' + M.fmtDur(ms) + ' missed' : '')) + '"><span class="d">' + esc(M.fmtShort(d).slice(0, 3)) + ' ' + M.ymdFromDay(d)[2] + '</span><span class="v">' + (dn ? M.tenths(dn).replace(/\.0$/, '') + 'h' : ms ? '×' : '–') + '</span><span class="k">' + (cls === 'none' && planned ? 'to do' : ({ full: 'done', part: 'part', miss: 'missed', none: 'free' })[cls]) + '</span></div>');
     }
     h.push('</div><p class="small muted" style="margin-top:8px">Green: everything done · half yellow: some done · red stripes: missed · grey: nothing planned.</p>');
     if (p.missed.length) {
-      h.push('<details style="margin-top:14px"><summary>' + p.missed.length + ' sessions filed as missed when you re-planned</summary><ul class="small">' +
+      h.push('<details style="margin-top:14px"><summary>' + plural(p.missed.length, 'session') + ' filed as missed when you re-planned</summary><ul class="small">' +
         p.missed.slice(-40).map(function (m) { return '<li>' + esc(M.fmtShort(m.day)) + ': ' + esc(m.title) + '</li>'; }).join('') + '</ul></details>');
     }
     h.push('<div class="btn-row" style="margin-top:22px"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="status-csv">On-track table (CSV)</button><button type="button" class="btn btn-small" data-action="ics-ahead">Sessions from today (.ics)</button></div>');
@@ -4875,10 +5102,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
     var cards = [
       ['m0', 'How long each topic needs', '<p>A topic\'s size is the first learning it needs at middling confidence: S is 2 hours, M is 3, L is 5 (XS 1, XL 7), or the hours you type. Confidence scales it: 1 needs 150%, 2 needs 125%, 3 needs 100%, 4 needs 75% and 5 needs 50%. That is rounded up to whole ' + s.learnMin + '-minute learning sessions. A topic marked Quick gets one ' + s.reviewMin + '-minute look and one review; Drop leaves it out.</p>'],
       ['m1', 'Weak and heavy topics first', '<p>Within each module, topics are learnt in order of confidence (weakest first), then size (biggest first), then the order you listed them. So the topics most likely to go wrong get the most time and the most reviews.</p>'],
-      ['m2', 'Which module next', '<p>Every module aims to finish its new topics a week before they stop (see the taper), so its last topics still get reviews. The next learning session goes to the module with the least slack: the hours of free time left before that aim, minus the hours of learning it still needs. Early exams come first without starving later ones.</p>'],
+      ['m2', 'Which module next', '<p>Every module aims to finish its new topics a week before they stop (see the taper), so its last topics still get reviews. The next learning session goes to the module with the least slack: the hours of free time left before that aim, minus the hours of learning it still needs. Early exams come first without starving later ones.</p>' +
+        (s.pace === 'spread' ? '<p>When a module has time to spare, its new topics go at a steady pace that would finish them a quarter sooner than they need to, so days stay lighter and the last weeks still have reviews. (Choose "as early as possible" under Your time to use every free hour instead.)</p>' : '<p>New topics are learnt as early as your free time allows (you chose "as early as possible" under Your time).</p>')],
       ['m3', 'Mixed, never one module all day', '<p>No module takes more than ' + s.maxShare + '% of a day\'s revision, and two sessions in a row are from different modules, whenever another module has something to do. A topic gets at most one session a day. These only relax when nothing else fits.</p>'],
       ['m4', 'Spaced reviews at growing gaps', '<p>Once a topic is learnt, it comes back for ' + s.reviewMin + '-minute reviews ' + gaps.join(', ').replace(/, ([0-9]+)$/, ' and $1') + ' days apart, each gap counted from the review before. The first three reviews come before new learning (up to ' + s.reviewShare + '% of a day); later top-ups only fill spare time. A review that slips simply happens the next free day.</p>'],
-      ['m5', 'A taper into each exam', '<p>New topics stop ' + s.taperDays + ' days before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
+      ['m5', 'A taper into each exam', '<p>New topics stop ' + plural(s.taperDays, 'day') + ' before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
       ['m0', 'The day before is kept for that exam', '<p>The day before each exam (or the nearest free day up to three days before) is kept for it: one final review of every topic, weakest first, and nothing new. On an exam day you ' + (s.examDay === 'after' ? 'revise only after the exam, for at most half your usual hours' : s.examDay === 'off' ? 'do no revision' : 'revise your normal hours around the exam') + '.</p>'],
       ['m1', 'Your time comes first', '<p>Sessions only go inside your window for the day, up to your hours, never over a busy time from your calendar (with ' + s.busyGap + ' minutes either side) or within ' + s.examGap + ' minutes of an exam. Each session is followed by a ' + s.breakMin + '-minute break. Blocked days get nothing.</p>'],
       ['m4', 'Shaky, OK or solid', '<p>When you tick a review off you can say how it went. Once you re-plan, a shaky review starts that topic\'s ladder of gaps again (it comes back the next day), OK moves it one step and solid moves it two. Unrated reviews count as OK.</p>'],
@@ -4897,7 +5125,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
   // Render all and navigation
   // ------------------------------------------------------------------
 
+  // Every change redraws the page, so the control that had the focus gets
+  // it back afterwards (found again by its id or its data- attributes).
+  function focusKey() {
+    var a = document.activeElement, main = $('#main');
+    if (!a || a === document.body || !main || !main.contains(a)) return null;
+    if (a.id) return '#' + (window.CSS && CSS.escape ? CSS.escape(a.id) : a.id);
+    var tag = a.tagName.toLowerCase(), sel = tag;
+    for (var i = 0; i < a.attributes.length; i++) {
+      var at = a.attributes[i];
+      if (/^data-/.test(at.name) && at.name !== 'data-sure') sel += '[' + at.name + '="' + String(at.value).replace(/["\\]/g, '\\$&') + '"]';
+    }
+    return sel === tag ? null : sel;
+  }
+
   function renderAll() {
+    var key = focusKey();
+    renderPage();
+    if (!key) return;
+    var el = null;
+    try { el = document.querySelector(key); } catch (e) { el = null; }
+    if (el && el !== document.activeElement && typeof el.focus === 'function') el.focus({ preventScroll: true });
+  }
+
+  function renderPage() {
     renderHero();
     renderStickers();
     renderBanner();
@@ -4970,7 +5221,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       return;
     }
     var s = JSON.parse(JSON.stringify(p.settings));
-    s[key] = key === 'examDay' ? value : parseInt(value, 10);
+    s[key] = key === 'examDay' || key === 'pace' ? value : parseInt(value, 10);
     p.settings = M.cleanSettings(s);
     changed(null);
   }
@@ -5008,7 +5259,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       case 'start-own': startOwn(); break;
       case 'show-sample': forget(); state.restored = false; loadSample(); state.view = 'plan'; renderAll(); break;
       case 'open-project': $('#file-project').click(); break;
-      case 'save-project': download(fileSafe(p.name) + '.json', M.projectFile(p), 'application/json'); toast('Saved the plan file. Open it here any time to carry on.'); break;
+      case 'save-project': download(fileSafe(p.name) + '.json', M.projectFile(p), 'application/json'); toast('Downloading ' + fileSafe(p.name) + '.json: open it here any time to carry on. (If no download appears, this page is in a frame that blocks them; open app/index.html directly.)'); break;
       case 'read-exams': importExams($('#exam-text').value, 'pasted text'); break;
       case 'read-topics': importTopics($('#topic-text').value, 'pasted list', false); break;
       case 'replace-topics': importTopics($('#topic-text').value, 'pasted list', true); break;
@@ -5025,7 +5276,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
       case 'template-topics': download('topics-template.csv', M.topicTemplate(), 'text/csv;charset=utf-8'); break;
       case 'del-exam': p.exams.splice(parseInt(t.getAttribute('data-i'), 10), 1); changed('Exam removed.'); break;
       case 'del-topic': p.topics.splice(parseInt(t.getAttribute('data-i'), 10), 1); changed('Topic removed.'); break;
-      case 'clear-topics': if (window.confirm('Remove all ' + p.topics.length + ' topics?')) { p.topics = []; changed('All topics removed.'); } break;
+      case 'clear-topics':
+        if (t.getAttribute('data-sure') === 'yes') { p.topics = []; changed('All topics removed.'); }
+        else { t.setAttribute('data-sure', 'yes'); t.textContent = 'Press again to remove all ' + plural(p.topics.length, 'topic'); }
+        break;
       case 'clear-busy': p.busy = []; p.allDay = []; p.sources = p.sources.filter(function (s) { return s.kind !== 'calendar'; }); changed('Busy times removed.'); break;
       case 'del-override': var dday = parseInt(t.getAttribute('data-day'), 10); p.overrides = p.overrides.filter(function (v) { return v.day !== dday; }); changed('Change removed.'); break;
       case 'block-allday':
@@ -5035,7 +5289,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
         break;
       case 'save-availability': download('availability.csv', M.availabilityCsv(p), 'text/csv;charset=utf-8'); break;
       case 'reset-settings': p.settings = M.cleanSettings({}); changed('Settings back to the defaults.'); break;
-      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name, alarm: state.alarm }), 'text/calendar;charset=utf-8'); toast('Calendar file saved: import it into Google, Apple or Outlook calendar.'); break;
+      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name, alarm: state.alarm }), 'text/calendar;charset=utf-8'); toast('Downloading the calendar file: import it into the calendar on your phone or computer.'); break;
       case 'markdown': download(fileSafe(p.name) + '.md', M.checklistMarkdown(p, plan, state.today, null), 'text/markdown;charset=utf-8'); toast('Checklist saved from today on: paste or open it in your notes app.'); break;
       case 'week-prev': state.weekStart -= 7; renderPlan(); break;
       case 'week-next': state.weekStart += 7; renderPlan(); break;
@@ -5054,9 +5308,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
         copyText(M.dayText(p, plan, d2), function (ok) { toast(ok ? 'Copied ' + M.fmtShort(d2) + ' as text.' : 'Copying is blocked here; use the .ics or CSV instead.'); });
         break;
       case 'replan':
-        M.replan(p, plan, state.today, p.asOf === null && state.today === realToday() ? nowMinutes() : 0);
+        var missedBefore = p.missed.length;
+        M.replan(p, plan, state.today, replanMinute());
         ensureOwnKeep(); recompute(); persist(); renderAll();
-        toast('Re-planned from ' + M.fmtShort(state.today) + '. Ticks kept; ' + p.missed.length + ' sessions filed as missed.');
+        toast('Re-planned from ' + M.fmtShort(state.today) + '. Ticks kept; ' + plural(p.missed.length - missedBefore, 'session') + ' filed as missed.');
         break;
       case 'block-today':
         M.setOverride(p, state.today, 0, 'Could not revise');
@@ -5076,7 +5331,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
         state.status.exams.forEach(function (x) { if (x.id === t.getAttribute('data-exam')) r = x; });
         if (r) {
           p.topics.forEach(function (tp) { if (r.quick.indexOf(tp.id) >= 0) tp.mode = 'quick'; });
-          changed(r.quick.length + ' topics switched to a quick look.');
+          changed(plural(r.quick.length, 'topic') + ' switched to a quick look.');
         }
         break;
       default: break;
@@ -5090,10 +5345,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ExamSeason
   function onChange(ev) {
     var t = ev.target;
     if (t.id === 'file-project' && t.files && t.files[0]) { var f = t.files[0]; readFile(f, function (txt) { openProjectText(txt, f.name); }); t.value = ''; return; }
-    if (t.id === 'exam-file' && t.files[0]) { var f1 = t.files[0]; readFile(f1, function (txt) { importExams(txt, f1.name); }); return; }
-    if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); return; }
-    if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); return; }
-    if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); return; }
+    // Each file input is cleared once read, so choosing the same file again
+    // (after fixing it) reads it again.
+    if (t.id === 'exam-file' && t.files[0]) { var f1 = t.files[0]; readFile(f1, function (txt) { importExams(txt, f1.name); }); t.value = ''; return; }
+    if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); t.value = ''; return; }
+    if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); t.value = ''; return; }
+    if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); t.value = ''; return; }
     if (t.id === 'alarm') { state.alarm = parseInt(t.value, 10) || 0; try { localStorage.setItem(STORE + '-alarm', String(state.alarm)); } catch (e) { /* storage blocked */ } return; }
     if (t.hasAttribute('data-filter')) { state.topicFilter[t.getAttribute('data-filter')] = t.value; renderTopics(); var fb = $('#' + t.id); if (fb) fb.focus(); return; }
     if (t.id === 'today-is') {

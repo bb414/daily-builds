@@ -279,7 +279,7 @@ def alex_calendar():
     c.event("lab-dat3301", "20261002T110000", "20261002T130000", "DAT3301 Computer lab", [UNTIL_TERM, "LOCATION:Computer Lab 3"])
     # One lecture moved: the LAW3207 lecture on Thu 3 Dec moves to Fri 4 Dec 14:00.
     c.event("lec-law3207", "20261204T140000", "20261204T160000", "LAW3207 Lecture (moved)", ["RECURRENCE-ID;TZID=Europe/London:20261203T100000", "LOCATION:Law School 1"])
-    # Rugby: training on Tuesday evenings until the end of term, and two Wednesday fixtures.
+    # Rugby: training on Tuesday evenings for eleven weeks (to 15 December), and two Wednesday fixtures.
     c.event("rugby-training", "20261006T180000", "20261006T200000", "Rugby training", ["RRULE:FREQ=WEEKLY;COUNT=11", "LOCATION:Brackenmoor playing fields"])
     c.event("rugby-match-1", "20261202T130000", "20261202T180000", "Rugby: away fixture", ["LOCATION:Coach from the sports centre"])
     c.event("rugby-match-2", "20261209T130000", "20261209T173000", "Rugby: home fixture")
