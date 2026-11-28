@@ -253,6 +253,19 @@ class Agreement(unittest.TestCase):
         jobs.append({"fn": "compareVersions", "args": ["", a, {}]})
         self.compare(jobs)
 
+    def test_proof_copies(self):
+        p = M.read_project(sample("sample-project.json"))
+        a = M.analyse(dict(p["texts"], asOf=AS_OF))
+        jobs = [{"fn": "annotatedMarkdown", "args": [a, p["checks"], p["refChecks"], p["project"]["title"], AS_OF]},
+                {"fn": "annotatedMarkdown", "args": [M.analyse({"draft": "", "asOf": AS_OF}), {}, {}, "", AS_OF]}]
+        rng = random.Random(5)
+        for i in range(10):
+            d = make_doc(rng)
+            a = M.analyse({"draft": d, "final": edit_doc(rng, d) if i % 2 else "", "notes": make_doc(rng, 2, 5), "asOf": AS_OF})
+            checks = {c["key"]: {"status": rng.choice(M.STATUSES), "note": rng.choice(["", "p*4 [x]"])} for c in a["claims"]}
+            jobs.append({"fn": "annotatedMarkdown", "args": [a, checks, {}, rng.choice(["", "T_itle #1"]), AS_OF]})
+        self.compare(jobs)
+
     def test_word_files(self):
         doc = ('<w:document><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Repair &amp; reuse</w:t></w:r></w:p>'
                '<w:p><w:r><w:t xml:space="preserve">It cut 14 tonnes </w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r>'

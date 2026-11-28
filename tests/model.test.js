@@ -238,6 +238,16 @@ test('re-checking: new, edited and gone statements since the recorded version', 
   assert.strictEqual(same.unchanged.length, a.claims.length);
 });
 
+test('the proof copy puts a query after every flagged sentence and lists them all', function () {
+  var p = M.readProject(sample('sample-project.json'));
+  var a = M.analyse(Object.assign({}, p.texts, { asOf: AS_OF }));
+  var md = M.annotatedMarkdown(a, p.checks, p.refChecks, p.project.title, AS_OF);
+  assert.strictEqual((md.match(/\*\*\[Qy [0-9]+: /g) || []).length, a.claims.length);
+  assert.strictEqual((md.match(/^### Qy /gm) || []).length, a.claims.length);
+  assert.ok(md.indexOf('11 statements flagged: 5 high risk, 3 medium, 3 low; 7 still open.') > 0);
+  assert.ok(md.indexOf('Nothing was checked online') > 0);
+});
+
 test('word files become Markdown-like text with headings, lists and footnotes', function () {
   var t = M.docxText('<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Intro</w:t></w:r></w:p><w:p><w:r><w:t>Text &amp; more</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p>',
     '<w:footnote w:id="0"><w:p><w:r><w:t>x</w:t></w:r></w:p></w:footnote><w:footnote w:id="1"><w:p><w:r><w:t>Smith (2020) Title.</w:t></w:r></w:p></w:footnote>');

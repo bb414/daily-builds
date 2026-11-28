@@ -500,6 +500,7 @@ table.sessions tr.other td { color: var(--ink-3); }
 .decl-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .warn-list { margin: 0 0 12px; padding: 9px 12px 9px 30px; background: #f3e2b5; border-left: 5px solid var(--amber); font-size: 14px; }
 .copy-status { font: 500 12.5px/1.3 var(--mono); color: var(--green); align-self: center; }
+.decl-count { margin: 8px 0 0; font: 500 12.5px/1.3 var(--mono); color: var(--ink-3); text-align: right; }
 
 /* ---------------------------------------------------------------- how it works */
 .how-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 30px; }
@@ -3032,6 +3033,70 @@ table.weights td.p.neg { color: var(--green); }
   }
   M.refsCsv = refsCsv;
 
+  // The checked text with a query number after every flagged sentence, then the queries in full: a copy
+  // to work from away from the page, or to hand to someone checking it with you.
+  function annotatedMarkdown(a, checks, refChecks, title, asOf) {
+    var byIndex = dict();
+    for (var i = 0; i < a.claims.length; i++) byIndex[a.claims[i].sentence] = a.claims[i];
+    var out = ['# Proof copy: ' + mdEscape(trim(title || '') || 'your text'), '',
+      'Checked by me, ' + longDay(typeof asOf === 'number' ? asOf : a.asOf) + '. Each flagged statement in the ' + (a.hasFinal ? 'final version' : 'draft') +
+      ' is followed by its query number; the queries are listed after the text, highest risk first. Nothing was checked online and this is not a plagiarism check.', ''];
+    var para = [], cur = -1;
+    function flush() { if (para.length) { out.push(para.join(' ')); out.push(''); } para = []; }
+    for (var s = 0; s < a.sentences.length; s++) {
+      var sent = a.sentences[s];
+      if (sent.para !== cur) { flush(); cur = sent.para; }
+      var c = hasOwn(byIndex, s) ? byIndex[s] : null;
+      var text = mdEscape(sent.text);
+      if (c) {
+        var st = statusOf(checks, c.key);
+        text += ' **[Qy ' + c.q + ': ' + c.level + ', ' + (st === 'unchecked' ? 'open' : st) + ']**';
+      }
+      para.push(text);
+    }
+    flush();
+    if (a.claims.length) {
+      var s0 = summarise(a, checks, refChecks);
+      out.push('## Queries');
+      out.push('');
+      out.push(plural(s0.claims, 'statement') + ' flagged: ' + s0.high + ' high risk, ' + s0.medium + ' medium, ' + s0.low + ' low; ' + s0.unchecked + ' still open.');
+      out.push('');
+      for (var r = 0; r < a.ranked.length; r++) {
+        var q = a.claims[a.ranked[r] - 1], status = statusOf(checks, q.key);
+        var note = checks && hasOwn(checks, q.key) && typeof checks[q.key].note === 'string' ? trim(checks[q.key].note) : '';
+        out.push('### Qy ' + q.q + ' (' + q.level + ' risk, score ' + q.score + ', ' + (status === 'unchecked' ? 'open' : status) + ')');
+        out.push('');
+        out.push('> ' + mdEscape(q.text));
+        out.push('');
+        out.push('- **What it is:** ' + q.kinds.map(function (k) { return M.KIND_LABELS[k]; }).join(', '));
+        if (q.origin) out.push('- **Where it came from:** ' + { kept: 'kept word for word from the AI draft', edited: 'edited from the AI draft', reworded: 'reworded from the AI draft', yours: 'your own words' }[q.origin]);
+        for (var n = 0; n < q.notes.items.length; n++) {
+          var it = q.notes.items[n];
+          if (it.result === 'conflict') out.push('- **Your notes disagree:** ' + mdEscape(it.note));
+        }
+        out.push('- **Why it is flagged:** ' + q.reasons.map(function (x) { return (x.points > 0 ? '+' : '') + x.points + ' ' + mdEscape(x.text); }).join(' '));
+        out.push('- **What to check:**');
+        for (var t = 0; t < q.checks.length; t++) out.push('  - ' + mdEscape(q.checks[t]));
+        out.push('- **Status:** ' + (status === 'unchecked' ? 'open' : status) + (note ? ' (' + mdEscape(note) + ')' : ''));
+        out.push('');
+      }
+    }
+    var flagged = a.refs.entries.filter(function (e) { return e.verdict !== 'ok'; });
+    if (flagged.length || a.refs.missing.length) {
+      out.push('## References to look at');
+      out.push('');
+      for (var f = 0; f < flagged.length; f++) {
+        var e = flagged[f], rs = refStatusOf(refChecks, e.entry.key);
+        out.push('- ' + mdEscape(e.entry.text) + ' **(' + { suspect: 'look it up by hand', fix: 'needs fixing', warn: 'worth a look' }[e.verdict] + (rs !== 'unchecked' ? ', ' + rs : '') + ')** ' +
+          mdEscape(e.issues.map(function (x) { return x.text; }).join(' ')));
+      }
+      for (var mm = 0; mm < a.refs.missing.length; mm++) out.push('- Cited in the text but not in the list: ' + mdEscape(a.refs.missing[mm].text));
+      out.push('');
+    }
+    return out.join('\n').replace(/\n+$/, '') + '\n';
+  }
+  M.annotatedMarkdown = annotatedMarkdown;
+
   function cleanChecks(checks, allowed) {
     var out = {}, keys = Object.keys(checks || {}).sort(cmp);
     for (var i = 0; i < keys.length; i++) {
@@ -3691,7 +3756,7 @@ table.weights td.p.neg { color: var(--green); }
       : 'All ' + plural(s.claims, 'statement') + ' are marked. ' + (s.refUnresolved ? 'Now look at the references.' : 'Ready to sign off.');
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
       '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
-      '<div class="tools-row"><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
+      '<div class="tools-row"><button type="button" class="btn small" data-act="md-proof">Proof copy (.md)</button><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
     html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
       ['all', 'high', 'medium', 'low'].map(function (r) { return '<button type="button" class="chip" id="fr-' + r + '" data-act="risk" data-risk="' + r + '" aria-pressed="' + (f.risk === r) + '">' + (r === 'all' ? 'All' : r.charAt(0).toUpperCase() + r.slice(1)) + '</button>'; }).join('') + '</div></fieldset>' +
@@ -3888,6 +3953,12 @@ table.weights td.p.neg { color: var(--green); }
 
   function currentDeclaration() { return M.declaration(S.analysis, state()); }
 
+  // Submission boxes often limit words or characters, so the size of the plain-text declaration is shown.
+  function declCount(d) {
+    var text = M.declarationText(d).replace(/\n+$/, '');
+    return plural(wordsIn(text), 'word') + ', ' + plural(text.length, 'character') + ' as plain text';
+  }
+
   function renderDeclare() {
     var a = S.analysis, box = $('declare-body');
     var p = S.project, d = currentDeclaration(), s = S.summary;
@@ -3917,7 +3988,8 @@ table.weights td.p.neg { color: var(--green); }
     var warn = d.warnings.length ? '<ul class="warn-list">' + d.warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' : '';
     var complete = s && s.complete;
     var right = '<div><h2>Your declaration</h2><div class="decl-acts"><button type="button" class="btn primary small" data-act="copy-decl">Copy the text</button><button type="button" class="btn small" data-act="print">Print</button><button type="button" class="btn small" data-act="md-decl">Markdown (.md)</button><button type="button" class="btn small" data-act="txt-decl">Text (.txt)</button><button type="button" class="btn small" data-act="save">Save project</button><span class="copy-status" id="copy-status" role="status"></span></div>' + warn +
-      '<div class="proof ' + (complete ? 'has-stamp' : 'has-pending') + '">' + (complete ? stampSvg() : '<div class="stamp-pending">The sign-off stamp appears when every query and flagged reference is marked</div>') + proofHtml(d) + '</div></div>';
+      '<div class="proof ' + (complete ? 'has-stamp' : 'has-pending') + '">' + (complete ? stampSvg() : '<div class="stamp-pending">The sign-off stamp appears when every query and flagged reference is marked</div>') + proofHtml(d) + '</div>' +
+      '<p class="decl-count">' + esc(declCount(d)) + '</p></div>';
     keepFocus(function () { box.innerHTML = '<div class="decl-grid">' + left + right + '</div>'; });
   }
 
@@ -3959,6 +4031,17 @@ table.weights td.p.neg { color: var(--green); }
         var c = a.claims[q - 1], ck = S.checks[c.key] || {};
         return '<tr><td>Qy ' + c.q + '</td><td class="pill">' + c.level + ' ' + c.score + '</td><td>' + esc(c.text) + '</td><td class="pill">' + M.statusOf(S.checks, c.key) + '</td><td>' + esc(ck.note || '') + '</td></tr>';
       }).join('') + '</tbody></table>';
+    }
+    if (a.claims.length) {
+      var byIndex = {};
+      a.claims.forEach(function (c) { byIndex[c.sentence] = c; });
+      var paras = [], cur = -1;
+      a.sentences.forEach(function (sn, i) {
+        if (sn.para !== cur) { paras.push([]); cur = sn.para; }
+        var c = byIndex[i];
+        paras[paras.length - 1].push(esc(sn.text) + (c ? ' <b class="pill">[Qy ' + c.q + ': ' + c.level + ', ' + M.statusOf(S.checks, c.key).replace('unchecked', 'open') + ']</b>' : ''));
+      });
+      html += '<h2>The text with its queries</h2>' + paras.map(function (p) { return '<p>' + p.join(' ') + '</p>'; }).join('');
     }
     var flagged = a.refs.entries.filter(function (r) { return r.verdict !== 'ok'; });
     if (flagged.length || a.refs.missing.length) {
@@ -4199,6 +4282,7 @@ table.weights td.p.neg { color: var(--green); }
     if (act === 'mark') setMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
     else if (act === 'refmark') setRefMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
     else if (act === 'risk') { S.filter.risk = t.getAttribute('data-risk'); renderCheck(); }
+    else if (act === 'md-proof') download(slugName(S.project.title || 'text') + '-proof-copy.md', M.annotatedMarkdown(a, S.checks, S.refChecks, S.project.title, today), 'text/markdown;charset=utf-8');
     else if (act === 'csv-claims') download(slugName(S.project.title || 'claims') + '-checklist.csv', M.claimsCsv(a, S.checks), 'text/csv;charset=utf-8');
     else if (act === 'csv-refs') download(slugName(S.project.title || 'references') + '-references.csv', M.refsCsv(a, S.refChecks), 'text/csv;charset=utf-8');
     else if (act === 'csv-sessions') download(slugName(S.project.assignment || 'ai') + '-session-log.csv', M.sessionsCsv(S.sessions), 'text/csv;charset=utf-8');

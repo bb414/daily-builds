@@ -2116,6 +2116,70 @@
   }
   M.refsCsv = refsCsv;
 
+  // The checked text with a query number after every flagged sentence, then the queries in full: a copy
+  // to work from away from the page, or to hand to someone checking it with you.
+  function annotatedMarkdown(a, checks, refChecks, title, asOf) {
+    var byIndex = dict();
+    for (var i = 0; i < a.claims.length; i++) byIndex[a.claims[i].sentence] = a.claims[i];
+    var out = ['# Proof copy: ' + mdEscape(trim(title || '') || 'your text'), '',
+      'Checked by me, ' + longDay(typeof asOf === 'number' ? asOf : a.asOf) + '. Each flagged statement in the ' + (a.hasFinal ? 'final version' : 'draft') +
+      ' is followed by its query number; the queries are listed after the text, highest risk first. Nothing was checked online and this is not a plagiarism check.', ''];
+    var para = [], cur = -1;
+    function flush() { if (para.length) { out.push(para.join(' ')); out.push(''); } para = []; }
+    for (var s = 0; s < a.sentences.length; s++) {
+      var sent = a.sentences[s];
+      if (sent.para !== cur) { flush(); cur = sent.para; }
+      var c = hasOwn(byIndex, s) ? byIndex[s] : null;
+      var text = mdEscape(sent.text);
+      if (c) {
+        var st = statusOf(checks, c.key);
+        text += ' **[Qy ' + c.q + ': ' + c.level + ', ' + (st === 'unchecked' ? 'open' : st) + ']**';
+      }
+      para.push(text);
+    }
+    flush();
+    if (a.claims.length) {
+      var s0 = summarise(a, checks, refChecks);
+      out.push('## Queries');
+      out.push('');
+      out.push(plural(s0.claims, 'statement') + ' flagged: ' + s0.high + ' high risk, ' + s0.medium + ' medium, ' + s0.low + ' low; ' + s0.unchecked + ' still open.');
+      out.push('');
+      for (var r = 0; r < a.ranked.length; r++) {
+        var q = a.claims[a.ranked[r] - 1], status = statusOf(checks, q.key);
+        var note = checks && hasOwn(checks, q.key) && typeof checks[q.key].note === 'string' ? trim(checks[q.key].note) : '';
+        out.push('### Qy ' + q.q + ' (' + q.level + ' risk, score ' + q.score + ', ' + (status === 'unchecked' ? 'open' : status) + ')');
+        out.push('');
+        out.push('> ' + mdEscape(q.text));
+        out.push('');
+        out.push('- **What it is:** ' + q.kinds.map(function (k) { return M.KIND_LABELS[k]; }).join(', '));
+        if (q.origin) out.push('- **Where it came from:** ' + { kept: 'kept word for word from the AI draft', edited: 'edited from the AI draft', reworded: 'reworded from the AI draft', yours: 'your own words' }[q.origin]);
+        for (var n = 0; n < q.notes.items.length; n++) {
+          var it = q.notes.items[n];
+          if (it.result === 'conflict') out.push('- **Your notes disagree:** ' + mdEscape(it.note));
+        }
+        out.push('- **Why it is flagged:** ' + q.reasons.map(function (x) { return (x.points > 0 ? '+' : '') + x.points + ' ' + mdEscape(x.text); }).join(' '));
+        out.push('- **What to check:**');
+        for (var t = 0; t < q.checks.length; t++) out.push('  - ' + mdEscape(q.checks[t]));
+        out.push('- **Status:** ' + (status === 'unchecked' ? 'open' : status) + (note ? ' (' + mdEscape(note) + ')' : ''));
+        out.push('');
+      }
+    }
+    var flagged = a.refs.entries.filter(function (e) { return e.verdict !== 'ok'; });
+    if (flagged.length || a.refs.missing.length) {
+      out.push('## References to look at');
+      out.push('');
+      for (var f = 0; f < flagged.length; f++) {
+        var e = flagged[f], rs = refStatusOf(refChecks, e.entry.key);
+        out.push('- ' + mdEscape(e.entry.text) + ' **(' + { suspect: 'look it up by hand', fix: 'needs fixing', warn: 'worth a look' }[e.verdict] + (rs !== 'unchecked' ? ', ' + rs : '') + ')** ' +
+          mdEscape(e.issues.map(function (x) { return x.text; }).join(' ')));
+      }
+      for (var mm = 0; mm < a.refs.missing.length; mm++) out.push('- Cited in the text but not in the list: ' + mdEscape(a.refs.missing[mm].text));
+      out.push('');
+    }
+    return out.join('\n').replace(/\n+$/, '') + '\n';
+  }
+  M.annotatedMarkdown = annotatedMarkdown;
+
   function cleanChecks(checks, allowed) {
     var out = {}, keys = Object.keys(checks || {}).sort(cmp);
     for (var i = 0; i < keys.length; i++) {

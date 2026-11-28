@@ -6,6 +6,7 @@
     merge     several people's session logs into one log and a team declaration
     declare   the declaration from a saved project, as text or Markdown
     recheck   a new version of a saved project: what is new or edited since the last check
+    annotate  a proof copy: the text with query numbers and every query in full (Markdown)
     diff      how much of a final version is still the AI draft's wording
     project   builds a project file the browser app can open
 
@@ -412,6 +413,24 @@ def cmd_recheck(args):
     return 0
 
 
+def cmd_annotate(args):
+    as_of = as_of_arg(args.as_of)
+    if args.source.lower().endswith(".json"):
+        p = read_project_file(args.source)
+        a = M.analyse(dict(p["texts"], asOf=as_of))
+        checks, ref_checks, title = p["checks"], p["refChecks"], args.title or p["project"]["title"]
+    else:
+        a = analyse_paths(args.source, args.final, args.notes, args.references, args.prompt, as_of)
+        checks, ref_checks, title = {}, {}, args.title or os.path.splitext(os.path.basename(args.source))[0]
+    text = M.annotated_markdown(a, checks, ref_checks, title, as_of)
+    if args.out:
+        write_text(args.out, text)
+        print("Wrote the proof copy to %s (%s)" % (args.out, M.plural(len(a["claims"]), "query", "queries")))
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def cmd_diff(args):
     as_of = as_of_arg(args.as_of)
     a = analyse_paths(args.draft, args.final, as_of=as_of)
@@ -507,6 +526,13 @@ def build_parser():
     r.add_argument("--record", action="store_true", help="with --out: record the new version as checked")
     r.add_argument("--as-of")
     r.set_defaults(func=cmd_recheck)
+
+    n = sub.add_parser("annotate", help="a proof copy of the text with every query (Markdown)")
+    n.add_argument("source", help="a saved project (.json, with your marks) or a draft")
+    for name in ("final", "notes", "references", "prompt", "title", "out"):
+        n.add_argument("--" + name)
+    n.add_argument("--as-of")
+    n.set_defaults(func=cmd_annotate)
 
     f = sub.add_parser("diff", help="how much of a final version is the AI draft's wording")
     f.add_argument("draft")

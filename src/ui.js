@@ -508,7 +508,7 @@
       : 'All ' + plural(s.claims, 'statement') + ' are marked. ' + (s.refUnresolved ? 'Now look at the references.' : 'Ready to sign off.');
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
       '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
-      '<div class="tools-row"><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
+      '<div class="tools-row"><button type="button" class="btn small" data-act="md-proof">Proof copy (.md)</button><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
     html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
       ['all', 'high', 'medium', 'low'].map(function (r) { return '<button type="button" class="chip" id="fr-' + r + '" data-act="risk" data-risk="' + r + '" aria-pressed="' + (f.risk === r) + '">' + (r === 'all' ? 'All' : r.charAt(0).toUpperCase() + r.slice(1)) + '</button>'; }).join('') + '</div></fieldset>' +
@@ -705,6 +705,12 @@
 
   function currentDeclaration() { return M.declaration(S.analysis, state()); }
 
+  // Submission boxes often limit words or characters, so the size of the plain-text declaration is shown.
+  function declCount(d) {
+    var text = M.declarationText(d).replace(/\n+$/, '');
+    return plural(wordsIn(text), 'word') + ', ' + plural(text.length, 'character') + ' as plain text';
+  }
+
   function renderDeclare() {
     var a = S.analysis, box = $('declare-body');
     var p = S.project, d = currentDeclaration(), s = S.summary;
@@ -734,7 +740,8 @@
     var warn = d.warnings.length ? '<ul class="warn-list">' + d.warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' : '';
     var complete = s && s.complete;
     var right = '<div><h2>Your declaration</h2><div class="decl-acts"><button type="button" class="btn primary small" data-act="copy-decl">Copy the text</button><button type="button" class="btn small" data-act="print">Print</button><button type="button" class="btn small" data-act="md-decl">Markdown (.md)</button><button type="button" class="btn small" data-act="txt-decl">Text (.txt)</button><button type="button" class="btn small" data-act="save">Save project</button><span class="copy-status" id="copy-status" role="status"></span></div>' + warn +
-      '<div class="proof ' + (complete ? 'has-stamp' : 'has-pending') + '">' + (complete ? stampSvg() : '<div class="stamp-pending">The sign-off stamp appears when every query and flagged reference is marked</div>') + proofHtml(d) + '</div></div>';
+      '<div class="proof ' + (complete ? 'has-stamp' : 'has-pending') + '">' + (complete ? stampSvg() : '<div class="stamp-pending">The sign-off stamp appears when every query and flagged reference is marked</div>') + proofHtml(d) + '</div>' +
+      '<p class="decl-count">' + esc(declCount(d)) + '</p></div>';
     keepFocus(function () { box.innerHTML = '<div class="decl-grid">' + left + right + '</div>'; });
   }
 
@@ -776,6 +783,17 @@
         var c = a.claims[q - 1], ck = S.checks[c.key] || {};
         return '<tr><td>Qy ' + c.q + '</td><td class="pill">' + c.level + ' ' + c.score + '</td><td>' + esc(c.text) + '</td><td class="pill">' + M.statusOf(S.checks, c.key) + '</td><td>' + esc(ck.note || '') + '</td></tr>';
       }).join('') + '</tbody></table>';
+    }
+    if (a.claims.length) {
+      var byIndex = {};
+      a.claims.forEach(function (c) { byIndex[c.sentence] = c; });
+      var paras = [], cur = -1;
+      a.sentences.forEach(function (sn, i) {
+        if (sn.para !== cur) { paras.push([]); cur = sn.para; }
+        var c = byIndex[i];
+        paras[paras.length - 1].push(esc(sn.text) + (c ? ' <b class="pill">[Qy ' + c.q + ': ' + c.level + ', ' + M.statusOf(S.checks, c.key).replace('unchecked', 'open') + ']</b>' : ''));
+      });
+      html += '<h2>The text with its queries</h2>' + paras.map(function (p) { return '<p>' + p.join(' ') + '</p>'; }).join('');
     }
     var flagged = a.refs.entries.filter(function (r) { return r.verdict !== 'ok'; });
     if (flagged.length || a.refs.missing.length) {
@@ -1016,6 +1034,7 @@
     if (act === 'mark') setMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
     else if (act === 'refmark') setRefMark(t.getAttribute('data-key'), t.getAttribute('data-status'));
     else if (act === 'risk') { S.filter.risk = t.getAttribute('data-risk'); renderCheck(); }
+    else if (act === 'md-proof') download(slugName(S.project.title || 'text') + '-proof-copy.md', M.annotatedMarkdown(a, S.checks, S.refChecks, S.project.title, today), 'text/markdown;charset=utf-8');
     else if (act === 'csv-claims') download(slugName(S.project.title || 'claims') + '-checklist.csv', M.claimsCsv(a, S.checks), 'text/csv;charset=utf-8');
     else if (act === 'csv-refs') download(slugName(S.project.title || 'references') + '-references.csv', M.refsCsv(a, S.refChecks), 'text/csv;charset=utf-8');
     else if (act === 'csv-sessions') download(slugName(S.project.assignment || 'ai') + '-session-log.csv', M.sessionsCsv(S.sessions), 'text/csv;charset=utf-8');

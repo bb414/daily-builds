@@ -223,6 +223,20 @@ class Commands(unittest.TestCase):
             code, text, _ = run("recheck", out, new, "--as-of", "2026-11-28")
             self.assertIn("0 new statements, 0 edited statements, 0 statements gone", text)
 
+    def test_annotate_writes_a_proof_copy(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "proof.md")
+            code, text, _ = run("annotate", os.path.join(DATA, "sample-project.json"), "--out", out, "--as-of", "2026-11-28")
+            self.assertEqual(code, 0)
+            md = open(out, encoding="utf-8").read()
+            self.assertTrue(md.startswith("# Proof copy: Repair caf\u00e9s and the circular high street"))
+            self.assertIn("**[Qy 5: high, open]**", md)
+            self.assertIn("### Qy 9 (high risk, score 16, open)", md)
+            self.assertIn("- **Status:** verified (Brinmouth footfall monitor 2022, table 2)", md)
+            self.assertIn("- Cited in the text but not in the list: Lindqvist (2020)", md)
+            code, text, _ = run("annotate", os.path.join(DATA, "drafts", "chat-paste.txt"), "--as-of", "2026-11-28")
+            self.assertIn("# Proof copy: chat-paste", text)
+
     def test_diff_and_project(self):
         code, out, _ = run("diff", os.path.join(DATA, "ai-draft.md"), os.path.join(DATA, "final-version.md"), "--as-of", "2026-11-28")
         self.assertEqual(code, 0)

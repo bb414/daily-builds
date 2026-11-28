@@ -23,6 +23,7 @@ PY_NAMES = {
     "sentenceKey": M.sentence_key, "fnv": M.fnv, "cleanChars": M.clean_chars, "notesIndex": M.notes_index,
     "projectFile": M.project_file, "sessionsCsv": M.sessions_csv, "lcsOps": M.lcs_ops,
     "parseRis": M.parse_ris, "parseBibtex": M.parse_bibtex, "texText": M.tex_text, "compareVersions": M.compare_versions,
+    "annotatedMarkdown": M.annotated_markdown,
 }
 
 

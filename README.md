@@ -37,7 +37,7 @@ Messy pastes are fine: smart quotes, non-breaking and zero-width spaces, Markdow
 
 Then work down the **Check** list, look up what the **References** page flags, read the **Changes**, fill in **Declaration** (your name, the assignment, how you used AI and the layout your university or employer wants) and log each AI session as you go. When every claim and flagged reference is marked, the declaration gets its sign-off stamp. **Save project** downloads a `.checked-by-me.json` file that **Open project** reopens later; the page also keeps your last project in the browser and offers it back.
 
-What you can take away: the declaration (copy, `.md`, `.txt` or print), the checklist (`.csv`), the reference report (`.csv`), the session log (`.csv`, which builds up across assignments) and a printable proof report with the declaration, the checklist and the references to look at.
+What you can take away: the declaration (copy, `.md`, `.txt` or print, with its word and character count for submission boxes with a limit), a **proof copy** of your text in Markdown with a query number after every flagged sentence and each query in full (to paste into Word or Google Docs, take to the library or hand to someone checking with you), the checklist (`.csv`), the reference report (`.csv`), the session log (`.csv`, which builds up across assignments) and a printable proof report with the declaration, the checklist, the text with its queries and the references to look at.
 
 ## A worked example on the sample
 
@@ -66,6 +66,7 @@ python companion/checked_by_me.py gate my-essay.md --checklist checklist.csv --l
 python companion/checked_by_me.py merge data/team/*.csv --assignment "MGT2210 Group report" --out-csv team-log.csv --out-md team-declaration.md
 python companion/checked_by_me.py declare data/sample-project.json --template appendix --md declaration.md
 python companion/checked_by_me.py recheck data/sample-project.json my-new-version.md --out essay.json --record
+python companion/checked_by_me.py annotate data/sample-project.json --out proof-copy.md
 python companion/checked_by_me.py diff data/ai-draft.md data/final-version.md
 python companion/checked_by_me.py project --draft draft.md --final final.md --sessions log.csv --out essay.checked-by-me.json
 ```
@@ -76,7 +77,7 @@ What the companion adds to the app:
 - **`gate`** is a pre-submission check for a team's document workflow (a Git hook, a CI step or a shared-drive script): it exits 1 while any high-risk claim (or, with `--level`, medium or low) is still unmarked, 2 when a file cannot be read, and 0 when everything has been looked at. It reads the marks from saved projects, folders of them, or a draft plus the checklist CSV the app downloads. `--refs` also holds on unmarked references that need fixing or look made up.
 - **`merge`** joins several people's session logs (different column orders, delimiters and date styles) into one log, merges a session two people both logged, and writes a team declaration in Markdown with each session, who ran it and a per-person summary.
 - **`recheck`** takes a saved project and a new version of the text, lists what is new, edited (with a word diff and the old mark) and gone since the version recorded as checked, and with `--out` writes the updated project (`--record` records the new version as checked).
-- **`check`**, **`declare`**, **`diff`** and **`project`** give the app's results from the command line; `project` builds a file the app can open.
+- **`check`**, **`declare`**, **`annotate`**, **`diff`** and **`project`** give the app's results from the command line (`annotate` writes the same proof copy as the app, from a saved project or a draft); `project` builds a file the app can open.
 
 ## Tests
 

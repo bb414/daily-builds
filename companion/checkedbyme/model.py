@@ -2511,6 +2511,74 @@ def refs_csv(a, ref_checks):
     return csv_text(["Entry", "Reference", "Type", "Year", "Verdict", "Issues", "Times cited", "Status", "Note"], rows)
 
 
+def annotated_markdown(a, checks, ref_checks, title, as_of=None):
+    """The checked text with a query number after every flagged sentence, then the queries in full."""
+    checks = checks if isinstance(checks, dict) else {}
+    by_index = {c["sentence"]: c for c in a["claims"]}
+    out = ["# Proof copy: " + md_escape(trim(title or "") or "your text"), "",
+           "Checked by me, " + long_day(as_of if isinstance(as_of, int) else a["asOf"]) + ". Each flagged statement in the "
+           + ("final version" if a["hasFinal"] else "draft") + " is followed by its query number; the queries are listed after the text, "
+           "highest risk first. Nothing was checked online and this is not a plagiarism check.", ""]
+    para, cur = [], -1
+
+    def flush():
+        if para:
+            out.append(" ".join(para))
+            out.append("")
+        del para[:]
+
+    for s, sent in enumerate(a["sentences"]):
+        if sent["para"] != cur:
+            flush()
+            cur = sent["para"]
+        c = by_index.get(s)
+        text = md_escape(sent["text"])
+        if c:
+            st = status_of(checks, c["key"])
+            text += " **[Qy %d: %s, %s]**" % (c["q"], c["level"], "open" if st == "unchecked" else st)
+        para.append(text)
+    flush()
+    if a["claims"]:
+        s0 = summarise(a, checks, ref_checks)
+        out += ["## Queries", "", "%s flagged: %d high risk, %d medium, %d low; %d still open." % (
+            plural(s0["claims"], "statement"), s0["high"], s0["medium"], s0["low"], s0["unchecked"]), ""]
+        origin_words = {"kept": "kept word for word from the AI draft", "edited": "edited from the AI draft",
+                        "reworded": "reworded from the AI draft", "yours": "your own words"}
+        for qn in a["ranked"]:
+            q = a["claims"][qn - 1]
+            status = status_of(checks, q["key"])
+            ck = checks.get(q["key"])
+            note = trim(ck["note"]) if isinstance(ck, dict) and isinstance(ck.get("note"), str) else ""
+            out.append("### Qy %d (%s risk, score %d, %s)" % (q["q"], q["level"], q["score"], "open" if status == "unchecked" else status))
+            out.append("")
+            out.append("> " + md_escape(q["text"]))
+            out.append("")
+            out.append("- **What it is:** " + ", ".join(KIND_LABELS[k] for k in q["kinds"]))
+            if q["origin"]:
+                out.append("- **Where it came from:** " + origin_words[q["origin"]])
+            for it in q["notes"]["items"]:
+                if it["result"] == "conflict":
+                    out.append("- **Your notes disagree:** " + md_escape(it["note"]))
+            out.append("- **Why it is flagged:** " + " ".join(("+" if x["points"] > 0 else "") + str(x["points"]) + " " + md_escape(x["text"]) for x in q["reasons"]))
+            out.append("- **What to check:**")
+            for t in q["checks"]:
+                out.append("  - " + md_escape(t))
+            out.append("- **Status:** " + ("open" if status == "unchecked" else status) + (" (" + md_escape(note) + ")" if note else ""))
+            out.append("")
+    flagged = [e for e in a["refs"]["entries"] if e["verdict"] != "ok"]
+    if flagged or a["refs"]["missing"]:
+        out += ["## References to look at", ""]
+        words_for = {"suspect": "look it up by hand", "fix": "needs fixing", "warn": "worth a look"}
+        for e in flagged:
+            rs = ref_status_of(ref_checks, e["entry"]["key"])
+            out.append("- " + md_escape(e["entry"]["text"]) + " **(" + words_for[e["verdict"]] + (", " + rs if rs != "unchecked" else "") + ")** "
+                       + md_escape(" ".join(x["text"] for x in e["issues"])))
+        for m in a["refs"]["missing"]:
+            out.append("- Cited in the text but not in the list: " + md_escape(m["text"]))
+        out.append("")
+    return re.sub(r"\n+\Z", "", "\n".join(out)) + "\n"
+
+
 def clean_checks(checks, allowed):
     out = {}
     if not isinstance(checks, dict):
