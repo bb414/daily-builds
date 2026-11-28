@@ -130,11 +130,11 @@ To change the app, edit the files in `src/` and run `python tools/build_app.py`,
 
 | Part | Language | Lines (roughly) | What it does |
 |---|---|---|---|
-| `src/model.js` | JavaScript | 2,370 | Reading CSV, OFX and QIF exports, finding regular payments, checks, forecasting, the balance runway, the plan, and every file the app hands back, including the workbook. Runs in the browser and in Node.js for the tests. |
-| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 1,900 | The four steps and the "How it works" page, uploads, decisions, corrections, downloads and the utility-cupboard design. |
+| `src/model.js` | JavaScript | 2,440 | Reading CSV, OFX and QIF exports, finding regular payments, checks, forecasting, the balance runway, the plan, and every file the app hands back, including the workbook. Runs in the browser and in Node.js for the tests. |
+| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 1,910 | The four steps and the "How it works" page, uploads, decisions, corrections, downloads and the utility-cupboard design. |
 | `app/index.html` | (built) | | The single self-contained app, assembled by `tools/build_app.py` with the fonts and sample statements inside it. |
-| `companion/` | Python | 4,800 | The same model, line for line, plus the jobs a browser is not good at: a whole folder of exports at once, a monthly run that compares with your last review and keeps a price history and a dated workbook, the balance runway as a day-by-day CSV, an HTML report and a budget spreadsheet from the command line. |
-| `tests/` | JavaScript, Python | 1,650 | Model tests, companion tests, tests that prove the two versions agree to the penny, the day and the byte (every exported file, the workbook included), and browser tests of the app. |
+| `companion/` | Python | 4,870 | The same model, line for line, plus the jobs a browser is not good at: a whole folder of exports at once, a monthly run that compares with your last review and keeps a price history and a dated workbook, the balance runway as a day-by-day CSV, an HTML report and a budget spreadsheet from the command line. |
+| `tests/` | JavaScript, Python | 1,730 | Model tests, companion tests, tests that prove the two versions agree to the penny, the day and the byte (every exported file, the workbook included), and browser tests of the app. |
 | `tools/` | Python | 570 | Builds the app, makes the sample statements (seeded, so they are the same every time) and takes the screenshots. |
 
 ## How it works
