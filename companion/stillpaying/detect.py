@@ -10,8 +10,8 @@ overlapping services).
 import functools
 import math
 
-from .common import cmp, js_regex, money, round_half_up, truthy
-from .dates import DAY_NAMES, add_months, day_from_ymd, days_in_month, iso, long_date, next_working_day, \
+from .common import cmp, is_number, js_regex, js_string, js_trim, money, round_half_up, slug, truthy
+from .dates import DAY_NAMES, add_months, day_from_ymd, days_in_month, from_iso, iso, long_date, next_working_day, \
     nominal_in_month, ordinal, weekday, ymd
 from .payees import CATEGORY_BY_ID, DUPLICATE_PRONE, METHODS, categorise, clean_description, display_name, \
     group_keys, payee_key, payment_method, tokens
@@ -308,6 +308,11 @@ def schedule_from(series, from_nominal, count, until_day=None):
 def last_nominal(series):
     """The nominal due date of a series' latest payment."""
     cad = CADENCE_BY_ID[series['cadence']]
+    # A payment added by hand has no history: step back one from its next due date.
+    if not series['payments']:
+        if cad['months']:
+            return add_months(series['nominalNext'], -cad['months'], series['anchor'])
+        return series['nominalNext'] - cad['days']
     last = series['payments'][-1]['day']
     if cad['months']:
         return nearest_nominal(last, series['anchor'])
@@ -345,7 +350,7 @@ def confidence_label(c):
     return 'Sure' if c >= 75 else 'Likely' if c >= 50 else 'Possible'
 
 
-def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=None, overrides=None):
+def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=None, overrides=None, added=None):
     """Find regular payments in merged transactions.
 
     aliases maps a payee group key to another group key, names maps a series
@@ -435,6 +440,10 @@ def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=Non
         s['reasons'].insert(0, 'You confirmed this as a regular payment.')
         series.append(s)
 
+    for raw in added or []:
+        a = clean_added(raw)
+        if a and not any(s['id'] == a['id'] for s in series):
+            series.append(added_series(a, as_of))
     flag_duplicates(series)
     series.sort(key=functools.cmp_to_key(lambda a, b: (status_rank(a) - status_rank(b)) or (b['annual'] - a['annual'])
                                          or cmp(a['id'], b['id'])))
@@ -535,6 +544,11 @@ def build_series(group_key, raw, direction, coverage, as_of, override=None):
     override = override or {}
     payments = sorted(raw['payments'], key=lambda p: p['day'])
     fit = raw['fit']
+    set_by_you = False
+    if override.get('cadence') and override['cadence'] in CADENCE_BY_ID and override['cadence'] != fit['cadence']:
+        cd = CADENCE_BY_ID[override['cadence']]
+        fit = dict(fit, cadence=cd['id'], anchor=anchor_day([p['day'] for p in payments]) if cd['months'] else 0)
+        set_by_you = True
     cad = CADENCE_BY_ID[fit['cadence']]
     extras = fit.get('extras') or []
     methods = {}
@@ -604,7 +618,55 @@ def build_series(group_key, raw, direction, coverage, as_of, override=None):
     s['confidence'] = confidence_for(s)
     s['confidenceLabel'] = confidence_label(s['confidence'])
     describe_series(s, as_of)
+    if set_by_you:
+        s['reasons'].insert(0, 'You set how often this is paid.')
     return s
+
+
+def clean_added(a):
+    """Check a payment added by hand; None if it cannot be used."""
+    if not isinstance(a, dict):
+        return None
+    name = js_trim(js_string(a.get('name') or ''))
+    amount = a.get('amount')
+    amount = abs(round_half_up(amount)) if is_number(amount) and math.isfinite(amount) else 0
+    nxt = a.get('next')
+    nxt = nxt if is_number(nxt) else from_iso(a.get('next'))
+    if not name or not amount or nxt is None or a.get('cadence') not in CADENCE_BY_ID:
+        return None
+    return {'id': js_string(a['id']) if truthy(a.get('id')) else 'added~' + slug(name), 'name': name[:80],
+            'amount': amount, 'cadence': a['cadence'], 'next': nxt,
+            'method': a['method'] if a.get('method') in METHODS else 'unknown',
+            'category': a['category'] if a.get('category') in CATEGORY_BY_ID and a.get('category') != 'income' else 'other',
+            'account': js_string(a.get('account') or '')}
+
+
+def added_series(a, as_of):
+    """A regular payment the user added by hand, such as one paid from an account they did not load."""
+    cad = CADENCE_BY_ID[a['cadence']]
+    anchor = ymd(a['next'])[2] if cad['months'] else 0
+    nxt, guard = a['next'], 0
+    while nxt < as_of and guard < 2000:
+        nxt = step_from(nxt, cad, anchor, 1)
+        guard += 1
+    rolls = a['method'] in ('direct debit', 'standing order')
+    amounts = {'kind': 'fixed', 'typical': a['amount'], 'min': a['amount'], 'max': a['amount'], 'changes': [],
+               'runs': [], 'last': a['amount']}
+    return {
+        'id': a['id'], 'key': a['name'].upper(), 'name': a['name'], 'direction': 'out', 'account': a['account'],
+        'accounts': [a['account']] if a['account'] else [], 'cadence': cad['id'], 'cadenceLabel': cad['label'],
+        'anchor': anchor, 'payments': [], 'count': 0, 'first': None, 'last': None, 'method': a['method'],
+        'rolls': rolls, 'category': a['category'], 'keyword': None, 'bankCategory': None, 'transfer': False,
+        'amounts': amounts, 'typical': a['amount'],
+        'fit': {'cadence': cad['id'], 'anchor': anchor, 'matched': 0, 'missed': 0, 'bad': 0, 'extras': [], 'mae': 0,
+                'score': 1, 'ok': True},
+        'extras': [], 'flags': [], 'reasons': ['You added this by hand: ' + money(a['amount']) + ' '
+                                               + cad['label'].lower() + ', next due ' + long_date(nxt) + '.'],
+        'annual': annual_cost(a['amount'], cad['id']), 'monthly': monthly_cost(a['amount'], cad['id']),
+        'missedAtEnd': 0, 'status': 'active', 'nominalNext': nxt, 'nextDue': next_working_day(nxt) if rolls else nxt,
+        'coverageEnd': None, 'coverageStart': None, 'confidence': 100, 'confidenceLabel': 'Sure', 'added': True,
+        'manual': True,
+    }
 
 
 def anchor_text(anchor):

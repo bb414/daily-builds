@@ -182,7 +182,17 @@ def analysis_jobs(earlier_project):
                    {'id': 'QUILLHOST ANNUAL PLAN~single~2026-03-09'}, {'id': 'NOT THERE~single~2026-01-01'}],
         'overrides': {'APPHAVEN.COM/BILL~monthly~1': {'category': 'software', 'method': 'card'},
                       'LINGOLEAP LANGUAGE~monthly~1': {'method': 'card'},
-                      'TIDYUP CLEANING~fortnightly~1': {'category': 'not-a-category', 'method': 'cash'}}}))
+                      'TIDYUP CLEANING~fortnightly~1': {'category': 'not-a-category', 'method': 'cash'},
+                      'CAMPUS BIKE HIRE~four-weekly~1': {'cadence': 'monthly'},
+                      'IRONWORKS GYM~monthly~1': {'cadence': 'not-a-cadence'}},
+        'added': [{'name': 'TV Licence', 'amount': 1453, 'cadence': 'monthly', 'next': '2026-12-01',
+                   'method': 'direct debit', 'category': 'tv', 'account': 'Current account'},
+                  {'name': 'Termly fees', 'amount': 120000, 'cadence': 'quarterly', 'next': '2026-10-05',
+                   'method': 'card', 'category': 'learning', 'account': ''},
+                  {'name': 'Gym (second site)', 'amount': 1999.6, 'cadence': 'weekly', 'next': '2027-01-31',
+                   'method': 'nonsense', 'category': 'income'},
+                  {'name': '', 'amount': 500, 'cadence': 'monthly', 'next': '2026-12-01'},
+                  {'name': 'No date', 'amount': 500, 'cadence': 'monthly', 'next': 'soon'}]}))
     jobs.append(('a month later, with the earlier review', {
         'files': sample_files(), 'extra': earlier_project, 'saved': earlier_project,
         'decisions': {'IRONWORKS GYM~monthly~1': {'decision': 'cancel', 'decidedOn': '2026-10-31'},
@@ -204,7 +214,7 @@ def python_analysis(job):
     as_of = sp.from_iso(job['asOf']) if job.get('asOf') else None
     extra = sp.read_project(job['extra'])['transactions'] if job.get('extra') else None
     a = sp.analyse(job.get('files', []), as_of=as_of, extra=extra, aliases=job.get('aliases'), names=job.get('names'),
-                   manual=job.get('manual'), overrides=job.get('overrides'))
+                   manual=job.get('manual'), overrides=job.get('overrides'), added=job.get('added'))
     r = a['result']
     decisions = job.get('decisions') or {}
     pl = sp.plan(r, decisions, job.get('details'))
@@ -217,7 +227,7 @@ def python_analysis(job):
                                         'decisions': decisions, 'accounts': a['merged']['accounts'],
                                         'aliases': job.get('aliases'), 'names': job.get('names'),
                                         'manual': job.get('manual'), 'overrides': job.get('overrides'),
-                                        'details': job.get('details')}),
+                                        'added': job.get('added'), 'details': job.get('details')}),
         'plan': {'totals': pl['totals'], 'actions': pl['actions']},
         'forecast': sp.forecast(r, 92, decisions),
         'monthTotals': sp.month_totals(sp.forecast(r, 365, decisions), False),

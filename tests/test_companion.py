@@ -463,5 +463,30 @@ class RunwayTest(unittest.TestCase):
         self.assertNotEqual(bad.returncode, 0)
         self.assertIn('YYYY-MM-DD:AMOUNT:NAME', bad.stderr)
 
+
+class AddedByHandTest(unittest.TestCase):
+    """Payments added by hand and schedules set by hand travel in the saved review."""
+
+    def test_scan_carries_a_hand_added_payment_from_the_review(self):
+        a = sp.analyse(sample_files(['current-account.csv']))
+        added = [{'id': 'added~railcard', 'name': 'Railcard', 'amount': 3500, 'cadence': 'yearly',
+                  'next': sp.from_iso('2027-02-03'), 'method': 'card', 'category': 'transport', 'account': ''}]
+        text = sp.project_file({'transactions': a['merged']['transactions'], 'result': a['result'], 'decisions': {},
+                                'accounts': a['merged']['accounts'], 'added': added,
+                                'overrides': {'CAMPUS BIKE HIRE~four-weekly~1': {'cadence': 'monthly'}}})
+        with tempfile.TemporaryDirectory() as tmp:
+            review = os.path.join(tmp, 'review.json')
+            with open(review, 'w', encoding='utf-8') as f:
+                f.write(text)
+            out = os.path.join(tmp, 'out')
+            run = subprocess.run([sys.executable, os.path.join(COMPANION, 'still_paying.py'), 'scan', '--quiet',
+                                  '--review', review, '--out', out], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            with open(os.path.join(out, 'regular-payments.csv'), encoding='utf-8-sig') as f:
+                rows = {r['Name']: r for r in csv.DictReader(f)}
+        self.assertEqual(rows['Railcard']['Next due'], '2027-02-03')
+        self.assertEqual(rows['Railcard']['Yearly cost'], '35.00')
+        self.assertEqual(rows['Campus Bike Hire']['How often'], 'Monthly')
+
 if __name__ == '__main__':
     unittest.main()

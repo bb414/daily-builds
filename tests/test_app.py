@@ -63,12 +63,12 @@ class AppTest(unittest.TestCase):
 
     def test_opens_with_the_sample_worked_through(self):
         page = self.open()
-        self.assertEqual(page.locator(".reg").count(), 22)
+        self.assertEqual(page.locator(".reg").count(), 23)  # 22 found in the exports and a railcard added by hand
         meters = page.inner_text("#meters")
-        self.assertIn("838", meters)
+        self.assertIn("£841.85", meters)  # the exports plus a railcard added by hand
         self.assertIn("after you cancelled", meters)
         self.assertEqual(page.get_attribute("#tab-regulars", "aria-selected"), "true")
-        self.assertIn("£839", page.text_content("#gauge-readout"))
+        self.assertIn("£842", page.text_content("#gauge-readout"))
         page.close()
 
     def test_tabs_work_with_the_keyboard(self):
@@ -128,7 +128,7 @@ class AppTest(unittest.TestCase):
         self.assertIn("Since your last review", plan)
         name, text = self.download(page, "[data-action=register]")
         rows = list(csv.DictReader(io.StringIO(text)))
-        self.assertEqual(len(rows), 22)
+        self.assertEqual(len(rows), 23)
         self.assertEqual([r["Decision"] for r in rows if r["Name"] == "Tidyup Cleaning"], ["Cancel"])
         name, text = self.download(page, "[data-action=budget]")
         self.assertEqual(len(list(csv.reader(io.StringIO(text)))[0]), 14)
@@ -162,6 +162,33 @@ class AppTest(unittest.TestCase):
         page.fill("#rw-x-name", "Birthday money")
         page.click("[data-action=rw-add]")
         self.assertIn("Birthday money", page.inner_text("#runway"))
+        page.close()
+
+    def test_add_a_payment_by_hand_and_correct_a_schedule(self):
+        page = self.open()
+        bars = lambda: [int(v.replace("£", "").replace(",", "")) for v in page.locator(".bar .val").all_text_contents()]
+        page.click("#tab-calendar")
+        before = bars()
+        page.click("#tab-regulars")
+        page.fill("#add-name", "Allotment rent")
+        page.fill("#add-amount", "45")
+        page.select_option("#add-cadence", "yearly")
+        page.fill("#add-next", "2027-03-01")
+        page.click("#add-form button[type=submit]")
+        card = page.locator(".reg", has_text="Allotment rent")
+        card.wait_for()
+        self.assertIn("added by you", card.inner_text().lower())
+        self.assertIn("£45.00", card.inner_text())
+        page.click("#tab-calendar")
+        self.assertEqual(sum(bars()) - sum(before), 45, "the yearly £45 lands in one month of the twelve")
+        page.click("#tab-regulars")
+        bike = page.locator(".reg", has_text="Campus Bike Hire")
+        bike.locator("summary").click()
+        bike.locator("[data-edit=cadence]").select_option("monthly")
+        page.wait_for_function("document.querySelector('.reg[data-id^=\"CAMPUS BIKE\"]').innerText.includes('Monthly')")
+        page.locator(".reg", has_text="Allotment rent").locator("summary").click()
+        page.click("[data-action=remove-added]")
+        page.wait_for_function("!document.querySelector('#regulars-body').innerText.includes('Allotment rent')")
         page.close()
 
     def test_works_inside_a_frame(self):

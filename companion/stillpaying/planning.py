@@ -154,7 +154,7 @@ def cancel_message(s, details=None):
     details = details or {}
     your_name = details.get('name') or '[your name]'
     ref = details.get('account') or '[your account email or customer number]'
-    last = s['payments'][-1]
+    last = s['payments'][-1] if s['payments'] else None
     what = 'membership' if s['category'] in ('gym', 'memberships') else 'subscription'
     return '\n'.join([
         'Subject: Please cancel my ' + s['name'] + ' ' + what,
@@ -164,7 +164,8 @@ def cancel_message(s, details=None):
         'Please cancel my ' + s['name'] + ' ' + what + ' and stop all further payments from today.',
         '',
         'My account: ' + ref,
-        'Last payment: ' + money(last['amount']) + ' on ' + long_date(last['day']),
+        ('Last payment: ' + money(last['amount']) + ' on ' + long_date(last['day'])) if last
+        else ('Payment: ' + money(s['typical']) + ' ' + CADENCE_BY_ID[s['cadence']]['label'].lower()),
         '',
         'Please confirm in writing that it is cancelled and that no further payments will be taken. If any payment '
         'is taken after today, I will ask for it to be refunded.',

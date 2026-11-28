@@ -1168,6 +1168,8 @@
   }
   function lastNominal(series) {
     var cad = CADENCE_BY_ID[series.cadence];
+    // A payment added by hand has no history: step back one from its next due date.
+    if (!series.payments.length) return cad.months ? addMonths(series.nominalNext, -cad.months, series.anchor) : series.nominalNext - cad.days;
     var last = series.payments[series.payments.length - 1].day;
     if (cad.months) return nearestNominal(last, series.anchor);
     return last;
@@ -1292,6 +1294,10 @@
       series.push(s);
     });
 
+    (options.added || []).forEach(function (raw) {
+      var a = cleanAdded(raw);
+      if (a && !series.some(function (s) { return s.id === a.id; })) series.push(addedSeries(a, asOf));
+    });
     flagDuplicates(series);
     series.sort(function (a, b) { return statusRank(a) - statusRank(b) || b.annual - a.annual || cmp(a.id, b.id); });
     income.sort(function (a, b) { return b.annual - a.annual || cmp(a.id, b.id); });
@@ -1365,6 +1371,12 @@
     override = override || {};
     var payments = raw.payments.slice().sort(function (a, b) { return a.day - b.day; });
     var fit = raw.fit;
+    var setByYou = false;
+    if (override.cadence && CADENCE_BY_ID[override.cadence] && override.cadence !== fit.cadence) {
+      var cd = CADENCE_BY_ID[override.cadence];
+      fit = Object.assign({}, fit, { cadence: cd.id, anchor: cd.months ? anchorDay(payments.map(function (p) { return p.day; })) : 0 });
+      setByYou = true;
+    }
     var cad = CADENCE_BY_ID[fit.cadence];
     var extras = fit.extras || [];
     var methods = {};
@@ -1424,6 +1436,42 @@
     s.confidence = confidenceFor(s);
     s.confidenceLabel = confidenceLabel(s.confidence);
     describeSeries(s, asOf);
+    if (setByYou) s.reasons.unshift('You set how often this is paid.');
+    return s;
+  }
+
+  /** Check a payment added by hand; returns null if it cannot be used. */
+  function cleanAdded(a) {
+    if (!a || typeof a !== 'object') return null;
+    var name = String(a.name || '').trim();
+    var amount = typeof a.amount === 'number' && isFinite(a.amount) ? Math.abs(roundHalfUp(a.amount)) : 0;
+    var next = typeof a.next === 'number' ? a.next : fromIso(a.next);
+    if (!name || !amount || next === null || !CADENCE_BY_ID[a.cadence]) return null;
+    return {
+      id: String(a.id || 'added~' + slug(name)), name: name.slice(0, 80), amount: amount, cadence: a.cadence, next: next,
+      method: METHODS.indexOf(a.method) >= 0 ? a.method : 'unknown',
+      category: CATEGORY_BY_ID[a.category] && a.category !== 'income' ? a.category : 'other', account: String(a.account || '')
+    };
+  }
+
+  /** A regular payment the user added by hand, such as one paid from an account they did not load. */
+  function addedSeries(a, asOf) {
+    var cad = CADENCE_BY_ID[a.cadence];
+    var anchor = cad.months ? ymd(a.next).d : 0;
+    var next = a.next, guard = 0;
+    while (next < asOf && guard < 2000) { next = stepFrom(next, cad, anchor, 1); guard++; }
+    var rolls = a.method === 'direct debit' || a.method === 'standing order';
+    var amounts = { kind: 'fixed', typical: a.amount, min: a.amount, max: a.amount, changes: [], runs: [], last: a.amount };
+    var s = {
+      id: a.id, key: a.name.toUpperCase(), name: a.name, direction: 'out', account: a.account, accounts: a.account ? [a.account] : [],
+      cadence: cad.id, cadenceLabel: cad.label, anchor: anchor, payments: [], count: 0, first: null, last: null,
+      method: a.method, rolls: rolls, category: a.category, keyword: null, bankCategory: null, transfer: false,
+      amounts: amounts, typical: a.amount, fit: { cadence: cad.id, anchor: anchor, matched: 0, missed: 0, bad: 0, extras: [], mae: 0, score: 1, ok: true },
+      extras: [], flags: [], reasons: ['You added this by hand: ' + money(a.amount) + ' ' + cad.label.toLowerCase() + ', next due ' + longDate(next) + '.'],
+      annual: annualCost(a.amount, cad.id), monthly: monthlyCost(a.amount, cad.id), missedAtEnd: 0, status: 'active',
+      nominalNext: next, nextDue: rolls ? nextWorkingDay(next) : next, coverageEnd: null, coverageStart: null,
+      confidence: 100, confidenceLabel: 'Sure', added: true, manual: true
+    };
     return s;
   }
 
@@ -1625,7 +1673,7 @@
     details = details || {};
     var yourName = details.name || '[your name]';
     var ref = details.account || '[your account email or customer number]';
-    var last = s.payments[s.payments.length - 1];
+    var last = s.payments.length ? s.payments[s.payments.length - 1] : null;
     return [
       'Subject: Please cancel my ' + s.name + ' ' + (s.category === 'gym' || s.category === 'memberships' ? 'membership' : 'subscription'),
       '',
@@ -1634,7 +1682,7 @@
       'Please cancel my ' + s.name + ' ' + (s.category === 'gym' || s.category === 'memberships' ? 'membership' : 'subscription') + ' and stop all further payments from today.',
       '',
       'My account: ' + ref,
-      'Last payment: ' + money(last.amount) + ' on ' + longDate(last.day),
+      last ? 'Last payment: ' + money(last.amount) + ' on ' + longDate(last.day) : 'Payment: ' + money(s.typical) + ' ' + CADENCE_BY_ID[s.cadence].label.toLowerCase(),
       '',
       'Please confirm in writing that it is cancelled and that no further payments will be taken. If any payment is taken after today, I will ask for it to be refunded.',
       '',
@@ -1773,7 +1821,7 @@
       var d = decisions[s.id] || {};
       rows.push([
         s.name, (CATEGORY_BY_ID[s.category] || CATEGORY_BY_ID.other).label, s.method, CADENCE_BY_ID[s.cadence].label,
-        plainMoney(s.typical), plainMoney(s.monthly), plainMoney(s.annual), s.count, iso(s.first), iso(s.last),
+        plainMoney(s.typical), plainMoney(s.monthly), plainMoney(s.annual), s.count, s.first !== null ? iso(s.first) : '', s.last !== null ? iso(s.last) : '',
         s.nextDue !== null ? iso(s.nextDue) : '', s.status, s.confidence, s.flags.map(function (f) { return f.text; }).join(' '),
         d.decision ? DECISION_LABELS[d.decision] : '', d.note || '', s.account
       ]);
@@ -1919,7 +1967,7 @@
     return JSON.stringify({
       format: 'still-paying-review', version: 1, reviewedOn: iso(state.reviewedOn !== undefined ? state.reviewedOn : state.result.asOf),
       accounts: (state.accounts || []).map(function (a) { return { account: a.account, files: a.files }; }),
-      balances: balancesOf(state.accounts), transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], overrides: state.overrides || {}, details: state.details || {}
+      balances: balancesOf(state.accounts), transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], overrides: state.overrides || {}, added: (state.added || []).map(cleanAdded).filter(Boolean).map(function (a) { return { id: a.id, name: a.name, amount: a.amount, cadence: a.cadence, next: iso(a.next), method: a.method, category: a.category, account: a.account }; }), details: state.details || {}
     }, null, 1);
   }
   function readBalances(raw) {
@@ -1955,7 +2003,7 @@
     return {
       reviewedOn: fromIso(data.reviewedOn), transactions: tx, decisions: decisions, known: data.known || {},
       aliases: data.aliases || {}, names: data.names || {}, manual: data.manual || [], overrides: data.overrides || {}, details: data.details || {}, accounts: data.accounts || [], badRows: bad,
-      balances: readBalances(data.balances)
+      balances: readBalances(data.balances), added: (Array.isArray(data.added) ? data.added : []).map(cleanAdded).filter(Boolean)
     };
   }
 
@@ -1997,7 +2045,7 @@
       var b = saved[a.account];
       if (b && (!a.closing || a.closing.day < b.day)) a.closing = { day: b.day, balance: b.balance };
     });
-    var result = findRegulars(merged.transactions, { asOf: input.asOf, aliases: input.aliases, names: input.names, manual: input.manual, overrides: input.overrides });
+    var result = findRegulars(merged.transactions, { asOf: input.asOf, aliases: input.aliases, names: input.names, manual: input.manual, overrides: input.overrides, added: input.added });
     return { statements: statements, merged: merged, result: result };
   }
 
@@ -2005,7 +2053,7 @@
   function summary(result) {
     var pick = function (s) {
       return {
-        id: s.id, name: s.name, cadence: s.cadence, count: s.count, first: iso(s.first), last: iso(s.last), typical: s.typical, monthly: s.monthly, annual: s.annual,
+        id: s.id, name: s.name, cadence: s.cadence, count: s.count, first: s.first !== null ? iso(s.first) : null, last: s.last !== null ? iso(s.last) : null, typical: s.typical, monthly: s.monthly, annual: s.annual,
         kind: s.amounts.kind, status: s.status, nextDue: s.nextDue === null ? null : iso(s.nextDue), method: s.method, category: s.category, confidence: s.confidence,
         flags: s.flags.map(function (f) { return f.id; })
       };
@@ -2030,7 +2078,7 @@
     categorise: categorise, paymentMethod: paymentMethod, fitCadence: fitCadence, anchorDay: anchorDay, amountProfile: amountProfile,
     explainGroup: explainGroup, findRegulars: findRegulars, matchTransfers: matchTransfers, forecast: forecast, monthTotals: monthTotals,
     suggest: suggest, howToStop: howToStop, cancelMessage: cancelMessage, plan: plan, noticeDaysFor: noticeDaysFor, isCost: isCost,
-    sinceLastReview: sinceLastReview, runway: runway, everydaySpending: everydaySpending, registerCsv: registerCsv, budgetCsv: budgetCsv, buildIcs: buildIcs, icsFold: icsFold, icsEscape: icsEscape,
+    sinceLastReview: sinceLastReview, runway: runway, cleanAdded: cleanAdded, everydaySpending: everydaySpending, registerCsv: registerCsv, budgetCsv: budgetCsv, buildIcs: buildIcs, icsFold: icsFold, icsEscape: icsEscape,
     toCsv: toCsv, templateCsv: templateCsv, projectFile: projectFile, readProject: readProject, analyse: analyse, summary: summary, findSeries: findSeries,
     lastNominal: lastNominal, scheduleFrom: scheduleFrom, whenText: whenText, anchorText: anchorText, expectedAmount: expectedAmount, nominalInMonth: nominalInMonth, monthlyCost: monthlyCost, annualCost: annualCost
   };

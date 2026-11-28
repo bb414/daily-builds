@@ -314,6 +314,8 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
 .cand .amount { font-weight: 700; font-size: 20px; }
 .cand p { font-size: 14.5px; color: var(--ink-soft); margin: 6px 0 10px; }
 .cand .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.add-form .btn { margin-top: 4px; }
+.add-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; }
 .income-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; padding: 10px 0; border-bottom: 1px dashed var(--enamel-edge); }
 .income-row:last-child { border-bottom: 0; }
 .none-match { padding: 22px; text-align: center; color: var(--ink-soft); }
@@ -488,7 +490,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   .decide span { padding: 7px 4px; text-align: center; font-size: 13px; }
   .edit-grid, .details-form { grid-template-columns: 1fr; }
   .months { grid-template-columns: 1fr; }
-  .runway-form { grid-template-columns: 1fr 1fr; }
+  .runway-form, .add-grid { grid-template-columns: 1fr 1fr; }
   .extra-add { grid-template-columns: 1fr 1fr; }
   .rw-chart, .rw-x { grid-template-columns: 52px minmax(0, 1fr); }
   .rw-y { font-size: 11px; }

@@ -10,9 +10,9 @@ import json
 import math
 
 from .common import is_number, js_keys, js_regex, js_string, js_stringify, money, pad2, plain_money, \
-    round_half_up, text_or, truthy
+    round_half_up, slug, text_or, truthy
 from .dates import MONTH_NAMES, day_from_ymd, days_in_month, from_iso, iso, long_date, short_date, ymd
-from .detect import CADENCE_BY_ID
+from .detect import CADENCE_BY_ID, clean_added
 from .parsing import strip_bom
 from .payees import CATEGORIES, CATEGORY_BY_ID, category_of
 from .planning import DECISIONS, forecast, plan
@@ -56,7 +56,7 @@ def register_csv(result, decisions=None):
         rows.append([
             s['name'], category_of(s['category'])['label'], s['method'], CADENCE_BY_ID[s['cadence']]['label'],
             plain_money(s['typical']), plain_money(s['monthly']), plain_money(s['annual']), s['count'],
-            iso(s['first']), iso(s['last']), iso(s['nextDue']) if s['nextDue'] is not None else '', s['status'],
+            iso(s['first']) if s['first'] is not None else '', iso(s['last']) if s['last'] is not None else '', iso(s['nextDue']) if s['nextDue'] is not None else '', s['status'],
             s['confidence'], ' '.join(f['text'] for f in s['flags']),
             DECISION_LABELS.get(decision, '') if truthy(decision) else '', _or(d.get('note'), ''), s['account'],
         ])
@@ -138,15 +138,6 @@ def ics_fold(line):
 def ics_date(day):
     """A day number as YYYYMMDD."""
     return iso(day).replace('-', '')
-
-
-_NOT_SLUG = js_regex(r'[^a-z0-9]+')
-_SLUG_ENDS = js_regex(r'^-|-$')
-
-
-def slug(s):
-    """Lower-case letters, digits and dashes, at most 40 characters."""
-    return _SLUG_ENDS.sub('', _NOT_SLUG.sub('-', js_string(s).lower()))[:40] or 'item'
 
 
 def find_series(result, sid):
@@ -257,7 +248,11 @@ def project_file(state):
         'accounts': [{'account': a['account'], 'files': a['files']} for a in _or(state.get('accounts'), [])],
         'balances': balances_of(state.get('accounts')), 'transactions': tx, 'decisions': decisions, 'known': known, 'aliases': _or(state.get('aliases'), {}),
         'names': _or(state.get('names'), {}), 'manual': _or(state.get('manual'), []),
-        'overrides': _or(state.get('overrides'), {}), 'details': _or(state.get('details'), {}),
+        'overrides': _or(state.get('overrides'), {}),
+        'added': [{'id': a['id'], 'name': a['name'], 'amount': a['amount'], 'cadence': a['cadence'], 'next': iso(a['next']),
+                   'method': a['method'], 'category': a['category'], 'account': a['account']}
+                  for a in (clean_added(x) for x in (state.get('added') or [])) if a],
+        'details': _or(state.get('details'), {}),
     })
 
 
@@ -341,4 +336,5 @@ def read_project(text):
             'known': _or(data.get('known'), {}), 'aliases': _or(data.get('aliases'), {}),
             'names': _or(data.get('names'), {}), 'manual': _or(data.get('manual'), []),
             'overrides': _or(data.get('overrides'), {}), 'details': _or(data.get('details'), {}),
-            'accounts': _or(data.get('accounts'), []), 'badRows': bad, 'balances': read_balances(data.get('balances'))}
+            'accounts': _or(data.get('accounts'), []), 'badRows': bad, 'balances': read_balances(data.get('balances')),
+            'added': [a for a in (clean_added(x) for x in (data.get('added') if isinstance(data.get('added'), list) else [])) if a]}

@@ -100,7 +100,7 @@ def run_analysis(files, as_of, review):
     review = review or {}
     return analyse(files, as_of=as_of, extra=review.get('transactions'), aliases=review.get('aliases'),
                    names=review.get('names'), manual=review.get('manual'), overrides=review.get('overrides'),
-                   balances=review.get('balances'))
+                   balances=review.get('balances'), added=review.get('added'))
 
 
 def save_state(analysis, review, decisions, reviewed_on=None):
@@ -109,7 +109,8 @@ def save_state(analysis, review, decisions, reviewed_on=None):
     merged = analysis['merged']
     return {'transactions': merged['transactions'], 'result': analysis['result'], 'decisions': decisions,
             'accounts': merged['accounts'], 'aliases': review.get('aliases'), 'names': review.get('names'),
-            'manual': review.get('manual'), 'overrides': review.get('overrides'), 'details': review.get('details'),
+            'manual': review.get('manual'), 'overrides': review.get('overrides'), 'added': review.get('added'),
+            'details': review.get('details'),
             'reviewedOn': reviewed_on}
 
 
@@ -270,8 +271,8 @@ def file_lines(analysis, notes):
 
 
 def nothing_read(analysis, notes):
-    """True (after explaining why) when no export could be read."""
-    if any(st['ok'] for st in analysis['statements']):
+    """True (after explaining why) when no export could be read and no saved review gave any payments."""
+    if any(st['ok'] for st in analysis['statements']) or analysis['merged']['transactions']:
         return False
     print('No bank export could be read, so there is nothing to review.', file=sys.stderr)
     for line in file_lines(analysis, notes):
@@ -285,6 +286,9 @@ def nothing_read(analysis, notes):
 
 def cmd_scan(args):
     """Scan exports, print what was found and write the five output files."""
+    if not args.paths and not args.review:
+        print('Name at least one export or folder, or a saved review with --review.', file=sys.stderr)
+        return 2
     files, notes = collect_exports(args.paths)
     review = load_review(args.review) if args.review else None
     analysis = run_analysis(files, args.as_of, review)
@@ -513,7 +517,8 @@ def build_parser():
                                description='Read bank exports (CSV, TSV, OFX or QIF files, or folders of them) and '
                                            'write regular-payments.csv, budget-12-months.csv, upcoming.ics, '
                                            'review.json and report.html.')
-    scan.add_argument('paths', nargs='+', metavar='PATH', help='an export file or a folder of them')
+    scan.add_argument('paths', nargs='*', metavar='PATH',
+                      help='an export file or a folder of them (optional with --review, to rerun a saved review)')
     scan.add_argument('--out', default='still-paying-output', metavar='DIR',
                       help='where to write the files (default: ./still-paying-output)')
     scan.add_argument('--as-of', type=iso_date, metavar='YYYY-MM-DD',

@@ -222,3 +222,12 @@ def plain_money(pence):
     neg = pence < 0
     p = abs(pence)
     return ('-' if neg else '') + str(p // 100) + '.' + pad2(p % 100)
+
+
+_NOT_SLUG = js_regex(r'[^a-z0-9]+')
+_SLUG_ENDS = js_regex(r'^-|-$')
+
+
+def slug(s):
+    """Lower-case letters, digits and dashes, at most 40 characters."""
+    return _SLUG_ENDS.sub('', _NOT_SLUG.sub('-', js_string(s).lower()))[:40] or 'item'

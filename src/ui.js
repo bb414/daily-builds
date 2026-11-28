@@ -20,7 +20,7 @@
 
   var state = {
     files: [], extra: [], saved: null,
-    decisions: {}, names: {}, aliases: {}, manual: [], overrides: {}, details: { name: '', account: '' },
+    decisions: {}, names: {}, aliases: {}, manual: [], overrides: {}, added: [], details: { name: '', account: '' },
     isSample: false, view: 'regulars',
     filter: 'all', search: '', sort: 'yearly',
     calMonths: 3, hideCancelled: false, showIncome: true,
@@ -92,7 +92,7 @@
   function analyse() {
     A = M.analyse({
       files: state.files.map(function (f) { return { name: f.name, text: f.text, account: f.accountGiven ? f.account : undefined, options: f.options }; }),
-      extra: state.extra, aliases: state.aliases, names: state.names, manual: state.manual, overrides: state.overrides
+      extra: state.extra, aliases: state.aliases, names: state.names, manual: state.manual, overrides: state.overrides, added: state.added
     });
     // Remember the account each file ended up in, so the input shows it.
     A.statements.forEach(function (st, i) { if (state.files[i] && !state.files[i].accountGiven) state.files[i].account = st.account; });
@@ -381,6 +381,7 @@
       });
       html += '</div>';
     }
+    html += addFormHtml();
     if (r.income.length) {
       html += '<div class="section-title"><h3>Money coming in regularly</h3><p>Used to work out what is due before payday.</p></div><div class="plate">';
       r.income.forEach(function (s) {
@@ -389,6 +390,20 @@
       html += '</div>';
     }
     el.innerHTML = html;
+  }
+  function addFormHtml() {
+    var accs = A.merged.accounts.map(function (a) { return a.account; });
+    var html = '<div class="section-title"><h3>Add one by hand</h3><p>For a regular payment your statements do not show: paid from another account, by someone else for you, or too new to have repeated.</p></div>';
+    html += '<form class="plate add-form" id="add-form" novalidate><div class="add-grid">';
+    html += '<label class="field"><span>Name</span><input type="text" id="add-name" required placeholder="For example: Railcard"></label>';
+    html += '<label class="field"><span>Amount (\u00a3)</span><input type="text" inputmode="decimal" id="add-amount" required placeholder="0.00"></label>';
+    html += '<label class="field"><span>How often</span><select id="add-cadence">' + M.CADENCES.map(function (c) { return '<option value="' + c.id + '"' + (c.id === 'monthly' ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>';
+    html += '<label class="field"><span>Next due</span><input type="date" id="add-next" value="' + M.iso(A.result.asOf + 7) + '"></label>';
+    html += '<label class="field"><span>Paid by</span><select id="add-method">' + M.METHODS.map(function (m) { return '<option value="' + m + '">' + (m === 'unknown' ? 'Not sure' : m.charAt(0).toUpperCase() + m.slice(1)) + '</option>'; }).join('') + '</select></label>';
+    html += '<label class="field"><span>Category</span><select id="add-category">' + M.CATEGORIES.filter(function (c) { return c.id !== 'income'; }).map(function (c) { return '<option value="' + c.id + '"' + (c.id === 'other' ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>';
+    html += '<label class="field"><span>From which account</span><select id="add-account">' + accs.map(function (a) { return '<option>' + esc(a) + '</option>'; }).join('') + '<option value="">Another account (not loaded)</option></select></label>';
+    html += '</div><button type="submit" class="btn btn-copper btn-small">Add it</button></form>';
+    return html;
   }
   function emptyRegulars() {
     return '<div class="plate empty-state"><h3>Nothing to show yet</h3><p>Add a bank statement on the Statements step and every regular payment will appear here as a valve you can open or shut.</p><button type="button" class="btn btn-copper" data-go="statements">Add a statement</button></div>';
@@ -422,7 +437,7 @@
     else sub.push('last ' + M.longDate(s.last));
     sub.push(s.confidenceLabel.toLowerCase() + ' (' + s.confidence + ')');
     var html = '<article class="plate reg" id="reg-' + key + '" data-id="' + esc(s.id) + '" data-decision="' + dec + '" data-status="' + s.status + '">';
-    html += '<div class="reg-main"><div class="valve">' + VALVE + '</div><div><div class="reg-name"><h4>' + esc(s.name) + '</h4><span class="cat-tag ' + catClass(s.category) + '">' + esc(cat.label) + '</span>' + (s.manual ? '<span class="cat-tag nocost">Confirmed by you</span>' : '') + '</div><p class="reg-sub">' + esc(sub.join(' \u00b7 ')) + '</p></div>';
+    html += '<div class="reg-main"><div class="valve">' + VALVE + '</div><div><div class="reg-name"><h4>' + esc(s.name) + '</h4><span class="cat-tag ' + catClass(s.category) + '">' + esc(cat.label) + '</span>' + (s.added ? '<span class="cat-tag nocost">Added by you</span>' : s.manual ? '<span class="cat-tag nocost">Confirmed by you</span>' : '') + '</div><p class="reg-sub">' + esc(sub.join(' \u00b7 ')) + '</p></div>';
     html += '<div class="reg-amount"><div class="big">' + (variable ? '<span class="per">about </span>' : '') + money(s.typical) + '</div><div class="per">' + esc(PER[s.cadence]) + (s.cadence !== 'monthly' ? ', ' + money(s.monthly) + ' a month' : '') + '</div><div class="year">' + money(s.annual) + ' a year</div></div>';
     var flags = s.flags.slice();
     if (A.since) {
@@ -441,6 +456,12 @@
     var sug = M.suggest(s);
     var html = '<div class="reg-detail"><div><h4>Why it counts as regular</h4><ul class="reasons">' + s.reasons.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>';
     html += '<div class="suggest"><b>Suggestion:</b> ' + esc(sug.text) + '</div>';
+    if (s.added) {
+      html += '<p class="hint">It has no payments in your statements, so it is forecast from the date you gave.</p><button type="button" class="btn btn-small btn-danger" data-action="remove-added" data-id="' + esc(s.id) + '">Remove this payment</button></div><div>';
+      html += '<h4>Your notes</h4><label class="field"><span>Note to yourself</span><textarea id="note-' + key + '" rows="2" data-series="' + esc(s.id) + '" data-edit="note">' + esc(d.note || '') + '</textarea></label>';
+      html += '<label class="field"><span>Days of notice before the next payment (for the cancel-by date)</span><input type="number" min="0" max="90" id="notice-' + key + '" data-series="' + esc(s.id) + '" data-edit="notice" value="' + (d.noticeDays !== undefined && d.noticeDays !== null ? d.noticeDays : M.noticeDaysFor(s)) + '"></label></div></div>';
+      return html;
+    }
     html += '<h4>Every payment</h4><div class="table-wrap"><table><thead><tr><th>Date</th><th class="num">Amount</th><th>As it appears</th></tr></thead><tbody>';
     s.payments.slice().reverse().forEach(function (p) { html += '<tr><td>' + esc(M.longDate(p.day)) + '</td><td class="num">' + money(p.amount) + '</td><td>' + esc(p.desc) + (s.accounts.length > 1 ? ' <span class="hint">(' + esc(p.account) + ')</span>' : '') + '</td></tr>'; });
     html += '</tbody></table></div></div><div>';
@@ -448,8 +469,9 @@
     html += '<label class="field"><span>Name</span><input type="text" id="name-' + key + '" data-series="' + esc(s.id) + '" data-edit="name" value="' + esc(s.name) + '"></label>';
     html += '<label class="field"><span>Paid by</span><select id="method-' + key + '" data-series="' + esc(s.id) + '" data-edit="method">' + M.METHODS.map(function (m) { return '<option value="' + m + '"' + (s.method === m ? ' selected' : '') + '>' + (m === 'unknown' ? 'Not sure' : m.charAt(0).toUpperCase() + m.slice(1)) + '</option>'; }).join('') + '</select></label>';
     html += '<label class="field"><span>Category</span><select id="cat-' + key + '" data-series="' + esc(s.id) + '" data-edit="category">' + M.CATEGORIES.filter(function (c) { return c.id !== 'income'; }).map(function (c) { return '<option value="' + c.id + '"' + (s.category === c.id ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>';
+    html += '<label class="field"><span>How often</span><select id="cad-' + key + '" data-series="' + esc(s.id) + '" data-edit="cadence">' + M.CADENCES.map(function (c) { return '<option value="' + c.id + '"' + (s.cadence === c.id ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') + '</select></label>';
     var others = {};
-    A.result.series.forEach(function (o) { if (o.key !== s.key) others[o.key] = o.name; });
+    A.result.series.forEach(function (o) { if (o.key !== s.key && !o.added) others[o.key] = o.name; });
     var keys = Object.keys(others).sort();
     html += '<label class="field"><span>Same company as</span><select id="merge-' + key + '" data-series="' + esc(s.id) + '" data-key="' + esc(s.key) + '" data-edit="merge"><option value="">(keep separate)</option>' + keys.map(function (k) { return '<option value="' + esc(k) + '">' + esc(others[k]) + '</option>'; }).join('') + '</select></label>';
     html += '</div><label class="field"><span>Note to yourself</span><textarea id="note-' + key + '" rows="2" data-series="' + esc(s.id) + '" data-edit="note" placeholder="For example: cheaper plan available, check in March">' + esc(d.note || '') + '</textarea></label>';
@@ -712,7 +734,7 @@
   function reviewText() {
     return M.projectFile({
       transactions: A.merged.transactions, result: A.result, decisions: state.decisions, aliases: state.aliases, names: state.names,
-      manual: state.manual, overrides: state.overrides, details: state.details, accounts: A.merged.accounts, reviewedOn: A.result.asOf
+      manual: state.manual, overrides: state.overrides, added: state.added, details: state.details, accounts: A.merged.accounts, reviewedOn: A.result.asOf
     });
   }
 
@@ -792,7 +814,7 @@
   function clearData() {
     state.files = []; state.extra = []; state.saved = null;
     state.runway = { account: null, balance: null, overdraft: 0, everyday: null, extra: [] };
-    state.decisions = {}; state.names = {}; state.aliases = {}; state.manual = []; state.overrides = {};
+    state.decisions = {}; state.names = {}; state.aliases = {}; state.manual = []; state.overrides = {}; state.added = [];
     state.open = {}; state.ticked = {}; state.mapperFor = null;
   }
 
@@ -803,7 +825,7 @@
     state.isSample = false;
     state.extra = data.transactions;
     state.decisions = data.decisions;
-    state.names = data.names; state.aliases = data.aliases; state.manual = data.manual; state.overrides = data.overrides || {};
+    state.names = data.names; state.aliases = data.aliases; state.manual = data.manual; state.overrides = data.overrides || {}; state.added = data.added || [];
     state.details = { name: (data.details && data.details.name) || state.details.name || '', account: (data.details && data.details.account) || state.details.account || '' };
     var decisionsCopy = {};
     Object.keys(data.decisions).forEach(function (k) { decisionsCopy[k] = Object.assign({}, data.decisions[k]); });
@@ -836,6 +858,7 @@
     state.files = data.files.map(function (f) { return { uid: uid(), name: f.name, text: f.text, account: f.account || '', accountGiven: !!f.account, options: {} }; });
     state.details = { name: 'A. Holder', account: 'a.holder@example.com' };
     state.runway = { account: null, balance: null, overdraft: 100000, everyday: null, extra: [{ day: M.fromIso('2027-01-12'), amount: 351467, name: 'Maintenance loan instalment' }] };
+    state.added = [{ id: 'added~railcard', name: 'Railcard', amount: 3500, cadence: 'yearly', next: '2027-02-03', method: 'card', category: 'transport', account: '' }];
     Object.keys(SAMPLE_DECISIONS).forEach(function (id) {
       var d = SAMPLE_DECISIONS[id];
       state.decisions[id] = { decision: d.decision, note: d.note || '', decidedOn: d.decidedOn ? M.fromIso(d.decidedOn) : M.fromIso('2026-11-28'), noticeDays: undefined };
@@ -933,6 +956,7 @@
       case 'clear-all': clearData(); state.isSample = false; refresh(); toast('Cleared. Nothing was stored anywhere.'); break;
       case 'confirm': state.manual.push({ id: t.getAttribute('data-id'), cadence: t.getAttribute('data-cadence') }); refresh(); toast('Added as a ' + t.getAttribute('data-cadence') + ' payment.'); break;
       case 'unmerge': delete state.aliases[t.getAttribute('data-key')]; refresh(); break;
+      case 'remove-added': { var rid = t.getAttribute('data-id'); state.added = state.added.filter(function (a) { return (M.cleanAdded(a) || {}).id !== rid; }); delete state.decisions[rid]; refresh(); toast('Removed.'); break; }
       case 'rw-add': {
         var xd = M.fromIso($('#rw-x-day').value), xa = M.parseAmount($('#rw-x-amount').value);
         if (xd === null || xa === null || xa === 0) { toast('Give a date and an amount for the money coming in.'); return; }
@@ -1011,9 +1035,27 @@
       if (what === 'name') { if (t.value.trim()) state.names[sid] = t.value.trim(); else delete state.names[sid]; refresh(); }
       else if (what === 'note') { d.note = t.value; state.decisions[sid] = d; replan(); renderPlan(); autosave(); }
       else if (what === 'notice') { var n = parseInt(t.value, 10); d.noticeDays = isFinite(n) && n >= 0 ? Math.min(90, n) : undefined; state.decisions[sid] = d; replan(); renderPlan(); renderCalendar(); autosave(); }
-      else if (what === 'method' || what === 'category') { var o = state.overrides[sid] || {}; o[what] = t.value; state.overrides[sid] = o; refresh(); }
+      else if (what === 'method' || what === 'category' || what === 'cadence') { var o = state.overrides[sid] || {}; o[what] = t.value; state.overrides[sid] = o; refresh(); if (what === 'cadence') toast('Forecast again as ' + M.CADENCE_BY_ID[t.value].label.toLowerCase() + '.'); }
       else if (what === 'merge' && t.value) { state.aliases[t.getAttribute('data-key')] = t.value; refresh(); toast('Merged. Undo it from the summary at the top of the list.'); }
     }
+  }
+  function onSubmit(e) {
+    if (e.target.id !== 'add-form') return;
+    e.preventDefault();
+    var amount = M.parseAmount($('#add-amount').value);
+    var raw = { name: $('#add-name').value.trim(), amount: amount === null ? 0 : Math.abs(amount), cadence: $('#add-cadence').value, next: $('#add-next').value, method: $('#add-method').value, category: $('#add-category').value, account: $('#add-account').value };
+    var a = M.cleanAdded(raw);
+    if (!a) { toast(!raw.name ? 'Give it a name.' : !raw.amount ? 'Give an amount, like 14.50.' : 'Give the date it is next due.'); return; }
+    var id = a.id, n = 2;
+    var taken = function (x) { return A.result.series.some(function (s) { return s.id === x; }); };
+    while (taken(id)) { id = a.id + '-' + n; n++; }
+    raw.id = id;
+    raw.next = M.iso(a.next);
+    state.added.push(raw);
+    refresh();
+    toast(a.name + ' added: it now counts in the calendar, the plan and every export.');
+    var card = doc.getElementById('reg-' + hid(id));
+    if (card) card.scrollIntoView({ block: 'center' });
   }
   function onInput(e) {
     var t = e.target;
@@ -1066,6 +1108,7 @@
     doc.addEventListener('click', onClick);
     doc.addEventListener('change', onChange);
     doc.addEventListener('input', onInput);
+    doc.addEventListener('submit', onSubmit);
     doc.addEventListener('toggle', onToggle, true);
     $('.pipe-run').addEventListener('keydown', onKeyTabs);
     $$('.pipe-run [role=tab]').forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-view')); }); });

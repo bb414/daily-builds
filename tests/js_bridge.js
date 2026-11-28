@@ -38,7 +38,7 @@ function day(v) { return v === null || v === undefined ? undefined : M.fromIso(v
 function runAnalysis(job) {
   var a = M.analyse({
     files: job.files || [], asOf: day(job.asOf), aliases: job.aliases, names: job.names, manual: job.manual,
-    overrides: job.overrides, extra: job.extra ? M.readProject(job.extra).transactions : undefined
+    overrides: job.overrides, added: job.added, extra: job.extra ? M.readProject(job.extra).transactions : undefined
   });
   var r = a.result;
   var decisions = job.decisions || {};
@@ -55,7 +55,7 @@ function runAnalysis(job) {
     ics: M.buildIcs(r, decisions, { days: job.icsDays, includeIncome: job.icsIncludeIncome, details: job.details }),
     projectText: M.projectFile({
       transactions: a.merged.transactions, result: r, decisions: decisions, accounts: a.merged.accounts,
-      aliases: job.aliases, names: job.names, manual: job.manual, overrides: job.overrides, details: job.details
+      aliases: job.aliases, names: job.names, manual: job.manual, overrides: job.overrides, added: job.added, details: job.details
     }),
     plan: { totals: pl.totals, actions: pl.actions },
     forecast: M.forecast(r, 92, decisions),

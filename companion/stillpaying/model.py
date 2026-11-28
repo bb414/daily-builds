@@ -6,7 +6,8 @@ from .merging import link_same_accounts, merge_statements
 from .parsing import finish_range, parse_statement
 
 
-def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual=None, overrides=None, balances=None):
+def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual=None, overrides=None, balances=None,
+            added=None):
     """Read every file, merge them, find the regular payments and describe them.
 
     files is a list of {'name', 'text'} with optional 'account' (a name the
@@ -44,14 +45,14 @@ def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual
         if b and (not a['closing'] or a['closing']['day'] < b['day']):
             a['closing'] = {'day': b['day'], 'balance': b['balance']}
     result = find_regulars(merged['transactions'], as_of=as_of, aliases=aliases, names=names, manual=manual,
-                           overrides=overrides)
+                           overrides=overrides, added=added)
     return {'statements': statements, 'merged': merged, 'result': result}
 
 
 def _pick(s):
     return {
-        'id': s['id'], 'name': s['name'], 'cadence': s['cadence'], 'count': s['count'], 'first': iso(s['first']),
-        'last': iso(s['last']), 'typical': s['typical'], 'monthly': s['monthly'], 'annual': s['annual'],
+        'id': s['id'], 'name': s['name'], 'cadence': s['cadence'], 'count': s['count'], 'first': iso(s['first']) if s['first'] is not None else None,
+        'last': iso(s['last']) if s['last'] is not None else None, 'typical': s['typical'], 'monthly': s['monthly'], 'annual': s['annual'],
         'kind': s['amounts']['kind'], 'status': s['status'],
         'nextDue': None if s['nextDue'] is None else iso(s['nextDue']), 'method': s['method'],
         'category': s['category'], 'confidence': s['confidence'], 'flags': [f['id'] for f in s['flags']],
