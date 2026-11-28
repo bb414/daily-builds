@@ -434,6 +434,11 @@
     var h = [];
     h.push('<div class="view-head"><div><h2>Exams and topics</h2><p class="intro">Load your exam timetable and list what each exam covers, with how confident you feel (1 is weak, 5 is strong) and how big each topic is. Weak and big topics are planned first.</p></div>' +
       '<div class="btn-row"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="open-project">Open a plan file</button></div></div>');
+    var checks = M.checkInputs(p, plan, state.today);
+    if (p.exams.length) {
+      h.push('<div class="sticky ' + (checks.some(function (c) { return c.level === 'error'; }) ? 'pink' : checks.length ? '' : 'green') + ' checks-note" style="margin:0 0 26px;max-width:900px"><b>Checks</b> ' +
+        (checks.length ? '<span class="small">' + checks.length + (checks.length === 1 ? ' thing' : ' things') + ' to look at before you rely on the plan:</span>' + notesHtml(checks) : '<span class="small">Nothing looks wrong with your exams, topics or hours.</span>') + '</div>');
+    }
     h.push('<div class="cols">');
     h.push('<div class="card taped plain"><div class="card-head"><h3>Your exam timetable</h3><span class="tag">CSV, web page, pasted or .ics</span></div><div class="card-body">' +
       '<div class="drop" data-drop="exams"><p class="drop-title">Drop the file here, or paste the table</p>' +
@@ -595,7 +600,10 @@
     h.push('</div>');
 
     // Settings
+    var preset = PRESETS.filter(function (x) { return x[1] === s.learnMin && x[2] === s.reviewMin && x[3] === s.breakMin; })[0];
     h.push('<div class="card plain" style="margin-top:30px"><div class="card-head"><h3>How sessions are sized</h3><button type="button" class="btn-link" data-action="reset-settings">Back to the defaults</button></div><div class="card-body"><div class="settings-grid">' +
+      '<div class="field"><label for="set-preset">Session style</label><select id="set-preset">' + PRESETS.map(function (x) { return '<option value="' + x[0] + '"' + (preset && preset[0] === x[0] ? ' selected' : '') + '>' + esc(x[4]) + '</option>'; }).join('') +
+      (preset ? '' : '<option value="" selected>Your own lengths</option>') + '</select><span class="hint">Sets the three lengths below in one go.</span></div>' +
       setting('learnMin', 'Learning session (minutes)', s.learnMin, 15, 180, 5, 'New material, in one sitting.') +
       setting('reviewMin', 'Review session (minutes)', s.reviewMin, 10, 90, 5, 'Test yourself on a topic, then fill the gaps.') +
       setting('breakMin', 'Break between sessions (minutes)', s.breakMin, 0, 60, 5, 'Time between sessions.') +
@@ -608,6 +616,12 @@
       '</div></div></div>');
     $('#view-time').innerHTML = h.join('');
   }
+
+  var PRESETS = [
+    ['classic', 50, 25, 10, 'Classic: 50 min sessions, 10 min breaks'],
+    ['pomodoro', 25, 15, 5, 'Short bursts: 25 min sessions, 5 min breaks'],
+    ['long', 90, 30, 15, 'Long focus: 90 min sessions, 15 min breaks']
+  ];
 
   function setting(key, label, value, min, max, step, hint) {
     return '<div class="field"><label for="set-' + key + '">' + esc(label) + '</label><input type="number" id="set-' + key + '" data-setting="' + key + '" value="' + value + '" min="' + min + '" max="' + max + '" step="' + step + '"><span class="hint">' + esc(hint) + '</span></div>';
@@ -917,6 +931,24 @@
     });
     h.push('</div>');
 
+    // How you keep to the plan, by weekday
+    var ad = M.adherence(p, plan, today);
+    if (ad.days >= 3) {
+      h.push('<h3 style="margin-top:32px">How you keep to the plan</h3><p class="small muted" style="max-width:60em">From your ticks and missed sessions over ' + ad.days + ' days: you have done <b class="mono">' + ad.pct + '%</b> of the time planned. A plan you can keep beats an ambitious one you cannot.</p><div class="card plain" style="max-width:760px"><div class="card-body"><div class="wchart">');
+      ad.weekdays.forEach(function (w) {
+        if (!w.planned) return;
+        h.push('<div class="wbar"><span class="wl">' + M.WEEKDAYS[w.weekday] + 's</span><span class="track" role="img" aria-label="' + esc(M.WEEKDAYS[w.weekday] + 's: ' + w.pct + '% of ' + M.fmtHours(w.planned) + ' planned done over ' + w.days + ' days') + '">' +
+          '<span class="m2" style="width:' + w.pct + '%"></span></span><span class="wv">' + w.pct + '%</span></div>');
+      });
+      h.push('</div>');
+      ad.weekdays.forEach(function (w) {
+        if (w.suggest === null) return;
+        h.push('<p class="fix">On ' + M.WEEKDAYS[w.weekday] + 's you have done about ' + M.fmtHours(Math.floor(w.done / w.days)) + ' of the ' + M.fmtHours(p.week[w.weekday].minutes) + ' planned. ' +
+          '<button type="button" class="btn-link" data-action="set-weekday" data-wd="' + w.weekday + '" data-min="' + w.suggest + '">Plan ' + (w.suggest ? M.fmtHours(w.suggest) : 'no revision') + ' on ' + M.WEEKDAYS[w.weekday] + 's</button> so the plan fits what you really do.</p>');
+      });
+      h.push('<p class="small muted">Weekdays need at least two days of history before the app suggests a change.</p></div></div>');
+    }
+
     // The last two weeks
     h.push('<h3 style="margin-top:32px">The last two weeks</h3><div class="streak">');
     var by = sessionsByDay();
@@ -1200,6 +1232,11 @@
         toast('Today is blocked and the plan starts again from here.');
         break;
       case 'real-today': p.asOf = null; ensureOwnKeep(); recompute(); persist(); renderAll(); break;
+      case 'set-weekday':
+        var wdi = parseInt(t.getAttribute('data-wd'), 10);
+        p.week[wdi].minutes = parseInt(t.getAttribute('data-min'), 10);
+        changed(M.WEEKDAYS[wdi] + 's now plan ' + M.fmtHours(p.week[wdi].minutes) + '; re-planned from today.');
+        break;
       case 'quick-apply':
         var r = null;
         state.status.exams.forEach(function (x) { if (x.id === t.getAttribute('data-exam')) r = x; });
@@ -1242,6 +1279,16 @@
     if (t.hasAttribute('data-topic') && t.hasAttribute('data-field')) { topicField(parseInt(t.getAttribute('data-topic'), 10), t.getAttribute('data-field'), t.value); return; }
     if (t.hasAttribute('data-week')) { weekField(parseInt(t.getAttribute('data-week'), 10), t.getAttribute('data-field'), t.value); return; }
     if (t.hasAttribute('data-setting')) { settingField(t.getAttribute('data-setting'), t.value); return; }
+    if (t.id === 'set-preset') {
+      var pr = PRESETS.filter(function (x) { return x[0] === t.value; })[0];
+      if (pr) {
+        var st2 = JSON.parse(JSON.stringify(state.project.settings));
+        st2.learnMin = pr[1]; st2.reviewMin = pr[2]; st2.breakMin = pr[3];
+        state.project.settings = M.cleanSettings(st2);
+        changed('Sessions are now ' + pr[1] + ' minutes with ' + pr[3] + '-minute breaks; re-planned.');
+      }
+      return;
+    }
   }
 
   function onSubmit(ev) {

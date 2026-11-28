@@ -94,4 +94,5 @@ def py_project_job(job):
         'topics': m.topic_status(p, plan, job['today']), 'markdown': m.checklist_markdown(p, plan),
         'markdownWeek': m.checklist_markdown(p, plan, job['today'], job['today'] + 6),
         'icsAlarm': m.sessions_ics(p, plan, from_day=job['today'], to_day=job['today'] + 2, alarm=10),
+        'checks': m.check_inputs(p, plan, job['today']), 'adherence': m.adherence(p, plan, job['today']),
     })

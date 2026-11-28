@@ -192,6 +192,15 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('The next fourteen days', page)
         self.assertIn('Where each topic stands', page)
 
+    def test_retro_looks_back_by_weekday_and_module(self):
+        code, out = run_cli('retro', os.path.join(DATA, 'sample-project.json'), '--date', '2026-12-10')
+        self.assertEqual(code, 0)
+        self.assertIn('37.9 h of 42.5 h done (89%)', out)
+        self.assertIn('Saturday', out)
+        self.assertIn('FIN3020     90%', out)
+        code, out = run_cli('retro', os.path.join(DATA, 'group', 'alex.json'), '--date', '2026-11-30')
+        self.assertIn('Nothing to look back on yet', out)
+
     def test_check_explains_each_file(self):
         code, out = run_cli('check', os.path.join(DATA, 'messy-timetable.txt'), os.path.join(DATA, 'alex', 'availability.csv'),
                             os.path.join(DATA, 'alex', 'busy-calendar.ics'), os.path.join(DATA, 'topics-pasted.txt'), '--date', '2026-11-30')

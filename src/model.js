@@ -2643,6 +2643,104 @@ var ExamSeason = (function () {
   M.setOverride = setOverride;
 
   // ------------------------------------------------------------------
+  // Checks that catch slips before they become a bad plan
+  // ------------------------------------------------------------------
+
+  function checkInputs(project, plan, today) {
+    var out = [];
+    var s = project.settings;
+    var dated = project.exams.filter(function (e) { return e.day !== null; });
+    dated.forEach(function (e) {
+      var what = e.code + ' ' + e.name;
+      if (e.day > today + 240) out.push({ level: 'warn', text: what + ' is on ' + fmtDay(e.day) + ', more than eight months away. Check the year.' });
+      if (e.start < 420 || e.start >= 1260) out.push({ level: 'warn', text: what + ' starts at ' + fmtTime(e.start) + '. Check it is not meant to be ' + fmtTime((e.start + 720) % 1440) + ' (am and pm are easy to mix up).' });
+      if (e.duration > 300 && e.duration < 1440) out.push({ level: 'warn', text: what + ' lasts ' + fmtDur(e.duration) + ', which is long for an exam. Check the length.' });
+      if (e.duration < 30) out.push({ level: 'warn', text: what + ' lasts only ' + fmtDur(e.duration) + ', which is short for an exam. Check the length (the timetable may give it in hours).' });
+    });
+    for (var i = 0; i < dated.length; i++) {
+      for (var j = i + 1; j < dated.length; j++) {
+        var a = dated[i], b = dated[j];
+        if (a.day !== b.day) continue;
+        if (a.start < b.start + b.duration && b.start < a.start + a.duration) {
+          out.push({ level: 'error', text: a.code + ' and ' + b.code + ' overlap on ' + fmtShort(a.day) + '. Ask your exams office about a clash arrangement, then set the times you are given.' });
+        }
+      }
+    }
+    var codes = {};
+    project.topics.forEach(function (t) { (codes[t.code] = codes[t.code] || []).push(t); });
+    var examCodes = {};
+    plan.exams.forEach(function (e) {
+      if (e.second || examCodes[e.code]) return;
+      examCodes[e.code] = true;
+      var ts = codes[e.code] || [];
+      if (!ts.length) out.push({ level: 'warn', text: e.code + ' ' + e.name + ' has no topics, so only past papers and a final review are planned for it.' });
+      else if (ts.length >= 5 && ts.every(function (t) { return t.conf === 3; })) out.push({ level: 'info', text: 'Every ' + e.code + ' topic is rated 3. Rating the weak ones lower and the strong ones higher puts the time where you need it.' });
+    });
+    project.topics.forEach(function (t) {
+      if (t.mode !== 'drop' && t.size > 1200) out.push({ level: 'warn', text: '"' + t.name + '" (' + t.code + ') is sized at ' + fmtHours(t.size) + ' of first learning. If that is a typo, pick S, M or L.' });
+    });
+    var week = 0;
+    project.week.forEach(function (w) { week += w.minutes; });
+    project.week.forEach(function (w, k) {
+      if (w.minutes > 600) out.push({ level: 'warn', text: WEEKDAYS[k] + 's are set to ' + fmtHours(w.minutes) + ' of revision. More than about ten hours a day rarely sticks.' });
+    });
+    if (week < 300 && plan.exams.length) out.push({ level: 'warn', text: 'Your normal week has only ' + fmtHours(week) + ' of revision. Check the hours under Your time.' });
+    if (plan.exams.length) {
+      var need = 0, cap = 0;
+      plan.exams.forEach(function (e) { need += e.need; });
+      plan.days.forEach(function (d) { if (d.day >= today) cap += d.cap; });
+      var doneMin = 0;
+      project.done.forEach(function (d) { doneMin += d.min; });
+      if (need - doneMin > cap) out.push({ level: 'error', text: 'The time is not there: the rules ask for ' + fmtHours(Math.max(0, need - doneMin)) + ' more, and your week has ' + fmtHours(cap) + ' between now and the last exam. See On track for what to drop or shorten.' });
+    }
+    var rank = { error: 0, warn: 1, info: 2 };
+    return out.map(function (c, k) { return [c, k]; }).sort(function (x, y) { return cmp(rank[x[0].level], rank[y[0].level]) || cmp(x[1], y[1]); }).map(function (x) { return x[0]; });
+  }
+  M.checkInputs = checkInputs;
+
+  // How much of the planned time you actually do, by weekday, from your
+  // ticks and the sessions filed as missed. Days before today only.
+  function adherence(project, plan, today) {
+    var done = doneMap(project);
+    var byDay = {};
+    function add(day, min, isDone) {
+      if (day >= today) return;
+      var x = byDay[day] = byDay[day] || { planned: 0, done: 0 };
+      x.planned += min;
+      if (isDone) x.done += min;
+    }
+    project.done.forEach(function (d) { add(d.day, d.min, true); });
+    project.missed.forEach(function (d) { add(d.day, d.min, false); });
+    plan.sessions.forEach(function (se) { if (!done[se.id]) add(se.day, se.min, false); });
+    var wd = [];
+    for (var k = 0; k < 7; k++) wd.push({ weekday: k, days: 0, planned: 0, done: 0, pct: null, suggest: null });
+    Object.keys(byDay).map(Number).sort(function (a, b) { return a - b; }).forEach(function (d) {
+      var x = byDay[d], w = wd[weekday(d)];
+      w.days++;
+      w.planned += x.planned;
+      w.done += x.done;
+    });
+    var totalPlanned = 0, totalDone = 0;
+    wd.forEach(function (w) {
+      totalPlanned += w.planned;
+      totalDone += w.done;
+      if (w.planned) w.pct = floorDiv(w.done * 100 + floorDiv(w.planned, 2), w.planned);
+      var tmpl = project.week[w.weekday].minutes;
+      if (w.days >= 2 && w.pct !== null && w.pct < 70 && tmpl > 0) {
+        var perDay = floorDiv(w.done, w.days);
+        var to = floorDiv(perDay, 30) * 30;
+        if (to < tmpl) w.suggest = to;
+      }
+    });
+    return {
+      weekdays: wd, planned: totalPlanned, done: totalDone,
+      pct: totalPlanned ? floorDiv(totalDone * 100 + floorDiv(totalPlanned, 2), totalPlanned) : null,
+      days: Object.keys(byDay).length
+    };
+  }
+  M.adherence = adherence;
+
+  // ------------------------------------------------------------------
   // Outputs
   // ------------------------------------------------------------------
 

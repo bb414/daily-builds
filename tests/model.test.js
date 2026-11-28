@@ -506,6 +506,52 @@ test('a Markdown checklist and reminders before each session', function () {
   assert.equal(M.sessionsIcs(p, plan, { fromDay: TODAY, toDay: TODAY, exams: false }).indexOf('VALARM'), -1);
 });
 
+test('checks catch the slips that make a bad plan', function () {
+  var p = M.newProject(FROM);
+  function ex(code, day, start, dur) { return { id: '', code: code, name: 'Module ' + code, day: day, start: start, duration: dur, room: '', seat: '', type: '', resit: false, tbc: false, note: '' }; }
+  p.exams = [ex('AAA1001', FROM + 20, 120, 120), ex('BBB1001', FROM + 22, 570, 400), ex('CCC1001', FROM + 22, 600, 90), ex('DDD1001', FROM + 400, 570, 20), ex('EEE1001', FROM + 30, 570, 120)];
+  for (var k = 0; k < 6; k++) p.topics.push({ id: '', code: 'AAA1001', name: 'T' + k, conf: 3, size: 180, mode: 'full', note: '' });
+  p.topics.push({ id: '', code: 'BBB1001', name: 'Huge', conf: 2, size: 3000, mode: 'full', note: '' });
+  p.week = p.week.map(function (w, i) { return { from: w.from, to: w.to, minutes: i === 0 ? 720 : 0 }; });
+  p = M.cleanProject(JSON.parse(M.projectFile(p)), FROM);
+  var text = M.checkInputs(p, M.buildPlan(p), FROM).map(function (c) { return c.level + ': ' + c.text; });
+  var all = text.join('\n');
+  assert.match(text[0], /^error/, 'errors come first');
+  assert.match(all, /AAA1001 Module AAA1001 starts at 02:00\. Check it is not meant to be 14:00/);
+  assert.match(all, /BBB1001 Module BBB1001 lasts 6 h 40 min, which is long for an exam/);
+  assert.match(all, /DDD1001 .* more than eight months away/);
+  assert.match(all, /DDD1001 .* lasts only 20 min/);
+  assert.match(all, /BBB1001 and CCC1001 overlap/);
+  assert.match(all, /EEE1001 Module EEE1001 has no topics/);
+  assert.match(all, /Every AAA1001 topic is rated 3/);
+  assert.match(all, /"Huge" \(BBB1001\) is sized at 50 h/);
+  assert.match(all, /Mondays are set to 11 h/, 'the twelve hours asked for are held to the eleven-hour window');
+  var tight = M.newProject(FROM);
+  tight.exams = [ex('FFF1001', FROM + 4, 570, 120)];
+  tight.topics = [{ id: '', code: 'FFF1001', name: 'Everything', conf: 1, size: 2400, mode: 'full', note: '' }];
+  tight = M.cleanProject(JSON.parse(M.projectFile(tight)), FROM);
+  assert.match(M.checkInputs(tight, M.buildPlan(tight), FROM)[0].text, /^The time is not there: the rules ask for 65\.7 h more/);
+  assert.deepEqual(M.checkInputs(freshProject(), planOf(freshProject()), FROM), [], 'the sample has nothing to fix');
+});
+
+test('how you keep to the plan, by weekday', function () {
+  var p = sampleProject();
+  var ad = M.adherence(p, planOf(p), TODAY);
+  assert.equal(ad.days, 10);
+  assert.equal(ad.pct, 89);
+  assert.equal(ad.done, 2275);
+  assert.equal(ad.weekdays[5].pct, 0, 'the missed Saturday');
+  assert.equal(ad.weekdays[5].suggest, null, 'one Saturday is not enough to suggest a change');
+  // Miss a second Saturday and the app suggests planning what Alex really does.
+  var later = D(2026, 12, 13);
+  var q = M.readProject(data('sample-project.json'), later).project;
+  var plan = planOf(q);
+  plan.sessions.forEach(function (se) { if (se.day >= TODAY && se.day < later && se.day !== D(2026, 12, 12)) M.tick(q, plan, se.id, se.day, true); });
+  var ad2 = M.adherence(q, plan, later);
+  assert.equal(ad2.weekdays[5].days, 2);
+  assert.equal(ad2.weekdays[5].suggest, 0);
+});
+
 test('a large plan stays quick', function () {
   var p = M.newProject(FROM);
   for (var i = 0; i < 12; i++) {

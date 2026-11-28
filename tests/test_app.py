@@ -270,6 +270,21 @@ class AppTest(unittest.TestCase):
         self.assertTrue(md.startswith("# Alex's January exams"))
         self.assertIn('- [ ] 09:00-09:25 MGT3104 Blue ocean strategy (review)', md)
 
+    def test_checks_adherence_and_session_presets(self):
+        page = self.open()
+        page.click('#tab-exams')
+        self.assertIn('Nothing looks wrong', page.inner_text('.checks-note'))
+        page.fill('.exam-row:not(.head) input[data-field=start] >> nth=1', '02:00')
+        page.dispatch_event('.exam-row:not(.head) input[data-field=start] >> nth=1', 'change')
+        page.wait_for_function("document.querySelector('.checks-note').innerText.includes('starts at 02:00')")
+        page.click('#tab-progress')
+        self.assertIn('How you keep to the plan', page.inner_text('#view-progress'))
+        self.assertIn('89%', page.inner_text('#view-progress'))
+        page.click('#tab-time')
+        page.select_option('#set-preset', 'pomodoro')
+        page.wait_for_function("document.querySelector('#set-learnMin').value === '25'")
+        self.assertEqual(page.input_value('#set-breakMin'), '5')
+
     def test_inside_a_frame(self):
         frame_page = self.write('frame.html', '<!doctype html><html><body style="margin:0"><iframe src="%s" style="width:1000px;height:800px;border:0" title="Exam season"></iframe></body></html>' % URL)
         page = self.open(url='file://' + frame_page)

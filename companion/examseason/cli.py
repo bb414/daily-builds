@@ -8,6 +8,7 @@
   tick    tick sessions off (or untick them) in a plan file
   status  are you on track for each exam?
   report  an HTML report of a plan file
+  retro   how you kept to the plan, by weekday and module, with suggestions
   group   shared sessions for a study group, from each member's plan file
   check   show how each input file is read, without planning
 
@@ -164,6 +165,14 @@ def build_project(files, start, name):
     return m.clean_project(json.loads(m.project_file(p)), start)
 
 
+def print_checks(project, plan, today, out=None):
+    out = out or sys.stdout
+    checks = m.check_inputs(project, plan, today)
+    for c in checks:
+        print('Check [%s]: %s' % (c['level'], c['text']), file=out)
+    return checks
+
+
 def print_status(project, plan, today, out=None):
     out = out or sys.stdout
     st = m.status(project, plan, today)
@@ -204,6 +213,7 @@ def cmd_plan(args):
     for n in plan['notes']:
         print('Note: ' + n['text'])
     sm = m.summary(p, plan, m.status(p, plan, start))
+    print_checks(p, plan, start)
     print('\n%d sessions on %d days from %s to %s: %s learning, %s reviews, %s past papers, %s final reviews.\n' % (
         sm['sessions'], sm['studyDays'], m.fmt_short(plan['from']), m.fmt_short(plan['last']), m.fmt_hours(sm['learnMin']),
         m.fmt_hours(sm['reviewMin']), m.fmt_hours(sm['paperMin']), m.fmt_hours(sm['finalMin'])))
@@ -308,6 +318,7 @@ def cmd_status(args):
     today = parse_day(args.date) if args.date else real_today()
     p = load_project(args.project, today)
     plan = m.build_plan(p)
+    print_checks(p, plan, today)
     st = print_status(p, plan, today)
     if args.topics:
         print_topics(p, plan, today)
@@ -315,6 +326,49 @@ def cmd_status(args):
         write_text(args.csv, m.status_csv(st))
         print('Wrote %s' % args.csv)
     return 0 if st['verdict'] in ('ok', 'tight') else 2
+
+
+def cmd_retro(args):
+    """How the plan went: time done against time planned, by weekday and by module, with suggestions."""
+    today = parse_day(args.date) if args.date else real_today()
+    p = load_project(args.project, today)
+    plan = m.build_plan(p)
+    ad = m.adherence(p, plan, today)
+    if not ad['days']:
+        print('Nothing to look back on yet: no sessions were planned before %s.' % m.fmt_short(today))
+        return 0
+    print('How you kept to the plan, %s days up to %s: %s of %s done (%d%%).' % (ad['days'], m.fmt_short(today - 1), m.fmt_hours(ad['done']), m.fmt_hours(ad['planned']), ad['pct']))
+    print('\nBy weekday')
+    for w in ad['weekdays']:
+        if not w['planned']:
+            continue
+        bar = '#' * (w['pct'] // 5)
+        print('  %-10s %-20s %3d%%  %s of %s over %s' % (m.WEEKDAYS[w['weekday']], bar, w['pct'], m.fmt_hours(w['done']), m.fmt_hours(w['planned']), m.plural(w['days'], 'day')))
+    by_exam = {}
+    done = m.done_map(p)
+    for d in p['done']:
+        if d['day'] < today:
+            x = by_exam.setdefault(d['code'], [0, 0])
+            x[0] += d['min']
+            x[1] += d['min']
+    for d in p['missed']:
+        if d['day'] < today:
+            by_exam.setdefault(d['code'], [0, 0])[1] += d['min']
+    for se in plan['sessions']:
+        if se['day'] < today and se['id'] not in done:
+            by_exam.setdefault(se['code'], [0, 0])[1] += se['min']
+    print('\nBy module')
+    for code in sorted(by_exam):
+        dn, pl = by_exam[code]
+        print('  %-10s %3d%%  %s of %s' % (code, (dn * 100 + pl // 2) // pl if pl else 0, m.fmt_hours(dn), m.fmt_hours(pl)))
+    tips = [w for w in ad['weekdays'] if w['suggest'] is not None]
+    if tips:
+        print('\nFor a plan you can keep')
+        for w in tips:
+            print('  On %ss you did about %s of the %s planned: set %ss to %s under Your time.' % (
+                m.WEEKDAYS[w['weekday']], m.fmt_hours(w['done'] // w['days']), m.fmt_hours(p['week'][w['weekday']]['minutes']), m.WEEKDAYS[w['weekday']],
+                m.fmt_hours(w['suggest']) if w['suggest'] else 'no revision'))
+    return 0
 
 
 def cmd_report(args):
@@ -446,6 +500,11 @@ def build_parser():
     s.add_argument('--csv', help='write the table as CSV')
     s.add_argument('--topics', action='store_true', help='also list every topic: learning, reviews and what is next')
     s.set_defaults(func=cmd_status)
+
+    rt = sub.add_parser('retro', help='how you kept to the plan: done against planned, by weekday and module')
+    rt.add_argument('project')
+    rt.add_argument('--date')
+    rt.set_defaults(func=cmd_retro)
 
     r = sub.add_parser('report', help='an HTML report of a plan file')
     r.add_argument('project')

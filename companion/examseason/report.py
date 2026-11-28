@@ -69,6 +69,16 @@ def plan_report(project, today):
                        VERDICT_COLOUR[r['verdict']], esc(r['headline']), bar, m.fmt_hours(r['need']), m.fmt_hours(r['done']), m.fmt_hours(r['ahead']),
                        (' &middot; missed %s' % m.fmt_hours(r['missed'])) if r['missed'] else '', ''.join('<li>%s</li>' % esc(x) for x in r['reasons'])))
     out.append('</div>')
+    checks = m.check_inputs(project, plan, today)
+    if checks:
+        out.insert(2, '<h2>Checks</h2><ul class="small">%s</ul>' % ''.join('<li>%s</li>' % esc(c['text']) for c in checks))
+    ad = m.adherence(project, plan, today)
+    if ad['days'] >= 3:
+        rows = ''.join('<tr><td>%ss</td><td><div class="bar" style="max-width:260px"><span style="width:%d%%;background:#82e297"></span></div></td><td class="mono">%d%%</td><td class="mono">%s of %s</td><td class="small">%s</td></tr>' % (
+            m.WEEKDAYS[w['weekday']], w['pct'], w['pct'], m.fmt_hours(w['done']), m.fmt_hours(w['planned']),
+            esc('Plan %s on %ss.' % (m.fmt_hours(w['suggest']) if w['suggest'] else 'no revision', m.WEEKDAYS[w['weekday']])) if w['suggest'] is not None else '')
+            for w in ad['weekdays'] if w['planned'])
+        out.append('<h2>How you keep to the plan</h2><p class="small">%d%% of the time planned on the %d days so far was done.</p><table><thead><tr><th>Day</th><th>Done</th><th></th><th>Hours</th><th>Suggestion</th></tr></thead><tbody>%s</tbody></table>' % (ad['pct'], ad['days'], rows))
     out.append('<h2>Where each topic stands</h2>' + topics_table(project, plan, today, colour))
     out.append('<h2>The next fourteen days</h2>')
     out.append(sessions_table(plan, done, colour, today, today + 13))

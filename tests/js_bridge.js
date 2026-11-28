@@ -55,7 +55,8 @@ function runProject(job) {
     icsToday: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today, exams: false, skipDone: true }),
     dayText: M.dayText(p, plan, job.today), projectFile: M.projectFile(p), availabilityCsv: M.availabilityCsv(p),
     topics: M.topicStatus(p, plan, job.today), markdown: M.checklistMarkdown(p, plan), markdownWeek: M.checklistMarkdown(p, plan, job.today, job.today + 6),
-    icsAlarm: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today + 2, alarm: 10 })
+    icsAlarm: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today + 2, alarm: 10 }),
+    checks: M.checkInputs(p, plan, job.today), adherence: M.adherence(p, plan, job.today)
   };
 }
 

@@ -2844,6 +2844,105 @@ def set_override(project, day, minutes, label='', frm=None, to=None):
 
 
 # ----------------------------------------------------------------------
+# Checks that catch slips before they become a bad plan
+# ----------------------------------------------------------------------
+
+def check_inputs(project, plan, today):
+    out = []
+    dated = [e for e in project['exams'] if e['day'] is not None]
+    for e in dated:
+        what = e['code'] + ' ' + e['name']
+        if e['day'] > today + 240:
+            out.append({'level': 'warn', 'text': '%s is on %s, more than eight months away. Check the year.' % (what, fmt_day(e['day']))})
+        if e['start'] < 420 or e['start'] >= 1260:
+            out.append({'level': 'warn', 'text': '%s starts at %s. Check it is not meant to be %s (am and pm are easy to mix up).' % (what, fmt_time(e['start']), fmt_time((e['start'] + 720) % 1440))})
+        if 300 < e['duration'] < 1440:
+            out.append({'level': 'warn', 'text': '%s lasts %s, which is long for an exam. Check the length.' % (what, fmt_dur(e['duration']))})
+        if e['duration'] < 30:
+            out.append({'level': 'warn', 'text': '%s lasts only %s, which is short for an exam. Check the length (the timetable may give it in hours).' % (what, fmt_dur(e['duration']))})
+    for i in range(len(dated)):
+        for j in range(i + 1, len(dated)):
+            a, b = dated[i], dated[j]
+            if a['day'] != b['day']:
+                continue
+            if a['start'] < b['start'] + b['duration'] and b['start'] < a['start'] + a['duration']:
+                out.append({'level': 'error', 'text': '%s and %s overlap on %s. Ask your exams office about a clash arrangement, then set the times you are given.' % (a['code'], b['code'], fmt_short(a['day']))})
+    codes = {}
+    for t in project['topics']:
+        codes.setdefault(t['code'], []).append(t)
+    exam_codes = {}
+    for e in plan['exams']:
+        if e['second'] or e['code'] in exam_codes:
+            continue
+        exam_codes[e['code']] = True
+        ts = codes.get(e['code'], [])
+        if not ts:
+            out.append({'level': 'warn', 'text': '%s %s has no topics, so only past papers and a final review are planned for it.' % (e['code'], e['name'])})
+        elif len(ts) >= 5 and all(t['conf'] == 3 for t in ts):
+            out.append({'level': 'info', 'text': 'Every %s topic is rated 3. Rating the weak ones lower and the strong ones higher puts the time where you need it.' % e['code']})
+    for t in project['topics']:
+        if t['mode'] != 'drop' and t['size'] > 1200:
+            out.append({'level': 'warn', 'text': '"%s" (%s) is sized at %s of first learning. If that is a typo, pick S, M or L.' % (t['name'], t['code'], fmt_hours(t['size']))})
+    week = sum(w['minutes'] for w in project['week'])
+    for k, w in enumerate(project['week']):
+        if w['minutes'] > 600:
+            out.append({'level': 'warn', 'text': '%ss are set to %s of revision. More than about ten hours a day rarely sticks.' % (WEEKDAYS[k], fmt_hours(w['minutes']))})
+    if week < 300 and plan['exams']:
+        out.append({'level': 'warn', 'text': 'Your normal week has only %s of revision. Check the hours under Your time.' % fmt_hours(week)})
+    if plan['exams']:
+        need = sum(e['need'] for e in plan['exams'])
+        cap = sum(d['cap'] for d in plan['days'] if d['day'] >= today)
+        done_min = sum(d['min'] for d in project['done'])
+        if need - done_min > cap:
+            out.append({'level': 'error', 'text': 'The time is not there: the rules ask for %s more, and your week has %s between now and the last exam. See On track for what to drop or shorten.' % (fmt_hours(max(0, need - done_min)), fmt_hours(cap))})
+    rank = {'error': 0, 'warn': 1, 'info': 2}
+    indexed = sort_by(list(enumerate(out)), lambda x, y: cmp(rank[x[1]['level']], rank[y[1]['level']]) or cmp(x[0], y[0]))
+    return [c for _k, c in indexed]
+
+
+def adherence(project, plan, today):
+    """How much of the planned time you actually do, by weekday, from ticks and missed sessions (days before today)."""
+    done = done_map(project)
+    by_day = {}
+
+    def add(day, minute, is_done):
+        if day >= today:
+            return
+        x = by_day.setdefault(day, {'planned': 0, 'done': 0})
+        x['planned'] += minute
+        if is_done:
+            x['done'] += minute
+
+    for d in project['done']:
+        add(d['day'], d['min'], True)
+    for d in project['missed']:
+        add(d['day'], d['min'], False)
+    for se in plan['sessions']:
+        if se['id'] not in done:
+            add(se['day'], se['min'], False)
+    wd = [{'weekday': k, 'days': 0, 'planned': 0, 'done': 0, 'pct': None, 'suggest': None} for k in range(7)]
+    for d in sorted(by_day):
+        x, w = by_day[d], wd[weekday(d)]
+        w['days'] += 1
+        w['planned'] += x['planned']
+        w['done'] += x['done']
+    total_planned = total_done = 0
+    for w in wd:
+        total_planned += w['planned']
+        total_done += w['done']
+        if w['planned']:
+            w['pct'] = (w['done'] * 100 + w['planned'] // 2) // w['planned']
+        tmpl = project['week'][w['weekday']]['minutes']
+        if w['days'] >= 2 and w['pct'] is not None and w['pct'] < 70 and tmpl > 0:
+            per_day = w['done'] // w['days']
+            to = per_day // 30 * 30
+            if to < tmpl:
+                w['suggest'] = to
+    return {'weekdays': wd, 'planned': total_planned, 'done': total_done,
+            'pct': (total_done * 100 + total_planned // 2) // total_planned if total_planned else None, 'days': len(by_day)}
+
+
+# ----------------------------------------------------------------------
 # Outputs
 # ----------------------------------------------------------------------
 
