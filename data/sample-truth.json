@@ -1,0 +1,44 @@
+{
+ "seed": 2611,
+ "aiValues": {
+  "tonnes": "140",
+  "volunteers": "85",
+  "first_year": "2012",
+  "survey_n": "1,200",
+  "survey_pct": "56",
+  "saving": "420",
+  "footfall": "9",
+  "quote": "repair is the most radical thing a consumer can do"
+ },
+ "trueValues": {
+  "tonnes": "14",
+  "volunteers": "85",
+  "first_year": "2014",
+  "survey_n": "1,200",
+  "survey_pct": "36",
+  "saving": "120",
+  "footfall": "9"
+ },
+ "trueQuote": "repair is one of the most practical things a consumer can do",
+ "wrongInDraft": [
+  "first_year",
+  "saving",
+  "survey_pct",
+  "tonnes",
+  "quote"
+ ],
+ "fixedInFinal": [
+  "first_year",
+  "tonnes"
+ ],
+ "referenceProblems": {
+  "Brinmouth Borough Council (2022)": "space inside the URL",
+  "Eastmoor Institute for Circular Practice (2022)": "space inside the DOI",
+  "Hartwell et al. (2019), second entry": "duplicate of the first Hartwell entry",
+  "Kestleford Repair Network (2024)": "URL scheme misspelt (htps)",
+  "Morrow (2021)": "generic journal name, no volume or pages, never cited",
+  "Pemberton (2031)": "year in the future",
+  "Quinlan and Oduya (2018)": "malformed DOI prefix, never cited",
+  "Lindqvist (2020)": "cited in the text but missing from the list"
+ }
+}

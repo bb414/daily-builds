@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checked by me</title>
+<meta name="description" content="Before you hand in or send something drafted with an AI assistant: pull out every claim worth checking, check the references, see how much of your final text is still the AI's, and write the AI-use declaration. Runs offline; checks nothing online; not a plagiarism detector.">
+<style>
+/*FONTS*/
+/*STYLE*/
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the checker</a>
+<div class="desk">
+  <header class="hero" id="top">
+    <div class="galley-head">
+      <span class="reg" aria-hidden="true"></span>
+      <p class="slug" id="slug">Galley 1 &middot; proof for checking</p>
+      <span class="reg" aria-hidden="true"></span>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="kicker">Before you hand it in or send it</p>
+        <h1>Checked <em><span>by</span></em> me</h1>
+        <p class="lede">Paste what an AI assistant drafted for you. It pulls out every claim worth checking, checks your references, shows how much of your final text is still the AI's, and writes the AI-use declaration your university or employer asks for.</p>
+        <ul class="labels" aria-label="What this tool does not do">
+          <li>Checks nothing online</li>
+          <li>Not a plagiarism detector</li>
+          <li>Nothing leaves your device</li>
+        </ul>
+        <div class="hero-actions">
+          <button type="button" class="btn primary" id="btn-own">Use your own text</button>
+          <button type="button" class="btn ghost" id="btn-open-hero">Open a saved project</button>
+        </div>
+      </div>
+      <div class="hero-art" id="hero-art"></div>
+    </div>
+    <div class="slips" id="slips" aria-live="polite"></div>
+  </header>
+
+  <div class="projectbar">
+    <p class="pb-title" id="pb-title"></p>
+    <div class="pb-actions">
+      <button type="button" class="btn small" id="btn-save">Save project</button>
+      <button type="button" class="btn small" id="btn-open">Open project</button>
+      <button type="button" class="btn small" id="btn-new">Start a new one</button>
+    </div>
+  </div>
+  <div id="notice" class="notice" role="status"></div>
+
+  <nav class="marks" aria-label="Views">
+    <div class="marks-inner" role="tablist" id="tabs">
+      <button type="button" role="tab" id="tab-copy" aria-controls="view-copy" data-view="copy"><span class="pm" aria-hidden="true">&#8248;</span><span class="tl">Your texts</span><span class="ts">Paste or drop</span></button>
+      <button type="button" role="tab" id="tab-check" aria-controls="view-check" data-view="check"><span class="pm qy" aria-hidden="true">?</span><span class="tl">Check</span><span class="ts" id="ts-check">Claims to check</span></button>
+      <button type="button" role="tab" id="tab-refs" aria-controls="view-refs" data-view="refs"><span class="pm" aria-hidden="true">[&thinsp;]</span><span class="tl">References</span><span class="ts" id="ts-refs">Your list</span></button>
+      <button type="button" role="tab" id="tab-changes" aria-controls="view-changes" data-view="changes"><span class="pm" aria-hidden="true">&#8765;</span><span class="tl">Changes</span><span class="ts" id="ts-changes">AI draft to final</span></button>
+      <button type="button" role="tab" id="tab-declare" aria-controls="view-declare" data-view="declare"><span class="pm" aria-hidden="true">&#10002;</span><span class="tl">Declaration</span><span class="ts" id="ts-declare">Log and statement</span></button>
+      <button type="button" role="tab" id="tab-how" aria-controls="view-how" data-view="how"><span class="pm" aria-hidden="true">&para;</span><span class="tl">How it works</span><span class="ts">And its limits</span></button>
+    </div>
+  </nav>
+
+  <main id="main">
+    <section class="view" id="view-copy" role="tabpanel" aria-labelledby="tab-copy" hidden>
+      <div class="sheet">
+        <div class="sheet-slug"><span>Copy in</span><span>Paste, type or drop each text. Everything is checked on this device as you go.</span></div>
+        <div class="trays">
+          <div class="tray tray-big" data-field="draft">
+            <div class="tray-head"><label for="in-draft"><span class="tray-n">A</span> The AI's draft <span class="req">needed</span></label><span class="tray-count" id="count-draft"></span></div>
+            <p class="tray-help">What the assistant gave you, as text or Markdown. Chat leftovers, smart quotes and footnote markers are tidied for you.</p>
+            <textarea id="in-draft" data-field="draft" spellcheck="false" rows="12"></textarea>
+            <div class="drop" data-field="draft" tabindex="-1"><span>Drop a .txt, .md, .html or .docx file here, or</span> <button type="button" class="btn small" data-pick="draft">choose a file</button></div>
+            <p class="tray-msg" id="msg-draft"></p>
+          </div>
+          <div class="tray tray-big" data-field="final">
+            <div class="tray-head"><label for="in-final"><span class="tray-n">B</span> Your final version <span class="opt">optional</span></label><span class="tray-count" id="count-final"></span></div>
+            <p class="tray-help">What you will actually hand in. When it is here, the claims are checked in this text and compared with the AI's draft.</p>
+            <textarea id="in-final" data-field="final" spellcheck="false" rows="12"></textarea>
+            <div class="drop" data-field="final" tabindex="-1"><span>Drop a file here, or</span> <button type="button" class="btn small" data-pick="final">choose a file</button></div>
+            <p class="tray-msg" id="msg-final"></p>
+          </div>
+          <div class="tray" data-field="notes">
+            <div class="tray-head"><label for="in-notes"><span class="tray-n">C</span> Your notes or sources <span class="opt">optional</span></label><span class="tray-count" id="count-notes"></span></div>
+            <p class="tray-help">Reading notes, lecture notes or extracts. Figures, years and quotations in the text are compared with them.</p>
+            <textarea id="in-notes" data-field="notes" spellcheck="false" rows="7"></textarea>
+            <div class="drop" data-field="notes" tabindex="-1"><span>Drop a file, or</span> <button type="button" class="btn small" data-pick="notes">choose</button></div>
+            <p class="tray-msg" id="msg-notes"></p>
+          </div>
+          <div class="tray" data-field="references">
+            <div class="tray-head"><label for="in-references"><span class="tray-n">D</span> Reference list <span class="opt">optional</span></label><span class="tray-count" id="count-references"></span></div>
+            <p class="tray-help">Only if it is not already under a "References" heading in your text. Harvard, APA or numbered.</p>
+            <textarea id="in-references" data-field="references" spellcheck="false" rows="7"></textarea>
+            <div class="drop" data-field="references" tabindex="-1"><span>Drop a file, or</span> <button type="button" class="btn small" data-pick="references">choose</button></div>
+            <p class="tray-msg" id="msg-references"></p>
+          </div>
+          <div class="tray" data-field="prompt">
+            <div class="tray-head"><label for="in-prompt"><span class="tray-n">E</span> Your prompt <span class="opt">optional</span></label><span class="tray-count" id="count-prompt"></span></div>
+            <p class="tray-help">What you asked for. If you asked for statistics, quotes or references, those claims are flagged harder.</p>
+            <textarea id="in-prompt" data-field="prompt" spellcheck="false" rows="5"></textarea>
+            <p class="tray-msg" id="msg-prompt"></p>
+          </div>
+          <div class="tray" data-field="sessions">
+            <div class="tray-head"><span class="tray-label"><span class="tray-n">F</span> Your AI session log <span class="opt">optional</span></span><span class="tray-count" id="count-sessions"></span></div>
+            <p class="tray-help">A CSV with one row per session (date, tool, purpose, prompt, what you used, changed and checked). Build it up over time on the Declaration page, or import one.</p>
+            <div class="drop drop-tall" data-field="sessions" tabindex="-1"><span>Drop a session log CSV here, or</span> <button type="button" class="btn small" data-pick="sessions">choose a CSV</button> <button type="button" class="btn small ghost" id="btn-template">download the template</button></div>
+            <ul class="tray-msgs" id="msg-sessions"></ul>
+          </div>
+        </div>
+        <div class="copy-foot">
+          <button type="button" class="btn primary" id="btn-go-check">See the claims to check</button>
+          <button type="button" class="btn" id="btn-sample">Load the sample again</button>
+          <button type="button" class="btn ghost" id="btn-clear">Clear every box</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-check" role="tabpanel" aria-labelledby="tab-check" hidden>
+      <div class="sheet">
+        <div class="sheet-slug"><span>Queries</span><span id="check-slug"></span></div>
+        <div id="check-body"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-refs" role="tabpanel" aria-labelledby="tab-refs" hidden>
+      <div class="sheet">
+        <div class="sheet-slug"><span>References</span><span>Checked by shape only. Nothing here is looked up online.</span></div>
+        <div id="refs-body"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-changes" role="tabpanel" aria-labelledby="tab-changes" hidden>
+      <div class="sheet">
+        <div class="sheet-slug"><span>Changes</span><span>The AI's draft against your final version</span></div>
+        <div id="changes-body"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-declare" role="tabpanel" aria-labelledby="tab-declare" hidden>
+      <div class="sheet">
+        <div class="sheet-slug"><span>Declaration</span><span>Your session log and the statement built from it</span></div>
+        <div id="declare-body"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" hidden>
+      <div class="sheet prose">
+        <div class="sheet-slug"><span>How it works</span><span>Rules you can read, on your own device</span></div>
+        <div class="how-grid">
+          <div>
+            <h2>What it is for</h2>
+            <p>Anything drafted with an AI assistant needs the check you would give a stranger's work before putting your name to it: are the numbers right, do the sources exist and say what is claimed, are the quotations real, and how much of the wording is still the machine's? Many universities now ask for an AI-use statement with each assignment, and many employers want the same for reports and briefs. This tool does the sorting and the paperwork so the checking itself gets done.</p>
+            <h2>What it does, step by step</h2>
+            <ol>
+              <li><strong>Tidies the paste.</strong> Smart quotes become plain ones, non-breaking and invisible spaces go, Markdown marks are removed, superscript and <code>[^1]</code> footnote markers become <code>[1]</code>, and the reference section is set aside. The Your texts page says what was tidied.</li>
+              <li><strong>Splits it into sentences</strong>, without breaking at "et al.", "p. 14", "Dr." or initials.</li>
+              <li><strong>Marks what is checkable</strong> in each sentence with fixed patterns: figures (money, percentages, other numbers with their unit), dates and words like "recently", named studies and reports, vague appeals ("studies show"), people and organisations, direct quotations, citations, links and DOIs, absolute wording ("always", "proven", "the first"), legal, health and money statements, and leftovers from the chat window ("As of my last update", "[Insert source here]", "I hope this helps!").</li>
+              <li><strong>Scores each sentence</strong> by adding the points in the table, and ranks the checklist. Every point is shown next to the sentence, so you can see why it was flagged.</li>
+              <li><strong>Compares with your notes.</strong> A figure in the text is compared with figures of the same kind in your notes (a percentage with percentages, "14 tonnes" with other tonnes) when the note shares at least two content words with the sentence. The same figure counts as a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.</li>
+              <li><strong>Checks the references</strong> by their shape: years after today, DOIs that are not of the form 10.NNNN/..., broken web addresses, duplicates, journal articles with no volume or pages, very generic journal names, "et al." or placeholders in the list, citations with no entry and entries never cited. Two or more such signs, or a journal article with neither volume nor pages plus one other sign, mark an entry "look it up by hand".</li>
+              <li><strong>Compares the draft and your final version.</strong> A word counts as kept word for word when it sits in a run of at least four words that appears, in the same order, in the AI draft. A sentence with 85% or more of its words kept is <em>kept</em>, 30% or more is <em>edited</em>, less than that but sharing at least half its words with an AI sentence is <em>reworded</em>, and anything else is <em>yours</em>.</li>
+              <li><strong>Writes the declaration</strong> from your session log, the checks you have marked and the comparison, in four layouts. It always says how many claims are still unchecked.</li>
+            </ol>
+          </div>
+          <div>
+            <h2>Points for each reason</h2>
+            <div id="how-weights"></div>
+            <p class="small">High risk is a score of 6 or more, medium 3 to 5, low 2 or less.</p>
+            <h2>What it cannot do</h2>
+            <ul>
+              <li><strong>It checks nothing online.</strong> It cannot tell whether a source exists or a figure is true; it tells you where to look. Marking something "verified" is your word, not the tool's.</li>
+              <li><strong>It is not a plagiarism or AI detector.</strong> The changes view compares your final text only with the AI draft you paste, and says nothing about anyone else's writing.</li>
+              <li>Pattern rules miss things and over-flag others: a claim in plain words with no figure, name or quotation may not be flagged at all, and a harmless "the first" will be.</li>
+              <li>Citations are matched on the first author's surname and the year. Styles other than Harvard, APA and numbered lists are read less well.</li>
+              <li>Your university's or employer's own rules decide what you must declare. Choose the layout that fits them and edit the text if needed.</li>
+            </ul>
+            <h2>Formats it reads</h2>
+            <ul>
+              <li>Texts: pasted text, Markdown, .txt, .md, .html and Word .docx files.</li>
+              <li>Session logs: CSV with commas, semicolons or tabs, any column order, UK or ISO dates. Download the template from the Your texts page.</li>
+              <li>Projects: the .json file this page saves, which holds your texts, marks and log so you can carry on next time.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Checked by me runs entirely in this page: nothing you paste is sent anywhere, and it checks nothing online. It is not a plagiarism detector. The sample essay, people, places, journals and AI tools are invented.</p>
+    <p class="foot-fonts">Set in Instrument Serif, Instrument Sans and Spline Sans Mono (SIL Open Font License).</p>
+  </footer>
+</div>
+
+<div id="print-sheet" class="print-sheet"></div>
+<input type="file" id="file-pick" hidden>
+<input type="file" id="file-project" accept=".json,application/json" hidden>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script id="sample-project" type="application/json">/*SAMPLES*/</script>
+<script>
+/*MODEL*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>
