@@ -223,6 +223,11 @@ def python_analysis(job):
         'monthTotals': sp.month_totals(sp.forecast(r, 365, decisions), False),
         'suggestions': {s['id']: sp.suggest(s) for s in r['series']},
         'since': sp.since_last_review(r, sp.read_project(job['saved'])) if job.get('saved') else None,
+        'runways': [sp.runway(r, decisions, {'account': acc['account'], 'balance': acc['closing']['balance'],
+                                             'everyday': r['everyday'][acc['account']]['perDay'] if acc['account'] in r['everyday'] else 0,
+                                             'overdraft': 50000, 'leaveOutCancelled': True, 'days': 60,
+                                             'extraIn': [{'day': r['asOf'] + 20, 'amount': 12345, 'name': 'Loan'}]})
+                    for acc in a['merged']['accounts'] if acc['closing']],
     }
 
 
@@ -314,6 +319,13 @@ class AgreementTest(unittest.TestCase):
     def test_since_last_review(self):
         for label, py, js in self.each():
             self.assertSame(py['since'], js['since'], label + ' since last review')
+
+    def test_balance_runways(self):
+        compared = 0
+        for label, py, js in self.each():
+            self.assertSame(py['runways'], js['runways'], label + ' runways')
+            compared += len(js['runways'])
+        self.assertGreater(compared, 5, 'the samples should give several accounts with a balance')
         later = self.js_for('a month later, with the earlier review')
         self.assertEqual([c['id'] for c in later['since']['stillCharging']], ['IRONWORKS GYM~monthly~1'])
 

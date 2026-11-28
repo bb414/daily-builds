@@ -188,7 +188,7 @@ def build(rng):
         if START <= d <= END:
             cur.add(d, rng.randint(34000, 42000), "CAMPUS CAFE PAYROLL", "Bank credit")
     truth["income"].append({"name": "Campus Cafe Payroll", "cadence": "monthly"})
-    for d, a in [(dt.date(2026, 1, 12), 160233), (dt.date(2026, 4, 20), 160233), (dt.date(2026, 9, 21), 165010)]:
+    for d, a in [(dt.date(2026, 1, 12), 351467), (dt.date(2026, 4, 20), 351467), (dt.date(2026, 9, 21), 351467)]:
         cur.add(d, a, "MAINTENANCE LOAN INSTALMENT", "Bank credit")
 
     # Everyday spending that must not be mistaken for regular payments.
@@ -261,7 +261,7 @@ def build(rng):
 
 
 def write_current(cur, path):
-    bal = 64215
+    bal = 125000
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\r\n")
     w.writerow(["Date", "Type", "Description", "Amount", "Balance"])

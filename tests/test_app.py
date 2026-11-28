@@ -149,6 +149,21 @@ class AppTest(unittest.TestCase):
         page2.close()
         page.close()
 
+    def test_runway_answers_will_the_money_last(self):
+        page = self.open()
+        page.click("#tab-calendar")
+        self.assertEqual(page.input_value("#rw-balance"), "544.99")
+        self.assertIn("Goes past your £1,000.00 overdraft", page.inner_text(".runway-verdict"))
+        self.assertEqual(page.locator(".rw-col").count(), 60)
+        page.fill("#rw-balance", "3000")
+        page.press("#rw-balance", "Tab")
+        page.wait_for_function("document.querySelector('.runway-verdict').innerText.includes('Stays in credit')")
+        page.fill("#rw-x-amount", "250")
+        page.fill("#rw-x-name", "Birthday money")
+        page.click("[data-action=rw-add]")
+        self.assertIn("Birthday money", page.inner_text("#runway"))
+        page.close()
+
     def test_works_inside_a_frame(self):
         host = os.path.join(self.tmp.name, "host.html")
         with open(host, "w", encoding="utf-8") as f:

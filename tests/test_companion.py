@@ -290,7 +290,7 @@ class CommandLineTest(unittest.TestCase):
                                                    'review.json', 'upcoming.ics'])
         register = list(csv.reader(io.StringIO(self.read('out', 'regular-payments.csv').lstrip('\ufeff'))))
         self.assertEqual(register[0][:4], ['Name', 'Category', 'Paid by', 'How often'])
-        self.assertEqual(len(register), 23)
+        self.assertEqual(len(register), 25)  # 22 from the student plus council tax and water from the QIF; with the header
         budget = list(csv.reader(io.StringIO(self.read('out', 'budget-12-months.csv').lstrip('\ufeff'))))
         self.assertEqual(budget[0][1], 'Nov 2026')
         self.assertEqual(budget[-1][0], 'Total')
@@ -306,7 +306,7 @@ class CommandLineTest(unittest.TestCase):
         review = sp.read_project(review_text)
         self.assertNotIn('error', review)
         self.assertEqual(sp.iso(review['reviewedOn']), '2026-11-28')
-        self.assertEqual(len(review['transactions']), 652)
+        self.assertEqual(len(review['transactions']), 703)  # 652 from the CSVs, 23 from the OFX and 28 from the QIF
         report = self.read('out', 'report.html')
         self.assertIn('Files read', report)
         self.assertNotIn('<script', report)
@@ -413,6 +413,55 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 2)
         self.assertIn('not a Still paying review', proc.stderr.decode('utf-8'))
 
+
+
+class RunwayTest(unittest.TestCase):
+    """Will the money last? The balance walk and its command."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_balances_come_from_the_exports(self):
+        a = sp.analyse(sample_files(['current-account.csv', 'savings-account.ofx']))
+        closing = {acc['account']: acc['closing'] for acc in a['merged']['accounts']}
+        self.assertEqual(closing['Current account'], {'day': sp.from_iso('2026-11-27'), 'balance': 54499})
+        self.assertEqual(sp.iso(closing['Savings account']['day']), '2026-11-27')
+        self.assertGreater(closing['Savings account']['balance'], 0)
+        self.assertEqual(a['result']['everyday']['Current account']['days'], 91)
+
+    def test_walk_counts_every_payment_and_one_off_money_in(self):
+        a = sp.analyse(sample_files(['current-account.csv']))
+        r = a['result']
+        rw = sp.runway(r, {}, {'account': 'Current account', 'balance': 100000, 'everyday': 1000, 'days': 30})
+        out = sum(it['amount'] for it in sp.forecast(r, 30, {}) if it['direction'] == 'out')
+        income = sum(it['amount'] for it in sp.forecast(r, 30, {}) if it['direction'] == 'in')
+        self.assertEqual(rw['days'][-1]['balance'], 100000 - out + income - 30 * 1000)
+        self.assertEqual(sp.iso(rw['nextIn']['day']), '2026-12-24')
+        boosted = sp.runway(r, {}, {'account': 'Current account', 'balance': 100000, 'everyday': 1000, 'days': 30,
+                                    'extraIn': [{'day': r['asOf'] + 3, 'amount': 50000, 'name': 'Refund'}]})
+        self.assertEqual(boosted['days'][-1]['balance'], rw['days'][-1]['balance'] + 50000)
+        self.assertEqual(boosted['nextIn']['name'], 'Refund')
+
+    def test_runway_command(self):
+        out = os.path.join(self.tmp.name, 'runway.csv')
+        code = subprocess.run([sys.executable, os.path.join(COMPANION, 'still_paying.py'), 'runway', DATA,
+                               '--account', 'Current account', '--overdraft', '1000',
+                               '--extra', '2027-01-12:3514.67:Loan', '--out', out],
+                              capture_output=True, text=True)
+        self.assertEqual(code.returncode, 0, code.stderr)
+        self.assertIn('goes past the limit', code.stdout)
+        with open(out, encoding='utf-8-sig') as f:
+            rows = list(csv.reader(f))
+        self.assertEqual(rows[0], ['Date', 'Balance', 'Change', 'Payments and money in'])
+        self.assertEqual(len(rows), 61)
+        self.assertTrue(any('+3514.67 Loan' in r[3] for r in rows))
+        bad = subprocess.run([sys.executable, os.path.join(COMPANION, 'still_paying.py'), 'runway', DATA,
+                              '--extra', 'tomorrow:lots'], capture_output=True, text=True)
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertIn('YYYY-MM-DD:AMOUNT:NAME', bad.stderr)
 
 if __name__ == '__main__':
     unittest.main()

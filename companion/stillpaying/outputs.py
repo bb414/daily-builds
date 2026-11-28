@@ -255,7 +255,7 @@ def project_file(state):
     return js_stringify({
         'format': 'still-paying-review', 'version': 1, 'reviewedOn': iso(reviewed),
         'accounts': [{'account': a['account'], 'files': a['files']} for a in _or(state.get('accounts'), [])],
-        'transactions': tx, 'decisions': decisions, 'known': known, 'aliases': _or(state.get('aliases'), {}),
+        'balances': balances_of(state.get('accounts')), 'transactions': tx, 'decisions': decisions, 'known': known, 'aliases': _or(state.get('aliases'), {}),
         'names': _or(state.get('names'), {}), 'manual': _or(state.get('manual'), []),
         'overrides': _or(state.get('overrides'), {}), 'details': _or(state.get('details'), {}),
     })
@@ -281,6 +281,24 @@ def _newer_version(v):
         except ValueError:
             return False
     return False
+
+
+def balances_of(accounts):
+    """Each account's latest balance, for the saved review."""
+    return {a['account']: {'day': iso(a['closing']['day']), 'balance': a['closing']['balance']}
+            for a in (accounts or []) if a.get('closing')}
+
+
+def read_balances(raw):
+    """Balances from a saved review, keeping only well-formed ones."""
+    out = {}
+    for k, b in (raw.items() if isinstance(raw, dict) else []):
+        b = b if isinstance(b, dict) else {}
+        day = from_iso(b.get('day'))
+        bal = b.get('balance')
+        if day is not None and isinstance(bal, (int, float)) and not isinstance(bal, bool) and math.isfinite(bal):
+            out[k] = {'day': day, 'balance': round_half_up(bal)}
+    return out
 
 
 def read_project(text):
@@ -323,4 +341,4 @@ def read_project(text):
             'known': _or(data.get('known'), {}), 'aliases': _or(data.get('aliases'), {}),
             'names': _or(data.get('names'), {}), 'manual': _or(data.get('manual'), []),
             'overrides': _or(data.get('overrides'), {}), 'details': _or(data.get('details'), {}),
-            'accounts': _or(data.get('accounts'), []), 'badRows': bad}
+            'accounts': _or(data.get('accounts'), []), 'badRows': bad, 'balances': read_balances(data.get('balances'))}

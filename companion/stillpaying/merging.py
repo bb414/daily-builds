@@ -53,10 +53,12 @@ def merge_statements(statements):
         a = accounts.get(st['account'])
         if a is None:
             a = accounts[st['account']] = {'account': st['account'], 'start': st['start'], 'end': st['end'],
-                                           'files': []}
+                                           'files': [], 'closing': None}
         a['start'] = min(a['start'], st['start'])
         a['end'] = max(a['end'], st['end'])
         a['files'].append(st['name'])
+        if st.get('closing') and (not a['closing'] or st['closing']['day'] >= a['closing']['day']):
+            a['closing'] = st['closing']
     return {'transactions': out, 'duplicates': total - len(out), 'accounts': [accounts[k] for k in sorted(accounts)]}
 
 

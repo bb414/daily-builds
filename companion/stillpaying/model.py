@@ -6,13 +6,15 @@ from .merging import link_same_accounts, merge_statements
 from .parsing import finish_range, parse_statement
 
 
-def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual=None, overrides=None):
+def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual=None, overrides=None, balances=None):
     """Read every file, merge them, find the regular payments and describe them.
 
     files is a list of {'name', 'text'} with optional 'account' (a name the
     user chose, which stops the file being relabelled) and 'options' (see
     parse_csv). extra holds transactions from a saved review. as_of is a day
-    number (default: the day after the latest transaction). Returns
+    number (default: the day after the latest transaction). balances holds
+    each account's saved balance ({account: {'day', 'balance'}}), used until an
+    export gives a later one. Returns
     {'statements', 'merged', 'result'}.
     """
     statements = []
@@ -36,6 +38,11 @@ def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual
     linked = link_same_accounts(pseudo + statements)
     merged = merge_statements(pseudo + statements)
     merged['linked'] = linked
+    # Balances kept in a saved review count until a newer export gives a later one.
+    for a in merged['accounts']:
+        b = (balances or {}).get(a['account'])
+        if b and (not a['closing'] or a['closing']['day'] < b['day']):
+            a['closing'] = {'day': b['day'], 'balance': b['balance']}
     result = find_regulars(merged['transactions'], as_of=as_of, aliases=aliases, names=names, manual=manual,
                            overrides=overrides)
     return {'statements': statements, 'merged': merged, 'result': result}

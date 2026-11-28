@@ -217,6 +217,64 @@ def plan(result, decisions=None, details=None):
     return {'totals': totals, 'actions': actions, 'forecast': fc}
 
 
+def runway(result, decisions, opts):
+    """Will the money last? Walk one account's balance forward a day at a time.
+
+    Regular payments go out, regular income comes in and everyday spending is
+    taken each day. opts holds account, balance, everyday, overdraft, days,
+    leaveOutCancelled, buffer and extraIn (one-off money in: day, amount, name).
+    """
+    decisions = decisions or {}
+    horizon = opts.get('days') or 42
+    start = result['asOf']
+    everyday = opts.get('everyday') or 0
+    overdraft = opts.get('overdraft') or 0
+    items = []
+    for it in forecast(result, horizon, decisions):
+        s = next((x for x in result['series'] + result['income'] if x['id'] == it['id']), None)
+        if not s or opts['account'] not in s['accounts']:
+            continue
+        if opts.get('leaveOutCancelled') and it['decision'] == 'cancel':
+            continue
+        items.append(it)
+    for x in opts.get('extraIn') or []:
+        if start <= x['day'] < start + horizon and x['amount'] > 0:
+            items.append({'day': x['day'], 'id': 'extra', 'name': x.get('name') or 'Money in', 'amount': x['amount'],
+                          'direction': 'in'})
+    items.sort(key=lambda it: it['day'])
+    bal = opts['balance']
+    days, low, first_below, first_negative = [], None, None, None
+    for i in range(horizon):
+        d = start + i
+        today = [it for it in items if it['day'] == d]
+        change = -everyday
+        for it in today:
+            change += it['amount'] if it['direction'] == 'in' else -it['amount']
+        bal += change
+        days.append({'day': d, 'balance': bal, 'change': change,
+                     'items': [{'id': it['id'], 'name': it['name'], 'amount': it['amount'], 'direction': it['direction']}
+                               for it in today]})
+        if low is None or bal < low['balance']:
+            low = {'day': d, 'balance': bal}
+        if first_negative is None and bal < 0:
+            first_negative = d
+        if first_below is None and bal < -overdraft:
+            first_below = d
+    next_in = None
+    for it in items:
+        if next_in is None and it['direction'] == 'in':
+            next_in = {'day': it['day'], 'amount': it['amount'], 'name': it['name']}
+    until = next_in['day'] if next_in else start + horizon
+    out_before = sum(it['amount'] for it in items if it['direction'] == 'out' and it['day'] < until)
+    count_before = len([it for it in items if it['direction'] == 'out' and it['day'] < until])
+    spare = opts['balance'] - out_before - (opts.get('buffer') or 0)
+    days_left = max(1, until - start)
+    return {'account': opts['account'], 'start': start, 'balance': opts['balance'], 'everyday': everyday,
+            'overdraft': overdraft, 'days': days, 'low': low, 'firstNegative': first_negative, 'firstBelow': first_below,
+            'nextIn': next_in, 'until': until, 'outBefore': out_before, 'countBefore': count_before,
+            'safePerDay': spare // days_left if spare > 0 else 0, 'spare': spare}
+
+
 def since_last_review(result, saved):
     """Compare the regulars now with a saved review.
 

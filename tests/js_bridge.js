@@ -61,7 +61,10 @@ function runAnalysis(job) {
     forecast: M.forecast(r, 92, decisions),
     monthTotals: M.monthTotals(M.forecast(r, 365, decisions), false),
     suggestions: suggestions,
-    since: job.saved ? M.sinceLastReview(r, M.readProject(job.saved)) : null
+    since: job.saved ? M.sinceLastReview(r, M.readProject(job.saved)) : null,
+    runways: a.merged.accounts.filter(function (acc) { return acc.closing; }).map(function (acc) {
+      return M.runway(r, decisions, { account: acc.account, balance: acc.closing.balance, everyday: r.everyday[acc.account] ? r.everyday[acc.account].perDay : 0, overdraft: 50000, leaveOutCancelled: true, days: 60, extraIn: [{ day: r.asOf + 20, amount: 12345, name: 'Loan' }] });
+    })
   };
 }
 

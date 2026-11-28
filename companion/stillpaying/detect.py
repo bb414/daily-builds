@@ -446,7 +446,8 @@ def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=Non
             s['name'] = names[s['id']]
     return {'asOf': as_of, 'dataStart': data_start, 'dataEnd': data_end, 'coverage': coverage, 'series': series,
             'income': income, 'candidates': candidates, 'payday': find_payday(income, as_of),
-            'transferCount': len(transfers)}
+            'transferCount': len(transfers),
+            'everyday': everyday_spending(transactions, series + income, transfers, coverage)}
 
 
 def _renewal_candidate(g, p, as_of):
@@ -469,6 +470,34 @@ def _renewal_candidate(g, p, as_of):
 def status_rank(s):
     """Stopped series sort after active ones."""
     return 1 if s['status'] == 'stopped' else 0
+
+
+def everyday_spending(transactions, all_series, transfers, coverage):
+    """Spending outside the regular payments and transfers: the average a day over the last 91 days of each account."""
+    regular = {}
+    for s in all_series:
+        for p in s['payments']:
+            k = p['account'] + '|' + str(p['day']) + '|' + str(-p['amount'] if s['direction'] == 'out' else p['amount']) + '|' + p['desc']
+            regular[k] = regular.get(k, 0) + 1
+    out = {}
+    for acc in sorted(coverage):
+        c = coverage[acc]
+        start = max(c['start'], c['end'] - 90)
+        days = c['end'] - start + 1
+        total = count = 0
+        for t in transactions:
+            if t['account'] != acc or t['amount'] >= 0 or t['day'] < start or t['day'] > c['end']:
+                continue
+            k = t['account'] + '|' + str(t['day']) + '|' + str(t['amount']) + '|' + t['desc']
+            if regular.get(k):
+                regular[k] -= 1
+                continue
+            if transfers.get(transfer_id(t)):
+                continue
+            total += -t['amount']
+            count += 1
+        out[acc] = {'perDay': round_half_up(total / days), 'days': days, 'count': count, 'total': total}
+    return out
 
 
 def transfer_id(t):

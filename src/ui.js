@@ -24,6 +24,7 @@
     isSample: false, view: 'regulars',
     filter: 'all', search: '', sort: 'yearly',
     calMonths: 3, hideCancelled: false, showIncome: true,
+    runway: { account: null, balance: null, overdraft: 0, everyday: null, extra: [] },
     mapperFor: null, open: {}, ticked: {}
   };
   var A = null; // the latest analysis
@@ -496,6 +497,7 @@
       var biggest = before.slice().sort(function (a, b) { return b.amount - a.amount; })[0];
       html += '<div class="plate plate-dark payday"><div class="big">' + money(sum) + '</div><div><h3 style="color:#fbf7ee">Due before payday on ' + esc(dayLabel(r.payday.next)) + '</h3><p>' + plural(before.length, 'payment') + ' leave' + (before.length === 1 ? 's' : '') + ' between ' + esc(dayLabel(r.asOf)) + ' and the day before your next ' + esc(r.payday.name) + ' (about ' + money(r.payday.typical) + ')' + (biggest ? '; the biggest is ' + esc(biggest.name) + ' at ' + money(biggest.amount) + ' on ' + esc(dayLabel(biggest.day)) : '') + '. Payments you plan to cancel are left out.</p></div></div>';
     }
+    html += runwayHtml();
     // Month grids
     var start = calStart();
     var grids = Math.min(3, state.calMonths);
@@ -531,6 +533,71 @@
     html += '</ul></div>';
     el.innerHTML = html;
   }
+  /* The balance walk to the next money in. */
+  function runwayAccounts() {
+    var accs = {};
+    A.result.series.concat(A.result.income).forEach(function (s) { if (s.status === 'active') s.accounts.forEach(function (a) { accs[a] = (accs[a] || 0) + 1; }); });
+    A.merged.accounts.forEach(function (a) { if (a.closing) accs[a.account] = (accs[a.account] || 0) + 1; });
+    return Object.keys(accs).sort(function (a, b) { return accs[b] - accs[a] || (a < b ? -1 : 1); });
+  }
+  function runwaySettings() {
+    var rw = state.runway, accs = runwayAccounts();
+    var payday = A.result.payday ? M.findSeries(A.result, A.result.payday.seriesId) : null;
+    var account = rw.account && accs.indexOf(rw.account) >= 0 ? rw.account : (payday ? payday.accounts[0] : accs[0]);
+    var acc = A.merged.accounts.filter(function (a) { return a.account === account; })[0];
+    var balance = rw.balance !== null && rw.account === account ? rw.balance : (acc && acc.closing ? acc.closing.balance : null);
+    var ev = A.result.everyday[account];
+    var everyday = rw.everyday !== null && rw.account === account ? rw.everyday : (ev ? ev.perDay : 0);
+    return { account: account, accounts: accs, acc: acc, balance: balance, everyday: everyday, ev: ev, overdraft: rw.overdraft || 0, extra: rw.extra };
+  }
+  function poundsInput(id, value, label, hint) {
+    return '<label class="field"><span>' + label + '</span><input type="text" inputmode="decimal" id="' + id + '" data-runway="' + id + '" value="' + (value === null ? '' : esc(M.plainMoney(value))) + '" autocomplete="off">' + (hint ? '<small class="hint">' + hint + '</small>' : '') + '</label>';
+  }
+  function runwayHtml() {
+    var cfg = runwaySettings();
+    if (!cfg.account) return '';
+    var html = '<div class="plate runway" id="runway"><div class="runway-head"><div><span class="label-tag">Will the money last?</span><h3>Your balance, day by day</h3><p class="hint">Regular payments out, regular income in, and your everyday spending taken off each day. Payments you plan to cancel are left out.</p></div></div>';
+    html += '<div class="runway-form"><label class="field"><span>Account</span><select id="rw-account" data-runway="rw-account">' + cfg.accounts.map(function (a) { return '<option' + (a === cfg.account ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('') + '</select></label>';
+    html += poundsInput('rw-balance', cfg.balance, 'Balance now (\u00a3)', cfg.acc && cfg.acc.closing && state.runway.balance === null ? 'From your export, ' + esc(M.longDate(cfg.acc.closing.day)) : 'Type what your banking app shows');
+    html += poundsInput('rw-overdraft', cfg.overdraft, 'Overdraft limit (\u00a3)', 'Use 0 if you have none');
+    html += poundsInput('rw-everyday', cfg.everyday, 'Everyday spending a day (\u00a3)', cfg.ev ? 'Your last ' + cfg.ev.days + ' days averaged ' + money(cfg.ev.perDay) + ' outside regular payments' : '');
+    html += '</div>';
+    html += '<div class="runway-extra"><p class="hint" style="margin:0 0 4px"><b>One-off money coming in</b> (a loan instalment, a refund, a birthday): it is not regular, so add it here.</p>';
+    cfg.extra.forEach(function (x, i) {
+      html += '<div class="extra-row"><span class="mono">' + esc(M.longDate(x.day)) + '</span><span>' + esc(x.name) + '</span><span class="mono">+' + money(x.amount) + '</span><button type="button" class="linkish" data-action="rw-remove" data-index="' + i + '">Remove</button></div>';
+    });
+    html += '<div class="extra-add"><label class="field"><span>Date</span><input type="date" id="rw-x-day" value="' + M.iso(A.result.asOf + 14) + '"></label><label class="field"><span>What</span><input type="text" id="rw-x-name" placeholder="Loan instalment"></label><label class="field"><span>Amount (\u00a3)</span><input type="text" inputmode="decimal" id="rw-x-amount" placeholder="0.00"></label><button type="button" class="btn btn-small" data-action="rw-add">Add</button></div></div>';
+    if (cfg.balance === null) return html + '<p class="suggest">Type your balance now to see how it changes before payday. Your export did not include a balance column.</p></div>';
+    var rw = M.runway(A.result, state.decisions, { account: cfg.account, balance: cfg.balance, everyday: cfg.everyday, overdraft: cfg.overdraft, days: 60, leaveOutCancelled: true, extraIn: cfg.extra });
+    var verdict, tone;
+    if (rw.firstBelow !== null) { tone = 'alert'; verdict = 'Goes past your ' + (cfg.overdraft ? money(cfg.overdraft) + ' overdraft' : 'balance') + ' on ' + dayLabel(rw.firstBelow) + ' and is lowest on ' + dayLabel(rw.low.day) + ' at ' + money(rw.low.balance) + '.'; }
+    else if (rw.firstNegative !== null) { tone = 'warn'; verdict = 'Dips into your overdraft on ' + dayLabel(rw.firstNegative) + ', lowest ' + money(rw.low.balance) + ' on ' + dayLabel(rw.low.day) + ', but stays within the limit.'; }
+    else { tone = 'good'; verdict = 'Stays in credit for the next 60 days; the lowest point is ' + money(rw.low.balance) + ' on ' + dayLabel(rw.low.day) + '.'; }
+    html += '<div class="runway-verdict ' + tone + '"><p class="verdict">' + esc(verdict) + '</p>';
+    html += '<p>' + (rw.nextIn ? 'Before ' + esc(rw.nextIn.name) + ' arrives on ' + esc(dayLabel(rw.nextIn.day)) + ', ' + plural(rw.countBefore, 'regular payment') + ' take ' + money(rw.outBefore) + '. ' : '') + (rw.safePerDay > 0 ? 'That leaves about <b>' + money(rw.safePerDay) + ' a day</b> to spend until then.' : '<b>Nothing is left over</b> for everyday spending until then without going overdrawn.') + '</p></div>';
+    html += runwayChart(rw);
+    return html + '</div>';
+  }
+  function runwayChart(rw) {
+    var maxPos = 0, maxNeg = 0;
+    rw.days.forEach(function (d) { maxPos = Math.max(maxPos, d.balance); maxNeg = Math.max(maxNeg, -d.balance); });
+    if (rw.overdraft) maxNeg = Math.max(maxNeg, rw.overdraft);
+    var total = Math.max(1, maxPos + maxNeg), H = 170;
+    var posH = Math.round(H * maxPos / total), negH = H - posH;
+    var html = '<div class="rw-chart" role="img" aria-label="' + esc('Balance from ' + money(rw.balance) + ' to ' + money(rw.days[rw.days.length - 1].balance) + ' over 60 days, lowest ' + money(rw.low.balance) + ' on ' + M.longDate(rw.low.day)) + '"><div class="rw-y"><span style="top:0">' + wholeMoney(maxPos) + '</span><span style="top:' + posH + 'px">\u00a30</span>' + (maxNeg ? '<span style="top:' + H + 'px">-' + wholeMoney(maxNeg) + '</span>' : '') + '</div><div class="rw-plot" style="--pos:' + posH + 'px;--neg:' + negH + 'px">';
+    if (rw.overdraft && maxNeg) html += '<div class="rw-limit" style="top:' + (posH + Math.round(negH * rw.overdraft / maxNeg)) + 'px"><span>Overdraft limit</span></div>';
+    rw.days.forEach(function (d) {
+      var tone = d.balance < -rw.overdraft ? 'over' : d.balance < 0 ? 'neg' : 'pos';
+      var h = d.balance >= 0 ? (maxPos ? d.balance / maxPos * posH : 0) : (maxNeg ? -d.balance / maxNeg * negH : 0);
+      var hasIn = d.items.some(function (it) { return it.direction === 'in'; });
+      html += '<div class="rw-col' + (hasIn ? ' in' : '') + '" title="' + esc(dayLabel(d.day) + ': ' + money(d.balance) + (d.items.length ? ' (' + d.items.map(function (it) { return it.name + ' ' + (it.direction === 'in' ? '+' : '-') + money(it.amount); }).join(', ') + ')' : '')) + '"><span class="rw-bar ' + tone + '" style="height:' + Math.max(1, h).toFixed(1) + 'px;' + (d.balance >= 0 ? 'bottom:var(--neg)' : 'top:var(--pos)') + '"></span></div>';
+    });
+    html += '</div></div><div class="rw-x" aria-hidden="true"><span></span><div>';
+    rw.days.forEach(function (d, i) { if (i % 14 === 0) html += '<span style="left:' + (i / rw.days.length * 100).toFixed(2) + '%">' + esc(M.shortDate(d.day)) + '</span>'; });
+    html += '</div></div><ul class="legend" style="margin-top:8px"><li><i style="background:var(--green)"></i>In credit</li><li><i style="background:var(--amber)"></i>In your overdraft</li><li><i style="background:var(--red)"></i>Past your limit</li><li><i style="background:var(--brass-hi)"></i>Money in</li></ul>';
+    return html;
+  }
+
   function monthGrid(y, m, items) {
     var first = M.dayFromYMD(y, m, 1), n = M.daysInMonth(y, m);
     var byDay = {};
@@ -724,6 +791,7 @@
 
   function clearData() {
     state.files = []; state.extra = []; state.saved = null;
+    state.runway = { account: null, balance: null, overdraft: 0, everyday: null, extra: [] };
     state.decisions = {}; state.names = {}; state.aliases = {}; state.manual = []; state.overrides = {};
     state.open = {}; state.ticked = {}; state.mapperFor = null;
   }
@@ -767,6 +835,7 @@
     state.isSample = true;
     state.files = data.files.map(function (f) { return { uid: uid(), name: f.name, text: f.text, account: f.account || '', accountGiven: !!f.account, options: {} }; });
     state.details = { name: 'A. Holder', account: 'a.holder@example.com' };
+    state.runway = { account: null, balance: null, overdraft: 100000, everyday: null, extra: [{ day: M.fromIso('2027-01-12'), amount: 351467, name: 'Maintenance loan instalment' }] };
     Object.keys(SAMPLE_DECISIONS).forEach(function (id) {
       var d = SAMPLE_DECISIONS[id];
       state.decisions[id] = { decision: d.decision, note: d.note || '', decidedOn: d.decidedOn ? M.fromIso(d.decidedOn) : M.fromIso('2026-11-28'), noticeDays: undefined };
@@ -864,6 +933,15 @@
       case 'clear-all': clearData(); state.isSample = false; refresh(); toast('Cleared. Nothing was stored anywhere.'); break;
       case 'confirm': state.manual.push({ id: t.getAttribute('data-id'), cadence: t.getAttribute('data-cadence') }); refresh(); toast('Added as a ' + t.getAttribute('data-cadence') + ' payment.'); break;
       case 'unmerge': delete state.aliases[t.getAttribute('data-key')]; refresh(); break;
+      case 'rw-add': {
+        var xd = M.fromIso($('#rw-x-day').value), xa = M.parseAmount($('#rw-x-amount').value);
+        if (xd === null || xa === null || xa === 0) { toast('Give a date and an amount for the money coming in.'); return; }
+        state.runway.extra.push({ day: xd, amount: Math.abs(xa), name: $('#rw-x-name').value.trim() || 'Money in' });
+        state.runway.extra.sort(function (a, b) { return a.day - b.day; });
+        renderCalendar();
+        break;
+      }
+      case 'rw-remove': state.runway.extra.splice(+t.getAttribute('data-index'), 1); renderCalendar(); break;
       case 'ics': { var ics = M.buildIcs(A.result, state.decisions, { days: state.view === 'calendar' ? horizonDays() : 92 }); download('regular-payments.ics', ics.text, 'text/calendar;charset=utf-8'); break; }
       case 'register': download('regular-payments.csv', M.registerCsv(A.result, state.decisions), 'text/csv;charset=utf-8'); break;
       case 'budget': download('budget-12-months.csv', M.budgetCsv(A.result, state.decisions, 12), 'text/csv;charset=utf-8'); break;
@@ -902,6 +980,24 @@
     if (t.id === 'reg-sort') { state.sort = t.value; renderRegulars(); $('#reg-sort').focus(); return; }
     if (t.id === 'hide-cancel') { state.hideCancelled = t.checked; renderCalendar(); $('#hide-cancel').focus(); return; }
     if (t.id === 'show-income') { state.showIncome = t.checked; renderCalendar(); $('#show-income').focus(); return; }
+    if (t.matches('[data-runway]')) {
+      var rw = state.runway, cfg = runwaySettings();
+      if (t.id === 'rw-account') { rw.account = t.value; rw.balance = null; rw.everyday = null; }
+      else {
+        var v = t.value.trim() === '' ? null : M.parseAmount(t.value);
+        if (t.value.trim() !== '' && v === null) { toast('That is not an amount. Type it like 250.00 or -120.50.'); return; }
+        rw.account = cfg.account;
+        if (t.id === 'rw-balance') rw.balance = v;
+        if (t.id === 'rw-overdraft') rw.overdraft = v === null ? 0 : Math.abs(v);
+        if (t.id === 'rw-everyday') rw.everyday = v === null ? null : Math.abs(v);
+        if (rw.balance === null && t.id !== 'rw-balance') rw.balance = cfg.balance;
+        if (rw.everyday === null && t.id !== 'rw-everyday') rw.everyday = cfg.everyday;
+      }
+      renderCalendar();
+      var back = doc.getElementById(t.id);
+      if (back) back.focus();
+      return;
+    }
     if (t.matches('[data-tick]')) { var id = t.getAttribute('data-tick'); var arr = state.ticked[id] || []; arr[+t.getAttribute('data-step')] = t.checked; state.ticked[id] = arr; return; }
     if (t.matches('[data-field=account]')) {
       var file = state.files.filter(function (x) { return x.uid === t.getAttribute('data-file'); })[0];

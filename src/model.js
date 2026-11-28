@@ -397,7 +397,7 @@
   function parseCsv(text, name, options) {
     options = options || {};
     text = stripBom(String(text || ''));
-    var result = { name: name || 'statement', format: 'csv', account: options.account || defaultAccount(name), transactions: [], skipped: [], warnings: [], layout: null, ok: false, rowCount: 0, blankRows: 0 };
+    var result = { name: name || 'statement', format: 'csv', account: options.account || defaultAccount(name), transactions: [], skipped: [], warnings: [], layout: null, ok: false, rowCount: 0, blankRows: 0, closing: null };
     if (!text.trim()) { result.error = 'The file is empty.'; return result; }
     if (/^\s*[{\[]/.test(text)) { result.error = 'This looks like a JSON file, not a bank statement. To reopen a saved review, use Open a saved review.'; return result; }
     if (/^\s*%PDF/.test(text)) { result.error = 'This is a PDF. Download your statement as CSV from your banking app or website instead.'; return result; }
@@ -493,7 +493,7 @@
       var cur = get('currency').toUpperCase();
       if (cur) currencies[cur] = (currencies[cur] || 0) + 1;
       if (!desc && !memo) desc = '(no description)';
-      raw.push({ day: day, amount: amount, desc: desc || memo, memo: desc ? memo : '', type: get('type'), category: get('category'), line: line });
+      raw.push({ day: day, amount: amount, desc: desc || memo, memo: desc ? memo : '', type: get('type'), category: get('category'), line: line, balance: map.balance !== undefined ? parseAmount(get('balance')) : null });
     });
     var signMode = options.signConvention || 'auto';
     var flipped = false;
@@ -503,6 +503,16 @@
         raw.forEach(function (t) { t.amount = -t.amount; });
         flipped = true;
         if (signMode === 'auto') result.warnings.push('Most amounts in this file are positive, so positive amounts were read as money spent (the way credit card exports usually work). Switch this if it is wrong.');
+      }
+    }
+    if (map.balance !== undefined && !flipped && raw.length) {
+      // The balance after the last payment: the last row of the latest day, whichever way round the file is sorted.
+      var withBal = raw.filter(function (t) { return t.balance !== null; });
+      if (withBal.length) {
+        var maxDay = Math.max.apply(null, withBal.map(function (t) { return t.day; }));
+        var sameDay = withBal.filter(function (t) { return t.day === maxDay; });
+        var pick = raw[0].day <= raw[raw.length - 1].day ? sameDay[sameDay.length - 1] : sameDay[0];
+        result.closing = { day: pick.day, balance: pick.balance };
       }
     }
     var curKeys = Object.keys(currencies);
@@ -553,7 +563,7 @@
     return n;
   }
   function newResult(name, format, options) {
-    return { name: name || 'statement', format: format, account: options.account || defaultAccount(name), transactions: [], skipped: [], warnings: [], layout: null, ok: false, rowCount: 0, blankRows: 0 };
+    return { name: name || 'statement', format: format, account: options.account || defaultAccount(name), transactions: [], skipped: [], warnings: [], layout: null, ok: false, rowCount: 0, blankRows: 0, closing: null };
   }
   var OFX_TYPES = { DIRECTDEBIT: 'Direct debit', REPEATPMT: 'Standing order', POS: 'Card payment', ATM: 'Cash machine', XFER: 'Transfer', CHECK: 'Cheque', PAYMENT: 'Payment', FEE: 'Fee', SRVCHG: 'Service charge', INT: 'Interest', DIV: 'Dividend', DEP: 'Deposit', DIRECTDEP: 'Bank credit', CASH: 'Cash', CREDIT: 'Credit', DEBIT: 'Debit', OTHER: '' };
 
@@ -592,6 +602,11 @@
     }
     if (!result.rowCount) { result.error = 'This OFX file has no transactions in it.'; finishRange(result); return result; }
     if (cur && cur !== 'GBP') result.warnings.push('This file is in ' + cur + '. Amounts are used as they are.');
+    var led = /<LEDGERBAL>([\s\S]*?)(?:<\/LEDGERBAL>|<AVAILBAL>|<\/STMTRS>|<\/CCSTMTRS>|$)/i.exec(text);
+    if (led) {
+      var balAmt = parseAmount(get(led[1], 'BALAMT')), balDay = parseDate(get(led[1], 'DTASOF'), 'DMY');
+      if (balAmt !== null && balDay !== null && !isCard) result.closing = { day: balDay, balance: balAmt };
+    }
     result.layout = { format: 'ofx', description: 'an OFX download (the Money and Quicken format) for a ' + (isCard ? 'credit card' : 'bank account') + ', with dates from DTPOSTED, signed amounts from TRNAMT and payees from NAME', mapping: null, headers: null };
     result.ok = result.transactions.length > 0;
     if (!result.ok) result.error = 'No payments could be read from this file. The transactions it skipped are listed with reasons.';
@@ -700,9 +715,10 @@
     var accounts = {};
     statements.forEach(function (st) {
       if (!st || !st.transactions || !st.transactions.length) return;
-      var a = accounts[st.account] || (accounts[st.account] = { account: st.account, start: st.start, end: st.end, files: [] });
+      var a = accounts[st.account] || (accounts[st.account] = { account: st.account, start: st.start, end: st.end, files: [], closing: null });
       a.start = Math.min(a.start, st.start); a.end = Math.max(a.end, st.end);
       a.files.push(st.name);
+      if (st.closing && (!a.closing || st.closing.day >= a.closing.day)) a.closing = st.closing;
     });
     return { transactions: out, duplicates: total - out.length, accounts: Object.keys(accounts).sort().map(function (k) { return accounts[k]; }) };
   }
@@ -1285,10 +1301,41 @@
     return {
       asOf: asOf, dataStart: isFinite(dataStart) ? dataStart : null, dataEnd: isFinite(dataEnd) ? dataEnd : null,
       coverage: coverage, series: series, income: income, candidates: candidates,
-      payday: findPayday(income, asOf), transferCount: Object.keys(transfers).length
+      payday: findPayday(income, asOf), transferCount: Object.keys(transfers).length,
+      everyday: everydaySpending(transactions, series.concat(income), transfers, coverage)
     };
   }
   function statusRank(s) { return s.status === 'stopped' ? 1 : 0; }
+
+  /**
+   * Spending outside the regular payments and transfers: the average a day
+   * over the last 91 days each account covers. Used to see whether the money
+   * lasts until the next payday.
+   */
+  function everydaySpending(transactions, allSeries, transfers, coverage) {
+    var regular = {};
+    allSeries.forEach(function (s) {
+      s.payments.forEach(function (p) {
+        var k = p.account + '|' + p.day + '|' + (s.direction === 'out' ? -p.amount : p.amount) + '|' + p.desc;
+        regular[k] = (regular[k] || 0) + 1;
+      });
+    });
+    var out = {};
+    Object.keys(coverage).sort().forEach(function (acc) {
+      var c = coverage[acc];
+      var from = Math.max(c.start, c.end - 90), days = c.end - from + 1;
+      var total = 0, count = 0;
+      transactions.forEach(function (t) {
+        if (t.account !== acc || t.amount >= 0 || t.day < from || t.day > c.end) return;
+        var k = t.account + '|' + t.day + '|' + t.amount + '|' + t.desc;
+        if (regular[k]) { regular[k]--; return; }
+        if (transfers[transferId(t)]) return;
+        total += -t.amount; count++;
+      });
+      out[acc] = { perDay: roundHalfUp(total / days), days: days, count: count, total: total };
+    });
+    return out;
+  }
 
   function transferId(t) { return t.account + '|' + t.day + '|' + t.amount + '|' + t.desc; }
   /** Money moved between two of your own accounts: out of one and into another for the same amount within three days. */
@@ -1629,6 +1676,52 @@
     return { totals: totals, actions: actions, forecast: fc };
   }
 
+  /**
+   * Will the money last? Walks one account's balance forward a day at a time
+   * from the balance now: regular payments out, regular income in, and
+   * everyday spending each day. opts: {account, balance, everyday, overdraft,
+   * days, leaveOutCancelled, buffer}
+   */
+  function runway(result, decisions, opts) {
+    decisions = decisions || {};
+    var horizon = opts.days || 42, start = result.asOf;
+    var everyday = opts.everyday || 0, overdraft = opts.overdraft || 0;
+    var items = forecast(result, horizon, decisions).filter(function (it) {
+      var s = findSeries(result, it.id);
+      if (!s || s.accounts.indexOf(opts.account) < 0) return false;
+      if (opts.leaveOutCancelled && it.decision === 'cancel') return false;
+      return true;
+    });
+    (opts.extraIn || []).forEach(function (x) {
+      if (x.day >= start && x.day < start + horizon && x.amount > 0) items.push({ day: x.day, id: 'extra', name: x.name || 'Money in', amount: x.amount, direction: 'in' });
+    });
+    items.sort(function (a, b) { return a.day - b.day; });
+    var bal = opts.balance, days = [], low = null, firstBelow = null, firstNegative = null;
+    for (var i = 0; i < horizon; i++) {
+      var d = start + i;
+      var today = items.filter(function (it) { return it.day === d; });
+      var change = -everyday;
+      today.forEach(function (it) { change += it.direction === 'in' ? it.amount : -it.amount; });
+      bal += change;
+      days.push({ day: d, balance: bal, change: change, items: today.map(function (it) { return { id: it.id, name: it.name, amount: it.amount, direction: it.direction }; }) });
+      if (!low || bal < low.balance) low = { day: d, balance: bal };
+      if (firstNegative === null && bal < 0) firstNegative = d;
+      if (firstBelow === null && bal < -overdraft) firstBelow = d;
+    }
+    var nextIn = null;
+    items.forEach(function (it) { if (!nextIn && it.direction === 'in') nextIn = { day: it.day, amount: it.amount, name: it.name }; });
+    var until = nextIn ? nextIn.day : start + horizon;
+    var outBefore = 0, countBefore = 0;
+    items.forEach(function (it) { if (it.direction === 'out' && it.day < until) { outBefore += it.amount; countBefore++; } });
+    var spare = opts.balance - outBefore - (opts.buffer || 0);
+    var daysLeft = Math.max(1, until - start);
+    return {
+      account: opts.account, start: start, balance: opts.balance, everyday: everyday, overdraft: overdraft, days: days, low: low,
+      firstNegative: firstNegative, firstBelow: firstBelow, nextIn: nextIn, until: until, outBefore: outBefore, countBefore: countBefore,
+      safePerDay: spare > 0 ? Math.floor(spare / daysLeft) : 0, spare: spare
+    };
+  }
+
   /* ------------------------------------------------------------------ */
   /* Since your last review                                              */
   /* ------------------------------------------------------------------ */
@@ -1826,8 +1919,21 @@
     return JSON.stringify({
       format: 'still-paying-review', version: 1, reviewedOn: iso(state.reviewedOn !== undefined ? state.reviewedOn : state.result.asOf),
       accounts: (state.accounts || []).map(function (a) { return { account: a.account, files: a.files }; }),
-      transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], overrides: state.overrides || {}, details: state.details || {}
+      balances: balancesOf(state.accounts), transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], overrides: state.overrides || {}, details: state.details || {}
     }, null, 1);
+  }
+  function readBalances(raw) {
+    var out = {};
+    Object.keys(raw && typeof raw === 'object' ? raw : {}).forEach(function (k) {
+      var b = raw[k] || {}, day = fromIso(b.day);
+      if (day !== null && typeof b.balance === 'number' && isFinite(b.balance)) out[k] = { day: day, balance: roundHalfUp(b.balance) };
+    });
+    return out;
+  }
+  function balancesOf(accounts) {
+    var out = {};
+    (accounts || []).forEach(function (a) { if (a.closing) out[a.account] = { day: iso(a.closing.day), balance: a.closing.balance }; });
+    return out;
   }
   function readProject(text) {
     var data;
@@ -1848,7 +1954,8 @@
     });
     return {
       reviewedOn: fromIso(data.reviewedOn), transactions: tx, decisions: decisions, known: data.known || {},
-      aliases: data.aliases || {}, names: data.names || {}, manual: data.manual || [], overrides: data.overrides || {}, details: data.details || {}, accounts: data.accounts || [], badRows: bad
+      aliases: data.aliases || {}, names: data.names || {}, manual: data.manual || [], overrides: data.overrides || {}, details: data.details || {}, accounts: data.accounts || [], badRows: bad,
+      balances: readBalances(data.balances)
     };
   }
 
@@ -1884,6 +1991,12 @@
     var linked = linkSameAccounts(pseudo.concat(statements));
     var merged = mergeStatements(pseudo.concat(statements));
     merged.linked = linked;
+    // Balances kept in a saved review count until a newer export gives a later one.
+    var saved = input.balances || {};
+    merged.accounts.forEach(function (a) {
+      var b = saved[a.account];
+      if (b && (!a.closing || a.closing.day < b.day)) a.closing = { day: b.day, balance: b.balance };
+    });
     var result = findRegulars(merged.transactions, { asOf: input.asOf, aliases: input.aliases, names: input.names, manual: input.manual, overrides: input.overrides });
     return { statements: statements, merged: merged, result: result };
   }
@@ -1917,7 +2030,7 @@
     categorise: categorise, paymentMethod: paymentMethod, fitCadence: fitCadence, anchorDay: anchorDay, amountProfile: amountProfile,
     explainGroup: explainGroup, findRegulars: findRegulars, matchTransfers: matchTransfers, forecast: forecast, monthTotals: monthTotals,
     suggest: suggest, howToStop: howToStop, cancelMessage: cancelMessage, plan: plan, noticeDaysFor: noticeDaysFor, isCost: isCost,
-    sinceLastReview: sinceLastReview, registerCsv: registerCsv, budgetCsv: budgetCsv, buildIcs: buildIcs, icsFold: icsFold, icsEscape: icsEscape,
+    sinceLastReview: sinceLastReview, runway: runway, everydaySpending: everydaySpending, registerCsv: registerCsv, budgetCsv: budgetCsv, buildIcs: buildIcs, icsFold: icsFold, icsEscape: icsEscape,
     toCsv: toCsv, templateCsv: templateCsv, projectFile: projectFile, readProject: readProject, analyse: analyse, summary: summary, findSeries: findSeries,
     lastNominal: lastNominal, scheduleFrom: scheduleFrom, whenText: whenText, anchorText: anchorText, expectedAmount: expectedAmount, nominalInMonth: nominalInMonth, monthlyCost: monthlyCost, annualCost: annualCost
   };

@@ -468,7 +468,7 @@ def parse_csv(text, name=None, options=None):
     text = strip_bom(text_or(text))
     result = {'name': name or 'statement', 'format': 'csv', 'account': options.get('account') or default_account(name),
               'transactions': [], 'skipped': [], 'warnings': [], 'layout': None, 'ok': False, 'rowCount': 0,
-              'blankRows': 0}
+              'blankRows': 0, 'closing': None}
     if not js_trim(text):
         result['error'] = 'The file is empty.'
         return result
@@ -616,7 +616,8 @@ def parse_csv(text, name=None, options=None):
         if not desc and not memo:
             desc = '(no description)'
         raw.append({'day': day, 'amount': amount, 'desc': desc or memo, 'memo': memo if desc else '',
-                    'type': get('type'), 'category': get('category'), 'line': line})
+                    'type': get('type'), 'category': get('category'), 'line': line,
+                    'balance': parse_amount(get('balance')) if 'balance' in mapping else None})
     sign_mode = options.get('signConvention') or 'auto'
     flipped = False
     if 'amount' in mapping and 'sign' not in mapping and raw:
@@ -627,6 +628,14 @@ def parse_csv(text, name=None, options=None):
             flipped = True
             if sign_mode == 'auto':
                 result['warnings'].append(WARN_FLIPPED)
+    if 'balance' in mapping and not flipped and raw:
+        # The balance after the last payment: the last row of the latest day, whichever way round the file is sorted.
+        with_bal = [t for t in raw if t['balance'] is not None]
+        if with_bal:
+            max_day = max(t['day'] for t in with_bal)
+            same_day = [t for t in with_bal if t['day'] == max_day]
+            pick = same_day[-1] if raw[0]['day'] <= raw[-1]['day'] else same_day[0]
+            result['closing'] = {'day': pick['day'], 'balance': pick['balance']}
     non_gbp = [c for c in js_keys(currencies) if c != 'GBP']
     if non_gbp:
         result['warnings'].append('Some rows are in ' + ', '.join(non_gbp)
@@ -710,7 +719,7 @@ def _line_at(text, index):
 def _new_result(name, fmt, options):
     return {'name': name or 'statement', 'format': fmt, 'account': options.get('account') or default_account(name),
             'transactions': [], 'skipped': [], 'warnings': [], 'layout': None, 'ok': False, 'rowCount': 0,
-            'blankRows': 0}
+            'blankRows': 0, 'closing': None}
 
 
 OFX_TYPES = {'DIRECTDEBIT': 'Direct debit', 'REPEATPMT': 'Standing order', 'POS': 'Card payment', 'ATM': 'Cash machine',
@@ -719,6 +728,7 @@ OFX_TYPES = {'DIRECTDEBIT': 'Direct debit', 'REPEATPMT': 'Standing order', 'POS'
              'CREDIT': 'Credit', 'DEBIT': 'Debit', 'OTHER': ''}
 # [\s\S] in the JavaScript means any character, which is "." with DOTALL here.
 _STMTTRN = re.compile(r'<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>)|(?=</BANKTRANLIST>))', re.IGNORECASE | re.DOTALL)
+_LEDGER = re.compile(r'<LEDGERBAL>(.*?)(?:</LEDGERBAL>|<AVAILBAL>|</STMTRS>|</CCSTMTRS>|\Z)', re.IGNORECASE | re.DOTALL)
 _CARD_STATEMENT = js_regex(r'<CCSTMTRS>|<CCACCTFROM>', 'i')
 _SPACES = js_regex(r'\s+')
 
@@ -773,6 +783,11 @@ def parse_ofx(text, name=None, options=None):
         return result
     if cur and cur != 'GBP':
         result['warnings'].append('This file is in ' + cur + '. Amounts are used as they are.')
+    led = _LEDGER.search(text)
+    if led:
+        bal_amt, bal_day = parse_amount(_ofx_get(led.group(1), 'BALAMT')), parse_date(_ofx_get(led.group(1), 'DTASOF'), 'DMY')
+        if bal_amt is not None and bal_day is not None and not is_card:
+            result['closing'] = {'day': bal_day, 'balance': bal_amt}
     result['layout'] = {'format': 'ofx', 'description': 'an OFX download (the Money and Quicken format) for a '
                         + ('credit card' if is_card else 'bank account')
                         + ', with dates from DTPOSTED, signed amounts from TRNAMT and payees from NAME',
