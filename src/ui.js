@@ -205,17 +205,32 @@
     }
   }
 
+  // After an import, bring its report into view and say what happened.
+  function afterImport(selector, imp) {
+    setTimeout(function () {
+      var box = $(selector);
+      if (!box) return;
+      var notes = box.querySelector('.notes');
+      if (notes && notes.getBoundingClientRect().bottom > window.innerHeight) notes.scrollIntoView({ block: 'nearest' });
+    }, 0);
+    if (imp && !imp.count) {
+      var err = (imp.messages || []).filter(function (m) { return m.level === 'error'; })[0];
+      toast(err ? 'Not read: ' + err.text.split('. ')[0] + '.' : 'Nothing could be read from that.');
+    }
+  }
+
   function importExams(text, name) {
     if (text === null) { state.imports.exams = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }], count: 0 }; renderAll(); return; }
     var res = M.readExams(text, { ref: state.isSample ? realToday() : state.today });
     state.imports.exams = { name: name || 'pasted text', messages: res.messages, count: res.exams.length, format: res.format };
-    if (!res.exams.length) { renderAll(); return; }
+    if (!res.exams.length) { renderAll(); afterImport('[data-drop=exams]', state.imports.exams); return; }
     ensureOwn();
     var p = state.project;
     p.exams = res.exams.map(function (e) { return { id: e.id, code: e.code, name: e.name, day: e.day, start: e.start, duration: e.duration, room: e.room, seat: e.seat, type: e.type, resit: e.resit, tbc: e.tbc, note: e.note }; });
     addSource('exams', name, res);
     state.project = M.cleanProject(JSON.parse(M.projectFile(p)), realToday());
     changed('Read ' + res.exams.length + ' exams.');
+    afterImport('[data-drop=exams]', null);
   }
 
   function importTopics(text, name, replace) {
@@ -223,7 +238,7 @@
     var exams = state.isSample ? [] : state.project.exams;
     var res = M.readTopics(text, { exams: exams });
     state.imports.topics = { name: name || 'pasted text', messages: res.messages, count: res.topics.length, format: res.format };
-    if (!res.topics.length) { renderAll(); return; }
+    if (!res.topics.length) { renderAll(); afterImport('[data-drop=topics]', state.imports.topics); return; }
     ensureOwn();
     var p = state.project;
     var kept = replace ? [] : p.topics.slice();
@@ -248,7 +263,7 @@
     var h = calendarHorizon();
     var res = M.readBusy(text, h[0], h[1]);
     state.imports.calendar = { name: name || 'calendar', messages: res.messages, count: res.busy.length };
-    if (!res.busy.length && !res.allDay.length) { renderAll(); return; }
+    if (!res.busy.length && !res.allDay.length) { renderAll(); afterImport('[data-drop=calendar]', state.imports.calendar); return; }
     ensureOwn();
     var p = state.project;
     var seen = {};
@@ -268,8 +283,8 @@
   function importAvailability(text, name) {
     if (text === null) { state.imports.availability = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }] }; renderAll(); return; }
     var res = M.readAvailability(text, state.project.week);
-    state.imports.availability = { name: name || 'availability', messages: res.messages };
-    if (!res.rows) { renderAll(); return; }
+    state.imports.availability = { name: name || 'availability', messages: res.messages, count: res.rows };
+    if (!res.rows) { renderAll(); afterImport('[data-drop=availability]', state.imports.availability); return; }
     ensureOwn();
     var p = state.project;
     p.week = res.week;
@@ -349,8 +364,8 @@
     }
     $('#hero-grid').innerHTML = parts.join('');
     var next = state.summary.next;
-    $('#hero-count').textContent = next ? String(next.daysLeft) : '0';
-    $('#hero-count-label').textContent = next ? (next.daysLeft === 1 ? 'DAY' : 'DAYS') + ' · ' + next.code : 'NO EXAMS';
+    $('#hero-count').textContent = next ? String(next.daysLeft) : '?';
+    $('#hero-count-label').textContent = next ? (next.daysLeft === 1 ? 'DAY' : 'DAYS') + ' · ' + next.code : 'ADD YOUR EXAMS';
     $('#hero-card-code').textContent = 'TODAY · ' + M.fmtShort(today).toUpperCase();
     var lines = state.status.todaySessions.slice(0, 4).map(function (s, i) {
       var done = isDone(s.id);
@@ -363,7 +378,7 @@
     var years = {};
     plan.exams.forEach(function (e) { years[M.ymdFromDay(e.day)[0]] = true; });
     var ys = Object.keys(years).sort();
-    $('#kicker-year').textContent = ys.length ? 'Exams ' + ys.join('/') : 'Exams';
+    $('#kicker-year').textContent = ys.length ? 'Exams ' + ys.join('/') : 'Your exams';
   }
 
   function isDone(id) {
@@ -472,7 +487,7 @@
           '<span class="name-cell"><input type="text" value="' + esc(e.name) + '" data-exam="' + i + '" data-field="name" aria-label="Title of ' + esc(e.code) + '"></span>' +
           '<span><input type="date" value="' + (e.day === null ? '' : M.isoDay(e.day)) + '" data-exam="' + i + '" data-field="day" aria-label="Date of ' + esc(label) + '">' + (e.day === null ? '<span class="tag red">date TBC</span>' : '') + '</span>' +
           '<span><input type="time" value="' + M.fmtTime(e.start) + '" data-exam="' + i + '" data-field="start" aria-label="Start time of ' + esc(label) + '"></span>' +
-          '<span><input type="number" min="15" max="1440" step="15" value="' + e.duration + '" data-exam="' + i + '" data-field="duration" aria-label="Length in minutes of ' + esc(label) + '"></span>' +
+          '<span class="unit"><input type="number" min="15" max="1440" step="15" value="' + e.duration + '" data-exam="' + i + '" data-field="duration" aria-label="Length in minutes of ' + esc(label) + '"><em>min</em></span>' +
           '<span class="room-cell"><input type="text" value="' + esc(e.room) + '" data-exam="' + i + '" data-field="room" aria-label="Room for ' + esc(label) + '" placeholder="Room"></span>' +
           '<span class="del-cell"><button type="button" class="btn-x" data-action="del-exam" data-i="' + i + '" aria-label="Remove ' + esc(label) + '">×</button></span></div>');
       });
@@ -665,9 +680,19 @@
       '<div class="plan-tools no-print"><span class="seg" role="group" aria-label="Show the plan as"><button type="button" data-mode="calendar" aria-pressed="' + (state.planMode === 'calendar') + '">Calendar</button><button type="button" data-mode="week" aria-pressed="' + (state.planMode === 'week') + '">Week</button><button type="button" data-mode="list" aria-pressed="' + (state.planMode === 'list') + '">List</button></span>' +
       '<button type="button" class="btn btn-small btn-blue" data-action="ics-all">Calendar file (.ics)</button><label class="alarm-pick"><span>Reminders</span><select id="alarm" aria-label="Reminder before each session in the calendar file"><option value="0"' + (state.alarm === 0 ? ' selected' : '') + '>none</option><option value="10"' + (state.alarm === 10 ? ' selected' : '') + '>10 min before</option><option value="30"' + (state.alarm === 30 ? ' selected' : '') + '>30 min before</option></select></label>' +
       '<button type="button" class="btn btn-small" data-action="csv">Sessions (CSV)</button><button type="button" class="btn btn-small" data-action="markdown">Checklist (.md)</button><button type="button" class="btn btn-small btn-pink" data-action="print">' + (state.planMode === 'week' ? 'Print this week' : 'Print wall planner') + '</button></div></div>');
-    plan.notes.forEach(function () {});
     if (plan.notes.length) h.push(notesHtml(plan.notes.map(function (n) { return { level: n.level, text: n.text }; })));
-    if (!plan.exams.length) { $('#view-plan').innerHTML = h.join(''); return; }
+    if (!plan.exams.length) {
+      h.push('<div class="card taped plain" style="max-width:640px;margin-top:20px"><div class="card-head"><h3>Three steps to a plan</h3></div><div class="card-body"><ol class="steps">' +
+        '<li><b>Your exam timetable.</b> Drop the file from your student portal, or paste the table. <button type="button" class="btn-link" data-go="exams">Exams and topics</button></li>' +
+        '<li><b>Your topics</b>, with how confident you feel about each. Same place.</li>' +
+        '<li><b>Your time</b>: a normal week, days off, and your calendar or rota. <button type="button" class="btn-link" data-go="time">Your time</button></li></ol>' +
+        '<p class="small muted" style="margin-top:12px">The plan appears here as soon as there is an exam with a date. Or <button type="button" class="btn-link" data-action="show-sample">look at the sample again</button>.</p></div></div>');
+      var html = h.join('');
+      var a = html.indexOf('<div class="plan-tools no-print">'), b = html.indexOf('</div></div>', a);
+      if (a >= 0 && b > a) html = html.slice(0, a) + html.slice(b + 6);
+      $('#view-plan').innerHTML = html;
+      return;
+    }
     h.push(legendHtml());
     var by = sessionsByDay();
     if (state.planMode === 'list') {
@@ -889,11 +914,17 @@
       '<div class="field today-field"><label for="today-is">Today is</label><input type="date" id="today-is" value="' + M.isoDay(today) + '"><span class="hint">' + (p.asOf !== null ? 'Set by hand (the real date is ' + esc(M.fmtShort(realToday())) + '). <button type="button" class="btn-link" data-action="real-today">Use the real date</button>' : 'Change it to see the plan on another day.') + '</span></div></div>');
     h.push('<div class="cols-3">');
     // Today
-    var t = ['<div class="card taped pinned" style="grid-column:span 2"><div class="card-head"><h3>Today, ' + esc(M.fmtShort(today)) + '</h3><span class="mono small">' + M.fmtDur(state.summary.todayDone) + ' of ' + M.fmtDur(state.summary.todayMin) + ' done</span></div><div class="card-body">'];
+    if (!plan.exams.length) {
+      h.push('<p class="sticky" style="max-width:560px">Nothing to track yet. Load your exam timetable and topics under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>, and your sessions for each day appear here to tick off.</p>');
+      $('#view-progress').innerHTML = h.join('');
+      return;
+    }
+    var t = ['<div class="card taped pinned" style="grid-column:span 2"><div class="card-head"><h3>Today, ' + esc(M.fmtShort(today)) + '</h3>' + (state.summary.todayMin ? '<span class="mono small">' + M.fmtDur(state.summary.todayDone) + ' of ' + M.fmtDur(state.summary.todayMin) + ' done</span>' : '') + '</div><div class="card-body">'];
     plan.exams.forEach(function (e) { if (e.day === today) t.push('<p><span class="exam-mark">EXAM</span> <b>' + esc(e.code + ' ' + e.name) + '</b> at <span class="mono">' + M.fmtTime(e.start) + '</span>' + (e.room ? ', ' + esc(e.room) : '') + '. Good luck.</p>'); });
     if (!st.todaySessions.length) t.push('<p class="muted">Nothing planned today.' + (today < plan.from ? ' The plan starts on ' + esc(M.fmtShort(plan.from)) + '.' : '') + '</p>');
     st.todaySessions.forEach(function (s) { t.push(sessionRow(s, true)); });
-    t.push('<div class="btn-row" style="margin-top:10px"><button type="button" class="btn btn-small" data-action="copy-day" data-day="' + today + '">Copy today as text</button><button type="button" class="btn btn-small" data-action="ics-day" data-day="' + today + '">Today (.ics)</button></div></div></div>');
+    if (st.todaySessions.length) t.push('<div class="btn-row" style="margin-top:10px"><button type="button" class="btn btn-small" data-action="copy-day" data-day="' + today + '">Copy today as text</button><button type="button" class="btn btn-small" data-action="ics-day" data-day="' + today + '">Today (.ics)</button></div>');
+    t.push('</div></div>');
     h.push(t.join(''));
     // Re-plan
     var missedN = st.missed.length, missedMin = 0;

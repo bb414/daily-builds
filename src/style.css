@@ -176,10 +176,10 @@ h4 { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-tran
 
 /* ---------- Index cards ---------- */
 .card { position: relative; background: var(--card); border-radius: 3px; box-shadow: var(--shadow);
-  background-image: linear-gradient(transparent 46px, #f08f96 46px, #f08f96 47.5px, transparent 47.5px), repeating-linear-gradient(transparent 0 27px, var(--rule) 27px 28px);
-  background-position: 0 0, 0 47px; padding: 0 0 14px; }
+  background-image: repeating-linear-gradient(transparent 0 27px, var(--rule) 27px 28px); padding: 0 0 14px; }
 .card.plain { background-image: none; }
-.card-head { min-height: 47px; padding: 12px 18px 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.card-head { min-height: 47px; padding: 12px 18px 8px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px;
+  background: var(--card); border-bottom: 1.5px solid #f08f96; border-radius: 3px 3px 0 0; }
 .card-head h3 { margin: 0; font-size: 19px; }
 .card-body { padding: 12px 18px 0; }
 .card.tilt-l { transform: rotate(-.6deg); }
@@ -253,7 +253,13 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
 .hours { font-family: var(--mono); font-size: 13px; color: var(--pencil); white-space: nowrap; }
 .topic-row .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; justify-content: flex-end; }
 .topic-row .opts .hours { min-width: 82px; text-align: right; }
-.today-field input { width: auto; }
+.today-field { max-width: 240px; }
+.today-field input { width: 100%; }
+.unit { display: flex; align-items: center; gap: 5px; }
+.unit em { font-style: normal; font-size: 12.5px; color: var(--pencil); }
+.steps { counter-reset: step; list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.steps li { counter-increment: step; position: relative; padding-left: 40px; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--h0); font-family: var(--display); font-weight: 800; }
 .add-topic { display: flex; gap: 8px; margin-top: 10px; }
 .add-topic input { flex: 1; min-width: 0; }
 
@@ -541,7 +547,13 @@ textarea { width: 100%; min-height: 118px; resize: vertical; font-family: var(--
   .cols-side { display: block; }
   .month { break-after: page; break-inside: avoid; }
   .month:last-child { break-after: auto; }
-  .cell { min-height: 26mm; cursor: default; }
+  .view-head { display: none !important; }
+  .legend { margin-bottom: 2mm; font-size: 10px; }
+  .months { gap: 0; }
+  .month h3 { font-size: 20px; margin: 0 0 2mm; }
+  .cell { min-height: 21mm; cursor: default; padding-top: 16px; }
+  .chip { font-size: 9.5px; line-height: 1.25; }
+  .wscroll { zoom: .74; }
   .week-nav { display: none !important; }
   .print-only { display: block; font-family: var(--display); font-weight: 800; font-size: 18px; margin: 0 0 3mm; }
   .wscroll { overflow: visible; }

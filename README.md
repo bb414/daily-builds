@@ -117,19 +117,23 @@ Tests that need Node, Playwright or `icalendar` skip cleanly when they are missi
 
 ![The plan as a wall planner: December and January month grids with highlighter chips for each session, exams circled, final-review days labelled, today's sessions on an index card and hours planned each week](docs/02-plan.png)
 
-![Progress: today's sessions with tick boxes, the re-plan card, and an on-track card for each exam with hours done, still planned and missed](docs/03-progress.png)
+![The week timetable: seven columns by the clock, with revision sessions as highlighter blocks between grey lectures, cafe shifts and rugby, inside the pale blue revision window](docs/03-week.png)
 
-![After re-planning: three exams on track, one tight and Business Analytics marked not enough time](docs/04-after-replan.png)
+![Progress: today's sessions with tick boxes and shaky, OK or solid buttons for reviews, the re-plan card, and an on-track card for each exam with hours done, still planned and missed](docs/04-progress.png)
 
-![Exams and topics after pasting a messy timetable: six exams read, one with its date to be confirmed, and the notes on what was skipped](docs/05-exams-and-topics.png)
+![After re-planning: three exams on track, one tight and Business Analytics marked not enough time](docs/05-after-replan.png)
 
-![Your time: a normal week with windows and hours, the days that are different, and the busy times read from a calendar file](docs/06-your-time.png)
+![The topic tracker: each module's topics with confidence, learning blocks, review dots coloured by how each review went, the next session and a state such as reviewing or not started](docs/06-topic-tracker.png)
 
-![The rules: twelve index cards explaining how the plan is made, with the current settings](docs/07-rules.png)
+![Exams and topics after pasting a messy timetable: the checks note, six exams read, one with its date to be confirmed, and the notes on what was skipped](docs/07-exams-and-topics.png)
 
-![The app at phone width](docs/08-phone.png)
+![Your time: a normal week with windows and hours, the days that are different, and the busy times read from a calendar file](docs/08-your-time.png)
 
-![The companion's HTML report of the same plan](docs/09-companion-report.png)
+![The rules: index cards explaining how the plan is made, with the current settings](docs/09-rules.png)
+
+![The app at phone width](docs/10-phone.png)
+
+![The companion's HTML report of the same plan](docs/11-companion-report.png)
 
 ## Which language does what
 

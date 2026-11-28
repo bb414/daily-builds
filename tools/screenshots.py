@@ -38,21 +38,26 @@ def main():
         page.wait_for_timeout(400)
         page.screenshot(path=os.path.join(DOCS, '01-first-screen.png'))
         view(page, 'plan', os.path.join(DOCS, '02-plan.png'), 1400)
-        view(page, 'progress', os.path.join(DOCS, '03-progress.png'), 1500)
+        page.click('[data-mode=week]')
+        page.wait_for_timeout(200)
+        view(page, 'plan', os.path.join(DOCS, '03-week.png'), 1080)
+        view(page, 'progress', os.path.join(DOCS, '04-progress.png'), 1500)
         page.click('[data-action=replan]')
         page.wait_for_timeout(300)
         top = page.evaluate("document.querySelector('.track-cards').getBoundingClientRect().top + window.scrollY")
-        page.screenshot(path=os.path.join(DOCS, '04-after-replan.png'), clip={'x': 0, 'y': top - 60, 'width': 1280, 'height': 760}, full_page=True)
+        page.screenshot(path=os.path.join(DOCS, '05-after-replan.png'), clip={'x': 0, 'y': top - 60, 'width': 1280, 'height': 760}, full_page=True)
+        page = fresh()
+        view(page, 'topics', os.path.join(DOCS, '06-topic-tracker.png'), 1150)
         page = fresh()
         page.click('#banner [data-action=try-messy]')
         page.wait_for_timeout(300)
-        view(page, 'exams', os.path.join(DOCS, '05-exams-and-topics.png'), 1150)
+        view(page, 'exams', os.path.join(DOCS, '07-exams-and-topics.png'), 1250)
         page = fresh()
-        view(page, 'time', os.path.join(DOCS, '06-your-time.png'), 1300)
-        view(page, 'rules', os.path.join(DOCS, '07-rules.png'), 1100)
+        view(page, 'time', os.path.join(DOCS, '08-your-time.png'), 1300)
+        view(page, 'rules', os.path.join(DOCS, '09-rules.png'), 1100)
         phone = fresh(390, 844, 2)
         phone.wait_for_timeout(300)
-        phone.screenshot(path=os.path.join(DOCS, '08-phone.png'))
+        phone.screenshot(path=os.path.join(DOCS, '10-phone.png'))
         from examseason import model as m, report
         proj = m.read_project(open(os.path.join(ROOT, 'data', 'sample-project.json'), encoding='utf-8').read(), m.day_from_ymd(2026, 12, 10))['project']
         with tempfile.TemporaryDirectory() as tmp:
@@ -61,8 +66,17 @@ def main():
                 fh.write(report.plan_report(proj, m.day_from_ymd(2026, 12, 10)))
             rp = b.new_page(viewport={'width': 1100, 'height': 1000})
             rp.goto('file://' + path)
-            rp.screenshot(path=os.path.join(DOCS, '09-companion-report.png'))
+            rp.screenshot(path=os.path.join(DOCS, '11-companion-report.png'))
         b.close()
+    # Keep the files small: the painted-wall texture makes plain PNGs heavy.
+    try:
+        from PIL import Image
+        for name in os.listdir(DOCS):
+            if name.endswith('.png'):
+                path = os.path.join(DOCS, name)
+                Image.open(path).convert('RGB').quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(path, optimize=True)
+    except ImportError:
+        pass
     print('Wrote the screenshots to docs/')
 
 
