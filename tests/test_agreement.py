@@ -185,7 +185,7 @@ class AgreementTest(unittest.TestCase):
                        {'equity': '1000', 'riskPct': '0.5', 'entry': '1.2345', 'stop': '1.2001', 'step': '0.1', 'currency': 'GBP'},
                        {'equity': '1000', 'riskPct': '1', 'entry': '100', 'stop': '50'}, {'equity': '', 'riskPct': '1', 'entry': '1', 'stop': '2'}],
             'delimited': ['a,"b, c","say ""hi"""\r\n1,"two\nlines",3', 'x;y\n1;2\n', '"unterminated,1\n2,3', ''],
-            'formats': [0, 5, -5, 123456, -9999999, 50, 150, 2500, 99999999],
+            'formats': [0, 5, -5, 123456, -9999999, 50, 150, 2500, 99999999, 22160, 22000, 4],
             'exports': [{'name': n, 'text': t} for n, t in EDGE.items()],
         }
         js = h.run_bridge(job)
@@ -202,7 +202,7 @@ class AgreementTest(unittest.TestCase):
             'sizing': [h.rt.position_size(s) for s in job['sizing']],
             'delimited': [{'delim': h.rt.sniff_delimiter(t), 'parsed': h.rt.parse_delimited(t, h.rt.sniff_delimiter(t))} for t in job['delimited']],
             'formats': [{'money': h.rt.money(x, 'USD'), 'sign': h.rt.money(x, 'GBP', sign=True), 'whole': h.rt.money(x, 'EUR', whole=True), 'num': h.rt.fmt_num(x / 7, 2),
-                         'pct': h.rt.fmt_pct(x / 100000, 1), 'r': h.rt.fmt_r(x / 1000), 'price': h.rt.fmt_price(x * 1000), 'qty': h.rt.fmt_qty(x * 10000),
+                         'pct': h.rt.fmt_pct(x / 100000, 1), 'r': h.rt.fmt_r(x / 1000), 'units': h.rt.fmt_units(x / 8), 'price': h.rt.fmt_price(x * 1000), 'qty': h.rt.fmt_qty(x * 10000),
                          'dur': h.rt.fmt_duration(abs(x)), 'date': h.rt.fmt_date(20000 + abs(x) % 3000)} for x in job['formats']],
             'exports': [h.rt.read_export(e['name'], e['text'], {}) for e in job['exports']],
             'template': h.rt.template_csv(),

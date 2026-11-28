@@ -376,6 +376,9 @@ test('files: the template reads back, the CSVs quote what they must, and formats
   assert.equal(M.fmtQty(2500000), '2.5');
   assert.equal(M.fmtDuration(7385), '2 h 03 min');
   assert.equal(M.fmtR(1.2345), '+1.23R');
+  assert.equal(M.fmtUnits(2770), '2,770');
+  assert.equal(M.fmtUnits(2.5), '2.5');
+  assert.equal(M.fmtUnits(0.125), '0.125');
 });
 
 test('columns chosen by hand: an unknown layout, and overriding a wrong guess', function () {

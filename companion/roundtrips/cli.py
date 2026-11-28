@@ -16,7 +16,7 @@ import os
 import sys
 
 from .days import days_csv
-from .common import fmt_num, fmt_pct, fmt_price, fmt_r, from_iso, money, plural, rnd, to_iso, week_start
+from .common import fmt_num, fmt_pct, fmt_units, fmt_price, fmt_r, from_iso, money, plural, rnd, to_iso, week_start
 from .jobs import latest_week, load_state, read_text, team_review, weekly_job, with_default_start, write_team, write_text
 from .matching import analyse, import_files
 from .outputs import breaches_csv, fills_csv, position_size, template_csv, trades_csv
@@ -167,7 +167,7 @@ def cmd_size(args):
     if not out['ok']:
         print(out['msg'])
         return 1
-    units = fmt_num(out['units'], 4).rstrip('0').rstrip('.')
+    units = fmt_units(out['units'])
     print('%s %s (loss at the stop with fees %s, %s%% of the account)' % ('Buy' if out['direction'] == 'long' else 'Sell short', units,
                                                                          money(out['risk'], args.currency), fmt_num(out['riskPct'], 2)))
     print('Position value %s (%s%% of the account)%s' % (money(out['value'], args.currency), fmt_num(out['valuePct'], 1),

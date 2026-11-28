@@ -1120,7 +1120,7 @@
   function sizeOutHtml(out, cur) {
     if (!out.ok) return '<div class="size-out warn" role="status"><p style="margin:0">' + esc(out.msg) + '</p></div>';
     var unit = out.units === 1 ? 'share or contract' : 'shares or contracts';
-    return '<div class="size-out" role="status"><div class="big">' + (out.direction === 'long' ? 'Buy ' : 'Sell short ') + esc(M.fmtNum(out.units, out.units % 1 ? 4 : 0).replace(/\.?0+$/, '') || '0') + '</div><span>' + unit + '</span><ul>' +
+    return '<div class="size-out" role="status"><div class="big">' + (out.direction === 'long' ? 'Buy ' : 'Sell short ') + esc(M.fmtUnits(out.units)) + '</div><span>' + unit + '</span><ul>' +
       '<li>Loss at the stop, with fees: <strong>' + esc(M.money(out.risk, cur)) + '</strong> (' + esc(M.fmtNum(out.riskPct, 2)) + '% of the account)' + (out.limitedBy === 'allowance' ? ', capped by what is left of today\'s loss limit' : '') + '</li>' +
       '<li>Position value: ' + esc(M.money(out.value, cur)) + ' (' + esc(M.fmtNum(out.valuePct, 1)) + '% of the account)' + (out.valuePct > 100 ? ': more than the account, so it needs leverage' : '') + '</li>' +
       '<li>Targets: ' + out.targets.map(function (x) { return x.r + 'R at ' + esc(M.fmtPrice(x.price, true)); }).join(', ') + '</li></ul></div>';

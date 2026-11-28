@@ -92,7 +92,7 @@ function main() {
   out.delimited = (job.delimited || []).map(function (t) { var d = M.sniffDelimiter(t); return { delim: d, parsed: M.parseDelimited(t, d) }; });
   out.formats = (job.formats || []).map(function (x) {
     return { money: M.money(x, 'USD'), sign: M.money(x, 'GBP', { sign: true }), whole: M.money(x, 'EUR', { whole: true }), num: M.fmtNum(x / 7, 2), pct: M.fmtPct(x / 100000, 1),
-      r: M.fmtR(x / 1000), price: M.fmtPrice(x * 1000), qty: M.fmtQty(x * 10000), dur: M.fmtDuration(Math.abs(x)), date: M.fmtDate(20000 + (Math.abs(x) % 3000)) };
+      r: M.fmtR(x / 1000), units: M.fmtUnits(x / 8), price: M.fmtPrice(x * 1000), qty: M.fmtQty(x * 10000), dur: M.fmtDuration(Math.abs(x)), date: M.fmtDate(20000 + (Math.abs(x) % 3000)) };
   });
   out.template = M.templateCsv();
   process.stdout.write(JSON.stringify(out));

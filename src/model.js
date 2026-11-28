@@ -1720,6 +1720,12 @@
   M.fmtPct = fmtPct;
   function fmtR(r) { return r === null || r === undefined ? '' : (r > 0 && rnd(r * 100) !== 0 ? '+' : '') + fmtNum(r, 2) + 'R'; }
   M.fmtR = fmtR;
+  // A number of shares or contracts: whole numbers grouped, fractions to at most four places.
+  function fmtUnits(x) {
+    var four = fmtNum(x, 4);
+    return four.slice(-5) === '.0000' ? four.slice(0, -5) : four.replace(/0+$/, '');
+  }
+  M.fmtUnits = fmtUnits;
 
   // A price in millionths, with at least two decimals and no trailing zeros beyond that.
   function fmtPrice(micro, grouping) {

@@ -438,6 +438,12 @@ def fmt_r(r):
     return ('+' if r > 0 and rnd(r * 100) != 0 else '') + fmt_num(r, 2) + 'R'
 
 
+def fmt_units(x):
+    """A number of shares or contracts: whole numbers grouped, fractions to at most four places."""
+    four = fmt_num(x, 4)
+    return four[:-5] if four.endswith('.0000') else four.rstrip('0')
+
+
 def fmt_price(micro, grouping=False):
     if micro is None:
         return ''

@@ -7,7 +7,7 @@ HTML review with CSVs, and printable HTML reports.
 """
 
 from .common import (DAY, PRICE_SCALE, QTY_SCALE, VERSION, civil, cmp, detect_date_order, date_shape, fmt_date, fmt_day_month_year, fmt_duration,
-                     fmt_num, fmt_pct, fmt_price, fmt_qty, fmt_r, fmt_short, fmt_time, from_iso, iso_stamp, money, parse_cents, parse_date_time,
+                     fmt_num, fmt_pct, fmt_price, fmt_qty, fmt_r, fmt_short, fmt_time, fmt_units, from_iso, iso_stamp, money, parse_cents, parse_date_time,
                      parse_float_text, parse_micro, parse_time, plain_money, plural, read_number, rnd, scaled, to_iso, week_label, week_start, weekday)
 from .matching import (RULES, trading_window, account_settings, analyse, check_rules, default_rules, default_settings, empty_state, fx_rate, import_files,
                        journal_entry, make_carry, match_trades, multiplier_for, piece_pnl, rule_label, set_journal, trade_risk)
@@ -61,6 +61,7 @@ __all__ = [
     'fmt_r',
     'fmt_short',
     'fmt_time',
+    'fmt_units',
     'from_iso',
     'fx_rate',
     'hold_bucket',
