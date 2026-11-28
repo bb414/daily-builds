@@ -49,6 +49,8 @@ def run_case(job):
     state = rt.read_project(job['project'])['state'] if job.get('project') else rt.empty_state()
     for k, v in (job.get('settings') or {}).items():
         state['settings'][k] = v
+    if job.get('carry'):
+        state['carry'] = job['carry']
     imp = rt.import_files(state, job.get('files') or [])
     state = imp['state']
     for e in job.get('edits') or []:

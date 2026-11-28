@@ -184,6 +184,37 @@ class AppTest(unittest.TestCase):
         self.assertIn('62 already in the journal', page.inner_text('.sources'))
         self.assertIn('of 524 fills', page.inner_text('#view-fills'))
 
+    def test_adding_the_opening_of_a_position_bought_before_the_exports(self):
+        page = self.open()
+        page.click('#tab-fills')
+        self.assertIn('WMRU', page.inner_text('.carry-list'))
+        page.click('[data-action="carry-add"]')
+        self.assertIn('Enter the date', page.inner_text('#toast'))
+        page.fill('#carry-date-0', '2026-08-14')
+        page.fill('#carry-price-0', '3.95')
+        page.click('[data-action="carry-add"]')
+        page.wait_for_selector('text=Openings you added')
+        self.assertNotIn('Closes with no opening fill', page.inner_text('#view-fills'))
+        page.click('#tab-trades')
+        page.fill('#tr-q', 'WMRU')
+        page.wait_for_timeout(400)
+        self.assertIn('14 Aug', page.inner_text('.trade-list'))
+
+    def test_choosing_columns_for_a_layout_it_does_not_know(self):
+        page = self.open()
+        odd = os.path.join(self.tmp.name, 'desk.csv')
+        with open(odd, 'w', encoding='utf-8') as fh:
+            fh.write('Exported by desk\nWhen,Code,Way,Lots,At,Charge\n23/11/2026 09:00,QX,B,2,10.00,0.50\n23/11/2026 10:00,QX,S,2,10.40,0.50\n')
+        page.set_input_files('#file-exports', odd)
+        page.wait_for_selector('.source.bad')
+        self.assertIn('Choose the columns yourself', page.inner_text('.source.bad'))
+        for field, header in [('date', 'When'), ('symbol', 'Code'), ('side', 'Way'), ('qty', 'Lots'), ('price', 'At'), ('fees', 'Charge')]:
+            page.select_option('#col-0-' + field, header)
+        page.wait_for_selector('.source:not(.bad)')
+        self.assertIn('2 fills added', page.inner_text('.sources'))
+        page.click('#tab-review')
+        self.assertIn('-$0.20', page.input_value('#review-text'))
+
     def test_inside_a_frame(self):
         frame_page = os.path.join(self.tmp.name, 'frame.html')
         with open(frame_page, 'w', encoding='utf-8') as fh:

@@ -102,9 +102,10 @@ FIELDS = [
     ['time', ['time', 'trade time', 'execution time', 'exec time', 'fill time', 'filled time', 'time of trade', 'deal time']],
     ['symbol', ['symbol', 'ticker', 'instrument', 'contract', 'instrument code', 'ticker symbol', 'stock', 'security', 'epic', 'product', 'underlying', 'stock code', 'security code', 'name']],
     ['qty', ['filled qty', 'filled quantity', 'fill qty', 'fill quantity', 'exec qty', 'executed qty', 'executed quantity', 'quantity filled', 'qty filled', 'filled', 'quantity', 'qty', 'shares', 'no of shares', 'number of shares', 'contracts', 'lots', 'units', 'size', 'volume', 'amount of shares']],
-    ['price', ['avg fill price', 'average fill price', 'fill price', 'filled price', 'execution price', 'exec price', 'trade price', 't price', 'deal price', 'avg price', 'average price', 'price', 'share price', 'unit price', 'price per share', 'avg fill', 'execution px', 'px']],
-    ['side', ['side', 'action', 'buy sell', 'b s', 'bs', 'buy or sell', 'direction', 'order side', 'trade side', 'transaction type', 'trade type', 'deal type', 'order action', 'type', 'activity', 'operation', 'transaction']],
-    ['fees', ['total fees', 'total costs', 'total charges', 'commission', 'commissions', 'comm', 'comm fee', 'comm fees', 'commission fee', 'fee', 'fees', 'charges', 'charge', 'costs', 'brokerage', 'stamp duty', 'ptm levy', 'sec fee', 'taf fee', 'finra fee', 'exchange fee', 'exchange fees', 'reg fee', 'regulatory fee', 'regulatory fees', 'clearing fee', 'clearing fees', 'nfa fee', 'transaction fee', 'transaction fees', 'fx fee', 'other fees', 'platform fee', 'ib commission', 'ecn fee', 'routing fee']],
+    ['price', ['avg fill price', 'average fill price', 'fill price', 'filled price', 'execution price', 'exec price', 'trade price', 't price', 'deal price', 'avg price', 'average price', 'price', 'share price', 'unit price', 'price per share', 'price share', 'price per unit', 'avg fill', 'execution px', 'px', 'rate']],
+    ['side', ['side', 'action', 'buy sell', 'b s', 'bs', 'buy or sell', 'buy sell indicator', 'direction', 'order side', 'trade side', 'transaction type', 'trade type', 'deal type', 'order action', 'type', 'activity', 'operation', 'transaction']],
+    ['fees', ['total fees', 'total costs', 'total charges', 'commission', 'commissions', 'comm', 'comm fee', 'comm fees', 'commission fee', 'fee', 'fees', 'charges', 'charge', 'costs', 'brokerage', 'stamp duty', 'ptm levy', 'sec fee', 'taf fee', 'finra fee', 'exchange fee', 'exchange fees', 'reg fee', 'regulatory fee', 'regulatory fees', 'clearing fee', 'clearing fees', 'nfa fee', 'transaction fee', 'transaction fees', 'fx fee', 'other fees', 'platform fee', 'ib commission', 'ecn fee', 'routing fee',
+              'currency conversion fee', 'stamp duty reserve tax', 'french transaction tax', 'financial transaction tax', 'transaction tax', 'finra trading activity fee']],
     ['currency', ['currency', 'ccy', 'curr', 'currency code', 'trade currency', 'settlement currency', 'price currency']],
     ['account', ['account', 'account id', 'account number', 'account no', 'account name', 'acct', 'acct id', 'account code', 'portfolio', 'sub account', 'trader', 'book']],
     ['mult', ['multiplier', 'mult', 'contract multiplier', 'point value', 'value per point', 'contract size']],
@@ -118,6 +119,8 @@ FIELDS = [
     ['description', ['description', 'security name', 'instrument name', 'name', 'details']],
 ]
 FEE_TOTALS = ['total fees', 'total costs', 'total charges']
+# The fields a person can point at a column by hand.
+COLUMN_FIELDS = ['date', 'time', 'symbol', 'side', 'qty', 'price', 'fees', 'account', 'currency', 'orderId']
 
 
 def header_candidates(cells):
@@ -256,7 +259,7 @@ def read_export(name, text, opts=None):
     opts = opts or {}
     out = {
         'name': s(name), 'ok': False, 'error': '', 'delimiter': '', 'headerLine': 0, 'columns': {}, 'dateOrder': '', 'dateNote': '',
-        'account': '', 'fills': [], 'fees': [], 'skipped': [], 'notes': [], 'counts': {'rows': 0, 'blank': 0, 'fills': 0, 'fees': 0, 'skipped': 0},
+        'account': '', 'fills': [], 'fees': [], 'skipped': [], 'notes': [], 'headerCells': [], 'counts': {'rows': 0, 'blank': 0, 'fills': 0, 'fees': 0, 'skipped': 0},
     }
     src = s(text)
     if not trim(src):
@@ -282,17 +285,40 @@ def read_export(name, text, opts=None):
                 keep_lines.append(lines[i])
         rows, lines = keep_rows, keep_lines
         out['notes'].append('Read the Trades section of a sectioned statement.')
+    chosen, any_chosen = {}, False
+    for f, v in (opts.get('columns') or {}).items():
+        if f in COLUMN_FIELDS and isinstance(v, str):
+            chosen[f] = trim(v)
+            any_chosen = True
+    named = [chosen[f] for f in chosen if chosen[f] != '']
     hi, hc = -1, None
     for r in range(min(len(rows), 40)):
         c = header_candidates(rows[r])
+        if any_chosen and named:
+            here = [trim(x) for x in rows[r]]
+            if all(n in here for n in named):
+                hi, hc = r, c
+                break
+            continue
         has_date = len(c['cand']['date']) > 0 or len(c['cand']['time']) > 0
         if has_date and c['cand']['symbol'] and c['cand']['qty'] and c['cand']['price']:
             hi, hc = r, c
             break
     if hi < 0:
-        first = ', '.join([x for x in rows[0] if trim(x) != ''][:8]) if rows else ''
-        out['error'] = 'Could not find a header row with date, symbol, quantity and price columns' + (' (the first row reads: ' + first + ')' if first else '') + '.'
+        most = 0
+        for fr in range(min(len(rows), 40)):
+            filled = len([x for x in rows[fr] if trim(x) != ''])
+            if filled > most:
+                most = filled
+                out['headerCells'] = [trim(x) for x in rows[fr]]
+        first = ', '.join([x for x in out['headerCells'] if x != ''][:8])
+        if any_chosen and named:
+            out['error'] = 'None of the first 40 rows has all the columns you chose (' + ', '.join(named) + ').'
+        else:
+            out['error'] = ('Could not find a header row with date, symbol, quantity and price columns' + (' (the first row reads: ' + first + ')' if first else '')
+                            + '. Choose the columns yourself below.')
         return out
+    out['headerCells'] = [trim(x) for x in rows[hi]]
     out['headerLine'] = lines[hi]
     if hi > 0:
         out['notes'].append('%d %s above the header were ignored.' % (hi, 'line' if hi == 1 else 'lines'))
@@ -301,8 +327,17 @@ def read_export(name, text, opts=None):
     body_lines = lines[hi + 1:]
 
     used, col = {}, {}
+    for f in chosen:
+        if f == 'fees' or chosen[f] == '':
+            continue
+        at = out['headerCells'].index(chosen[f]) if chosen[f] in out['headerCells'] else -1
+        if at >= 0 and at not in used:
+            used[at] = True
+            col[f] = at
 
     def take(field, lst):
+        if field in chosen:
+            return -1
         for i in lst:
             if i not in used:
                 used[i] = True
@@ -348,10 +383,16 @@ def read_export(name, text, opts=None):
     take('side', [i for i in cand['side'] if looks_like_sides(i)])
     fee_total = [i for i in cand['fees'] if hc['norm'][i] in FEE_TOTALS]
     fee_cols = []
-    for i in (fee_total[:1] if fee_total else cand['fees']):
-        if i not in used:
-            used[i] = True
-            fee_cols.append(i)
+    if 'fees' in chosen:
+        fat = -1 if chosen['fees'] == '' or chosen['fees'] not in out['headerCells'] else out['headerCells'].index(chosen['fees'])
+        if fat >= 0 and fat not in used:
+            used[fat] = True
+            fee_cols.append(fat)
+    else:
+        for i in (fee_total[:1] if fee_total else cand['fees']):
+            if i not in used:
+                used[i] = True
+                fee_cols.append(i)
     for f in ['currency', 'account', 'mult', 'status', 'orderId', 'execId', 'openClose', 'asset', 'recordType', 'amount', 'description']:
         take(f, cand[f])
     if 'symbol' not in col and 'description' in col:

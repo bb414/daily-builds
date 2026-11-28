@@ -16,6 +16,10 @@ import helpers as h
 HEAD = 'Date,Time,Account,Symbol,Side,Quantity,Price,Commission,Order ID'
 
 
+def rt_day(iso):
+    return h.rt.from_iso(iso)
+
+
 def fuzz_export(seed, rows=160):
     """A random but valid fills export: several symbols, partial fills, scaling, reversals, odd quantities and prices."""
     rng = random.Random(seed)
@@ -109,6 +113,20 @@ class AgreementTest(unittest.TestCase):
         for name, text in EDGE.items():
             self.compare_case({'files': [{'name': name, 'text': text}], 'settings': {'accounts': [{'name': 'No times', 'start': '1000', 'longOnly': True}]}}, name)
         self.compare_case({'files': [{'name': 'template.csv', 'text': h.sample_text('template.csv')}]}, 'template')
+
+    def test_chosen_columns_and_typed_in_openings(self):
+        text = 'Exported by desk\nWhen,Code,Way,Lots,At,Charge\n23/11/2026 09:00,QX,B,2,10.00,0.50\n23/11/2026 10:00,QX,S,3,10.40,0.50\n'
+        cols = {'date': 'When', 'symbol': 'Code', 'side': 'Way', 'qty': 'Lots', 'price': 'At', 'fees': 'Charge'}
+        self.compare_case({'files': [{'name': 'odd.csv', 'text': text, 'columns': cols}, {'name': 'odd2.csv', 'text': text, 'columns': {'date': 'Nope'}},
+                                     {'name': 'odd3.csv', 'text': text}]}, 'chosen columns')
+        uk = h.sample_case(carry=[{'account': 'Dealing account', 'symbol': 'WMRU', 'side': 'B', 'q': 150000000, 'price': 3950000, 'day': rt_day('2026-09-01'),
+                                   'fee': 0, 'currency': 'GBP'}])
+        py = self.compare_case(uk, 'carry')
+        self.assertEqual(len(py['result']['unmatched']), 0)
+        u = {'account': 'X', 'symbol': 'QX', 'side': 'S', 'q': 1000000, 'price': 1, 'day': rt_day('2026-11-23'), 'currency': 'USD'}
+        tries = [('2026-01-01', '1.5'), ('2099-01-01', '1'), ('', '1'), ('2026-11-23', 'x')]
+        js = h.run_bridge({'carries': [{'u': u, 'date': d, 'price': p} for d, p in tries]})
+        self.assertEqual(h.plain([h.rt.make_carry(u, d, p) for d, p in tries]), js['carries'])
 
     def test_random_exports(self):
         for seed in range(12):

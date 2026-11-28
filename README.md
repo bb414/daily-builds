@@ -34,6 +34,8 @@ Used when present: commission, fee, stamp duty and exchange fee columns (added t
 
 **Messy files.** Quoted fields with commas, a byte order mark, blank rows, extra or reordered columns, lines above the header, ISO, UK or US dates (worked out from days over 12, or set by you), 24-hour or AM/PM times, currency signs and thousands separators, brackets for negatives, prices in pence (a `Price (p)` column or GBX), partial fills split across rows, fees in rows of their own (attached to the fill from the same order, or the same symbol that day), cancelled, rejected and expired orders, repeated headers, total rows, dividends and transfers. Exports listed newest first are read oldest first. Every row it sets aside is listed with its line number and the reason.
 
+**When it cannot tell.** If a layout is new to it (or it picks the wrong column), open **Choose the columns yourself** on that file and point date, symbol, side, quantity, price and the rest at the right headers; it then finds the header row from your choice. If a sale closes shares bought before your first export, type in the date and price you bought at and the round trip is counted.
+
 **The template.** `data/template.csv` (or **Download the template** in the app) shows the simplest layout:
 
 ```

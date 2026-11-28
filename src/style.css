@@ -367,6 +367,9 @@ main:focus { outline: none; }
 .chip.bad { background: var(--pink); border-color: var(--pink-2); color: #7a1f12; }
 .chip.setup { background: var(--canary); border-color: var(--canary-2); color: #3d3104; }
 .chip.mistake { background: var(--pink); border-color: var(--pink-2); color: #6e1b10; }
+.carry-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.carry-list li { padding: 8px 0; border-bottom: 1px dashed var(--rule); }
+.carry-list p { margin: 0 0 6px; }
 .counts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0; padding: 0; list-style: none; font-size: .9rem; }
 .counts b { font-family: var(--mono); font-weight: 600; }
 details.skipped summary { cursor: pointer; font-weight: 700; color: var(--loss); margin-top: 6px; }

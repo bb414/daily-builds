@@ -387,6 +387,7 @@
       var notes = (src.notes || []).slice();
       if (src.dateNote) notes.unshift(src.dateNote);
       if (notes.length) html += '<ul class="chips">' + notes.map(function (n) { return '<li class="chip warn">' + esc(n) + '</li>'; }).join('') + '</ul>';
+      if (session && src.headerCells && src.headerCells.length) html += columnChooser(fileIndex, src);
       if (session && !src.error && !cols.account) {
         html += '<div class="row-fields"><label class="field"><span>This file has no account column. Account name</span><input type="text" class="inline-input" id="acct-' + fileIndex + '" data-file="' + fileIndex + '" data-role="file-account" value="' + esc(src.account) + '"></label></div>';
       }
@@ -439,9 +440,19 @@
         }).join('') + '</tbody></table></div>';
     } else html += '<p class="muted">Every position is back to flat.</p>';
     if (res.unmatched.length) {
-      html += '<h3>Closes with no opening fill</h3><p class="hint">These sell (or cover) more than the exports show was bought (or shorted), usually because the position was opened before the first export. They are not counted as trades. Mark an account as long only under Rules if a sale from nothing should never open a short.</p>' +
-        '<div class="table-wrap"><table class="ledger"><thead><tr><th>Date</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th>From</th></tr></thead><tbody>' +
-        res.unmatched.map(function (u) { return '<tr><td>' + esc(M.fmtShort(u.day)) + '</td><td>' + esc(u.symbol) + '</td><td><span class="side-tag side-' + u.side + '">' + (u.side === 'B' ? 'BUY' : 'SELL') + '</span></td><td class="num">' + esc(M.fmtQty(u.q)) + '</td><td class="num">' + esc(M.fmtPrice(u.price, true)) + '</td><td class="mono" style="font-size:.72rem">' + esc(u.file) + ' line ' + u.line + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      html += '<h3>Closes with no opening fill</h3><p class="hint">These sell (or cover) more than the exports show was bought (or shorted), usually because the position was opened before the first export. They are not counted as trades until you add the opening: the date and price it was bought (or shorted) at. Mark an account as long only under Rules if a sale from nothing should never open a short.</p>' +
+        '<ul class="carry-list">' + res.unmatched.map(function (u, i) {
+          return '<li><p><span class="side-tag side-' + u.side + '">' + (u.side === 'B' ? 'BUY' : 'SELL') + '</span> <strong>' + esc(M.fmtQty(u.q) + ' ' + u.symbol) + '</strong> at ' + esc(M.fmtPrice(u.price, true)) + ' on ' + esc(M.fmtDate(u.day)) + ' <span class="muted">(' + esc(u.account) + ', ' + esc(u.file) + ' line ' + u.line + ')</span></p>' +
+            '<div class="row-fields"><label class="field"><span>' + (u.side === 'S' ? 'Bought on' : 'Shorted on') + '</span><input type="date" class="inline-input" id="carry-date-' + i + '" max="' + esc(M.toIso(u.day)) + '"></label>' +
+            '<label class="field"><span>At a price of</span><input type="text" inputmode="decimal" class="inline-input" id="carry-price-' + i + '" placeholder="' + esc(M.fmtPrice(u.price)) + '" style="width:8em"></label>' +
+            '<button type="button" class="btn btn-line btn-small" data-action="carry-add" data-index="' + i + '">Add the opening</button></div></li>';
+        }).join('') + '</ul>';
+    }
+    if ((S.base.carry || []).length) {
+      html += '<h3>Openings you added</h3><ul class="carry-list">' + S.base.carry.map(function (c, i) {
+        return '<li class="row-fields" style="justify-content:space-between"><span>' + esc((c.side === 'B' ? 'Bought ' : 'Shorted ') + M.fmtQty(c.q) + ' ' + c.symbol + ' at ' + M.fmtPrice(c.price, true) + ' on ' + M.fmtDate(c.day) + ' (' + c.account + ')') + '</span>' +
+          '<button type="button" class="btn btn-danger btn-small" data-action="carry-remove" data-index="' + i + '">Remove</button></li>';
+      }).join('') + '</ul>';
     }
     if (res.unattached.length) {
       var feeTotal = 0;
@@ -473,6 +484,24 @@
     html += '</section>';
     html += '<div class="btn-row"><button type="button" class="btn btn-danger" data-action="clear">Clear everything and start again</button></div>';
     panel.innerHTML = html;
+  }
+
+  var FIELD_NAMES = { date: 'Date (and time)', time: 'Time', symbol: 'Symbol', side: 'Buy or sell', qty: 'Quantity', price: 'Price', fees: 'Fees', account: 'Account', currency: 'Currency', orderId: 'Order ID' };
+
+  // Pick the column for each field by hand, for layouts it does not recognise or reads wrongly.
+  function columnChooser(fileIndex, src) {
+    var chosen = S.files[fileIndex].columns || {};
+    var cells = src.headerCells.filter(function (c, i, a) { return c !== '' && a.indexOf(c) === i; });
+    var html = '<details class="paste"' + (src.error || Object.keys(chosen).length ? ' open' : '') + '><summary>' + (src.error ? 'Choose the columns yourself' : 'Change the columns used') + '</summary>' +
+      '<p class="hint">Point each field at a column from the file. Leave a field on "work it out" to let Round trips choose.</p><div class="row-fields">';
+    M.COLUMN_FIELDS.forEach(function (f) {
+      var id = 'col-' + fileIndex + '-' + f;
+      var value = Object.prototype.hasOwnProperty.call(chosen, f) ? chosen[f] : '__auto';
+      html += '<label class="field"><span>' + esc(FIELD_NAMES[f]) + '</span><select class="inline-select" id="' + id + '" data-role="file-column" data-file="' + fileIndex + '" data-field="' + f + '">' +
+        '<option value="__auto"' + (value === '__auto' ? ' selected' : '') + '>Work it out</option><option value=""' + (value === '' ? ' selected' : '') + '>Not in this file</option>' +
+        cells.map(function (c) { return '<option value="' + esc(c) + '"' + (c === value ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></label>';
+    });
+    return html + '</div></details>';
   }
 
   /* ---------- view 2: trades (the journal) ---------- */
@@ -1012,6 +1041,18 @@
       case 'clear': startFresh(); storeDel(STORE_KEY); reimport(); show('fills'); toast('Cleared: add your fills export to start'); break;
       case 'resume': var saved = S.resume; S.resume = null; openJournal(saved.journal, 'your saved journal'); break;
       case 'forget': S.resume = null; storeDel(STORE_KEY); renderNotice(); break;
+      case 'carry-add':
+        var ci = +el.getAttribute('data-index');
+        var made = M.makeCarry(S.result.unmatched[ci], document.getElementById('carry-date-' + ci).value, document.getElementById('carry-price-' + ci).value);
+        if (!made.ok) { toast(made.msg); break; }
+        S.base.carry = (S.base.carry || []).concat([made.carry]);
+        reimport();
+        toast('Added the opening: the close now counts as a trade');
+        break;
+      case 'carry-remove':
+        S.base.carry = S.base.carry.filter(function (c, k) { return k !== +el.getAttribute('data-index'); });
+        reimport();
+        break;
       case 'mult-add':
         var key = document.getElementById('mult-new-key').value.trim().toUpperCase(), val = document.getElementById('mult-new-value').value.trim();
         if (!key || !(M.parseFloatText(val) > 0)) { toast('Enter a root or symbol and a multiplier above zero'); break; }
@@ -1086,6 +1127,15 @@
     }
     if (id === 'date-order') { S.base.settings.dateOrder = el.value; reimport(); toast('Re-read the exports'); return; }
     if (role === 'file-account') { S.files[+el.getAttribute('data-file')].account = el.value.trim(); reimport(); return; }
+    if (role === 'file-column') {
+      var target = S.files[+el.getAttribute('data-file')];
+      var cols = {};
+      Object.keys(target.columns || {}).forEach(function (k) { cols[k] = target.columns[k]; });
+      if (el.value === '__auto') delete cols[el.getAttribute('data-field')]; else cols[el.getAttribute('data-field')] = el.value;
+      target.columns = cols;
+      reimport();
+      return;
+    }
     if (role === 'mult') { setMultiplier(el.getAttribute('data-key'), el.value); return; }
     if (id === 'fills-account') { S.fills.account = el.value; S.fills.symbol = ''; S.dirty.fills = true; renderView('fills'); return; }
     if (id === 'fills-symbol') { S.fills.symbol = el.value; S.dirty.fills = true; renderView('fills'); return; }

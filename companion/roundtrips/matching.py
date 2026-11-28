@@ -7,7 +7,7 @@ quantities are matched to opening lots first in, first out.
 
 import math
 
-from .common import (DAY, cmp, fmt_date, fmt_num, fmt_price, fmt_qty, fmt_r, iso_stamp, jsnum, money, parse_cents, parse_float_text,
+from .common import (DAY, cmp, fmt_date, fmt_num, fmt_price, fmt_qty, fmt_r, from_iso, iso_stamp, jsnum, money, parse_cents, parse_float_text,
                      parse_micro, plural, rnd, rx, sort_by, trim, week_start)
 from .parsing import read_export, symbol_root
 
@@ -32,7 +32,7 @@ def default_settings():
 
 
 def empty_state():
-    return {'settings': default_settings(), 'sources': [], 'fills': [], 'feeRows': [], 'journal': [], 'seq': 0}
+    return {'settings': default_settings(), 'sources': [], 'fills': [], 'feeRows': [], 'journal': [], 'carry': [], 'seq': 0}
 
 
 def lookup(lst, key, field):
@@ -45,13 +45,13 @@ def lookup(lst, key, field):
 def import_files(state, files):
     """Add exports to the journal, skipping fills that are already in it."""
     nxt = {'settings': state['settings'], 'sources': list(state['sources']), 'fills': list(state['fills']), 'feeRows': list(state['feeRows']),
-           'journal': state['journal'], 'seq': state['seq']}
+           'journal': state['journal'], 'carry': state.get('carry') or [], 'seq': state['seq']}
     have = {f['key'] for f in nxt['fills']}
     have_fee = {e['key'] for e in nxt['feeRows']}
     reports = []
     for file in files:
         rep = read_export(file['name'], file['text'], {'dateOrder': file.get('dateOrder') or state['settings']['dateOrder'],
-                                                       'account': file.get('account'), 'base': state['settings']['base']})
+                                                       'account': file.get('account'), 'base': state['settings']['base'], 'columns': file.get('columns')})
         sid = 1
         for src in nxt['sources']:
             if src['id'] >= sid:
@@ -82,7 +82,7 @@ def import_files(state, files):
         source = {
             'id': sid, 'name': rep['name'], 'ok': rep['ok'], 'error': rep['error'], 'account': rep['account'], 'columns': rep['columns'],
             'dateOrder': rep['dateOrder'], 'dateNote': rep['dateNote'], 'notes': rep['notes'], 'counts': rep['counts'], 'added': added,
-            'duplicates': dupes, 'feesAdded': fees_added, 'skipped': rep['skipped'][:300], 'first': None, 'last': None,
+            'duplicates': dupes, 'feesAdded': fees_added, 'skipped': rep['skipped'][:300], 'first': None, 'last': None, 'headerCells': rep['headerCells'],
         }
         for f in rep['fills']:
             if source['first'] is None or f['day'] < source['first']:
@@ -148,9 +148,35 @@ def _fee_order(a, b):
             or ((0 if a['sec'] is None else a['sec']) - (0 if b['sec'] is None else b['sec'])) or (a['seq'] - b['seq']))
 
 
+def carry_key(c):
+    return '|'.join(['c', c['account'], c['symbol'], str(c['day']), c['side'], str(c['q']), str(c['price'])])
+
+
+def carry_fills(state):
+    """Opening positions typed in for closes whose opening fill is older than the exports, as fills."""
+    carry = state.get('carry') or []
+    return [{'key': carry_key(c), 'account': c['account'], 'symbol': c['symbol'], 'day': c['day'], 'sec': None, 'side': c['side'], 'intent': 'open',
+             'q': c['q'], 'price': c['price'], 'fee': c.get('fee') or 0, 'currency': c['currency'], 'mult': None, 'orderId': '', 'execId': '', 'asset': '',
+             'file': 'Opening position', 'line': 0, 'src': 0, 'seq': -(len(carry) - i)} for i, c in enumerate(carry)]
+
+
+def make_carry(u, date_text, price_text):
+    """An opening position for a close with no opening fill: the date (YYYY-MM-DD) and price it was opened at."""
+    day = from_iso(date_text)
+    if day is None:
+        return {'ok': False, 'msg': 'Enter the date the position was opened.'}
+    if day > u['day']:
+        return {'ok': False, 'msg': 'The opening date must be on or before ' + fmt_date(u['day']) + ', when it was closed.'}
+    price = parse_micro(price_text)
+    if price is None or not price > 0:
+        return {'ok': False, 'msg': 'Enter the price it was opened at.'}
+    return {'ok': True, 'carry': {'account': u['account'], 'symbol': u['symbol'], 'side': 'B' if u['side'] == 'S' else 'S', 'q': u['q'], 'price': price,
+                                  'day': day, 'fee': 0, 'currency': u.get('currency') or ''}}
+
+
 def match_trades(state):
     settings = state['settings']
-    fills = sort_by(state['fills'], _by_time)
+    fills = sort_by(state['fills'] + carry_fills(state), _by_time)
     fee_of = {f['key']: f['fee'] for f in fills}
     by_order, by_day = {}, {}
     for f in fills:
@@ -201,7 +227,7 @@ def match_trades(state):
 
         def no_trade(f, q, fee):
             unmatched.append({'key': f['key'], 'account': f['account'], 'symbol': f['symbol'], 'side': f['side'], 'q': q, 'price': f['price'],
-                              'day': f['day'], 'sec': f['sec'], 'fee': fee, 'file': f['file'], 'line': f['line']})
+                              'day': f['day'], 'sec': f['sec'], 'fee': fee, 'file': f['file'], 'line': f['line'], 'currency': f['currency']})
             event(f, -fee, 'fee', '')
 
         def add_leg(f, q, role, fee):

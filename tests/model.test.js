@@ -326,6 +326,44 @@ test('files: the template reads back, the CSVs quote what they must, and formats
   assert.equal(M.fmtR(1.2345), '+1.23R');
 });
 
+test('columns chosen by hand: an unknown layout, and overriding a wrong guess', function () {
+  var text = csv(['Exported by desk', 'When,Code,Way,Lots,At,Charge', '23/11/2026 09:00,QX,B,2,10.00,0.50', '23/11/2026 10:00,QX,S,2,10.40,0.50']);
+  var auto = M.readExport('odd.csv', text, {});
+  assert.equal(auto.ok, false);
+  assert.deepEqual(auto.headerCells, ['When', 'Code', 'Way', 'Lots', 'At', 'Charge']);
+  var cols = { date: 'When', symbol: 'Code', side: 'Way', qty: 'Lots', price: 'At', fees: 'Charge' };
+  var rep = M.readExport('odd.csv', text, { columns: cols });
+  assert.equal(rep.ok, true);
+  assert.equal(rep.headerLine, 2);
+  assert.equal(rep.fills.length, 2);
+  assert.equal(rep.fills[0].fee, 50);
+  var r = run([{ name: 'odd.csv', text: text, columns: cols }]).result;
+  assert.equal(r.closed[0].net, 80 - 100);
+  var none = M.readExport('odd.csv', text, { columns: { date: 'When', symbol: 'Code', side: 'Way', qty: 'Lots', price: 'At', fees: '' } });
+  assert.equal(none.fills[0].fee, 0);
+  assert.match(M.readExport('odd.csv', text, { columns: { date: 'Nope' } }).error, /columns you chose/);
+});
+
+test('an opening position typed in for a close with no opening fill', function () {
+  var text = csv(['Date,Symbol,Side,Quantity,Price', '2026-11-23,WMRU,Sell,100,4.10']);
+  var st = M.emptyState();
+  st.settings.accounts = [{ name: 'Uk', start: '', longOnly: true }];
+  var r = run([{ name: 'uk.csv', text: text }], function (s) { s.settings = st.settings; }).result;
+  assert.equal(r.unmatched.length, 1);
+  assert.equal(M.makeCarry(r.unmatched[0], '2026-11-24', '4.00').ok, false);
+  assert.equal(M.makeCarry(r.unmatched[0], '2026-11-01', '').ok, false);
+  var made = M.makeCarry(r.unmatched[0], '2026-11-02', '4.00');
+  assert.equal(made.ok, true);
+  assert.equal(made.carry.side, 'B');
+  var r2 = run([{ name: 'uk.csv', text: text }], function (s) { s.settings = st.settings; s.carry = [made.carry]; }).result;
+  assert.equal(r2.unmatched.length, 0);
+  assert.equal(r2.closed.length, 1);
+  assert.equal(r2.closed[0].gross, 1000);
+  assert.equal(r2.closed[0].openDay, M.fromIso('2026-11-02'));
+  var saved = M.projectFile(M.importFiles((function () { var s = M.emptyState(); s.carry = [made.carry]; return s; })(), [{ name: 'uk.csv', text: text }]).state, '2026-11-28');
+  assert.equal(M.readProject(saved).state.carry.length, 1);
+});
+
 test('no em dashes in the model or the text it writes', function () {
   var src = fs.readFileSync(path.join(ROOT, 'src', 'model.js'), 'utf8');
   assert.equal(src.indexOf('\u2014'), -1);

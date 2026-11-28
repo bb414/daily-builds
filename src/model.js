@@ -303,9 +303,10 @@
     ['time', ['time', 'trade time', 'execution time', 'exec time', 'fill time', 'filled time', 'time of trade', 'deal time']],
     ['symbol', ['symbol', 'ticker', 'instrument', 'contract', 'instrument code', 'ticker symbol', 'stock', 'security', 'epic', 'product', 'underlying', 'stock code', 'security code', 'name']],
     ['qty', ['filled qty', 'filled quantity', 'fill qty', 'fill quantity', 'exec qty', 'executed qty', 'executed quantity', 'quantity filled', 'qty filled', 'filled', 'quantity', 'qty', 'shares', 'no of shares', 'number of shares', 'contracts', 'lots', 'units', 'size', 'volume', 'amount of shares']],
-    ['price', ['avg fill price', 'average fill price', 'fill price', 'filled price', 'execution price', 'exec price', 'trade price', 't price', 'deal price', 'avg price', 'average price', 'price', 'share price', 'unit price', 'price per share', 'avg fill', 'execution px', 'px']],
-    ['side', ['side', 'action', 'buy sell', 'b s', 'bs', 'buy or sell', 'direction', 'order side', 'trade side', 'transaction type', 'trade type', 'deal type', 'order action', 'type', 'activity', 'operation', 'transaction']],
-    ['fees', ['total fees', 'total costs', 'total charges', 'commission', 'commissions', 'comm', 'comm fee', 'comm fees', 'commission fee', 'fee', 'fees', 'charges', 'charge', 'costs', 'brokerage', 'stamp duty', 'ptm levy', 'sec fee', 'taf fee', 'finra fee', 'exchange fee', 'exchange fees', 'reg fee', 'regulatory fee', 'regulatory fees', 'clearing fee', 'clearing fees', 'nfa fee', 'transaction fee', 'transaction fees', 'fx fee', 'other fees', 'platform fee', 'ib commission', 'ecn fee', 'routing fee']],
+    ['price', ['avg fill price', 'average fill price', 'fill price', 'filled price', 'execution price', 'exec price', 'trade price', 't price', 'deal price', 'avg price', 'average price', 'price', 'share price', 'unit price', 'price per share', 'price share', 'price per unit', 'avg fill', 'execution px', 'px', 'rate']],
+    ['side', ['side', 'action', 'buy sell', 'b s', 'bs', 'buy or sell', 'buy sell indicator', 'direction', 'order side', 'trade side', 'transaction type', 'trade type', 'deal type', 'order action', 'type', 'activity', 'operation', 'transaction']],
+    ['fees', ['total fees', 'total costs', 'total charges', 'commission', 'commissions', 'comm', 'comm fee', 'comm fees', 'commission fee', 'fee', 'fees', 'charges', 'charge', 'costs', 'brokerage', 'stamp duty', 'ptm levy', 'sec fee', 'taf fee', 'finra fee', 'exchange fee', 'exchange fees', 'reg fee', 'regulatory fee', 'regulatory fees', 'clearing fee', 'clearing fees', 'nfa fee', 'transaction fee', 'transaction fees', 'fx fee', 'other fees', 'platform fee', 'ib commission', 'ecn fee', 'routing fee',
+      'currency conversion fee', 'stamp duty reserve tax', 'french transaction tax', 'financial transaction tax', 'transaction tax', 'finra trading activity fee']],
     ['currency', ['currency', 'ccy', 'curr', 'currency code', 'trade currency', 'settlement currency', 'price currency']],
     ['account', ['account', 'account id', 'account number', 'account no', 'account name', 'acct', 'acct id', 'account code', 'portfolio', 'sub account', 'trader', 'book']],
     ['mult', ['multiplier', 'mult', 'contract multiplier', 'point value', 'value per point', 'contract size']],
@@ -319,6 +320,9 @@
     ['description', ['description', 'security name', 'instrument name', 'name', 'details']]
   ];
   var FEE_TOTALS = ['total fees', 'total costs', 'total charges'];
+  // The fields a person can point at a column by hand.
+  var COLUMN_FIELDS = ['date', 'time', 'symbol', 'side', 'qty', 'price', 'fees', 'account', 'currency', 'orderId'];
+  M.COLUMN_FIELDS = COLUMN_FIELDS;
 
   // Candidate columns for each field from a header row: {field: [column indexes, best first]}.
   function headerCandidates(cells) {
@@ -403,7 +407,7 @@
     opts = opts || {};
     var out = {
       name: str(name), ok: false, error: '', delimiter: '', headerLine: 0, columns: {}, dateOrder: '', dateNote: '',
-      account: '', fills: [], fees: [], skipped: [], notes: [], counts: { rows: 0, blank: 0, fills: 0, fees: 0, skipped: 0 }
+      account: '', fills: [], fees: [], skipped: [], notes: [], headerCells: [], counts: { rows: 0, blank: 0, fills: 0, fees: 0, skipped: 0 }
     };
     var src = str(text);
     if (!trim(src)) { out.error = 'The file is empty.'; return out; }
@@ -426,18 +430,36 @@
       rows = keepRows; lines = keepLines;
       out.notes.push('Read the Trades section of a sectioned statement.');
     }
-    // Find the header row.
+    // Find the header row: the first with the columns you chose, or else with date, symbol, quantity and price columns.
+    var chosen = {}, anyChosen = false;
+    Object.keys(opts.columns || {}).forEach(function (f) {
+      if (COLUMN_FIELDS.indexOf(f) >= 0 && typeof opts.columns[f] === 'string') { chosen[f] = trim(opts.columns[f]); anyChosen = true; }
+    });
+    var named = Object.keys(chosen).filter(function (f) { return chosen[f] !== ''; }).map(function (f) { return chosen[f]; });
     var hi = -1, hc = null;
     for (var r = 0; r < rows.length && r < 40; r++) {
       var c = headerCandidates(rows[r]);
+      if (anyChosen && named.length) {
+        var cellsHere = rows[r].map(trim);
+        if (named.every(function (n) { return cellsHere.indexOf(n) >= 0; })) { hi = r; hc = c; break; }
+        continue;
+      }
       var hasDate = c.cand.date.length > 0 || c.cand.time.length > 0;
       if (hasDate && c.cand.symbol.length && c.cand.qty.length && c.cand.price.length) { hi = r; hc = c; break; }
     }
     if (hi < 0) {
-      var first = rows.length ? rows[0].filter(function (x) { return trim(x) !== ''; }).slice(0, 8).join(', ') : '';
-      out.error = 'Could not find a header row with date, symbol, quantity and price columns' + (first ? ' (the first row reads: ' + first + ')' : '') + '.';
+      // Offer the cells of the fullest early row (most likely the header) to choose from.
+      var most = 0;
+      for (var fr = 0; fr < rows.length && fr < 40; fr++) {
+        var filled = rows[fr].filter(function (x) { return trim(x) !== ''; }).length;
+        if (filled > most) { most = filled; out.headerCells = rows[fr].map(trim); }
+      }
+      var first = out.headerCells.filter(function (x) { return x !== ''; }).slice(0, 8).join(', ');
+      out.error = anyChosen && named.length ? 'None of the first 40 rows has all the columns you chose (' + named.join(', ') + ').'
+        : 'Could not find a header row with date, symbol, quantity and price columns' + (first ? ' (the first row reads: ' + first + ')' : '') + '. Choose the columns yourself below.';
       return out;
     }
+    out.headerCells = rows[hi].map(trim);
     out.headerLine = lines[hi];
     if (hi > 0) out.notes.push(hi + (hi === 1 ? ' line' : ' lines') + ' above the header were ignored.');
     var header = rows[hi];
@@ -446,7 +468,14 @@
 
     // Choose a column for each field. A column is used once.
     var used = {}, col = {};
+    // Columns chosen by hand come first; an empty choice means the file has no such column.
+    Object.keys(chosen).forEach(function (f) {
+      if (f === 'fees' || chosen[f] === '') return;
+      var at = out.headerCells.indexOf(chosen[f]);
+      if (at >= 0 && !used[at]) { used[at] = true; col[f] = at; }
+    });
     function take(field, list) {
+      if (has(chosen, field)) return -1;
       for (var i = 0; i < list.length; i++) if (!used[list[i]]) { used[list[i]] = true; col[field] = list[i]; return list[i]; }
       return -1;
     }
@@ -469,7 +498,10 @@
     take('side', sideList);
     var feeTotal = cand.fees.filter(function (i) { return FEE_TOTALS.indexOf(hc.norm[i]) >= 0; });
     var feeCols = [];
-    (feeTotal.length ? feeTotal.slice(0, 1) : cand.fees).forEach(function (i) { if (!used[i]) { used[i] = true; feeCols.push(i); } });
+    if (has(chosen, 'fees')) {
+      var fat = chosen.fees === '' ? -1 : out.headerCells.indexOf(chosen.fees);
+      if (fat >= 0 && !used[fat]) { used[fat] = true; feeCols.push(fat); }
+    } else (feeTotal.length ? feeTotal.slice(0, 1) : cand.fees).forEach(function (i) { if (!used[i]) { used[i] = true; feeCols.push(i); } });
     ['currency', 'account', 'mult', 'status', 'orderId', 'execId', 'openClose', 'asset', 'recordType', 'amount', 'description'].forEach(function (f) { take(f, cand[f]); });
     if (col.symbol === undefined && col.description !== undefined) { col.symbol = col.description; }
     Object.keys(col).forEach(function (f) { out.columns[f] = trim(header[col[f]]); });
@@ -679,7 +711,7 @@
   M.defaultRules = defaultRules;
 
   function emptyState() {
-    return { settings: defaultSettings(), sources: [], fills: [], feeRows: [], journal: [], seq: 0 };
+    return { settings: defaultSettings(), sources: [], fills: [], feeRows: [], journal: [], carry: [], seq: 0 };
   }
   M.emptyState = emptyState;
 
@@ -692,14 +724,14 @@
   function importFiles(state, files) {
     var next = {
       settings: state.settings, sources: state.sources.slice(), fills: state.fills.slice(), feeRows: state.feeRows.slice(),
-      journal: state.journal, seq: state.seq
+      journal: state.journal, carry: state.carry || [], seq: state.seq
     };
     var have = {}, haveFee = {};
     next.fills.forEach(function (f) { have[f.key] = true; });
     next.feeRows.forEach(function (e) { haveFee[e.key] = true; });
     var reports = [];
     files.forEach(function (file) {
-      var rep = readExport(file.name, file.text, { dateOrder: file.dateOrder || state.settings.dateOrder, account: file.account, base: state.settings.base });
+      var rep = readExport(file.name, file.text, { dateOrder: file.dateOrder || state.settings.dateOrder, account: file.account, base: state.settings.base, columns: file.columns });
       var id = 1;
       next.sources.forEach(function (s) { if (s.id >= id) id = s.id + 1; });
       var added = 0, dupes = 0, feesAdded = 0;
@@ -726,7 +758,7 @@
       var source = {
         id: id, name: rep.name, ok: rep.ok, error: rep.error, account: rep.account, columns: rep.columns, dateOrder: rep.dateOrder,
         dateNote: rep.dateNote, notes: rep.notes, counts: rep.counts, added: added, duplicates: dupes, feesAdded: feesAdded,
-        skipped: rep.skipped.slice(0, 300), first: null, last: null
+        skipped: rep.skipped.slice(0, 300), first: null, last: null, headerCells: rep.headerCells
       };
       rep.fills.forEach(function (f) {
         if (source.first === null || f.day < source.first) source.first = f.day;
@@ -788,9 +820,32 @@
    * Match fills into round trips: a trade runs from flat to flat in one symbol in one account.
    * Inside a trade, closing quantities are matched to opening lots first in, first out.
    */
+  // Opening positions typed in for closes whose opening fill is older than the exports, as fills.
+  function carryFills(state) {
+    return (state.carry || []).map(function (c, i) {
+      return {
+        key: carryKey(c), account: c.account, symbol: c.symbol, day: c.day, sec: null, side: c.side, intent: 'open', q: c.q, price: c.price, fee: c.fee || 0,
+        currency: c.currency, mult: null, orderId: '', execId: '', asset: '', file: 'Opening position', line: 0, src: 0, seq: -(state.carry.length - i)
+      };
+    });
+  }
+  function carryKey(c) { return ['c', c.account, c.symbol, c.day, c.side, c.q, c.price].join('|'); }
+  M.carryKey = carryKey;
+
+  // An opening position for a close with no opening fill: the date (YYYY-MM-DD) and price it was opened at.
+  function makeCarry(u, dateText, priceText) {
+    var day = fromIso(dateText);
+    if (day === null) return { ok: false, msg: 'Enter the date the position was opened.' };
+    if (day > u.day) return { ok: false, msg: 'The opening date must be on or before ' + fmtDate(u.day) + ', when it was closed.' };
+    var price = parseMicro(priceText);
+    if (price === null || !(price > 0)) return { ok: false, msg: 'Enter the price it was opened at.' };
+    return { ok: true, carry: { account: u.account, symbol: u.symbol, side: u.side === 'S' ? 'B' : 'S', q: u.q, price: price, day: day, fee: 0, currency: u.currency || '' } };
+  }
+  M.makeCarry = makeCarry;
+
   function matchTrades(state) {
     var settings = state.settings;
-    var fills = state.fills.slice().sort(byTime);
+    var fills = state.fills.concat(carryFills(state)).sort(byTime);
     var feeOf = {};
     fills.forEach(function (f) { feeOf[f.key] = f.fee; });
     // Attach fee rows to fills: the same order, else the same symbol that day, else they stay with the account.
@@ -832,7 +887,7 @@
         events.push({ account: f.account, day: f.day, t: fillT(f), seq: f.seq, cents: cents, trade: id, kind: kind });
       }
       function noTrade(f, q, fee) {
-        unmatched.push({ key: f.key, account: f.account, symbol: f.symbol, side: f.side, q: q, price: f.price, day: f.day, sec: f.sec, fee: fee, file: f.file, line: f.line });
+        unmatched.push({ key: f.key, account: f.account, symbol: f.symbol, side: f.side, q: q, price: f.price, day: f.day, sec: f.sec, fee: fee, file: f.file, line: f.line, currency: f.currency });
         event(f, -fee, 'fee', '');
       }
       function openTrade(f, q, fee) {
@@ -1816,6 +1871,7 @@
   var FILL_FIELDS = ['key', 'account', 'symbol', 'day', 'sec', 'side', 'intent', 'q', 'price', 'fee', 'currency', 'mult', 'orderId', 'execId', 'asset', 'file', 'line', 'src', 'seq'];
   var FEE_FIELDS = ['key', 'account', 'symbol', 'day', 'sec', 'amount', 'orderId', 'label', 'file', 'line', 'src', 'seq'];
   var SOURCE_FIELDS = ['id', 'name', 'account', 'first', 'last', 'added', 'duplicates', 'feesAdded'];
+  var CARRY_FIELDS = ['account', 'symbol', 'side', 'q', 'price', 'day', 'fee', 'currency'];
 
   function pick(o, fields) { var out = {}; fields.forEach(function (f) { out[f] = o[f] === undefined ? null : o[f]; }); return out; }
 
@@ -1835,6 +1891,7 @@
       journal: (state.journal || []).map(function (e) { return { id: e.id, setup: e.setup, stop: e.stop, risk: e.risk, target: e.target || '', mistakes: e.mistakes.slice(), notes: e.notes }; }),
       fills: state.fills.map(function (f) { return pick(f, FILL_FIELDS); }),
       feeRows: state.feeRows.map(function (e) { return pick(e, FEE_FIELDS); }),
+      carry: (state.carry || []).map(function (c) { return pick(c, CARRY_FIELDS); }),
       seq: state.seq
     };
     return JSON.stringify(out, null, 1) + '\n';
@@ -1867,6 +1924,9 @@
       return ok;
     }).map(function (f) { var g = pick(f, FILL_FIELDS); if (g.fee === null) g.fee = 0; if (g.intent === null) g.intent = ''; ['orderId', 'execId', 'asset', 'file', 'currency'].forEach(function (k) { if (g[k] === null) g[k] = ''; }); return g; });
     st.feeRows = (data.feeRows || []).filter(function (e) { return e && typeof e.key === 'string' && typeof e.amount === 'number'; }).map(function (e) { var g = pick(e, FEE_FIELDS); ['orderId', 'label', 'file', 'symbol'].forEach(function (k) { if (g[k] === null) g[k] = ''; }); return g; });
+    st.carry = (data.carry || []).filter(function (c) {
+      return c && typeof c.account === 'string' && typeof c.symbol === 'string' && (c.side === 'B' || c.side === 'S') && typeof c.q === 'number' && c.q > 0 && typeof c.price === 'number' && typeof c.day === 'number';
+    }).map(function (c) { var g = pick(c, CARRY_FIELDS); if (g.fee === null) g.fee = 0; if (g.currency === null) g.currency = ''; return g; });
     st.journal = (data.journal || []).filter(function (e) { return e && typeof e.id === 'string'; }).map(function (e) { return cleanEntry(e.id, e); }).sort(function (a, b) { return cmp(a.id, b.id); });
     var maxSeq = 0;
     st.fills.forEach(function (f) { if (f.seq > maxSeq) maxSeq = f.seq; });

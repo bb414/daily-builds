@@ -139,6 +139,7 @@ def position_size(inp):
 FILL_FIELDS = ['key', 'account', 'symbol', 'day', 'sec', 'side', 'intent', 'q', 'price', 'fee', 'currency', 'mult', 'orderId', 'execId', 'asset', 'file', 'line', 'src', 'seq']
 FEE_FIELDS = ['key', 'account', 'symbol', 'day', 'sec', 'amount', 'orderId', 'label', 'file', 'line', 'src', 'seq']
 SOURCE_FIELDS = ['id', 'name', 'account', 'first', 'last', 'added', 'duplicates', 'feesAdded']
+CARRY_FIELDS = ['account', 'symbol', 'side', 'q', 'price', 'day', 'fee', 'currency']
 
 
 def _pick(o, fields):
@@ -167,6 +168,7 @@ def project_file(state, saved_on=''):
                      'mistakes': list(e['mistakes']), 'notes': e['notes']} for e in state.get('journal') or []],
         'fills': [_pick(f, FILL_FIELDS) for f in state['fills']],
         'feeRows': [_pick(e, FEE_FIELDS) for e in state['feeRows']],
+        'carry': [_pick(c, CARRY_FIELDS) for c in state.get('carry') or []],
         'seq': state['seq'],
     }
     return json.dumps(out, indent=1, ensure_ascii=False) + '\n'
@@ -253,6 +255,17 @@ def read_project(text):
                     g[k] = ''
             fee_rows.append(g)
     st['feeRows'] = fee_rows
+    carry = []
+    for c in data.get('carry') or []:
+        if (isinstance(c, dict) and isinstance(c.get('account'), str) and isinstance(c.get('symbol'), str) and c.get('side') in ('B', 'S')
+                and _is_num(c.get('q')) and c['q'] > 0 and _is_num(c.get('price')) and _is_num(c.get('day'))):
+            g = _pick(c, CARRY_FIELDS)
+            if g['fee'] is None:
+                g['fee'] = 0
+            if g['currency'] is None:
+                g['currency'] = ''
+            carry.append(g)
+    st['carry'] = carry
     st['journal'] = sort_by([clean_entry(e['id'], e) for e in data.get('journal') or [] if isinstance(e, dict) and isinstance(e.get('id'), str)],
                             lambda a, b: cmp(a['id'], b['id']))
     max_seq = 0

@@ -35,6 +35,7 @@ var M = loadModel();
 function runCase(job) {
   var state = job.project ? M.readProject(job.project).state : M.emptyState();
   if (job.settings) Object.keys(job.settings).forEach(function (k) { state.settings[k] = job.settings[k]; });
+  if (job.carry) state.carry = job.carry;
   var imp = M.importFiles(state, job.files || []);
   state = imp.state;
   (job.edits || []).forEach(function (e) { state.journal = M.setJournal(state.journal, e.id, e.fields); });
@@ -80,6 +81,7 @@ function main() {
   out.accountNames = (job.accountNames || []).map(function (s) { return M.cleanAccountName(s); });
   out.projects = (job.projects || []).map(function (t) { return M.readProject(t); });
   out.sizing = (job.sizing || []).map(function (s) { return M.positionSize(s); });
+  out.carries = (job.carries || []).map(function (c) { return M.makeCarry(c.u, c.date, c.price); });
   out.delimited = (job.delimited || []).map(function (t) { var d = M.sniffDelimiter(t); return { delim: d, parsed: M.parseDelimited(t, d) }; });
   out.formats = (job.formats || []).map(function (x) {
     return { money: M.money(x, 'USD'), sign: M.money(x, 'GBP', { sign: true }), whole: M.money(x, 'EUR', { whole: true }), num: M.fmtNum(x / 7, 2), pct: M.fmtPct(x / 100000, 1),
