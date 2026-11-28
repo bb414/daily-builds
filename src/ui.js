@@ -171,6 +171,9 @@
     if (needle) needle.setAttribute('transform', 'rotate(' + angle.toFixed(1) + ')');
     var read = $('#gauge-readout');
     if (read) read.textContent = wholeMoney(monthly);
+    // The account meter shows the last five digits of the monthly total in pence.
+    var digits = ('00000' + String(monthly % 10000000)).slice(-5);
+    for (var i = 0; i < 5; i++) { var dEl = $('#acc-d' + i); if (dEl) dEl.textContent = digits.charAt(i); }
   }
 
   function renderBanner() {
@@ -411,6 +414,7 @@
 
   function timelineSvg(s) {
     var r = A.result;
+    if (s.added) return '<p class="timeline-note">Added by hand, so there are no payments to show. Next due ' + esc(dayLabel(s.nextDue)) + '.</p>';
     var start = r.dataStart, end = Math.max(r.asOf + 35, r.dataEnd);
     var span = Math.max(1, end - start);
     var x = function (d) { return 6 + (d - start) / span * 588; };
@@ -750,6 +754,8 @@
       '<div class="plate"><h3>2. Finding what is regular</h3><p>Descriptions are cleaned of the parts that change every time (dates, card numbers, references, "CARD PAYMENT TO", payment processors before a star) to give each payee a key. Each payee\'s payments are then tested against eight schedules:</p><div class="table-wrap"><table class="cadence-table"><thead><tr><th>Schedule</th><th>What counts as on time</th><th class="num">Payments needed</th></tr></thead><tbody>' + cad + '</tbody></table></div><p class="hint" style="margin-top:8px">Direct debits and standing orders need one fewer payment, as do monthly payments whose description names a kind of subscription. One missed payment in four is allowed. A payee with several subscriptions at different prices (an app store bill, say) is split by amount, and runs at different prices that follow on from each other are joined as a price change.</p></div>' +
       '<div class="plate"><h3>3. The checks</h3><ul><li><b>Price rise:</b> the amount stepped up and stayed up.</li><li><b>Intro price ended:</b> the first one to three payments were less than half the later price.</li><li><b>Charged twice:</b> an extra payment of the same amount within a quarter of the usual gap.</li><li><b>New:</b> first taken recently, after the statement had already been running for a while.</li><li><b>Stopped:</b> at least one expected payment is missing at the end of the statement.</li><li><b>Overlap:</b> two or more active services of the same kind (video, music, cloud storage, gyms and so on).</li><li><b>Still charging:</b> when you reopen a saved review, any payment taken after the date you decided to cancel plus your notice days.</li></ul></div>' +
       '<div class="plate"><h3>4. Forecasting</h3><p>Each payment is projected forward from its last due date. Monthly payments keep their usual day of the month (the last day where the month is shorter); direct debits and standing orders due on a weekend or an England and Wales bank holiday move to the next working day. Bills that vary use the same month last year when there is a year of history (so winter energy bills look like winter), otherwise the median of the last three. Costs a month are worked out from the yearly total, so a weekly £15.50 is £67.17 a month, not £62.</p></div>' +
+      '<div class="plate"><h3>5. Will the money last?</h3><p>The calendar walks one account\'s balance forward a day at a time from the balance in your export (the last row of the latest day, or an OFX file\'s ledger balance), or one you type. Regular payments go out on their expected days, regular income comes in, and your everyday spending is taken off each day: the average over your last 91 days of everything that is not a regular payment or a transfer between your own accounts. Add one-off money you know is coming, such as a loan instalment, because it is not regular. It shows where the balance first goes below zero or past your overdraft, the lowest point, and what is left to spend each day before the next money in.</p></div>' +
+      '<div class="plate"><h3>6. Correcting it, and taking it away</h3><p>Rename any payment, change how often it comes round, its category or how it is paid, join two payees that are really one company, or add a payment your statements do not show. Every correction is saved in the review file. The workbook (.xlsx) puts the register, the next twelve months, the calendar, every transaction tagged with its regular payment and the balance walk into one spreadsheet, with live formulas for every total.</p></div>' +
       '<div class="plate"><h3>Your data stays here</h3><p>This page makes no network requests at all. Files you drop are read by your browser, held in memory, and gone when you close the tab unless you save a review file (and, as a convenience, the browser may keep a copy of your last review on this device; you can clear it any time).</p><button type="button" class="btn btn-small btn-danger" data-action="forget-local">Forget the copy kept in this browser</button></div>' +
       '<div class="plate"><h3>Limits worth knowing</h3><ul><li>It only sees what is in your exports: a yearly renewal paid from an account you did not load will not appear.</li><li>Payments that change payee name completely (after a rebrand, say) look like a stop and a new start; use "Same company as" to join them.</li><li>Irregular but real commitments (termly fees, quarterly bills that drift) may only show as possible regulars.</li><li>Bank holiday rules cover England and Wales. Scottish and Northern Irish holidays differ.</li><li>It is a checking tool, not financial advice; the steps for cancelling are general and the company\'s own terms apply.</li></ul></div>' +
       '</div>';
@@ -764,6 +770,8 @@
     if (!files.length) return;
     var dz = $('#dropzone');
     dz.classList.add('busy');
+    var title = $('.drop-title', dz);
+    title.textContent = 'Reading ' + plural(files.length, 'file') + '...';
     var reviews = files.filter(function (f) { return /\.json$/i.test(f.name); });
     var others = files.filter(function (f) { return !/\.json$/i.test(f.name); });
     var tooBig = others.filter(function (f) { return f.size > 40 * 1024 * 1024; });
@@ -774,6 +782,7 @@
       pending--;
       if (pending > 0) return;
       dz.classList.remove('busy');
+      title.textContent = 'Drop bank exports here';
       if (state.isSample && added.length) { clearData(); state.isSample = false; }
       added.forEach(function (f) { state.files.push(f); });
       setTimeout(function () {
@@ -785,7 +794,7 @@
       }, 0);
     };
     if (tooBig.length) toast(tooBig.map(function (f) { return f.name; }).join(', ') + ' is over 40 MB, so it was not opened.');
-    if (!pending) { dz.classList.remove('busy'); return; }
+    if (!pending) { dz.classList.remove('busy'); title.textContent = 'Drop bank exports here'; return; }
     reviews.forEach(function (f) {
       var rd = new FileReader();
       rd.onload = function () { openReview(String(rd.result), f.name, true); finish(); };

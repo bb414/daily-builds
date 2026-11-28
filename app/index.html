@@ -274,7 +274,7 @@ td.raw { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); wo
 .manifold::before { content: ''; position: absolute; left: 6px; top: -10px; bottom: 30px; width: 16px; border-radius: 8px; background: linear-gradient(90deg, #7d3f1f, #e7a274 25%, #c06c3d 50%, #6e3519); box-shadow: 2px 0 0 rgba(0,0,0,.15); }
 .reg { position: relative; padding: 0; overflow: visible; }
 .reg::before { content: ''; position: absolute; left: -24px; top: 34px; width: 26px; height: 12px; background: linear-gradient(#7d3f1f, #e7a274 30%, #c06c3d 55%, #6e3519); border-radius: 0 3px 3px 0; }
-.reg-main { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 14px 18px 12px 14px; }
+.reg-main { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 12px 18px 8px 14px; }
 .valve { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; color: var(--slate); }
 .valve svg { width: 50px; height: 50px; overflow: visible; }
 .reg[data-decision=keep] .valve { color: var(--green); }
@@ -299,7 +299,8 @@ td.raw { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); wo
 .flag.alert { color: #8e2416; background: var(--red-soft); }
 .flag.info { color: #17545b; background: var(--teal-soft); }
 .flag.good { color: #1f5a39; background: var(--green-soft); }
-.reg-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: center; padding: 10px 18px 12px 84px; border-top: 2px dashed var(--enamel-edge); }
+.reg-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 8px 18px 8px 84px; border-top: 2px dashed var(--enamel-edge); }
+.timeline-note { margin: 0; font-size: 13.5px; color: var(--ink-soft); font-style: italic; }
 .timeline { width: 100%; height: 26px; display: block; }
 .decide { display: inline-flex; border: 2.5px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--enamel); }
 .decide legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -315,7 +316,7 @@ td.raw { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); wo
 .decide input[value=ignore]:checked + span { background: var(--ink-soft); }
 fieldset.decide { margin: 0; padding: 0; min-width: 0; }
 .reg-more { grid-column: 1 / -1; }
-.reg-more > summary { cursor: pointer; font-weight: 700; color: var(--teal); list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.reg-more > summary { cursor: pointer; font-weight: 700; font-size: 15px; color: var(--teal); list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; }
 .reg-more > summary::-webkit-details-marker { display: none; }
 .reg-more > summary::before { content: '+'; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; font-size: 14px; line-height: 1; }
 .reg-more[open] > summary::before { content: '\2212'; }
@@ -535,6 +536,10 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   .view { display: none !important; animation: none; }
   #view-plan { display: block !important; }
   .print-only { display: block; }
+  #view-plan .view-head { display: none; }
+  .savings { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8pt; }
+  .section-title { break-after: avoid; }
+  .action { break-inside: avoid; }
   .plate, .cand { box-shadow: none; border: 1.5pt solid #000; background: #fff; break-inside: avoid; }
   .plate { background-image: none; }
   .cancel-by { color: #000; background: #fff; box-shadow: none; border: 1.5pt solid #000; }
@@ -591,7 +596,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
           <text x="56" y="25" text-anchor="middle" font-family="Red Hat Mono, monospace" font-size="12.5" font-weight="700" fill="#f3d98a" letter-spacing="1.5">ACCOUNT</text>
           <rect x="14" y="42" width="84" height="26" rx="4" fill="#0f1c1a" stroke="#0c2421" stroke-width="2"/>
           <g font-family="Red Hat Mono, monospace" font-size="15" font-weight="700" fill="#f6f1e4" text-anchor="middle">
-            <text x="25" y="61">8</text><text x="41" y="61">3</text><text x="57" y="61">8</text><text x="73" y="61" fill="#e7a274">9</text><text x="89" y="61" fill="#e7a274">3</text>
+            <text id="acc-d0" x="25" y="61">8</text><text id="acc-d1" x="41" y="61">4</text><text id="acc-d2" x="57" y="61">1</text><text id="acc-d3" x="73" y="61" fill="#e7a274">8</text><text id="acc-d4" x="89" y="61" fill="#e7a274">5</text>
           </g>
           <path d="M18 80h76M18 88h52" stroke="#c9bfa8" stroke-width="3" stroke-linecap="round"/>
           <circle cx="10" cy="96" r="2.4" fill="#8c8576"/><circle cx="102" cy="96" r="2.4" fill="#8c8576"/><circle cx="10" cy="12" r="0" fill="none"/>
@@ -3228,6 +3233,9 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     if (needle) needle.setAttribute('transform', 'rotate(' + angle.toFixed(1) + ')');
     var read = $('#gauge-readout');
     if (read) read.textContent = wholeMoney(monthly);
+    // The account meter shows the last five digits of the monthly total in pence.
+    var digits = ('00000' + String(monthly % 10000000)).slice(-5);
+    for (var i = 0; i < 5; i++) { var dEl = $('#acc-d' + i); if (dEl) dEl.textContent = digits.charAt(i); }
   }
 
   function renderBanner() {
@@ -3468,6 +3476,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
 
   function timelineSvg(s) {
     var r = A.result;
+    if (s.added) return '<p class="timeline-note">Added by hand, so there are no payments to show. Next due ' + esc(dayLabel(s.nextDue)) + '.</p>';
     var start = r.dataStart, end = Math.max(r.asOf + 35, r.dataEnd);
     var span = Math.max(1, end - start);
     var x = function (d) { return 6 + (d - start) / span * 588; };
@@ -3807,6 +3816,8 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
       '<div class="plate"><h3>2. Finding what is regular</h3><p>Descriptions are cleaned of the parts that change every time (dates, card numbers, references, "CARD PAYMENT TO", payment processors before a star) to give each payee a key. Each payee\'s payments are then tested against eight schedules:</p><div class="table-wrap"><table class="cadence-table"><thead><tr><th>Schedule</th><th>What counts as on time</th><th class="num">Payments needed</th></tr></thead><tbody>' + cad + '</tbody></table></div><p class="hint" style="margin-top:8px">Direct debits and standing orders need one fewer payment, as do monthly payments whose description names a kind of subscription. One missed payment in four is allowed. A payee with several subscriptions at different prices (an app store bill, say) is split by amount, and runs at different prices that follow on from each other are joined as a price change.</p></div>' +
       '<div class="plate"><h3>3. The checks</h3><ul><li><b>Price rise:</b> the amount stepped up and stayed up.</li><li><b>Intro price ended:</b> the first one to three payments were less than half the later price.</li><li><b>Charged twice:</b> an extra payment of the same amount within a quarter of the usual gap.</li><li><b>New:</b> first taken recently, after the statement had already been running for a while.</li><li><b>Stopped:</b> at least one expected payment is missing at the end of the statement.</li><li><b>Overlap:</b> two or more active services of the same kind (video, music, cloud storage, gyms and so on).</li><li><b>Still charging:</b> when you reopen a saved review, any payment taken after the date you decided to cancel plus your notice days.</li></ul></div>' +
       '<div class="plate"><h3>4. Forecasting</h3><p>Each payment is projected forward from its last due date. Monthly payments keep their usual day of the month (the last day where the month is shorter); direct debits and standing orders due on a weekend or an England and Wales bank holiday move to the next working day. Bills that vary use the same month last year when there is a year of history (so winter energy bills look like winter), otherwise the median of the last three. Costs a month are worked out from the yearly total, so a weekly £15.50 is £67.17 a month, not £62.</p></div>' +
+      '<div class="plate"><h3>5. Will the money last?</h3><p>The calendar walks one account\'s balance forward a day at a time from the balance in your export (the last row of the latest day, or an OFX file\'s ledger balance), or one you type. Regular payments go out on their expected days, regular income comes in, and your everyday spending is taken off each day: the average over your last 91 days of everything that is not a regular payment or a transfer between your own accounts. Add one-off money you know is coming, such as a loan instalment, because it is not regular. It shows where the balance first goes below zero or past your overdraft, the lowest point, and what is left to spend each day before the next money in.</p></div>' +
+      '<div class="plate"><h3>6. Correcting it, and taking it away</h3><p>Rename any payment, change how often it comes round, its category or how it is paid, join two payees that are really one company, or add a payment your statements do not show. Every correction is saved in the review file. The workbook (.xlsx) puts the register, the next twelve months, the calendar, every transaction tagged with its regular payment and the balance walk into one spreadsheet, with live formulas for every total.</p></div>' +
       '<div class="plate"><h3>Your data stays here</h3><p>This page makes no network requests at all. Files you drop are read by your browser, held in memory, and gone when you close the tab unless you save a review file (and, as a convenience, the browser may keep a copy of your last review on this device; you can clear it any time).</p><button type="button" class="btn btn-small btn-danger" data-action="forget-local">Forget the copy kept in this browser</button></div>' +
       '<div class="plate"><h3>Limits worth knowing</h3><ul><li>It only sees what is in your exports: a yearly renewal paid from an account you did not load will not appear.</li><li>Payments that change payee name completely (after a rebrand, say) look like a stop and a new start; use "Same company as" to join them.</li><li>Irregular but real commitments (termly fees, quarterly bills that drift) may only show as possible regulars.</li><li>Bank holiday rules cover England and Wales. Scottish and Northern Irish holidays differ.</li><li>It is a checking tool, not financial advice; the steps for cancelling are general and the company\'s own terms apply.</li></ul></div>' +
       '</div>';
@@ -3821,6 +3832,8 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     if (!files.length) return;
     var dz = $('#dropzone');
     dz.classList.add('busy');
+    var title = $('.drop-title', dz);
+    title.textContent = 'Reading ' + plural(files.length, 'file') + '...';
     var reviews = files.filter(function (f) { return /\.json$/i.test(f.name); });
     var others = files.filter(function (f) { return !/\.json$/i.test(f.name); });
     var tooBig = others.filter(function (f) { return f.size > 40 * 1024 * 1024; });
@@ -3831,6 +3844,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
       pending--;
       if (pending > 0) return;
       dz.classList.remove('busy');
+      title.textContent = 'Drop bank exports here';
       if (state.isSample && added.length) { clearData(); state.isSample = false; }
       added.forEach(function (f) { state.files.push(f); });
       setTimeout(function () {
@@ -3842,7 +3856,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
       }, 0);
     };
     if (tooBig.length) toast(tooBig.map(function (f) { return f.name; }).join(', ') + ' is over 40 MB, so it was not opened.');
-    if (!pending) { dz.classList.remove('busy'); return; }
+    if (!pending) { dz.classList.remove('busy'); title.textContent = 'Drop bank exports here'; return; }
     reviews.forEach(function (f) {
       var rd = new FileReader();
       rd.onload = function () { openReview(String(rd.result), f.name, true); finish(); };

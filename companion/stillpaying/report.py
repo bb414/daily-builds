@@ -182,7 +182,8 @@ def _regulars(result, decisions):
     by_cat = {}
     for s in result['series']:
         by_cat.setdefault(s['category'], []).append(s)
-    for cat in CATEGORIES:
+    # Costs first; savings and money moved between your own accounts last.
+    for cat in sorted(CATEGORIES, key=lambda c: c.get('cost') is False):
         series = by_cat.get(cat['id'])
         if not series:
             continue
