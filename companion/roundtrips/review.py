@@ -194,7 +194,12 @@ def review_text(rv, result):
             lines.append('Best: ' + trade_name(best) + ' ' + money(s['best']['net'], base, sign=True) + (' (' + best['setup'] + ')' if best['setup'] else '')
                          + '. Worst: ' + trade_name(worst) + ' ' + money(s['worst']['net'], base, sign=True) + (' (' + worst['setup'] + ')' if worst['setup'] else ''))
         lines.append('Largest drop from a high this week: ' + money(s['maxDD'], base) + '; longest losing run: ' + plural(s['maxLossStreak'], 'trade'))
-        setups = [r['label'] + ' ' + money(r['net'], base, sign=True) + ' (%d)' % r['n'] for r in rv['bySetup'][:6]]
+        shown = rv['bySetup']
+        if len(shown) > 8:
+            # Keep the best five and the worst two; the rest go together so the line still adds up.
+            middle = shown[5:len(shown) - 2]
+            shown = shown[:5] + [{'label': '%d other setups' % len(middle), 'net': sum(r['net'] for r in middle), 'n': sum(r['n'] for r in middle)}] + shown[len(shown) - 2:]
+        setups = [r['label'] + ' ' + money(r['net'], base, sign=True) + ' (%d)' % r['n'] for r in shown]
         if setups:
             lines.append('Setups: ' + '; '.join(setups))
     if rv['breaches']:

@@ -107,7 +107,7 @@ The companion gives exactly the same trades, figures, breaches, review text and 
 ## Tests
 
 ```
-node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, days, files (26 tests)
+node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, days, files (27 tests)
 python -m unittest discover -s tests  # companion (13), agreement (10) and browser (15) tests
 ```
 

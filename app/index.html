@@ -2786,7 +2786,14 @@ button.cal-cell:hover { border-color: var(--ink); }
       if (s.n === 1) L.push('The trade: ' + tradeName(best) + ' ' + money(s.best.net, base, { sign: true }) + (best.setup ? ' (' + best.setup + ')' : ''));
       else L.push('Best: ' + tradeName(best) + ' ' + money(s.best.net, base, { sign: true }) + (best.setup ? ' (' + best.setup + ')' : '') + '. Worst: ' + tradeName(worst) + ' ' + money(s.worst.net, base, { sign: true }) + (worst.setup ? ' (' + worst.setup + ')' : ''));
       L.push('Largest drop from a high this week: ' + money(s.maxDD, base) + '; longest losing run: ' + plural(s.maxLossStreak, 'trade'));
-      var setups = rv.bySetup.slice(0, 6).map(function (r) { return r.label + ' ' + money(r.net, base, { sign: true }) + ' (' + r.n + ')'; });
+      var shownSetups = rv.bySetup;
+      if (shownSetups.length > 8) {
+        // Keep the best five and the worst two; the rest go together so the line still adds up.
+        var middle = shownSetups.slice(5, shownSetups.length - 2), midNet = 0, midN = 0;
+        middle.forEach(function (r) { midNet += r.net; midN += r.n; });
+        shownSetups = shownSetups.slice(0, 5).concat([{ label: middle.length + ' other setups', net: midNet, n: midN }], shownSetups.slice(shownSetups.length - 2));
+      }
+      var setups = shownSetups.map(function (r) { return r.label + ' ' + money(r.net, base, { sign: true }) + ' (' + r.n + ')'; });
       if (setups.length) L.push('Setups: ' + setups.join('; '));
     }
     if (rv.breaches.length) {

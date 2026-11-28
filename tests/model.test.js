@@ -430,6 +430,23 @@ test('wording for one of a kind: one line, one trade, one previous week', functi
   assert.doesNotMatch(text, /Worst:/);
 });
 
+test('the review names the worst setup even when there are many', function () {
+  var lines = [HEAD], ids = [];
+  for (var i = 0; i < 10; i++) {
+    var h = 10 + Math.floor(i / 3), m = (i % 3) * 15;
+    var at = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+    lines.push('2026-11-23,' + at + ':00,A,S' + i + ',Buy,1,10,0,' + (2 * i));
+    lines.push('2026-11-23,' + at + ':30,A,S' + i + ',Sell,1,' + (10 + i - 6) + ',0,' + (2 * i + 1));
+    ids.push('A|S' + i + '|2026-11-23T' + at + ':00');
+  }
+  var r = run([{ name: 'a.csv', text: csv(lines) }], function (st) {
+    ids.forEach(function (id, i) { st.journal = M.setJournal(st.journal, id, { setup: 'Setup ' + i }); });
+  }).result;
+  var text = M.reviewText(M.weekReview(r, { week: M.fromIso('2026-11-23') }), r);
+  var line = text.split('\n').filter(function (l) { return l.indexOf('Setups: ') === 0; })[0];
+  assert.match(line, /^Setups: Setup 9 \+\$3\.00 \(1\); .*; 3 other setups -\$9\.00 \(3\); Setup 1 -\$5\.00 \(1\); Setup 0 -\$6\.00 \(1\)$/);
+});
+
 test('no em dashes in the model or the text it writes', function () {
   var src = fs.readFileSync(path.join(ROOT, 'src', 'model.js'), 'utf8');
   assert.equal(src.indexOf('\u2014'), -1);

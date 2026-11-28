@@ -115,6 +115,13 @@ class AgreementTest(unittest.TestCase):
             self.compare_case({'files': [{'name': name, 'text': text}], 'settings': {'accounts': [{'name': 'No times', 'start': '1000', 'longOnly': True}]}}, name)
         self.compare_case({'files': [{'name': 'template.csv', 'text': h.sample_text('template.csv')}]}, 'template')
         self.compare_case({'files': [{'name': 'no-times-2026-11-27.csv', 'text': EDGE['no-times.csv']}], 'settings': {'renames': [{'from': 'No times', 'to': 'ISA'}]}}, 'renamed')
+        lines, edits = ['Date,Time,Account,Symbol,Side,Quantity,Price,Commission,Order ID'], []
+        for i in range(10):
+            at = '%02d:%02d' % (10 + i // 3, (i % 3) * 15)
+            lines += ['2026-11-23,%s:00,A,S%d,Buy,1,10,0,%d' % (at, i, 2 * i), '2026-11-23,%s:30,A,S%d,Sell,1,%d,0,%d' % (at, i, 4 + i, 2 * i + 1)]
+            edits.append({'id': 'A|S%d|2026-11-23T%s:00' % (i, at), 'fields': {'setup': 'Setup %d' % i}})
+        py = self.compare_case({'files': [{'name': 'setups.csv', 'text': '\n'.join(lines) + '\n'}], 'edits': edits}, 'many setups')
+        self.assertIn('3 other setups -$9.00 (3)', py['reviews'][0]['text'])
 
     def test_chosen_columns_and_typed_in_openings(self):
         text = 'Exported by desk\nWhen,Code,Way,Lots,At,Charge\n23/11/2026 09:00,QX,B,2,10.00,0.50\n23/11/2026 10:00,QX,S,3,10.40,0.50\n'
