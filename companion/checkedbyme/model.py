@@ -2318,7 +2318,9 @@ def change_sentence(a, who):
                plural(c["dropped"], "sentence"), "was" if c["dropped"] == 1 else "were"))
 
 
-def check_sentence(s, who):
+def check_sentence(s, who, has_text=True):
+    if not has_text:
+        return "No text has been checked yet."
     if not s["claims"]:
         return "The checker found no statements in the text that needed checking."
     parts = []
@@ -2340,13 +2342,18 @@ def check_sentence(s, who):
 
 
 def ref_sentence(s, who):
+    """Says only what the marks show: a list with flagged entries is "checked" only once each has been dealt with."""
     if not s["refs"]:
         return ""
-    out = ("I checked my reference list (" if who is None else "The reference list (") + plural(s["refs"], "entry", "entries") + \
-        (") by hand" if who is None else ") was checked by hand")
-    if s["refFlagged"]:
-        out += ": %d flagged for attention, %d dealt with" % (s["refFlagged"], s["refResolved"])
-    return out + "."
+    lst = "my reference list" if who is None else "the reference list"
+    if not s["refFlagged"]:
+        return "None of the " + plural(s["refs"], "entry", "entries") + " in " + lst + " was flagged by the checker."
+    if s["refResolved"] == s["refFlagged"]:
+        return ("I" if who is None else who) + " looked up by hand the " + plural(s["refFlagged"], "entry", "entries") + " in " + lst + \
+            " (of %d) flagged for attention." % s["refs"]
+    return "Of the " + plural(s["refs"], "entry", "entries") + " in " + lst + ", %d %s flagged for attention; " % (
+        s["refFlagged"], "was" if s["refFlagged"] == 1 else "were") + ("I have" if who is None else who + " has") + \
+        " dealt with %d of them so far." % s["refResolved"]
 
 
 def uniq_lower(lst):
@@ -2377,9 +2384,10 @@ def declaration(a, state):
         date_text = long_day(as_of)
     tools = tools_used(sessions)
     name = trim(p.get("person") or "")
-    title = trim(p.get("title") or "") or "this work"
     assignment = trim(p.get("assignment") or "")
     warnings = []
+    if not a["sentences"]:
+        warnings.append("There is no text yet: paste the AI draft and your final version on the Your texts page.")
     if not sessions:
         warnings.append("No sessions in the log for this assignment: add at least the session that produced the AI draft.")
     if s["highUnchecked"]:
@@ -2408,7 +2416,7 @@ def declaration(a, state):
 
     if tpl == "work":
         heading("Note on AI use")
-        fields([["Document", title], ["Prepared by", name], ["Date", date_text]])
+        fields([["Document", trim(p.get("title") or "")], ["Prepared by", name], ["Date", date_text]])
         if tools:
             para("This document was prepared with help from " + list_and(tools) + ", used for "
                  + list_and(uniq_lower([x["purpose"] for x in sessions if x.get("purpose")])) + ".")
@@ -2416,7 +2424,7 @@ def declaration(a, state):
             para("No AI tools were used to prepare this document.")
         if a["changes"]:
             para(change_sentence(a, name or "the author"))
-        para(check_sentence(s, name or "The author"))
+        para(check_sentence(s, name or "The author", len(a["sentences"]) > 0))
         if s["refs"]:
             para(ref_sentence(s, name or "the author"))
         para("Nothing in this note was checked online by the checking tool; the checks above were done by " + (name or "the author") + ".")
@@ -2433,7 +2441,7 @@ def declaration(a, state):
         para(" ".join(b for b in bits if b))
     else:
         heading("Declaration of AI use")
-        fields([["Title", title], ["Assignment", assignment], ["Module or course", trim(p.get("course") or "")],
+        fields([["Title", trim(p.get("title") or "")], ["Assignment", assignment], ["Module or course", trim(p.get("course") or "")],
                 ["Institution", trim(p.get("institution") or "")], ["Name", name], ["Date", date_text]])
         para(level_text(p.get("level")))
         if sessions:
@@ -2444,7 +2452,7 @@ def declaration(a, state):
             heading("How much of the final text is the AI's")
             para(change_sentence(a, None))
         heading("What I checked")
-        para(check_sentence(s, None))
+        para(check_sentence(s, None, len(a["sentences"]) > 0))
         if s["refs"]:
             para(ref_sentence(s, None))
         if tpl == "appendix" and a["claims"]:

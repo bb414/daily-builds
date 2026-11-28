@@ -456,8 +456,13 @@ table.sessions td.d { font-family: var(--mono); font-size: 12.5px; white-space: 
 table.sessions tr.other td { color: var(--ink-3); }
 .row-acts { display: flex; gap: 4px; }
 .row-acts .btn { min-height: 30px; padding: 3px 8px; font-size: 13px; }
-.session-form { margin-top: 12px; border: 1.5px solid var(--blue); border-radius: 3px; padding: 12px; background: rgba(219, 230, 243, .45); }
-.session-form h3 { color: var(--blue-2); }
+.session-form { margin-top: 12px; border: 1.5px solid var(--blue); border-radius: 3px; padding: 10px 12px; background: rgba(219, 230, 243, .45); }
+.session-form summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.session-form summary::-webkit-details-marker { display: none; }
+.session-form summary::before { content: "+"; display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--blue); border-radius: 50%; color: var(--blue); font: 600 15px/1 var(--mono); }
+.session-form[open] summary::before { content: "\2212"; }
+.session-form summary h3 { color: var(--blue-2); margin: 0; }
+.session-form[open] summary { margin-bottom: 8px; }
 .form-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .proof {
   position: relative; background: #fffdf6; border: 1px solid var(--rule-2); padding: 26px 28px 30px; box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .55);
@@ -516,6 +521,7 @@ table.weights td.p.neg { color: var(--green); }
   .hero-art { max-width: 560px; margin: 0 auto; width: 100%; }
   .slips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .trays, .decl-grid, .how-grid, .change-top, .ledger { grid-template-columns: minmax(0, 1fr); }
+  .decl-right { order: -1; }
   .refs-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .marks-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
   .marks button { border-radius: 6px; min-height: 0; }
@@ -541,6 +547,14 @@ table.weights td.p.neg { color: var(--green); }
   .marks .ts { display: none; }
   .marks .tl { font-size: 13.5px; }
   .bigfig .n { font-size: 66px; }
+  .table-wrap { overflow: visible; border: 0; background: transparent; }
+  table.sessions, table.sessions tbody, table.sessions tr, table.sessions td { display: block; width: 100%; }
+  table.sessions thead { display: none; }
+  table.sessions tr { border: 1.5px solid var(--rule-2); border-radius: 3px; background: #fffcf4; margin-bottom: 8px; padding: 6px 8px; }
+  table.sessions td { border: 0; padding: 2px 0; display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 8px; }
+  table.sessions td::before { content: attr(data-label); font: 600 10.5px/1.7 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  table.sessions td.acts { display: block; padding-top: 6px; }
+  table.sessions td.acts::before { content: none; }
   .proof { padding: 18px 16px 22px; }
   .stamp { width: 126px; }
   .stamp-pending { width: 118px; font-size: 10px; }

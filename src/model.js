@@ -1970,7 +1970,8 @@
       plural(c.dropped, 'sentence') + ' of the AI draft ' + (c.dropped === 1 ? 'was' : 'were') + ' left out.';
   }
 
-  function checkSentence(sum, who) {
+  function checkSentence(sum, who, hasText) {
+    if (!hasText) return 'No text has been checked yet.';
     if (!sum.claims) return 'The checker found no statements in the text that needed checking.';
     var parts = [];
     if (sum.verified) parts.push(sum.verified + ' verified against a source');
@@ -1983,11 +1984,16 @@
     return s;
   }
 
+  // Says only what the marks show: a list with flagged entries is "checked" only once each has been dealt with.
   function refSentence(sum, who) {
     if (!sum.refs) return '';
-    var s = (who === null ? 'I checked my reference list (' : 'The reference list (') + plural(sum.refs, 'entry', 'entries') + (who === null ? ') by hand' : ') was checked by hand');
-    if (sum.refFlagged) s += ': ' + sum.refFlagged + ' flagged for attention, ' + sum.refResolved + ' dealt with';
-    return s + '.';
+    var list = who === null ? 'my reference list' : 'the reference list';
+    if (!sum.refFlagged) return 'None of the ' + plural(sum.refs, 'entry', 'entries') + ' in ' + list + ' was flagged by the checker.';
+    if (sum.refResolved === sum.refFlagged) {
+      return (who === null ? 'I' : who) + ' looked up by hand the ' + plural(sum.refFlagged, 'entry', 'entries') + ' in ' + list + ' (of ' + sum.refs + ') flagged for attention.';
+    }
+    return 'Of the ' + plural(sum.refs, 'entry', 'entries') + ' in ' + list + ', ' + sum.refFlagged + ' ' + (sum.refFlagged === 1 ? 'was' : 'were') +
+      ' flagged for attention; ' + (who === null ? 'I have' : who + ' has') + ' dealt with ' + sum.refResolved + ' of them so far.';
   }
 
   // Builds the declaration as plain lines; Markdown and plain text are both made from these.
@@ -2001,9 +2007,9 @@
     var dateText = p.date ? (parseDate(p.date).day !== null ? longDay(parseDate(p.date).day) : p.date) : longDay(asOf);
     var tools = toolsUsed(sessions);
     var name = trim(p.person || '');
-    var title = trim(p.title || '') || 'this work';
     var assignment = trim(p.assignment || '');
     var warnings = [];
+    if (!a.sentences.length) warnings.push('There is no text yet: paste the AI draft and your final version on the Your texts page.');
     if (!sessions.length) warnings.push('No sessions in the log for this assignment: add at least the session that produced the AI draft.');
     if (sum.highUnchecked) warnings.push(plural(sum.highUnchecked, 'high-risk statement is', 'high-risk statements are') + ' still unchecked. The declaration says so.');
     if (!name) warnings.push('Add your name so the declaration can be signed.');
@@ -2020,10 +2026,10 @@
 
     if (tpl === 'work') {
       heading('Note on AI use');
-      fields([['Document', title], ['Prepared by', name], ['Date', dateText]]);
+      fields([['Document', trim(p.title || '')], ['Prepared by', name], ['Date', dateText]]);
       para(tools.length ? 'This document was prepared with help from ' + listAnd(tools) + ', used for ' + listAnd(uniqLower(sessions.map(function (s) { return s.purpose; }).filter(Boolean))) + '.' : 'No AI tools were used to prepare this document.');
       if (a.changes) para(changeSentence(a, name || 'the author'));
-      para(checkSentence(sum, name || 'The author'));
+      para(checkSentence(sum, name || 'The author', a.sentences.length > 0));
       if (sum.refs) para(refSentence(sum, name || 'the author'));
       para('Nothing in this note was checked online by the checking tool; the checks above were done by ' + (name || 'the author') + '.');
     } else if (tpl === 'short') {
@@ -2035,7 +2041,7 @@
       para(bits.filter(Boolean).join(' '));
     } else {
       heading('Declaration of AI use');
-      fields([['Title', title], ['Assignment', assignment], ['Module or course', trim(p.course || '')], ['Institution', trim(p.institution || '')], ['Name', name], ['Date', dateText]]);
+      fields([['Title', trim(p.title || '')], ['Assignment', assignment], ['Module or course', trim(p.course || '')], ['Institution', trim(p.institution || '')], ['Name', name], ['Date', dateText]]);
       para(levelText(p.level));
       if (sessions.length) {
         para('I used ' + listAnd(tools.length ? tools : ['AI tools']) + ' in ' + plural(sessions.length, 'session') + ':');
@@ -2043,7 +2049,7 @@
       }
       if (a.changes) { heading('How much of the final text is the AI\'s'); para(changeSentence(a, null)); }
       heading('What I checked');
-      para(checkSentence(sum, null));
+      para(checkSentence(sum, null, a.sentences.length > 0));
       if (sum.refs) para(refSentence(sum, null));
       if (tpl === 'appendix' && a.claims.length) {
         heading('Checking log');
