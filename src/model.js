@@ -798,6 +798,13 @@
 
   // ---------------------------------------------------------------- your notes
 
+  // "HR dashboard Q3 2026: occupancy 41%" names its source before the colon; figures there are not facts to compare.
+  function labelSpan(text) {
+    var i = text.indexOf(': ');
+    if (i <= 0 || trim(text.slice(i + 2)) === '' || text.slice(0, i).split(' ').length > 8) return [];
+    return [{ start: 0, end: i }];
+  }
+
   function notesIndex(text) {
     var doc = readDocument(text || '');
     var out = [], heading = [];
@@ -808,7 +815,7 @@
       for (var p = 0; p < parts.length; p++) {
         var cits = findCitations(parts[p]);
         out.push({ text: parts[p], words: contentWords(parts[p]), heading: block.kind === 'heading' ? [] : heading.slice(),
-          facts: findFacts(parts[p], findUrls(parts[p])), quotes: findQuotes(parts[p]), citations: cits });
+          facts: findFacts(parts[p], findUrls(parts[p]).concat(labelSpan(parts[p]))), quotes: findQuotes(parts[p]), citations: cits });
       }
     }
     return out;
@@ -1544,7 +1551,7 @@
     if (e.container) {
       var cws = normAuthors(e.container).split(' ').filter(function (w) { return w !== ''; });
       var specific = cws.filter(function (w) { return !hasOwn(GENERIC_WORDS, w); });
-      if (cws.length >= 2 && specific.length <= 1 && /\b(?:journal|review|annals|bulletin|quarterly)\b/i.test(e.container)) {
+      if (cws.length >= 2 && specific.length === 0 && /\b(?:journal|review|annals|bulletin|quarterly)\b/i.test(e.container)) {
         issues.push({ code: 'generic-journal', severity: 'warning', text: 'The journal name "' + e.container + '" is very generic.' }); signals++;
       }
     }
@@ -1836,6 +1843,14 @@
     person: ['person', 'name', 'author', 'who', 'student', 'contributor', 'team member', 'by']
   };
 
+  var HEADER_WORD_ORDER = ['date', 'tool', 'minutes', 'prompt', 'assignment', 'person', 'used', 'changed', 'checked', 'purpose'];
+  var HEADER_WORDS = {
+    date: ['date', 'when', 'timestamp', 'day'], tool: ['tool', 'assistant', 'chatbot', 'model'], minutes: ['minutes', 'mins', 'how long', 'duration'],
+    prompt: ['prompt', 'asked', 'ask', 'question'], assignment: ['assignment', 'module', 'project', 'deliverable', 'coursework', 'essay'],
+    person: ['name', 'person', 'student', 'who'], used: ['keep', 'kept', 'used', 'took'], changed: ['change', 'changed', 'edit', 'edited', 'rewrote'],
+    checked: ['check', 'checked', 'verify', 'verified'], purpose: ['purpose', 'for', 'why', 'task', 'use']
+  };
+
   function headerKey(h) { return collapse(String(h).toLowerCase().replace(/[^a-z0-9() ]/g, ' ')); }
 
   function mapSessionHeader(header) {
@@ -1845,6 +1860,15 @@
       for (var a = 0; a < aliases.length && !hasOwn(map, field); a++) {
         for (var i = 0; i < header.length; i++) {
           if (!hasOwn(used, i) && headerKey(header[i]) === aliases[a]) { map[field] = i; used[i] = true; break; }
+        }
+      }
+    }
+    // Forms and spreadsheets often use questions as headings ("Which AI tool did you use?"): match on key words.
+    for (var o = 0; o < HEADER_WORD_ORDER.length; o++) {
+      var fld = HEADER_WORD_ORDER[o], keys = HEADER_WORDS[fld];
+      for (var k = 0; k < keys.length && !hasOwn(map, fld); k++) {
+        for (var j = 0; j < header.length; j++) {
+          if (!hasOwn(used, j) && (' ' + headerKey(header[j]).replace(/[()]/g, ' ') + ' ').indexOf(' ' + keys[k] + ' ') >= 0) { map[fld] = j; used[j] = true; break; }
         }
       }
     }
@@ -1983,8 +2007,10 @@
     if (sum.verified) parts.push(sum.verified + ' verified against a source');
     if (sum.corrected) parts.push(sum.corrected + ' corrected');
     if (sum.removed) parts.push(sum.removed + ' removed');
-    var s = (who === null ? 'I' : who) + ' went through ' + plural(sum.claims, 'statement') + ' flagged for checking (' + sum.high + ' high risk, ' + sum.medium + ' medium, ' + sum.low + ' low)';
-    s += parts.length ? ': ' + listAnd(parts) + '.' : '.';
+    var counts = ' (' + sum.high + ' high risk, ' + sum.medium + ' medium, ' + sum.low + ' low)';
+    if (!parts.length) return 'The checker flagged ' + plural(sum.claims, 'statement') + ' for checking' + counts + '; none has been marked as checked yet.';
+    var s = (who === null ? 'I' : who) + ' went through ' + plural(sum.claims, 'statement') + ' flagged for checking' + counts;
+    s += ': ' + listAnd(parts) + '.';
     if (sum.unchecked) s += ' ' + plural(sum.unchecked, 'statement is', 'statements are') + ' not yet marked as checked' + (sum.highUnchecked ? ', including ' + sum.highUnchecked + ' high risk.' : '.');
     else s += ' None is left unchecked.';
     return s;
@@ -2033,7 +2059,10 @@
     if (tpl === 'work') {
       heading('Note on AI use');
       fields([['Document', trim(p.title || '')], ['Prepared by', name], ['Date', dateText]]);
-      para(tools.length ? 'This document was prepared with help from ' + listAnd(tools) + ', used for ' + listAnd(uniqLower(sessions.map(function (s) { return s.purpose; }).filter(Boolean))) + '.' : 'No AI tools were used to prepare this document.');
+      var purposes = uniqLower(sessions.map(function (s) { return s.purpose; }).filter(Boolean));
+      if (p.level === 'none' && !sessions.length) para('No AI tools were used to prepare this document.');
+      else if (!sessions.length) para('This document was prepared with help from AI tools; no sessions have been logged yet.');
+      else para('This document was prepared with help from ' + (tools.length ? listAnd(tools) : 'AI tools (not named in the log)') + (purposes.length ? ' (purposes logged: ' + purposes.join('; ') + ')' : '') + '.');
       if (a.changes) para(changeSentence(a, name || 'the author'));
       para(checkSentence(sum, name || 'The author', a.sentences.length > 0));
       if (sum.refs) para(refSentence(sum, name || 'the author'));

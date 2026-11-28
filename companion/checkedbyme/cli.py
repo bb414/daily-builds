@@ -92,8 +92,9 @@ def print_checklist(a, show_all=False, out=None):
             out.write("  Cited but not listed: %s\n" % m["text"])
     if a["changes"]:
         ch = a["changes"]
-        out.write("\nAI wording kept: %d%% of your final text word for word; %d sentences kept, %d edited, %d reworded, %d your own; %d AI sentences cut.\n" % (
-            ch["keptShare"], ch["counts"]["kept"], ch["counts"]["edited"], ch["counts"]["reworded"], ch["counts"]["yours"], ch["counts"]["dropped"]))
+        out.write("\nAI wording kept: %d%% of your final text word for word; %s kept, %d edited, %d reworded, %d your own; %s cut.\n" % (
+            ch["keptShare"], M.plural(ch["counts"]["kept"], "sentence"), ch["counts"]["edited"], ch["counts"]["reworded"], ch["counts"]["yours"],
+            M.plural(ch["counts"]["dropped"], "AI sentence")))
     out.write("\nNothing was checked online. This is not a plagiarism detector.\n")
 
 

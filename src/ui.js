@@ -269,7 +269,7 @@
     }
     if (a.changes) {
       var ch = a.changes;
-      out += slip('blue', 'AI wording kept', ch.keptShare + '%', 'of your final', esc(ch.counts.kept + ' of ' + ch.finalSentences + ' sentences kept word for word, ' + ch.counts.yours + ' your own.'), 'caret', 'changes');
+      out += slip('blue', 'AI wording kept', ch.keptShare + '%', 'of your final', esc(ch.counts.kept + ' of ' + plural(ch.finalSentences, 'sentence') + ' kept word for word, ' + ch.counts.yours + ' your own.'), 'caret', 'changes');
     } else {
       out += slip('', 'AI wording kept', '\u2013', '', 'Add your final version to compare it with the AI draft.', 'caret', 'copy');
     }
@@ -506,7 +506,7 @@
       ? plural(s.claims, 'statement') + ' worth checking, <strong>' + s.high + ' high risk</strong>. ' + s.resolved + ' marked, ' + s.unchecked + ' to go.'
       : 'All ' + plural(s.claims, 'statement') + ' are marked. ' + (s.refUnresolved ? 'Now look at the references.' : 'Ready to sign off.');
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
-      '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
+      '<div><p class="small">Each <strong>Qy</strong> (a proofreader\'s query) is one statement to look up. Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
       '<div class="tools-row"><button type="button" class="btn small" data-act="md-proof">Proof copy (.md)</button><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
     html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
@@ -654,7 +654,7 @@
     var html = '<div class="change-top"><div class="bigfig"><div class="n">' + ch.keptShare + '<small>%</small></div><p>of the ' + ch.finalWords + ' words in your final text appear <strong>word for word</strong> in the AI draft, in runs of ' + M.MIN_RUN + ' or more words. ' + ch.survivedShare + '% of the AI draft survives into your final version.</p>' +
       '<div class="waffle" role="img" aria-label="' + ch.keptShare + ' squares in 100 are the AI\'s wording">' + new Array(101).join('.').split('').map(function (x, i) { return '<i' + (i < ch.keptShare ? ' class="k"' : '') + '></i>'; }).join('') + '</div></div>' +
       '<div class="split"><h3>Your ' + plural(ch.finalSentences, 'sentence') + '</h3><div class="split-bar" role="img" aria-label="' + esc(parts.map(function (p) { return p[2] + ' ' + p[1].charAt(0).toLowerCase() + p[1].slice(1); }).join(', ')) + '">' + bar + '</div>' +
-      '<div class="split-legend">' + parts.map(function (p) { return '<span><i class="sw s-' + p[0] + '"></i>' + p[2] + ' ' + esc(p[1].charAt(0).toLowerCase() + p[1].slice(1)) + '</span>'; }).join('') + '<span><i class="sw s-dropped"></i>' + c.dropped + ' AI sentences cut</span></div>' +
+      '<div class="split-legend">' + parts.map(function (p) { return '<span><i class="sw s-' + p[0] + '"></i>' + p[2] + ' ' + esc(p[1].charAt(0).toLowerCase() + p[1].slice(1)) + '</span>'; }).join('') + '<span><i class="sw s-dropped"></i>' + esc(plural(c.dropped, 'AI sentence')) + ' cut</span></div>' +
       '<div class="paras"><h3>Paragraph by paragraph</h3>' + ch.paragraphs.map(function (p, i) {
         var share = M.pct(p.kept, p.words);
         return '<div class="para-row"><span>\u00b6 ' + (i + 1) + '</span><div class="para-track" role="img" aria-label="Paragraph ' + (i + 1) + ': ' + share + '% AI wording"><span style="width:' + share + '%"></span></div><span>' + share + '%</span></div>';
@@ -1067,7 +1067,7 @@
     else if (act === 'txt-decl') download(slugName(S.project.title || 'declaration') + '-ai-declaration.txt', M.declarationText(currentDeclaration()), 'text/plain;charset=utf-8');
     else if (act === 'copy-diff') {
       var ch = a.changes;
-      var text = 'About ' + ch.keptShare + '% of my final text appears word for word in the AI draft. ' + ch.counts.kept + ' sentences kept, ' + ch.counts.edited + ' edited, ' + ch.counts.reworded + ' reworded, ' + ch.counts.yours + ' my own; ' + ch.counts.dropped + ' AI sentences cut.';
+      var text = 'About ' + ch.keptShare + '% of my final text appears word for word in the AI draft. ' + plural(ch.counts.kept, 'sentence') + ' kept, ' + ch.counts.edited + ' edited, ' + ch.counts.reworded + ' reworded, ' + ch.counts.yours + ' my own; ' + plural(ch.counts.dropped, 'AI sentence') + ' cut.';
       copyText(text, function (ok) { say(ok ? 'Summary copied' : 'Copy did not work here'); });
     } else if (act === 'edit-session') { S.editing = +t.getAttribute('data-i'); renderDeclare(); var f0 = $('sf-date'); if (f0) f0.focus(); }
     else if (act === 'del-session') {

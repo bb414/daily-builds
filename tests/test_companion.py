@@ -25,6 +25,11 @@ DOCX_NOTES = ('<w:footnotes xmlns:w="x"><w:footnote w:type="separator" w:id="-1"
               '<w:footnote w:id="1"><w:p><w:r><w:t>Kestleford Repair Network (2024) Annual report 2023.</w:t></w:r></w:p></w:footnote></w:footnotes>')
 
 
+def read_file(path, encoding="utf-8"):
+    with open(path, encoding=encoding) as fh:
+        return fh.read()
+
+
 def make_docx(path, doc=DOCX_DOC, notes=DOCX_NOTES):
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", "<Types/>")
@@ -130,7 +135,7 @@ class Commands(unittest.TestCase):
             self.assertNotIn("<script", page)
             self.assertNotIn("<link", page)
             self.assertNotIn("\u2014", page)
-            rows = M.parse_csv(open(out_csv, encoding="utf-8").read())["rows"]
+            rows = M.parse_csv(read_file(out_csv, encoding="utf-8"))["rows"]
             self.assertEqual(len(rows), 5)
             self.assertEqual(rows[1][0], "ai-draft.md + ai-draft-final.md")
             self.assertEqual(rows[1][7], "74")
@@ -187,9 +192,9 @@ class Commands(unittest.TestCase):
                                "--out-csv", os.path.join(d, "m.csv"), "--out-md", os.path.join(d, "m.md"), "--as-of", "2026-11-28")
             self.assertEqual(code, 0)
             self.assertIn("Merged 5 sessions from 3 logs.", out)
-            merged = M.parse_sessions(open(os.path.join(d, "m.csv"), encoding="utf-8").read())["sessions"]
+            merged = M.parse_sessions(read_file(os.path.join(d, "m.csv"), encoding="utf-8"))["sessions"]
             self.assertEqual([s["person"] for s in merged], ["Ana", "Dev Okonedo", "Ana, Dev Okonedo", "Sam", "Sam"])
-            md = open(os.path.join(d, "m.md"), encoding="utf-8").read()
+            md = read_file(os.path.join(d, "m.md"), encoding="utf-8")
             self.assertIn("**Team:** Ana, Dev Okonedo and Sam", md)
             self.assertIn("about 90 minutes in all", md)
             self.assertIn("| 10 November 2026 | Ana, Dev Okonedo | Orrery Chat |", md)
@@ -207,23 +212,23 @@ class Commands(unittest.TestCase):
             self.assertIn("Not read: junk.json", text)
             self.assertIn("1 still contains text from the chat window", text)
             self.assertIn("declared less AI use than the comparison with their AI draft shows (Hana Ellery, Jude Fairweather)", text)
-            page = open(out, encoding="utf-8").read()
+            page = read_file(out, encoding="utf-8")
             self.assertIn("median AI wording kept", page)
             self.assertNotIn("Repair caf\u00e9s have become", page, "nobody's text is shown")
             self.assertNotIn("<script", page)
-            rows = M.parse_csv(open(csv_path, encoding="utf-8").read())["rows"]
+            rows = M.parse_csv(read_file(csv_path, encoding="utf-8"))["rows"]
             self.assertEqual(len(rows), 9)
             by = {r[0]: r for r in rows[1:]}
             self.assertEqual(by["Ewan Castell"][7], "")
             self.assertEqual(by["Hana Ellery"][-1], "yes")
             self.assertEqual(by["Tomas Brightwater"][-2], "yes")
             run("cohort", os.path.join(DATA, "class"), "--out", out, "--csv", csv_path, "--anonymise", "--as-of", "2026-11-28")
-            page = open(out, encoding="utf-8").read()
+            page = read_file(out, encoding="utf-8")
             self.assertNotIn("Hana Ellery", page)
             self.assertIn("Person 1", page)
 
     def test_declaration_warns_when_the_declared_level_does_not_match(self):
-        p = M.read_project(open(os.path.join(DATA, "class", "hana-ellery.checked-by-me.json"), encoding="utf-8").read())
+        p = M.read_project(read_file(os.path.join(DATA, "class", "hana-ellery.checked-by-me.json"), encoding="utf-8"))
         a = M.analyse(dict(p["texts"], asOf=AS_OF))
         d = M.declaration(a, {"project": p["project"], "sessions": p["sessions"], "checks": p["checks"], "asOf": AS_OF})
         self.assertTrue(any("ideas and planning only" in w and "98%" in w for w in d["warnings"]), d["warnings"])
@@ -239,7 +244,7 @@ class Commands(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             md = os.path.join(d, "d.md")
             run("declare", os.path.join(DATA, "sample-project.json"), "--template", "work", "--md", md, "--as-of", "2026-11-28")
-            self.assertTrue(open(md, encoding="utf-8").read().startswith("# Note on AI use"))
+            self.assertTrue(read_file(md, encoding="utf-8").startswith("# Note on AI use"))
 
     def test_recheck_shows_what_changed_and_records_the_version(self):
         with tempfile.TemporaryDirectory() as d:
@@ -252,7 +257,7 @@ class Commands(unittest.TestCase):
             self.assertIn("Compared with the version checked on 2026-11-20", text)
             self.assertIn("[-56%-] {+36%+}", text)
             self.assertIn("GONE    (was removed)", text)
-            p = M.read_project(open(out, encoding="utf-8").read())
+            p = M.read_project(read_file(out, encoding="utf-8"))
             self.assertEqual(p["baseline"]["on"], "2026-11-28")
             self.assertIn("36%", p["texts"]["final"])
             code, text, _ = run("recheck", out, new, "--as-of", "2026-11-28")
@@ -263,7 +268,7 @@ class Commands(unittest.TestCase):
             out = os.path.join(d, "proof.md")
             code, text, _ = run("annotate", os.path.join(DATA, "sample-project.json"), "--out", out, "--as-of", "2026-11-28")
             self.assertEqual(code, 0)
-            md = open(out, encoding="utf-8").read()
+            md = read_file(out, encoding="utf-8")
             self.assertTrue(md.startswith("# Proof copy: Repair caf\u00e9s and the circular high street"))
             self.assertIn("**[Qy 5: high, open]**", md)
             self.assertIn("### Qy 9 (high risk, score 16, open)", md)
@@ -282,7 +287,7 @@ class Commands(unittest.TestCase):
             code, out, _ = run("project", "--draft", os.path.join(DATA, "ai-draft.md"), "--final", os.path.join(DATA, "final-version.md"),
                                "--sessions", os.path.join(DATA, "session-log.csv"), "--title", "Essay", "--out", path, "--as-of", "2026-11-28")
             self.assertEqual(code, 0)
-            p = M.read_project(open(path, encoding="utf-8").read())
+            p = M.read_project(read_file(path, encoding="utf-8"))
             self.assertTrue(p["ok"])
             self.assertEqual(len(p["sessions"]), 6)
             self.assertEqual(p["project"]["title"], "Essay")

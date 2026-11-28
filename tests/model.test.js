@@ -257,6 +257,31 @@ test('the proof copy puts a query after every flagged sentence and lists them al
   assert.ok(md.indexOf('Nothing was checked online') > 0);
 });
 
+test('fresh-eyes findings: forms headings, source labels, real journals and honest notes', function () {
+  var forms = 'Timestamp,Email address,Your name,Which AI tool did you use?,What did you use it for?,Prompt (in brief),' +
+    'What did you keep from its answer?,What did you change?,What did you check?,How long (minutes)?\n' +
+    '21/11/2026 09:14:03,a@b.c,Sam Ward,Orrery Chat,Draft the briefing,Asked for a briefing,Two paragraphs,The figures,Turnover,25\n';
+  var r = M.parseSessions(forms);
+  assert.deepStrictEqual([r.sessions[0].tool, r.sessions[0].purpose, r.sessions[0].used, r.sessions[0].checked, r.sessions[0].minutes, r.sessions[0].person],
+    ['Orrery Chat', 'Draft the briefing', 'Two paragraphs', 'Turnover', '25', 'Sam Ward']);
+  var notes = 'HR dashboard Q3 2026: desk occupancy 41% average (Leeds 44%, Bristol 38%).';
+  var a = M.analyse({ draft: 'Since the move in 2024, desk occupancy has averaged 41% across the Leeds and Bristol offices.', notes: notes, asOf: AS_OF });
+  assert.strictEqual(a.claims[0].notes.status, 'partial', 'the dashboard date before the colon is not a fact to compare');
+  assert.ok(!a.claims[0].notes.items.some(function (it) { return it.result === 'conflict'; }));
+  var real = M.checkEntry(M.parseEntry("Smith, J. (2020) 'Title', Journal of Management Studies, 57(2), pp. 1-20.", ''), AS_OF);
+  assert.ok(!real.issues.some(function (x) { return x.code === 'generic-journal'; }));
+  var vague = M.checkEntry(M.parseEntry("Smith, J. (2020) 'Title', Journal of Research Studies.", ''), AS_OF);
+  assert.ok(vague.issues.some(function (x) { return x.code === 'generic-journal'; }));
+  var b = M.analyse({ draft: 'It saved 40% of costs.', asOf: AS_OF });
+  var work = function (level, sessions) {
+    return M.declarationText(M.declaration(b, { project: { template: 'work', level: level }, sessions: sessions, asOf: AS_OF }));
+  };
+  assert.ok(work('assisted', []).indexOf('no sessions have been logged yet') > 0);
+  assert.ok(work('assisted', [M.cleanSession({ date: '2026-11-21', purpose: 'Draft' })]).indexOf('AI tools (not named in the log) (purposes logged: draft).') > 0);
+  assert.ok(work('none', []).indexOf('No AI tools were used') > 0);
+  assert.ok(work('assisted', []).indexOf('none has been marked as checked yet') > 0);
+});
+
 test('word files become Markdown-like text with headings, lists and footnotes', function () {
   var t = M.docxText('<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Intro</w:t></w:r></w:p><w:p><w:r><w:t>Text &amp; more</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p>',
     '<w:footnote w:id="0"><w:p><w:r><w:t>x</w:t></w:r></w:p></w:footnote><w:footnote w:id="1"><w:p><w:r><w:t>Smith (2020) Title.</w:t></w:r></w:p></w:footnote>');

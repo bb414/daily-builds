@@ -88,8 +88,9 @@ def file_section(item):
         parts.append("<p>%s</p>" % esc(" ".join(a["messages"])))
     if a["changes"]:
         ch = a["changes"]
-        parts.append("<p><strong>%d%%</strong> of the final text is the AI draft's wording, word for word; %d of %d sentences kept, %d your own, %d AI sentences cut.</p>"
-                     % (ch["keptShare"], ch["counts"]["kept"], ch["finalSentences"], ch["counts"]["yours"], ch["counts"]["dropped"]))
+        parts.append("<p><strong>%d%%</strong> of the final text is the AI draft's wording, word for word; %d of %s kept, %d your own, %s cut.</p>"
+                     % (ch["keptShare"], ch["counts"]["kept"], M.plural(ch["finalSentences"], "sentence"), ch["counts"]["yours"],
+                        M.plural(ch["counts"]["dropped"], "AI sentence")))
     shown = [a["claims"][q - 1] for q in a["ranked"] if a["claims"][q - 1]["level"] != "low"]
     if shown:
         parts.append("".join(claim_block(c) for c in shown))

@@ -898,6 +898,14 @@ def scan_sentence(text):
 
 # ---------------------------------------------------------------- your notes
 
+def label_span(text):
+    """"HR dashboard Q3 2026: occupancy 41%" names its source before the colon; figures there are not facts to compare."""
+    i = text.find(": ")
+    if i <= 0 or trim(text[i + 2:]) == "" or len(text[:i].split(" ")) > 8:
+        return []
+    return [{"start": 0, "end": i}]
+
+
 def notes_index(text):
     doc = read_document(text or "")
     out, heading = [], []
@@ -907,7 +915,7 @@ def notes_index(text):
         parts = [block["text"]] if block["kind"] == "heading" else split_sentences(block["text"])
         for p in parts:
             out.append({"text": p, "words": content_words(p), "heading": [] if block["kind"] == "heading" else list(heading),
-                        "facts": find_facts(p, find_urls(p)), "quotes": find_quotes(p), "citations": find_citations(p)})
+                        "facts": find_facts(p, find_urls(p) + label_span(p)), "quotes": find_quotes(p), "citations": find_citations(p)})
     return out
 
 
@@ -1833,7 +1841,7 @@ def check_entry(e, as_of):
     if e["container"]:
         cws = [w for w in norm_authors(e["container"]).split(" ") if w != ""]
         specific = [w for w in cws if w not in GENERIC_WORDS]
-        if len(cws) >= 2 and len(specific) <= 1 and re.search(r"\b(?:journal|review|annals|bulletin|quarterly)\b", e["container"], AI):
+        if len(cws) >= 2 and len(specific) == 0 and re.search(r"\b(?:journal|review|annals|bulletin|quarterly)\b", e["container"], AI):
             issues.append({"code": "generic-journal", "severity": "warning",
                            "text": 'The journal name "' + e["container"] + '" is very generic.'})
             signals += 1
@@ -2160,6 +2168,16 @@ SESSION_ALIASES = {
 }
 
 
+HEADER_WORD_ORDER = ["date", "tool", "minutes", "prompt", "assignment", "person", "used", "changed", "checked", "purpose"]
+HEADER_WORDS = {
+    "date": ["date", "when", "timestamp", "day"], "tool": ["tool", "assistant", "chatbot", "model"],
+    "minutes": ["minutes", "mins", "how long", "duration"], "prompt": ["prompt", "asked", "ask", "question"],
+    "assignment": ["assignment", "module", "project", "deliverable", "coursework", "essay"], "person": ["name", "person", "student", "who"],
+    "used": ["keep", "kept", "used", "took"], "changed": ["change", "changed", "edit", "edited", "rewrote"],
+    "checked": ["check", "checked", "verify", "verified"], "purpose": ["purpose", "for", "why", "task", "use"],
+}
+
+
 def header_key(h):
     return collapse(re.sub(r"[^a-z0-9() ]", " ", str(h).lower()))
 
@@ -2174,6 +2192,16 @@ def map_session_header(header):
                 if i not in used and header_key(h) == alias:
                     mapping[field] = i
                     used.add(i)
+                    break
+    # Forms and spreadsheets often use questions as headings ("Which AI tool did you use?"): match on key words.
+    for fld in HEADER_WORD_ORDER:
+        for key in HEADER_WORDS[fld]:
+            if fld in mapping:
+                break
+            for j, h in enumerate(header):
+                if j not in used and (" " + re.sub(r"[()]", " ", header_key(h)) + " ").find(" " + key + " ") >= 0:
+                    mapping[fld] = j
+                    used.add(j)
                     break
     return mapping
 
@@ -2337,9 +2365,11 @@ def check_sentence(s, who, has_text=True):
         parts.append("%d corrected" % s["corrected"])
     if s["removed"]:
         parts.append("%d removed" % s["removed"])
-    out = ("I" if who is None else who) + " went through " + plural(s["claims"], "statement") + \
-        " flagged for checking (%d high risk, %d medium, %d low)" % (s["high"], s["medium"], s["low"])
-    out += (": " + list_and(parts) + ".") if parts else "."
+    counts = " (%d high risk, %d medium, %d low)" % (s["high"], s["medium"], s["low"])
+    if not parts:
+        return "The checker flagged " + plural(s["claims"], "statement") + " for checking" + counts + "; none has been marked as checked yet."
+    out = ("I" if who is None else who) + " went through " + plural(s["claims"], "statement") + " flagged for checking" + counts
+    out += ": " + list_and(parts) + "."
     if s["unchecked"]:
         out += " " + plural(s["unchecked"], "statement is", "statements are") + " not yet marked as checked" + \
             ((", including %d high risk." % s["highUnchecked"]) if s["highUnchecked"] else ".")
@@ -2424,11 +2454,14 @@ def declaration(a, state):
     if tpl == "work":
         heading("Note on AI use")
         fields([["Document", trim(p.get("title") or "")], ["Prepared by", name], ["Date", date_text]])
-        if tools:
-            para("This document was prepared with help from " + list_and(tools) + ", used for "
-                 + list_and(uniq_lower([x["purpose"] for x in sessions if x.get("purpose")])) + ".")
-        else:
+        purposes = uniq_lower([x["purpose"] for x in sessions if x.get("purpose")])
+        if p.get("level") == "none" and not sessions:
             para("No AI tools were used to prepare this document.")
+        elif not sessions:
+            para("This document was prepared with help from AI tools; no sessions have been logged yet.")
+        else:
+            para("This document was prepared with help from " + (list_and(tools) if tools else "AI tools (not named in the log)")
+                 + (" (purposes logged: " + "; ".join(purposes) + ")" if purposes else "") + ".")
         if a["changes"]:
             para(change_sentence(a, name or "the author"))
         para(check_sentence(s, name or "The author", len(a["sentences"]) > 0))

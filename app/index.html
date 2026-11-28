@@ -742,7 +742,7 @@ table.weights td.p.neg { color: var(--green); }
               <li><strong>Tidies the paste.</strong> Smart quotes become plain ones, non-breaking and invisible spaces go, Markdown marks are removed, superscript and <code>[^1]</code> footnote markers become <code>[1]</code>, and the reference section is set aside. The Your texts page says what was tidied.</li>
               <li><strong>Splits it into sentences</strong>, without breaking at "et al.", "p. 14", "Dr." or initials.</li>
               <li><strong>Marks what is checkable</strong> in each sentence with fixed patterns: figures (money, percentages, other numbers with their unit), dates and words like "recently", named studies and reports, vague appeals ("studies show"), people and organisations, direct quotations, citations, links and DOIs, absolute wording ("always", "proven", "the first"), legal, health and money statements, and leftovers from the chat window ("As of my last update", "[Insert source here]", "I hope this helps!").</li>
-              <li><strong>Scores each sentence</strong> by adding the points in the table, and ranks the checklist. Every point is shown next to the sentence, so you can see why it was flagged.</li>
+              <li><strong>Scores each sentence</strong> by adding the points in the table, and ranks the checklist. Each flagged sentence is a query, marked <strong>Qy</strong> as proofreaders do, numbered in the order it appears in the text. Every point is shown next to the sentence, so you can see why it was flagged.</li>
               <li><strong>Compares with your notes.</strong> A figure in the text is compared with figures of the same kind in your notes (a percentage with percentages, "14 tonnes" with other tonnes) when the note shares at least two content words with the sentence. The same figure counts as a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.</li>
               <li><strong>Checks the references</strong>, from your text's reference section or from a RIS or BibTeX export, by their shape: years after today, DOIs that are not of the form 10.NNNN/..., broken web addresses, duplicates, journal articles with no volume or pages, very generic journal names, "et al." or placeholders in the list, citations with no entry and entries never cited. Two or more such signs, or a journal article with neither volume nor pages plus one other sign, mark an entry "look it up by hand".</li>
               <li><strong>Compares the draft and your final version.</strong> A word counts as kept word for word when it sits in a run of at least four words that appears, in the same order, in the AI draft (citations are left out, since they read the same whoever types them). A sentence with 85% or more of its words kept is <em>kept</em>, 30% or more is <em>edited</em>, less than that but sharing at least half its words with an AI sentence is <em>reworded</em>, and anything else is <em>yours</em>.</li>
@@ -1731,6 +1731,13 @@ table.weights td.p.neg { color: var(--green); }
 
   // ---------------------------------------------------------------- your notes
 
+  // "HR dashboard Q3 2026: occupancy 41%" names its source before the colon; figures there are not facts to compare.
+  function labelSpan(text) {
+    var i = text.indexOf(': ');
+    if (i <= 0 || trim(text.slice(i + 2)) === '' || text.slice(0, i).split(' ').length > 8) return [];
+    return [{ start: 0, end: i }];
+  }
+
   function notesIndex(text) {
     var doc = readDocument(text || '');
     var out = [], heading = [];
@@ -1741,7 +1748,7 @@ table.weights td.p.neg { color: var(--green); }
       for (var p = 0; p < parts.length; p++) {
         var cits = findCitations(parts[p]);
         out.push({ text: parts[p], words: contentWords(parts[p]), heading: block.kind === 'heading' ? [] : heading.slice(),
-          facts: findFacts(parts[p], findUrls(parts[p])), quotes: findQuotes(parts[p]), citations: cits });
+          facts: findFacts(parts[p], findUrls(parts[p]).concat(labelSpan(parts[p]))), quotes: findQuotes(parts[p]), citations: cits });
       }
     }
     return out;
@@ -2477,7 +2484,7 @@ table.weights td.p.neg { color: var(--green); }
     if (e.container) {
       var cws = normAuthors(e.container).split(' ').filter(function (w) { return w !== ''; });
       var specific = cws.filter(function (w) { return !hasOwn(GENERIC_WORDS, w); });
-      if (cws.length >= 2 && specific.length <= 1 && /\b(?:journal|review|annals|bulletin|quarterly)\b/i.test(e.container)) {
+      if (cws.length >= 2 && specific.length === 0 && /\b(?:journal|review|annals|bulletin|quarterly)\b/i.test(e.container)) {
         issues.push({ code: 'generic-journal', severity: 'warning', text: 'The journal name "' + e.container + '" is very generic.' }); signals++;
       }
     }
@@ -2769,6 +2776,14 @@ table.weights td.p.neg { color: var(--green); }
     person: ['person', 'name', 'author', 'who', 'student', 'contributor', 'team member', 'by']
   };
 
+  var HEADER_WORD_ORDER = ['date', 'tool', 'minutes', 'prompt', 'assignment', 'person', 'used', 'changed', 'checked', 'purpose'];
+  var HEADER_WORDS = {
+    date: ['date', 'when', 'timestamp', 'day'], tool: ['tool', 'assistant', 'chatbot', 'model'], minutes: ['minutes', 'mins', 'how long', 'duration'],
+    prompt: ['prompt', 'asked', 'ask', 'question'], assignment: ['assignment', 'module', 'project', 'deliverable', 'coursework', 'essay'],
+    person: ['name', 'person', 'student', 'who'], used: ['keep', 'kept', 'used', 'took'], changed: ['change', 'changed', 'edit', 'edited', 'rewrote'],
+    checked: ['check', 'checked', 'verify', 'verified'], purpose: ['purpose', 'for', 'why', 'task', 'use']
+  };
+
   function headerKey(h) { return collapse(String(h).toLowerCase().replace(/[^a-z0-9() ]/g, ' ')); }
 
   function mapSessionHeader(header) {
@@ -2778,6 +2793,15 @@ table.weights td.p.neg { color: var(--green); }
       for (var a = 0; a < aliases.length && !hasOwn(map, field); a++) {
         for (var i = 0; i < header.length; i++) {
           if (!hasOwn(used, i) && headerKey(header[i]) === aliases[a]) { map[field] = i; used[i] = true; break; }
+        }
+      }
+    }
+    // Forms and spreadsheets often use questions as headings ("Which AI tool did you use?"): match on key words.
+    for (var o = 0; o < HEADER_WORD_ORDER.length; o++) {
+      var fld = HEADER_WORD_ORDER[o], keys = HEADER_WORDS[fld];
+      for (var k = 0; k < keys.length && !hasOwn(map, fld); k++) {
+        for (var j = 0; j < header.length; j++) {
+          if (!hasOwn(used, j) && (' ' + headerKey(header[j]).replace(/[()]/g, ' ') + ' ').indexOf(' ' + keys[k] + ' ') >= 0) { map[fld] = j; used[j] = true; break; }
         }
       }
     }
@@ -2916,8 +2940,10 @@ table.weights td.p.neg { color: var(--green); }
     if (sum.verified) parts.push(sum.verified + ' verified against a source');
     if (sum.corrected) parts.push(sum.corrected + ' corrected');
     if (sum.removed) parts.push(sum.removed + ' removed');
-    var s = (who === null ? 'I' : who) + ' went through ' + plural(sum.claims, 'statement') + ' flagged for checking (' + sum.high + ' high risk, ' + sum.medium + ' medium, ' + sum.low + ' low)';
-    s += parts.length ? ': ' + listAnd(parts) + '.' : '.';
+    var counts = ' (' + sum.high + ' high risk, ' + sum.medium + ' medium, ' + sum.low + ' low)';
+    if (!parts.length) return 'The checker flagged ' + plural(sum.claims, 'statement') + ' for checking' + counts + '; none has been marked as checked yet.';
+    var s = (who === null ? 'I' : who) + ' went through ' + plural(sum.claims, 'statement') + ' flagged for checking' + counts;
+    s += ': ' + listAnd(parts) + '.';
     if (sum.unchecked) s += ' ' + plural(sum.unchecked, 'statement is', 'statements are') + ' not yet marked as checked' + (sum.highUnchecked ? ', including ' + sum.highUnchecked + ' high risk.' : '.');
     else s += ' None is left unchecked.';
     return s;
@@ -2966,7 +2992,10 @@ table.weights td.p.neg { color: var(--green); }
     if (tpl === 'work') {
       heading('Note on AI use');
       fields([['Document', trim(p.title || '')], ['Prepared by', name], ['Date', dateText]]);
-      para(tools.length ? 'This document was prepared with help from ' + listAnd(tools) + ', used for ' + listAnd(uniqLower(sessions.map(function (s) { return s.purpose; }).filter(Boolean))) + '.' : 'No AI tools were used to prepare this document.');
+      var purposes = uniqLower(sessions.map(function (s) { return s.purpose; }).filter(Boolean));
+      if (p.level === 'none' && !sessions.length) para('No AI tools were used to prepare this document.');
+      else if (!sessions.length) para('This document was prepared with help from AI tools; no sessions have been logged yet.');
+      else para('This document was prepared with help from ' + (tools.length ? listAnd(tools) : 'AI tools (not named in the log)') + (purposes.length ? ' (purposes logged: ' + purposes.join('; ') + ')' : '') + '.');
       if (a.changes) para(changeSentence(a, name || 'the author'));
       para(checkSentence(sum, name || 'The author', a.sentences.length > 0));
       if (sum.refs) para(refSentence(sum, name || 'the author'));
@@ -3562,7 +3591,7 @@ table.weights td.p.neg { color: var(--green); }
     }
     if (a.changes) {
       var ch = a.changes;
-      out += slip('blue', 'AI wording kept', ch.keptShare + '%', 'of your final', esc(ch.counts.kept + ' of ' + ch.finalSentences + ' sentences kept word for word, ' + ch.counts.yours + ' your own.'), 'caret', 'changes');
+      out += slip('blue', 'AI wording kept', ch.keptShare + '%', 'of your final', esc(ch.counts.kept + ' of ' + plural(ch.finalSentences, 'sentence') + ' kept word for word, ' + ch.counts.yours + ' your own.'), 'caret', 'changes');
     } else {
       out += slip('', 'AI wording kept', '\u2013', '', 'Add your final version to compare it with the AI draft.', 'caret', 'copy');
     }
@@ -3799,7 +3828,7 @@ table.weights td.p.neg { color: var(--green); }
       ? plural(s.claims, 'statement') + ' worth checking, <strong>' + s.high + ' high risk</strong>. ' + s.resolved + ' marked, ' + s.unchecked + ' to go.'
       : 'All ' + plural(s.claims, 'statement') + ' are marked. ' + (s.refUnresolved ? 'Now look at the references.' : 'Ready to sign off.');
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
-      '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
+      '<div><p class="small">Each <strong>Qy</strong> (a proofreader\'s query) is one statement to look up. Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
       '<div class="tools-row"><button type="button" class="btn small" data-act="md-proof">Proof copy (.md)</button><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
     html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
@@ -3947,7 +3976,7 @@ table.weights td.p.neg { color: var(--green); }
     var html = '<div class="change-top"><div class="bigfig"><div class="n">' + ch.keptShare + '<small>%</small></div><p>of the ' + ch.finalWords + ' words in your final text appear <strong>word for word</strong> in the AI draft, in runs of ' + M.MIN_RUN + ' or more words. ' + ch.survivedShare + '% of the AI draft survives into your final version.</p>' +
       '<div class="waffle" role="img" aria-label="' + ch.keptShare + ' squares in 100 are the AI\'s wording">' + new Array(101).join('.').split('').map(function (x, i) { return '<i' + (i < ch.keptShare ? ' class="k"' : '') + '></i>'; }).join('') + '</div></div>' +
       '<div class="split"><h3>Your ' + plural(ch.finalSentences, 'sentence') + '</h3><div class="split-bar" role="img" aria-label="' + esc(parts.map(function (p) { return p[2] + ' ' + p[1].charAt(0).toLowerCase() + p[1].slice(1); }).join(', ')) + '">' + bar + '</div>' +
-      '<div class="split-legend">' + parts.map(function (p) { return '<span><i class="sw s-' + p[0] + '"></i>' + p[2] + ' ' + esc(p[1].charAt(0).toLowerCase() + p[1].slice(1)) + '</span>'; }).join('') + '<span><i class="sw s-dropped"></i>' + c.dropped + ' AI sentences cut</span></div>' +
+      '<div class="split-legend">' + parts.map(function (p) { return '<span><i class="sw s-' + p[0] + '"></i>' + p[2] + ' ' + esc(p[1].charAt(0).toLowerCase() + p[1].slice(1)) + '</span>'; }).join('') + '<span><i class="sw s-dropped"></i>' + esc(plural(c.dropped, 'AI sentence')) + ' cut</span></div>' +
       '<div class="paras"><h3>Paragraph by paragraph</h3>' + ch.paragraphs.map(function (p, i) {
         var share = M.pct(p.kept, p.words);
         return '<div class="para-row"><span>\u00b6 ' + (i + 1) + '</span><div class="para-track" role="img" aria-label="Paragraph ' + (i + 1) + ': ' + share + '% AI wording"><span style="width:' + share + '%"></span></div><span>' + share + '%</span></div>';
@@ -4360,7 +4389,7 @@ table.weights td.p.neg { color: var(--green); }
     else if (act === 'txt-decl') download(slugName(S.project.title || 'declaration') + '-ai-declaration.txt', M.declarationText(currentDeclaration()), 'text/plain;charset=utf-8');
     else if (act === 'copy-diff') {
       var ch = a.changes;
-      var text = 'About ' + ch.keptShare + '% of my final text appears word for word in the AI draft. ' + ch.counts.kept + ' sentences kept, ' + ch.counts.edited + ' edited, ' + ch.counts.reworded + ' reworded, ' + ch.counts.yours + ' my own; ' + ch.counts.dropped + ' AI sentences cut.';
+      var text = 'About ' + ch.keptShare + '% of my final text appears word for word in the AI draft. ' + plural(ch.counts.kept, 'sentence') + ' kept, ' + ch.counts.edited + ' edited, ' + ch.counts.reworded + ' reworded, ' + ch.counts.yours + ' my own; ' + plural(ch.counts.dropped, 'AI sentence') + ' cut.';
       copyText(text, function (ok) { say(ok ? 'Summary copied' : 'Copy did not work here'); });
     } else if (act === 'edit-session') { S.editing = +t.getAttribute('data-i'); renderDeclare(); var f0 = $('sf-date'); if (f0) f0.focus(); }
     else if (act === 'del-session') {

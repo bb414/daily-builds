@@ -198,7 +198,10 @@ class Agreement(unittest.TestCase):
                 sample("team/team-log-dev.csv"), sample("team/team-log-sam.csv"),
                 "\ufeffDate;Tool;Purpose\r\n1/2/2026;\"A; B\";\"multi\nline\"\r\n\r\n",
                 "When\tAI\tWhy\tMins\n2026-01-01\tTool X\tDraft\t1:30\n,,,\n2026-13-01\tY\t\tabc\n",
-                "Name,Age\nAna,20\n", "", "\n\n\n", "Date,Tool\n\"unterminated,quote\n", "date,tool,purpose,minutes,extra,extra\n5/11/2026,A,B,12 mins,x,y\n"]
+                "Name,Age\nAna,20\n", "",
+                "Timestamp,Email address,Your name,Which AI tool did you use?,What did you use it for?,Prompt (in brief),What did you keep?,"
+                "What did you change?,What did you check?,How long (minutes)?\n21/11/2026 09:14:03,a@b.c,Sam,Orrery,Draft,Asked,Kept,Changed,Checked,25\n",
+                "When did you use it,Which assistant,Why,Who\n2026-11-02,X,Plan,Ana\n", "\n\n\n", "Date,Tool\n\"unterminated,quote\n", "date,tool,purpose,minutes,extra,extra\n5/11/2026,A,B,12 mins,x,y\n"]
         self.compare([{"fn": "parseSessions", "args": [t]} for t in logs])
 
     def test_projects(self):
