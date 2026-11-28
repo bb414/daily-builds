@@ -277,7 +277,7 @@ class CommandLineTest(unittest.TestCase):
         with open(self.path(*parts), encoding='utf-8', newline='') as fh:
             return fh.read()
 
-    def test_scan_writes_five_files_that_read_back(self):
+    def test_scan_writes_six_files_that_read_back(self):
         out = self.path('out')
         proc = self.run_cli('scan', DATA, '--out', out, '--as-of', '2026-11-28')
         self.assertEqual(proc.returncode, 0, proc.stderr.decode())
@@ -287,12 +287,12 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn('template.csv was left out', printed)
         self.assertTrue(all(len(line) <= 100 for line in printed.splitlines() if out not in line))
         self.assertEqual(sorted(os.listdir(out)), ['budget-12-months.csv', 'regular-payments.csv', 'report.html',
-                                                   'review.json', 'upcoming.ics'])
+                                                   'review.json', 'still-paying.xlsx', 'upcoming.ics'])
         register = list(csv.reader(io.StringIO(self.read('out', 'regular-payments.csv').lstrip('\ufeff'))))
         self.assertEqual(register[0][:4], ['Name', 'Category', 'Paid by', 'How often'])
         self.assertEqual(len(register), 25)  # 22 from the student plus council tax and water from the QIF; with the header
         budget = list(csv.reader(io.StringIO(self.read('out', 'budget-12-months.csv').lstrip('\ufeff'))))
-        self.assertEqual(budget[0][1], 'Nov 2026')
+        self.assertEqual(budget[0][1], 'Dec 2026')  # the review is on 28 Nov, so the budget starts with December
         self.assertEqual(budget[-1][0], 'Total')
         self.assertEqual(len(budget[0]), 14)
         ics = self.read('out', 'upcoming.ics')
@@ -349,7 +349,8 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr.decode())
         self.assertIn('this is the first one', proc.stdout.decode('utf-8'))
         self.assertEqual(sorted(os.listdir(history)), ['changes-2026-11-01.md', 'price-history.csv',
-                                                       'report-2026-11-01.html', 'review-2026-11-01.json'])
+                                                       'report-2026-11-01.html', 'review-2026-11-01.json',
+                                                   'workbook-2026-11-01.xlsx'])
         # Decide in the app: cancel the gym.
         review_path = self.path('history', 'review-2026-11-01.json')
         with open(review_path, encoding='utf-8') as fh:
@@ -385,7 +386,7 @@ class CommandLineTest(unittest.TestCase):
         proc = self.run_cli('budget', DATA, '--months', '3', '--out', self.path('budget.csv'))
         self.assertEqual(proc.returncode, 0, proc.stderr.decode())
         rows = list(csv.reader(io.StringIO(self.read('budget.csv').lstrip('\ufeff'))))
-        self.assertEqual(rows[0], ['Category', 'Nov 2026', 'Dec 2026', 'Jan 2027', 'Total'])
+        self.assertEqual(rows[0], ['Category', 'Dec 2026', 'Jan 2027', 'Feb 2027', 'Total'])
         to_screen = self.run_cli('budget', os.path.join(DATA, 'current-account.csv'))
         self.assertTrue(to_screen.stdout.decode('utf-8').startswith('\ufeffCategory,'))
         proc = self.run_cli('template', '--out', self.path('template.csv'))
@@ -487,6 +488,74 @@ class AddedByHandTest(unittest.TestCase):
         self.assertEqual(rows['Railcard']['Next due'], '2027-02-03')
         self.assertEqual(rows['Railcard']['Yearly cost'], '35.00')
         self.assertEqual(rows['Campus Bike Hire']['How often'], 'Monthly')
+
+
+class WorkbookTest(unittest.TestCase):
+    """The .xlsx workbook opens in spreadsheet software and its formulas give the plan's totals."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        a = sp.analyse(sample_files(SAMPLES + ['savings-account.ofx']))
+        r = a['result']
+        ids = {s['name']: s['id'] for s in r['series']}
+        cls.decisions = {ids['Ironworks Gym']: {'decision': 'cancel'}, ids['Savings Transfer']: {'decision': 'ignore'}}
+        cls.plan = sp.plan(r, cls.decisions)
+        book = sp.build_xlsx(r, cls.decisions, {'transactions': a['merged']['transactions'], 'accounts': a['merged']['accounts']})
+        cls.path = os.path.join(cls.tmp.name, 'review.xlsx')
+        with open(cls.path, 'wb') as f:
+            f.write(book['bytes'])
+        cls.book, cls.result = book, r
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_is_a_valid_zip_of_xml_parts(self):
+        import zipfile
+        import xml.dom.minidom
+        with zipfile.ZipFile(self.path) as z:
+            self.assertIsNone(z.testzip())
+            names = z.namelist()
+            self.assertIn('xl/workbook.xml', names)
+            for n in names:
+                xml.dom.minidom.parseString(z.read(n))
+        self.assertEqual(self.book['sheets'], ['Regular payments', 'Next 12 months', 'Calendar', 'Transactions',
+                                               'Balance day by day'])
+
+    def test_opens_in_openpyxl_with_typed_cells(self):
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest('openpyxl is not installed')
+        wb = openpyxl.load_workbook(self.path)
+        ws = wb['Regular payments']
+        self.assertEqual(ws['A1'].value, 'Name')
+        self.assertEqual(ws['E2'].value, 525)
+        self.assertEqual(ws['E2'].number_format, '"\N{POUND SIGN}"#,##0.00;[Red]\\-"\N{POUND SIGN}"#,##0.00')
+        self.assertEqual(ws['K2'].value.date().isoformat(), '2026-12-01')
+        self.assertTrue(str(ws.cell(row=len(self.result['series']) + 3, column=6).value).startswith('=SUMIF('))
+        self.assertEqual(wb['Balance day by day']['D6'].value, '=D5+B6+C6')
+
+    def test_libreoffice_calculates_the_same_totals(self):
+        soffice = shutil.which('soffice') or shutil.which('libreoffice')
+        if not soffice:
+            self.skipTest('LibreOffice is not installed')
+        out = os.path.join(self.tmp.name, 'csv')
+        subprocess.run([soffice, '--headless', '--convert-to', 'csv:Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,false,false,false,-1',
+                        '--outdir', out, self.path], capture_output=True, timeout=180)
+        with open(os.path.join(out, 'review-Regular payments.csv'), encoding='utf-8') as f:
+            rows = list(csv.reader(f))
+        committed = next(r for r in rows if r[0].startswith('Committed'))
+        cancel = next(r for r in rows if r[0] == 'Marked to cancel')
+        self.assertEqual(round(float(committed[5]) * 100), self.plan['totals']['monthly'])
+        self.assertEqual(round(float(cancel[6]) * 100), self.plan['totals']['cancelAnnual'])
+        with open(os.path.join(out, 'review-Balance day by day.csv'), encoding='utf-8') as f:
+            walk = list(csv.reader(f))
+        rw = sp.runway(self.result, self.decisions, {'account': 'Current account', 'balance': 54499,
+                                                     'everyday': self.result['everyday']['Current account']['perDay'],
+                                                     'days': 60, 'leaveOutCancelled': True})
+        self.assertEqual(round(float(walk[-1][3]) * 100), rw['days'][-1]['balance'])
 
 if __name__ == '__main__':
     unittest.main()

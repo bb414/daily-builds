@@ -135,6 +135,19 @@ class AppTest(unittest.TestCase):
         name, ics = self.download(page, "#plan-body [data-action=ics]")
         self.assertTrue(ics.startswith("BEGIN:VCALENDAR"))
         self.assertIn("Cancel Tidyup Cleaning before", ics.replace("\r\n ", ""))
+        with page.expect_download() as info:
+            page.click("[data-action=xlsx]")
+        book = os.path.join(self.tmp.name, info.value.suggested_filename)
+        info.value.save_as(book)
+        with open(book, "rb") as f:
+            self.assertEqual(f.read(2), b"PK")
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(book)
+            self.assertIn("Balance day by day", wb.sheetnames)
+            self.assertEqual(wb["Balance day by day"]["D4"].value, 544.99)
+        except ImportError:
+            pass
         name, review = self.download(page, "[data-action=save-review]")
         saved = os.path.join(self.tmp.name, name)
         self.assertEqual(json.loads(review)["format"], "still-paying-review")

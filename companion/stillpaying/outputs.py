@@ -64,11 +64,12 @@ def register_csv(result, decisions=None):
 
 
 def budget_months(as_of, months):
-    """The YYYY-MM keys of the months a budget covers, starting with the review month."""
-    y, m, _ = ymd(as_of)
+    """The YYYY-MM keys of the months a budget covers: from the review month, or the next if this one is nearly over."""
+    y, m, d = ymd(as_of)
+    skip = 1 if days_in_month(y, m) - d + 1 < 10 else 0
     keys = []
     for i in range(months):
-        total = y * 12 + m - 1 + i
+        total = y * 12 + m - 1 + i + skip
         keys.append(str(total // 12) + '-' + pad2(total % 12 + 1))
     return keys
 

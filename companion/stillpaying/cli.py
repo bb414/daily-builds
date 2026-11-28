@@ -19,6 +19,7 @@ from .parsing import parse_amount
 from .planning import runway, since_last_review
 from .present import changes_markdown, flag_label, headline, price_history_csv, status_label
 from .report import render_report
+from .workbook import build_xlsx
 
 WIDTH = 100
 EXTENSIONS = ('.csv', '.tsv', '.txt', '.ofx', '.qfx', '.qif')
@@ -285,7 +286,7 @@ def nothing_read(analysis, notes):
 # ---------------------------------------------------------------------------
 
 def cmd_scan(args):
-    """Scan exports, print what was found and write the five output files."""
+    """Scan exports, print what was found and write the six output files."""
     if not args.paths and not args.review:
         print('Name at least one export or folder, or a saved review with --review.', file=sys.stderr)
         return 2
@@ -306,6 +307,11 @@ def cmd_scan(args):
     ]
     for name, text in outputs:
         write_text(os.path.join(args.out, name), text)
+    workbook = build_xlsx(result, decisions, {'transactions': analysis['merged']['transactions'],
+                                              'accounts': analysis['merged']['accounts']})
+    with open(os.path.join(args.out, 'still-paying.xlsx'), 'wb') as f:
+        f.write(workbook['bytes'])
+    outputs.append(('still-paying.xlsx', None))
     if not args.quiet:
         print(scan_text(analysis, decisions, notes))
         print('')
@@ -382,6 +388,11 @@ def cmd_monthly(args):
     os.makedirs(args.history, exist_ok=True)
     for name, text in outputs:
         write_text(os.path.join(args.history, name), text)
+    workbook = build_xlsx(result, decisions, {'transactions': analysis['merged']['transactions'],
+                                              'accounts': analysis['merged']['accounts']})
+    with open(os.path.join(args.history, 'workbook-%s.xlsx' % iso_day), 'wb') as f:
+        f.write(workbook['bytes'])
+    outputs.append(('workbook-%s.xlsx' % iso_day, None))
     print('')
     for line in wrap_markdown(changes):
         print(line)
@@ -513,7 +524,7 @@ def build_parser():
                     'Everything stays on your computer.')
     commands = parser.add_subparsers(dest='command', metavar='command', required=True)
 
-    scan = commands.add_parser('scan', help='read exports and write the register, budget, calendar, review and report',
+    scan = commands.add_parser('scan', help='read exports and write the register, budget, calendar, workbook, review and report',
                                description='Read bank exports (CSV, TSV, OFX or QIF files, or folders of them) and '
                                            'write regular-payments.csv, budget-12-months.csv, upcoming.ics, '
                                            'review.json and report.html.')

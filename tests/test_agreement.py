@@ -5,6 +5,7 @@ tests/js_bridge.js under node, and the Python package directly. The tests are
 skipped, with a message, when node is not installed.
 """
 
+import base64
 import unittest
 
 from helpers import NODE, OTHER_FORMATS, SAMPLES, first_difference, plain, run_bridge, sample_files, sample_text, sp, truncate
@@ -233,6 +234,8 @@ def python_analysis(job):
         'monthTotals': sp.month_totals(sp.forecast(r, 365, decisions), False),
         'suggestions': {s['id']: sp.suggest(s) for s in r['series']},
         'since': sp.since_last_review(r, sp.read_project(job['saved'])) if job.get('saved') else None,
+        'xlsx': (lambda x: {'bytes': base64.b64encode(x['bytes']).decode('ascii'), 'parts': x['parts']})(
+            sp.build_xlsx(r, decisions, {'transactions': a['merged']['transactions'], 'accounts': a['merged']['accounts']})),
         'runways': [sp.runway(r, decisions, {'account': acc['account'], 'balance': acc['closing']['balance'],
                                              'everyday': r['everyday'][acc['account']]['perDay'] if acc['account'] in r['everyday'] else 0,
                                              'overdraft': 50000, 'leaveOutCancelled': True, 'days': 60,
@@ -329,6 +332,11 @@ class AgreementTest(unittest.TestCase):
     def test_since_last_review(self):
         for label, py, js in self.each():
             self.assertSame(py['since'], js['since'], label + ' since last review')
+
+    def test_workbook_is_byte_identical(self):
+        for label, py, js in self.each():
+            self.assertSame(py['xlsx']['parts'], js['xlsx']['parts'], label + ' workbook parts')
+            self.assertEqual(py['xlsx']['bytes'], js['xlsx']['bytes'], label + ' workbook bytes')
 
     def test_balance_runways(self):
         compared = 0

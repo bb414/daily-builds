@@ -1833,9 +1833,11 @@
     months = months || 12;
     decisions = decisions || {};
     var start = ymd(result.asOf);
+    // Start next month if this one is nearly over, as the calendar does.
+    var skip = daysInMonth(start.y, start.m) - start.d + 1 < 10 ? 1 : 0;
     var keys = [];
     for (var i = 0; i < months; i++) {
-      var total = start.y * 12 + start.m - 1 + i;
+      var total = start.y * 12 + start.m - 1 + i + skip;
       keys.push(Math.floor(total / 12) + '-' + pad2(total % 12 + 1));
     }
     var lastMonth = keys[keys.length - 1].split('-');
@@ -1938,6 +1940,220 @@
     var all = result.series.concat(result.income);
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* A spreadsheet workbook (.xlsx), written without any library       */
+  /* ---------------------------------------------------------------- */
+
+  var CRC_TABLE = (function () {
+    var t = [];
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t.push(c >>> 0);
+    }
+    return t;
+  })();
+  function crc32(bytes) {
+    var c = 0xffffffff;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function utf8Bytes(text) {
+    var out = [];
+    Array.from(String(text)).forEach(function (ch) {
+      var c = ch.codePointAt(0);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    });
+    return out;
+  }
+  /** A zip archive of stored (uncompressed) files, dated 1 January 1980 so the bytes never change. */
+  function zipStore(files) {
+    var out = [], central = [];
+    var u16 = function (a, v) { a.push(v & 255, (v >>> 8) & 255); };
+    var u32 = function (a, v) { a.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255); };
+    files.forEach(function (f) {
+      var name = utf8Bytes(f.name), data = utf8Bytes(f.text), crc = crc32(data), offset = out.length;
+      var head = [];
+      u32(head, 0x04034b50); u16(head, 20); u16(head, 0x0800); u16(head, 0); u16(head, 0); u16(head, 33);
+      u32(head, crc); u32(head, data.length); u32(head, data.length); u16(head, name.length); u16(head, 0);
+      Array.prototype.push.apply(out, head); Array.prototype.push.apply(out, name);
+      for (var i = 0; i < data.length; i++) out.push(data[i]);
+      var c = [];
+      u32(c, 0x02014b50); u16(c, 20); u16(c, 20); u16(c, 0x0800); u16(c, 0); u16(c, 0); u16(c, 33);
+      u32(c, crc); u32(c, data.length); u32(c, data.length); u16(c, name.length); u16(c, 0); u16(c, 0); u16(c, 0); u16(c, 0); u32(c, 0); u32(c, offset);
+      Array.prototype.push.apply(c, name);
+      central.push(c);
+    });
+    var cdStart = out.length, cdSize = 0;
+    central.forEach(function (c) { cdSize += c.length; Array.prototype.push.apply(out, c); });
+    var end = [];
+    u32(end, 0x06054b50); u16(end, 0); u16(end, 0); u16(end, files.length); u16(end, files.length); u32(end, cdSize); u32(end, cdStart); u16(end, 0);
+    Array.prototype.push.apply(out, end);
+    return out;
+  }
+
+  function xmlText(s) {
+    return String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function colName(i) {
+    var s = '';
+    i += 1;
+    while (i > 0) { var r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); }
+    return s;
+  }
+  /* Cell makers: text, a number written as exact decimal text, a date, a formula. */
+  var XS = { header: 1, money: 2, date: 3, boldMoney: 4, bold: 5, wrap: 6 };
+  function cText(v, style) { return { t: 's', v: v === null || v === undefined ? '' : String(v), s: style || 0 }; }
+  function cNum(v, style) { return { t: 'n', v: String(v), s: style || 0 }; }
+  function cMoney(pence, style) { return { t: 'n', v: plainMoney(pence), s: style || XS.money }; }
+  function cDate(day) { return day === null || day === undefined ? null : { t: 'n', v: String(day + 25569), s: XS.date }; }
+  function cFormula(f, style) { return { t: 'f', v: f, s: style || 0 }; }
+
+  function sheetXml(sheet) {
+    var x = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+      '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + (sheet.freeze || 1) + '" topLeftCell="A' + ((sheet.freeze || 1) + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>',
+      '<sheetFormatPr defaultRowHeight="15"/>',
+      '<cols>' + sheet.widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>',
+      '<sheetData>'];
+    sheet.rows.forEach(function (row, r) {
+      var cells = '';
+      row.forEach(function (c, i) {
+        if (!c) return;
+        var ref = colName(i) + (r + 1), st = c.s ? ' s="' + c.s + '"' : '';
+        if (c.t === 's') cells += '<c r="' + ref + '" t="inlineStr"' + st + '><is><t xml:space="preserve">' + xmlText(c.v) + '</t></is></c>';
+        else if (c.t === 'f') cells += '<c r="' + ref + '"' + st + '><f>' + xmlText(c.v) + '</f></c>';
+        else cells += '<c r="' + ref + '"' + st + '><v>' + c.v + '</v></c>';
+      });
+      x.push('<row r="' + (r + 1) + '">' + cells + '</row>');
+    });
+    x.push('</sheetData>');
+    if (sheet.filter) x.push('<autoFilter ref="' + sheet.filter + '"/>');
+    x.push('</worksheet>');
+    return x.join('');
+  }
+
+  var XLSX_STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="2"><numFmt numFmtId="164" formatCode="&quot;£&quot;#,##0.00;[Red]\\-&quot;£&quot;#,##0.00"/><numFmt numFmtId="165" formatCode="d mmm yyyy"/></numFmts>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDE9E3"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="164" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  function headerRow(names) { return names.map(function (n) { return cText(n, XS.header); }); }
+
+  /**
+   * The review as a workbook: the register with live totals, the next twelve
+   * months, the calendar with a running total, every transaction tagged with
+   * its regular payment, and (when a balance is known) the balance day by day
+   * as a chain of formulas. opts: {transactions, accounts, runway: {account, balance, everyday, overdraft, extraIn}}
+   */
+  function buildXlsx(result, decisions, opts) {
+    decisions = decisions || {};
+    opts = opts || {};
+    var sheets = [];
+    // 1. Regular payments
+    var reg = { name: 'Regular payments', widths: [28, 26, 15, 16, 12, 12, 12, 9, 13, 13, 13, 10, 11, 60, 11, 30, 22, 11], rows: [] };
+    reg.rows.push(headerRow(['Name', 'Category', 'Paid by', 'How often', 'Typical', 'Monthly', 'Yearly', 'Payments', 'First seen', 'Last seen', 'Next due', 'Status', 'Confidence', 'Checks', 'Decision', 'Note', 'Accounts', 'Counts as a cost']));
+    result.series.forEach(function (s) {
+      var d = decisions[s.id] || {};
+      var cost = isCost(s) && d.decision !== 'ignore';
+      reg.rows.push([cText(s.name), cText((CATEGORY_BY_ID[s.category] || CATEGORY_BY_ID.other).label), cText(s.method), cText(CADENCE_BY_ID[s.cadence].label),
+        cMoney(s.typical), cMoney(s.monthly), cMoney(s.annual), cNum(s.count), cDate(s.first), cDate(s.last), cDate(s.nextDue), cText(s.status), cNum(s.confidence),
+        cText(s.flags.map(function (f) { return f.text; }).join(' '), XS.wrap), cText(d.decision ? DECISION_LABELS[d.decision] : ''), cText(d.note || ''), cText(s.account), cText(cost ? 'Yes' : 'No')]);
+    });
+    var last = result.series.length + 1;
+    reg.rows.push([]);
+    reg.rows.push([cText('Committed (rows that count as a cost)', XS.bold), null, null, null, null, cFormula('SUMIF(R2:R' + last + ',"Yes",F2:F' + last + ')', XS.boldMoney), cFormula('SUMIF(R2:R' + last + ',"Yes",G2:G' + last + ')', XS.boldMoney)]);
+    reg.rows.push([cText('Marked to cancel', XS.bold), null, null, null, null, cFormula('SUMIFS(F2:F' + last + ',R2:R' + last + ',"Yes",O2:O' + last + ',"Cancel")', XS.boldMoney), cFormula('SUMIFS(G2:G' + last + ',R2:R' + last + ',"Yes",O2:O' + last + ',"Cancel")', XS.boldMoney)]);
+    reg.filter = 'A1:R' + last;
+    sheets.push(reg);
+    // 2. The next twelve months
+    var budget = parseCsvRows(budgetCsv(result, decisions, 12));
+    var bs = { name: 'Next 12 months', widths: [34].concat(budget[0].slice(1).map(function () { return 12; })), rows: [] };
+    var nCats = budget.length - 2;
+    bs.rows.push(headerRow(budget[0]));
+    budget.slice(1, budget.length - 1).forEach(function (row, i) {
+      var r = i + 2;
+      bs.rows.push([cText(row[0])].concat(row.slice(1, 13).map(function (v) { return cNum(v, XS.money); })).concat([cFormula('SUM(B' + r + ':M' + r + ')', XS.boldMoney)]));
+    });
+    var totalRow = [cText('Total', XS.bold)];
+    for (var c = 1; c <= 13; c++) totalRow.push(cFormula('SUM(' + colName(c) + '2:' + colName(c) + (nCats + 1) + ')', XS.boldMoney));
+    bs.rows.push(totalRow);
+    sheets.push(bs);
+    // 3. Calendar
+    var cal = { name: 'Calendar', widths: [13, 30, 12, 8, 30, 12, 14], rows: [headerRow(['Date', 'Payment', 'Amount', 'In or out', 'Category', 'Decision', 'Running total out'])] };
+    forecast(result, 92, decisions).forEach(function (it, i) {
+      var r = i + 2;
+      var running = 'IF(AND(D' + r + '="Out",F' + r + '<>"Cancel",F' + r + '<>"Not a cost"),C' + r + ',0)';
+      cal.rows.push([cDate(it.day), cText(it.name), cMoney(it.amount), cText(it.direction === 'in' ? 'In' : 'Out'), cText((CATEGORY_BY_ID[it.category] || CATEGORY_BY_ID.other).label),
+        cText(it.decision ? DECISION_LABELS[it.decision] : ''), cFormula(r === 2 ? running : 'G' + (r - 1) + '+' + running, XS.money)]);
+    });
+    cal.filter = 'A1:G' + cal.rows.length;
+    sheets.push(cal);
+    // 4. Transactions
+    if (opts.transactions) {
+      var tag = {};
+      result.series.concat(result.income).forEach(function (s) {
+        s.payments.forEach(function (p) { tag[p.account + '|' + p.day + '|' + (s.direction === 'out' ? -p.amount : p.amount) + '|' + p.desc] = s.name; });
+      });
+      var tx = { name: 'Transactions', widths: [13, 20, 44, 12, 28, 24], rows: [headerRow(['Date', 'Account', 'Description', 'Amount', 'Regular payment', 'From file'])] };
+      opts.transactions.forEach(function (t) {
+        tx.rows.push([cDate(t.day), cText(t.account), cText(t.desc), cMoney(t.amount), cText(tag[t.account + '|' + t.day + '|' + t.amount + '|' + t.desc] || ''), cText(t.source || '')]);
+      });
+      tx.filter = 'A1:F' + tx.rows.length;
+      sheets.push(tx);
+    }
+    // 5. The balance day by day
+    var rwo = opts.runway;
+    if (!rwo && opts.accounts) {
+      var withBal = opts.accounts.filter(function (a) { return a.closing; });
+      var pay = result.payday ? findSeries(result, result.payday.seriesId) : null;
+      var pick = withBal.filter(function (a) { return pay && pay.accounts.indexOf(a.account) >= 0; })[0] || withBal[0];
+      if (pick) rwo = { account: pick.account, balance: pick.closing.balance, everyday: result.everyday[pick.account] ? result.everyday[pick.account].perDay : 0 };
+    }
+    if (rwo && rwo.balance !== null && rwo.balance !== undefined) {
+      var rw = runway(result, decisions, { account: rwo.account, balance: rwo.balance, everyday: rwo.everyday || 0, overdraft: rwo.overdraft || 0, days: 60, leaveOutCancelled: true, extraIn: rwo.extraIn || [] });
+      var bal = { name: 'Balance day by day', freeze: 3, widths: [13, 14, 14, 14, 60], rows: [] };
+      bal.rows.push([cText(rwo.account + ': balance walked forward a day at a time', XS.bold)]);
+      bal.rows.push([cText('Everyday spending a day', XS.bold), cMoney(rw.everyday), null, null, cText('Change this and every balance below updates.')]);
+      bal.rows.push(headerRow(['Date', 'Regular change', 'Everyday', 'Balance', 'Payments and money in']));
+      bal.rows.push([cDate(result.asOf - 1), null, null, cMoney(rwo.balance), cText('Balance now')]);
+      rw.days.forEach(function (d, i) {
+        var r = i + 5;
+        var regular = d.change + rw.everyday;
+        bal.rows.push([cDate(d.day), cMoney(regular), cFormula('-$B$2', XS.money), cFormula('D' + (r - 1) + '+B' + r + '+C' + r, XS.money),
+          cText(d.items.map(function (it) { return (it.direction === 'in' ? '+' : '-') + plainMoney(it.amount) + ' ' + it.name; }).join('; '))]);
+      });
+      sheets.push(bal);
+    }
+    var files = [];
+    files.push({ name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' });
+    files.push({ name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' });
+    var defined = sheets.map(function (s, i) { return s.filter ? '<definedName name="_xlnm._FilterDatabase" localSheetId="' + i + '" hidden="1">\'' + xmlText(s.name) + '\'!$' + s.filter.replace(':', ':$').replace(/([A-Z]+)(\d+)/g, '$1$$$2') + '</definedName>' : ''; }).join('');
+    files.push({ name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>' + sheets.map(function (s, i) { return '<sheet name="' + xmlText(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets>' + (defined ? '<definedNames>' + defined + '</definedNames>' : '') + '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>' });
+    files.push({ name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' });
+    files.push({ name: 'xl/styles.xml', text: XLSX_STYLES });
+    sheets.forEach(function (s, i) { files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', text: sheetXml(s) }); });
+    return { bytes: zipStore(files), sheets: sheets.map(function (s) { return s.name; }), parts: files };
+  }
+  /** Rows of a CSV this model wrote (no quoted line breaks), for reuse in the workbook. */
+  function parseCsvRows(text) {
+    return parseDelimited(stripBom(text).replace(/\r\n$/, ''), ',').rows;
   }
 
   /** A template showing the layout that always reads cleanly. */
@@ -2079,7 +2295,7 @@
     explainGroup: explainGroup, findRegulars: findRegulars, matchTransfers: matchTransfers, forecast: forecast, monthTotals: monthTotals,
     suggest: suggest, howToStop: howToStop, cancelMessage: cancelMessage, plan: plan, noticeDaysFor: noticeDaysFor, isCost: isCost,
     sinceLastReview: sinceLastReview, runway: runway, cleanAdded: cleanAdded, everydaySpending: everydaySpending, registerCsv: registerCsv, budgetCsv: budgetCsv, buildIcs: buildIcs, icsFold: icsFold, icsEscape: icsEscape,
-    toCsv: toCsv, templateCsv: templateCsv, projectFile: projectFile, readProject: readProject, analyse: analyse, summary: summary, findSeries: findSeries,
+    toCsv: toCsv, templateCsv: templateCsv, buildXlsx: buildXlsx, zipStore: zipStore, crc32: crc32, projectFile: projectFile, readProject: readProject, analyse: analyse, summary: summary, findSeries: findSeries,
     lastNominal: lastNominal, scheduleFrom: scheduleFrom, whenText: whenText, anchorText: anchorText, expectedAmount: expectedAmount, nominalInMonth: nominalInMonth, monthlyCost: monthlyCost, annualCost: annualCost
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

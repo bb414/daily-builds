@@ -19,6 +19,7 @@ from .parsing import date_shape, default_account, detect_date_order, parse_amoun
     parse_delimited, parse_ofx, parse_qif, parse_statement, sniff_delimiter, sniff_format
 from .payees import CATEGORIES, CATEGORY_BY_ID, categorise, clean_description, display_name, payee_key, \
     payment_method
+from .workbook import build_xlsx, zip_store
 from .planning import DECISIONS, forecast, how_to_stop, month_totals, plan, runway, since_last_review, suggest
 
 VERSION = '1.0'

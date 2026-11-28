@@ -47,6 +47,7 @@ Date,Description,Type,Amount,Balance
 | Calendar (`.ics`) | Every expected payment with a reminder the day before, and a reminder on each cancel-by date. Opens in Google, Apple and Outlook calendars. |
 | Register (`.csv`) | One row per regular payment: how often, typical amount, monthly and yearly cost, next due, checks and your decision. |
 | Twelve-month budget (`.csv`) | Committed spending by category for each of the next twelve months, after your cancellations. |
+| Workbook (`.xlsx`) | Everything in one spreadsheet for Excel, Numbers, LibreOffice or Google Sheets: the register with live totals, the next twelve months, the calendar with a running total, every transaction tagged with its regular payment, and the balance day by day as a chain of formulas you can change. |
 | Printed checklist | The plan with tick boxes, cancel-by dates and the steps for each payment. |
 | Summary and messages | A plain-text summary and a cancellation message for each payment, ready to paste. |
 
@@ -80,8 +81,11 @@ It is also a small study in why good intentions stall: cancelling is easy to dec
 **The Python companion** (Python 3.9 or later, standard library only):
 
 ```bash
-# Everything in a folder of exports: register, budget, calendar, review file and an HTML report
+# Everything in a folder of exports: register, budget, calendar, workbook, review file and an HTML report
 python companion/still_paying.py scan data --out my-review
+
+# Will the money last? The balance day by day, with your overdraft and any one-off money in
+python companion/still_paying.py runway data --account "Current account" --overdraft 1000 --extra 2027-01-12:3514.67:Loan --out runway.csv
 
 # The monthly job: drop this month's exports in a folder, compare with your last review
 python companion/still_paying.py monthly ~/Downloads/statements --history ~/still-paying-history

@@ -696,6 +696,7 @@
       ['Calendar reminders', 'Every expected payment for the next three months with a reminder the day before, plus a reminder on each cancel-by date.', 'ics', 'Download the calendar (.ics)'],
       ['The register', 'One row per regular payment: how often, typical amount, yearly cost, next due, checks and your decision. Opens in any spreadsheet.', 'register', 'Download the register (.csv)'],
       ['Twelve-month budget', 'Committed spending by category for each of the next twelve months, after your cancellations, ready for a budget spreadsheet.', 'budget', 'Download the budget (.csv)'],
+      ['A spreadsheet workbook', 'Everything in one Excel, Numbers or Google Sheets file: the register with live totals, the next twelve months, the calendar, every transaction tagged, and your balance day by day as formulas you can change.', 'xlsx', 'Download the workbook (.xlsx)'],
       ['A printed checklist', 'This plan as a tidy checklist with tick boxes, for the fridge door or a folder.', 'print', 'Print the checklist'],
       ['A summary to paste', 'A short plain-text summary of what you pay and what you are cancelling, for notes, a housemate or yourself.', 'copy-summary', 'Copy the summary']
     ];
@@ -969,6 +970,12 @@
       case 'ics': { var ics = M.buildIcs(A.result, state.decisions, { days: state.view === 'calendar' ? horizonDays() : 92 }); download('regular-payments.ics', ics.text, 'text/calendar;charset=utf-8'); break; }
       case 'register': download('regular-payments.csv', M.registerCsv(A.result, state.decisions), 'text/csv;charset=utf-8'); break;
       case 'budget': download('budget-12-months.csv', M.budgetCsv(A.result, state.decisions, 12), 'text/csv;charset=utf-8'); break;
+      case 'xlsx': {
+        var cfg = runwaySettings();
+        var book = M.buildXlsx(A.result, state.decisions, { transactions: A.merged.transactions, accounts: A.merged.accounts, runway: cfg.account && cfg.balance !== null ? { account: cfg.account, balance: cfg.balance, everyday: cfg.everyday, overdraft: cfg.overdraft, extraIn: cfg.extra } : null });
+        download('still-paying-' + M.iso(A.result.asOf) + '.xlsx', new Uint8Array(book.bytes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        break;
+      }
       case 'save-review': download('still-paying-review-' + M.iso(A.result.asOf) + '.json', reviewText(), 'application/json'); break;
       case 'print': show('plan'); window.print(); break;
       case 'copy-summary': copyText(summaryText(), 'Summary'); break;
