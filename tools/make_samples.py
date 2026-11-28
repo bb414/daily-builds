@@ -112,7 +112,7 @@ class Book:
 
 def outcome_r(rng, setup, afternoon, mistakes):
     """The R multiple the final exit reaches: wins and losses by setup, made worse by mistakes."""
-    name, p_win, lo, hi = setup[0], setup[1], setup[2], setup[3]
+    p_win, lo, hi = setup[1], setup[2], setup[3]
     p = p_win - (0.10 if afternoon else 0.0)
     if "Chased entry" in mistakes:
         p -= 0.15

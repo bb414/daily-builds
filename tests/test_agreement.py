@@ -114,6 +114,7 @@ class AgreementTest(unittest.TestCase):
         for name, text in EDGE.items():
             self.compare_case({'files': [{'name': name, 'text': text}], 'settings': {'accounts': [{'name': 'No times', 'start': '1000', 'longOnly': True}]}}, name)
         self.compare_case({'files': [{'name': 'template.csv', 'text': h.sample_text('template.csv')}]}, 'template')
+        self.compare_case({'files': [{'name': 'no-times-2026-11-27.csv', 'text': EDGE['no-times.csv']}], 'settings': {'renames': [{'from': 'No times', 'to': 'ISA'}]}}, 'renamed')
 
     def test_chosen_columns_and_typed_in_openings(self):
         text = 'Exported by desk\nWhen,Code,Way,Lots,At,Charge\n23/11/2026 09:00,QX,B,2,10.00,0.50\n23/11/2026 10:00,QX,S,3,10.40,0.50\n'
@@ -130,6 +131,35 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual(h.plain([h.rt.trading_window(w) for w in windows]), h.run_bridge({'windows': windows})['windows'])
         js = h.run_bridge({'carries': [{'u': u, 'date': d, 'price': p} for d, p in tries]})
         self.assertEqual(h.plain([h.rt.make_carry(u, d, p) for d, p in tries]), js['carries'])
+
+    def test_malformed_and_odd_inputs(self):
+        odd = {
+            'empty.csv': '',
+            'spaces.csv': '   \n\n  \t \n',
+            'header-only.csv': 'Date,Symbol,Side,Qty,Price\n',
+            'binary.csv': '\x89PNG\r\n\x1a\n\x00\x00\x00IHDR',
+            'journal.csv': '{"app":"round-trips","fills":[]}',
+            'ragged.csv': 'Date,Symbol,Side,Qty,Price,Fee\n2026-11-23,QX,Buy,10\n2026-11-23,QX,Buy,10,5,1,extra,cells\n2026-11-23,QX,Sell,10,6\n',
+            'unbalanced.csv': 'Date,Symbol,Side,Qty,Price\n2026-11-23,"QX,Buy,10,5\n2026-11-24,QX,Sell,10,6\n',
+            'duplicate-columns.csv': 'Date,Symbol,Symbol,Side,Qty,Price,Price\n2026-11-23,QX,YY,Buy,10,5,9\n2026-11-24,QX,YY,Sell,10,6,9\n',
+            'huge-numbers.csv': 'Date,Symbol,Side,Qty,Price\n2026-11-23,QX,Buy,99999999,123456789.123456789\n2026-11-24,QX,Sell,99999999,1e5\n2026-11-24,QX,Sell,1,0\n',
+            'edge-times.csv': 'Date,Time,Symbol,Side,Qty,Price\n2026-11-23,12:00 AM,QX,Buy,1,5\n2026-11-23,12:00 PM,QX,Sell,1,6\n2026-11-23,24:00,QX,Buy,1,5\n1899-12-31,10:00,QX,Buy,1,5\n2026-02-29,10:00,QX,Buy,1,5\n',
+            'dup-exec.csv': 'Date,Symbol,Side,Qty,Price,Exec ID\n2026-11-23 10:00,QX,Buy,1,5,E1\n2026-11-23 10:00,QX,Buy,1,5,E1\n2026-11-23 11:00,QX,Sell,2,6,E2\n',
+            'loose-fees.csv': 'Date,Symbol,Side,Type,Qty,Price,Fees\n,,,Platform fee,,,$9.99\n2026-11-23,,,Data fee,,,2.50\n2026-11-23,QX,Buy,Trade,1,5,0\n2026-11-24,ZZ,,Commission,,,1.00\n',
+            'negative-qty-and-side.csv': 'Date,Symbol,Side,Qty,Price\n2026-11-23,QX,Buy,-10,5\n2026-11-24,QX,Sell,-10,6\n',
+            'tabs.tsv': 'Date\tSymbol\tSide\tQty\tPrice\tCommission\n23/11/2026\tQX\tB\t3\t5.5\t0.10\n24/11/2026\tQX\tS\t3\t5.25\t0.10\n',
+            'pipes.txt': 'Date|Symbol|Side|Qty|Price\n2026-11-23|QX|BOT|3|5.5\n2026-11-24|QX|SLD|3|5.25\n',
+        }
+        files = [{'name': n, 'text': t} for n, t in odd.items()]
+        py = self.compare_case({'files': files}, 'malformed')
+        self.assertTrue(any(r['error'] for r in py['reports']))
+        damaged = [
+            '{"app":"round-trips","version":1,"fills":[{"key":"k","day":"x","side":"B","q":1,"price":1},{"key":"k2","day":20000,"side":"B","q":1000000,"price":5000000}],'
+            '"feeRows":[{"key":"f","amount":"nope"}],"journal":[{"id":5},{"id":"t","mistakes":"not a list"}],"settings":{"base":"usd","rules":{"maxRiskPct":{"on":true,"value":7}}},"seq":"x"}',
+            '{"app":"round-trips","version":99,"fills":[]}', '[]', 'null', '{"app":"round-trips","fills":{}}',
+        ]
+        js = h.run_bridge({'projects': damaged})
+        self.assertIsNone(h.first_difference(h.plain([h.rt.read_project(t) for t in damaged]), js['projects']))
 
     def test_random_exports(self):
         for seed in range(12):

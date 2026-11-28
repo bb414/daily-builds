@@ -52,7 +52,9 @@
     if (S.sample) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
-      storeSet(STORE_KEY, JSON.stringify({ when: new Date().toISOString(), journal: M.projectFile(S.state, todayIso()) }));
+      var text = M.projectFile(S.state, todayIso());
+      // Browser storage holds about 5 MB; a bigger journal lives only in the file you save.
+      if (text.length > 4500000 || !storeSet(STORE_KEY, JSON.stringify({ when: new Date().toISOString(), journal: text }))) storeDel(STORE_KEY);
     }, 700);
   }
 
@@ -1312,7 +1314,17 @@
       return;
     }
     if (id === 'date-order') { S.base.settings.dateOrder = el.value; reimport(); toast('Re-read the exports'); return; }
-    if (role === 'file-account') { S.files[+el.getAttribute('data-file')].account = el.value.trim(); reimport(); return; }
+    if (role === 'file-account') {
+      var named = S.files[+el.getAttribute('data-file')];
+      named.account = el.value.trim();
+      // Remember the name for this kind of file, so next week's export joins the same account.
+      var from = M.cleanAccountName(named.name);
+      var renames = (S.base.settings.renames || []).filter(function (x) { return x.from !== from; });
+      if (named.account && named.account !== from) renames.push({ from: from, to: named.account });
+      S.base.settings.renames = renames;
+      reimport();
+      return;
+    }
     if (role === 'file-column') {
       var target = S.files[+el.getAttribute('data-file')];
       var cols = {};

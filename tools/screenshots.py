@@ -43,25 +43,42 @@ def main():
         page.click('.trade-row >> nth=1')
         page.wait_for_timeout(200)
         section(page, '.split', os.path.join(DOCS, '04-trade-journal.png'))
+        page.click('#tab-days')
+        page.click('[data-day="20745"]')
+        page.wait_for_timeout(300)
+        section(page, '#view-days', os.path.join(DOCS, '05-days-calendar.png'))
         page.click('#tab-fills')
         page.click('details.skipped >> nth=1')
-        section(page, '.sources', os.path.join(DOCS, '05-fills-import.png'))
+        section(page, '.sources', os.path.join(DOCS, '06-fills-import.png'))
         page.click('#tab-rules')
-        section(page, '#view-rules .grid-2', os.path.join(DOCS, '06-rules-and-sizing.png'))
+        section(page, '#view-rules .grid-2', os.path.join(DOCS, '07-rules-and-sizing.png'))
         phone = browser.new_page(viewport={'width': 390, 'height': 844}, device_scale_factor=2)
         phone.goto(URL)
         phone.wait_for_selector('#review-sheet')
         phone.wait_for_timeout(400)
-        phone.screenshot(path=os.path.join(DOCS, '07-phone.png'))
+        phone.screenshot(path=os.path.join(DOCS, '08-phone.png'))
         # The companion's team review, from the sample team folder.
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run([sys.executable, os.path.join(ROOT, 'companion', 'round_trips.py'), 'team', os.path.join(ROOT, 'data', 'team'), '--out', tmp],
                            check=True, capture_output=True)
             team = browser.new_page(viewport={'width': 1200, 'height': 900})
             team.goto('file://' + os.path.join(tmp, 'team-review.html'))
-            team.screenshot(path=os.path.join(DOCS, '08-team-review.png'))
+            team.screenshot(path=os.path.join(DOCS, '09-team-review.png'))
         browser.close()
+    shrink()
     print('Wrote the screenshots to docs/')
+
+
+def shrink():
+    """Store the screenshots as 256-colour PNGs when Pillow is installed: a fraction of the size, no visible change."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return
+    for name in sorted(os.listdir(DOCS)):
+        if name.endswith('.png'):
+            path = os.path.join(DOCS, name)
+            Image.open(path).convert('RGB').quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG).save(path, optimize=True)
 
 
 if __name__ == '__main__':

@@ -161,7 +161,8 @@ def project_file(state, saved_on=''):
             'multipliers': [{'symbol': e['symbol'], 'value': s(e.get('value'))} for e in st.get('multipliers') or []],
             'accounts': [{'name': a['name'], 'start': s(a.get('start')), 'currency': s(a.get('currency')), 'longOnly': bool(a.get('longOnly'))}
                          for a in st.get('accounts') or []],
-            'rules': rules, 'setups': list(st.get('setups') or []), 'mistakes': list(st.get('mistakes') or []),
+            'rules': rules, 'renames': [{'from': e['from'], 'to': e['to']} for e in st.get('renames') or []],
+            'setups': list(st.get('setups') or []), 'mistakes': list(st.get('mistakes') or []),
         },
         'sources': [_pick(x, SOURCE_FIELDS) for x in state['sources'] if not x.get('error')],
         'journal': [{'id': e['id'], 'setup': e['setup'], 'stop': e['stop'], 'risk': e['risk'], 'target': e.get('target') or '',
@@ -219,12 +220,20 @@ def read_project(text):
             v.pop('value', None)
         if not v.get('unit'):
             v.pop('unit', None)
+    if isinstance(sd.get('renames'), list):
+        d['renames'] = [{'from': e['from'], 'to': e['to']} for e in sd['renames']
+                        if isinstance(e, dict) and isinstance(e.get('from'), str) and isinstance(e.get('to'), str) and e['from'] and e['to']]
     if isinstance(sd.get('setups'), list):
         d['setups'] = [s(x) for x in sd['setups']]
     if isinstance(sd.get('mistakes'), list):
         d['mistakes'] = [s(x) for x in sd['mistakes']]
     sources = []
-    for x in data.get('sources') or []:
+    def listed(v):
+        return v if isinstance(v, list) else []
+
+    for x in listed(data.get('sources')):
+        if not isinstance(x, dict):
+            continue
         o = _pick(x, SOURCE_FIELDS)
         o.update({'ok': True, 'error': '', 'columns': {}, 'notes': [], 'skipped': [], 'counts': None, 'dateNote': '', 'saved': True})
         sources.append(o)
@@ -247,7 +256,7 @@ def read_project(text):
         fills.append(g)
     st['fills'] = fills
     fee_rows = []
-    for e in data.get('feeRows') or []:
+    for e in listed(data.get('feeRows')):
         if isinstance(e, dict) and isinstance(e.get('key'), str) and _is_num(e.get('amount')):
             g = _pick(e, FEE_FIELDS)
             for k in ('orderId', 'label', 'file', 'symbol'):
@@ -256,7 +265,7 @@ def read_project(text):
             fee_rows.append(g)
     st['feeRows'] = fee_rows
     carry = []
-    for c in data.get('carry') or []:
+    for c in listed(data.get('carry')):
         if (isinstance(c, dict) and isinstance(c.get('account'), str) and isinstance(c.get('symbol'), str) and c.get('side') in ('B', 'S')
                 and _is_num(c.get('q')) and c['q'] > 0 and _is_num(c.get('price')) and _is_num(c.get('day'))):
             g = _pick(c, CARRY_FIELDS)
@@ -266,7 +275,7 @@ def read_project(text):
                 g['currency'] = ''
             carry.append(g)
     st['carry'] = carry
-    st['journal'] = sort_by([clean_entry(e['id'], e) for e in data.get('journal') or [] if isinstance(e, dict) and isinstance(e.get('id'), str)],
+    st['journal'] = sort_by([clean_entry(e['id'], e) for e in listed(data.get('journal')) if isinstance(e, dict) and isinstance(e.get('id'), str)],
                             lambda a, b: cmp(a['id'], b['id']))
     max_seq = 0
     for f in fills + fee_rows:

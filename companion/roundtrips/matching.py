@@ -9,8 +9,8 @@ import math
 import re
 
 from .common import (DAY, cmp, fmt_date, fmt_num, fmt_price, fmt_qty, fmt_r, fmt_time, from_iso, iso_stamp, jsnum, money, parse_cents,
-                     parse_float_text, parse_micro, parse_time, plural, rnd, rx, s, sort_by, trim, week_start)
-from .parsing import read_export, symbol_root
+                     parse_float_text, parse_micro, parse_time, plural, rnd, rx, sort_by, trim, week_start)
+from .parsing import clean_account_name, read_export, symbol_root
 
 
 def default_rules():
@@ -29,7 +29,7 @@ def default_rules():
 
 def default_settings():
     return {
-        'base': 'USD', 'dateOrder': 'auto', 'fx': [], 'multipliers': [], 'accounts': [], 'rules': default_rules(),
+        'base': 'USD', 'dateOrder': 'auto', 'fx': [], 'multipliers': [], 'accounts': [], 'rules': default_rules(), 'renames': [],
         'setups': ['Opening range break', 'Pullback', 'Breakout', 'Reversal', 'News'],
         'mistakes': ['Chased entry', 'Moved stop', 'Added to a loser', 'Oversized', 'Early exit', 'Revenge trade', 'No plan'],
     }
@@ -54,8 +54,10 @@ def import_files(state, files):
     have_fee = {e['key'] for e in nxt['feeRows']}
     reports = []
     for file in files:
+        renamed = lookup(state['settings'].get('renames') or [], clean_account_name(file['name']), 'from')
         rep = read_export(file['name'], file['text'], {'dateOrder': file.get('dateOrder') or state['settings']['dateOrder'],
-                                                       'account': file.get('account'), 'base': state['settings']['base'], 'columns': file.get('columns')})
+                                                       'account': file.get('account') or (renamed['to'] if renamed else ''), 'base': state['settings']['base'],
+                                                       'columns': file.get('columns')})
         sid = 1
         for src in nxt['sources']:
             if src['id'] >= sid:
@@ -376,7 +378,7 @@ def journal_entry(state, tid):
 
 def clean_entry(tid, f):
     mistakes = []
-    for m in f.get('mistakes') or []:
+    for m in f.get('mistakes') if isinstance(f.get('mistakes'), list) else []:
         m = trim(m)
         if m and m not in mistakes:
             mistakes.append(m)
@@ -475,9 +477,6 @@ def currency_of_account(trades, account, base):
         if t['account'] == account:
             return t['currency']
     return base
-
-
-_PENCE_STOP = rx(r'p$', 0)
 
 
 def _trade_order(a, b):
@@ -659,10 +658,13 @@ def check_rules(closed, opened, events, settings):
     r = rules.get('coolOff')
     if r and r.get('on') and rule_value(r) is not None:
         run_n = math.floor(rule_value(r))
+        closed_by_day = {}
+        for c in closed:
+            closed_by_day.setdefault(c['account'] + '|' + str(c['closeDay']), []).append(c)
         for t in every:
             streak = 0
-            for c in closed:
-                if c['account'] != t['account'] or c['closeDay'] != t['openDay'] or c['closeT'] > t['openT'] or c is t:
+            for c in closed_by_day.get(t['account'] + '|' + str(t['openDay']), []):
+                if c['closeT'] > t['openT'] or c is t:
                     continue
                 streak = streak + 1 if c['net'] < 0 else 0
             if run_n > 0 and streak >= run_n:

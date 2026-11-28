@@ -63,8 +63,8 @@ The sample is an invented challenge team, "KES": an equities challenge account (
 - **Matching:** 237 closed round trips and one position still open (GLBM, 2,000 shares bought on the Friday afternoon).
 - **All ten weeks:** net **+$7,121.74 after $4,746.92 of fees** (+$11,868.66 before fees). Win rate 49% (115 won, 122 lost), expectancy +$30.05 a trade, profit factor 1.11, average +0.13R over the 205 trades with a stop or planned risk. Largest drop from a high $11,879.63 (7.2% of the accounts at their high), from 30 September to 19 October.
 - **What worked:** Opening range breaks made +$6,456.33 over 72 trades; gap fades lost -$7,251.31 over 33. Trades tagged "Added to a loser" lost -$9,686.31 over 17 trades.
-- **Rules:** 98 breaches. The 74 trades that broke at least one rule lost -$17,213.10; the 163 that kept to every rule made +$24,334.84.
-- **The latest week (w/c 23 November):** +$1,595.71 from 21 closed trades after $467.07 of fees, 52% won, profit factor 1.46, expectancy +$75.99 a trade against -$16.84 over the previous four weeks. The review notes that the 8 trades that broke a rule made -$1,086.22 while the other 13 made +$2,681.93, that trades opened between 11:00 and 11:59 were the weakest hour, and that 5 trades still have no setup and 7 no stop.
+- **Rules:** 113 breaches of the nine house rules (1% risk a trade, a 2% daily loss limit, a 6% trailing drawdown, 6 trades a day, 09:35 to 15:45, stop after 3 losses in a row, no adding to a loser, no loss beyond 1.5R, a stop on every trade). The 82 trades that broke at least one rule lost -$15,953.95; the 155 that kept to every rule made +$23,075.69. Keeping to the rules would have made about +$16,165.75 instead of +$7,121.74, mostly by taking 50 stops as planned (+$8,660.70); an estimate, as the screen says.
+- **The latest week (w/c 23 November):** +$1,595.71 from 21 closed trades after $467.07 of fees, 52% won, profit factor 1.46, expectancy +$75.99 a trade against -$16.84 over the previous four weeks. The review notes that the 8 trades that broke a rule made -$1,086.22 while the other 13 made +$2,681.93, that keeping to the rules would have made about +$1,261.08 this week (the rules are not always cheaper), that trades opened between 11:00 and 11:59 were the weakest hour, and that 5 trades still have no setup and 7 no stop.
 - **Days:** 27 of the 49 trading days ended up after fees. The daily loss limit (2% of the starting balance) was hit on 19 October, 5 November and 16 November; on 19 October the accounts lost -$4,329.82 between them.
 - **Position size:** a $100,000 account risking 1% on an entry at 41.20 with a stop at 40.85 and a cent a share in fees: buy 2,777 shares, losing $999.72 at the stop.
 
@@ -99,7 +99,7 @@ python companion/round_trips.py template
 The companion gives exactly the same trades, figures, breaches, review text and files as the app, and adds what a browser page cannot do well:
 
 - **`weekly`, the weekly job:** reads every export in an inbox folder, merges it into a running journal file (the same file the app saves, so your notes and settings stay in it) without double counting, backs up the old journal, writes a dated folder (`reviews/review-2026-11-23/` with `review.html`, `review.txt`, the week's and all round trips, the week's breaches, the days and the matched fills) and moves the exports it read into an archive. Running it again on the same inbox adds nothing. On the sample, two overlapping weekly exports of the equities account give 489 and then 35 new fills (62 were already in the journal): 524, the same as the full export.
-- **`team`, the team review:** a folder with one subfolder per member (their exports and, if they keep one, their journal file) or one export per member. It writes `team-review.html` and `team-review.csv`: each member's trades, net after fees, win rate, expectancy, profit factor, average R, largest drop, net over largest drop, daily Sharpe and Sortino, and breaches of each rule, plus the latest week side by side. On the sample team (`data/team`, four weeks): Priya +$2,733.89 with 9 breaches, Tom -$1,981.18 with 31, Kasia -$6,957.89 with 33.
+- **`team`, the team review:** a folder with one subfolder per member (their exports and, if they keep one, their journal file) or one export per member. It writes `team-review.html` and `team-review.csv`: each member's trades, net after fees, win rate, expectancy, profit factor, average R, largest drop, net over largest drop, daily Sharpe and Sortino, and breaches of each rule, plus the latest week side by side. On the sample team (`data/team`, four weeks): Priya +$2,733.89 with 10 breaches, Tom -$1,981.18 with 38, Kasia -$6,957.89 with 38.
 - **`period`, a report for a month or any span** (`--month 2026-10`, or `--from` and `--to`): the period's figures, week by week, a calendar of days, setups and symbols, breaches of each rule, what keeping to the rules would have changed and what each mistake tag cost. One printable HTML page, for a monthly society meeting or the end of a challenge.
 - **Printable HTML reports** for any week (`review --html`).
 - **`check`** shows how each file was read: the column chosen for each field, the date order and every row set aside.
@@ -128,13 +128,15 @@ Tests skip cleanly when Node, Playwright or Chromium is missing.
 
 ![The trade journal: a list of round trips with net and R on the left and a carbon-copy trade ticket on the right with the fills, figures and journal fields](docs/04-trade-journal.png)
 
-![The fills import log: each export with the columns used, notes on date order and pence, and the list of rows set aside with line numbers and reasons](docs/05-fills-import.png)
+![The Days view: three months of calendar with each trading day's result after fees in blue or red, week totals, red corners for broken rules and LIMIT stamps, above the replay of 19 October](docs/05-days-calendar.png)
 
-![The house rules with their breach counts beside the position-size calculator](docs/06-rules-and-sizing.png)
+![The fills import log: each export with the columns used, notes on date order and pence, and the list of rows set aside with line numbers and reasons](docs/06-fills-import.png)
 
-![The app on a phone: the hero, the headline tickets and the index tabs at 390 pixels wide](docs/07-phone.png)
+![The house rules with their breach counts beside the position-size calculator](docs/07-rules-and-sizing.png)
 
-![The companion's team review: one row per member with risk-adjusted figures and breaches](docs/08-team-review.png)
+![The app on a phone: the hero, the headline tickets and the index tabs at 390 pixels wide](docs/08-phone.png)
+
+![The companion's team review: one row per member with risk-adjusted figures and breaches](docs/09-team-review.png)
 
 ## Which language does what
 

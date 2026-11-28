@@ -283,6 +283,20 @@ test('adding next week\'s export skips the fills already in the journal', functi
   assert.equal(M.stats(x.closed).net, M.stats(y.closed).net);
 });
 
+test('an account name given to a file with no account column carries over to next week\'s export', function () {
+  var week1 = csv(['Date,Symbol,Side,Quantity,Price', '2026-11-20,QX,Buy,10,5']);
+  var week2 = csv(['Date,Symbol,Side,Quantity,Price', '2026-11-20,QX,Buy,10,5', '2026-11-24,QX,Sell,10,6']);
+  var st = M.emptyState();
+  st.settings.renames = [{ from: 'Trade history', to: 'ISA' }];
+  var one = M.importFiles(st, [{ name: 'trade-history-2026-11-20.csv', text: week1 }]);
+  assert.equal(one.state.fills[0].account, 'ISA');
+  var saved = M.readProject(M.projectFile(one.state, '2026-11-20')).state;
+  assert.deepEqual(saved.settings.renames, [{ from: 'Trade history', to: 'ISA' }]);
+  var two = M.importFiles(saved, [{ name: 'trade-history-2026-11-27.csv', text: week2 }]);
+  assert.equal(two.reports[0].duplicates, 1);
+  assert.equal(M.analyse(two.state).closed[0].account, 'ISA');
+});
+
 test('the journal file reopens exactly, keeps the notes and refuses other files', function () {
   var pr = M.readProject(data('sample-journal.json'));
   assert.equal(pr.ok, true);

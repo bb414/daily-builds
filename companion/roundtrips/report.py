@@ -239,7 +239,6 @@ def calendar_html(ledger, base, start, end):
 
 def period_report(result, start, end, account=''):
     """A report for any span of days (a month, a term, a whole challenge): weeks, days, setups, rules and what keeping to them would have changed."""
-    from .common import to_iso
     from .days import day_ledger
     from .stats import breakdown, filter_trades, stats, start_balance, weekly, what_if
     base = result['settings']['base']

@@ -707,6 +707,7 @@
       multipliers: [],
       accounts: [],
       rules: defaultRules(),
+      renames: [],
       setups: ['Opening range break', 'Pullback', 'Breakout', 'Reversal', 'News'],
       mistakes: ['Chased entry', 'Moved stop', 'Added to a loser', 'Oversized', 'Early exit', 'Revenge trade', 'No plan']
     };
@@ -735,7 +736,9 @@
     next.feeRows.forEach(function (e) { haveFee[e.key] = true; });
     var reports = [];
     files.forEach(function (file) {
-      var rep = readExport(file.name, file.text, { dateOrder: file.dateOrder || state.settings.dateOrder, account: file.account, base: state.settings.base, columns: file.columns });
+      // A file with no account column takes the name you gave that kind of file before, so next week's export joins the same account.
+      var renamed = lookup(state.settings.renames || [], cleanAccountName(file.name), 'from');
+      var rep = readExport(file.name, file.text, { dateOrder: file.dateOrder || state.settings.dateOrder, account: file.account || (renamed ? renamed.to : ''), base: state.settings.base, columns: file.columns });
       var id = 1;
       next.sources.forEach(function (s) { if (s.id >= id) id = s.id + 1; });
       var added = 0, dupes = 0, feesAdded = 0;
@@ -1042,7 +1045,7 @@
   }
   function cleanEntry(id, f) {
     var mistakes = [];
-    (f.mistakes || []).forEach(function (m) { m = trim(m); if (m && mistakes.indexOf(m) < 0) mistakes.push(m); });
+    (Array.isArray(f.mistakes) ? f.mistakes : []).forEach(function (m) { m = trim(m); if (m && mistakes.indexOf(m) < 0) mistakes.push(m); });
     return { id: id, setup: trim(f.setup), stop: trim(f.stop), risk: trim(f.risk), target: trim(f.target), mistakes: mistakes, notes: str(f.notes).replace(/\r\n?/g, '\n').replace(/\s+$/, '') };
   }
   M.setJournal = setJournal;
@@ -1257,10 +1260,12 @@
     }
     if ((r = rules.coolOff) && r.on && ruleValue(r) !== null) {
       var runN = Math.floor(ruleValue(r));
+      var closedByDay = {};
+      closed.forEach(function (c) { var k = c.account + '|' + c.closeDay; (closedByDay[k] = closedByDay[k] || []).push(c); });
       all.forEach(function (t) {
         var streak = 0;
-        closed.forEach(function (c) {
-          if (c.account !== t.account || c.closeDay !== t.openDay || c.closeT > t.openT || c === t) return;
+        (closedByDay[t.account + '|' + t.openDay] || []).forEach(function (c) {
+          if (c.closeT > t.openT || c === t) return;
           streak = c.net < 0 ? streak + 1 : 0;
         });
         if (runN > 0 && streak >= runN) add('coolOff', t, t.openDay, t.openSec, 'Opened after ' + streak + ' losing trades in a row that day; the rule is to stop after ' + runN);
@@ -2090,6 +2095,7 @@
         multipliers: (s.multipliers || []).map(function (e) { return { symbol: e.symbol, value: str(e.value) }; }),
         accounts: (s.accounts || []).map(function (a) { return { name: a.name, start: str(a.start), currency: str(a.currency), longOnly: !!a.longOnly }; }),
         rules: (function () { var r = {}; RULES.forEach(function (x) { var v = (s.rules || {})[x.id] || {}; r[x.id] = { on: !!v.on, value: str(v.value), unit: str(v.unit) }; }); return r; })(),
+        renames: (s.renames || []).map(function (e) { return { from: e.from, to: e.to }; }),
         setups: (s.setups || []).slice(), mistakes: (s.mistakes || []).slice()
       },
       sources: state.sources.filter(function (x) { return !x.error; }).map(function (x) { return pick(x, SOURCE_FIELDS); }),
@@ -2119,20 +2125,22 @@
     if (Array.isArray(s.accounts)) d.accounts = s.accounts.filter(function (e) { return e && e.name; }).map(function (e) { return { name: str(e.name), start: str(e.start), currency: str(e.currency), longOnly: !!e.longOnly }; });
     if (s.rules) RULES.forEach(function (x) { var v = s.rules[x.id]; if (v) d.rules[x.id] = { on: !!v.on, value: str(v.value), unit: str(v.unit) }; });
     RULES.forEach(function (x) { var v = d.rules[x.id]; if (!v.value) delete v.value; if (!v.unit) delete v.unit; });
+    if (Array.isArray(s.renames)) d.renames = s.renames.filter(function (e) { return e && typeof e.from === 'string' && typeof e.to === 'string' && e.from && e.to; }).map(function (e) { return { from: e.from, to: e.to }; });
     if (Array.isArray(s.setups)) d.setups = s.setups.map(str);
     if (Array.isArray(s.mistakes)) d.mistakes = s.mistakes.map(str);
-    st.sources = (data.sources || []).map(function (x) { var o = pick(x, SOURCE_FIELDS); o.ok = true; o.error = ''; o.columns = {}; o.notes = []; o.skipped = []; o.counts = null; o.dateNote = ''; o.saved = true; return o; });
+    function list(v) { return Array.isArray(v) ? v : []; }
+    st.sources = list(data.sources).filter(function (x) { return x && typeof x === 'object'; }).map(function (x) { var o = pick(x, SOURCE_FIELDS); o.ok = true; o.error = ''; o.columns = {}; o.notes = []; o.skipped = []; o.counts = null; o.dateNote = ''; o.saved = true; return o; });
     var bad = 0;
     st.fills = data.fills.filter(function (f) {
       var ok = f && typeof f.key === 'string' && typeof f.day === 'number' && (f.side === 'B' || f.side === 'S') && typeof f.q === 'number' && f.q > 0 && typeof f.price === 'number';
       if (!ok) bad++;
       return ok;
     }).map(function (f) { var g = pick(f, FILL_FIELDS); if (g.fee === null) g.fee = 0; if (g.intent === null) g.intent = ''; ['orderId', 'execId', 'asset', 'file', 'currency'].forEach(function (k) { if (g[k] === null) g[k] = ''; }); return g; });
-    st.feeRows = (data.feeRows || []).filter(function (e) { return e && typeof e.key === 'string' && typeof e.amount === 'number'; }).map(function (e) { var g = pick(e, FEE_FIELDS); ['orderId', 'label', 'file', 'symbol'].forEach(function (k) { if (g[k] === null) g[k] = ''; }); return g; });
-    st.carry = (data.carry || []).filter(function (c) {
+    st.feeRows = list(data.feeRows).filter(function (e) { return e && typeof e.key === 'string' && typeof e.amount === 'number'; }).map(function (e) { var g = pick(e, FEE_FIELDS); ['orderId', 'label', 'file', 'symbol'].forEach(function (k) { if (g[k] === null) g[k] = ''; }); return g; });
+    st.carry = list(data.carry).filter(function (c) {
       return c && typeof c.account === 'string' && typeof c.symbol === 'string' && (c.side === 'B' || c.side === 'S') && typeof c.q === 'number' && c.q > 0 && typeof c.price === 'number' && typeof c.day === 'number';
     }).map(function (c) { var g = pick(c, CARRY_FIELDS); if (g.fee === null) g.fee = 0; if (g.currency === null) g.currency = ''; return g; });
-    st.journal = (data.journal || []).filter(function (e) { return e && typeof e.id === 'string'; }).map(function (e) { return cleanEntry(e.id, e); }).sort(function (a, b) { return cmp(a.id, b.id); });
+    st.journal = list(data.journal).filter(function (e) { return e && typeof e.id === 'string'; }).map(function (e) { return cleanEntry(e.id, e); }).sort(function (a, b) { return cmp(a.id, b.id); });
     var maxSeq = 0;
     st.fills.forEach(function (f) { if (f.seq > maxSeq) maxSeq = f.seq; });
     st.feeRows.forEach(function (f) { if (f.seq > maxSeq) maxSeq = f.seq; });
