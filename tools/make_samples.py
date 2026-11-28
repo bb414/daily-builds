@@ -16,6 +16,8 @@ It writes, in the shapes real students have them:
                               repeats, a cancelled event, a moved lecture, a
                               skipped date, all-day entries and a UTC time)
   data/exam-timetable.ics     Alex's exams as a personal exam calendar
+  data/exam-timetable.html    the same exams as the portal page, saved from a
+                              browser (dates and times in one cell)
   data/messy-timetable.txt    a timetable pasted from a web page: mixed date
                               formats, a room column, a repeated header, a
                               resit still to be confirmed and a blank row
@@ -25,7 +27,8 @@ It writes, in the shapes real students have them:
                               from Mon 30 Nov 2026, with ten days ticked off
                               (one day missed) as if today were Thu 10 Dec
   data/group/                 a study group of three: Alex, Sam and Priya, each
-                              with their own files and plan file
+                              with their own files and plan file (Sam's bar
+                              shifts come as a rota CSV, some past midnight)
 """
 
 import os
@@ -126,6 +129,37 @@ def exam_ics(exams):
         ]
     out.append("END:VCALENDAR")
     return "\r\n".join(out) + "\r\n"
+
+
+def exam_html(exams):
+    """The exam timetable page as a student would save it from the portal ("Save page as")."""
+    rows = []
+    for code, title, date, start, mins, venue, seat in exams:
+        h, m = int(start[:2]), int(start[3:])
+        end = h * 60 + m + mins
+        rows.append('      <tr class="exam-row"><td><strong>%s</strong></td><td>%s</td><td>%s %02d:%02d&ndash;%02d:%02d</td><td>%s</td><td>%s</td></tr>' % (
+            code, title.replace('&', '&amp;'), ddmmyyyy(date), h, m, end // 60, end % 60, venue, seat))
+    return "\n".join([
+        '<!DOCTYPE html>', '<html lang="en"><head><meta charset="utf-8"><title>My examinations | Brackenmoor student portal</title>',
+        '<style>table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px}</style></head>',
+        '<body><nav><a href="#">Home</a> &gt; <a href="#">Assessment</a> &gt; My examinations</nav>',
+        '<h1>Examination timetable: January 2027</h1>',
+        '<p>Candidate number 2210457. Please arrive 30&nbsp;minutes before the start.</p>',
+        '<!-- <tr><td>Old draft row</td></tr> -->',
+        '<table id="exams">', '  <thead><tr><th>Module</th><th>Title</th><th>Date and time</th><th>Venue</th><th>Seat</th></tr></thead>', '  <tbody>',
+    ] + rows + ['  </tbody>', '</table>', '<footer>Brackenmoor University (invented)</footer></body></html>', ''])
+
+
+def sam_rota():
+    """Sam's bar shifts, exported from the pub's rota app as CSV (some shifts finish after midnight)."""
+    rows = ["Shift date,Start,Finish,Role,Hours"]
+    shifts = [("04/12/2026", "18:00", "23:30"), ("05/12/2026", "19:00", "01:00"), ("11/12/2026", "18:00", "23:30"), ("12/12/2026", "19:00", "01:00"),
+              ("18/12/2026", "17:00", "23:00"), ("19/12/2026", "19:00", "00:30"), ("23/12/2026", "12:00", "18:00"), ("31/12/2026", "20:00", "02:00"),
+              ("08/01/2027", "18:00", "23:30"), ("09/01/2027", "19:00", "01:00"), ("16/01/2027", "19:00", "01:00")]
+    for d, a, b in shifts:
+        h = ((int(b[:2]) * 60 + int(b[3:]) - int(a[:2]) * 60 - int(a[3:])) % 1440) / 60.0
+        rows.append("%s,%s,%s,Bar (Fox and Lantern),%s" % (d, a, b, ("%.1f" % h).rstrip("0").rstrip(".")))
+    return "\r\n".join(rows) + "\r\n"
 
 
 def messy_timetable():
@@ -268,7 +302,6 @@ def sam_calendar():
     c = Cal("Sam")
     c.event("sam-eco3150", "20260929T110000", "20260929T130000", "ECO3150 Lecture", [UNTIL_TERM])
     c.event("sam-eco3160", "20261001T150000", "20261001T170000", "ECO3160 Lecture", [UNTIL_TERM])
-    c.event("sam-bar", "20261106T180000", "20261106T235900", "Bar shift (Fox and Lantern)", ["RRULE:FREQ=WEEKLY;BYDAY=FR,SA;UNTIL=20270117T000000Z"])
     c.event("sam-football", "20261007T140000", "20261007T170000", "Football", ["RRULE:FREQ=WEEKLY;UNTIL=20261216T235959Z"])
     return c.text()
 
@@ -290,6 +323,7 @@ def main():
     write("alex/availability.csv", availability_csv(ALEX_AVAILABILITY), newline="")
     write("alex/busy-calendar.ics", alex_calendar(), newline="")
     write("exam-timetable.ics", exam_ics(ALEX_EXAMS), newline="")
+    write("exam-timetable.html", exam_html(ALEX_EXAMS))
     write("messy-timetable.txt", messy_timetable())
     write("topics-pasted.txt", topics_pasted())
     # The study group: Sam and Priya share some of Alex's modules.
@@ -299,6 +333,7 @@ def main():
         write("group/%s/topics.csv" % who, topics_csv(rng, exams, FEEL[who]), newline="")
         write("group/%s/availability.csv" % who, availability_csv(avail), newline="")
         write("group/%s/busy-calendar.ics" % who, cal, newline="")
+    write("group/sam/shift-rota.csv", sam_rota(), newline="")
     try:
         import examseason as es
     except ImportError:

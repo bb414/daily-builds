@@ -30,12 +30,12 @@ def import_files(project, exams_path=None, topics_path=None, availability_path=N
         project['week'] = res['week']
         project['overrides'] = res['overrides']
         project['sources'].append({'kind': 'availability', 'name': os.path.basename(availability_path), 'summary': m.import_summary('availability', res)})
-    if calendar_path:
+    for path in ([calendar_path] if isinstance(calendar_path, str) else (calendar_path or [])):
         frm, to = calendar_horizon(project, today)
-        res = m.read_calendar(read(calendar_path), frm, to)
-        project['busy'] = res['busy']
-        project['allDay'] = res['allDay']
-        project['sources'].append({'kind': 'calendar', 'name': os.path.basename(calendar_path), 'summary': m.import_summary('calendar', res)})
+        res = m.read_busy(read(path), frm, to)
+        project['busy'] = project['busy'] + res['busy']
+        project['allDay'] = project['allDay'] + res['allDay']
+        project['sources'].append({'kind': 'calendar', 'name': os.path.basename(path), 'summary': m.import_summary('calendar', res)})
     return m.clean_project(project, today)
 
 
@@ -52,8 +52,9 @@ def member_project(folder, name=None, student=None):
     p = m.new_project(PLAN_FROM)
     p['name'] = name or "Alex's January exams"
     p['student'] = student or 'Alex Marlow (invented), final year, Brackenmoor University (invented)'
+    calendars = [os.path.join(folder, n) for n in ('busy-calendar.ics', 'shift-rota.csv') if os.path.exists(os.path.join(folder, n))]
     p = import_files(p, os.path.join(folder, 'exam-timetable.csv'), os.path.join(folder, 'topics.csv'),
-                     os.path.join(folder, 'availability.csv'), os.path.join(folder, 'busy-calendar.ics'), PLAN_FROM)
+                     os.path.join(folder, 'availability.csv'), calendars, PLAN_FROM)
     return m.project_file(p)
 
 

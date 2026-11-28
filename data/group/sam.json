@@ -411,18 +411,6 @@
    "label": "ECO3160 Lecture"
   },
   {
-   "day": "2026-11-27",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
-  },
-  {
-   "day": "2026-11-28",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
-  },
-  {
    "day": "2026-12-01",
    "start": 660,
    "end": 780,
@@ -443,14 +431,20 @@
   {
    "day": "2026-12-04",
    "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "end": 1410,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2026-12-05",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1140,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-06",
+   "start": 0,
+   "end": 60,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2026-12-08",
@@ -473,14 +467,20 @@
   {
    "day": "2026-12-11",
    "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "end": 1410,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2026-12-12",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1140,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-13",
+   "start": 0,
+   "end": 60,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2026-12-16",
@@ -490,63 +490,69 @@
   },
   {
    "day": "2026-12-18",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1020,
+   "end": 1380,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2026-12-19",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1140,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
   },
   {
-   "day": "2026-12-25",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "day": "2026-12-20",
+   "start": 0,
+   "end": 30,
+   "label": "Bar (Fox and Lantern)"
   },
   {
-   "day": "2026-12-26",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "day": "2026-12-23",
+   "start": 720,
+   "end": 1080,
+   "label": "Bar (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-31",
+   "start": 1200,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2027-01-01",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
-  },
-  {
-   "day": "2027-01-02",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 0,
+   "end": 120,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2027-01-08",
    "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "end": 1410,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2027-01-09",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1140,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
   },
   {
-   "day": "2027-01-15",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "day": "2027-01-10",
+   "start": 0,
+   "end": 60,
+   "label": "Bar (Fox and Lantern)"
   },
   {
    "day": "2027-01-16",
-   "start": 1080,
-   "end": 1439,
-   "label": "Bar shift (Fox and Lantern)"
+   "start": 1140,
+   "end": 1440,
+   "label": "Bar (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-17",
+   "start": 0,
+   "end": 60,
+   "label": "Bar (Fox and Lantern)"
   }
  ],
  "allDay": [],
@@ -569,7 +575,12 @@
   {
    "kind": "calendar",
    "name": "busy-calendar.ics",
-   "summary": "26 busy times from 4 events"
+   "summary": "10 busy times from 3 events"
+  },
+  {
+   "kind": "calendar",
+   "name": "shift-rota.csv",
+   "summary": "17 busy times from 11 events"
   }
  ],
  "done": [],

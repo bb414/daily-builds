@@ -149,6 +149,17 @@ class AppTest(unittest.TestCase):
         self.assertIn('Welcome back', page.inner_text('#banner'))
         self.assertEqual(page.locator('.sticker').count(), 5)
 
+    def test_saved_web_page_and_shift_rota(self):
+        page = self.open()
+        page.click('#tab-exams')
+        page.set_input_files('#exam-file', os.path.join(DATA, 'exam-timetable.html'))
+        page.wait_for_function("document.querySelector('#view-exams').innerText.includes('Read 5 exams from exam-timetable.html')")
+        self.assertEqual(page.input_value('.exam-row:not(.head) input[data-field=start] >> nth=2'), '09:30')
+        page.click('#tab-time')
+        page.set_input_files('#cal-file', os.path.join(DATA, 'group', 'sam', 'shift-rota.csv'))
+        page.wait_for_function("document.querySelector('#view-time').innerText.includes('Read 17 busy times from shift-rota.csv')")
+        self.assertIn('Bar (Fox and Lantern)', page.inner_text('#view-time'))
+
     def test_tick_replan_and_block_a_day(self):
         page = self.open()
         page.click('#tab-progress')

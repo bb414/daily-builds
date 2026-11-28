@@ -67,6 +67,12 @@ def detect(path):
     except (OSError, UnicodeDecodeError):
         return None, None
     low = text[:4000].lower()
+    if m.is_html_table(text):
+        if m.read_exams(text)['exams']:
+            return 'exams', text
+        if m.read_topics(text)['topics']:
+            return 'topics', text
+        return None, text
     if 'begin:vcalendar' in low:
         cal = m.parse_ics(text)
         exams = sum(1 for e in cal['events'] if m.EXAMISH.search(e['summary'] + ' ' + e['description'] + ' ' + e['categories']))
@@ -80,8 +86,16 @@ def detect(path):
         tm = m.map_columns(row['cells'], m.TOPIC_SYNONYMS, [])
         if 'name' in tm and ('conf' in tm or 'size' in tm):
             return 'topics', text
+        bm = m.map_columns(row['cells'], m.BUSY_SYNONYMS, [])
         am = m.map_columns(row['cells'], m.AVAIL_SYNONYMS, [])
-        if 'day' in am and ('hours' in am or 'from' in am or 'to' in am):
+        rota = 'date' in bm and 'start' in bm and ('end' in bm or 'duration' in bm)
+        if rota or ('day' in am and ('hours' in am or 'from' in am or 'to' in am)):
+            # A weekly template names weekdays; a rota lists dates.
+            col = bm['date'] if rota else am['day']
+            body = [m.trim(r['cells'][col]) for r in table['rows'][table['rows'].index(row) + 1:] if col < len(r['cells']) and m.trim(r['cells'][col])][:20]
+            dated = sum(1 for c in body if m.parse_date(c) is not None)
+            if rota and dated and dated * 2 > len(body):
+                return 'calendar', text
             return 'availability', text
     ex = m.read_exams(text)
     if ex['exams'] and any(e['day'] is not None for e in ex['exams']):
@@ -143,7 +157,7 @@ def build_project(files, start, name):
         p = import_files(p, availability_path=path, today=start)
     for path in files['calendar']:
         frm, to = calendar_horizon(p, start)
-        res = m.read_calendar(read(path), frm, to)
+        res = m.read_busy(read(path), frm, to)
         p['busy'].extend(res['busy'])
         p['allDay'].extend(res['allDay'])
         p['sources'].append({'kind': 'calendar', 'name': os.path.basename(path), 'summary': m.import_summary('calendar', res)})
@@ -351,7 +365,7 @@ def cmd_check(args):
             for v in res['overrides']:
                 print('   %s %s %s' % (m.fmt_day(v['day']), 'blocked' if not v['minutes'] else m.fmt_hours(v['minutes']), v['label']))
         else:
-            res = m.read_calendar(text, today - 7, today + 400)
+            res = m.read_busy(text, today - 7, today + 400)
             for b in m.busy_summary(res['busy'])[:20]:
                 print('   %-40s %3d times  %s' % (b['label'][:40], b['count'], m.fmt_hours(b['minutes'])))
         for msg in res['messages']:
@@ -366,10 +380,10 @@ def build_parser():
     sub = ap.add_subparsers(dest='cmd', required=True)
 
     p = sub.add_parser('plan', help='build a plan from your files')
-    p.add_argument('--exams', action='append', help='exam timetable: CSV, TSV, pasted text or .ics')
+    p.add_argument('--exams', action='append', help='exam timetable: CSV, TSV, a saved web page, pasted text or .ics')
     p.add_argument('--topics', action='append', help='topics: CSV or a pasted list')
     p.add_argument('--availability', action='append', help='weekly hours and dated changes (CSV)')
-    p.add_argument('--calendar', action='append', help='busy times (.ics); repeat for several calendars')
+    p.add_argument('--calendar', action='append', help='busy times: a calendar (.ics) or a rota (CSV); repeat for several')
     p.add_argument('--folder', help='a folder of input files; each one is recognised by its contents')
     p.add_argument('--start', help='first day of the plan (default today)')
     p.add_argument('--name', default='My revision plan', help='a name for the plan')

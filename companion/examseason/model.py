@@ -478,6 +478,75 @@ def read_table(text):
     return {'delim': '  ' if use_spaces else '', 'rows': rows}
 
 
+ENTITIES = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': ' ', 'ndash': '-', 'mdash': '-', 'hellip': '...', 'rsquo': "'", 'lsquo': "'", 'ldquo': '"', 'rdquo': '"', 'pound': '£'}
+
+
+def decode_entities(s):
+    def rep(m):
+        k = m.group(1).lower()
+        if k[0] == '#':
+            n = int(k[2:], 16) if k[1] == 'x' else int(k[1:])
+            return chr(n) if 0 < n < 0x110000 and (n < 0xd800 or n > 0xdfff) else ''
+        return ENTITIES.get(k, m.group(0))
+    return re.sub(r'&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);', rep, s)
+
+
+def html_cell_text(s):
+    s = re.sub(r'<[^>]*>', ' ', re.sub(r'<br\s*/?>', ' ', s, flags=AI))
+    return squash(re.sub(r'[\t\r\n]+', ' ', decode_entities(s)))
+
+
+def is_html_table(text):
+    return bool(re.search(r'<tr[\s>]', text, AI)) and bool(re.search(r'<t[dh][\s>]', text, AI))
+
+
+RE_TR = re.compile(r'<tr(?:\s[^>]*)?>', AI)
+RE_CELL = re.compile(r'<t[dh](?:\s[^>]*)?>([\s\S]*?)(?:</t[dh]\s*>|(?=<t[dh][\s>])|$)', AI)
+
+
+def html_rows(text):
+    src = re.sub(r'<!--[\s\S]*?-->', lambda c: re.sub(r'[^\n]', ' ', c.group(0)), str(text))
+    starts = [(m.start(), m.end()) for m in RE_TR.finditer(src)]
+    rows, pos, line = [], 0, 1
+    for i, (a, b) in enumerate(starts):
+        line += src.count('\n', pos, a)
+        pos = a
+        end_at = starts[i + 1][0] if i + 1 < len(starts) else len(src)
+        chunk = src[b:end_at]
+        close = re.search(r'</tr\s*>', chunk, AI)
+        if close:
+            chunk = chunk[:close.start()]
+        cells = [html_cell_text(cm.group(1)) for cm in RE_CELL.finditer(chunk)]
+        rows.append({'cells': cells, 'line': line})
+    return rows
+
+
+RE_NUMERIC_DATE = re.compile(r'(^|[^0-9])([0-9]{1,2})[/.\-]([0-9]{1,2})[/.\-]([0-9]{4}|[0-9]{2})(?![0-9])', A)
+
+
+def date_order_of(texts):
+    dmy = mdy = either = 0
+    for s in texts:
+        m = RE_NUMERIC_DATE.search(str(s))
+        if not m:
+            continue
+        a, b = int(m.group(2)), int(m.group(3))
+        if a > 12 and b <= 12:
+            dmy += 1
+        elif b > 12 and a <= 12:
+            mdy += 1
+        else:
+            either += 1
+    return {'order': 'MDY' if mdy > 0 and dmy == 0 else 'DMY', 'dmy': dmy, 'mdy': mdy, 'either': either}
+
+
+def date_order_messages(info, out):
+    if info['order'] == 'MDY':
+        out['messages'].append({'level': 'info', 'text': 'Dates such as 01/13 show this file puts the month first, so every date was read that way.'})
+    elif info['either'] > 0 and info['dmy'] == 0:
+        out['messages'].append({'level': 'info', 'text': 'Every date could be read either way round, so day first (UK order) was assumed. Check the dates below.'})
+
+
 def csv_cell(v):
     s = '' if v is None else str(v)
     if re.search(r'[",\r\n]', s) or re.search(r'^[ ]|[ ]$', s):
@@ -624,7 +693,7 @@ def read_exams(text, ref=None):
     if trim(text) == '':
         out['messages'].append({'level': 'error', 'text': 'There was nothing to read.'})
         return out
-    table = read_table(text)
+    table = {'delim': 'html', 'rows': html_rows(text)} if is_html_table(text) else read_table(text)
     rows = table['rows']
     header_at, mp = -1, None
     for i in range(min(len(rows), 30)):
@@ -633,10 +702,16 @@ def read_exams(text, ref=None):
             header_at, mp = i, cand
             break
     if header_at < 0:
+        if table['delim'] == 'html':
+            out['format'] = 'html'
+            out['messages'].append({'level': 'error', 'text': 'This web page has a table, but no header row with a module and a date was found in it.'})
+            return out
         return read_exam_lines(text, out, ref)
-    out['format'] = 'table' if table['delim'] == '\t' else ('spaced' if table['delim'] == '  ' else 'csv')
+    out['format'] = 'html' if table['delim'] == 'html' else ('table' if table['delim'] == '\t' else ('spaced' if table['delim'] == '  ' else 'csv'))
     header = rows[header_at]['cells']
     unit = duration_unit(header[mp['duration']]) if 'duration' in mp else ''
+    order_info = date_order_of([cell(r['cells'], mp.get('date')) for r in rows[header_at + 1:]])
+    order = order_info['order']
     seen, blank = {}, 0
     for r in range(header_at + 1, len(rows)):
         cells, line = rows[r]['cells'], rows[r]['line']
@@ -648,7 +723,7 @@ def read_exams(text, ref=None):
             out['skipped'] += 1
             out['messages'].append({'level': 'info', 'line': line, 'text': 'Line %d repeats the header row, so it was skipped.' % line})
             continue
-        ex = exam_from_cells(cells, mp, unit, ref, line, out['messages'])
+        ex = exam_from_cells(cells, mp, unit, ref, line, out['messages'], order)
         if not ex:
             out['skipped'] += 1
             continue
@@ -669,11 +744,12 @@ def read_exams(text, ref=None):
         out['messages'].append({'level': 'info', 'text': plural(blank, 'blank row') + ' skipped.'})
     if header_at > 0:
         out['messages'].append({'level': 'info', 'text': 'The table starts at line %d; the %s above it were read as a title, not exams.' % (rows[header_at]['line'], plural(header_at, 'line'))})
+    date_order_messages(order_info, out)
     finish_exams(out)
     return out
 
 
-def exam_from_cells(cells, mp, unit, ref, line, messages):
+def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
     code_cell, name_cell = cell(cells, mp.get('code')), cell(cells, mp.get('name'))
     code, name = '', ''
     if code_cell:
@@ -694,14 +770,14 @@ def exam_from_cells(cells, mp, unit, ref, line, messages):
     date_cell = cell(cells, mp.get('date'))
     day, tbc = None, False
     low_date = lower(squash(date_cell))
-    start_from_date = None
+    start_from_date = end_from_date = None
     if date_cell == '' or TBC_RE.search(low_date) or re.search(r'\b(tbc|tba|tbd|to be confirmed)\b', low_date, A):
         tbc = True
         messages.append({'level': 'warn', 'line': line, 'text': 'Line %d: %s has no date yet (%s). It is listed but not planned until you add a date.' % (line, code, date_cell or 'blank')})
     else:
-        day = parse_date(date_cell, 'DMY', ref)
+        day = parse_date(date_cell, order, ref)
         if day is None:
-            found = find_date(date_cell, 'DMY', ref)
+            found = find_date(date_cell, order, ref)
             if found:
                 day = found['day']
         if day is None:
@@ -711,6 +787,8 @@ def exam_from_cells(cells, mp, unit, ref, line, messages):
             tms = find_times(re.sub(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}t', '', date_cell, count=1, flags=AI))
             if tms:
                 start_from_date = tms[0]['min']
+            if len(tms) > 1:
+                end_from_date = tms[1]['min']
     start_cell, end_cell = cell(cells, mp.get('start')), cell(cells, mp.get('end'))
     start = end = None
     if start_cell:
@@ -723,6 +801,8 @@ def exam_from_cells(cells, mp, unit, ref, line, messages):
                     end = ts[1]['min']
     if start is None:
         start = start_from_date
+        if end is None:
+            end = end_from_date
     if end_cell:
         end = parse_time(end_cell)
         if end is None:
@@ -1074,7 +1154,7 @@ def read_topics(text, exams=None, code=''):
     if trim(text) == '':
         out['messages'].append({'level': 'error', 'text': 'There was nothing to read.'})
         return out
-    table = read_table(text)
+    table = {'delim': 'html', 'rows': html_rows(text)} if is_html_table(text) else read_table(text)
     header_at, mp = -1, None
     if table['delim'] and table['delim'] != '  ':
         for i in range(min(len(table['rows']), 20)):
@@ -1103,7 +1183,7 @@ def read_topics(text, exams=None, code=''):
         out['topics'].append({'id': '', 'code': code_, 'name': name, 'conf': conf, 'size': size, 'mode': mode or 'full', 'note': note or '', 'line': line})
 
     if header_at >= 0:
-        out['format'] = 'csv'
+        out['format'] = 'html' if table['delim'] == 'html' else 'csv'
         for r in range(header_at + 1, len(table['rows'])):
             cells, line = table['rows'][r]['cells'], table['rows'][r]['line']
             if is_blank_row(cells):
@@ -1576,6 +1656,83 @@ def busy_summary(busy):
         if b['day'] > s['last']:
             s['last'] = b['day']
     return sort_by([by[k] for k in order], lambda a, b: cmp(b['minutes'], a['minutes']) or cmp(a['label'], b['label']))
+
+
+BUSY_SYNONYMS = {
+    'date': ['date', 'day', 'shift date', 'when', 'start date', 'date of shift', 'work date'],
+    'start': ['start', 'start time', 'from', 'begins', 'time in', 'clock in', 'shift start', 'starts', 'time'],
+    'end': ['end', 'end time', 'to', 'finish', 'finish time', 'until', 'time out', 'clock out', 'shift end', 'ends'],
+    'duration': ['hours', 'duration', 'length', 'shift length', 'mins', 'minutes'],
+    'label': ['role', 'shift', 'what', 'event', 'activity', 'description', 'title', 'subject', 'type', 'summary', 'location', 'site', 'job', 'name'],
+}
+
+
+def read_busy_table(text, from_day, to_day):
+    """Busy times from a rota or spreadsheet: a date, a start and an end (or a length) on each row."""
+    out = {'busy': [], 'allDay': [], 'messages': [], 'events': 0, 'skipped': 0}
+    text = '' if text is None else str(text)
+    table = {'delim': 'html', 'rows': html_rows(text)} if is_html_table(text) else read_table(text)
+    header_at, mp = -1, None
+    for i in range(min(len(table['rows']), 20)):
+        cand = map_columns(table['rows'][i]['cells'], BUSY_SYNONYMS, [])
+        if 'date' in cand and 'start' in cand and ('end' in cand or 'duration' in cand):
+            header_at, mp = i, cand
+            break
+    if header_at < 0:
+        out['messages'].append({'level': 'error', 'text': 'No header row with a date, a start and an end (or a length) was found. Export your rota with those columns, or load a calendar (.ics) instead.'})
+        return out
+    hcells = table['rows'][header_at]['cells']
+    unit = duration_unit(hcells[mp['duration']]) if 'duration' in mp and mp['duration'] < len(hcells) else ''
+    order_info = date_order_of([cell(r['cells'], mp.get('date')) for r in table['rows'][header_at + 1:]])
+    for r in range(header_at + 1, len(table['rows'])):
+        cells, line = table['rows'][r]['cells'], table['rows'][r]['line']
+        if is_blank_row(cells):
+            continue
+        date_txt, start_txt, end_txt, dur_txt = cell(cells, mp.get('date')), cell(cells, mp.get('start')), cell(cells, mp.get('end')), cell(cells, mp.get('duration'))
+        hm = map_columns(cells, BUSY_SYNONYMS, [])
+        if 'date' in hm and 'start' in hm:
+            continue
+        day = parse_date(date_txt, order_info['order'], from_day)
+        if day is None:
+            out['skipped'] += 1
+            out['messages'].append({'level': 'warn', 'line': line, 'text': 'Line %d: could not read the date "%s", so the row was skipped.' % (line, date_txt)})
+            continue
+        start = parse_clock(start_txt)
+        if start is None:
+            out['skipped'] += 1
+            out['messages'].append({'level': 'warn', 'line': line, 'text': 'Line %d: no start time ("%s"), so the row was skipped.' % (line, start_txt)})
+            continue
+        length = None
+        if end_txt:
+            end = parse_clock(end_txt)
+            if end is not None:
+                length = end - start if end > start else end + 1440 - start
+        if length is None and dur_txt:
+            length = parse_duration(dur_txt, unit)
+        if length is None or length <= 0:
+            out['skipped'] += 1
+            out['messages'].append({'level': 'warn', 'line': line, 'text': 'Line %d: no end time or length, so the row was skipped.' % line})
+            continue
+        out['events'] += 1
+        label = squash(cell(cells, mp.get('label'))) or 'Busy'
+        t0 = day * 1440 + start
+        t1 = t0 + min(length, 2880)
+        while t0 < t1:
+            dd = t0 // 1440
+            piece = min(t1, (dd + 1) * 1440)
+            if from_day <= dd <= to_day:
+                out['busy'].append({'day': dd, 'start': t0 - dd * 1440, 'end': piece - dd * 1440, 'label': label})
+            t0 = piece
+    out['busy'] = sort_by(out['busy'], lambda a, b: cmp(a['day'], b['day']) or cmp(a['start'], b['start']) or cmp(a['end'], b['end']) or cmp(a['label'], b['label']))
+    date_order_messages(order_info, out)
+    if not out['events']:
+        out['messages'].append({'level': 'error', 'text': 'No busy times could be read from this file.'})
+    return out
+
+
+def read_busy(text, from_day, to_day):
+    """Busy times from either a calendar file or a rota table."""
+    return read_calendar(text, from_day, to_day) if re.search(r'BEGIN:VCALENDAR', str(text), AI) else read_busy_table(text, from_day, to_day)
 
 
 def import_summary(kind, res):

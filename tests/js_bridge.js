@@ -67,6 +67,7 @@ function main() {
     return r;
   });
   out.calendars = (job.calendars || []).map(function (x) { return M.readCalendar(x.text, x.from, x.to); });
+  out.busy = (job.busy || []).map(function (x) { return M.readBusy(x.text, x.from, x.to); });
   out.availability = (job.availability || []).map(function (x) { return M.readAvailability(x.text); });
   out.dates = (job.dates || []).map(function (s) { return [M.parseDate(s, 'DMY', 20788), M.parseDate(s, 'MDY', 20788), M.findDate(s, 'DMY', 20788)]; });
   out.times = (job.times || []).map(function (s) { return [M.parseTime(s), M.findTimes(s), M.parseClock(s)]; });

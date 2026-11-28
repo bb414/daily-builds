@@ -444,6 +444,68 @@ var ExamSeason = (function () {
     return { delim: useSpaces ? '  ' : '', rows: rows };
   }
 
+  // Tables saved from a web page ("Save page as") or copied as HTML: each
+  // <tr> becomes a row and each <td> or <th> a cell, tags removed.
+  var ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '-', mdash: '-', hellip: '...', rsquo: "'", lsquo: "'", ldquo: '"', rdquo: '"', pound: '£' };
+
+  function decodeEntities(s) {
+    return s.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, function (m, e) {
+      var k = e.toLowerCase();
+      if (k.charAt(0) === '#') {
+        var n = k.charAt(1) === 'x' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
+        return n > 0 && n < 0x110000 && (n < 0xd800 || n > 0xdfff) ? String.fromCodePoint(n) : '';
+      }
+      return ENTITIES[k] !== undefined ? ENTITIES[k] : m;
+    });
+  }
+
+  function htmlCellText(s) {
+    s = s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ');
+    return squash(decodeEntities(s).replace(/[\t\r\n]+/g, ' '));
+  }
+
+  function isHtmlTable(text) { return /<tr[\s>]/i.test(text) && /<t[dh][\s>]/i.test(text); }
+
+  function htmlRows(text) {
+    var src = String(text).replace(/<!--[\s\S]*?-->/g, function (c) { return c.replace(/[^\n]/g, ' '); });
+    var re = /<tr(?:\s[^>]*)?>/gi, m, starts = [];
+    while ((m = re.exec(src)) !== null) starts.push([m.index, m.index + m[0].length]);
+    var rows = [], pos = 0, line = 1;
+    for (var i = 0; i < starts.length; i++) {
+      for (; pos < starts[i][0]; pos++) if (src.charAt(pos) === '\n') line++;
+      var endAt = i + 1 < starts.length ? starts[i + 1][0] : src.length;
+      var chunk = src.slice(starts[i][1], endAt);
+      var close = chunk.search(/<\/tr\s*>/i);
+      if (close >= 0) chunk = chunk.slice(0, close);
+      var cells = [], cre = /<t[dh](?:\s[^>]*)?>([\s\S]*?)(?:<\/t[dh]\s*>|(?=<t[dh][\s>])|$)/gi, cm;
+      while ((cm = cre.exec(chunk)) !== null) cells.push(htmlCellText(cm[1]));
+      rows.push({ cells: cells, line: line });
+    }
+    return rows;
+  }
+  M.htmlRows = htmlRows;
+
+  // Which way round numeric dates are written in a column: a day over 12 in
+  // the first place means day first, in the second place month first.
+  function dateOrderOf(texts) {
+    var dmy = 0, mdy = 0, either = 0;
+    texts.forEach(function (s) {
+      var m = /(^|[^0-9])([0-9]{1,2})[\/.\-]([0-9]{1,2})[\/.\-]([0-9]{4}|[0-9]{2})(?![0-9])/.exec(String(s));
+      if (!m) return;
+      var a = parseInt(m[2], 10), b = parseInt(m[3], 10);
+      if (a > 12 && b <= 12) dmy++;
+      else if (b > 12 && a <= 12) mdy++;
+      else either++;
+    });
+    return { order: mdy > 0 && dmy === 0 ? 'MDY' : 'DMY', dmy: dmy, mdy: mdy, either: either };
+  }
+  M.dateOrderOf = dateOrderOf;
+
+  function dateOrderMessages(info, out) {
+    if (info.order === 'MDY') out.messages.push({ level: 'info', text: 'Dates such as 01/13 show this file puts the month first, so every date was read that way.' });
+    else if (info.either > 0 && info.dmy === 0) out.messages.push({ level: 'info', text: 'Every date could be read either way round, so day first (UK order) was assumed. Check the dates below.' });
+  }
+
   function csvCell(v) {
     var s = v === null || v === undefined ? '' : String(v);
     if (/[",\r\n]/.test(s) || /^[ ]|[ ]$/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
@@ -591,17 +653,26 @@ var ExamSeason = (function () {
       out.messages.push({ level: 'error', text: 'There was nothing to read.' });
       return out;
     }
-    var table = readTable(text);
+    var table = isHtmlTable(text) ? { delim: 'html', rows: htmlRows(text) } : readTable(text);
     var rows = table.rows;
     var headerAt = -1, map = null;
     for (var i = 0; i < rows.length && i < 30; i++) {
       var mp = mapColumns(rows[i].cells, EXAM_SYNONYMS, EXAM_KEYWORDS);
       if (examHeaderScore(mp) >= 2) { headerAt = i; map = mp; break; }
     }
-    if (headerAt < 0) return readExamLines(text, out, ref);
-    out.format = table.delim === '\t' ? 'table' : table.delim === '  ' ? 'spaced' : 'csv';
+    if (headerAt < 0) {
+      if (table.delim === 'html') {
+        out.format = 'html';
+        out.messages.push({ level: 'error', text: 'This web page has a table, but no header row with a module and a date was found in it.' });
+        return out;
+      }
+      return readExamLines(text, out, ref);
+    }
+    out.format = table.delim === 'html' ? 'html' : table.delim === '\t' ? 'table' : table.delim === '  ' ? 'spaced' : 'csv';
     var header = rows[headerAt].cells;
     var unit = map.duration !== undefined ? durationUnit(header[map.duration]) : '';
+    var orderInfo = dateOrderOf(rows.slice(headerAt + 1).map(function (r) { return cell(r.cells, map.date); }));
+    var order = orderInfo.order;
     var seen = {}, blank = 0;
     for (var r = headerAt + 1; r < rows.length; r++) {
       var cells = rows[r].cells, line = rows[r].line;
@@ -612,7 +683,7 @@ var ExamSeason = (function () {
         out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' repeats the header row, so it was skipped.' });
         continue;
       }
-      var ex = examFromCells(cells, map, unit, ref, line, out.messages);
+      var ex = examFromCells(cells, map, unit, ref, line, out.messages, order);
       if (!ex) { out.skipped++; continue; }
       var key = ex.code + '|' + (ex.day === null ? 'tbc' : ex.day) + '|' + ex.start;
       if (seen[key]) {
@@ -629,11 +700,12 @@ var ExamSeason = (function () {
     blank -= trailing;
     if (blank > 0) out.messages.push({ level: 'info', text: plural(blank, 'blank row') + ' skipped.' });
     if (headerAt > 0) out.messages.push({ level: 'info', text: 'The table starts at line ' + rows[headerAt].line + '; the ' + plural(headerAt, 'line') + ' above it were read as a title, not exams.' });
+    dateOrderMessages(orderInfo, out);
     finishExams(out);
     return out;
   }
 
-  function examFromCells(cells, map, unit, ref, line, messages) {
+  function examFromCells(cells, map, unit, ref, line, messages, order) {
     var codeCell = cell(cells, map.code), nameCell = cell(cells, map.name);
     var code = '', name = '';
     if (codeCell) {
@@ -654,14 +726,14 @@ var ExamSeason = (function () {
     var dateCell = cell(cells, map.date);
     var day = null, tbc = false;
     var lowDate = lower(squash(dateCell));
-    var startFromDate = null;
+    var startFromDate = null, endFromDate = null;
     if (dateCell === '' || TBC_RE.test(lowDate) || /\b(tbc|tba|tbd|to be confirmed)\b/.test(lowDate)) {
       tbc = true;
       messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': ' + code + ' has no date yet (' + (dateCell || 'blank') + '). It is listed but not planned until you add a date.' });
     } else {
-      day = parseDate(dateCell, 'DMY', ref);
+      day = parseDate(dateCell, order, ref);
       if (day === null) {
-        var found = findDate(dateCell, 'DMY', ref);
+        var found = findDate(dateCell, order, ref);
         if (found) day = found.day;
       }
       if (day === null) {
@@ -670,6 +742,7 @@ var ExamSeason = (function () {
       } else {
         var tms = findTimes(dateCell.replace(/^[0-9]{4}-[0-9]{2}-[0-9]{2}t/i, ''));
         if (tms.length) startFromDate = tms[0].min;
+        if (tms.length > 1) endFromDate = tms[1].min;
       }
     }
     var startCell = cell(cells, map.start), endCell = cell(cells, map.end);
@@ -681,7 +754,7 @@ var ExamSeason = (function () {
         if (ts.length) { start = ts[0].min; if (ts.length > 1 && !endCell) end = ts[1].min; }
       }
     }
-    if (start === null) start = startFromDate;
+    if (start === null) { start = startFromDate; if (end === null) end = endFromDate; }
     if (endCell) {
       end = parseTime(endCell);
       if (end === null) { var te = findTimes(endCell); if (te.length) end = te[0].min; }
@@ -999,7 +1072,7 @@ var ExamSeason = (function () {
       out.messages.push({ level: 'error', text: 'There was nothing to read.' });
       return out;
     }
-    var table = readTable(text);
+    var table = isHtmlTable(text) ? { delim: 'html', rows: htmlRows(text) } : readTable(text);
     var headerAt = -1, map = null;
     if (table.delim && table.delim !== '  ') {
       for (var i = 0; i < table.rows.length && i < 20; i++) {
@@ -1017,7 +1090,7 @@ var ExamSeason = (function () {
       out.topics.push({ id: '', code: code, name: name, conf: conf, size: size, mode: mode || 'full', note: note || '', line: line });
     };
     if (headerAt >= 0) {
-      out.format = 'csv';
+      out.format = table.delim === 'html' ? 'html' : 'csv';
       for (var r = headerAt + 1; r < table.rows.length; r++) {
         var cells = table.rows[r].cells, line = table.rows[r].line;
         if (isBlankRow(cells)) continue;
@@ -1419,6 +1492,76 @@ var ExamSeason = (function () {
     return order.map(function (k) { return by[k]; }).sort(function (a, b) { return cmp(b.minutes, a.minutes) || cmp(a.label, b.label); });
   }
   M.busySummary = busySummary;
+
+  // Busy times from a rota or a spreadsheet: a date, a start and an end (or
+  // a length) on each row, and what it is. Shifts past midnight carry on into
+  // the next day.
+  var BUSY_SYNONYMS = {
+    date: ['date', 'day', 'shift date', 'when', 'start date', 'date of shift', 'work date'],
+    start: ['start', 'start time', 'from', 'begins', 'time in', 'clock in', 'shift start', 'starts', 'time'],
+    end: ['end', 'end time', 'to', 'finish', 'finish time', 'until', 'time out', 'clock out', 'shift end', 'ends'],
+    duration: ['hours', 'duration', 'length', 'shift length', 'mins', 'minutes'],
+    label: ['role', 'shift', 'what', 'event', 'activity', 'description', 'title', 'subject', 'type', 'summary', 'location', 'site', 'job', 'name']
+  };
+
+  function readBusyTable(text, fromDay, toDay) {
+    var out = { busy: [], allDay: [], messages: [], events: 0, skipped: 0 };
+    text = String(text === null || text === undefined ? '' : text);
+    var table = isHtmlTable(text) ? { delim: 'html', rows: htmlRows(text) } : readTable(text);
+    var headerAt = -1, map = null;
+    for (var i = 0; i < table.rows.length && i < 20; i++) {
+      var mp = mapColumns(table.rows[i].cells, BUSY_SYNONYMS, []);
+      if (mp.date !== undefined && mp.start !== undefined && (mp.end !== undefined || mp.duration !== undefined)) { headerAt = i; map = mp; break; }
+    }
+    if (headerAt < 0) {
+      out.messages.push({ level: 'error', text: 'No header row with a date, a start and an end (or a length) was found. Export your rota with those columns, or load a calendar (.ics) instead.' });
+      return out;
+    }
+    var unit = map.duration !== undefined ? durationUnit(table.rows[headerAt].cells[map.duration]) : '';
+    var orderInfo = dateOrderOf(table.rows.slice(headerAt + 1).map(function (r) { return cell(r.cells, map.date); }));
+    for (var r = headerAt + 1; r < table.rows.length; r++) {
+      var cells = table.rows[r].cells, line = table.rows[r].line;
+      if (isBlankRow(cells)) continue;
+      var dateTxt = cell(cells, map.date), startTxt = cell(cells, map.start), endTxt = cell(cells, map.end), durTxt = cell(cells, map.duration);
+      var hm = mapColumns(cells, BUSY_SYNONYMS, []);
+      if (hm.date !== undefined && hm.start !== undefined) continue;
+      var day = parseDate(dateTxt, orderInfo.order, fromDay);
+      if (day === null) { out.skipped++; out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': could not read the date "' + dateTxt + '", so the row was skipped.' }); continue; }
+      var start = parseClock(startTxt);
+      if (start === null) {
+        out.skipped++;
+        out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': no start time ("' + startTxt + '"), so the row was skipped.' });
+        continue;
+      }
+      var len = null;
+      if (endTxt) { var end = parseClock(endTxt); if (end !== null) len = end > start ? end - start : end + 1440 - start; }
+      if (len === null && durTxt) len = parseDuration(durTxt, unit);
+      if (len === null || len <= 0) {
+        out.skipped++;
+        out.messages.push({ level: 'warn', line: line, text: 'Line ' + line + ': no end time or length, so the row was skipped.' });
+        continue;
+      }
+      out.events++;
+      var label = squash(cell(cells, map.label)) || 'Busy';
+      var t0 = day * 1440 + start, t1 = t0 + Math.min(len, 2880);
+      while (t0 < t1) {
+        var dd = floorDiv(t0, 1440), piece = Math.min(t1, (dd + 1) * 1440);
+        if (dd >= fromDay && dd <= toDay) out.busy.push({ day: dd, start: t0 - dd * 1440, end: piece - dd * 1440, label: label });
+        t0 = piece;
+      }
+    }
+    out.busy.sort(function (a, b) { return cmp(a.day, b.day) || cmp(a.start, b.start) || cmp(a.end, b.end) || cmp(a.label, b.label); });
+    dateOrderMessages(orderInfo, out);
+    if (!out.events) out.messages.push({ level: 'error', text: 'No busy times could be read from this file.' });
+    return out;
+  }
+  M.readBusyTable = readBusyTable;
+
+  // Busy times from either a calendar file or a rota table.
+  function readBusy(text, fromDay, toDay) {
+    return /BEGIN:VCALENDAR/i.test(String(text)) ? readCalendar(text, fromDay, toDay) : readBusyTable(text, fromDay, toDay);
+  }
+  M.readBusy = readBusy;
 
   // One line describing what an import read, kept with the project.
   function importSummary(kind, res) {

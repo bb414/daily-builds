@@ -147,6 +147,36 @@ test('an exam calendar (.ics), loose lines and files that are not timetables', f
   assert.match(bad.messages.map(function (m) { return m.text; }).join(' '), /could not read the date "32\/13\/2027"/);
 });
 
+test('a timetable page saved from the portal, US dates and time ranges in one cell', function () {
+  var html = M.readExams(data('exam-timetable.html'), { ref: FROM });
+  assert.equal(html.format, 'html');
+  assert.equal(html.exams.length, 5, 'the commented-out row is ignored');
+  assert.deepEqual([html.exams[2].code, html.exams[2].start, html.exams[2].duration], ['FIN3020', 570, 180], 'start and end from "15/01/2027 09:30-12:30"');
+  assert.equal(html.exams[1].name, 'Behavioural Economics');
+  var us = M.readExams('Course,Date,Time,Length\nABC1001,01/13/2027,9:00 AM,2h\nABC1002,01/08/2027,1:30 PM,90\n', { ref: FROM });
+  assert.equal(us.exams[0].day, D(2027, 1, 8));
+  assert.equal(us.exams[1].day, D(2027, 1, 13));
+  assert.match(us.messages.map(function (m) { return m.text; }).join(' '), /month first/);
+  var either = M.readExams('Module,Date\nABC1001,02/01/2027\n', { ref: FROM });
+  assert.equal(either.exams[0].day, D(2027, 1, 2));
+  assert.match(either.messages.map(function (m) { return m.text; }).join(' '), /day first \(UK order\) was assumed/);
+  assert.match(M.readExams('<table><tr><td>nothing</td><td>useful</td></tr></table>', {}).messages[0].text, /no header row/);
+  assert.equal(M.htmlRows('<table><tr><th>A &amp; B</th><td>caf&eacute; &#233;<br>two</td></tr></table>')[0].cells[1], 'caf&eacute; é two');
+});
+
+test('a shift rota as busy times, including shifts past midnight', function () {
+  var r = M.readBusy(data('group/sam/shift-rota.csv'), FROM - 7, D(2027, 1, 31));
+  assert.equal(r.events, 11);
+  var sat = r.busy.filter(function (b) { return b.day === D(2026, 12, 5) || b.day === D(2026, 12, 6); });
+  assert.deepEqual(sat.map(function (b) { return [b.day - FROM, b.start, b.end]; }), [[5, 1140, 1440], [6, 0, 60]]);
+  assert.equal(r.busy[0].label, 'Bar (Fox and Lantern)');
+  var bad = M.readBusy('Date,Start,Hours,Role\n05/12/2026,18:00,5,Bar\nsoon,18:00,5,Bar\n05/12/2026,,5,Bar\n', FROM, FROM + 30);
+  assert.equal(bad.busy.length, 1);
+  assert.equal(bad.busy[0].end, 1380);
+  assert.deepEqual(bad.messages.map(function (m) { return m.level; }), ['warn', 'warn', 'info'], 'two rows skipped, and a note that 05/12 could be read either way');
+  assert.match(M.readBusy('just words', FROM, FROM + 1).messages[0].text, /No header row/);
+});
+
 test('topics from a CSV and from a pasted list', function () {
   var exams = M.readExams(data('alex/exam-timetable.csv'), { ref: FROM }).exams;
   var csv = M.readTopics(data('alex/topics.csv'), { exams: exams });

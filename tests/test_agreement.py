@@ -146,13 +146,16 @@ class AgreementTest(unittest.TestCase):
 
     def test_readers_on_every_sample_file(self):
         exams = [{'text': sample_text(n), 'ref': TODAY} for n in ['alex/exam-timetable.csv', 'messy-timetable.txt', 'exam-timetable.ics',
-                                                                  'group/sam/exam-timetable.csv', 'group/priya/exam-timetable.csv', 'template-exams.csv']]
+                                                                  'group/sam/exam-timetable.csv', 'group/priya/exam-timetable.csv', 'template-exams.csv', 'exam-timetable.html']]
         exam_list = m.read_exams(sample_text('alex/exam-timetable.csv'), ref=TODAY)['exams']
         topics = [{'text': sample_text(n), 'exams': plain(exam_list)} for n in ['alex/topics.csv', 'topics-pasted.txt', 'group/sam/topics.csv', 'template-topics.csv']]
         topics.append({'text': sample_text('topics-pasted.txt'), 'exams': []})
         cals = [{'text': sample_text(n), 'from': FROM - 7, 'to': FROM + 70} for n in ['alex/busy-calendar.ics', 'group/sam/busy-calendar.ics', 'group/priya/busy-calendar.ics', 'exam-timetable.ics']]
         avail = [{'text': sample_text(n)} for n in ['alex/availability.csv', 'group/sam/availability.csv', 'group/priya/availability.csv']]
-        js = run_bridge({'exams': exams, 'topics': topics, 'calendars': cals, 'availability': avail})
+        busy = [{'text': sample_text(n), 'from': FROM - 7, 'to': FROM + 70} for n in ['group/sam/shift-rota.csv', 'alex/busy-calendar.ics', 'alex/topics.csv']]
+        js = run_bridge({'exams': exams, 'topics': topics, 'calendars': cals, 'availability': avail, 'busy': busy})
+        for i, x in enumerate(busy):
+            self.compare(m.read_busy(x['text'], x['from'], x['to']), js['busy'][i], 'busy %d' % i)
         for i, x in enumerate(exams):
             self.compare(m.read_exams(x['text'], ref=x['ref']), js['exams'][i], 'exams %d' % i)
         for i, x in enumerate(topics):
@@ -182,6 +185,9 @@ class AgreementTest(unittest.TestCase):
             'Course\tPaper\tWhen\tStarts\tEnds\nXYZ2001\tPaper 1\t2027-01-12\t09:00\t11:30\n',
             'random words\nno exams here\n', '%PDF-1.4', 'PK\x03\x04[Content_Types].xml',
             'BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;VALUE=DATE:20270112\nSUMMARY:ABC1234 Exam\nEND:VEVENT\nEND:VCALENDAR',
+            'Course,Date,Time,Length\nABC1001,01/13/2027,9:00 AM,2h\nABC1002,01/08/2027,1:30 PM,90\n', 'Module,Date\nABC1001,02/01/2027\n',
+            '<html><body><table><tr><th>Code</th><th>Exam date</th><th>Venue</th></tr><tr><td>XYZ1001</td><td>Tue 12 Jan 2027, 9:30&ndash;11:00</td><td>Hall &amp; Annex</td></tr>'
+            '<tr><td>XYZ1002<td>14/01/2027 14:00-16:00<td>Hall</tr></table>', '<table><tr><td>nothing</td></tr></table>',
         ]
         messy_topics = ['Topic\nNo module\n', 'ABC1234:\n- One (9)\n- Two (2, M)\n- Two (2, M)\n', '# Heading without code\n- x\n', '', 'Module,Topic,Confidence,Size\nABC1234,One,high,huge\nABC1234,Two,6,3 lectures\n']
         messy_cals = ['BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=America/New_York:20261201T090000\nDURATION:PT1H30M\nRRULE:FREQ=DAILY;COUNT=3\nSUMMARY:Call\nEND:VEVENT\n'

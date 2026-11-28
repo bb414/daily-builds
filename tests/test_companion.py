@@ -17,6 +17,11 @@ from helpers import COMPANION, DATA, FROM, ROOT, TODAY, es, load, m, sample_text
 from examseason import cli, group, report
 
 
+def text_of(path, encoding='utf-8', newline=None):
+    with open(path, encoding=encoding, newline=newline) as fh:
+        return fh.read()
+
+
 def run_cli(*args):
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
@@ -107,24 +112,33 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn('topics.csv                   read as topics', out)
         self.assertIn('302 sessions on 48 days', out)
-        p = m.read_project(open(self.path('plan.json'), encoding='utf-8').read(), FROM)['project']
+        p = m.read_project(text_of(self.path('plan.json')), FROM)['project']
         self.assertEqual(len(p['exams']), 5)
         self.assertEqual(len(p['topics']), 40)
-        ics = open(self.path('plan.ics'), encoding='utf-8', newline='').read()
+        ics = text_of(self.path('plan.ics'), newline='')
         self.assertTrue(ics.startswith('BEGIN:VCALENDAR\r\n'))
         self.assertEqual(ics.count('BEGIN:VEVENT'), 302 + 5)
-        rows = open(self.path('plan.csv'), encoding='utf-8-sig').read().splitlines()
+        rows = text_of(self.path('plan.csv'), 'utf-8-sig').splitlines()
         self.assertEqual(len(rows), 303)
-        page = open(self.path('plan.html'), encoding='utf-8').read()
+        page = text_of(self.path('plan.html'))
         self.assertEqual(check_html(page).errors, [])
         self.assertIn('On track for each exam?', page)
+
+    def test_a_folder_with_a_rota_and_a_saved_web_page(self):
+        code, out = run_cli('plan', '--folder', os.path.join(DATA, 'group', 'sam'), '--exams', os.path.join(DATA, 'exam-timetable.html'),
+                            '--start', '2026-11-30', '--out', self.path('sam.json'))
+        self.assertIn('shift-rota.csv               read as calendar', out)
+        self.assertIn('17 busy times from 11 events', out)
+        p = m.read_project(text_of(self.path('sam.json')), FROM)['project']
+        self.assertTrue(any(b['label'] == 'Bar (Fox and Lantern)' and b['start'] == 0 for b in p['busy']), 'a shift past midnight')
+        self.assertEqual(len(p['exams']), 7, "Alex's five from the web page and Sam's four, two of them shared")
 
     def test_plan_from_named_files_merges_duplicate_exams(self):
         code, out = run_cli('plan', '--exams', os.path.join(DATA, 'alex', 'exam-timetable.csv'), '--exams', os.path.join(DATA, 'exam-timetable.ics'),
                             '--topics', os.path.join(DATA, 'topics-pasted.txt'), '--start', '2026-11-30', '--out', self.path('p.json'))
         self.assertEqual(code, 0)
         self.assertIn('5 exams already in exam-timetable.csv, so counted once', out)
-        p = json.loads(open(self.path('p.json'), encoding='utf-8').read())
+        p = json.loads(text_of(self.path('p.json')))
         self.assertEqual(len(p['exams']), 5)
         self.assertEqual(len(p['topics']), 9)
 
@@ -133,11 +147,11 @@ class CommandLineTest(unittest.TestCase):
         code, out = run_cli('today', self.path('s.json'), '--date', '2026-12-10', '--out-dir', self.path('today'))
         self.assertEqual(code, 0)
         self.assertIn('Re-planned from Thu 10 Dec: 8 sessions filed as missed', out)
-        txt = open(self.path('today', 'revision-2026-12-10.txt'), encoding='utf-8').read()
+        txt = text_of(self.path('today', 'revision-2026-12-10.txt'))
         self.assertIn('Thursday 10 December 2026', txt)
-        ics = open(self.path('today', 'revision-2026-12-10.ics'), encoding='utf-8', newline='').read()
+        ics = text_of(self.path('today', 'revision-2026-12-10.ics'), newline='')
         self.assertGreaterEqual(ics.count('BEGIN:VEVENT'), 3)
-        p = m.read_project(open(self.path('s.json'), encoding='utf-8').read(), TODAY)['project']
+        p = m.read_project(text_of(self.path('s.json')), TODAY)['project']
         self.assertEqual(p['planFrom'], TODAY)
         self.assertEqual(len(p['missed']), 8)
         # A second run the same morning has nothing new to re-plan.
@@ -153,9 +167,9 @@ class CommandLineTest(unittest.TestCase):
         code, out = run_cli('status', self.path('s.json'), '--date', '2026-12-10', '--csv', self.path('status.csv'))
         self.assertEqual(code, 2, 'exit code 2 when an exam is behind or short')
         self.assertIn('Behind', out)
-        self.assertTrue(open(self.path('status.csv'), encoding='utf-8-sig').read().startswith('Module,Title,Exam date'))
+        self.assertTrue(text_of(self.path('status.csv'), 'utf-8-sig').startswith('Module,Title,Exam date'))
         code, out = run_cli('report', self.path('s.json'), '--date', '2026-12-10', '--out', self.path('r.html'))
-        page = open(self.path('r.html'), encoding='utf-8').read()
+        page = text_of(self.path('r.html'))
         self.assertEqual(check_html(page).errors, [])
         self.assertIn('The next fourteen days', page)
 

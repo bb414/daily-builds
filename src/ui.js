@@ -245,7 +245,7 @@
   function importCalendar(text, name) {
     if (text === null) { state.imports.calendar = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }] }; renderAll(); return; }
     var h = calendarHorizon();
-    var res = M.readCalendar(text, h[0], h[1]);
+    var res = M.readBusy(text, h[0], h[1]);
     state.imports.calendar = { name: name || 'calendar', messages: res.messages, count: res.busy.length };
     if (!res.busy.length && !res.allDay.length) { renderAll(); return; }
     ensureOwn();
@@ -434,12 +434,12 @@
     h.push('<div class="view-head"><div><h2>Exams and topics</h2><p class="intro">Load your exam timetable and list what each exam covers, with how confident you feel (1 is weak, 5 is strong) and how big each topic is. Weak and big topics are planned first.</p></div>' +
       '<div class="btn-row"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="open-project">Open a plan file</button></div></div>');
     h.push('<div class="cols">');
-    h.push('<div class="card taped plain"><div class="card-head"><h3>Your exam timetable</h3><span class="tag">CSV, pasted table or .ics</span></div><div class="card-body">' +
+    h.push('<div class="card taped plain"><div class="card-head"><h3>Your exam timetable</h3><span class="tag">CSV, web page, pasted or .ics</span></div><div class="card-body">' +
       '<div class="drop" data-drop="exams"><p class="drop-title">Drop the file here, or paste the table</p>' +
-      '<p class="formats">A student-portal export (CSV or TSV), a table copied from a web page or PDF, loose lines such as "ECO3112 Behavioural Economics 13/01/2027 14:00 2h", or your personal exam calendar (.ics). UK and ISO dates, "TBC" dates, rooms and repeated headers are all fine.</p>' +
+      '<p class="formats">A student-portal export (CSV or TSV), the timetable page saved from your browser (.html), a table copied from a web page or PDF, loose lines such as "ECO3112 Behavioural Economics 13/01/2027 14:00 2h", or your personal exam calendar (.ics). UK, US and ISO dates, "TBC" dates, rooms and repeated headers are all fine.</p>' +
       '<label for="exam-text" class="visually-hidden">Paste your exam timetable</label><textarea id="exam-text" placeholder="Module code, Title, Date, Start time, Duration, Room"></textarea>' +
       '<div class="btn-row" style="margin-top:10px"><button type="button" class="btn btn-small btn-marker" data-action="read-exams">Read the timetable</button>' +
-      '<span class="btn btn-small file-btn">Choose a file<input type="file" id="exam-file" accept=".csv,.tsv,.txt,.ics,text/csv,text/calendar,text/plain" aria-label="Choose an exam timetable file"></span>' +
+      '<span class="btn btn-small file-btn">Choose a file<input type="file" id="exam-file" accept=".csv,.tsv,.txt,.ics,.html,.htm,text/csv,text/calendar,text/plain,text/html" aria-label="Choose an exam timetable file"></span>' +
       '<button type="button" class="btn-link" data-action="template-exams">CSV template</button><button type="button" class="btn-link" data-action="try-messy">Try a messy paste</button></div>' +
       importReport(state.imports.exams, 'exam') + '</div></div></div>');
     h.push('<div class="card taped plain" style="--tape:repeating-linear-gradient(90deg,#ffe36b 0 8px,#fff3a6 8px 14px)"><div class="card-head"><h3>Your topics</h3><span class="tag">List or CSV</span></div><div class="card-body">' +
@@ -565,10 +565,10 @@
 
     // Calendar import and availability file
     h.push('<div class="cols" style="margin-top:30px">');
-    var cal = ['<div class="card taped plain"><div class="card-head"><h3>Busy times from your calendar</h3><span class="tag">.ics</span></div><div class="card-body">' +
-      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file (.ics)</p><p class="formats">Your university timetable feed, or an export from Google, Apple or Outlook calendar: lectures, shifts, matches. Weekly repeats, skipped dates, moved and cancelled events are followed; all-day entries are listed but not counted as busy.</p>' +
-      '<div class="btn-row"><span class="btn btn-small btn-marker file-btn">Choose a calendar<input type="file" id="cal-file" accept=".ics,text/calendar" aria-label="Choose a calendar file"></span>' +
-      (p.busy.length ? '<button type="button" class="btn-link" data-action="clear-busy">Remove all busy times</button>' : '') + '</div>' + notesHtml(state.imports.calendar && state.imports.calendar.messages) + '</div>'];
+    var cal = ['<div class="card taped plain"><div class="card-head"><h3>Busy times from your calendar or rota</h3><span class="tag">.ics or CSV</span></div><div class="card-body">' +
+      '<div class="drop" data-drop="calendar"><p class="drop-title">Drop a calendar file or a shift rota</p><p class="formats">Your university timetable feed, or an export from Google, Apple or Outlook calendar (.ics): weekly repeats, skipped dates, moved and cancelled events are followed, and all-day entries are listed but not counted as busy. Or a rota as CSV with a date, a start and a finish (or hours) on each row; shifts past midnight carry on into the next day. Load as many as you have.</p>' +
+      '<div class="btn-row"><span class="btn btn-small btn-marker file-btn">Choose a calendar or rota<input type="file" id="cal-file" accept=".ics,.csv,.tsv,.txt,text/calendar,text/csv" aria-label="Choose a calendar or rota file"></span>' +
+      (p.busy.length ? '<button type="button" class="btn-link" data-action="clear-busy">Remove all busy times</button>' : '') + '</div>' + importReport(state.imports.calendar, 'busy time') + '</div>'];
     var summ = M.busySummary(p.busy.filter(function (b) { return b.day >= horizonFrom; }));
     if (summ.length) {
       cal.push('<h4>What is in your calendar</h4><ul class="busy-list">' + summ.slice(0, 12).map(function (b) {
