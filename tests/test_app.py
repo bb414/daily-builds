@@ -250,6 +250,26 @@ class AppTest(unittest.TestCase):
         page2.set_input_files('#file-project', bad)
         page2.wait_for_function("document.querySelector('#toast').textContent.includes('not a project file')")
 
+    def test_week_timetable_checklist_and_reminders(self):
+        page = self.open()
+        page.wait_for_selector('.month')
+        page.click('[data-mode=week]')
+        page.wait_for_selector('.wgrid')
+        self.assertIn('Week of Mon 7 Dec 2026', page.inner_text('#view-plan'))
+        self.assertGreater(page.locator('.wblock.sess').count(), 25)
+        self.assertGreater(page.locator('.wblock.busy').count(), 5)
+        page.click('[data-action=week-next]')
+        self.assertIn('Week of Mon 14 Dec 2026', page.inner_text('#view-plan'))
+        page.click('.wdh2 >> nth=2')
+        self.assertIn('Wednesday 16 December 2026', page.inner_text('.day-detail'))
+        page.select_option('#alarm', '30')
+        name, ics, _ = self.download(page, '[data-action=ics-all]')
+        self.assertEqual(ics.count('TRIGGER:-PT30M'), 302)
+        name, md, _ = self.download(page, '[data-action=markdown]')
+        self.assertTrue(name.endswith('.md'))
+        self.assertTrue(md.startswith("# Alex's January exams"))
+        self.assertIn('- [ ] 09:00-09:25 MGT3104 Blue ocean strategy (review)', md)
+
     def test_inside_a_frame(self):
         frame_page = self.write('frame.html', '<!doctype html><html><body style="margin:0"><iframe src="%s" style="width:1000px;height:800px;border:0" title="Exam season"></iframe></body></html>' % URL)
         page = self.open(url='file://' + frame_page)

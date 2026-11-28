@@ -91,5 +91,7 @@ def py_project_job(job):
         'ics': m.sessions_ics(p, plan, name=p['name']),
         'icsToday': m.sessions_ics(p, plan, from_day=job['today'], to_day=job['today'], exams=False, skip_done=True),
         'dayText': m.day_text(p, plan, job['today']), 'projectFile': m.project_file(p), 'availabilityCsv': m.availability_csv(p),
-        'topics': m.topic_status(p, plan, job['today']),
+        'topics': m.topic_status(p, plan, job['today']), 'markdown': m.checklist_markdown(p, plan),
+        'markdownWeek': m.checklist_markdown(p, plan, job['today'], job['today'] + 6),
+        'icsAlarm': m.sessions_ics(p, plan, from_day=job['today'], to_day=job['today'] + 2, alarm=10),
     })

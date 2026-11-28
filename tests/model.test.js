@@ -491,6 +491,21 @@ test('files out: calendar folding, CSV, text and the project round trip', functi
   assert.match(M.examTemplate(), /Module code,Module title,Date/);
 });
 
+test('a Markdown checklist and reminders before each session', function () {
+  var p = sampleProject();
+  var plan = planOf(p);
+  var md = M.checklistMarkdown(p, plan, TODAY - 1, TODAY);
+  assert.match(md, /^# Alex's January exams\n/);
+  assert.match(md, /## Wednesday 9 December 2026\n\n- \[x\] 11:15-11:40 MGT3104 Dynamic capabilities \(review\)/);
+  assert.match(md, /## Thursday 10 December 2026\n\n- \[ \] 09:00-09:25 MGT3104 Blue ocean strategy/);
+  var all = M.checklistMarkdown(p, plan);
+  assert.equal((all.match(/^- \[[ x]\]/gm) || []).length, plan.sessions.length);
+  assert.equal((all.match(/^- \*\*Exam\*\*/gm) || []).length, 5);
+  var ics = M.sessionsIcs(p, plan, { fromDay: TODAY, toDay: TODAY, alarm: 10, exams: false });
+  assert.equal((ics.match(/TRIGGER:-PT10M/g) || []).length, 4);
+  assert.equal(M.sessionsIcs(p, plan, { fromDay: TODAY, toDay: TODAY, exams: false }).indexOf('VALARM'), -1);
+});
+
 test('a large plan stays quick', function () {
   var p = M.newProject(FROM);
   for (var i = 0; i < 12; i++) {

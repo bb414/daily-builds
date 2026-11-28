@@ -54,7 +54,8 @@ function runProject(job) {
     csv: M.sessionsCsv(p, plan), statusCsv: M.statusCsv(st), ics: M.sessionsIcs(p, plan, { name: p.name }),
     icsToday: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today, exams: false, skipDone: true }),
     dayText: M.dayText(p, plan, job.today), projectFile: M.projectFile(p), availabilityCsv: M.availabilityCsv(p),
-    topics: M.topicStatus(p, plan, job.today)
+    topics: M.topicStatus(p, plan, job.today), markdown: M.checklistMarkdown(p, plan), markdownWeek: M.checklistMarkdown(p, plan, job.today, job.today + 6),
+    icsAlarm: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today + 2, alarm: 10 })
   };
 }
 

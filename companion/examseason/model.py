@@ -2913,7 +2913,7 @@ VTIMEZONE = [
 ]
 
 
-def sessions_ics(project, plan, from_day=None, to_day=None, name=None, skip_done=False, exams=True):
+def sessions_ics(project, plan, from_day=None, to_day=None, name=None, skip_done=False, exams=True, alarm=0):
     from_day = plan['from'] if from_day is None else from_day
     to_day = plan['last'] if to_day is None else to_day
     done = done_map(project)
@@ -2931,7 +2931,10 @@ def sessions_ics(project, plan, from_day=None, to_day=None, name=None, skip_done
                   'DTSTART;TZID=Europe/London:' + ics_stamp(se['day'], se['start']), 'DTEND;TZID=Europe/London:' + ics_stamp(se['day'], se['end']),
                   'SUMMARY:' + ics_escape(session_title(se)),
                   'DESCRIPTION:' + ics_escape('%s. %s %s exam: %s at %s.' % (se['detail'], e['code'], e['name'], fmt_day(e['day']), fmt_time(e['start']))),
-                  'CATEGORIES:Revision,' + ics_escape(e['code']), 'TRANSP:OPAQUE', 'END:VEVENT']
+                  'CATEGORIES:Revision,' + ics_escape(e['code']), 'TRANSP:OPAQUE']
+        if alarm:
+            lines += ['BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + ics_escape(session_title(se)), 'TRIGGER:-PT%dM' % alarm, 'END:VALARM']
+        lines.append('END:VEVENT')
     if exams is not False:
         for e in plan['exams']:
             if e['day'] < from_day or e['day'] > to_day:
@@ -2972,6 +2975,26 @@ def day_text(project, plan, day):
     for e in plan['exams']:
         if e['day'] > day:
             lines.append('  %s in %s (%s)' % (e['code'], plural(e['day'] - day, 'day'), fmt_short(e['day'])))
+    return '\n'.join(lines) + '\n'
+
+
+def checklist_markdown(project, plan, from_day=None, to_day=None):
+    """The plan as a Markdown checklist, for notes apps that tick boxes."""
+    done = done_map(project)
+    from_day = plan['from'] if from_day is None else from_day
+    to_day = plan['last'] if to_day is None else to_day
+    lines = ['# ' + project['name'], '', 'Revision plan from %s to %s.' % (fmt_day(max(from_day, plan['from'])), fmt_day(min(to_day, plan['last'])))]
+    for d in range(max(from_day, plan['from']), min(to_day, plan['last']) + 1):
+        lst = [se for se in plan['sessions'] if se['day'] == d]
+        exams = [e for e in plan['exams'] if e['day'] == d]
+        if not lst and not exams:
+            continue
+        lines += ['', '## ' + fmt_long(d), '']
+        for e in exams:
+            lines.append('- **Exam** %s %s %s%s' % (fmt_time(e['start']), e['code'], e['name'], ', ' + e['room'] if e['room'] else ''))
+        for se in lst:
+            lines.append('- [%s] %s-%s %s%s' % ('x' if se['id'] in done else ' ', fmt_time(se['start']), fmt_time(se['end']), session_title(se),
+                                               ': ' + se['detail'] if se['kind'] in ('review', 'paper') else ''))
     return '\n'.join(lines) + '\n'
 
 

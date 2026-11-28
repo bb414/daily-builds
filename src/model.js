@@ -2740,6 +2740,13 @@ var ExamSeason = (function () {
       lines.push('DESCRIPTION:' + icsEscape(se.detail + '. ' + e.code + ' ' + e.name + ' exam: ' + fmtDay(e.day) + ' at ' + fmtTime(e.start) + '.'));
       lines.push('CATEGORIES:Revision,' + icsEscape(e.code));
       lines.push('TRANSP:OPAQUE');
+      if (opts.alarm) {
+        lines.push('BEGIN:VALARM');
+        lines.push('ACTION:DISPLAY');
+        lines.push('DESCRIPTION:' + icsEscape(sessionTitle(se)));
+        lines.push('TRIGGER:-PT' + opts.alarm + 'M');
+        lines.push('END:VALARM');
+      }
       lines.push('END:VEVENT');
     });
     if (opts.exams !== false) {
@@ -2789,6 +2796,26 @@ var ExamSeason = (function () {
     return lines.join('\n') + '\n';
   }
   M.dayText = dayText;
+
+  // The plan as a Markdown checklist, for notes apps that tick boxes.
+  function checklistMarkdown(project, plan, fromDay, toDay) {
+    var done = doneMap(project);
+    fromDay = fromDay === undefined || fromDay === null ? plan.from : fromDay;
+    toDay = toDay === undefined || toDay === null ? plan.last : toDay;
+    var lines = ['# ' + project.name, '', 'Revision plan from ' + fmtDay(Math.max(fromDay, plan.from)) + ' to ' + fmtDay(Math.min(toDay, plan.last)) + '.'];
+    for (var d = Math.max(fromDay, plan.from); d <= Math.min(toDay, plan.last); d++) {
+      var list = plan.sessions.filter(function (se) { return se.day === d; });
+      var exams = plan.exams.filter(function (e) { return e.day === d; });
+      if (!list.length && !exams.length) continue;
+      lines.push('', '## ' + fmtLong(d), '');
+      exams.forEach(function (e) { lines.push('- **Exam** ' + fmtTime(e.start) + ' ' + e.code + ' ' + e.name + (e.room ? ', ' + e.room : '')); });
+      list.forEach(function (se) {
+        lines.push('- [' + (done[se.id] ? 'x' : ' ') + '] ' + fmtTime(se.start) + '-' + fmtTime(se.end) + ' ' + sessionTitle(se) + (se.kind === 'review' || se.kind === 'paper' ? ': ' + se.detail : ''));
+      });
+    }
+    return lines.join('\n') + '\n';
+  }
+  M.checklistMarkdown = checklistMarkdown;
 
   function projectFile(project) {
     var p = project;

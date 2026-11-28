@@ -12,6 +12,7 @@
 
   var state = {
     project: null, plan: null, status: null, summary: null, today: 0, view: 'plan', selected: null, planMode: 'calendar', topicFilter: { code: '', state: '' },
+    weekStart: null, alarm: 0,
     isSample: true, imports: { exams: null, topics: null, calendar: null, availability: null }, restored: false
   };
 
@@ -647,8 +648,9 @@
     h.push('<div class="view-head"><div><h2>Your plan</h2><p class="intro">' + (plan.sessions.length ?
       plan.sessions.length + ' sessions on ' + sm.studyDays + ' days from ' + esc(M.fmtShort(plan.from)) + ' to ' + esc(M.fmtShort(plan.last)) + ': <b class="mono">' + hoursText(sm.learnMin) + '</b> learning, <b class="mono">' + hoursText(sm.reviewMin) + '</b> spaced reviews, <b class="mono">' + hoursText(sm.paperMin) + '</b> past papers and <b class="mono">' + hoursText(sm.finalMin) + '</b> final reviews. Click a day to see its sessions.'
       : 'No sessions yet. Load your exam timetable and topics under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.') + '</p></div>' +
-      '<div class="plan-tools no-print"><span class="seg" role="group" aria-label="Show the plan as"><button type="button" data-mode="calendar" aria-pressed="' + (state.planMode === 'calendar') + '">Calendar</button><button type="button" data-mode="list" aria-pressed="' + (state.planMode === 'list') + '">List</button></span>' +
-      '<button type="button" class="btn btn-small btn-blue" data-action="ics-all">Calendar file (.ics)</button><button type="button" class="btn btn-small" data-action="csv">Sessions (CSV)</button><button type="button" class="btn btn-small btn-pink" data-action="print">Print wall planner</button></div></div>');
+      '<div class="plan-tools no-print"><span class="seg" role="group" aria-label="Show the plan as"><button type="button" data-mode="calendar" aria-pressed="' + (state.planMode === 'calendar') + '">Calendar</button><button type="button" data-mode="week" aria-pressed="' + (state.planMode === 'week') + '">Week</button><button type="button" data-mode="list" aria-pressed="' + (state.planMode === 'list') + '">List</button></span>' +
+      '<button type="button" class="btn btn-small btn-blue" data-action="ics-all">Calendar file (.ics)</button><label class="alarm-pick"><span>Reminders</span><select id="alarm" aria-label="Reminder before each session in the calendar file"><option value="0"' + (state.alarm === 0 ? ' selected' : '') + '>none</option><option value="10"' + (state.alarm === 10 ? ' selected' : '') + '>10 min before</option><option value="30"' + (state.alarm === 30 ? ' selected' : '') + '>30 min before</option></select></label>' +
+      '<button type="button" class="btn btn-small" data-action="csv">Sessions (CSV)</button><button type="button" class="btn btn-small" data-action="markdown">Checklist (.md)</button><button type="button" class="btn btn-small btn-pink" data-action="print">' + (state.planMode === 'week' ? 'Print this week' : 'Print wall planner') + '</button></div></div>');
     plan.notes.forEach(function () {});
     if (plan.notes.length) h.push(notesHtml(plan.notes.map(function (n) { return { level: n.level, text: n.text }; })));
     if (!plan.exams.length) { $('#view-plan').innerHTML = h.join(''); return; }
@@ -659,9 +661,76 @@
       $('#view-plan').innerHTML = h.join('');
       return;
     }
+    if (state.planMode === 'week') {
+      h.push(weekHtml());
+      $('#view-plan').innerHTML = h.join('');
+      return;
+    }
     if (state.selected === null || state.selected < plan.from || state.selected > plan.last) state.selected = Math.min(Math.max(state.today, plan.from), plan.last);
     h.push('<div class="cols-side"><div class="months">' + monthsHtml(by) + '</div><div class="stack day-detail no-print">' + dayDetailHtml(state.selected, by) + weekChartHtml() + '</div></div>');
     $('#view-plan').innerHTML = h.join('');
+  }
+
+  // The plan as a timetable for one week: your window, busy times, exams and
+  // sessions placed by the clock.
+  function weekStartFor(day) { return day - M.weekday(day); }
+
+  function weekHtml() {
+    var plan = state.plan, p = state.project;
+    var first = weekStartFor(plan.from), last = weekStartFor(plan.last);
+    if (state.weekStart === null || state.weekStart < first || state.weekStart > last) state.weekStart = Math.min(Math.max(weekStartFor(state.today), first), last);
+    var ws = state.weekStart;
+    var days = [];
+    for (var i = 0; i < 7; i++) days.push(ws + i);
+    var lo = 24 * 60, hi = 0;
+    days.forEach(function (d) {
+      var w = M.dayWindow(p, d);
+      if (!w.blocked) { lo = Math.min(lo, w.from); hi = Math.max(hi, w.to); }
+    });
+    plan.sessions.forEach(function (se) { if (se.day >= ws && se.day < ws + 7) { lo = Math.min(lo, se.start); hi = Math.max(hi, se.end); } });
+    plan.exams.forEach(function (e) { if (e.day >= ws && e.day < ws + 7) { lo = Math.min(lo, e.start); hi = Math.max(hi, e.start + e.duration); } });
+    if (hi <= lo) { lo = 9 * 60; hi = 18 * 60; }
+    var h0 = Math.floor(lo / 60), h1 = Math.min(24, Math.ceil(hi / 60));
+    var PX = 44;
+    var height = (h1 - h0) * PX;
+    function y(min) { return ((min - h0 * 60) * PX / 60).toFixed(1); }
+    function hgt(a, b) { return Math.max(12, (Math.min(b, h1 * 60) - Math.max(a, h0 * 60)) * PX / 60).toFixed(1); }
+    var h = ['<div class="week-nav no-print"><button type="button" class="btn btn-small" data-action="week-prev"' + (ws <= first ? ' disabled' : '') + '>Previous week</button>' +
+      '<b class="wk-label">Week of ' + esc(M.fmtDay(ws)) + '</b><button type="button" class="btn btn-small" data-action="week-next"' + (ws >= last ? ' disabled' : '') + '>Next week</button>' +
+      '<button type="button" class="btn-link" data-action="week-this">This week</button></div>'];
+    h.push('<p class="print-only">Week of ' + esc(M.fmtDay(ws)) + '</p>');
+    h.push('<div class="wscroll"><div class="wgrid" style="--rows:' + (h1 - h0) + '">');
+    h.push('<div class="wtimes" style="height:' + height + 'px">');
+    for (var hr = h0; hr < h1; hr++) h.push('<span style="top:' + y(hr * 60) + 'px">' + M.fmtTime(hr * 60) + '</span>');
+    h.push('</div>');
+    days.forEach(function (d) {
+      var info = plan.days[d - plan.from];
+      var w = M.dayWindow(p, d);
+      var mins = 0;
+      plan.sessions.forEach(function (se) { if (se.day === d) mins += se.min; });
+      h.push('<div class="wday' + (d === state.today ? ' is-today' : '') + '"><button type="button" class="wdh2" data-action="week-day" data-day="' + d + '" aria-label="' + esc(M.fmtLong(d) + ': show in the calendar') + '">' +
+        '<b>' + M.WD3[M.weekday(d)] + ' ' + M.ymdFromDay(d)[2] + '</b><span>' + (mins ? M.fmtHours(mins) : info && info.blocked ? 'off' : '') + '</span></button>');
+      h.push('<div class="wcol" style="height:' + height + 'px">');
+      for (var r = h0; r < h1; r++) h.push('<i class="hl-line" style="top:' + y(r * 60) + 'px"></i>');
+      if (w.blocked || !info) h.push('<div class="wblock off" style="top:0;height:' + height + 'px"><span>' + esc(!info ? '' : (w.label || 'day off')) + '</span></div>');
+      else h.push('<div class="wwin" style="top:' + y(Math.max(w.from, h0 * 60)) + 'px;height:' + hgt(w.from, w.to) + 'px"></div>');
+      p.busy.forEach(function (b) {
+        if (b.day !== d || b.end <= h0 * 60 || b.start >= h1 * 60) return;
+        h.push('<div class="wblock busy" style="top:' + y(Math.max(b.start, h0 * 60)) + 'px;height:' + hgt(b.start, b.end) + 'px" title="' + esc(M.fmtTime(b.start) + '-' + M.fmtTime(b.end) + ' ' + b.label) + '"><span>' + esc(b.label) + '</span></div>');
+      });
+      plan.exams.forEach(function (e) {
+        if (e.day !== d) return;
+        h.push('<div class="wblock exam" style="top:' + y(e.start) + 'px;height:' + hgt(e.start, e.start + e.duration) + 'px"><span>EXAM ' + esc(e.code) + ' ' + M.fmtTime(e.start) + '</span></div>');
+      });
+      plan.sessions.forEach(function (se) {
+        if (se.day !== d) return;
+        h.push('<div class="wblock sess m' + plan.byExam[se.exam].colour + ' k-' + se.kind + (isDone(se.id) ? ' done' : '') + '" style="top:' + y(se.start) + 'px;height:' + hgt(se.start, se.end) + 'px" title="' + esc(M.fmtTime(se.start) + '-' + M.fmtTime(se.end) + ' ' + M.sessionTitle(se)) + '">' +
+          '<span><b>' + esc(se.code.replace(/[0-9]+[A-Z]?$/, '')) + '</b> ' + esc(se.kind === 'paper' ? 'past paper' : se.title) + '</span></div>');
+      });
+      h.push('</div></div>');
+    });
+    h.push('</div></div><p class="small muted" style="margin-top:8px">Pale blue: your revision window · grey: busy (lectures, shifts, matches) · red: exams · highlighter: sessions.</p>');
+    return h.join('');
   }
 
   function monthsHtml(by) {
@@ -1101,15 +1170,20 @@
         break;
       case 'save-availability': download('availability.csv', M.availabilityCsv(p), 'text/csv;charset=utf-8'); break;
       case 'reset-settings': p.settings = M.cleanSettings({}); changed('Settings back to the defaults.'); break;
-      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name }), 'text/calendar;charset=utf-8'); toast('Calendar file saved: import it into Google, Apple or Outlook calendar.'); break;
-      case 'ics-ahead': download('revision-from-' + slugDate(state.today) + '.ics', M.sessionsIcs(p, plan, { name: p.name, fromDay: state.today, skipDone: true }), 'text/calendar;charset=utf-8'); break;
+      case 'ics-all': download('revision-plan.ics', M.sessionsIcs(p, plan, { name: p.name, alarm: state.alarm }), 'text/calendar;charset=utf-8'); toast('Calendar file saved: import it into Google, Apple or Outlook calendar.'); break;
+      case 'markdown': download(fileSafe(p.name) + '.md', M.checklistMarkdown(p, plan, state.today, null), 'text/markdown;charset=utf-8'); toast('Checklist saved from today on: paste or open it in your notes app.'); break;
+      case 'week-prev': state.weekStart -= 7; renderPlan(); break;
+      case 'week-next': state.weekStart += 7; renderPlan(); break;
+      case 'week-this': state.weekStart = null; renderPlan(); break;
+      case 'week-day': state.selected = parseInt(t.getAttribute('data-day'), 10); state.planMode = 'calendar'; renderPlan(); break;
+      case 'ics-ahead': download('revision-from-' + slugDate(state.today) + '.ics', M.sessionsIcs(p, plan, { name: p.name, fromDay: state.today, skipDone: true, alarm: state.alarm }), 'text/calendar;charset=utf-8'); break;
       case 'ics-day':
         var d1 = parseInt(t.getAttribute('data-day'), 10);
         download('revision-' + slugDate(d1) + '.ics', M.sessionsIcs(p, plan, { name: p.name, fromDay: d1, toDay: d1, exams: false }), 'text/calendar;charset=utf-8');
         break;
       case 'csv': download('revision-sessions.csv', M.sessionsCsv(p, plan), 'text/csv;charset=utf-8'); break;
       case 'status-csv': download('on-track.csv', M.statusCsv(state.status), 'text/csv;charset=utf-8'); break;
-      case 'print': state.planMode = 'calendar'; renderPlan(); window.print(); break;
+      case 'print': if (state.planMode === 'list') { state.planMode = 'calendar'; renderPlan(); } window.print(); break;
       case 'copy-day':
         var d2 = parseInt(t.getAttribute('data-day'), 10);
         copyText(M.dayText(p, plan, d2), function (ok) { toast(ok ? 'Copied ' + M.fmtShort(d2) + ' as text.' : 'Copying is blocked here; use the .ics or CSV instead.'); });
@@ -1149,6 +1223,7 @@
     if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); return; }
     if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); return; }
     if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); return; }
+    if (t.id === 'alarm') { state.alarm = parseInt(t.value, 10) || 0; try { localStorage.setItem(STORE + '-alarm', String(state.alarm)); } catch (e) { /* storage blocked */ } return; }
     if (t.hasAttribute('data-filter')) { state.topicFilter[t.getAttribute('data-filter')] = t.value; renderTopics(); var fb = $('#' + t.id); if (fb) fb.focus(); return; }
     if (t.id === 'today-is') {
       var d = M.fromIso(t.value);
@@ -1266,6 +1341,10 @@
     } else {
       loadSample();
     }
+    try {
+      var al = parseInt(localStorage.getItem(STORE + '-alarm') || '0', 10);
+      if (al === 10 || al === 30) state.alarm = al;
+    } catch (e) { /* storage blocked */ }
     try {
       var v = localStorage.getItem(STORE + '-view');
       if (v && VIEWS.indexOf(v) >= 0 && state.restored) state.view = v;

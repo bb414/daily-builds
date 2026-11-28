@@ -211,8 +211,11 @@ def cmd_plan(args):
     write_text(args.out, m.project_file(p))
     print('\nWrote the plan file %s (open it in the app, or use it with "today" each morning).' % args.out)
     if args.ics:
-        write_text(args.ics, m.sessions_ics(p, plan, name=p['name']))
+        write_text(args.ics, m.sessions_ics(p, plan, name=p['name'], alarm=args.alarm))
         print('Wrote %s' % args.ics)
+    if args.markdown:
+        write_text(args.markdown, m.checklist_markdown(p, plan))
+        print('Wrote %s' % args.markdown)
     if args.csv:
         write_text(args.csv, m.sessions_csv(p, plan))
         print('Wrote %s' % args.csv)
@@ -260,8 +263,9 @@ def cmd_today(args):
     if folder:
         stem = 'revision-' + m.iso_day(today)
         write_text(os.path.join(folder, stem + '.txt'), out_text)
-        write_text(os.path.join(folder, stem + '.ics'), m.sessions_ics(p, plan, from_day=today, to_day=today, exams=True, skip_done=True, name='Revision today'))
-        print('\nWrote %s.txt and %s.ics in %s' % (stem, stem, folder))
+        write_text(os.path.join(folder, stem + '.ics'), m.sessions_ics(p, plan, from_day=today, to_day=today, exams=True, skip_done=True, name='Revision today', alarm=args.alarm))
+        write_text(os.path.join(folder, stem + '.md'), m.checklist_markdown(p, plan, today, today + 6))
+        print('\nWrote %s.txt, %s.ics and %s.md (the next seven days) in %s' % (stem, stem, stem, folder))
     if replanned:
         if args.dry_run:
             print('(Dry run: the plan file was not changed.)')
@@ -412,6 +416,8 @@ def build_parser():
     p.add_argument('--ics', help='also write the sessions as a calendar file')
     p.add_argument('--csv', help='also write the sessions as CSV')
     p.add_argument('--report', help='also write an HTML report')
+    p.add_argument('--markdown', help='also write the plan as a Markdown checklist')
+    p.add_argument('--alarm', type=int, default=0, choices=[0, 5, 10, 15, 30, 60], help='minutes of warning before each session in the calendar file')
     p.set_defaults(func=cmd_plan)
 
     t = sub.add_parser('today', help="the morning job: re-plan if needed, then today's sessions as text and .ics")
@@ -421,6 +427,7 @@ def build_parser():
     t.add_argument('--replan', choices=['auto', 'always', 'never'], default='auto', help='auto (default): re-plan when sessions before today were missed')
     t.add_argument('--out-dir', help='write revision-YYYY-MM-DD.txt and .ics here')
     t.add_argument('--dry-run', action='store_true', help='do not save the re-planned project')
+    t.add_argument('--alarm', type=int, default=10, choices=[0, 5, 10, 15, 30, 60], help='minutes of warning before each session in the .ics (default 10)')
     t.set_defaults(func=cmd_today)
 
     k = sub.add_parser('tick', help='tick sessions off in a plan file')

@@ -94,7 +94,7 @@ class AgreementTest(unittest.TestCase):
             for key in py:
                 self.compare(py[key], js[i][key], 'project %d, %s' % (i, key))
             # Exported files are compared as exact text too.
-            for key in ['csv', 'statusCsv', 'ics', 'icsToday', 'dayText', 'projectFile', 'availabilityCsv']:
+            for key in ['csv', 'statusCsv', 'ics', 'icsToday', 'dayText', 'projectFile', 'availabilityCsv', 'markdown', 'markdownWeek', 'icsAlarm']:
                 self.assertEqual(py[key], js[i][key], 'project %d, %s' % (i, key))
 
     def test_sample_plan_progress_and_replan(self):

@@ -44,10 +44,11 @@ ABC1234,Example module,11/01/2027,09:30,2 hours,Main Hall,101,Unseen exam
 
 | From the app | What it is |
 |---|---|
-| The plan | Every session with its time, module, topic and what to do (learn part 2 of 4, review 3, timed past paper, final review), on a wall-planner calendar and as a list. |
-| Calendar file (`.ics`) | All sessions and the exams (with a reminder the evening before), for Google, Apple or Outlook calendar. Also for one day, or from today on. |
+| The plan | Every session with its time, module, topic and what to do (learn part 2 of 4, review 3, timed past paper, final review), on a wall-planner calendar, as a week timetable by the clock (sessions among your lectures, shifts and exams) and as a list. |
+| Calendar file (`.ics`) | All sessions and the exams (with a reminder the evening before), for Google, Apple or Outlook calendar, with an optional alert 10 or 30 minutes before each session. Also for one day, or from today on. |
 | Sessions (`.csv`) | One row per session with a Done column, for a spreadsheet. |
-| Wall planner | A printable A4 landscape planner, one month per page. |
+| Wall planner | A printable A4 landscape planner, one month per page, or the week timetable on a page of its own. |
+| Checklist (`.md`) | The plan from today as a Markdown checklist (`- [ ] 09:00-09:25 ...`), for Notion, Obsidian, Apple Notes or any notes app that ticks boxes. |
 | On track? | For each exam: hours needed, done, still planned and missed, a verdict (on track, tight, behind or not enough time) with the reasons, and what to drop or shorten. Also as CSV. |
 | Topic tracker | Every topic's learning (done, planned, missed), each review and how it went, the next session and a one-word state, filterable by module and state. |
 | Today as text | The day's sessions ready to paste into a note or a message. |
@@ -78,7 +79,7 @@ This sits in the **Study and careers** theme of the brief: a revision planner fo
 - **The companion** (Python 3.9 or later, standard library only):
 
 ```
-python companion/exam_season.py plan --folder data/alex --start 2026-11-30 --out alex.json --ics alex.ics --report alex.html
+python companion/exam_season.py plan --folder data/alex --start 2026-11-30 --out alex.json --ics alex.ics --alarm 10 --markdown alex.md --report alex.html
 python companion/exam_season.py today data/sample-project.json --date 2026-12-10 --out-dir today --dry-run
 python companion/exam_season.py tick alex.json --day 2026-11-30
 python companion/exam_season.py status alex.json --date 2026-12-10
@@ -88,14 +89,14 @@ python companion/exam_season.py group data/group/alex.json data/group/sam.json d
 It does what a browser is not good at:
 
 - **`plan --folder`** reads a whole folder of a student's files and works out which is the timetable, the topics, the availability, the calendars and the rotas from their contents (several calendars and rotas, and an exam timetable in two formats, are merged without counting anything twice).
-- **`today`** is the morning job: run it from cron or a scheduled task and it re-plans from today when sessions were missed or a review went badly, saves the plan file, and writes the day's sessions as text and as an .ics file. **`tick`** ticks sessions off from the command line (`--rate shaky` says how a review went) and **`status --topics`** lists where every topic stands.
+- **`today`** is the morning job: run it from cron or a scheduled task and it re-plans from today when sessions were missed or a review went badly, saves the plan file, and writes the day's sessions as text and as an .ics file (with a reminder before each session), plus the coming week as a Markdown checklist. **`tick`** ticks sessions off from the command line (`--rate shaky` says how a review went) and **`status --topics`** lists where every topic stands.
 - **`group`** is the study-group mode: from each member's plan file it finds, for every module two or more of them are sitting, a weekly 90-minute session when every member taking it is free (inside their window, not busy, not sitting an exam that day, not on a day kept for another exam), spread across the week, ending with a past-paper debrief. Each session focuses on the topics the group as a whole is least sure about. It writes a CSV, one calendar for everyone, an HTML report and, with `--update-members`, each member's plan re-planned around the group sessions. For the sample group (Alex, Sam and Priya), it finds 27 sessions for the four shared modules.
 - **`report`** writes a printable HTML report of a plan: on track per exam, the next fortnight, hours each week and the whole timetable; **`check`** shows how each input file is read without planning anything.
 
 ## Tests
 
 ```
-node --test tests/*.test.js                   # the browser model: 26 tests
+node --test tests/*.test.js                   # the browser model: 27 tests
 cd tests && python -m unittest discover        # companion, agreement, browser and repository tests
 ```
 
