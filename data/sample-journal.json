@@ -52,9 +52,24 @@
     "value": "2",
     "unit": "pct"
    },
+   "maxDrawdown": {
+    "on": true,
+    "value": "6",
+    "unit": "pct"
+   },
    "maxTradesPerDay": {
     "on": true,
     "value": "6",
+    "unit": ""
+   },
+   "tradingWindow": {
+    "on": true,
+    "value": "09:35-15:45",
+    "unit": ""
+   },
+   "coolOff": {
+    "on": true,
+    "value": "3",
     "unit": ""
    },
    "noAddingToLoser": {

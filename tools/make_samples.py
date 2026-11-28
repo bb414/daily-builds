@@ -506,7 +506,10 @@ def settings():
         "rules": {
             "maxRiskPct": {"on": True, "value": "1", "unit": ""},
             "maxDailyLoss": {"on": True, "value": "2", "unit": "pct"},
+            "maxDrawdown": {"on": True, "value": "6", "unit": "pct"},
             "maxTradesPerDay": {"on": True, "value": "6", "unit": ""},
+            "tradingWindow": {"on": True, "value": "09:35-15:45", "unit": ""},
+            "coolOff": {"on": True, "value": "3", "unit": ""},
             "noAddingToLoser": {"on": True, "value": "", "unit": ""},
             "maxLossR": {"on": True, "value": "1.5", "unit": ""},
             "needPlannedRisk": {"on": True, "value": "", "unit": ""},

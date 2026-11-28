@@ -246,6 +246,30 @@ test('rules: trades per day and a daily loss limit in money', function () {
   assert.equal(sum.unchecked, 4);
 });
 
+test('challenge rules: a drawdown limit, trading hours and stopping after a losing run, and what keeping to them would change', function () {
+  var lines = [HEAD];
+  // Five losers in a row on one day (the first at 09:31), then a winner; 10 shares, 1.00 fee a side.
+  [['09:31', 95], ['10:00', 96], ['10:30', 97], ['11:00', 94], ['11:30', 98], ['12:00', 110]].forEach(function (x, i) {
+    lines.push('2026-11-23,' + x[0] + ':00,A,QX,Buy,10,100,1.00,o' + i);
+    lines.push('2026-11-23,' + x[0] + ':20,A,QX,Sell,10,' + x[1] + ',1.00,c' + i);
+  });
+  var r = run([{ name: 'a.csv', text: csv(lines) }], function (st) {
+    st.settings.accounts = [{ name: 'A', start: '1000', longOnly: false }];
+    st.settings.rules = { maxDrawdown: { on: true, value: '10', unit: 'pct' }, tradingWindow: { on: true, value: '09:35-15:45' }, coolOff: { on: true, value: '3' },
+      maxRiskPct: { on: false }, maxDailyLoss: { on: false }, maxTradesPerDay: { on: false }, noAddingToLoser: { on: false }, maxLossR: { on: false }, needPlannedRisk: { on: false } };
+  }).result;
+  var count = {};
+  r.breaches.forEach(function (b) { count[b.rule] = (count[b.rule] || 0) + 1; });
+  assert.equal(count.tradingWindow, 1);
+  assert.equal(count.coolOff, 3, 'the fourth, fifth and sixth trades came after three losses in a row');
+  assert.equal(count.maxDrawdown, 1, 'flagged once, when the balance first falls more than 100 below its high');
+  assert.deepEqual(M.tradingWindow('9.30 to 16.00'), [34200, 57600]);
+  assert.equal(M.tradingWindow('16:00-09:00'), null);
+  var w = M.whatIf(r, {});
+  assert.equal(w.skip.n, 4);
+  assert.equal(w.combined, w.actual + w.skip.change);
+});
+
 test('adding next week\'s export skips the fills already in the journal', function () {
   var a = data('weekly/export-2026-11-20.csv'), b = data('weekly/export-2026-11-27.csv');
   var one = M.importFiles(M.emptyState(), [{ name: 'a.csv', text: a }]);

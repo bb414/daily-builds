@@ -49,6 +49,7 @@ function runCase(job) {
   });
   M.BREAKDOWNS.forEach(function (b) { out.breakdowns[b.id] = M.breakdown(result.closed, b.id); });
   out.weekly = M.weekly(result.closed);
+  out.whatIf = [''].concat(result.accounts).map(function (a) { return M.whatIf(result, { account: a }); });
   out.histogram = M.rHistogram(result.closed);
   [''].concat(result.accounts).forEach(function (a) {
     result.weeks.forEach(function (w) {
@@ -87,6 +88,7 @@ function main() {
   out.projects = (job.projects || []).map(function (t) { return M.readProject(t); });
   out.sizing = (job.sizing || []).map(function (s) { return M.positionSize(s); });
   out.carries = (job.carries || []).map(function (c) { return M.makeCarry(c.u, c.date, c.price); });
+  out.windows = (job.windows || []).map(function (w) { return M.tradingWindow(w); });
   out.delimited = (job.delimited || []).map(function (t) { var d = M.sniffDelimiter(t); return { delim: d, parsed: M.parseDelimited(t, d) }; });
   out.formats = (job.formats || []).map(function (x) {
     return { money: M.money(x, 'USD'), sign: M.money(x, 'GBP', { sign: true }), whole: M.money(x, 'EUR', { whole: true }), num: M.fmtNum(x / 7, 2), pct: M.fmtPct(x / 100000, 1),

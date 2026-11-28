@@ -465,6 +465,8 @@ table.ledger { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .stat dt { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
 .stat dd { margin: 2px 0 0; font-family: var(--mono); font-weight: 600; font-size: 1.05rem; letter-spacing: -.02em; }
 .stat dd small { display: block; font-family: var(--body); font-weight: 400; font-size: .78rem; color: var(--muted); letter-spacing: 0; }
+.whatif-total { margin: 4px 0 0; font-size: 1.05rem; }
+.whatif-total strong { font-family: var(--mono); }
 .chart { margin: 8px 0 6px; }
 .chart svg { display: block; width: 100%; height: auto; }
 .chart-paper { background-color: #fffdf6; background-image: linear-gradient(rgba(150, 172, 206, .25) 1px, transparent 1px), linear-gradient(90deg, rgba(150, 172, 206, .25) 1px, transparent 1px); background-size: 20px 20px; border: 1px solid #cfc7b2; border-radius: 2px; padding: 6px; }

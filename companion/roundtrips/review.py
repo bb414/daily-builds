@@ -6,7 +6,7 @@ Mirrors weekReview, reviewNotes and reviewText in the browser model.
 from .common import (DAY, cmp, fmt_day_month_year, fmt_duration, fmt_num, fmt_pct, fmt_price, fmt_qty, fmt_r, fmt_short, money, plural, rnd,
                      sort_by, week_label)
 from .matching import RULES, currency_of_account, fx_rate
-from .stats import breakdown, filter_trades, start_balance, stats, usable
+from .stats import breakdown, filter_trades, start_balance, stats, usable, what_if
 
 
 def week_review(result, week, account=''):
@@ -79,6 +79,7 @@ def week_review(result, week, account=''):
         'byHour': breakdown(in_week, 'hour'), 'byHold': breakdown(in_week, 'hold'),
         'breaches': breaches, 'breachCount': breach_count, 'broke': broke, 'kept': kept, 'openAtEnd': open_at_end, 'unattachedFees': fees,
         'untagged': untagged, 'noRisk': no_risk, 'trades': [t['id'] for t in usable(in_week)],
+        'whatIf': what_if(result, account, week, week + 6),
     }
     review['notes'] = review_notes(review)
     return review
@@ -110,6 +111,17 @@ def review_notes(rv):
     if s['avgHoldWin'] is not None and s['avgHoldLoss'] is not None and s['avgHoldLoss'] >= s['avgHoldWin'] * 1.5 and s['avgHoldLoss'] >= 120:
         notes.append('Losing trades were held ' + fmt_num(s['avgHoldLoss'] / s['avgHoldWin'], 1) + ' times as long as winners ('
                      + fmt_duration(s['avgHoldLoss']) + ' against ' + fmt_duration(s['avgHoldWin']) + ').')
+    wi = rv['whatIf']
+    if wi['combined'] != wi['actual']:
+        bits = []
+        if wi['skip']['n']:
+            bits.append('skipping ' + plural(wi['skip']['n'], 'trade') + ' the rules ruled out (' + money(wi['skip']['change'], base, sign=True) + ')')
+        if wi['size']['n']:
+            bits.append('sizing ' + plural(wi['size']['n'], 'trade') + ' within the risk limit (' + money(wi['size']['change'], base, sign=True) + ')')
+        if wi['cap']['n']:
+            bits.append('taking ' + plural(wi['cap']['n'], 'stop') + ' as planned (' + money(wi['cap']['change'], base, sign=True) + ')')
+        notes.append('Keeping to the rules would have made about ' + money(wi['combined'], base, sign=True) + ' instead of ' + money(wi['actual'], base, sign=True)
+                     + ': ' + ', '.join(bits) + '. An estimate: other trades are left as they were.')
     hours = sort_by([r for r in rv['byHour'] if r['n'] >= 3 and r['key'] != '99'], lambda a, b: (a['net'] - b['net']) or cmp(a['key'], b['key']))
     if len(hours) >= 2 and hours[0]['net'] < 0:
         notes.append('Trades opened ' + hours[0]['label'] + ' were the weakest hour: ' + money(hours[0]['net'], base, sign=True) + ' over ' + plural(hours[0]['n'], 'trade') + '.')

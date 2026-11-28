@@ -689,7 +689,10 @@
     return {
       maxRiskPct: { on: true, value: '1' },
       maxDailyLoss: { on: true, value: '2', unit: 'pct' },
+      maxDrawdown: { on: false, value: '10', unit: 'pct' },
       maxTradesPerDay: { on: true, value: '6' },
+      tradingWindow: { on: false, value: '09:35-15:45' },
+      coolOff: { on: false, value: '3' },
       noAddingToLoser: { on: true },
       maxLossR: { on: true, value: '1.5' },
       needPlannedRisk: { on: true }
@@ -1109,6 +1112,7 @@
       t.grossBase = rate === null ? null : t.netBase + t.feesBase;
       t.target = j.target ? parseMicro(j.target) : null;
       t.breaches = [];
+      t.riskLimit = null;
     });
     var missingFx = {};
     m.trades.forEach(function (t) { if (t.rate === null) missingFx[t.currency] = (missingFx[t.currency] || 0) + 1; });
@@ -1167,7 +1171,10 @@
   var RULES = [
     { id: 'maxRiskPct', label: 'Maximum risk per trade', broken: 'risk over the limit' },
     { id: 'maxDailyLoss', label: 'Maximum daily loss', broken: 'daily loss limit' },
+    { id: 'maxDrawdown', label: 'Maximum drawdown from the high', broken: 'drawdown limit' },
     { id: 'maxTradesPerDay', label: 'Maximum trades per day', broken: 'too many trades in a day' },
+    { id: 'tradingWindow', label: 'Trading hours', broken: 'outside trading hours' },
+    { id: 'coolOff', label: 'Stop after a losing run', broken: 'traded on after a losing run' },
     { id: 'noAddingToLoser', label: 'No adding to a loser', broken: 'added to a loser' },
     { id: 'maxLossR', label: 'Loss no bigger than planned', broken: 'loss bigger than planned' },
     { id: 'needPlannedRisk', label: 'Stop or planned risk recorded', broken: 'no stop or planned risk' }
@@ -1179,7 +1186,7 @@
   function checkRules(closed, open, events, settings) {
     var rules = settings.rules || defaultRules();
     var breaches = [];
-    var unchecked = { maxRiskPct: 0, maxDailyLoss: 0, maxLossR: 0 };
+    var unchecked = { maxRiskPct: 0, maxDailyLoss: 0, maxLossR: 0, maxDrawdown: 0, tradingWindow: 0 };
     function add(ruleId, t, day, sec, detail, account) {
       breaches.push({ rule: ruleId, label: ruleLabel(ruleId), account: t ? t.account : account, symbol: t ? t.symbol : '', trade: t ? t.id : '', day: day, sec: sec, detail: detail });
       if (t) t.breaches.push(ruleId);
@@ -1215,7 +1222,47 @@
         var eq = equityAt(t.account, t.openT);
         if (risk === null || eq === null) { unchecked.maxRiskPct++; return; }
         var limit = rnd(eq * pct / 100);
+        t.riskLimit = limit;
         if (risk > limit) add('maxRiskPct', t, t.openDay, t.openSec, 'Risked ' + money(risk, t.currency) + ' (' + fmtNum(risk * 100 / eq, 2) + '% of ' + money(eq, t.currency) + '), over the ' + fmtNum(pct, 2) + '% limit of ' + money(limit, t.currency));
+      });
+    }
+    if ((r = rules.maxDrawdown) && r.on && ruleValue(r) !== null) {
+      var ddv = ruleValue(r), accts = [];
+      closed.forEach(function (c) { if (accts.indexOf(c.account) < 0) accts.push(c.account); });
+      accts.sort(cmp).forEach(function (account) {
+        var start = startCents(account), cur = currencyOfAccount(closed, account, settings.base), ddLimit;
+        if (r.unit === 'money') ddLimit = rnd(ddv * 100);
+        else if (start === null) { unchecked.maxDrawdown++; return; }
+        else ddLimit = rnd(start * ddv / 100);
+        var eq = start === null ? 0 : start, peak = eq, inside = true;
+        closed.forEach(function (c) {
+          if (c.account !== account) return;
+          eq += c.net;
+          if (eq > peak) peak = eq;
+          var dd = peak - eq;
+          if (dd > ddLimit && inside) add('maxDrawdown', c, c.closeDay, c.closeSec, account + ' fell ' + money(dd, cur) + ' below its high of ' + money(peak, cur) + ', past the drawdown limit of ' + money(ddLimit, cur));
+          inside = dd <= ddLimit;
+        });
+      });
+    }
+    if ((r = rules.tradingWindow) && r.on) {
+      var win = tradingWindow(r.value);
+      if (win) {
+        all.forEach(function (t) {
+          if (t.openSec === null) { unchecked.tradingWindow++; return; }
+          if (t.openSec < win[0] || t.openSec > win[1]) add('tradingWindow', t, t.openDay, t.openSec, 'Opened at ' + fmtTime(t.openSec) + ', outside the trading hours of ' + fmtTime(win[0]) + ' to ' + fmtTime(win[1]));
+        });
+      }
+    }
+    if ((r = rules.coolOff) && r.on && ruleValue(r) !== null) {
+      var runN = Math.floor(ruleValue(r));
+      all.forEach(function (t) {
+        var streak = 0;
+        closed.forEach(function (c) {
+          if (c.account !== t.account || c.closeDay !== t.openDay || c.closeT > t.openT || c === t) return;
+          streak = c.net < 0 ? streak + 1 : 0;
+        });
+        if (runN > 0 && streak >= runN) add('coolOff', t, t.openDay, t.openSec, 'Opened after ' + streak + ' losing trades in a row that day; the rule is to stop after ' + runN);
       });
     }
     if ((r = rules.maxTradesPerDay) && r.on && ruleValue(r) !== null) {
@@ -1291,6 +1338,15 @@
     return { breaches: breaches, summary: summary };
   }
   M.checkRules = checkRules;
+
+  // Trading hours as "09:35-15:45" (or "9.35 to 15.45"): [from, to] in seconds, or null.
+  function tradingWindow(text) {
+    var m = /^\s*(\d{1,2}[:.]\d{2})\s*(?:-|to)\s*(\d{1,2}[:.]\d{2})\s*$/i.exec(str(text));
+    if (!m) return null;
+    var a = parseTime(m[1]), b = parseTime(m[2]);
+    return a === null || b === null || b < a ? null : [a, b];
+  }
+  M.tradingWindow = tradingWindow;
 
   function ruleLabel(id) { for (var i = 0; i < RULES.length; i++) if (RULES[i].id === id) return RULES[i].label; return id; }
   M.ruleLabel = ruleLabel;
@@ -1508,6 +1564,33 @@
     return any ? total : 0;
   }
   M.startBalance = startBalance;
+
+  /* ---------- what keeping to the rules would have changed ---------- */
+
+  // An estimate, trade by trade: skip the trades the rules ruled out, size oversized trades down to the risk limit,
+  // and take every stop as planned (the loss before fees no bigger than the planned risk). Later trades are left as they were.
+  var SKIP_RULES = ['maxTradesPerDay', 'maxDailyLoss', 'tradingWindow', 'coolOff'];
+  function whatIf(result, f) {
+    var list = usable(filterTrades(result.closed, f || {}));
+    var out = { actual: 0, combined: 0, n: list.length, skip: { n: 0, change: 0 }, size: { n: 0, change: 0 }, cap: { n: 0, change: 0 } };
+    list.forEach(function (t) {
+      var v = t.netBase;
+      out.actual += v;
+      var skipped = t.breaches.some(function (b) { return SKIP_RULES.indexOf(b) >= 0; });
+      var scale = t.breaches.indexOf('maxRiskPct') >= 0 && t.riskLimit !== null && t.maxRisk > 0 ? t.riskLimit / t.maxRisk : 1;
+      var floor = t.plannedRisk !== null && t.gross < -t.plannedRisk ? -rnd((t.plannedRisk + t.fees) * t.rate) : null;
+      if (skipped) { out.skip.n++; out.skip.change -= v; }
+      if (scale < 1) { out.size.n++; out.size.change += rnd(v * scale) - v; }
+      if (floor !== null) { out.cap.n++; out.cap.change += (floor > v ? floor : v) - v; }
+      if (skipped) return;
+      var w = scale < 1 ? rnd(v * scale) : v;
+      if (floor !== null) { var f2 = scale < 1 ? rnd(floor * scale) : floor; if (f2 > w) w = f2; }
+      out.combined += w;
+    });
+    return out;
+  }
+  M.whatIf = whatIf;
+  M.SKIP_RULES = SKIP_RULES;
 
   /* ---------- days ---------- */
 
@@ -1747,7 +1830,8 @@
       bySetup: breakdown(inWeek, 'setup'), bySymbol: breakdown(inWeek, 'symbol'), byMistake: breakdown(inWeek, 'mistake').filter(function (r) { return r.key !== '(none tagged)'; }),
       byHour: breakdown(inWeek, 'hour'), byHold: breakdown(inWeek, 'hold'),
       breaches: breaches, breachCount: breachCount, broke: broke, kept: kept, openAtEnd: openAtEnd, unattachedFees: fees,
-      untagged: untagged, noRisk: noRisk, trades: usable(inWeek).map(function (t) { return t.id; })
+      untagged: untagged, noRisk: noRisk, trades: usable(inWeek).map(function (t) { return t.id; }),
+      whatIf: whatIf(result, { account: account, from: week, to: week + 6 })
     };
     review.notes = reviewNotes(review, result);
     return review;
@@ -1774,6 +1858,14 @@
     }
     if (s.avgHoldWin !== null && s.avgHoldLoss !== null && s.avgHoldLoss >= s.avgHoldWin * 1.5 && s.avgHoldLoss >= 120) {
       notes.push('Losing trades were held ' + fmtNum(s.avgHoldLoss / s.avgHoldWin, 1) + ' times as long as winners (' + fmtDuration(s.avgHoldLoss) + ' against ' + fmtDuration(s.avgHoldWin) + ').');
+    }
+    var wi = rv.whatIf;
+    if (wi.combined !== wi.actual) {
+      var bits = [];
+      if (wi.skip.n) bits.push('skipping ' + plural(wi.skip.n, 'trade') + ' the rules ruled out (' + money(wi.skip.change, base, { sign: true }) + ')');
+      if (wi.size.n) bits.push('sizing ' + plural(wi.size.n, 'trade') + ' within the risk limit (' + money(wi.size.change, base, { sign: true }) + ')');
+      if (wi.cap.n) bits.push('taking ' + plural(wi.cap.n, 'stop') + ' as planned (' + money(wi.cap.change, base, { sign: true }) + ')');
+      notes.push('Keeping to the rules would have made about ' + money(wi.combined, base, { sign: true }) + ' instead of ' + money(wi.actual, base, { sign: true }) + ': ' + bits.join(', ') + '. An estimate: other trades are left as they were.');
     }
     var hours = rv.byHour.filter(function (r) { return r.n >= 3 && r.key !== '99'; }).sort(function (a, b) { return (a.net - b.net) || cmp(a.key, b.key); });
     if (hours.length >= 2 && hours[0].net < 0) notes.push('Trades opened ' + hours[0].label + ' were the weakest hour: ' + money(hours[0].net, base, { sign: true }) + ' over ' + plural(hours[0].n, 'trade') + '.');

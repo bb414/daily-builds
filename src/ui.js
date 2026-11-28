@@ -704,6 +704,17 @@
     }) : '<p class="muted">No closed trades in this period.</p>';
     if (S.breakdown === 'mistake') html += '<p class="hint">A trade with two mistake tags counts under both.</p>';
     html += '</section>';
+    // What keeping to the rules would have changed.
+    var wi = M.whatIf(res, { account: S.review.account, from: r.from, to: r.to });
+    html += '<section class="sheet plain"><span class="eyebrow">' + esc(periodLabel()) + '</span><h2>If you had kept to your rules</h2>' +
+      '<p class="intro">An estimate, trade by trade: leave out the trades a rule said not to take (after the daily limit, over the daily count, outside trading hours, after a losing run), size oversized trades down to the risk limit, and take every stop as planned so no loss before fees goes beyond the planned risk. Everything else is left as it was, though in real life it would have changed too.</p>' +
+      '<dl class="stat-grid whatif">' +
+      '<div class="stat"><dt>What happened</dt><dd class="' + cls(wi.actual) + '">' + esc(m(wi.actual, { sign: true })) + '<small>' + M.plural(wi.n, 'closed trade') + '</small></dd></div>' +
+      '<div class="stat"><dt>Skip the trades ruled out</dt><dd class="' + cls(wi.skip.change) + '">' + esc(m(wi.skip.change, { sign: true })) + '<small>' + M.plural(wi.skip.n, 'trade') + '</small></dd></div>' +
+      '<div class="stat"><dt>Size within the risk limit</dt><dd class="' + cls(wi.size.change) + '">' + esc(m(wi.size.change, { sign: true })) + '<small>' + M.plural(wi.size.n, 'trade') + '</small></dd></div>' +
+      '<div class="stat"><dt>Take stops as planned</dt><dd class="' + cls(wi.cap.change) + '">' + esc(m(wi.cap.change, { sign: true })) + '<small>' + M.plural(wi.cap.n, 'trade') + ' lost more than planned</small></dd></div>' +
+      '</dl><p class="whatif-total">All three together: <strong class="' + cls(wi.combined) + '">' + esc(m(wi.combined, { sign: true })) + '</strong> instead of <strong class="' + cls(wi.actual) + '">' + esc(m(wi.actual, { sign: true })) + '</strong>' +
+      (wi.combined > wi.actual ? ', ' + esc(m(wi.combined - wi.actual)) + ' better.' : wi.combined < wi.actual ? ': the rules would have cost ' + esc(m(wi.actual - wi.combined)) + ' this time.' : ': no change.') + '</p></section>';
     // Breaches for the period.
     var breaches = res.breaches.filter(function (b) { return (!S.review.account || b.account === S.review.account) && (r.from === null || (b.day >= r.from && b.day <= r.to)); });
     html += '<section class="sheet plain"><span class="eyebrow">' + esc(periodLabel()) + '</span><h2>Rule breaches</h2>';
@@ -962,6 +973,9 @@
     maxRiskPct: 'The most a trade may lose at its stop, as a percentage of the account when it opened (the starting balance plus closed trades). Uses the stop or planned risk from the journal.',
     maxDailyLoss: 'Realised loss in a day, after fees, including partial closes and fees not tied to a trade. Trades opened after the limit was hit are listed too.',
     maxTradesPerDay: 'Counts trades opened each day in each account.',
+    maxDrawdown: 'How far the closed-trade balance may fall below its highest point, as challenge and funded accounts often limit it. Flagged at the trade that takes it past the limit.',
+    tradingWindow: 'No new trades outside these hours, for example to keep out of the first minutes after the open. Written like 09:35-15:45, in the times your export uses.',
+    coolOff: 'Stop for the day after this many losing trades in a row. Trades opened after the run are listed.',
     noAddingToLoser: 'Adding to a position at a worse price than its average entry (buying below it when long, shorting above it when short). Partial fills of one order do not count as adding.',
     maxLossR: 'A loss bigger than this many times the planned risk usually means the stop was moved or ignored.',
     needPlannedRisk: 'Every closed trade should have a stop or planned risk in the journal, or the risk rules cannot be checked.'
@@ -976,11 +990,15 @@
       var ctrl = '<label class="check"><input type="checkbox" id="rule-on-' + x.id + '" data-role="rule-on" data-rule="' + x.id + '"' + (rule.on ? ' checked' : '') + '> On</label>';
       if (x.id === 'maxRiskPct') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum risk per trade, percent</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>% of account</span>';
       if (x.id === 'maxDailyLoss') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum daily loss</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"><label class="sr" for="rule-u-' + x.id + '">Daily loss unit</label><select class="inline-select" id="rule-u-' + x.id + '" data-role="rule-unit" data-rule="' + x.id + '"><option value="pct"' + (rule.unit !== 'money' ? ' selected' : '') + '>% of starting balance</option><option value="money"' + (rule.unit === 'money' ? ' selected' : '') + '>in money</option></select>';
+      if (x.id === 'maxDrawdown') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum drawdown</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"><label class="sr" for="rule-u-' + x.id + '">Drawdown unit</label><select class="inline-select" id="rule-u-' + x.id + '" data-role="rule-unit" data-rule="' + x.id + '"><option value="pct"' + (rule.unit !== 'money' ? ' selected' : '') + '>% of starting balance</option><option value="money"' + (rule.unit === 'money' ? ' selected' : '') + '>in money</option></select>';
+      if (x.id === 'tradingWindow') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Trading hours</label><input type="text" class="inline-input" style="width:8.5em" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '" placeholder="09:35-15:45">' + (rule.on && !M.tradingWindow(rule.value) ? ' <span class="flag-breach">Write it like 09:35-15:45</span>' : '');
+      if (x.id === 'coolOff') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Losing trades in a row before stopping</label><input type="text" inputmode="numeric" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>losses in a row</span>';
       if (x.id === 'maxTradesPerDay') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum trades per day</label><input type="text" inputmode="numeric" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>trades</span>';
       if (x.id === 'maxLossR') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Largest loss in R</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>R</span>';
       var days = x.breaches - x.trades;
-      var said = x.id === 'maxDailyLoss' ? M.plural(days, 'day') + ' over the limit, ' + M.plural(x.trades, 'trade') + ' opened after it was hit' : x.breaches + (x.breaches === 1 ? ' breach' : ' breaches') + (x.breaches !== x.trades ? ' on ' + M.plural(x.trades, 'trade') : '');
-      var count = rule.on ? (x.breaches ? '<span class="flag-breach">' + esc(said) + '</span>' : '<span class="gain">No breaches.</span>') + (x.unchecked ? ' <span class="muted">' + x.unchecked + ' not checked (' + (x.id === 'maxDailyLoss' ? 'days with no starting balance' : 'no stop, planned risk or starting balance') + ').</span>' : '') : '<span class="muted">Off.</span>';
+      var said = x.id === 'maxDailyLoss' ? M.plural(days, 'day') + ' over the limit, ' + M.plural(x.trades, 'trade') + ' opened after it was hit' :
+        x.id === 'maxDrawdown' ? M.plural(x.breaches, 'time') + ' past the limit' : x.breaches + (x.breaches === 1 ? ' breach' : ' breaches') + (x.breaches !== x.trades ? ' on ' + M.plural(x.trades, 'trade') : '');
+      var count = rule.on ? (x.breaches ? '<span class="flag-breach">' + esc(said) + '</span>' : '<span class="gain">No breaches.</span>') + (x.unchecked ? ' <span class="muted">' + x.unchecked + ' not checked (' + (x.id === 'maxDailyLoss' ? 'days with no starting balance' : x.id === 'maxDrawdown' ? 'accounts with no starting balance' : x.id === 'tradingWindow' ? 'no time of day in the export' : 'no stop, planned risk or starting balance') + ').</span>' : '') : '<span class="muted">Off.</span>';
       html += '<li class="rule-item"><span class="rule-name">' + esc(x.label) + '</span><span class="rule-ctrl">' + ctrl + '</span><span class="rule-desc">' + esc(RULE_TEXT[x.id]) + '</span><span class="rule-count">' + count + '</span></li>';
     });
     html += '</ul></section>';

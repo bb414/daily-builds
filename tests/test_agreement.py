@@ -77,7 +77,7 @@ class AgreementTest(unittest.TestCase):
     def compare_case(self, case, label):
         js = h.run_bridge({'cases': [case]})['cases'][0]
         py = h.run_case(case)
-        for key in ['reports', 'result', 'stats', 'breakdowns', 'weekly', 'histogram', 'reviews', 'days']:
+        for key in ['reports', 'result', 'stats', 'breakdowns', 'weekly', 'histogram', 'reviews', 'days', 'whatIf']:
             diff = h.first_difference(h.plain(py[key]), js[key], '$.' + key)
             self.assertIsNone(diff, '%s: %s' % (label, diff))
         for key in ['tradesCsv', 'breachesCsv', 'fillsCsv', 'projectFile']:
@@ -96,7 +96,8 @@ class AgreementTest(unittest.TestCase):
         ], settings={'base': 'GBP', 'fx': [{'currency': 'USD', 'rate': '0.79'}],
                      'rules': {'maxRiskPct': {'on': True, 'value': '0.5'}, 'maxDailyLoss': {'on': True, 'value': '900', 'unit': 'money'},
                                'maxTradesPerDay': {'on': True, 'value': '3'}, 'noAddingToLoser': {'on': False}, 'maxLossR': {'on': True, 'value': '1'},
-                               'needPlannedRisk': {'on': False}}})
+                               'needPlannedRisk': {'on': False}, 'maxDrawdown': {'on': True, 'value': '2500', 'unit': 'money'},
+                               'tradingWindow': {'on': True, 'value': '10.00 to 15.00'}, 'coolOff': {'on': True, 'value': '2'}}})
         self.compare_case(case, 'edited sample')
 
     def test_a_missing_exchange_rate(self):
@@ -125,6 +126,8 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual(len(py['result']['unmatched']), 0)
         u = {'account': 'X', 'symbol': 'QX', 'side': 'S', 'q': 1000000, 'price': 1, 'day': rt_day('2026-11-23'), 'currency': 'USD'}
         tries = [('2026-01-01', '1.5'), ('2099-01-01', '1'), ('', '1'), ('2026-11-23', 'x')]
+        windows = ['09:35-15:45', '9.30 to 16.00', '16:00-09:00', 'all day', None, ' 09:35 - 15:45 ']
+        self.assertEqual(h.plain([h.rt.trading_window(w) for w in windows]), h.run_bridge({'windows': windows})['windows'])
         js = h.run_bridge({'carries': [{'u': u, 'date': d, 'price': p} for d, p in tries]})
         self.assertEqual(h.plain([h.rt.make_carry(u, d, p) for d, p in tries]), js['carries'])
 

@@ -6,9 +6,10 @@ quantities are matched to opening lots first in, first out.
 """
 
 import math
+import re
 
-from .common import (DAY, cmp, fmt_date, fmt_num, fmt_price, fmt_qty, fmt_r, from_iso, iso_stamp, jsnum, money, parse_cents, parse_float_text,
-                     parse_micro, plural, rnd, rx, sort_by, trim, week_start)
+from .common import (DAY, cmp, fmt_date, fmt_num, fmt_price, fmt_qty, fmt_r, fmt_time, from_iso, iso_stamp, jsnum, money, parse_cents,
+                     parse_float_text, parse_micro, parse_time, plural, rnd, rx, s, sort_by, trim, week_start)
 from .parsing import read_export, symbol_root
 
 
@@ -16,7 +17,10 @@ def default_rules():
     return {
         'maxRiskPct': {'on': True, 'value': '1'},
         'maxDailyLoss': {'on': True, 'value': '2', 'unit': 'pct'},
+        'maxDrawdown': {'on': False, 'value': '10', 'unit': 'pct'},
         'maxTradesPerDay': {'on': True, 'value': '6'},
+        'tradingWindow': {'on': False, 'value': '09:35-15:45'},
+        'coolOff': {'on': False, 'value': '3'},
         'noAddingToLoser': {'on': True},
         'maxLossR': {'on': True, 'value': '1.5'},
         'needPlannedRisk': {'on': True},
@@ -432,11 +436,26 @@ def trade_risk(trade, stop):
 RULES = [
     {'id': 'maxRiskPct', 'label': 'Maximum risk per trade', 'broken': 'risk over the limit'},
     {'id': 'maxDailyLoss', 'label': 'Maximum daily loss', 'broken': 'daily loss limit'},
+    {'id': 'maxDrawdown', 'label': 'Maximum drawdown from the high', 'broken': 'drawdown limit'},
     {'id': 'maxTradesPerDay', 'label': 'Maximum trades per day', 'broken': 'too many trades in a day'},
+    {'id': 'tradingWindow', 'label': 'Trading hours', 'broken': 'outside trading hours'},
+    {'id': 'coolOff', 'label': 'Stop after a losing run', 'broken': 'traded on after a losing run'},
     {'id': 'noAddingToLoser', 'label': 'No adding to a loser', 'broken': 'added to a loser'},
     {'id': 'maxLossR', 'label': 'Loss no bigger than planned', 'broken': 'loss bigger than planned'},
     {'id': 'needPlannedRisk', 'label': 'Stop or planned risk recorded', 'broken': 'no stop or planned risk'},
 ]
+
+
+_WINDOW = rx(r'^\s*(\d{1,2}[:.]\d{2})\s*(?:-|to)\s*(\d{1,2}[:.]\d{2})\s*$', re.I)
+
+
+def trading_window(text):
+    """Trading hours as "09:35-15:45" (or "9.35 to 15.45"): [from, to] in seconds, or None."""
+    m = _WINDOW.match(text if isinstance(text, str) else '')
+    if not m:
+        return None
+    a, b = parse_time(m.group(1)), parse_time(m.group(2))
+    return None if a is None or b is None or b < a else [a, b]
 
 
 def rule_label(rid):
@@ -497,6 +516,7 @@ def analyse(state):
         t['grossBase'] = None if rate is None else t['netBase'] + t['feesBase']
         t['target'] = parse_micro(j['target']) if j.get('target') else None
         t['breaches'] = []
+        t['riskLimit'] = None
     missing = {}
     for t in m['trades']:
         if t['rate'] is None:
@@ -547,7 +567,7 @@ def analyse(state):
 def check_rules(closed, opened, events, settings):
     rules = settings.get('rules') or default_rules()
     breaches = []
-    unchecked = {'maxRiskPct': 0, 'maxDailyLoss': 0, 'maxLossR': 0}
+    unchecked = {'maxRiskPct': 0, 'maxDailyLoss': 0, 'maxLossR': 0, 'maxDrawdown': 0, 'tradingWindow': 0}
 
     def add(rid, t, day, sec, detail, account=''):
         breaches.append({'rule': rid, 'label': rule_label(rid), 'account': t['account'] if t else account, 'symbol': t['symbol'] if t else '',
@@ -595,9 +615,58 @@ def check_rules(closed, opened, events, settings):
                 unchecked['maxRiskPct'] += 1
                 continue
             limit = rnd(eq * pct / 100)
+            t['riskLimit'] = limit
             if risk > limit:
                 add('maxRiskPct', t, t['openDay'], t['openSec'], 'Risked ' + money(risk, t['currency']) + ' (' + fmt_num(risk * 100 / eq, 2) + '% of '
                     + money(eq, t['currency']) + '), over the ' + fmt_num(pct, 2) + '% limit of ' + money(limit, t['currency']))
+    r = rules.get('maxDrawdown')
+    if r and r.get('on') and rule_value(r) is not None:
+        ddv = rule_value(r)
+        for account in sort_by(list({c['account'] for c in closed}), cmp):
+            start = start_cents(account)
+            cur = currency_of_account(closed, account, settings['base'])
+            if r.get('unit') == 'money':
+                dd_limit = rnd(ddv * 100)
+            elif start is None:
+                unchecked['maxDrawdown'] += 1
+                continue
+            else:
+                dd_limit = rnd(start * ddv / 100)
+            eq = 0 if start is None else start
+            peak, inside = eq, True
+            for c in closed:
+                if c['account'] != account:
+                    continue
+                eq += c['net']
+                if eq > peak:
+                    peak = eq
+                dd = peak - eq
+                if dd > dd_limit and inside:
+                    add('maxDrawdown', c, c['closeDay'], c['closeSec'], account + ' fell ' + money(dd, cur) + ' below its high of ' + money(peak, cur)
+                        + ', past the drawdown limit of ' + money(dd_limit, cur))
+                inside = dd <= dd_limit
+    r = rules.get('tradingWindow')
+    if r and r.get('on'):
+        win = trading_window(r.get('value'))
+        if win:
+            for t in every:
+                if t['openSec'] is None:
+                    unchecked['tradingWindow'] += 1
+                    continue
+                if t['openSec'] < win[0] or t['openSec'] > win[1]:
+                    add('tradingWindow', t, t['openDay'], t['openSec'], 'Opened at ' + fmt_time(t['openSec']) + ', outside the trading hours of ' + fmt_time(win[0])
+                        + ' to ' + fmt_time(win[1]))
+    r = rules.get('coolOff')
+    if r and r.get('on') and rule_value(r) is not None:
+        run_n = math.floor(rule_value(r))
+        for t in every:
+            streak = 0
+            for c in closed:
+                if c['account'] != t['account'] or c['closeDay'] != t['openDay'] or c['closeT'] > t['openT'] or c is t:
+                    continue
+                streak = streak + 1 if c['net'] < 0 else 0
+            if run_n > 0 and streak >= run_n:
+                add('coolOff', t, t['openDay'], t['openSec'], 'Opened after %d losing trades in a row that day; the rule is to stop after %d' % (streak, run_n))
     r = rules.get('maxTradesPerDay')
     if r and r.get('on') and rule_value(r) is not None:
         max_n = math.floor(rule_value(r))

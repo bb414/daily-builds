@@ -260,6 +260,40 @@ def filter_trades(trades, account='', start=None, end=None):
     return out
 
 
+SKIP_RULES = ['maxTradesPerDay', 'maxDailyLoss', 'tradingWindow', 'coolOff']
+
+
+def what_if(result, account='', start=None, end=None):
+    """An estimate, trade by trade, of keeping to the rules: skip the trades the rules ruled out, size oversized trades
+    down to the risk limit, and take every stop as planned (the loss before fees no bigger than the planned risk). Later trades are left as they were."""
+    lst = usable(filter_trades(result['closed'], account, start, end))
+    out = {'actual': 0, 'combined': 0, 'n': len(lst), 'skip': {'n': 0, 'change': 0}, 'size': {'n': 0, 'change': 0}, 'cap': {'n': 0, 'change': 0}}
+    for t in lst:
+        v = t['netBase']
+        out['actual'] += v
+        skipped = any(b in SKIP_RULES for b in t['breaches'])
+        scale = t['riskLimit'] / t['maxRisk'] if 'maxRiskPct' in t['breaches'] and t['riskLimit'] is not None and t['maxRisk'] and t['maxRisk'] > 0 else 1
+        floor = -rnd((t['plannedRisk'] + t['fees']) * t['rate']) if t['plannedRisk'] is not None and t['gross'] < -t['plannedRisk'] else None
+        if skipped:
+            out['skip']['n'] += 1
+            out['skip']['change'] -= v
+        if scale < 1:
+            out['size']['n'] += 1
+            out['size']['change'] += rnd(v * scale) - v
+        if floor is not None:
+            out['cap']['n'] += 1
+            out['cap']['change'] += (floor if floor > v else v) - v
+        if skipped:
+            continue
+        w = rnd(v * scale) if scale < 1 else v
+        if floor is not None:
+            f2 = rnd(floor * scale) if scale < 1 else floor
+            if f2 > w:
+                w = f2
+        out['combined'] += w
+    return out
+
+
 def start_balance(result, accounts):
     """The starting balances of some accounts in the base currency (0 when none is set)."""
     settings = result['settings']

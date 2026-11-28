@@ -64,6 +64,7 @@ def run_case(job):
     for key, _ in rt.BREAKDOWNS:
         out['breakdowns'][key] = rt.breakdown(result['closed'], key)
     out['weekly'] = rt.weekly(result['closed'])
+    out['whatIf'] = [rt.what_if(result, a) for a in [''] + result['accounts']]
     out['histogram'] = rt.r_histogram(result['closed'])
     for a in [''] + result['accounts']:
         for w in result['weeks']:

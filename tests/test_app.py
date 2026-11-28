@@ -91,6 +91,8 @@ class AppTest(unittest.TestCase):
         self.assertEqual(page.text_content('#hero-symbol'), 'GLBM short')
         self.assertIn('not financial advice', page.inner_text('header').lower())
         self.assertTrue(page.is_visible('#equity-chart svg'))
+        self.assertIn('If you had kept to your rules', page.inner_text('#view-review'))
+        self.assertIn('Keeping to the rules would have made about', page.input_value('#review-text'))
 
     def test_tabs_work_with_the_keyboard(self):
         page = self.open()
