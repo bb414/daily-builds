@@ -3293,6 +3293,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
       var notes = [];
       if (st.error) notes.push('<li class="bad">' + esc(st.error) + '</li>');
       st.warnings.forEach(function (w) { notes.push('<li>' + esc(w) + '</li>'); });
+      if (f.encoding) notes.push('<li class="info">This file was not saved as UTF-8, so it was read as Windows-1252 (the older encoding many bank websites still use). Check that names with accents or a \u00a3 sign look right.</li>');
       if (linked) notes.push('<li class="info">' + esc(linked.share + '% of its payments also appear in ' + linked.other + ', so it was treated as the same account (' + linked.account + ') and the overlap is counted once.') + '</li>');
       if (st.ok && !st.skipped.length && !st.warnings.length) notes.push('<li class="good">Every row was read.</li>');
       html += '<article class="plate file-card' + (st.ok ? '' : ' bad') + '" id="file-' + f.uid + '">';
@@ -3886,7 +3887,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
         if (text.indexOf('\ufffd') >= 0 && !f._retried) {
           // Not UTF-8: read it again as Windows-1252, which older bank exports use.
           var rd2 = new FileReader();
-          rd2.onload = function () { added.push({ uid: uid(), name: f.name, text: String(rd2.result), account: '', accountGiven: false, options: {} }); finish(); };
+          rd2.onload = function () { added.push({ uid: uid(), name: f.name, text: String(rd2.result), account: '', accountGiven: false, options: {}, encoding: 'windows-1252' }); finish(); };
           rd2.onerror = function () { added.push({ uid: uid(), name: f.name, text: text, account: '', accountGiven: false, options: {} }); finish(); };
           rd2.readAsText(f, 'windows-1252');
           return;
