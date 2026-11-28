@@ -454,7 +454,8 @@
         var filled = rows[fr].filter(function (x) { return trim(x) !== ''; }).length;
         if (filled > most) { most = filled; out.headerCells = rows[fr].map(trim); }
       }
-      var first = out.headerCells.filter(function (x) { return x !== ''; }).slice(0, 8).join(', ');
+      var firstRow = rows.filter(function (row) { return row.some(function (x) { return trim(x) !== ''; }); })[0] || [];
+      var first = firstRow.map(trim).filter(function (x) { return x !== ''; }).slice(0, 8).join(', ');
       out.error = anyChosen && named.length ? 'None of the first 40 rows has all the columns you chose (' + named.join(', ') + ').'
         : 'Could not find a header row with date, symbol, quantity and price columns' + (first ? ' (the first row reads: ' + first + ')' : '') + '. Choose the columns yourself below.';
       return out;

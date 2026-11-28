@@ -247,6 +247,8 @@
       if (tick) tick.setAttribute('stroke', best.dir > 0 ? '#26307a' : '#b3301d');
     } else {
       ['hero-qty', 'hero-symbol', 'hero-price', 'hero-net', 'hero-setup'].forEach(function (id) { setText(id, ''); });
+      var none = document.getElementById('hero-tick');
+      if (none) none.setAttribute('d', '');
     }
     setText('hero-week', S.review.all || S.review.week === null ? 'all weeks' : 'w/c ' + M.fmtShort(S.review.week));
     setText('hero-line1', st.n ? 'net ' + m(st.net, { sign: true, whole: true }) : 'no trades closed');
@@ -265,13 +267,14 @@
       var v = t.netBase === null ? t.net : t.netBase;
       return t.symbol + ' ' + M.money(v, t.netBase === null ? t.currency : base(), { sign: true, whole: true }) + (v >= 0 ? ' \u25b2' : ' \u25bc');
     }).join('   ');
-    setText('hero-tape', tapeText || 'Add your fills export to start the tape');
+    setText('hero-tape', tapeText || 'Waiting for your fills');
     var run = document.getElementById('tape-run');
     var items = tapeTrades.map(function (t) {
       var v = t.netBase === null ? t.net : t.netBase;
       return '<span class="' + (v >= 0 ? 'up' : 'down') + '">' + esc(t.symbol) + ' ' + esc(sideWord(t).toLowerCase()) + ' ' + esc(M.money(v, t.netBase === null ? t.currency : base(), { sign: true })) + '</span>';
     }).join('');
     run.innerHTML = items ? items + items : '<span>Drop your fills export on the in-tray to start the tape</span>';
+    run.classList.toggle('still', !items);
   }
   function shortSetup(label) {
     var words = label.split(' ');
@@ -297,7 +300,7 @@
     html += '<article class="hticket"><h2>Expectancy</h2><div class="big ' + cls(st.expectancy || 0) + '">' + (st.n ? esc(m(M.rnd(st.expectancy), { sign: true })) : '&ndash;') + '</div>' +
       '<p>' + (st.n ? 'A trade, after fees. ' + (st.rCount ? 'Average ' + esc(M.fmtR(st.avgR)) + ' on ' + st.rCount + ' with planned risk.' : 'Add stops in the journal to see R.') : 'Net divided by closed trades.') + '</p></article>';
     html += '<article class="hticket' + (breaches.length ? ' alert' : '') + '"><h2>Rule breaches</h2><div class="big">' + breaches.length + '</div>' +
-      '<p>' + (broke.length ? broke.length + (broke.length === 1 ? ' trade broke a rule and made ' : ' trades broke a rule and made ') + esc(m(brokeNet, { sign: true })) + '.' : 'Every closed trade kept to the rules.') + '</p></article>';
+      '<p>' + (broke.length ? broke.length + (broke.length === 1 ? ' trade broke a rule and made ' : ' trades broke a rule and made ') + esc(m(brokeNet, { sign: true })) + '.' : st.n ? 'Every closed trade kept to the rules.' : 'No trades yet.') + '</p></article>';
     $('#headline').innerHTML = html;
   }
 
@@ -439,6 +442,16 @@
       html += '<div class="sheet plain" style="margin-top:22px"><h2>Check these</h2><ul class="breach-list">' + res.warnings.map(function (w) { return '<li>' + esc(w.text) + '</li>'; }).join('') + '</ul></div>';
     }
 
+    if (!res.fills.length) {
+      html += '<section class="sheet" style="margin-top:22px"><span class="eyebrow">Getting started</span><h2>Four steps to your first review</h2><ol class="steps">' +
+        '<li><strong>Export your fills.</strong> On your broker or challenge platform, find the trade history, executions or fills page and export it as CSV (or copy the table and paste it above).</li>' +
+        '<li><strong>Drop it on the in-tray.</strong> Check the import log: the columns it used, the date order, and any rows it set aside and why.</li>' +
+        '<li><strong>Set your accounts and rules.</strong> Under Rules, give each account its starting balance and set your limits; under Fills, the multiplier of any futures contract.</li>' +
+        '<li><strong>Write up the week.</strong> Add a setup and a stop to each trade, then copy the weekly review for the team chat and save the journal file for next week.</li></ol>' +
+        '<div class="btn-row"><button type="button" class="btn btn-line btn-small" data-action="sample">Show the sample again</button></div></section>';
+      panel.innerHTML = html;
+      return;
+    }
     html += '<div class="grid-2" style="margin-top:22px">';
     // Contract multipliers.
     html += '<section class="sheet"><span class="eyebrow">Contracts</span><h2>Contract multipliers</h2><p class="intro">Futures and options profit is price change times quantity times the multiplier (the money each point is worth). Set it for a contract root (LKF covers LKFZ6 and LKFH7) or a single symbol.</p>';
@@ -527,7 +540,7 @@
     var chosen = S.files[fileIndex].columns || {};
     var cells = src.headerCells.filter(function (c, i, a) { return c !== '' && a.indexOf(c) === i; });
     var html = '<details class="paste"' + (src.error || Object.keys(chosen).length ? ' open' : '') + '><summary>' + (src.error ? 'Choose the columns yourself' : 'Change the columns used') + '</summary>' +
-      '<p class="hint">Point each field at a column from the file. Leave a field on "work it out" to let Round trips choose.</p><div class="row-fields">';
+      '<p class="hint">Point each field at a column from the file. Leave a field on "work it out" to let Round trips choose.</p><div class="row-fields chooser">';
     M.COLUMN_FIELDS.forEach(function (f) {
       var id = 'col-' + fileIndex + '-' + f;
       var value = Object.prototype.hasOwnProperty.call(chosen, f) ? chosen[f] : '__auto';
@@ -692,7 +705,7 @@
       '<div class="btn-row no-print"><button type="button" class="btn btn-line btn-small" data-action="trades-csv">Round trips CSV</button><button type="button" class="btn btn-line btn-small" data-action="breaches-csv">Breaches CSV</button><button type="button" class="btn btn-line btn-small" data-action="save">Save journal file</button></div>' +
       '</div>';
     if (!res.closed.length) {
-      panel.innerHTML = html + '<p class="empty">No closed trades yet. Add a fills export on the Fills tab: the review appears as soon as a position goes back to flat.</p>';
+      panel.innerHTML = html + '<div class="empty"><p>No closed trades yet. Add a fills export on the Fills tab: the review appears as soon as a position goes back to flat.</p><div class="btn-row" style="justify-content:center"><button type="button" class="btn btn-ink btn-small" data-go="fills">Add your fills</button><button type="button" class="btn btn-line btn-small" data-action="sample">Show the sample again</button></div></div>';
       return;
     }
     var list = periodTrades();
@@ -1026,7 +1039,7 @@
       if (x.id === 'maxRiskPct') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum risk per trade, percent</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>% of account</span>';
       if (x.id === 'maxDailyLoss') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum daily loss</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"><label class="sr" for="rule-u-' + x.id + '">Daily loss unit</label><select class="inline-select" id="rule-u-' + x.id + '" data-role="rule-unit" data-rule="' + x.id + '"><option value="pct"' + (rule.unit !== 'money' ? ' selected' : '') + '>% of starting balance</option><option value="money"' + (rule.unit === 'money' ? ' selected' : '') + '>in money</option></select>';
       if (x.id === 'maxDrawdown') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum drawdown</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"><label class="sr" for="rule-u-' + x.id + '">Drawdown unit</label><select class="inline-select" id="rule-u-' + x.id + '" data-role="rule-unit" data-rule="' + x.id + '"><option value="pct"' + (rule.unit !== 'money' ? ' selected' : '') + '>% of starting balance</option><option value="money"' + (rule.unit === 'money' ? ' selected' : '') + '>in money</option></select>';
-      if (x.id === 'tradingWindow') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Trading hours</label><input type="text" class="inline-input" style="width:8.5em" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '" placeholder="09:35-15:45">' + (rule.on && !M.tradingWindow(rule.value) ? ' <span class="flag-breach">Write it like 09:35-15:45</span>' : '');
+      if (x.id === 'tradingWindow') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Trading hours</label><input type="text" class="inline-input" style="width:10.5em" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '" placeholder="09:35-15:45">' + (rule.on && !M.tradingWindow(rule.value) ? ' <span class="flag-breach">Write it like 09:35-15:45</span>' : '');
       if (x.id === 'coolOff') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Losing trades in a row before stopping</label><input type="text" inputmode="numeric" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>losses in a row</span>';
       if (x.id === 'maxTradesPerDay') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Maximum trades per day</label><input type="text" inputmode="numeric" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>trades</span>';
       if (x.id === 'maxLossR') ctrl += '<label class="sr" for="rule-v-' + x.id + '">Largest loss in R</label><input type="text" inputmode="decimal" class="inline-input" id="rule-v-' + x.id + '" data-role="rule-value" data-rule="' + x.id + '" value="' + esc(rule.value || '') + '"> <span>R</span>';
@@ -1195,6 +1208,7 @@
         reimport();
         toast('Removed the export');
         break;
+      case 'sample': S.opened = null; loadSample(); show('review'); toast('Showing the invented sample again'); break;
       case 'clear': startFresh(); storeDel(STORE_KEY); reimport(); show('fills'); toast('Cleared: add your fills export to start'); break;
       case 'resume': var saved = S.resume; S.resume = null; openJournal(saved.journal, 'your saved journal'); break;
       case 'forget': S.resume = null; storeDel(STORE_KEY); renderNotice(); break;

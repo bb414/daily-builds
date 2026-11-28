@@ -311,7 +311,8 @@ def read_export(name, text, opts=None):
             if filled > most:
                 most = filled
                 out['headerCells'] = [trim(x) for x in rows[fr]]
-        first = ', '.join([x for x in out['headerCells'] if x != ''][:8])
+        first_row = next((row for row in rows if any(trim(x) != '' for x in row)), [])
+        first = ', '.join([trim(x) for x in first_row if trim(x) != ''][:8])
         if any_chosen and named:
             out['error'] = 'None of the first 40 rows has all the columns you chose (' + ', '.join(named) + ').'
         else:
