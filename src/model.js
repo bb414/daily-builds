@@ -913,7 +913,7 @@
     var nDistinct = Object.keys(distinct).length;
     var kind;
     if (nDistinct === 1) kind = 'fixed';
-    else if (runs.length <= 4 && runs.length <= Math.ceil(amounts.length / 2) && runs[runs.length - 1].count >= 1 && runs.filter(function (r) { return r.count === 1; }).length <= 1 + (runs[0].count === 1 ? 1 : 0)) kind = 'stepped';
+    else if (runs.length <= 4 && (runs.length <= Math.ceil(amounts.length / 2) || runs.length === 2) && runs[runs.length - 1].count >= 1 && runs.filter(function (r) { return r.count === 1; }).length <= 1 + (runs[0].count === 1 ? 1 : 0)) kind = 'stepped';
     else kind = 'variable';
     var typical;
     if (kind === 'fixed') typical = amounts[0];
@@ -1534,8 +1534,8 @@
         var after = s.payments.filter(function (p) { return p.day > decided + grace; });
         if (after.length) out.stillCharging.push({ id: s.id, name: s.name, decidedOn: decided, payments: after, total: after.reduce(function (a, p) { return a + p.amount; }, 0), method: s.method });
       }
-      if (!known[s.id] && s.status === 'active' && s.first > reviewed - CADENCE_BY_ID[s.cadence].days) out.newSince.push({ id: s.id, name: s.name, first: s.first, amount: s.typical, cadence: s.cadence });
-      if (known[s.id] && known[s.id].typical !== undefined && known[s.id].typical !== s.typical && s.status === 'active') out.priceChanges.push({ id: s.id, name: s.name, from: known[s.id].typical, to: s.typical });
+      if (!known[s.id] && s.status === 'active' && s.last > reviewed) out.newSince.push({ id: s.id, name: s.name, first: s.first, amount: s.typical, cadence: s.cadence });
+      if (known[s.id] && known[s.id].typical !== undefined && known[s.id].typical !== s.typical && s.status === 'active' && s.amounts.kind !== 'variable' && known[s.id].kind !== 'variable') out.priceChanges.push({ id: s.id, name: s.name, from: known[s.id].typical, to: s.typical });
       if (known[s.id] && known[s.id].status === 'active' && s.status === 'stopped') out.stoppedSince.push({ id: s.id, name: s.name, last: s.last });
     });
     return out;
@@ -1699,7 +1699,7 @@
   function projectFile(state) {
     var tx = state.transactions.map(function (t) { return [iso(t.day), t.amount, t.desc, t.memo || '', t.type || '', t.category || '', t.account]; });
     var known = {};
-    (state.result ? state.result.series : []).forEach(function (s) { known[s.id] = { typical: s.typical, status: s.status, name: s.name }; });
+    (state.result ? state.result.series : []).forEach(function (s) { known[s.id] = { typical: s.typical, status: s.status, name: s.name, kind: s.amounts.kind }; });
     var decisions = {};
     Object.keys(state.decisions || {}).forEach(function (id) {
       var d = state.decisions[id];

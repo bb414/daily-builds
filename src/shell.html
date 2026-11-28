@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still paying? Find every regular payment in your bank export</title>
+<meta name="description" content="Find every subscription, direct debit and standing order in your own bank export, see when each one leaves next, and decide what to keep. Runs offline; nothing is uploaded.">
+<style>
+/*FONTS*/
+/*STYLE*/
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the tool</a>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <p class="kicker"><span class="kicker-plate">Valve 01</span><span>Regular payments</span><span class="dot" aria-hidden="true"></span><span>From your own bank export</span></p>
+      <h1>Still paying<span class="q">?</span></h1>
+      <p class="lede">Find every subscription, direct debit and standing order running out of your bank account, see exactly when each one leaves next, and shut off the ones you no longer want before they renew.</p>
+      <p class="enamel-sign"><span>Runs on your device</span><span>Nothing is uploaded</span><span>Not financial advice</span></p>
+      <div class="hero-actions">
+        <button type="button" class="btn btn-copper" data-go="statements">Use your own statement</button>
+        <button type="button" class="btn btn-ghost" data-action="open-review">Open a saved review</button>
+      </div>
+    </div>
+    <figure class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 600 390" role="presentation" focusable="false">
+        <defs>
+          <linearGradient id="pipeH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7d3f1f"/><stop offset=".22" stop-color="#e7a274"/><stop offset=".45" stop-color="#c06c3d"/><stop offset="1" stop-color="#6e3519"/>
+          </linearGradient>
+          <linearGradient id="pipeV" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#7d3f1f"/><stop offset=".25" stop-color="#e7a274"/><stop offset=".5" stop-color="#c06c3d"/><stop offset="1" stop-color="#6e3519"/>
+          </linearGradient>
+          <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f0d27a"/><stop offset=".5" stop-color="#c9a648"/><stop offset="1" stop-color="#8f7426"/>
+          </linearGradient>
+          <radialGradient id="glassSheen" cx=".35" cy=".3" r=".8">
+            <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/>
+          </radialGradient>
+          <g id="coin"><circle r="7" fill="url(#brass)" stroke="#6b5517" stroke-width="1.2"/><text y="3.5" text-anchor="middle" font-size="9" font-family="Red Hat Mono, monospace" font-weight="700" fill="#5a4612">£</text></g>
+          <g id="wheel">
+            <circle r="15" fill="none" stroke="currentColor" stroke-width="4.5"/>
+            <path d="M-15 0H15M0-15V15M-10.6-10.6L10.6 10.6M10.6-10.6L-10.6 10.6" stroke="currentColor" stroke-width="2.6"/>
+            <circle r="4.5" fill="#1b1b1b" stroke="currentColor" stroke-width="2"/>
+          </g>
+        </defs>
+        <!-- wall shadow under the pipework -->
+        <g opacity=".22" fill="#000">
+          <rect x="130" y="70" width="460" height="18" rx="9"/>
+          <rect x="280" y="70" width="16" height="200" rx="8"/><rect x="370" y="70" width="16" height="170" rx="8"/><rect x="460" y="70" width="16" height="215" rx="8"/><rect x="550" y="70" width="16" height="185" rx="8"/>
+        </g>
+        <!-- the account meter box -->
+        <g transform="translate(20 22)">
+          <rect width="112" height="104" rx="12" fill="#fbf7ee" stroke="#0c2421" stroke-width="3"/>
+          <rect x="8" y="8" width="96" height="24" rx="5" fill="#13312d"/>
+          <text x="56" y="25" text-anchor="middle" font-family="Red Hat Mono, monospace" font-size="12.5" font-weight="700" fill="#f3d98a" letter-spacing="1.5">ACCOUNT</text>
+          <rect x="14" y="42" width="84" height="26" rx="4" fill="#0f1c1a" stroke="#0c2421" stroke-width="2"/>
+          <g font-family="Red Hat Mono, monospace" font-size="15" font-weight="700" fill="#f6f1e4" text-anchor="middle">
+            <text x="25" y="61">8</text><text x="41" y="61">3</text><text x="57" y="61">8</text><text x="73" y="61" fill="#e7a274">9</text><text x="89" y="61" fill="#e7a274">3</text>
+          </g>
+          <path d="M18 80h76M18 88h52" stroke="#c9bfa8" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="10" cy="96" r="2.4" fill="#8c8576"/><circle cx="102" cy="96" r="2.4" fill="#8c8576"/><circle cx="10" cy="12" r="0" fill="none"/>
+        </g>
+        <!-- main pipe -->
+        <rect x="128" y="54" width="452" height="20" rx="4" fill="url(#pipeH)"/>
+        <rect x="124" y="50" width="14" height="28" rx="3" fill="#6e3519"/>
+        <!-- brackets -->
+        <g fill="#20302d"><rect x="214" y="48" width="8" height="32" rx="2"/><rect x="330" y="48" width="8" height="32" rx="2"/><rect x="420" y="48" width="8" height="32" rx="2"/><rect x="505" y="48" width="8" height="32" rx="2"/></g>
+        <!-- elbows and drops -->
+        <g>
+          <rect x="272" y="64" width="20" height="150" rx="4" fill="url(#pipeV)"/>
+          <rect x="362" y="64" width="20" height="118" rx="4" fill="url(#pipeV)"/>
+          <rect x="452" y="64" width="20" height="164" rx="4" fill="url(#pipeV)"/>
+          <rect x="542" y="64" width="20" height="134" rx="4" fill="url(#pipeV)"/>
+          <g fill="#6e3519"><rect x="268" y="74" width="28" height="9" rx="3"/><rect x="358" y="74" width="28" height="9" rx="3"/><rect x="448" y="74" width="28" height="9" rx="3"/><rect x="538" y="74" width="28" height="9" rx="3"/></g>
+        </g>
+        <!-- taps: spouts -->
+        <g fill="url(#pipeH)">
+          <path d="M270 210h24v12h-6v14h-12v-14h-6z"/><path d="M360 178h24v12h-6v14h-12v-14h-6z"/><path d="M450 224h24v12h-6v14h-12v-14h-6z"/><path d="M540 194h24v12h-6v14h-12v-14h-6z"/>
+        </g>
+        <!-- valves (hand wheels) -->
+        <g transform="translate(282 150)" color="#2f7a4f"><use href="#wheel"/></g>
+        <g transform="translate(372 122)" color="#2f7a4f"><use href="#wheel"/></g>
+        <g transform="translate(462 166) rotate(22)" color="#c23b2a"><use href="#wheel"/></g>
+        <g transform="translate(552 140)" color="#2f7a4f"><use href="#wheel"/></g>
+        <!-- brass tags on strings -->
+        <g font-family="Red Hat Mono, monospace" font-weight="700" text-anchor="middle">
+          <path d="M282 165 l-22 30" stroke="#5a4a2a" stroke-width="1.5" fill="none"/>
+          <g transform="translate(230 196) rotate(-8)"><rect x="-6" y="-4" width="64" height="34" rx="6" fill="url(#brass)" stroke="#6b5517" stroke-width="1.5"/><circle cx="4" cy="6" r="3" fill="#13312d"/><text x="31" y="11" font-size="10" fill="#3b2e0c">RENT</text><text x="31" y="24" font-size="10" fill="#3b2e0c">£525</text></g>
+          <path d="M372 137 l-16 20" stroke="#5a4a2a" stroke-width="1.5" fill="none"/>
+          <g transform="translate(318 158) rotate(6)"><rect x="-6" y="-4" width="64" height="34" rx="6" fill="url(#brass)" stroke="#6b5517" stroke-width="1.5"/><circle cx="4" cy="6" r="3" fill="#13312d"/><text x="31" y="11" font-size="10" fill="#3b2e0c">MUSIC</text><text x="31" y="24" font-size="10" fill="#3b2e0c">£11.99</text></g>
+          <path d="M462 181 l-14 24" stroke="#5a4a2a" stroke-width="1.5" fill="none"/>
+          <g transform="translate(410 205) rotate(-5)"><rect x="-6" y="-4" width="64" height="34" rx="6" fill="#c23b2a" stroke="#7a1d12" stroke-width="1.5"/><circle cx="4" cy="6" r="3" fill="#13312d"/><text x="31" y="11" font-size="10" fill="#fff4ea">GYM</text><text x="31" y="24" font-size="10" fill="#fff4ea">SHUT</text></g>
+          <path d="M552 155 l12 22" stroke="#5a4a2a" stroke-width="1.5" fill="none"/>
+          <g transform="translate(540 180) rotate(9)"><rect x="-6" y="-4" width="58" height="34" rx="6" fill="url(#brass)" stroke="#6b5517" stroke-width="1.5"/><circle cx="4" cy="6" r="3" fill="#13312d"/><text x="28" y="11" font-size="10" fill="#3b2e0c">TV</text><text x="28" y="24" font-size="10" fill="#3b2e0c">£8.99</text></g>
+        </g>
+        <!-- drips of coins -->
+        <g class="drips">
+          <use href="#coin" class="drip d1" x="282" y="250"/>
+          <use href="#coin" class="drip d2" x="372" y="218"/>
+          <use href="#coin" class="drip d3" x="552" y="234"/>
+          <use href="#coin" class="drip d4" x="282" y="250"/>
+        </g>
+        <!-- the bucket -->
+        <g transform="translate(330 300)">
+          <path d="M0 0h150l-14 74h-122z" fill="#3f6d66" stroke="#0c2421" stroke-width="3"/>
+          <path d="M-6 0h162" stroke="#0c2421" stroke-width="6" stroke-linecap="round"/>
+          <path d="M20 8 l6 58M130 8 l-6 58" stroke="#6f9a93" stroke-width="2" opacity=".6"/>
+          <use href="#coin" x="44" y="-6"/><use href="#coin" x="62" y="-9"/><use href="#coin" x="80" y="-5"/><use href="#coin" x="98" y="-8"/><use href="#coin" x="70" y="-18"/><use href="#coin" x="88" y="-20"/>
+        </g>
+        <!-- pressure gauge on the main pipe -->
+        <g transform="translate(196 150)">
+          <rect x="-6" y="-80" width="12" height="40" fill="url(#pipeV)"/>
+          <circle r="64" fill="#13312d"/>
+          <circle r="58" fill="#fbf7ee" stroke="#c9a648" stroke-width="5"/>
+          <g id="gauge-ticks" stroke="#13312d" stroke-width="2"></g>
+          <path d="M-40 28 A49 49 0 0 1 -48 -8" stroke="#2f7a4f" stroke-width="7" fill="none" opacity=".85"/>
+          <path d="M40 28 A49 49 0 0 0 48 -8" stroke="#c23b2a" stroke-width="7" fill="none" opacity=".85"/>
+          <text y="-22" text-anchor="middle" font-family="Red Hat Mono, monospace" font-size="9" font-weight="700" fill="#3d5a55" letter-spacing="1">A MONTH</text>
+          <g id="gauge-needle" transform="rotate(20)"><path d="M0 6 L-3 0 L0 -46 L3 0z" fill="#c23b2a"/></g>
+          <circle r="6" fill="#13312d"/>
+          <rect x="-34" y="24" width="68" height="20" rx="4" fill="#13312d"/>
+          <text id="gauge-readout" y="39" text-anchor="middle" font-family="Red Hat Mono, monospace" font-size="13" font-weight="700" fill="#f3d98a">£839</text>
+          <circle r="58" fill="url(#glassSheen)"/>
+        </g>
+      </svg>
+    </figure>
+  </div>
+  <div class="meters" id="meters" aria-live="polite"></div>
+</header>
+
+<nav class="pipe-nav" aria-label="Steps of the review">
+  <div class="pipe-run" role="tablist" aria-label="Steps of the review">
+    <button type="button" role="tab" id="tab-statements" aria-controls="view-statements" data-view="statements"><span class="wheel" aria-hidden="true"></span><span class="tab-no">1</span><span class="tab-label">Statements</span><span class="tab-sub">Bring in and check</span></button>
+    <button type="button" role="tab" id="tab-regulars" aria-controls="view-regulars" data-view="regulars"><span class="wheel" aria-hidden="true"></span><span class="tab-no">2</span><span class="tab-label">Regulars</span><span class="tab-sub">Review and decide</span></button>
+    <button type="button" role="tab" id="tab-calendar" aria-controls="view-calendar" data-view="calendar"><span class="wheel" aria-hidden="true"></span><span class="tab-no">3</span><span class="tab-label">Calendar</span><span class="tab-sub">When it all leaves</span></button>
+    <button type="button" role="tab" id="tab-plan" aria-controls="view-plan" data-view="plan"><span class="wheel" aria-hidden="true"></span><span class="tab-no">4</span><span class="tab-label">Plan</span><span class="tab-sub">Act and take away</span></button>
+    <button type="button" role="tab" id="tab-how" aria-controls="view-how" data-view="how"><span class="wheel" aria-hidden="true"></span><span class="tab-no">?</span><span class="tab-label">How it works</span><span class="tab-sub">And its limits</span></button>
+  </div>
+</nav>
+
+<div class="banner" id="banner" hidden></div>
+
+<main id="main">
+  <section class="view" id="view-statements" role="tabpanel" aria-labelledby="tab-statements" tabindex="-1" hidden>
+    <div class="view-head">
+      <p class="view-kicker">Step 1 of 4</p>
+      <h2>Bring in your statements</h2>
+      <p class="view-intro">Download a CSV export from your banking app or website (most let you choose a date range: a full year finds yearly renewals too) and drop it here. Add as many accounts or months as you like; overlapping months are only counted once.</p>
+    </div>
+    <div class="intake">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-describedby="drop-help">
+        <svg class="inlet" viewBox="0 0 120 90" aria-hidden="true"><rect x="22" y="6" width="56" height="44" rx="4" fill="#fbf7ee" stroke="#13312d" stroke-width="3" transform="rotate(-8 50 28)"/><path d="M32 18h30M32 26h36M32 34h24" stroke="#b4643a" stroke-width="3" stroke-linecap="round" transform="rotate(-8 50 28)"/><path d="M14 52h92l-14 18H28z" fill="#b4643a" stroke="#13312d" stroke-width="3"/><rect x="48" y="70" width="24" height="18" fill="#c06c3d" stroke="#13312d" stroke-width="3"/></svg>
+        <p class="drop-title">Drop bank exports here</p>
+        <p class="drop-help" id="drop-help">CSV, TSV or text files from any bank app, card or spending app. You can also drop a saved review (.json) to carry on where you left off.</p>
+        <div class="drop-actions">
+          <button type="button" class="btn btn-copper" data-action="choose-files">Choose files</button>
+          <button type="button" class="btn btn-plain" data-action="download-template">Download the template</button>
+        </div>
+      </div>
+      <details class="paste plate">
+        <summary>Paste a table instead</summary>
+        <p class="hint">Copy the transactions table from your online banking (including its header row) and paste it here. Tabs, commas or semicolons all work.</p>
+        <label class="field"><span>Account name</span><input type="text" id="paste-account" value="Pasted account" autocomplete="off"></label>
+        <label class="field"><span>Pasted text</span><textarea id="paste-text" rows="6" spellcheck="false" placeholder="Date&#9;Description&#9;Amount"></textarea></label>
+        <button type="button" class="btn btn-plain" data-action="read-paste">Read the pasted table</button>
+      </details>
+    </div>
+    <div id="statements-body"></div>
+  </section>
+
+  <section class="view" id="view-regulars" role="tabpanel" aria-labelledby="tab-regulars" tabindex="-1" hidden>
+    <div class="view-head">
+      <p class="view-kicker">Step 2 of 4</p>
+      <h2>Every regular payment</h2>
+      <p class="view-intro">Each tag is one payment that comes round on a schedule. Open a valve to see why it was picked out and every payment behind it, then decide: keep it, cancel it, look at it again, or mark it as not a cost (such as money to your own savings).</p>
+    </div>
+    <div id="regulars-body"></div>
+  </section>
+
+  <section class="view" id="view-calendar" role="tabpanel" aria-labelledby="tab-calendar" tabindex="-1" hidden>
+    <div class="view-head">
+      <p class="view-kicker">Step 3 of 4</p>
+      <h2>When it all leaves</h2>
+      <p class="view-intro">Every expected payment, worked out from each one's pattern. Direct debits and standing orders due on a weekend or bank holiday move to the next working day; card payments are shown on the day they are usually taken.</p>
+    </div>
+    <div id="calendar-body"></div>
+  </section>
+
+  <section class="view" id="view-plan" role="tabpanel" aria-labelledby="tab-plan" tabindex="-1" hidden>
+    <div class="view-head">
+      <p class="view-kicker">Step 4 of 4</p>
+      <h2>Your plan, ready to take away</h2>
+      <p class="view-intro">What cancelling saves, exactly what to do and by when, a message ready to send, and files for your calendar and spreadsheet. Save the review and reopen it next month to check that cancelled payments really stopped.</p>
+    </div>
+    <div id="plan-body"></div>
+  </section>
+
+  <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" tabindex="-1" hidden>
+    <div class="view-head">
+      <p class="view-kicker">Under the floorboards</p>
+      <h2>How it works, and its limits</h2>
+    </div>
+    <div id="how-body"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Still paying? works entirely inside this page: your statements are read by your own browser and never sent anywhere. The sample statements belong to an invented student and every company in them is made up. This is a checking tool, not financial advice.</p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-input" multiple accept=".csv,.tsv,.txt,.json,text/csv,text/plain,application/json" hidden>
+<input type="file" id="review-input" accept=".json,application/json" hidden>
+<script type="application/json" id="sample-files">/*SAMPLES*/</script>
+<script>
+/*MODEL*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>

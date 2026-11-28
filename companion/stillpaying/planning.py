@@ -241,10 +241,11 @@ def since_last_review(result, saved):
                 out['stillCharging'].append({'id': s['id'], 'name': s['name'], 'decidedOn': decided, 'payments': after,
                                              'total': sum(p['amount'] for p in after), 'method': s['method']})
         k = known.get(s['id'])
-        if not truthy(k) and s['status'] == 'active' and s['first'] > base - CADENCE_BY_ID[s['cadence']]['days']:
+        if not truthy(k) and s['status'] == 'active' and s['last'] > base:
             out['newSince'].append({'id': s['id'], 'name': s['name'], 'first': s['first'], 'amount': s['typical'],
                                     'cadence': s['cadence']})
-        if isinstance(k, dict) and 'typical' in k and k['typical'] != s['typical'] and s['status'] == 'active':
+        if (isinstance(k, dict) and 'typical' in k and k['typical'] != s['typical'] and s['status'] == 'active'
+                and s['amounts']['kind'] != 'variable' and k.get('kind') != 'variable'):
             out['priceChanges'].append({'id': s['id'], 'name': s['name'], 'from': k['typical'], 'to': s['typical']})
         if isinstance(k, dict) and k.get('status') == 'active' and s['status'] == 'stopped':
             out['stoppedSince'].append({'id': s['id'], 'name': s['name'], 'last': s['last']})

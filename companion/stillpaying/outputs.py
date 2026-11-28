@@ -241,7 +241,7 @@ def project_file(state):
     tx = [[iso(t['day']), t['amount'], t['desc'], t.get('memo') or '', t.get('type') or '', t.get('category') or '',
            t['account']] for t in state['transactions']]
     result = state.get('result')
-    known = {s['id']: {'typical': s['typical'], 'status': s['status'], 'name': s['name']}
+    known = {s['id']: {'typical': s['typical'], 'status': s['status'], 'name': s['name'], 'kind': s['amounts']['kind']}
              for s in (result['series'] if result else [])}
     decisions = {}
     given = _or(state.get('decisions'), {})

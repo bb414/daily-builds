@@ -175,7 +175,7 @@ def amount_profile(payments):
     singles = len([r for r in runs if r['count'] == 1])
     if len(set(amounts)) == 1:
         kind = 'fixed'
-    elif (len(runs) <= 4 and len(runs) <= -(-len(amounts) // 2) and runs[-1]['count'] >= 1
+    elif (len(runs) <= 4 and (len(runs) <= -(-len(amounts) // 2) or len(runs) == 2) and runs[-1]['count'] >= 1
           and singles <= 1 + (1 if runs[0]['count'] == 1 else 0)):
         kind = 'stepped'
     else:
