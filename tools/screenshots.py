@@ -14,7 +14,7 @@ DOCS = os.path.join(ROOT, "docs")
 # (file name, view, viewport width, viewport height, scroll to this selector first, open details)
 SHOTS = [
     ("01-first-screen.png", "regulars", 1280, 900, None, False),
-    ("02-regular-payments.png", "regulars", 1280, 1100, "#regulars-body .manifold", True),
+    ("02-regular-payments.png", "regulars", 1280, 1100, ".reg[data-id^='HILLTOP']", True),
     ("03-statements.png", "statements", 1280, 1100, "#statements-body .files", False),
     ("04-calendar.png", "calendar", 1280, 1100, "#calendar-body .payday", False),
     ("05-plan.png", "plan", 1280, 1100, "#plan-body .recheck", False),

@@ -106,7 +106,9 @@ node --test tests/*.test.js                 # the browser app's model
 python -m unittest discover -s tests -v     # the companion, agreement with the app, and the app in a headless browser
 ```
 
-The browser tests need Playwright for Python and Chromium (`pip install playwright` then `playwright install chromium`); without them they are skipped. The agreement tests need Node.js and are skipped without it.
+The browser tests need Playwright for Python and Chromium (`pip install playwright` then `playwright install chromium`); without them they are skipped. The agreement tests need Node.js and are skipped without it. Two workbook checks also use openpyxl and LibreOffice when they are installed, and are skipped otherwise.
+
+To change the app, edit the files in `src/` and run `python tools/build_app.py`, which writes `app/index.html` (`--check` says whether it is up to date). `python tools/make_samples.py` remakes the sample statements and `python tools/screenshots.py` the screenshots.
 
 ## Screenshots
 
@@ -126,20 +128,24 @@ The browser tests need Playwright for Python and Chromium (`pip install playwrig
 
 | Part | Language | Lines (roughly) | What it does |
 |---|---|---|---|
-| `src/model.js` | JavaScript | 1,830 | Reading exports, finding regular payments, checks, forecasting, the plan, and every file the app hands back. Runs in the browser and in Node.js for the tests. |
-| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 1,700 | The four views, uploads, decisions, downloads and the utility-cupboard design. |
+| `src/model.js` | JavaScript | 2,370 | Reading CSV, OFX and QIF exports, finding regular payments, checks, forecasting, the balance runway, the plan, and every file the app hands back, including the workbook. Runs in the browser and in Node.js for the tests. |
+| `src/ui.js`, `src/style.css`, `src/shell.html` | JavaScript, CSS, HTML | 1,900 | The four steps and the "How it works" page, uploads, decisions, corrections, downloads and the utility-cupboard design. |
 | `app/index.html` | (built) | | The single self-contained app, assembled by `tools/build_app.py` with the fonts and sample statements inside it. |
-| `companion/` | Python | 3,500 | The same model, line for line, plus the jobs a browser is not good at: a whole folder of exports at once, a monthly run that compares with your last review and keeps a price history, an HTML report and a budget spreadsheet from the command line. |
-| `tests/` | JavaScript, Python | 1,400 | Model tests, companion tests, tests that prove the two versions agree to the penny and the day, and browser tests of the app. |
-| `tools/` | Python | 520 | Builds the app, makes the sample statements (seeded, so they are the same every time) and takes the screenshots. |
+| `companion/` | Python | 4,800 | The same model, line for line, plus the jobs a browser is not good at: a whole folder of exports at once, a monthly run that compares with your last review and keeps a price history and a dated workbook, the balance runway as a day-by-day CSV, an HTML report and a budget spreadsheet from the command line. |
+| `tests/` | JavaScript, Python | 1,650 | Model tests, companion tests, tests that prove the two versions agree to the penny, the day and the byte (every exported file, the workbook included), and browser tests of the app. |
+| `tools/` | Python | 570 | Builds the app, makes the sample statements (seeded, so they are the same every time) and takes the screenshots. |
 
 ## How it works
 
 1. **Reading.** The model finds the header row (anywhere in the first 40 lines), maps each column to a role by the names banks use, and reads every row into a date (a day number) and an amount (whole pence, so nothing is lost to rounding). Two files that are the same account are recognised when at least 80% of one file's payments in the days both cover also appear in the other; payments in the overlap are then only counted once. Money out of one account and into another within three days is matched as a transfer.
 2. **Grouping.** Each description is cleaned of what changes every month (dates, card numbers, references, prefixes such as "CARD PAYMENT TO", and payment processors before a star) to give a payee key. Keys that begin with another key's words are grouped (so "TUNEWAVE" and "TUNEWAVE MUSIC" are one payee).
-3. **Finding the schedule.** Each payee's payments are tested against weekly, fortnightly, four-weekly, monthly, two-monthly, quarterly, six-monthly and yearly schedules. Monthly ones keep a day of the month (allowing for weekends, bank holidays and short months) or a rule such as "last Friday" or "last working day". One missed payment in four is allowed, and an extra payment close to another is reported as a possible double charge. If a payee's payments do not fit as a whole, they are split by amount, and runs at different amounts that follow on from each other are joined (a price change or an intro offer ending).
+3. **Finding the schedule.** Each payee's payments are tested against weekly, fortnightly, four-weekly, monthly, two-monthly, quarterly, six-monthly and yearly schedules. Monthly ones keep a day of the month (allowing for weekends, bank holidays and short months) or a rule such as "last Friday", "last working day" or "the 25th, or the working day before" (the way many employers pay). Cash machine withdrawals are never treated as regular payments. One missed payment in four is allowed, and an extra payment close to another is reported as a possible double charge. If a payee's payments do not fit as a whole, they are split by amount, and runs at different amounts that follow on from each other are joined (a price change or an intro offer ending).
 4. **Checks and confidence.** Each series gets plain-English reasons, a confidence score built from how many payments there are, how regular they are, how stable the amount is and whether it is a direct debit or standing order, and checks for price rises, intro prices ending, double charges, new and stopped payments and overlapping services.
 5. **Forecasting and the plan.** Each series is projected from its last due date, rolled to the next working day for direct debits and standing orders. Variable bills use the same month last year when there is a year of history. The plan adds up what cancelling saves, sets a cancel-by date a few days before the next payment and lists the steps for each way of paying.
+6. **The balance runway.** One account's balance (from the export's balance column, an OFX ledger balance, or typed in) is walked forward a day at a time: regular payments out, regular income in, any one-off money you add, and everyday spending each day, measured as the average over the last 91 days of everything that is not a regular payment or a transfer, with refunds taken off again.
+7. **Corrections and the workbook.** Renames, schedule and category changes, merged payees and payments added by hand are all kept in the review file. The workbook is written by the model itself (a small zip writer and the spreadsheet XML), so it needs no library and comes out byte for byte the same from the app and the companion.
+
+Account names come from an account-number column when the export has one ("Account ending 3920"), otherwise from the file name without its dates, months and numbers, so next month's download lands in the same account.
 
 The same logic lives in `src/model.js` and `companion/stillpaying/`; the agreement tests run both on the same files and compare everything, including the bytes of every exported file.
 

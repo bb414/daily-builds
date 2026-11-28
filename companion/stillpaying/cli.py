@@ -125,6 +125,7 @@ def write_output(text, path=None):
     """Write to a file, or to standard output when no file is given."""
     if path:
         write_text(path, text)
+        print('Wrote ' + path)
     else:
         sys.stdout.flush()
         sys.stdout.buffer.write(text.encode('utf-8'))
@@ -200,8 +201,9 @@ def scan_text(analysis, decisions, notes):
         len(merged['accounts']), '' if len(merged['accounts']) == 1 else 's'))
     lines.append('')
     lines += wrap('Committed spending: %s a month, %s a year (not counting savings or money moved between your own '
-                  'accounts). %d regular payments are active and %d have checks to look at.'
-                  % (money(h['monthly']), money(h['annual']), h['regulars'], h['checks']))
+                  'accounts). %d regular payment%s %s active and %d %s checks to look at.'
+                  % (money(h['monthly']), money(h['annual']), h['regulars'], '' if h['regulars'] == 1 else 's',
+                     'is' if h['regulars'] == 1 else 'are', h['checks'], 'has' if h['checks'] == 1 else 'have'))
     payday = h['payday']
     if payday:
         lines += wrap('Next payday: %s (%s, about %s).' % (long_date(payday['next']), payday['name'],

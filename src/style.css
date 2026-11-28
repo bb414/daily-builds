@@ -99,6 +99,7 @@ h1, h2, h3, h4 { font-family: var(--display); line-height: 1.05; margin: 0; lett
 .meter { position: relative; background: #0f1c1a; border: 3px solid #050d0c; border-radius: 12px; padding: 12px 14px 12px; box-shadow: inset 0 0 0 2px #23403b, 0 6px 0 rgba(0,0,0,.25); min-width: 0; }
 .meter-label { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #9fb8b1; margin: 0 0 6px; }
 .meter-value { font-family: var(--mono); font-weight: 700; font-size: clamp(22px, 2.6vw, 32px); line-height: 1.1; color: #f6f1e4; display: flex; flex-wrap: wrap; gap: 2px; align-items: baseline; }
+.meter-value .num { display: inline-flex; gap: 2px; align-items: baseline; white-space: nowrap; }
 .meter-value .digit { background: linear-gradient(#1c2a28, #0b1413 50%, #1c2a28); border-radius: 4px; padding: 0 3px; box-shadow: inset 0 0 0 1px #2c4440; }
 .meter-value .pence { color: var(--copper-hi); }
 .meter-value .unit { font-size: 14px; font-weight: 500; color: #9fb8b1; margin-left: 6px; }
@@ -394,7 +395,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
 .rw-bar.neg { background: var(--amber); }
 .rw-bar.over { background: var(--red); }
 .rw-limit { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--red); z-index: 1; }
-.rw-limit span { position: absolute; right: 4px; top: 2px; font-family: var(--mono); font-size: 11px; color: var(--red); background: rgba(251,247,238,.85); padding: 0 4px; border-radius: 3px; }
+.rw-limit span { position: absolute; right: 4px; top: -18px; font-family: var(--mono); font-size: 11px; color: var(--red); background: rgba(251,247,238,.85); padding: 0 4px; border-radius: 3px; }
 .rw-x { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; margin-top: 4px; }
 .rw-x > div { position: relative; height: 16px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
 .rw-x > div span { position: absolute; white-space: nowrap; }
@@ -457,8 +458,9 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   body { font-size: 15.5px; background-size: 48px 48px, 48px 48px, 48px 48px; }
   .hero-inner, .meters, main, .banner, .pipe-run { padding-left: 16px; padding-right: 16px; }
   .hero h1 { font-size: 64px; }
-  .enamel-sign { font-size: 10.5px; }
-  .enamel-sign span { padding: 6px 8px; }
+  .enamel-sign { font-size: 10.5px; display: grid; }
+  .enamel-sign span { padding: 5px 10px; border-right: 0; border-bottom: 2px dashed #c9bfa8; }
+  .enamel-sign span:last-child { border-bottom: 0; }
   .meters { gap: 10px; padding-bottom: 20px; }
   .meter { padding: 10px; }
   .meter-value { font-size: 21px; }

@@ -78,6 +78,11 @@ def nominal_in_month(y, m, anchor):
     of the month, moved back a working day if that is a bank holiday.
     """
     if isinstance(anchor, str):
+        if anchor[0] == 'B':
+            b = day_from_ymd(y, m, min(int(anchor[1:]), days_in_month(y, m)))
+            while not is_working_day(b):
+                b -= 1
+            return b
         d = day_from_ymd(y, m, days_in_month(y, m))
         if anchor == 'LW':
             while not is_working_day(d):

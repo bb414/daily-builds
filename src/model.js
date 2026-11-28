@@ -42,6 +42,11 @@
    */
   function nominalInMonth(y, m, anchor) {
     if (typeof anchor === 'string') {
+      if (anchor.charAt(0) === 'B') {
+        var b = dayFromYMD(y, m, Math.min(+anchor.slice(1), daysInMonth(y, m)));
+        while (!isWorkingDay(b)) b--;
+        return b;
+      }
       var d = dayFromYMD(y, m, daysInMonth(y, m));
       if (anchor === 'LW') { while (!isWorkingDay(d)) d--; return d; }
       var wd = +anchor.slice(1);
@@ -301,10 +306,11 @@
     type: ['type', 'transaction type', 'payment type', 'method', 'tran type', 'payment method', 'transaction code'],
     category: ['category', 'spending category', 'subcategory', 'spending type', 'categories'],
     balance: ['balance', 'running balance', 'balance gbp', 'account balance'],
+    acct: ['account number', 'account no', 'account', 'acct no', 'account id', 'sort code and account number', 'iban'],
     currency: ['currency', 'ccy', 'local currency'],
     status: ['state', 'status', 'transaction status']
   };
-  var ROLE_LABELS = { date: 'Date', payee: 'Description or payee', memo: 'Reference or notes', amount: 'Amount (signed)', out: 'Money out', in: 'Money in', sign: 'Debit or credit marker', type: 'Payment type', category: 'Category', balance: 'Balance', currency: 'Currency', status: 'Status' };
+  var ROLE_LABELS = { date: 'Date', payee: 'Description or payee', memo: 'Reference or notes', amount: 'Amount (signed)', out: 'Money out', in: 'Money in', sign: 'Debit or credit marker', type: 'Payment type', category: 'Category', balance: 'Balance', currency: 'Currency', status: 'Status', acct: 'Account number' };
   function headerKey(h) {
     return String(h || '').toLowerCase().replace(/\u00a3/g, ' gbp ').replace(/#/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
   }
@@ -526,6 +532,16 @@
     if (nonGbp.length) result.warnings.push('Some rows are in ' + nonGbp.join(', ') + '. Amounts are used as they are, so totals mix currencies.');
     if (dateInfo.ambiguous && !options.dateOrder) result.warnings.push('Every date in this file could be read either way, so they were read the UK way (day first). Switch to month first if your bank is not in the UK.');
     if (dateInfo.conflicting) result.warnings.push('Some dates only make sense day first and others only month first. They were read day first; check the rows listed below.');
+    if (map.acct !== undefined && !options.account) {
+      // One account number for the whole file names the account, the same way every month.
+      var ids = {};
+      body.forEach(function (r) { var v = String(r[map.acct] === undefined ? '' : r[map.acct]).trim(); if (v) ids[v] = 1; });
+      var idList = Object.keys(ids);
+      if (idList.length === 1) {
+        var digits = idList[0].replace(/\D/g, '');
+        result.account = digits.length >= 4 ? 'Account ending ' + digits.slice(-4) : idList[0].slice(0, 40);
+      }
+    }
     var account = result.account;
     result.transactions = raw.map(function (t) {
       return { day: t.day, amount: t.amount, desc: t.desc, memo: t.memo, type: t.type, category: t.category, account: account, source: result.name, line: t.line };
@@ -555,9 +571,16 @@
     result.transactions.forEach(function (t) { if (t.day < s) s = t.day; if (t.day > e) e = t.day; });
     result.start = s; result.end = e;
   }
+  /**
+   * An account name from a file name, without the parts that change from one
+   * download to the next (dates, months, numbers, "export (3)"), so next
+   * month's file lands in the same account.
+   */
   function defaultAccount(name) {
     var n = String(name || 'Account').replace(/\.[a-z0-9]+$/i, '').replace(/[_]+/g, ' ').trim();
-    n = n.replace(/\b(19|20)\d{2}[-_ ]?\d{2}([-_ ]?\d{2})?\b/g, '').replace(/\b(statement|export|transactions|download|csv)\b/gi, '').replace(/[-\s]+/g, ' ').trim();
+    n = n.replace(/\b(19|20)\d{2}[-_ ]?\d{2}([-_ ]?\d{2})?\b/g, '').replace(/\(\d+\)/g, '').replace(/\b\d+\b/g, '')
+      .replace(/\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/gi, '')
+      .replace(/\b(statements?|exported|export|transactions?|downloaded|download|csv|ofx|qif|data|history|from|to)\b/gi, '').replace(/[-\s]+/g, ' ').trim();
     if (!n) return 'Account';
     return n.charAt(0).toUpperCase() + n.slice(1);
   }
@@ -873,7 +896,7 @@
     { id: 'tv', label: 'TV and video', essential: false, words: ['TV', 'STREAM', 'STREAMING', 'VIDEO', 'FILMS', 'CINEMA', 'NETFLIX', 'DISNEY', 'DISNEY PLUS', 'PRIME VIDEO', 'NOW TV', 'NOWTV', 'PARAMOUNT', 'BRITBOX', 'DAZN', 'YOUTUBE', 'CRUNCHYROLL', 'APPLE TV', 'TV LICENCE', 'MUBI'] },
     { id: 'music', label: 'Music and audio', essential: false, words: ['MUSIC', 'SPOTIFY', 'TIDAL', 'DEEZER', 'AUDIBLE', 'SOUNDCLOUD', 'PODCAST', 'AUDIOBOOKS', 'RADIO'] },
     { id: 'software', label: 'Apps, software and cloud', essential: false, words: ['CLOUD', 'STORAGE', 'ICLOUD', 'DROPBOX', 'ADOBE', 'MICROSOFT', 'MICROSOFT 365', 'OFFICE', 'CANVA', 'NOTION', 'OPENAI', 'CHATGPT', 'GITHUB', 'GOOGLE ONE', 'GOOGLE STORAGE', 'SOFTWARE', 'HOSTING', 'DOMAIN', 'DOMAINS', 'VPN', 'PASSWORD', 'ANTIVIRUS', 'APPS', 'APP STORE', 'GRAMMARLY', 'ZOOM', 'SLACK', 'FIGMA'] },
-    { id: 'news', label: 'News and magazines', essential: false, words: ['NEWS', 'NEWSPAPER', 'MAGAZINE', 'MAGAZINES', 'GAZETTE', 'JOURNAL', 'TIMES', 'HERALD', 'ECONOMIST', 'PRESS', 'LANTERN', 'SUBSTACK', 'PATREON'] },
+    { id: 'news', label: 'News and magazines', essential: false, words: ['NEWS', 'NEWSPAPER', 'MAGAZINE', 'MAGAZINES', 'GAZETTE', 'JOURNAL', 'TIMES', 'HERALD', 'ECONOMIST', 'PRESS', 'SUBSTACK', 'PATREON'] },
     { id: 'gym', label: 'Gym and fitness', essential: false, words: ['GYM', 'FITNESS', 'LEISURE', 'SPORTS CENTRE', 'CLIMBING', 'BOULDERING', 'YOGA', 'PILATES', 'SWIM', 'SWIMMING', 'STRAVA', 'PELOTON', 'CROSSFIT', 'ATHLETIC'] },
     { id: 'food', label: 'Food boxes and delivery passes', essential: false, words: ['MEAL', 'MEALS', 'MEAL KIT', 'VEG BOX', 'VEGBOX', 'FOOD BOX', 'HELLOFRESH', 'GOUSTO', 'MINDFUL CHEF', 'MILK', 'MILKMAN', 'DELIVERY PASS', 'DELIVEROO PLUS', 'UBER ONE', 'COFFEE SUBSCRIPTION'] },
     { id: 'learning', label: 'Learning and languages', essential: false, words: ['LANGUAGE', 'LANGUAGES', 'LINGO', 'DUOLINGO', 'BABBEL', 'COURSE', 'COURSES', 'TUTOR', 'TUITION', 'MASTERCLASS', 'COURSERA', 'LEARNING', 'LEARN', 'SCHOOL', 'ACADEMY'] },
@@ -882,7 +905,7 @@
     { id: 'transport', label: 'Transport and travel passes', essential: false, words: ['RAILCARD', 'TRAINLINE', 'BUS PASS', 'TRAVELCARD', 'SEASON TICKET', 'PARKING', 'BIKE', 'CYCLE', 'SCOOTER', 'CAR CLUB', 'ZIPCAR', 'TRANSPORT', 'RAIL'] },
     { id: 'household', label: 'Household services', essential: false, words: ['CLEAN', 'CLEANING', 'CLEANER', 'WINDOW', 'GARDEN', 'GARDENING', 'LAUNDRY', 'PEST', 'BINS'] },
     { id: 'personal', label: 'Personal care', essential: false, words: ['BARBER', 'BARBERS', 'HAIR', 'SALON', 'NAILS', 'BEAUTY', 'DENTAL', 'DENTIST', 'OPTICIAN', 'CONTACT LENSES', 'PHARMACY'] },
-    { id: 'memberships', label: 'Memberships and clubs', essential: false, words: ['MEMBERSHIP', 'MEMBERS', 'CLUB', 'SOCIETY', 'PRIME', 'PREMIUM', 'SUBSCRIPTION', 'SUBS', 'PLUS'] },
+    { id: 'memberships', label: 'Memberships and clubs', essential: false, words: ['MEMBERSHIP', 'MEMBERS', 'CLUB', 'SOCIETY', 'PRIME', 'PREMIUM', 'SUBSCRIPTION', 'SUBS'] },
     { id: 'income', label: 'Income', essential: false, cost: false, words: [] },
     { id: 'other', label: 'Other regular payments', essential: false, words: [] }
   ];
@@ -966,6 +989,11 @@
       days.forEach(function (d) { doms[ymd(d).d] = 1; });
       if (Object.keys(doms).length > 1) return r;
     }
+    // A set day, or the working day before when that day is a weekend or bank holiday (common for pay).
+    var counts = {}, mode = 0, modeN = 0;
+    days.forEach(function (d) { var dd = ymd(d).d; counts[dd] = (counts[dd] || 0) + 1; });
+    Object.keys(counts).forEach(function (k) { if (counts[k] > modeN || (counts[k] === modeN && +k > mode)) { mode = +k; modeN = counts[k]; } });
+    if (Object.keys(counts).length > 1 && days.every(function (d) { var p = ymd(d); return nominalInMonth(p.y, p.m, 'B' + mode) === d; })) return 'B' + mode;
     return null;
   }
   /** Next nominal due date after a given payment for a cadence. */
@@ -1158,7 +1186,6 @@
     return n;
   }
 
-  function cadenceOf(id) { return CADENCE_BY_ID[id]; }
 
   /** Expected payment dates from a series, rolled to working days for direct debits and standing orders. */
   function scheduleFrom(series, fromNominal, count, untilDay) {
@@ -1236,7 +1263,7 @@
     var transfers = matchTransfers(transactions);
     var series = [], candidates = [], income = [];
     ['out', 'in'].forEach(function (direction) {
-      var list = transactions.filter(function (t) { return direction === 'out' ? t.amount < 0 : t.amount > 0; });
+      var list = transactions.filter(function (t) { return (direction === 'out' ? t.amount < 0 : t.amount > 0) && !isCash(t); });
       var keyOf = {};
       list.forEach(function (t) { var k = payeeKey(t.desc); keyOf[k] = 1; });
       var parents = groupKeys(Object.keys(keyOf));
@@ -1262,7 +1289,7 @@
           s.id = id;
           var minN = minimumCount(CADENCE_BY_ID[s.cadence], s.method, s.keyword);
           if (s.payments.length < minN) {
-            if (direction === 'in') return;
+            if (direction === 'in' || s.fit.mae > 2 || s.category === 'personal') return;
             candidates.push(candidateFrom(s, 'Only ' + s.payments.length + ' payments so far, ' + CADENCE_BY_ID[s.cadence].label.toLowerCase() + ' apart.'));
             return;
           }
@@ -1318,6 +1345,10 @@
     };
   }
   function statusRank(s) { return s.status === 'stopped' ? 1 : 0; }
+  /** Cash taken out is everyday spending, never a regular payment to someone. */
+  function isCash(t) {
+    return /\b(ATM|CASH|CASH MACHINE|CASHPOINT|CPT)\b/i.test(t.type || '') || /\b(ATM|CASH WITHDRAWAL|CASH MACHINE|CASHPOINT)\b|^\s*CPT\b/i.test(t.desc || '');
+  }
 
   /**
    * Spending outside the regular payments and transfers: the average a day
@@ -1336,15 +1367,26 @@
     Object.keys(coverage).sort().forEach(function (acc) {
       var c = coverage[acc];
       var from = Math.max(c.start, c.end - 90), days = c.end - from + 1;
-      var total = 0, count = 0;
+      var total = 0, count = 0, refunds = 0, payees = {};
+      var refundKey = function (desc) { return payeeKey(String(desc).replace(/^\s*(REFUND|REVERSAL)(\s+(FROM|OF))?\s+/i, '')); };
       transactions.forEach(function (t) {
         if (t.account !== acc || t.amount >= 0 || t.day < from || t.day > c.end) return;
         var k = t.account + '|' + t.day + '|' + t.amount + '|' + t.desc;
         if (regular[k]) { regular[k]--; return; }
         if (transfers[transferId(t)]) return;
         total += -t.amount; count++;
+        payees[refundKey(t.desc)] = 1;
       });
-      out[acc] = { perDay: roundHalfUp(total / days), days: days, count: count, total: total };
+      // Money back from a shop you spent with (a refund) is taken off again.
+      transactions.forEach(function (t) {
+        if (t.account !== acc || t.amount <= 0 || t.day < from || t.day > c.end) return;
+        var k = t.account + '|' + t.day + '|' + t.amount + '|' + t.desc;
+        if (regular[k]) { regular[k]--; return; }
+        if (transfers[transferId(t)]) return;
+        if (payees[refundKey(t.desc)]) refunds += t.amount;
+      });
+      total = Math.max(0, total - refunds);
+      out[acc] = { perDay: roundHalfUp(total / days), days: days, count: count, total: total, refunds: refunds };
     });
     return out;
   }
@@ -1483,6 +1525,7 @@
 
   function anchorText(anchor) {
     if (anchor === 'LW') return 'last working day of the month';
+    if (typeof anchor === 'string' && anchor.charAt(0) === 'B') return ordinal(+anchor.slice(1)) + ' (or the working day before)';
     if (typeof anchor === 'string') return 'last ' + DAY_NAMES[+anchor.slice(1)] + ' of the month';
     return ordinal(anchor) + (anchor === 31 ? ' (the last day)' : '');
   }
@@ -1659,6 +1702,7 @@
 
   function noticeDaysFor(s) { return s.method === 'direct debit' || s.method === 'standing order' ? 3 : 2; }
 
+  function possessive(name) { return /s$/i.test(name) ? name + "'" : name + "'s"; }
   /** How to stop a payment, by how it is paid. */
   function howToStop(s) {
     switch (s.method) {
@@ -1667,7 +1711,7 @@
       case 'standing order':
         return ['You set up standing orders, so only you can stop them: cancel it in your banking app or online banking.', 'Do it at least a working day before it is due.', 'Tell the person or company you pay, so they are not surprised.'];
       case 'card':
-        return ['Cancel in your account settings on ' + s.name + "'s website or app (or the app store you subscribed through).", 'Keep the confirmation email or a screenshot.', 'If it charges you again after you cancelled, ask your card provider to stop the recurring payment and dispute the charge.'];
+        return ['Cancel in your account settings on ' + possessive(s.name) + ' website or app (or the app store you subscribed through).', 'Keep the confirmation email or a screenshot.', 'If it charges you again after you cancelled, ask your card provider to stop the recurring payment and dispute the charge.'];
       case 'transfer':
         return ['This is a payment you send yourself. Stop sending it, or cancel any scheduled transfer in your banking app.'];
       default:
@@ -1763,6 +1807,8 @@
       if (firstBelow === null && bal < -overdraft) firstBelow = d;
     }
     var nextIn = null;
+    // Measure to the next regular income; a one-off only counts if nothing regular is coming.
+    items.forEach(function (it) { if (!nextIn && it.direction === 'in' && it.id !== 'extra') nextIn = { day: it.day, amount: it.amount, name: it.name }; });
     items.forEach(function (it) { if (!nextIn && it.direction === 'in') nextIn = { day: it.day, amount: it.amount, name: it.name }; });
     var until = nextIn ? nextIn.day : start + horizon;
     var outBefore = 0, countBefore = 0;
@@ -1817,7 +1863,7 @@
   }
   function toCsv(rows) { return '\ufeff' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n'; }
 
-  var DECISION_LABELS = { keep: 'Keep', cancel: 'Cancel', review: 'Review', ignore: 'Not a cost' };
+  var DECISION_LABELS = { keep: 'Keep', cancel: 'Cancel', review: 'Look again', ignore: 'Not a cost' };
 
   /** The register of regular payments as CSV. */
   function registerCsv(result, decisions) {

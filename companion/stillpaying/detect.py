@@ -66,6 +66,16 @@ def rule_anchor(days):
         # Only worth a rule if a plain day of the month would not do.
         if len({ymd(d)[2] for d in days}) > 1:
             return rule
+    # A set day, or the working day before when that day is a weekend or bank holiday (common for pay).
+    counts = {}
+    for d in days:
+        counts[ymd(d)[2]] = counts.get(ymd(d)[2], 0) + 1
+    mode, mode_n = 0, 0
+    for k in counts:
+        if counts[k] > mode_n or (counts[k] == mode_n and k > mode):
+            mode, mode_n = k, counts[k]
+    if len(counts) > 1 and all(nominal_in_month(ymd(d)[0], ymd(d)[1], 'B' + str(mode)) == d for d in days):
+        return 'B' + str(mode)
     return None
 
 
@@ -375,7 +385,7 @@ def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=Non
     transfers = match_transfers(transactions)
     series, candidates, income = [], [], []
     for direction in ('out', 'in'):
-        chosen = [t for t in transactions if (t['amount'] < 0 if direction == 'out' else t['amount'] > 0)]
+        chosen = [t for t in transactions if (t['amount'] < 0 if direction == 'out' else t['amount'] > 0) and not is_cash(t)]
         keys = {}
         for t in chosen:
             keys[payee_key(t['desc'])] = 1
@@ -406,7 +416,7 @@ def find_regulars(transactions, as_of=None, aliases=None, names=None, manual=Non
                 s['id'] = sid
                 min_n = minimum_count(CADENCE_BY_ID[s['cadence']], s['method'], s['keyword'])
                 if len(s['payments']) < min_n:
-                    if direction == 'in':
+                    if direction == 'in' or s['fit']['mae'] > 2 or s['category'] == 'personal':
                         continue
                     candidates.append(candidate_from(s, 'Only ' + str(len(s['payments'])) + ' payments so far, '
                                                      + CADENCE_BY_ID[s['cadence']]['label'].lower() + ' apart.'))
@@ -493,7 +503,8 @@ def everyday_spending(transactions, all_series, transfers, coverage):
         c = coverage[acc]
         start = max(c['start'], c['end'] - 90)
         days = c['end'] - start + 1
-        total = count = 0
+        total = count = refunds = 0
+        payees = {}
         for t in transactions:
             if t['account'] != acc or t['amount'] >= 0 or t['day'] < start or t['day'] > c['end']:
                 continue
@@ -505,8 +516,37 @@ def everyday_spending(transactions, all_series, transfers, coverage):
                 continue
             total += -t['amount']
             count += 1
-        out[acc] = {'perDay': round_half_up(total / days), 'days': days, 'count': count, 'total': total}
+            payees[_refund_key(t['desc'])] = 1
+        # Money back from a shop you spent with (a refund) is taken off again.
+        for t in transactions:
+            if t['account'] != acc or t['amount'] <= 0 or t['day'] < start or t['day'] > c['end']:
+                continue
+            k = t['account'] + '|' + str(t['day']) + '|' + str(t['amount']) + '|' + t['desc']
+            if regular.get(k):
+                regular[k] -= 1
+                continue
+            if transfers.get(transfer_id(t)):
+                continue
+            if payees.get(_refund_key(t['desc'])):
+                refunds += t['amount']
+        total = max(0, total - refunds)
+        out[acc] = {'perDay': round_half_up(total / days), 'days': days, 'count': count, 'total': total,
+                    'refunds': refunds}
     return out
+
+
+_CASH_TYPE = js_regex(r'\b(ATM|CASH|CASH MACHINE|CASHPOINT|CPT)\b', 'i')
+_CASH_DESC = js_regex(r'\b(ATM|CASH WITHDRAWAL|CASH MACHINE|CASHPOINT)\b|^\s*CPT\b', 'i')
+_REFUND_PREFIX = js_regex(r'^\s*(REFUND|REVERSAL)(\s+(FROM|OF))?\s+', 'i')
+
+
+def is_cash(t):
+    """Cash taken out is everyday spending, never a regular payment to someone."""
+    return bool(_CASH_TYPE.search(t.get('type') or '') or _CASH_DESC.search(t.get('desc') or ''))
+
+
+def _refund_key(desc):
+    return payee_key(_REFUND_PREFIX.sub('', js_string(desc), count=1))
 
 
 def transfer_id(t):
@@ -673,17 +713,11 @@ def anchor_text(anchor):
     """The due day of a monthly anchor in words: '14th', 'last Friday of the month'."""
     if anchor == 'LW':
         return 'last working day of the month'
+    if isinstance(anchor, str) and anchor[0] == 'B':
+        return ordinal(int(anchor[1:])) + ' (or the working day before)'
     if isinstance(anchor, str):
         return 'last ' + DAY_NAMES[int(anchor[1:])] + ' of the month'
     return ordinal(anchor) + (' (the last day)' if anchor == 31 else '')
-
-
-def when_text(s):
-    """When a series is due, in words: 'on the 14th', 'on Thursdays', 'on the last Friday of the month'."""
-    cad = CADENCE_BY_ID[s['cadence']]
-    if cad['months']:
-        return ('on the ' if cad['months'] == 1 else 'around the ') + anchor_text(s['anchor'])
-    return 'on ' + DAY_NAMES[weekday(s['last'])] + 's'
 
 
 def _plural(n, word):

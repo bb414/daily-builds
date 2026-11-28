@@ -297,14 +297,10 @@ ROLE_NAMES = {
     'type': ['type', 'transaction type', 'payment type', 'method', 'tran type', 'payment method', 'transaction code'],
     'category': ['category', 'spending category', 'subcategory', 'spending type', 'categories'],
     'balance': ['balance', 'running balance', 'balance gbp', 'account balance'],
+    'acct': ['account number', 'account no', 'account', 'acct no', 'account id', 'sort code and account number', 'iban'],
     'currency': ['currency', 'ccy', 'local currency'],
     'status': ['state', 'status', 'transaction status'],
 }
-ROLE_LABELS = {'date': 'Date', 'payee': 'Description or payee', 'memo': 'Reference or notes',
-               'amount': 'Amount (signed)', 'out': 'Money out', 'in': 'Money in', 'sign': 'Debit or credit marker',
-               'type': 'Payment type', 'category': 'Category', 'balance': 'Balance', 'currency': 'Currency',
-               'status': 'Status'}
-
 _NOT_KEY_CHARS = js_regex(r'[^a-z0-9]+')
 _ROLE_PATTERNS = [
     (js_regex(r'\bdate\b'), js_regex(r'update'), 'date'),
@@ -446,6 +442,7 @@ _SIGN_IN = js_regex(r'^(c|cr|credit|in|money in|paid in|deposit)')
 
 WARN_UNKNOWN_HEADER = ('The column names were not ones this tool knows, so the columns were worked out from what '
                        'they contain. Check them with Change columns.')
+_NOT_DIGITS = js_regex(r'\D')
 _CARD_NAME = js_regex(r'card|credit|amex|visa|mastercard', 'i')
 _REPAYMENT = js_regex(r'PAYMENT|THANK YOU|REPAYMENT|RECEIVED|DIRECT DEBIT', 'i')
 WARN_MOSTLY_IN = ('Most amounts in this file are positive, so they were read as money coming in. If this is a credit '
@@ -654,6 +651,17 @@ def parse_csv(text, name=None, options=None):
         result['warnings'].append(WARN_AMBIGUOUS)
     if date_info.get('conflicting'):
         result['warnings'].append(WARN_CONFLICTING)
+    if 'acct' in mapping and not options.get('account'):
+        # One account number for the whole file names the account, the same way every month.
+        ids = {}
+        for r in body:
+            v = js_trim(js_string(_cell(r, mapping['acct']) or ''))
+            if v:
+                ids[v] = 1
+        if len(ids) == 1:
+            only = next(iter(ids))
+            digits = _NOT_DIGITS.sub('', only)
+            result['account'] = 'Account ending ' + digits[-4:] if len(digits) >= 4 else only[:40]
     account = result['account']
     result['transactions'] = [{'day': t['day'], 'amount': t['amount'], 'desc': t['desc'], 'memo': t['memo'],
                                'type': t['type'], 'category': t['category'], 'account': account,
@@ -710,14 +718,24 @@ def finish_range(result):
 _EXTENSION = js_regex(r'\.[a-z0-9]+$', 'i')
 _UNDERSCORES = js_regex(r'[_]+')
 _DATE_IN_NAME = js_regex(r'\b(19|20)\d{2}[-_ ]?\d{2}([-_ ]?\d{2})?\b')
-_EXPORT_WORDS = js_regex(r'\b(statement|export|transactions|download|csv)\b', 'i')
+_COPY_NUMBER = js_regex(r'\(\d+\)')
+_NUMBERS = js_regex(r'\b\d+\b')
+_MONTH_WORDS = js_regex(r'\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?'
+                        r'|nov(ember)?|dec(ember)?)\b', 'i')
+_EXPORT_WORDS = js_regex(r'\b(statements?|exported|export|transactions?|downloaded|download|csv|ofx|qif|data|history|from|to)\b', 'i')
 _DASHES_AND_SPACES = js_regex(r'[-\s]+')
 
 
 def default_account(name):
-    """An account name from a file name: 'current-account-2026-11.csv' becomes 'Current account'."""
+    """An account name from a file name, without the parts that change from one download to the next.
+
+    Dates, months, numbers and copy markers such as "(3)" are dropped, so
+    'current-account-december.csv' becomes 'Current account' and next month's
+    file lands in the same account.
+    """
     n = js_trim(_UNDERSCORES.sub(' ', _EXTENSION.sub('', text_or(name, 'Account'), count=1)))
-    n = js_trim(_DASHES_AND_SPACES.sub(' ', _EXPORT_WORDS.sub('', _DATE_IN_NAME.sub('', n))))
+    n = _MONTH_WORDS.sub('', _NUMBERS.sub('', _COPY_NUMBER.sub('', _DATE_IN_NAME.sub('', n))))
+    n = js_trim(_DASHES_AND_SPACES.sub(' ', _EXPORT_WORDS.sub('', n)))
     if not n:
         return 'Account'
     return n[0].upper() + n[1:]

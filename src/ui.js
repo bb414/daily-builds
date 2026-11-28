@@ -20,7 +20,7 @@
 
   var state = {
     files: [], extra: [], saved: null,
-    decisions: {}, names: {}, aliases: {}, manual: [], overrides: {}, added: [], details: { name: '', account: '' },
+    decisions: {}, names: {}, aliases: {}, manual: [], overrides: {}, added: [], balances: {}, details: { name: '', account: '' },
     isSample: false, view: 'regulars',
     filter: 'all', search: '', sort: 'yearly',
     calMonths: 3, hideCancelled: false, showIncome: true,
@@ -40,6 +40,8 @@
   function hid(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return 'x' + (h >>> 0).toString(36); }
   var money = M.money;
   function wholeMoney(p) { return M.money(M.roundHalfUp(p / 100) * 100, { whole: true }); }
+  /** Keep a minus sign with its amount when text wraps. */
+  function nb(s) { return String(s).replace(/-(?=\u00a3)/g, '\u2011'); }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
   function dayLabel(d) { return M.DAY_NAMES[M.weekday(d)].slice(0, 3) + ' ' + M.shortDate(d); }
   var PER = { weekly: 'a week', fortnightly: 'every 2 weeks', 'four-weekly': 'every 4 weeks', monthly: 'a month', 'two-monthly': 'every 2 months', quarterly: 'a quarter', 'six-monthly': 'every 6 months', yearly: 'a year' };
@@ -92,7 +94,7 @@
   function analyse() {
     A = M.analyse({
       files: state.files.map(function (f) { return { name: f.name, text: f.text, account: f.accountGiven ? f.account : undefined, options: f.options }; }),
-      extra: state.extra, aliases: state.aliases, names: state.names, manual: state.manual, overrides: state.overrides, added: state.added
+      extra: state.extra, aliases: state.aliases, names: state.names, manual: state.manual, overrides: state.overrides, added: state.added, balances: state.balances
     });
     // Remember the account each file ended up in, so the input shows it.
     A.statements.forEach(function (st, i) { if (state.files[i] && !state.files[i].accountGiven) state.files[i].account = st.account; });
@@ -130,7 +132,7 @@
     var s = money(p);
     var m = /^(-?\u00a3)([\d,]+)\.(\d\d)$/.exec(s);
     if (!m) return esc(s);
-    return '<span class="sr-only">' + esc(s) + '</span><span aria-hidden="true">' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span aria-hidden="true">,</span>' : '<span class="digit" aria-hidden="true">' + c + '</span>'; }).join('') + '<span class="pence" aria-hidden="true">.' + m[3] + '</span>';
+    return '<span class="sr-only">' + esc(s) + '</span><span class="num" aria-hidden="true"><span>' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span aria-hidden="true">,</span>' : '<span class="digit" aria-hidden="true">' + c + '</span>'; }).join('') + '<span class="pence">.' + m[3] + '</span></span>';
   }
   function renderMeters() {
     var el = $('#meters');
@@ -144,9 +146,10 @@
     var still = A.since ? A.since.stillCharging.length : 0;
     var next = P.forecast.filter(function (it) { return it.direction === 'out' && it.decision !== 'ignore' && catOf(it.category).cost !== false; })[0];
     var stopped = r.series.filter(function (s) { return s.status === 'stopped'; }).length;
+    var notCost = r.series.filter(function (s) { return s.status === 'active' && !M.isCost(s); }).length;
     var html = '';
     html += '<div class="meter"><p class="meter-label">Leaves on its own</p><p class="meter-value">' + meterDigits(t.monthly) + '<span class="unit">a month</span></p><p class="meter-note">' + wholeMoney(t.annual) + ' a year, not counting money moved to your own accounts</p></div>';
-    html += '<div class="meter"><p class="meter-label">Regular payments</p><p class="meter-value"><span class="digit">' + active.length + '</span><span class="unit">running</span></p><p class="meter-note">' + stopped + (stopped === 1 ? ' looks' : ' look') + ' stopped, ' + plural(r.candidates.length, 'possible yearly one') + '</p></div>';
+    html += '<div class="meter"><p class="meter-label">Regular payments</p><p class="meter-value"><span class="digit">' + active.length + '</span><span class="unit">running</span></p><p class="meter-note">' + 'plus ' + notCost + ' not a cost, ' + stopped + ' stopped and ' + plural(r.candidates.length, 'possible yearly one') + '</p></div>';
     html += '<div class="meter' + (still ? ' alert' : '') + '"><p class="meter-label">' + (still ? 'Still charging' : 'Checks to look at') + '</p><p class="meter-value"><span class="digit">' + (still || checks) + '</span><span class="unit">' + (still ? 'after you cancelled' : 'flagged') + '</span></p><p class="meter-note">' + (still ? 'and ' + plural(checks, 'other check') : 'price rises, intro prices ending, double charges and overlaps') + '</p></div>';
     html += '<div class="meter"><p class="meter-label">Next to leave</p><p class="meter-value">' + (next ? meterDigits(next.amount) : '<span class="digit">-</span>') + '</p><p class="meter-note">' + (next ? esc(next.name) + ', ' + dayLabel(next.day) : 'Nothing due') + '</p></div>';
     el.innerHTML = html;
@@ -222,7 +225,7 @@
       html += '<div class="file-icon">' + esc(ext) + '</div><div>';
       html += '<div class="file-name">' + esc(f.name) + '</div>';
       html += '<div class="file-meta"><label class="acct">Account <input type="text" id="acct-' + f.uid + '" data-file="' + f.uid + '" data-field="account" value="' + esc(st.account) + '" aria-label="Account name for ' + esc(f.name) + '"></label>';
-      if (st.ok) html += '<span><b>' + st.transactions.length + '</b> payments read</span><span><b>' + st.skipped.length + '</b> skipped</span><span>' + esc(M.longDate(st.start)) + ' to ' + esc(M.longDate(st.end)) + '</span>';
+      if (st.ok) html += '<span><b>' + st.transactions.length + '</b> ' + (st.transactions.length === 1 ? 'payment' : 'payments') + ' read</span><span><b>' + st.skipped.length + '</b> skipped</span><span>' + esc(M.longDate(st.start)) + ' to ' + esc(M.longDate(st.end)) + '</span>';
       html += '</div>';
       if (st.layout) html += '<p class="file-layout">Read ' + esc(st.layout.description) + '.</p>';
       html += '<ul class="notes">' + notes.join('') + '</ul>';
@@ -536,7 +539,8 @@
     html += '</div>';
     html += '<ul class="legend" style="margin-top:12px"><li><i style="background:var(--essential)"></i>Essential bill</li><li><i style="background:var(--optional)"></i>Optional</li><li><i style="background:var(--income);border-radius:2px"></i>Money in</li><li><i style="background:#fff;border:1.5px dashed var(--red)"></i>You plan to cancel</li><li><i style="background:repeating-linear-gradient(-45deg,#f5f0e4 0 3px,#ebe3d2 3px 6px)"></i>Bank holiday</li></ul>';
     // Twelve month bars
-    var year = M.monthTotals(M.forecast(r, 366, state.decisions), false).slice(0, 12);
+    var firstMonth = calStart();
+    var year = M.monthTotals(M.forecast(r, 400, state.decisions), false).filter(function (b) { return b.y * 12 + b.m - 1 >= firstMonth; }).slice(0, 12);
     var max = Math.max.apply(null, year.map(function (b) { return b.total; }).concat([1]));
     html += '<div class="section-title"><h3>The next twelve months</h3><p>Committed spending each month if nothing changes, after the cancellations you have marked. Yearly renewals and seasonal bills make some months heavier.</p></div><div class="plate"><div class="bars" role="img" aria-label="' + esc(year.map(function (b) { return M.MONTH_NAMES[b.m - 1] + ' ' + money(b.total); }).join(', ')) + '">';
     year.forEach(function (b) {
@@ -600,7 +604,7 @@
     if (rw.firstBelow !== null) { tone = 'alert'; verdict = 'Goes past your ' + (cfg.overdraft ? money(cfg.overdraft) + ' overdraft' : 'balance') + ' on ' + dayLabel(rw.firstBelow) + ' and is lowest on ' + dayLabel(rw.low.day) + ' at ' + money(rw.low.balance) + '.'; }
     else if (rw.firstNegative !== null) { tone = 'warn'; verdict = 'Dips into your overdraft on ' + dayLabel(rw.firstNegative) + ', lowest ' + money(rw.low.balance) + ' on ' + dayLabel(rw.low.day) + ', but stays within the limit.'; }
     else { tone = 'good'; verdict = 'Stays in credit for the next 60 days; the lowest point is ' + money(rw.low.balance) + ' on ' + dayLabel(rw.low.day) + '.'; }
-    html += '<div class="runway-verdict ' + tone + '"><p class="verdict">' + esc(verdict) + '</p>';
+    html += '<div class="runway-verdict ' + tone + '"><p class="verdict">' + esc(nb(verdict)) + '</p>';
     html += '<p>' + (rw.nextIn ? 'Before ' + esc(rw.nextIn.name) + ' arrives on ' + esc(dayLabel(rw.nextIn.day)) + ', ' + plural(rw.countBefore, 'regular payment') + ' take ' + money(rw.outBefore) + '. ' : '') + (rw.safePerDay > 0 ? 'That leaves about <b>' + money(rw.safePerDay) + ' a day</b> to spend until then.' : '<b>Nothing is left over</b> for everyday spending until then without going overdrawn.') + '</p></div>';
     html += runwayChart(rw);
     return html + '</div>';
@@ -620,7 +624,7 @@
       html += '<div class="rw-col' + (hasIn ? ' in' : '') + '" title="' + esc(dayLabel(d.day) + ': ' + money(d.balance) + (d.items.length ? ' (' + d.items.map(function (it) { return it.name + ' ' + (it.direction === 'in' ? '+' : '-') + money(it.amount); }).join(', ') + ')' : '')) + '"><span class="rw-bar ' + tone + '" style="height:' + Math.max(1, h).toFixed(1) + 'px;' + (d.balance >= 0 ? 'bottom:var(--neg)' : 'top:var(--pos)') + '"></span></div>';
     });
     html += '</div></div><div class="rw-x" aria-hidden="true"><span></span><div>';
-    rw.days.forEach(function (d, i) { if (i % 14 === 0) html += '<span style="left:' + (i / rw.days.length * 100).toFixed(2) + '%">' + esc(M.shortDate(d.day)) + '</span>'; });
+    rw.days.forEach(function (d, i) { if (i % 14 === 0 && i <= rw.days.length - 8) html += '<span style="left:' + (i / rw.days.length * 100).toFixed(2) + '%">' + esc(M.shortDate(d.day)) + '</span>'; });
     html += '</div></div><ul class="legend" style="margin-top:8px"><li><i style="background:var(--green)"></i>In credit</li><li><i style="background:var(--amber)"></i>In your overdraft</li><li><i style="background:var(--red)"></i>Past your limit</li><li><i style="background:var(--brass-hi)"></i>Money in</li></ul>';
     return html;
   }
@@ -752,7 +756,7 @@
     var cad = M.CADENCES.map(function (c) { return '<tr><td>' + esc(c.label) + '</td><td>' + (c.months ? 'Same day of the month (or a rule such as the last Friday), within ' + c.tol + ' days late or 3 early' : 'Every ' + c.days + ' days, within ' + c.tol + (c.tol === 1 ? ' day' : ' days')) + '</td><td class="num">' + c.min + '</td></tr>'; }).join('');
     $('#how-body').innerHTML = '<div class="how">' +
       '<div class="plate"><h3>1. Reading your export</h3><p>The app looks for a header row anywhere in the first 40 lines, matches column names that banks use (Date, Transaction date, Description, Name, Counter party, Amount, Paid out, Paid in, Money out, Debit, Credit and many more), and reads amounts with pound signs, thousands separators, brackets, a trailing minus, DR and CR. Dates can be UK (14/03/2026), ISO (2026-03-14), written out (14 Mar 2026) or timestamps. If every date could be read either way it assumes UK order and says so. OFX downloads (the Money and Quicken format, in either its older SGML form or XML) and QIF files (including Quicken\'s 28/11\'26 dates) are read too. Rows it cannot use are listed with the reason, never silently dropped. Declined, reversed and pending payments are left out because no money left.</p><p>Two files that are the same account exported twice are spotted when at least 80% of one\'s payments also appear in the other, and payments in overlapping months are only counted once. Money that leaves one of your accounts and arrives in another within three days is matched as a transfer, not spending.</p></div>' +
-      '<div class="plate"><h3>2. Finding what is regular</h3><p>Descriptions are cleaned of the parts that change every time (dates, card numbers, references, "CARD PAYMENT TO", payment processors before a star) to give each payee a key. Each payee\'s payments are then tested against eight schedules:</p><div class="table-wrap"><table class="cadence-table"><thead><tr><th>Schedule</th><th>What counts as on time</th><th class="num">Payments needed</th></tr></thead><tbody>' + cad + '</tbody></table></div><p class="hint" style="margin-top:8px">Direct debits and standing orders need one fewer payment, as do monthly payments whose description names a kind of subscription. One missed payment in four is allowed. A payee with several subscriptions at different prices (an app store bill, say) is split by amount, and runs at different prices that follow on from each other are joined as a price change.</p></div>' +
+      '<div class="plate"><h3>2. Finding what is regular</h3><p>Descriptions are cleaned of the parts that change every time (dates, card numbers, references, "CARD PAYMENT TO", payment processors before a star) to give each payee a key. Each payee\'s payments are then tested against eight schedules:</p><div class="table-wrap"><table class="cadence-table"><thead><tr><th>Schedule</th><th>What counts as on time</th><th class="num">Needed</th></tr></thead><tbody>' + cad + '</tbody></table></div><p class="hint" style="margin-top:8px">Direct debits and standing orders need one fewer payment, as do monthly payments whose description names a kind of subscription. One missed payment in four is allowed. A payee with several subscriptions at different prices (an app store bill, say) is split by amount, and runs at different prices that follow on from each other are joined as a price change.</p></div>' +
       '<div class="plate"><h3>3. The checks</h3><ul><li><b>Price rise:</b> the amount stepped up and stayed up.</li><li><b>Intro price ended:</b> the first one to three payments were less than half the later price.</li><li><b>Charged twice:</b> an extra payment of the same amount within a quarter of the usual gap.</li><li><b>New:</b> first taken recently, after the statement had already been running for a while.</li><li><b>Stopped:</b> at least one expected payment is missing at the end of the statement.</li><li><b>Overlap:</b> two or more active services of the same kind (video, music, cloud storage, gyms and so on).</li><li><b>Still charging:</b> when you reopen a saved review, any payment taken after the date you decided to cancel plus your notice days.</li></ul></div>' +
       '<div class="plate"><h3>4. Forecasting</h3><p>Each payment is projected forward from its last due date. Monthly payments keep their usual day of the month (the last day where the month is shorter); direct debits and standing orders due on a weekend or an England and Wales bank holiday move to the next working day. Bills that vary use the same month last year when there is a year of history (so winter energy bills look like winter), otherwise the median of the last three. Costs a month are worked out from the yearly total, so a weekly £15.50 is £67.17 a month, not £62.</p></div>' +
       '<div class="plate"><h3>5. Will the money last?</h3><p>The calendar walks one account\'s balance forward a day at a time from the balance in your export (the last row of the latest day, or an OFX file\'s ledger balance), or one you type. Regular payments go out on their expected days, regular income comes in, and your everyday spending is taken off each day: the average over your last 91 days of everything that is not a regular payment or a transfer between your own accounts. Add one-off money you know is coming, such as a loan instalment, because it is not regular. It shows where the balance first goes below zero or past your overdraft, the lowest point, and what is left to spend each day before the next money in.</p></div>' +
@@ -790,7 +794,7 @@
         refresh();
         var st = A.statements.slice(-added.length);
         var read = st.filter(function (s) { return s.ok; }).length;
-        if (added.length) toast(read === added.length ? 'Read ' + plural(added.length, 'file') + '. ' + plural(A.result.series.length, 'regular payment') + ' found.' : 'Read ' + read + ' of ' + plural(added.length, 'file') + '. See the notes on each file.');
+        if (added.length) toast(read === added.length ? 'Read ' + plural(added.length, 'file') + '. ' + plural(A.result.series.filter(M.isCost).length, 'regular payment') + ' running.' : 'Read ' + read + ' of ' + plural(added.length, 'file') + '. See the notes on each file.');
         if (added.length) show('statements');
       }, 0);
     };
@@ -825,6 +829,8 @@
   function clearData() {
     state.files = []; state.extra = []; state.saved = null;
     state.runway = { account: null, balance: null, overdraft: 0, everyday: null, extra: [] };
+    state.details = { name: '', account: '' };
+    state.balances = {};
     state.decisions = {}; state.names = {}; state.aliases = {}; state.manual = []; state.overrides = {}; state.added = [];
     state.open = {}; state.ticked = {}; state.mapperFor = null;
   }
@@ -837,6 +843,7 @@
     state.extra = data.transactions;
     state.decisions = data.decisions;
     state.names = data.names; state.aliases = data.aliases; state.manual = data.manual; state.overrides = data.overrides || {}; state.added = data.added || [];
+    state.balances = data.balances || {};
     state.details = { name: (data.details && data.details.name) || state.details.name || '', account: (data.details && data.details.account) || state.details.account || '' };
     var decisionsCopy = {};
     Object.keys(data.decisions).forEach(function (k) { decisionsCopy[k] = Object.assign({}, data.decisions[k]); });
@@ -1031,8 +1038,6 @@
         if (t.id === 'rw-balance') rw.balance = v;
         if (t.id === 'rw-overdraft') rw.overdraft = v === null ? 0 : Math.abs(v);
         if (t.id === 'rw-everyday') rw.everyday = v === null ? null : Math.abs(v);
-        if (rw.balance === null && t.id !== 'rw-balance') rw.balance = cfg.balance;
-        if (rw.everyday === null && t.id !== 'rw-everyday') rw.everyday = cfg.everyday;
       }
       renderCalendar();
       var back = doc.getElementById(t.id);

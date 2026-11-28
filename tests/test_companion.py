@@ -444,7 +444,7 @@ class RunwayTest(unittest.TestCase):
         boosted = sp.runway(r, {}, {'account': 'Current account', 'balance': 100000, 'everyday': 1000, 'days': 30,
                                     'extraIn': [{'day': r['asOf'] + 3, 'amount': 50000, 'name': 'Refund'}]})
         self.assertEqual(boosted['days'][-1]['balance'], rw['days'][-1]['balance'] + 50000)
-        self.assertEqual(boosted['nextIn']['name'], 'Refund')
+        self.assertEqual(boosted['nextIn']['name'], 'Campus Cafe Payroll', 'a one-off does not replace payday')
 
     def test_runway_command(self):
         out = os.path.join(self.tmp.name, 'runway.csv')

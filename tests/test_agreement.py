@@ -41,6 +41,9 @@ DATES = [
     '12/12/2026', '2026-01-05\u00a0', '5 janvier 2026', '1899-12-31', '2201-01-01', '7 March, 2026',
 ]
 
+# Descriptions the way bank statements print them. Some name well-known services on purpose: the
+# categoriser's keyword list includes them so that real exports are categorised well, and this checks
+# both versions treat them the same. They are inputs to a test, not sample data.
 DESCRIPTIONS = [
     'CARD PAYMENT TO IRONWORKS GYM ON 03 DEC', 'PARCELPOINT PRIME*WLCQG', 'PARCELPOINT MKTPLACE*AB2CD',
     'PAYPAL *SPOTIFY', 'PP*NETFLIX.COM', 'SQ *CORNER CAFE', 'GOOGLE *YouTube Premium', 'AMZN Mktp UK*2X3Y4Z',
@@ -85,7 +88,7 @@ FOLDS = ['', 'A' * 75, 'A' * 76, 'DESCRIPTION:' + 'x' * 200, '\u00a3' * 40, 'SUM
          'SUMMARY:' + 'caf\u00e9 ' * 30]
 
 ACCOUNT_NAMES = ['current-account.csv', 'messy-export.csv', 'Statement_2026-11-28.csv', 'transactions.csv',
-                 'download (3).csv', 'Monzo Export 2026 11.csv', '123.csv', 'joint_account_20261128.CSV', '',
+                 'download (3).csv', 'Bank Export 2026 11.csv', '123.csv', 'joint_account_20261128.CSV', '',
                  '\u00dftatement.txt', 'credit-card-statement-2026-11.tsv', 'my.bank.export.csv', '2026.csv']
 
 EDGE_FILES = {
@@ -100,15 +103,15 @@ EDGE_FILES = {
     'us-dates.qif': ('!Type:CCard\n' + ''.join('D%d/%d/2026\nU-12.50\nT-12.50\nPSTREAMING CO\nMMonthly\nLEntertainment\n^\n' % (m, 15) for m in range(1, 7))
                      + 'D13/45/2026\nT-1\nPBROKEN\n^\nD1/2/2026\nPNO AMOUNT\n^\nT-3.00\nPNO DATE\n^\n'),
 
-    'headerless.csv': '03/09/2026,NETFLIX.COM,-10.99,412.10\n05/09/2026,GREENGATE SUPERMARKET,-23.10,389.00\n'
-                      '03/10/2026,NETFLIX.COM,-10.99,378.01\n12/10/2026,CAMPUS CAFE PAYROLL,412.50,790.51\n'
-                      '03/11/2026,NETFLIX.COM,-10.99,779.52\n20/11/2026,GREENGATE SUPERMARKET,-18.45,761.07\n'
-                      '03/12/2026,NETFLIX.COM,-10.99,750.08\n',
-    'semicolons.csv': 'Date;Description;Amount;Balance\r\n01.09.2026;"SPOTIFY P1A2B3C4";-10,99;1.234,56\r\n'
-                      '02.09.2026;BAKERY;-3,50;1.231,06\r\n01.10.2026;"SPOTIFY P9Z8Y7X6";-10,99;1.220,07\r\n'
+    'headerless.csv': '03/09/2026,REELBOX.TV,-10.99,412.10\n05/09/2026,GREENGATE SUPERMARKET,-23.10,389.00\n'
+                      '03/10/2026,REELBOX.TV,-10.99,378.01\n12/10/2026,CAMPUS CAFE PAYROLL,412.50,790.51\n'
+                      '03/11/2026,REELBOX.TV,-10.99,779.52\n20/11/2026,GREENGATE SUPERMARKET,-18.45,761.07\n'
+                      '03/12/2026,REELBOX.TV,-10.99,750.08\n',
+    'semicolons.csv': 'Date;Description;Amount;Balance\r\n01.09.2026;"SONGLINE P1A2B3C4";-10,99;1.234,56\r\n'
+                      '02.09.2026;BAKERY;-3,50;1.231,06\r\n01.10.2026;"SONGLINE P9Z8Y7X6";-10,99;1.220,07\r\n'
                       '15.10.2026;SALARY ACME LTD;1.050,00;2.270,07\r\n'
-                      '01.11.2026;"SPOTIFY Q1W2E3R4";-11,99;2.258,08\r\n'
-                      '01.12.2026;"SPOTIFY T5Y6U7I8";-11,99;2.246,09\r\n',
+                      '01.11.2026;"SONGLINE Q1W2E3R4";-11,99;2.258,08\r\n'
+                      '01.12.2026;"SONGLINE T5Y6U7I8";-11,99;2.246,09\r\n',
     'card-positive.csv': 'Transaction Date,Description,Amount\n2026-08-14,AUDIBLE UK*AB1CD2EF3,7.99\n'
                          '2026-08-20,THE BOOK NOOK,12.50\n2026-09-14,AUDIBLE UK*ZX9YW8VU7,7.99\n'
                          '2026-09-25,PAYMENT THANK YOU,-20.49\n2026-10-14,AUDIBLE UK*QQ1RR2SS3,7.99\n'

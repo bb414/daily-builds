@@ -192,7 +192,7 @@ CATEGORIES = [
                'DOMAINS', 'VPN', 'PASSWORD', 'ANTIVIRUS', 'APPS', 'APP STORE', 'GRAMMARLY', 'ZOOM', 'SLACK', 'FIGMA']),
     _category('news', 'News and magazines', False,
               ['NEWS', 'NEWSPAPER', 'MAGAZINE', 'MAGAZINES', 'GAZETTE', 'JOURNAL', 'TIMES', 'HERALD', 'ECONOMIST',
-               'PRESS', 'LANTERN', 'SUBSTACK', 'PATREON']),
+               'PRESS', 'SUBSTACK', 'PATREON']),
     _category('gym', 'Gym and fitness', False,
               ['GYM', 'FITNESS', 'LEISURE', 'SPORTS CENTRE', 'CLIMBING', 'BOULDERING', 'YOGA', 'PILATES', 'SWIM',
                'SWIMMING', 'STRAVA', 'PELOTON', 'CROSSFIT', 'ATHLETIC']),
@@ -216,7 +216,7 @@ CATEGORIES = [
               ['BARBER', 'BARBERS', 'HAIR', 'SALON', 'NAILS', 'BEAUTY', 'DENTAL', 'DENTIST', 'OPTICIAN',
                'CONTACT LENSES', 'PHARMACY']),
     _category('memberships', 'Memberships and clubs', False,
-              ['MEMBERSHIP', 'MEMBERS', 'CLUB', 'SOCIETY', 'PRIME', 'PREMIUM', 'SUBSCRIPTION', 'SUBS', 'PLUS']),
+              ['MEMBERSHIP', 'MEMBERS', 'CLUB', 'SOCIETY', 'PRIME', 'PREMIUM', 'SUBSCRIPTION', 'SUBS']),
     _category('income', 'Income', False, [], cost=False),
     _category('other', 'Other regular payments', False, []),
 ]

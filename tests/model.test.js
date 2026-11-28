@@ -48,6 +48,30 @@ test('dates in UK, ISO, written and US forms', () => {
   assert.equal(amb.ambiguous, true);
 });
 
+test('pay on a set day, or the working day before, is recognised', () => {
+  const days = ['2026-01-23', '2026-02-25', '2026-03-25', '2026-04-24', '2026-05-22', '2026-06-25'].map(d);
+  assert.equal(M.fitCadence(days).anchor, 'B25');
+  assert.equal(M.iso(M.nominalInMonth(2026, 12, 'B25')), '2026-12-24', 'Christmas Day, so the day before');
+});
+
+test('next month\'s file lands in the same account', () => {
+  assert.equal(M.defaultAccount('current-account-december.csv'), 'Current account');
+  assert.equal(M.defaultAccount('18473920_20261128_0605.csv'), 'Account');
+  assert.equal(M.defaultAccount('export (3).csv'), 'Account');
+  const st = M.parseCsv('Transaction Date,Account Number,Transaction Description,Debit Amount,Credit Amount\n01/02/2026,12345678,SHOP,5.00,\n', 'x.csv');
+  assert.equal(st.account, 'Account ending 5678');
+});
+
+test('cash machine withdrawals are never regular payments, and refunds come off everyday spending', () => {
+  const rows = ['Date,Type,Description,Amount'];
+  for (let m = 1; m <= 6; m++) rows.push('05/0' + m + '/2026,CPT,LINK ATM HIGH ST,-20.00');
+  rows.push('10/06/2026,DEB,GADGET SHOP,-300.00', '20/06/2026,DEB,REFUND GADGET SHOP,300.00', '25/06/2026,DEB,BAKERY,-9.10');
+  const out = M.analyse({ files: [{ name: 'c.csv', text: rows.join('\n') }] });
+  assert.equal(out.result.series.length, 0);
+  assert.equal(out.result.everyday['C'].refunds, 30000);
+  assert.equal(out.result.everyday['C'].total, 2000 * 3 + 910, 'cash still counts as spending; the refunded gadget does not');
+});
+
 test('England and Wales bank holidays, including Christmas substitutes', () => {
   assert.deepEqual(M.bankHolidays(2026).map(M.iso), ['2026-01-01', '2026-04-03', '2026-04-06', '2026-05-04', '2026-05-25', '2026-08-31', '2026-12-25', '2026-12-28']);
   assert.deepEqual(M.bankHolidays(2027).map(M.iso), ['2027-01-01', '2027-03-26', '2027-03-29', '2027-05-03', '2027-05-31', '2027-08-30', '2027-12-27', '2027-12-28']);

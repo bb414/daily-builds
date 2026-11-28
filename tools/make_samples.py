@@ -219,7 +219,7 @@ def build(rng):
     plant(card, cl, [179] * len(cl), "CLOUDLOCKER STORAGE", "",
           {"name": "Cloudlocker Storage", "cadence": "monthly", "typical": 179, "kind": "fixed", "category": "software"})
     news = month_days(cstart, cend, 14, False)
-    plant(card, news, [100 if d < dt.date(2026, 9, 1) else 899 for d in news], "THE DAILY LANTERN DIGITAL", "",
+    plant(card, news, [100 if d < dt.date(2026, 9, 1) else 899 for d in news], "THE DAILY LANTERN NEWS", "",
           {"name": "The Daily Lantern", "cadence": "monthly", "typical": 899, "kind": "stepped", "category": "news", "flags": ["intro"]})
     card.add(dt.date(2026, 7, 14), -3999, "CHESSMATE PREMIUM ANNUAL", "")
     truth["candidates"].append({"name": "Chessmate Premium Annual", "amount": 3999, "cadence": "yearly"})

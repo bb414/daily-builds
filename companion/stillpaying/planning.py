@@ -122,6 +122,11 @@ def notice_days_for(s):
     return 3 if s['method'] in ('direct debit', 'standing order') else 2
 
 
+def possessive(name):
+    """Kits' or Gym's."""
+    return name + "'" if name[-1:].lower() == 's' else name + "'s"
+
+
 def how_to_stop(s):
     """How to stop a payment, step by step, by how it is paid."""
     method, name = s['method'], s['name']
@@ -137,7 +142,7 @@ def how_to_stop(s):
                 'Do it at least a working day before it is due.',
                 'Tell the person or company you pay, so they are not surprised.']
     if method == 'card':
-        return ['Cancel in your account settings on ' + name + "'s website or app (or the app store you subscribed "
+        return ['Cancel in your account settings on ' + possessive(name) + ' website or app (or the app store you subscribed '
                 'through).',
                 'Keep the confirmation email or a screenshot.',
                 'If it charges you again after you cancelled, ask your card provider to stop the recurring payment '
@@ -262,6 +267,10 @@ def runway(result, decisions, opts):
         if first_below is None and bal < -overdraft:
             first_below = d
     next_in = None
+    # Measure to the next regular income; a one-off only counts if nothing regular is coming.
+    for it in items:
+        if next_in is None and it['direction'] == 'in' and it['id'] != 'extra':
+            next_in = {'day': it['day'], 'amount': it['amount'], 'name': it['name']}
     for it in items:
         if next_in is None and it['direction'] == 'in':
             next_in = {'day': it['day'], 'amount': it['amount'], 'name': it['name']}

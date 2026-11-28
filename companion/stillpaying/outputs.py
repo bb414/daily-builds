@@ -17,7 +17,7 @@ from .parsing import strip_bom
 from .payees import CATEGORIES, CATEGORY_BY_ID, category_of
 from .planning import DECISIONS, forecast, plan
 
-DECISION_LABELS = {'keep': 'Keep', 'cancel': 'Cancel', 'review': 'Review', 'ignore': 'Not a cost'}
+DECISION_LABELS = {'keep': 'Keep', 'cancel': 'Cancel', 'review': 'Look again', 'ignore': 'Not a cost'}
 
 def _or(v, fallback):
     """v || fallback, with JavaScript truthiness."""
