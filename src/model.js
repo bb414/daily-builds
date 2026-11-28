@@ -884,7 +884,7 @@
       var acc = accountSettings(settings, list[0].account);
       var pos = 0, lots = [], trade = null, group = null;
       function event(f, cents, kind, id) {
-        events.push({ account: f.account, day: f.day, t: fillT(f), seq: f.seq, cents: cents, trade: id, kind: kind });
+        events.push({ account: f.account, symbol: f.symbol, day: f.day, sec: f.sec, t: fillT(f), seq: f.seq, cents: cents, trade: id, kind: kind });
       }
       function noTrade(f, q, fee) {
         unmatched.push({ key: f.key, account: f.account, symbol: f.symbol, side: f.side, q: q, price: f.price, day: f.day, sec: f.sec, fee: fee, file: f.file, line: f.line, currency: f.currency });
@@ -994,7 +994,7 @@
       if (trade) trade.openLots = lots.map(function (l) { return { q: l.q, price: l.price, day: l.day, sec: l.sec }; });
     });
     unattached.forEach(function (e) {
-      events.push({ account: e.account, day: e.day === null ? 0 : e.day, t: e.day === null ? 0 : e.day * DAY + (e.sec === null ? 0 : e.sec), seq: e.seq, cents: -e.amount, trade: '', kind: 'fee' });
+      events.push({ account: e.account, symbol: e.symbol, day: e.day === null ? 0 : e.day, sec: e.sec, t: e.day === null ? 0 : e.day * DAY + (e.sec === null ? 0 : e.sec), seq: e.seq, cents: -e.amount, trade: '', kind: 'fee' });
     });
     events.sort(function (a, b) { return cmp(a.account, b.account) || (a.t - b.t) || (a.seq - b.seq) || cmp(a.kind, b.kind); });
     trades.forEach(function (t) {
@@ -1509,6 +1509,84 @@
   }
   M.startBalance = startBalance;
 
+  /* ---------- days ---------- */
+
+  // A converter from each account's currency to the base currency (null when there is no rate).
+  function toBase(result) {
+    var rates = {};
+    return function (account, cents) {
+      if (!has(rates, account)) rates[account] = fxRate(result.settings, currencyOfAccount(result.trades, account, result.settings.base));
+      return rates[account] === null ? null : rnd(cents * rates[account]);
+    };
+  }
+
+  // Every trading day: profit realised after fees (partial closes and loose fees included), trades opened and closed, breaches.
+  function dayLedger(result, opts) {
+    var account = (opts && opts.account) || '';
+    var conv = toBase(result), map = {}, keys = [];
+    function at(day) {
+      if (!has(map, day)) { map[day] = { day: day, realised: 0, pnl: 0, fees: 0, opened: 0, closed: 0, wins: 0, losses: 0, closedNet: 0, breaches: 0, limitHit: false }; keys.push(day); }
+      return map[day];
+    }
+    result.events.forEach(function (e) {
+      if ((account && e.account !== account) || e.day < 1) return;
+      var v = conv(e.account, e.cents);
+      if (v === null) return;
+      var d = at(e.day);
+      d.realised += v;
+      if (e.kind === 'pnl') d.pnl += v; else d.fees -= v;
+    });
+    result.trades.forEach(function (t) {
+      if (account && t.account !== account) return;
+      at(t.openDay).opened++;
+      if (t.status === 'closed' && t.netBase !== null) {
+        var d = at(t.closeDay);
+        d.closed++;
+        d.closedNet += t.netBase;
+        if (t.net > 0) d.wins++; else if (t.net < 0) d.losses++;
+      }
+    });
+    result.breaches.forEach(function (b) {
+      if (account && b.account !== account) return;
+      var d = at(b.day);
+      d.breaches++;
+      if (b.rule === 'maxDailyLoss' && !b.trade) d.limitHit = true;
+    });
+    keys.sort(function (a, b) { return a - b; });
+    return keys.map(function (k) { return map[k]; });
+  }
+  M.dayLedger = dayLedger;
+
+  // One day replayed fill by fill: the running total of realised profit after fees, its high, low and largest drop.
+  function dayDetail(result, day, opts) {
+    var account = (opts && opts.account) || '';
+    var conv = toBase(result);
+    var list = result.events.filter(function (e) { return e.day === day && (!account || e.account === account); })
+      .sort(function (a, b) { return (a.t - b.t) || cmp(a.account, b.account) || (a.seq - b.seq) || cmp(a.kind, b.kind); });
+    var rows = [], run = 0, high = 0, low = 0, drop = 0;
+    list.forEach(function (e) {
+      var v = conv(e.account, e.cents);
+      if (v === null) return;
+      var last = rows.length ? rows[rows.length - 1] : null;
+      var row = last && last.t === e.t && last.account === e.account && last.seq === e.seq ? last : null;
+      if (!row) {
+        row = { t: e.t, sec: e.sec, account: e.account, symbol: e.symbol, seq: e.seq, trades: [], pnl: 0, fees: 0, total: 0 };
+        rows.push(row);
+      }
+      if (e.trade && row.trades.indexOf(e.trade) < 0) row.trades.push(e.trade);
+      if (e.kind === 'pnl') row.pnl += v; else row.fees -= v;
+      run += v;
+      row.total = run;
+      if (run > high) high = run;
+      if (run < low) low = run;
+      if (high - run > drop) drop = high - run;
+    });
+    var breaches = result.breaches.filter(function (b) { return b.day === day && (!account || b.account === account); });
+    var opened = result.trades.filter(function (t) { return t.openDay === day && (!account || t.account === account); }).map(function (t) { return t.id; });
+    return { day: day, account: account, rows: rows, total: run, high: high, low: low, drop: drop, breaches: breaches, opened: opened };
+  }
+  M.dayDetail = dayDetail;
+
   /* ---------- formatting (shared by the page, the review text and the files) ---------- */
 
   var SYMBOLS = { USD: '$', GBP: '£', EUR: '€' };
@@ -1828,6 +1906,16 @@
     return csvLines(rows);
   }
   M.tradesCsv = tradesCsv;
+
+  function daysCsv(result, account) {
+    var base = result.settings.base;
+    var rows = [['Date', 'Weekday', 'Realised after fees (' + base + ')', 'Before fees', 'Fees', 'Trades opened', 'Trades closed', 'Won', 'Lost', 'Closed trades net', 'Rule breaches', 'Daily limit hit']];
+    dayLedger(result, { account: account }).forEach(function (d) {
+      rows.push([toIso(d.day), DAY_LONG[weekday(d.day)], plainMoney(d.realised), plainMoney(d.pnl), plainMoney(d.fees), d.opened, d.closed, d.wins, d.losses, plainMoney(d.closedNet), d.breaches, d.limitHit ? 'Yes' : '']);
+    });
+    return csvLines(rows);
+  }
+  M.daysCsv = daysCsv;
 
   function breachesCsv(result, breaches) {
     var byId = {};

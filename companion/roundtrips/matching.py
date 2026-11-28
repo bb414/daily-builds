@@ -223,7 +223,8 @@ def match_trades(state):
         st = {'pos': 0, 'lots': [], 'trade': None, 'group': None}
 
         def event(f, cents, kind, tid):
-            events.append({'account': f['account'], 'day': f['day'], 't': fill_t(f), 'seq': f['seq'], 'cents': cents, 'trade': tid, 'kind': kind})
+            events.append({'account': f['account'], 'symbol': f['symbol'], 'day': f['day'], 'sec': f['sec'], 't': fill_t(f), 'seq': f['seq'], 'cents': cents,
+                           'trade': tid, 'kind': kind})
 
         def no_trade(f, q, fee):
             unmatched.append({'key': f['key'], 'account': f['account'], 'symbol': f['symbol'], 'side': f['side'], 'q': q, 'price': f['price'],
@@ -341,7 +342,7 @@ def match_trades(state):
             st['trade']['openLots'] = [{'q': l['q'], 'price': l['price'], 'day': l['day'], 'sec': l['sec']} for l in st['lots']]
 
     for e in unattached:
-        events.append({'account': e['account'], 'day': 0 if e['day'] is None else e['day'],
+        events.append({'account': e['account'], 'symbol': e['symbol'], 'day': 0 if e['day'] is None else e['day'], 'sec': e['sec'],
                        't': 0 if e['day'] is None else e['day'] * DAY + (0 if e['sec'] is None else e['sec']),
                        'seq': e['seq'], 'cents': -e['amount'], 'trade': '', 'kind': 'fee'})
     events = sort_by(events, lambda a, b: cmp(a['account'], b['account']) or (a['t'] - b['t']) or (a['seq'] - b['seq']) or cmp(a['kind'], b['kind']))

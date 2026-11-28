@@ -1,7 +1,7 @@
 """The command line: python companion/round_trips.py <command> ...
 
 Commands
-  trades    exports (and an optional journal) to round-trip, breach and fills CSVs
+  trades    exports (and an optional journal) to round-trip, breach, fills and days CSVs
   review    print the weekly review for the team chat, and optionally write it as HTML
   weekly    merge an inbox of new exports into a running journal and write a dated review
   team      a team review across a folder of members' exports (HTML and CSV)
@@ -14,6 +14,7 @@ import argparse
 import os
 import sys
 
+from .days import days_csv
 from .common import fmt_num, fmt_pct, fmt_price, fmt_r, from_iso, money, plural, rnd, to_iso, week_start
 from .jobs import latest_week, load_state, read_text, team_review, weekly_job, with_default_start, write_team, write_text
 from .matching import analyse, import_files
@@ -62,7 +63,7 @@ def _load(args):
 def cmd_trades(args):
     st, res = _load(args)
     os.makedirs(args.out, exist_ok=True)
-    for name, body in (('round-trips.csv', trades_csv(res)), ('rule-breaches.csv', breaches_csv(res)), ('fills-matched.csv', fills_csv(res))):
+    for name, body in (('round-trips.csv', trades_csv(res)), ('rule-breaches.csv', breaches_csv(res)), ('fills-matched.csv', fills_csv(res)), ('days.csv', days_csv(res))):
         write_text(os.path.join(args.out, name), body)
     s = stats(res['closed'], start_balance(res, res['accounts']))
     base = res['settings']['base']
@@ -74,7 +75,7 @@ def cmd_trades(args):
     print('%s.' % plural(len(res['breaches']), 'rule breach', 'rule breaches'))
     for w in res['warnings']:
         print('Check: ' + w['text'])
-    print('Wrote round-trips.csv, rule-breaches.csv and fills-matched.csv to %s' % args.out)
+    print('Wrote round-trips.csv, rule-breaches.csv, fills-matched.csv and days.csv to %s' % args.out)
     return 0
 
 

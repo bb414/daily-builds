@@ -56,6 +56,11 @@ function runCase(job) {
       out.reviews.push({ week: w, account: a, review: rv, text: M.reviewText(rv, result) });
     });
   });
+  out.days = {};
+  [''].concat(result.accounts).forEach(function (a) {
+    var ledger = M.dayLedger(result, { account: a });
+    out.days[a || 'all'] = { ledger: ledger, details: ledger.map(function (d) { return M.dayDetail(result, d.day, { account: a }); }), csv: M.daysCsv(result, a) };
+  });
   out.tradesCsv = M.tradesCsv(result);
   out.breachesCsv = M.breachesCsv(result);
   out.fillsCsv = M.fillsCsv(result);

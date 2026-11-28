@@ -132,7 +132,7 @@ class WeeklyJobTest(unittest.TestCase):
             self.assertEqual(second['added'], 35)
             self.assertTrue(os.path.exists(journal + '.bak'))
             dated = os.path.join(out, 'review-2026-11-23')
-            self.assertEqual(sorted(os.listdir(dated)), ['breaches-week.csv', 'fills.csv', 'review.html', 'review.txt', 'round-trips-all.csv', 'round-trips-week.csv'])
+            self.assertEqual(sorted(os.listdir(dated)), ['breaches-week.csv', 'days.csv', 'fills.csv', 'review.html', 'review.txt', 'round-trips-all.csv', 'round-trips-week.csv'])
             shutil.copy(os.path.join(h.DATA, 'weekly', 'export-2026-11-27.csv'), os.path.join(inbox, 'again.csv'))
             third = rt.weekly_job(journal, inbox, out)
             self.assertEqual(third['added'], 0)

@@ -69,6 +69,10 @@ def run_case(job):
         for w in result['weeks']:
             rv = rt.week_review(result, w, a)
             out['reviews'].append({'week': w, 'account': a, 'review': rv, 'text': rt.review_text(rv, result)})
+    out['days'] = {}
+    for a in [''] + result['accounts']:
+        ledger = rt.day_ledger(result, a)
+        out['days'][a or 'all'] = {'ledger': ledger, 'details': [rt.day_detail(result, d['day'], a) for d in ledger], 'csv': rt.days_csv(result, a)}
     out['tradesCsv'] = rt.trades_csv(result)
     out['breachesCsv'] = rt.breaches_csv(result)
     out['fillsCsv'] = rt.fills_csv(result)

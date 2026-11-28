@@ -77,7 +77,7 @@ class AgreementTest(unittest.TestCase):
     def compare_case(self, case, label):
         js = h.run_bridge({'cases': [case]})['cases'][0]
         py = h.run_case(case)
-        for key in ['reports', 'result', 'stats', 'breakdowns', 'weekly', 'histogram', 'reviews']:
+        for key in ['reports', 'result', 'stats', 'breakdowns', 'weekly', 'histogram', 'reviews', 'days']:
             diff = h.first_difference(h.plain(py[key]), js[key], '$.' + key)
             self.assertIsNone(diff, '%s: %s' % (label, diff))
         for key in ['tradesCsv', 'breachesCsv', 'fillsCsv', 'projectFile']:

@@ -291,6 +291,20 @@ test('the sample opens with the figures the README quotes', function () {
   assert.match(text, /Not financial advice\.\n$/);
 });
 
+test('days: realised profit each day, and a day replayed fill by fill', function () {
+  var r = run([{ name: 'a.csv', text: csv([HEAD,
+    '2026-11-23,10:00:00,A,QX,Buy,10,100,1.00,1', '2026-11-23,10:30:00,A,QX,Sell,5,98,1.00,2', '2026-11-24,09:00:00,A,QX,Sell,5,103,1.00,3']) }]).result;
+  var days = M.dayLedger(r, {});
+  assert.deepEqual(days.map(function (d) { return d.realised; }), [-1000 - 200, 1500 - 100]);
+  assert.equal(days[0].opened, 1);
+  assert.equal(days[0].closed, 0);
+  assert.equal(days[1].closed, 1);
+  var dd = M.dayDetail(r, days[0].day, {});
+  assert.deepEqual(dd.rows.map(function (x) { return x.total; }), [-100, -1200]);
+  assert.equal(dd.drop, 1200);
+  assert.equal(M.daysCsv(r, '').split('\r\n').length, 4);
+});
+
 test('position size: risk budget, fees, steps, a short and the day\'s allowance', function () {
   var p = M.positionSize({ equity: '100000', riskPct: '1', entry: '41.20', stop: '40.85', fee: '0.01' });
   assert.equal(p.ok, true);

@@ -6,6 +6,7 @@ import os
 import shutil
 
 from .common import cmp, sort_by, to_iso, week_start
+from .days import days_csv
 from .matching import RULES, analyse, empty_state, import_files
 from .outputs import breaches_csv, csv_lines, fills_csv, project_file, read_project, trades_csv
 from .parsing import clean_account_name
@@ -195,6 +196,7 @@ def weekly_job(journal_path, inbox, out_dir, archive=None, week=None, account=''
             'round-trips-all.csv': trades_csv(res),
             'breaches-week.csv': breaches_csv(res, rv['breaches']),
             'fills.csv': fills_csv(res),
+            'days.csv': days_csv(res, account),
         }
         for name, body in outputs.items():
             path = os.path.join(dated, name)

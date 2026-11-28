@@ -96,8 +96,8 @@ class AppTest(unittest.TestCase):
         page = self.open()
         page.focus('#tab-review')
         page.keyboard.press('ArrowRight')
-        self.assertEqual(page.get_attribute('#tab-rules', 'aria-selected'), 'true')
-        self.assertTrue(page.is_visible('#view-rules'))
+        self.assertEqual(page.get_attribute('#tab-days', 'aria-selected'), 'true')
+        self.assertTrue(page.is_visible('#view-days'))
         page.keyboard.press('End')
         self.assertEqual(page.get_attribute('#tab-how', 'aria-selected'), 'true')
         page.keyboard.press('Home')
@@ -215,6 +215,19 @@ class AppTest(unittest.TestCase):
         page.click('#tab-review')
         self.assertIn('-$0.20', page.input_value('#review-text'))
 
+    def test_the_days_calendar_and_a_day_replayed(self):
+        page = self.open()
+        page.click('#tab-days')
+        self.assertEqual(page.locator('.cal-month').count(), 3)
+        page.click('[data-day="20745"]')
+        self.assertIn('Mon 19 Oct 2026', page.inner_text('#day-ticket'))
+        self.assertGreater(page.locator('.cal-cell .limit').count(), 0)
+        self.assertTrue(page.is_visible('#day-chart svg'))
+        name, text, _ = self.download(page, '[data-action="days-csv"]')
+        rows = list(csv.reader(io.StringIO(text)))
+        self.assertEqual(rows[0][0], 'Date')
+        self.assertEqual(len(rows), 50)
+
     def test_inside_a_frame(self):
         frame_page = os.path.join(self.tmp.name, 'frame.html')
         with open(frame_page, 'w', encoding='utf-8') as fh:
@@ -228,7 +241,7 @@ class AppTest(unittest.TestCase):
 
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(width=390, height=844)
-        for view in ['review', 'fills', 'trades', 'rules', 'how']:
+        for view in ['review', 'fills', 'trades', 'days', 'rules', 'how']:
             page.click('#tab-' + view)
             width = page.evaluate('document.documentElement.scrollWidth')
             self.assertLessEqual(width, 390, view)
@@ -237,7 +250,7 @@ class AppTest(unittest.TestCase):
 
     def test_every_control_has_a_label(self):
         page = self.open()
-        for view in ['review', 'fills', 'trades', 'rules', 'how']:
+        for view in ['review', 'fills', 'trades', 'days', 'rules', 'how']:
             page.click('#tab-' + view)
             if view == 'fills':
                 page.click('.paste summary')

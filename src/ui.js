@@ -7,7 +7,7 @@
 
   var M = window.RoundTrips;
   var STORE_KEY = 'round-trips-journal-v1';
-  var VIEWS = ['fills', 'trades', 'review', 'rules', 'how'];
+  var VIEWS = ['fills', 'trades', 'review', 'days', 'rules', 'how'];
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -37,6 +37,7 @@
     trades: { account: '', week: '', setup: '', outcome: '', needs: false, q: '', selected: null, limit: 80 },
     fills: { account: '', symbol: '', limit: 60 },
     breakdown: 'setup',
+    days: { account: '', day: null },
     resume: null
   };
 
@@ -313,7 +314,7 @@
     var activeId = active && active.id && panel.contains(active) ? active.id : null;
     var sel = null;
     try { if (activeId && active.selectionStart !== undefined) sel = [active.selectionStart, active.selectionEnd]; } catch (e) { sel = null; }
-    ({ fills: renderFills, trades: renderTrades, review: renderReview, rules: renderRules, how: renderHow })[view](panel);
+    ({ fills: renderFills, trades: renderTrades, review: renderReview, days: renderDays, rules: renderRules, how: renderHow })[view](panel);
     S.dirty[view] = false;
     if (activeId) {
       var el = document.getElementById(activeId);
@@ -848,13 +849,114 @@
     var f = x / p;
     return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
   }
-  function compactMoney(cents) {
-    var v = cents / 100, a = Math.abs(v), sym = M.money(0, base()).replace(/[0-9.,\s]/g, '') || '';
+  function compactMoney(cents, sign, bare) {
+    var v = cents / 100, a = Math.abs(v), sym = bare ? '' : M.money(0, base()).replace(/[0-9.,\s]/g, '') || '';
     var txt = a >= 1000000 ? (a / 1000000).toFixed(1).replace(/\.0$/, '') + 'm' : a >= 10000 ? Math.round(a / 1000) + 'k' : a >= 1000 ? (a / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(Math.round(a));
-    return (v < 0 ? '-' : '') + sym + txt;
+    return (v < 0 ? '-' : sign && v > 0 ? '+' : '') + sym + txt;
   }
 
-  /* ---------- view 4: rules and sizing ---------- */
+  /* ---------- view 4: days ---------- */
+
+  function renderDays(panel) {
+    var res = S.result, d = S.days;
+    if (d.account && res.accounts.indexOf(d.account) < 0) d.account = '';
+    var ledger = M.dayLedger(res, { account: d.account });
+    var html = '<div class="review-controls"><label class="field"><span>Account</span><select id="days-account">' + accountOptions(d.account) + '</select></label>' +
+      '<div class="btn-row"><button type="button" class="btn btn-line btn-small" data-action="days-csv">Download days CSV</button></div></div>';
+    if (!ledger.length) { panel.innerHTML = html + '<p class="empty">No trading days yet.</p>'; return; }
+    var byDay = {};
+    ledger.forEach(function (x) { byDay[x.day] = x; });
+    if (d.day === null || !byDay[d.day]) d.day = ledger[ledger.length - 1].day;
+    var hits = ledger.filter(function (x) { return x.limitHit; }).length;
+    var up = ledger.filter(function (x) { return x.realised > 0; }).length;
+    html += '<section class="sheet plain cal-sheet"><span class="eyebrow">The calendar</span><h2>Every trading day, after fees</h2>' +
+      '<p class="intro">Profit realised each day in ' + esc(base()) + ', after every fee, including partial closes of positions still open. ' + up + ' of ' + ledger.length + ' days ended up' + (hits ? '; the daily loss limit was hit on ' + M.plural(hits, 'day') : '') + '. Pick a day to replay it.</p>' +
+      '<ul class="cal-key"><li><span class="side-tag side-long">BLUE</span> up on the day</li><li><span class="side-tag side-short">RED</span> down on the day</li><li>Red corner: a rule broken</li><li>LIMIT: daily loss limit hit</li></ul>';
+    var first = ledger[0].day, last = ledger[ledger.length - 1].day;
+    var c0 = M.civil(first), c1 = M.civil(last);
+    for (var y = c0[0], mo = c0[1]; y < c1[0] || (y === c1[0] && mo <= c1[1]); mo === 12 ? (y++, mo = 1) : mo++) {
+      html += monthHtml(y, mo, byDay);
+    }
+    html += '</section>';
+    html += '<div id="day-ticket">' + dayTicketHtml(M.dayDetail(res, d.day, { account: d.account }), byDay[d.day]) + '</div>';
+    panel.innerHTML = html;
+    drawDayChart();
+  }
+
+  var MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function monthHtml(y, mo, byDay) {
+    var start = M.daysFromCivil(y, mo, 1);
+    var nextStart = mo === 12 ? M.daysFromCivil(y + 1, 1, 1) : M.daysFromCivil(y, mo + 1, 1);
+    var html = '<div class="cal-month"><h3>' + MONTHS_LONG[mo - 1] + ' ' + y + '</h3><div class="cal-grid">';
+    M.DAY_NAMES.forEach(function (n) { html += '<div class="cal-head" aria-hidden="true">' + n + '</div>'; });
+    html += '<div class="cal-head" aria-hidden="true">Week</div>';
+    for (var w = M.weekStart(start); w < nextStart; w += 7) {
+      var weekSum = 0, weekAny = false;
+      for (var k = 0; k < 7; k++) {
+        var day = w + k;
+        if (day < start || day >= nextStart) { html += '<div class="cal-cell empty"></div>'; continue; }
+        var x = byDay[day];
+        if (!x) { html += '<div class="cal-cell off"><span class="d">' + M.civil(day)[2] + '</span></div>'; continue; }
+        weekSum += x.realised; weekAny = true;
+        var label = M.fmtDate(day) + ': ' + m(x.realised, { sign: true }) + ' after fees, ' + M.plural(x.closed, 'trade') + ' closed' + (x.breaches ? ', ' + M.plural(x.breaches, 'rule breach', 'rule breaches') : '') + (x.limitHit ? ', daily loss limit hit' : '');
+        html += '<button type="button" class="cal-cell ' + (x.realised > 0 ? 'pos' : x.realised < 0 ? 'neg' : '') + '" data-day="' + day + '" aria-pressed="' + (day === S.days.day ? 'true' : 'false') + '" aria-label="' + esc(label) + '">' +
+          '<span class="d">' + M.civil(day)[2] + '</span><span class="v wide ' + cls(x.realised) + '">' + esc(compactMoney(x.realised, true)) + '</span><span class="v narrow ' + cls(x.realised) + '">' + esc(compactMoney(x.realised, true, true)) + '</span><span class="n">' + x.closed + ' closed</span>' +
+          (x.breaches ? '<span class="flagged"></span>' : '') + (x.limitHit ? '<span class="limit">LIMIT</span>' : '') + '</button>';
+      }
+      html += '<div class="cal-week">' + (weekAny ? '<span class="v wide ' + cls(weekSum) + '">' + esc(compactMoney(weekSum, true)) + '</span><span class="v narrow ' + cls(weekSum) + '">' + esc(compactMoney(weekSum, true, true)) + '</span>' : '') + '</div>';
+    }
+    return html + '</div></div>';
+  }
+
+  function dayTicketHtml(dd, x) {
+    var html = '<article class="ticket"><div class="ticket-head"><h2>' + esc(M.fmtDate(dd.day)) + '</h2><span class="mono">' + esc(S.days.account || 'all accounts') + ' &middot; replayed fill by fill</span></div>';
+    html += '<dl class="figs">' +
+      fig('Realised after fees', m(dd.total, { sign: true }), cls(dd.total)) + fig('Before fees', m(x.pnl, { sign: true })) + fig('Fees', m(x.fees)) +
+      fig('Trades opened, closed', x.opened + ', ' + x.closed) + fig('Won, lost', x.wins + ', ' + x.losses) + fig('Rule breaches', String(x.breaches), x.breaches ? 'loss' : '') +
+      fig('Best point of the day', m(dd.high, { sign: true })) + fig('Worst point', m(dd.low, { sign: true }), cls(dd.low)) + fig('Largest drop in the day', m(dd.drop)) +
+      '</dl>';
+    html += '<div class="chart chart-paper" id="day-chart"></div><ul class="chart-legend"><li><i style="background:var(--ink)"></i>Running total after fees through the day</li></ul>';
+    if (dd.breaches.length) html += '<h3>Rules broken that day</h3>' + breachListHtml(dd.breaches);
+    html += '<h3>Fill by fill</h3><div class="table-wrap"><table class="ledger"><thead><tr><th>Time</th><th>Symbol</th><th>Account</th><th class="num">Realised</th><th class="num">Fees</th><th class="num">Running total</th><th>Trade</th></tr></thead><tbody>' +
+      dd.rows.map(function (r) {
+        return '<tr><td class="mono" style="font-size:.74rem">' + esc(M.fmtTimeLong(r.sec)) + '</td><td><strong>' + esc(r.symbol) + '</strong></td><td style="font-size:.8rem">' + esc(r.account) + '</td>' +
+          '<td class="num ' + cls(r.pnl) + '">' + (r.pnl ? esc(m(r.pnl, { sign: true })) : '') + '</td><td class="num">' + esc(m(r.fees)) + '</td><td class="num ' + cls(r.total) + '">' + esc(m(r.total, { sign: true })) + '</td>' +
+          '<td>' + r.trades.map(function (id) { var t = tradeById(id); return t ? '<button type="button" class="linkish" data-trade="' + esc(id) + '">' + esc(sideWord(t).toLowerCase()) + '</button>' : ''; }).join(' ') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    return html + '</article>';
+  }
+
+  function drawDayChart() {
+    var box = document.getElementById('day-chart');
+    if (!box) return;
+    var dd = M.dayDetail(S.result, S.days.day, { account: S.days.account });
+    if (!dd.rows.length) { box.innerHTML = ''; return; }
+    var W = Math.max(300, Math.floor(box.clientWidth - 12) || 900), H = 180, padL = W < 560 ? 58 : 76, padR = 12, padT = 12, padB = 26;
+    var t0 = dd.rows[0].t, t1 = dd.rows[dd.rows.length - 1].t;
+    if (t1 === t0) t1 = t0 + 60;
+    var lo = Math.min(0, dd.low), hi = Math.max(0, dd.high);
+    if (hi === lo) { hi += 100; lo -= 100; }
+    var step = niceStep((hi - lo) / 3), y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step;
+    function X(t) { return padL + (t - t0) / (t1 - t0) * (W - padL - padR); }
+    function Y(v) { return padT + (y1 - v) / (y1 - y0) * (H - padT - padB); }
+    var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc('Running total through ' + M.fmtDate(dd.day) + ': ending ' + m(dd.total, { sign: true }) + ', best ' + m(dd.high, { sign: true }) + ', worst ' + m(dd.low, { sign: true })) + '">';
+    for (var v = y0; v <= y1 + step / 2; v += step) {
+      out += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="' + (v === 0 ? '#2b2825' : '#b9c8e0') + '"' + (v === 0 ? '' : ' stroke-dasharray="3 4"') + '/>';
+      out += '<text class="axis-text" x="' + (padL - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end">' + esc(compactMoney(v)) + '</text>';
+    }
+    var hours = Math.max(1, Math.ceil((t1 - t0) / 3600));
+    var every = W < 560 ? Math.max(1, Math.ceil(hours / 4)) : Math.max(1, Math.ceil(hours / 8));
+    for (var h = Math.ceil(t0 / 3600) * 3600; h <= t1; h += 3600 * every) {
+      out += '<text class="axis-text" x="' + X(h).toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle">' + esc(M.fmtTime(h % 86400)) + '</text>';
+    }
+    var path = 'M' + X(t0).toFixed(1) + ' ' + Y(0).toFixed(1), prev = 0;
+    dd.rows.forEach(function (r) { path += ' L' + X(r.t).toFixed(1) + ' ' + Y(prev).toFixed(1) + ' L' + X(r.t).toFixed(1) + ' ' + Y(r.total).toFixed(1); prev = r.total; });
+    out += '<path d="' + path + '" fill="none" stroke="#26307a" stroke-width="2.2"/>';
+    dd.rows.forEach(function (r) { if (r.pnl) out += '<circle cx="' + X(r.t).toFixed(1) + '" cy="' + Y(r.total).toFixed(1) + '" r="3" fill="' + (r.pnl > 0 ? '#26307a' : '#b3301d') + '"/>'; });
+    box.innerHTML = out + '</svg>';
+  }
+
+  /* ---------- view 5: rules and sizing ---------- */
 
   var RULE_TEXT = {
     maxRiskPct: 'The most a trade may lose at its stop, as a percentage of the account when it opened (the starting balance plus closed trades). Uses the stop or planned risk from the journal.',
@@ -1014,6 +1116,7 @@
     if (el.hasAttribute('data-trade')) { openTrade(el.getAttribute('data-trade')); return; }
     if (el.hasAttribute('data-select')) { S.trades.selected = el.getAttribute('data-select'); S.dirty.trades = true; renderView('trades'); var tk = document.getElementById('trade-ticket'); if (tk && window.innerWidth < 1040) tk.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (el.hasAttribute('data-week')) { S.review.week = +el.getAttribute('data-week'); S.review.all = false; reanalyseLight(); return; }
+    if (el.hasAttribute('data-day')) { S.days.day = +el.getAttribute('data-day'); S.dirty.days = true; renderView('days'); var dt = document.getElementById('day-ticket'); if (dt) dt.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (el.hasAttribute('data-breakdown')) { S.breakdown = el.getAttribute('data-breakdown'); S.dirty.review = true; renderView('review'); return; }
     var action = el.getAttribute('data-action');
     if (!action) return;
@@ -1026,6 +1129,7 @@
       case 'trades-csv': download('round-trips-' + todayIso() + '.csv', M.tradesCsv(S.result)); break;
       case 'breaches-csv': download('rule-breaches-' + todayIso() + '.csv', M.breachesCsv(S.result)); break;
       case 'fills-csv': download('fills-matched-' + todayIso() + '.csv', M.fillsCsv(S.result)); break;
+      case 'days-csv': download('days-' + todayIso() + '.csv', M.daysCsv(S.result, S.days.account)); break;
       case 'fills-more': S.fills.limit += 200; S.dirty.fills = true; renderView('fills'); break;
       case 'trades-more': S.trades.limit += 120; S.dirty.trades = true; renderView('trades'); break;
       case 'paste':
@@ -1137,6 +1241,7 @@
       return;
     }
     if (role === 'mult') { setMultiplier(el.getAttribute('data-key'), el.value); return; }
+    if (id === 'days-account') { S.days.account = el.value; S.days.day = null; S.dirty.days = true; renderView('days'); return; }
     if (id === 'fills-account') { S.fills.account = el.value; S.fills.symbol = ''; S.dirty.fills = true; renderView('fills'); return; }
     if (id === 'fills-symbol') { S.fills.symbol = el.value; S.dirty.fills = true; renderView('fills'); return; }
     if (id === 'tr-account' || id === 'tr-week' || id === 'tr-setup' || id === 'tr-outcome' || id === 'tr-needs') {
@@ -1264,7 +1369,7 @@
     document.getElementById('hero-open').addEventListener('click', function () { document.getElementById('file-journal').click(); });
     initDrop();
     var resizeTimer = null;
-    window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (S.view === 'review') drawEquity(); }, 150); });
+    window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (S.view === 'review') drawEquity(); if (S.view === 'days') drawDayChart(); }, 150); });
     window.addEventListener('afterprint', function () { document.body.classList.remove('print-review'); });
     var saved = storeGet(STORE_KEY);
     if (saved) { try { S.resume = JSON.parse(saved); if (!S.resume || !S.resume.journal) S.resume = null; } catch (e) { S.resume = null; } }
