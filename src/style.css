@@ -437,6 +437,9 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
 .how { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .how ol, .how ul { padding-left: 20px; margin: 6px 0 0; }
 .how li { margin: 4px 0; }
+.cadence-table { table-layout: fixed; }
+.cadence-table th:first-child { width: 30%; }
+.cadence-table th:last-child { width: 18%; }
 .cadence-table td:first-child { font-weight: 700; }
 
 /* ---------- Footer and toast ---------- */
@@ -493,6 +496,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   .decide span { padding: 7px 4px; text-align: center; font-size: 13px; }
   .edit-grid, .details-form { grid-template-columns: 1fr; }
   .months { grid-template-columns: 1fr; }
+  .cadence-table th, .cadence-table td { padding: 6px; font-size: 13px; white-space: normal; }
   .runway-form, .add-grid { grid-template-columns: 1fr 1fr; }
   .extra-add { grid-template-columns: 1fr 1fr; }
   .rw-chart, .rw-x { grid-template-columns: 52px minmax(0, 1fr); }

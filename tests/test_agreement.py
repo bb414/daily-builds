@@ -45,7 +45,7 @@ DATES = [
 # categoriser's keyword list includes them so that real exports are categorised well, and this checks
 # both versions treat them the same. They are inputs to a test, not sample data.
 DESCRIPTIONS = [
-    'CARD PAYMENT TO IRONWORKS GYM ON 03 DEC', 'PARCELPOINT PRIME*WLCQG', 'PARCELPOINT MKTPLACE*AB2CD',
+    'CARD PAYMENT TO IRONWORKS GYM ON 03 DEC', 'PARCELWREN PRIME*WLCQG', 'PARCELWREN MKTPLACE*AB2CD',
     'PAYPAL *SPOTIFY', 'PP*NETFLIX.COM', 'SQ *CORNER CAFE', 'GOOGLE *YouTube Premium', 'AMZN Mktp UK*2X3Y4Z',
     'DIRECT DEBIT PAYMENT TO BRITISH GAS REF 12345678', 'STANDING ORDER TO J SMITH RENT', 'TFR TO SAVINGS ACCOUNT',
     'FASTER PAYMENT TO MR A BLOGGS', 'SAVINGS TRANSFER', 'Top up from current account', 'APPHAVEN.COM/BILL',
@@ -162,6 +162,12 @@ ALLOWANCE = '\n'.join(['Date,Description,Type,Amount']
 EARLIER_REVIEW_DAY = '2026-11-01'
 
 
+def november_only(text):
+    """The header and the November 2026 rows of the current account export."""
+    lines = text.splitlines(keepends=True)
+    return lines[0] + ''.join(line for line in lines[1:] if line[3:10] == '11/2026')
+
+
 def earlier_files():
     """The samples as they would have been exported a month ago (up to 31 October)."""
     last = sp.from_iso('2026-10-31')
@@ -175,6 +181,12 @@ def analysis_jobs(earlier_project):
     for name in OTHER_FORMATS:
         jobs.append((name, {'files': sample_files([name]), 'decisions': DECISIONS}))
     jobs.append(('all six samples', {'files': sample_files(SAMPLES + OTHER_FORMATS), 'decisions': DECISIONS}))
+    jobs.append(('months in files with names that say nothing', {'files': [
+        {'name': 'Account_en_gb_9b2e47.csv', 'text': truncate(sample_text('current-account.csv'), sp.from_iso('2026-10-31'))},
+        {'name': 'export (3).csv', 'text': november_only(sample_text('current-account.csv'))},
+        {'name': 'Statement_Download_20261127.ofx', 'text': sample_text('savings-account.ofx')},
+        {'name': 'download.csv', 'text': 'Date,Description,Amount\n' + ''.join(
+            '%02d/%02d/2026,FRIDAY NOODLES,-%d.50\n' % (d, m, 9 + (d * m) % 13) for m in range(6, 11) for d in (2, 9, 16, 23))}]}))
     jobs.append(('all four, no decisions, later date', {'files': sample_files(), 'asOf': '2027-01-20',
                                                         'budgetMonths': 3, 'icsDays': 200, 'icsIncludeIncome': True}))
     jobs.append(('choices carried', {
@@ -182,7 +194,7 @@ def analysis_jobs(earlier_project):
         'details': {'name': 'Alex Holder', 'account': 'alex@example.com'},
         'aliases': {'REELHOUSE+': 'STREAMCRATE.TV'},
         'names': {'IRONWORKS GYM~monthly~1': 'The gym', 'CAMPUS CAFE PAYROLL~monthly~1': 'Wages'},
-        'manual': [{'id': 'FENWICK MUTUAL INSURANCE~single~2026-02-18', 'cadence': 'yearly'},
+        'manual': [{'id': 'HOLLYBANK MUTUAL INSURANCE~single~2026-02-18', 'cadence': 'yearly'},
                    {'id': 'QUILLHOST ANNUAL PLAN~single~2026-03-09'}, {'id': 'NOT THERE~single~2026-01-01'}],
         'overrides': {'APPHAVEN.COM/BILL~monthly~1': {'category': 'software', 'method': 'card'},
                       'LINGOLEAP LANGUAGE~monthly~1': {'method': 'card'},

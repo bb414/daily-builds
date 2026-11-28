@@ -219,7 +219,7 @@
       if (st.error) notes.push('<li class="bad">' + esc(st.error) + '</li>');
       st.warnings.forEach(function (w) { notes.push('<li>' + esc(w) + '</li>'); });
       if (f.encoding) notes.push('<li class="info">This file was not saved as UTF-8, so it was read as Windows-1252 (the older encoding many bank websites still use). Check that names with accents or a \u00a3 sign look right.</li>');
-      if (linked) notes.push('<li class="info">' + esc(linked.share + '% of its payments also appear in ' + linked.other + ', so it was treated as the same account (' + linked.account + ') and the overlap is counted once.') + '</li>');
+      if (linked) notes.push('<li class="info">' + esc(linked.kind === 'follows' ? linked.share + '% of the payees it pays also appear in ' + linked.other + ', which it follows on from, so it was treated as the same account (' + linked.account + '). If it is a different account, give it its own name above.' : linked.share + '% of its payments also appear in ' + linked.other + ', so it was treated as the same account (' + linked.account + ') and the overlap is counted once.') + '</li>');
       if (st.ok && !st.skipped.length && !st.warnings.length) notes.push('<li class="good">Every row was read.</li>');
       html += '<article class="plate file-card' + (st.ok ? '' : ' bad') + '" id="file-' + f.uid + '">';
       html += '<div class="file-icon">' + esc(ext) + '</div><div>';
@@ -859,7 +859,7 @@
     'HILLTOP BROADBAND~monthly~1': { decision: 'review', note: 'Ask for the out-of-contract deal.' },
     'MOBI-MOTO SIM ONLY~monthly~1': { decision: 'keep' },
     'IRONWORKS GYM~monthly~1': { decision: 'cancel', note: 'Use the university sports centre instead.' },
-    'GADGETGUARD PHONE COVER~monthly~1': { decision: 'cancel', decidedOn: '2026-10-20', note: 'Phone is covered by the contents insurance.' },
+    'BRAMBLESAFE PHONE COVER~monthly~1': { decision: 'cancel', decidedOn: '2026-10-20', note: 'Phone is covered by the contents insurance.' },
     'SAVINGS TRANSFER~monthly~1': { decision: 'ignore' },
     'STUDENT CARD REPAYMENT~monthly~1': { decision: 'ignore' },
     'RIVERWATCH TRUST~monthly~1': { decision: 'keep' },
@@ -887,7 +887,7 @@
     var earlier = M.findRegulars(A.merged.transactions.filter(function (t) { return t.day < reviewed; }), { asOf: reviewed });
     var known = {};
     earlier.series.forEach(function (s) { known[s.id] = { typical: s.typical, status: s.status, name: s.name }; });
-    state.saved = { reviewedOn: reviewed, known: known, decisions: { 'GADGETGUARD PHONE COVER~monthly~1': state.decisions['GADGETGUARD PHONE COVER~monthly~1'], 'HARBOUR LETTINGS RENT~monthly~1': { decision: 'keep' } } };
+    state.saved = { reviewedOn: reviewed, known: known, decisions: { 'BRAMBLESAFE PHONE COVER~monthly~1': state.decisions['BRAMBLESAFE PHONE COVER~monthly~1'], 'HARBOUR LETTINGS RENT~monthly~1': { decision: 'keep' } } };
     replan();
   }
 

@@ -1,8 +1,10 @@
 """Combining several statements: spotting re-exports of one account and removing repeats."""
 
 import functools
+import math
 
 from .common import cmp, js_regex, js_string, round_half_up
+from .payees import payee_key
 
 _NOT_ALNUM = js_regex(r'[^A-Z0-9]+')
 
@@ -102,6 +104,53 @@ def link_same_accounts(statements):
                 for t in b['transactions']:
                     t['account'] = a['account']
                 notes.append({'file': b['name'], 'account': a['account'], 'was': was,
-                              'share': round_half_up(match / in_window * 100), 'other': a['name']})
+                              'share': round_half_up(match / in_window * 100), 'other': a['name'], 'kind': 'overlap'})
                 break
+    # A later file that does not overlap: the same account if most of its payees appear in the
+    # months just before it, and its name matched no other file.
+    for j, later_st in enumerate(statements):
+        if not later_st or not later_st.get('transactions') or len(later_st['transactions']) < 8 \
+                or later_st.get('accountGiven'):
+            continue
+        if any(k != j and o and o.get('transactions') and o['account'] == later_st['account']
+               for k, o in enumerate(statements)):
+            continue
+        later = payee_set(later_st['transactions'], -math.inf)
+        if len(later) < 3:
+            continue
+        best = None
+        for k, e in enumerate(statements):
+            if k == j or not e or not e.get('transactions') or e['account'] == later_st['account']:
+                continue
+            if e['end'] >= later_st['start'] or later_st['start'] - e['end'] > 45:
+                continue
+            earlier = payee_set(e['transactions'], e['end'] - 90)
+            share = len([key for key in later if key in earlier]) / len(later)
+            if share >= 0.5 and (best is None or share > best[1]):
+                best = (e, share)
+        if best:
+            was = later_st['account']
+            later_st['account'] = best[0]['account']
+            for t in later_st['transactions']:
+                t['account'] = best[0]['account']
+            notes.append({'file': later_st['name'], 'account': best[0]['account'], 'was': was,
+                          'share': round_half_up(best[1] * 100), 'other': best[0]['name'], 'kind': 'follows'})
     return notes
+
+
+def payee_set(transactions, from_day):
+    """The payees money went out to, from a given day on."""
+    return {payee_key(t['desc']): 1 for t in transactions if t['amount'] < 0 and t['day'] >= from_day}
+
+
+def separate_generic_accounts(statements):
+    """Files whose name says nothing get their own account until their payments show they belong with another."""
+    seen = 0
+    for st in statements:
+        if not st or st.get('accountGiven') or st['account'] != 'Account' or not st.get('transactions'):
+            continue
+        seen += 1
+        if seen > 1:
+            st['account'] = 'Account ' + str(seen)
+            for t in st['transactions']:
+                t['account'] = st['account']

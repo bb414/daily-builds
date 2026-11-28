@@ -72,6 +72,43 @@ test('cash machine withdrawals are never regular payments, and refunds come off 
   assert.equal(out.result.everyday['C'].total, 2000 * 3 + 910, 'cash still counts as spending; the refunded gadget does not');
 });
 
+test('a weekly takeaway is habit, not a commitment; a steady weekly box is', () => {
+  const rows = ['Date,Description,Amount'];
+  for (let i = 0; i < 16; i++) {
+    const day = M.iso(d('2026-06-05') + 7 * i).split('-').reverse().join('/');
+    rows.push(day + ',FRIDAY NOODLES,-' + (9 + (i * 5) % 13) + '.50', day + ',VEG BOX,-15.50');
+  }
+  const names = M.analyse({ files: [{ name: 'w.csv', text: rows.join('\n') }] }).result.series.map((s) => s.name);
+  assert.deepEqual(names, ['Veg Box']);
+});
+
+test('next month in a file with a meaningless name joins the account it follows on from', () => {
+  const lines = data('current-account.csv').split('\n');
+  const oct = lines.filter((l, i) => i === 0 || (l && l.slice(3, 10) !== '11/2026'));
+  const nov = lines.filter((l, i) => i === 0 || l.slice(3, 10) === '11/2026');
+  const out = M.analyse({ files: [{ name: 'Account_en_gb_9b2e47.csv', text: oct.join('\n') }, { name: 'export (3).csv', text: nov.join('\n') }, { name: 'Statement_Download_20261127.ofx', text: data('savings-account.ofx') }] });
+  assert.deepEqual(out.statements.map((s) => s.account), ['Account', 'Account', 'Account ending 4417']);
+  assert.equal(out.merged.linked[0].kind, 'follows');
+});
+
+test('card OFX purchases are card payments, and pending rows without a date say they are pending', () => {
+  const ofx = '<OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS><CCSTMTRS><CCACCTFROM><ACCTID>99998888</ACCTID></CCACCTFROM><BANKTRANLIST>' +
+    [1, 2, 3, 4].map((m) => '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>2026' + String(m).padStart(2, '0') + '10</DTPOSTED><TRNAMT>-6.99</TRNAMT><NAME>PIXEL NEWS</NAME></STMTTRN>').join('') + '</BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>';
+  const out = M.analyse({ files: [{ name: 'Statement_Download.ofx', text: ofx }] });
+  assert.equal(out.statements[0].account, 'Credit card ending 8888');
+  assert.equal(out.result.series[0].method, 'card');
+  const st = M.parseCsv('Started Date,Completed Date,Description,Amount,State\n2026-03-01 10:00:00,,COFFEE,-3.00,PENDING\n2026-03-02 10:00:00,2026-03-02 11:00:00,BOOK,-9.00,COMPLETED\n', 's.csv');
+  assert.match(st.skipped[0].reason, /pending/);
+});
+
+test('one-off money before payday adds to what is safe to spend', () => {
+  const r = all().result;
+  const base = M.runway(r, {}, { account: 'Current account', balance: 300000, everyday: 0, days: 40 });
+  const more = M.runway(r, {}, { account: 'Current account', balance: 300000, everyday: 0, days: 40, extraIn: [{ day: r.asOf + 5, amount: 20000, name: 'Gift' }] });
+  assert.equal(more.nextIn.name, base.nextIn.name);
+  assert.equal(more.spare - base.spare, 20000);
+});
+
 test('England and Wales bank holidays, including Christmas substitutes', () => {
   assert.deepEqual(M.bankHolidays(2026).map(M.iso), ['2026-01-01', '2026-04-03', '2026-04-06', '2026-05-04', '2026-05-25', '2026-08-31', '2026-12-25', '2026-12-28']);
   assert.deepEqual(M.bankHolidays(2027).map(M.iso), ['2027-01-01', '2027-03-26', '2027-03-29', '2027-05-03', '2027-05-31', '2027-08-30', '2027-12-27', '2027-12-28']);
@@ -141,12 +178,12 @@ test('payee keys strip what changes every month', () => {
   const k = M.payeeKey;
   assert.equal(k('CARD PAYMENT TO IRONWORKS GYM ON 03 DEC'), 'IRONWORKS GYM');
   assert.equal(k('PAYPAL *PIXELBOX'), 'PIXELBOX');
-  assert.equal(k('PARCELPOINT PRIME*7HG2K'), 'PARCELPOINT PRIME');
+  assert.equal(k('PARCELWREN PRIME*7HG2K'), 'PARCELWREN PRIME');
   assert.equal(k('STREAMCRATE.TV LONDON GB'), 'STREAMCRATE.TV');
   assert.equal(k('DD BRIGHTSPARK ENERGY REF 88231742'), 'BRIGHTSPARK ENERGY');
   assert.equal(k('SO TO SAVINGS 0412'), 'SAVINGS');
   assert.equal(M.categorise('STREAMCRATE.TV LONDON GB').id, 'tv');
-  assert.equal(M.categorise('GADGETGUARD PHONE COVER').id, 'insurance');
+  assert.equal(M.categorise('BRAMBLESAFE PHONE COVER').id, 'insurance');
   assert.equal(M.paymentMethod('DD', 'X'), 'direct debit');
   assert.equal(M.paymentMethod('', 'X SO'), 'standing order');
 });
@@ -209,7 +246,7 @@ test('the plan totals what cancelling saves and sets cancel-by dates before the 
 
 test('reopening a review spots payments still taken after you cancelled', () => {
   const r = all().result;
-  const id = r.series.find((s) => s.name === 'Gadgetguard Phone Cover').id;
+  const id = r.series.find((s) => s.name === 'Bramblesafe Phone Cover').id;
   const since = M.sinceLastReview(r, { reviewedOn: '2026-10-20', known: { [id]: { typical: 499, status: 'active', kind: 'fixed' } }, decisions: { [id]: { decision: 'cancel', decidedOn: '2026-10-20' } } });
   assert.equal(since.stillCharging.length, 1);
   assert.equal(M.iso(since.stillCharging[0].payments[0].day), '2026-11-08');

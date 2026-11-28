@@ -9,7 +9,7 @@ from .common import money, plain_money
 from .dates import iso, long_date
 from .detect import CADENCE_BY_ID
 from .outputs import DECISION_LABELS, find_series, to_csv
-from .planning import forecast, how_to_stop, plan
+from .planning import forecast, is_cost, plan
 
 # Short names for the checks (flags) the model raises, for tables and labels.
 FLAG_LABELS = {
@@ -41,12 +41,21 @@ def decision_label(decisions, sid):
     return DECISION_LABELS.get(d.get('decision'), '')
 
 
+# What to do when a payment carries on after you cancelled, as the app says it.
+STILL_CHARGING_ADVICE = {
+    'card': 'If you did cancel, ask your card provider to stop the recurring payment and claim it back.',
+    'direct debit': 'If you did cancel, claim it back from your bank under the Direct Debit Guarantee.',
+}
+
+
 def headline(result, decisions):
     """The figures that lead a review: committed spending, counts and the next payday."""
     totals = plan(result, decisions)['totals']
     active = [s for s in result['series'] if s['status'] == 'active']
     return {'monthly': totals['monthly'], 'annual': totals['annual'], 'regulars': len(active),
-            'costs': totals['count'], 'checks': len([s for s in active if s['flags']]), 'payday': result['payday']}
+            'costs': totals['count'], 'payday': result['payday'],
+            # Counted the way the app counts them: costs with a warning or an alert.
+            'checks': len([s for s in active if is_cost(s) and any(f['tone'] in ('warn', 'alert') for f in s['flags'])])}
 
 
 def upcoming(result, decisions, days=31):
@@ -103,10 +112,9 @@ def changes_markdown(result, decisions, since, previous_file=None):
                      + (' (' + previous_file + ')' if previous_file else '') + '.')
         charging = []
         for c in since['stillCharging']:
-            s = find_series(result, c['id'])
             paid = ', '.join(money(p['amount']) + ' on ' + long_date(p['day']) for p in c['payments'])
             charging.append(c['name'] + ': ' + paid + ', after you decided to cancel on ' + long_date(c['decidedOn'])
-                            + '. ' + how_to_stop(s)[-1])
+                            + '. ' + STILL_CHARGING_ADVICE.get(c['method'], 'Check it was cancelled, and ask for a refund.'))
         _section(lines, 'Still being charged after you decided to cancel', charging, 'Nothing. Good.')
         _section(lines, 'New regular payments',
                  [n['name'] + ': ' + money(n['amount']) + ' ' + CADENCE_BY_ID[n['cadence']]['label'].lower()

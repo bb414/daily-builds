@@ -215,8 +215,9 @@ def explain_group(payments, signals=None):
     """
     if len(payments) >= 2:
         whole = fit_cadence([p['day'] for p in payments])
-        if whole and whole['ok'] and not whole['extras'] and (amounts_compatible(payments)
-                                                              or (signals and signals.get('mandate'))):
+        mandate = bool(signals and signals.get('mandate'))
+        steady = mandate or CADENCE_BY_ID[whole['cadence'] if whole else 'monthly']['months'] or steady_amounts(payments)
+        if whole and whole['ok'] and not whole['extras'] and steady and (amounts_compatible(payments) or mandate):
             return {'series': [{'payments': payments, 'fit': whole}], 'rest': []}
     # Same amount, then join runs that follow on from each other (price changes, intro offers).
     by_amount, keys = {}, []
@@ -259,11 +260,24 @@ def explain_group(payments, signals=None):
     for c in clusters:
         if len(c) >= 2:
             f = fit_cadence([p['day'] for p in c])
-            if f and f['ok']:
+            if f and f['ok'] and not busy_around(c, payments):
                 found.append({'payments': c, 'fit': f})
                 continue
         rest.extend(c)
     return {'series': found, 'rest': rest}
+
+
+def busy_around(run, all_payments):
+    """True when the payee was paid more often between a run's first and last payment than the run itself."""
+    a, b = run[0]['day'], run[-1]['day']
+    others = len([p for p in all_payments if a <= p['day'] <= b and not any(p is q for q in run)])
+    return others > len(run)
+
+
+def steady_amounts(payments):
+    """Weekly and fortnightly card payments to one place only count if the amount is steady, not a wandering takeaway."""
+    a = [abs(p['amount']) for p in payments]
+    return len(set(a)) <= 2 or max(a) <= min(a) * 1.25
 
 
 def amounts_compatible(payments):

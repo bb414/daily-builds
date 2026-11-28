@@ -459,6 +459,9 @@
       var memo = get('memo').replace(/\s+/g, ' ');
       var dateText = get('date');
       if (headers && cells.join('|').trim() === headers.join('|').trim()) { result.skipped.push({ line: line, reason: 'A repeated header row', raw: rawLine }); return; }
+      var status = get('status');
+      if (status && SKIP_STATUS.test(status)) { result.skipped.push({ line: line, reason: 'Marked ' + status.toLowerCase() + ', so no money left the account', raw: rawLine }); return; }
+      if (status && /^pending$/i.test(status)) { result.skipped.push({ line: line, reason: 'Still pending, so it may change or drop off', raw: rawLine }); return; }
       if (!dateText) {
         if (TOTAL_LINE.test(desc) || TOTAL_LINE.test(cells.join(' ').trim())) result.skipped.push({ line: line, reason: 'A total or balance line, not a payment', raw: rawLine });
         else result.skipped.push({ line: line, reason: 'No date in this row', raw: rawLine });
@@ -467,9 +470,6 @@
       var day = parseDate(dateText, order);
       if (day === null) { result.skipped.push({ line: line, reason: 'Could not read the date "' + dateText.slice(0, 30) + '"', raw: rawLine }); return; }
       if (TOTAL_LINE.test(desc)) { result.skipped.push({ line: line, reason: 'A total or balance line, not a payment', raw: rawLine }); return; }
-      var status = get('status');
-      if (status && SKIP_STATUS.test(status)) { result.skipped.push({ line: line, reason: 'Marked ' + status.toLowerCase() + ', so no money left the account', raw: rawLine }); return; }
-      if (status && /^pending$/i.test(status)) { result.skipped.push({ line: line, reason: 'Still pending, so it may change or drop off', raw: rawLine }); return; }
       var amount = null, amountSource = '';
       if (map.amount !== undefined) {
         var at = get('amount');
@@ -580,7 +580,8 @@
     var n = String(name || 'Account').replace(/\.[a-z0-9]+$/i, '').replace(/[_]+/g, ' ').trim();
     n = n.replace(/\b(19|20)\d{2}[-_ ]?\d{2}([-_ ]?\d{2})?\b/g, '').replace(/\(\d+\)/g, '').replace(/\b\d+\b/g, '')
       .replace(/\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/gi, '')
-      .replace(/\b(statements?|exported|export|transactions?|downloaded|download|csv|ofx|qif|data|history|from|to)\b/gi, '').replace(/[-\s]+/g, ' ').trim();
+      .replace(/\b(statements?|exported|export|transactions?|downloaded|download|csv|ofx|qif|data|history|from|to)\b/gi, '')
+      .replace(/\b[a-z]*\d[a-z0-9]*\b/gi, '').replace(/\b(en|gb|us|uk)\b/gi, '').replace(/[-\s]+/g, ' ').trim();
     if (!n) return 'Account';
     return n.charAt(0).toUpperCase() + n.slice(1);
   }
@@ -612,6 +613,11 @@
     var unescape = function (s) { return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'); };
     var cur = get(text, 'CURDEF').toUpperCase();
     var isCard = /<CCSTMTRS>|<CCACCTFROM>/i.test(text);
+    if (!options.account && result.account === 'Account') {
+      // The file name says nothing, so name the account from its number, the same way every month.
+      var acctDigits = get(text, 'ACCTID').replace(/\D/g, '');
+      result.account = (isCard ? 'Credit card' : 'Account') + (acctDigits.length >= 4 ? ' ending ' + acctDigits.slice(-4) : '');
+    }
     while ((m = re.exec(text))) {
       var block = m[1], line = lineAt(text, m.index);
       result.rowCount++;
@@ -627,7 +633,9 @@
       if (amount === 0) { result.skipped.push({ line: line, reason: 'A zero amount, so nothing was paid', raw: raw }); continue; }
       var trnType = get(block, 'TRNTYPE').toUpperCase();
       var desc = (nm || memo || '(no description)').replace(/\s+/g, ' ');
-      result.transactions.push({ day: day, amount: amount, desc: desc, memo: nm ? memo.replace(/\s+/g, ' ') : '', type: OFX_TYPES[trnType] !== undefined ? OFX_TYPES[trnType] : trnType, category: '', account: result.account, source: result.name, line: line });
+      var typeText = OFX_TYPES[trnType] !== undefined ? OFX_TYPES[trnType] : trnType;
+      if (isCard && amount < 0 && (typeText === '' || typeText === 'Debit' || typeText === 'Payment')) typeText = 'Card payment';
+      result.transactions.push({ day: day, amount: amount, desc: desc, memo: nm ? memo.replace(/\s+/g, ' ') : '', type: typeText, category: '', account: result.account, source: result.name, line: line });
     }
     if (!result.rowCount) { result.error = 'This OFX file has no transactions in it.'; finishRange(result); return result; }
     if (cur && cur !== 'GBP') result.warnings.push('This file is in ' + cur + '. Amounts are used as they are.');
@@ -787,19 +795,63 @@
           var was = B.account;
           B.account = A.account;
           B.transactions.forEach(function (t) { t.account = A.account; });
-          notes.push({ file: B.name, account: A.account, was: was, share: roundHalfUp(match / inWindow * 100), other: A.name });
+          notes.push({ file: B.name, account: A.account, was: was, share: roundHalfUp(match / inWindow * 100), other: A.name, kind: 'overlap' });
           break;
         }
       }
     }
+    // A later file that does not overlap: the same account if most of its payees appear in the
+    // months just before it, and its name matched no other file.
+    for (var j2 = 0; j2 < statements.length; j2++) {
+      var L = statements[j2];
+      if (!L || !L.transactions || L.transactions.length < 8 || L.accountGiven) continue;
+      var labelUsed = statements.some(function (o, k) { return k !== j2 && o && o.transactions && o.transactions.length && o.account === L.account; });
+      if (labelUsed) continue;
+      var later = payeeSet(L.transactions, -Infinity);
+      var nKeys = Object.keys(later).length;
+      if (nKeys < 3) continue;
+      var best = null;
+      statements.forEach(function (E, k) {
+        if (k === j2 || !E || !E.transactions || !E.transactions.length || E.account === L.account) return;
+        if (E.end >= L.start || L.start - E.end > 45) return;
+        var earlier = payeeSet(E.transactions, E.end - 90);
+        var shared = Object.keys(later).filter(function (key) { return earlier[key]; }).length;
+        var share = shared / nKeys;
+        if (share >= 0.5 && (!best || share > best.share)) best = { E: E, share: share };
+      });
+      if (best) {
+        var was2 = L.account;
+        L.account = best.E.account;
+        L.transactions.forEach(function (t) { t.account = best.E.account; });
+        notes.push({ file: L.name, account: best.E.account, was: was2, share: roundHalfUp(best.share * 100), other: best.E.name, kind: 'follows' });
+      }
+    }
     return notes;
+  }
+  /** The payees money went out to, from a given day on. */
+  function payeeSet(transactions, fromDay) {
+    var out = {};
+    transactions.forEach(function (t) { if (t.amount < 0 && t.day >= fromDay) out[payeeKey(t.desc)] = 1; });
+    return out;
+  }
+  /** Files whose name says nothing get their own account until their payments show they belong with another. */
+  function separateGenericAccounts(statements) {
+    var seen = 0;
+    statements.forEach(function (st) {
+      if (!st || st.accountGiven || st.account !== 'Account' || !st.transactions || !st.transactions.length) return;
+      seen++;
+      if (seen > 1) {
+        st.account = 'Account ' + seen;
+        st.transactions.forEach(function (t) { t.account = st.account; });
+      }
+    });
   }
 
   /* ------------------------------------------------------------------ */
   /* Payees and categories                                               */
   /* ------------------------------------------------------------------ */
 
-  var LEAD_WORDS = ['CARD PAYMENT TO', 'CARD PAYMENT', 'CARD PURCHASE', 'DEBIT CARD PAYMENT', 'CONTACTLESS PAYMENT', 'CONTACTLESS', 'DIRECT DEBIT PAYMENT TO', 'DIRECT DEBIT PAYMENT', 'DIRECT DEBIT TO', 'DIRECT DEBIT', 'STANDING ORDER TO', 'STANDING ORDER', 'FASTER PAYMENT TO', 'FASTER PAYMENTS', 'FASTER PAYMENT', 'BILL PAYMENT TO', 'BILL PAYMENT', 'PAYMENT TO', 'RECURRING PAYMENT', 'RECURRING CARD PAYMENT', 'MOBILE PAYMENT', 'ONLINE PAYMENT', 'PURCHASE', 'POS', 'VIS', 'VISA', 'DEB', 'DD', 'DDR', 'SO', 'STO', 'FPO', 'FPI', 'BGC', 'BP', 'TFR', 'CPT', 'TO', 'FROM'];
+  var LEAD_WORDS = ['CARD PAYMENT TO', 'CARD PAYMENT', 'CARD PURCHASE', 'DEBIT CARD PAYMENT', 'CONTACTLESS PAYMENT', 'CONTACTLESS', 'DIRECT DEBIT PAYMENT TO', 'DIRECT DEBIT PAYMENT', 'DIRECT DEBIT TO', 'DIRECT DEBIT', 'STANDING ORDER TO', 'STANDING ORDER', 'FASTER PAYMENT TO', 'FASTER PAYMENTS', 'FASTER PAYMENT', 'BILL PAYMENT TO', 'BILL PAYMENT', 'PAYMENT TO', 'PAYMENT FROM', 'RECURRING PAYMENT', 'RECURRING CARD PAYMENT', 'MOBILE PAYMENT', 'ONLINE PAYMENT', 'PURCHASE', 'POS', 'VIS', 'VISA', 'DEB', 'DD', 'DDR', 'SO', 'STO', 'FPO', 'FPI', 'BGC', 'BP', 'TFR', 'CPT', 'TO', 'FROM'];
   var TRAIL_WORDS = ['DD', 'DDR', 'SO', 'STO', 'FPO', 'FPI', 'BGC', 'DEB', 'POS', 'VIS', 'GB', 'GBR', 'UK', 'IE', 'IRL', 'LU', 'LUX', 'NL', 'NLD', 'US', 'USA', 'DE', 'FR', 'LONDON', 'INTERNET', 'ONLINE', 'APPLE PAY', 'GOOGLE PAY', 'VIA APPLE PAY', 'VIA GOOGLE PAY', 'CONTACTLESS', 'DIRECT DEBIT', 'STANDING ORDER', 'GBP'];
   var PROCESSORS = ['PAYPAL', 'PP', 'SQ', 'SUMUP', 'IZ', 'ZETTLE', 'ZTL', 'STRIPE', 'GOOGLE', 'SP', 'CRV', 'WWW', 'TST', 'CKO', 'SMP', 'PADDLE', 'FS', 'DNH', 'WL'];
   var GENERIC = ['THE', 'PAYMENT', 'PAYMENTS', 'TRANSFER', 'CARD', 'BANK', 'ONLINE', 'MOBILE', 'DIRECT', 'DEBIT', 'CREDIT', 'MR', 'MRS', 'MS', 'MISS', 'DR', 'LTD', 'LIMITED', 'PLC', 'AND', 'CO', 'UK'];
@@ -1100,7 +1152,9 @@
     var found = [];
     if (payments.length >= 2) {
       var whole = fitCadence(payments.map(function (p) { return p.day; }));
-      if (whole && whole.ok && whole.extras.length === 0 && (amountsCompatible(payments) || (signals && signals.mandate))) {
+      var mandate = !!(signals && signals.mandate);
+      var steady = mandate || CADENCE_BY_ID[whole ? whole.cadence : 'monthly'].months || steadyAmounts(payments);
+      if (whole && whole.ok && whole.extras.length === 0 && steady && (amountsCompatible(payments) || mandate)) {
         return { series: [{ payments: payments, fit: whole }], rest: [] };
       }
     }
@@ -1147,12 +1201,31 @@
     clusters.forEach(function (c) {
       if (c.length >= 2) {
         var f = fitCadence(c.map(function (p) { return p.day; }));
-        if (f && f.ok) { found.push({ payments: c, fit: f }); return; }
+        if (f && f.ok && !busyAround(c, payments)) { found.push({ payments: c, fit: f }); return; }
       }
       c.forEach(function (p) { rest.push(p); });
     });
     void signals;
     return { series: found, rest: rest };
+  }
+  /**
+   * Weekly and fortnightly card payments to one place only count as a commitment if the amount is steady
+   * (a veg box, a cleaner), not if it wanders like a Friday takeaway.
+   */
+  function steadyAmounts(payments) {
+    var a = payments.map(function (p) { return Math.abs(p.amount); });
+    var distinct = {};
+    a.forEach(function (x) { distinct[x] = 1; });
+    return Object.keys(distinct).length <= 2 || Math.max.apply(null, a) <= Math.min.apply(null, a) * 1.25;
+  }
+  /**
+   * A run of one amount is only a regular payment if the payee was not paid more often in between: a few
+   * identical takeaway bills months apart are chance, a membership among occasional purchases is not.
+   */
+  function busyAround(run, all) {
+    var a = run[0].day, b = run[run.length - 1].day, others = 0;
+    all.forEach(function (p) { if (p.day >= a && p.day <= b && run.indexOf(p) < 0) others++; });
+    return others > run.length;
   }
   /** Bills vary, but a whole payee group only counts as one series if its amounts stay in a sensible band. */
   function amountsCompatible(payments) {
@@ -1813,11 +1886,13 @@
     var until = nextIn ? nextIn.day : start + horizon;
     var outBefore = 0, countBefore = 0;
     items.forEach(function (it) { if (it.direction === 'out' && it.day < until) { outBefore += it.amount; countBefore++; } });
-    var spare = opts.balance - outBefore - (opts.buffer || 0);
+    var extraBefore = 0;
+    items.forEach(function (it) { if (it.id === 'extra' && it.day < until) extraBefore += it.amount; });
+    var spare = opts.balance + extraBefore - outBefore - (opts.buffer || 0);
     var daysLeft = Math.max(1, until - start);
     return {
       account: opts.account, start: start, balance: opts.balance, everyday: everyday, overdraft: overdraft, days: days, low: low,
-      firstNegative: firstNegative, firstBelow: firstBelow, nextIn: nextIn, until: until, outBefore: outBefore, countBefore: countBefore,
+      firstNegative: firstNegative, firstBelow: firstBelow, nextIn: nextIn, until: until, outBefore: outBefore, countBefore: countBefore, extraBefore: extraBefore,
       safePerDay: spare > 0 ? Math.floor(spare / daysLeft) : 0, spare: spare
     };
   }
@@ -2314,6 +2389,7 @@
         pseudo.push(st);
       });
     }
+    separateGenericAccounts(statements);
     var linked = linkSameAccounts(pseudo.concat(statements));
     var merged = mergeStatements(pseudo.concat(statements));
     merged.linked = linked;

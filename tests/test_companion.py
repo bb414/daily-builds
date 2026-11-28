@@ -12,8 +12,8 @@ import unittest
 
 from helpers import COMPANION, DATA, NODE, ROOT, SAMPLES, run_bridge, sample_files, sample_text, sp, truncate
 
-EVERYDAY = ['BEAN AND BARLEY', 'GREENGATE SUPERMARKET', 'CITYLINK BUSES', 'NOODLE NOOK TAKEAWAY', 'CASH WITHDRAWAL',
-            'RAILWAY TICKETS ONLINE', 'TO SPENDING APP', 'PARCELPOINT MKTPLACE', 'NORTHLINE RAIL', 'PAGEFOLD BOOKS',
+EVERYDAY = ['BEAN AND BARLEY', 'GREENGATE SUPERMARKET', 'TOWNHOP BUSES', 'NOODLE NOOK TAKEAWAY', 'CASH WITHDRAWAL',
+            'RAILWAY TICKETS ONLINE', 'TO SPENDING APP', 'PARCELWREN MKTPLACE', 'NORTHLINE RAIL', 'PAGEFOLD BOOKS',
             'THREADWORK CLOTHING', 'SKYLARK HOSTELS', 'CORNER DELI', 'THE RUSTY KETTLE', 'CAMPUS UNION SHOP',
             'FOLD & PRESS PRINTING', 'TOP UP FROM CURRENT ACCOUNT', 'MAINTENANCE LOAN INSTALMENT',
             'PAYMENT RECEIVED - THANK YOU']
@@ -556,6 +556,19 @@ class WorkbookTest(unittest.TestCase):
                                                      'everyday': self.result['everyday']['Current account']['perDay'],
                                                      'days': 60, 'leaveOutCancelled': True})
         self.assertEqual(round(float(walk[-1][3]) * 100), rw['days'][-1]['balance'])
+
+
+class AppReviewNameTest(unittest.TestCase):
+    """The monthly job finds a review saved from the browser app as well as its own."""
+
+    def test_both_names_are_found(self):
+        from stillpaying.cli import find_reviews
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ['review-2026-10-01.json', 'still-paying-review-2026-11-28.json', 'notes.json']:
+                with open(os.path.join(tmp, name), 'w', encoding='utf-8') as f:
+                    f.write('{}')
+            self.assertEqual([n for _, n in find_reviews(tmp)],
+                             ['review-2026-10-01.json', 'still-paying-review-2026-11-28.json'])
 
 if __name__ == '__main__':
     unittest.main()

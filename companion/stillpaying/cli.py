@@ -24,7 +24,8 @@ from .workbook import build_xlsx
 WIDTH = 100
 EXTENSIONS = ('.csv', '.tsv', '.txt', '.ofx', '.qfx', '.qif')
 OWN_OUTPUTS = re.compile(r'^(regular-payments|price-history|budget-\d+-months)\.csv$', re.IGNORECASE)
-REVIEW_NAME = re.compile(r'^review-(\d{4}-\d{2}-\d{2})\.json$')
+# Reviews this tool writes (review-2026-11-28.json) and ones saved from the browser app (still-paying-review-2026-11-28.json).
+REVIEW_NAME = re.compile(r'^(?:still-paying-)?review-(\d{4}-\d{2}-\d{2})\.json$')
 
 
 class Problem(Exception):
@@ -323,7 +324,7 @@ def cmd_scan(args):
 
 
 def find_reviews(folder):
-    """Saved reviews named review-YYYY-MM-DD.json in a folder, oldest first, as (day, name) pairs."""
+    """Saved reviews in a folder (review-YYYY-MM-DD.json, or still-paying-review-YYYY-MM-DD.json from the app), oldest first."""
     found = []
     for name in os.listdir(folder):
         m = REVIEW_NAME.match(name)

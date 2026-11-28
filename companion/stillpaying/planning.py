@@ -277,11 +277,13 @@ def runway(result, decisions, opts):
     until = next_in['day'] if next_in else start + horizon
     out_before = sum(it['amount'] for it in items if it['direction'] == 'out' and it['day'] < until)
     count_before = len([it for it in items if it['direction'] == 'out' and it['day'] < until])
-    spare = opts['balance'] - out_before - (opts.get('buffer') or 0)
+    extra_before = sum(it['amount'] for it in items if it['id'] == 'extra' and it['day'] < until)
+    spare = opts['balance'] + extra_before - out_before - (opts.get('buffer') or 0)
     days_left = max(1, until - start)
     return {'account': opts['account'], 'start': start, 'balance': opts['balance'], 'everyday': everyday,
             'overdraft': overdraft, 'days': days, 'low': low, 'firstNegative': first_negative, 'firstBelow': first_below,
             'nextIn': next_in, 'until': until, 'outBefore': out_before, 'countBefore': count_before,
+            'extraBefore': extra_before,
             'safePerDay': spare // days_left if spare > 0 else 0, 'spare': spare}
 
 

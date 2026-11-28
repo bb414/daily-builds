@@ -2,7 +2,7 @@
 
 from .dates import iso
 from .detect import find_regulars
-from .merging import link_same_accounts, merge_statements
+from .merging import link_same_accounts, merge_statements, separate_generic_accounts
 from .parsing import finish_range, parse_statement
 
 
@@ -36,6 +36,7 @@ def analyse(files=None, as_of=None, extra=None, aliases=None, names=None, manual
             st = {'name': 'saved review', 'account': account, 'transactions': by_account[account]}
             finish_range(st)
             pseudo.append(st)
+    separate_generic_accounts(statements)
     linked = link_same_accounts(pseudo + statements)
     merged = merge_statements(pseudo + statements)
     merged['linked'] = linked

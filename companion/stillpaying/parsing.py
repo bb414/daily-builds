@@ -555,6 +555,13 @@ def parse_csv(text, name=None, options=None):
         if headers is not None and js_trim('|'.join(cells)) == js_trim('|'.join(headers)):
             skip('A repeated header row')
             continue
+        status = get('status')
+        if status and SKIP_STATUS.search(status):
+            skip('Marked ' + status.lower() + ', so no money left the account')
+            continue
+        if status and _PENDING.search(status):
+            skip('Still pending, so it may change or drop off')
+            continue
         if not date_text:
             if TOTAL_LINE.search(desc) or TOTAL_LINE.search(js_trim(' '.join(cells))):
                 skip('A total or balance line, not a payment')
@@ -567,13 +574,6 @@ def parse_csv(text, name=None, options=None):
             continue
         if TOTAL_LINE.search(desc):
             skip('A total or balance line, not a payment')
-            continue
-        status = get('status')
-        if status and SKIP_STATUS.search(status):
-            skip('Marked ' + status.lower() + ', so no money left the account')
-            continue
-        if status and _PENDING.search(status):
-            skip('Still pending, so it may change or drop off')
             continue
         amount, amount_source = None, ''
         if 'amount' in mapping:
@@ -722,6 +722,8 @@ _COPY_NUMBER = js_regex(r'\(\d+\)')
 _NUMBERS = js_regex(r'\b\d+\b')
 _MONTH_WORDS = js_regex(r'\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?'
                         r'|nov(ember)?|dec(ember)?)\b', 'i')
+_DIGIT_TOKENS = js_regex(r'\b[a-z]*\d[a-z0-9]*\b', 'i')
+_LOCALE_TAGS = js_regex(r'\b(en|gb|us|uk)\b', 'i')
 _EXPORT_WORDS = js_regex(r'\b(statements?|exported|export|transactions?|downloaded|download|csv|ofx|qif|data|history|from|to)\b', 'i')
 _DASHES_AND_SPACES = js_regex(r'[-\s]+')
 
@@ -735,7 +737,7 @@ def default_account(name):
     """
     n = js_trim(_UNDERSCORES.sub(' ', _EXTENSION.sub('', text_or(name, 'Account'), count=1)))
     n = _MONTH_WORDS.sub('', _NUMBERS.sub('', _COPY_NUMBER.sub('', _DATE_IN_NAME.sub('', n))))
-    n = js_trim(_DASHES_AND_SPACES.sub(' ', _EXPORT_WORDS.sub('', n)))
+    n = js_trim(_DASHES_AND_SPACES.sub(' ', _LOCALE_TAGS.sub('', _DIGIT_TOKENS.sub('', _EXPORT_WORDS.sub('', n)))))
     if not n:
         return 'Account'
     return n[0].upper() + n[1:]
@@ -779,6 +781,11 @@ def parse_ofx(text, name=None, options=None):
     result = _new_result(name, 'ofx', options)
     cur = _ofx_get(text, 'CURDEF').upper()
     is_card = bool(_CARD_STATEMENT.search(text))
+    if not options.get('account') and result['account'] == 'Account':
+        # The file name says nothing, so name the account from its number, the same way every month.
+        acct_digits = _NOT_DIGITS.sub('', _ofx_get(text, 'ACCTID'))
+        result['account'] = ('Credit card' if is_card else 'Account') + (
+            ' ending ' + acct_digits[-4:] if len(acct_digits) >= 4 else '')
     for m in _STMTTRN.finditer(text):
         block, line = m.group(1), _line_at(text, m.start())
         result['rowCount'] += 1
@@ -803,8 +810,11 @@ def parse_ofx(text, name=None, options=None):
             continue
         trn_type = _ofx_get(block, 'TRNTYPE').upper()
         desc = _SPACES.sub(' ', nm or memo or '(no description)')
+        type_text = OFX_TYPES.get(trn_type, trn_type)
+        if is_card and amount < 0 and type_text in ('', 'Debit', 'Payment'):
+            type_text = 'Card payment'
         result['transactions'].append({'day': day, 'amount': amount, 'desc': desc, 'memo': _SPACES.sub(' ', memo) if nm else '',
-                                       'type': OFX_TYPES.get(trn_type, trn_type), 'category': '',
+                                       'type': type_text, 'category': '',
                                        'account': result['account'], 'source': result['name'], 'line': line})
     if not result['rowCount']:
         result['error'] = 'This OFX file has no transactions in it.'

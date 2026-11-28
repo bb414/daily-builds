@@ -51,7 +51,7 @@
    "account": "Current account"
   },
   {
-   "name": "Gadgetguard Phone Cover",
+   "name": "Bramblesafe Phone Cover",
    "cadence": "monthly",
    "typical": 499,
    "kind": "fixed",
@@ -78,7 +78,7 @@
    "account": "Current account"
   },
   {
-   "name": "Parcelpoint Prime",
+   "name": "Parcelwren Prime",
    "cadence": "monthly",
    "typical": 899,
    "kind": "fixed",
@@ -224,7 +224,7 @@
  ],
  "candidates": [
   {
-   "name": "Fenwick Mutual Insurance",
+   "name": "Hollybank Mutual Insurance",
    "amount": 8640,
    "cadence": "yearly"
   },

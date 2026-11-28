@@ -70,7 +70,7 @@ In the app the student has also added a £35 yearly railcard by hand (paid from 
 
 **Will the money last?** The current account's export ends on 27 November with a balance of £544.99. With the student's everyday spending (£12.91 a day over the last 91 days, outside regular payments and transfers) and the three cancellations they have marked, the runway shows the account going into its overdraft on 1 December when the rent leaves, past the £1,000 limit on Monday 4 January and lowest at -£1,268.53 on 11 January, the day before the £3,514.67 maintenance loan instalment (added as one-off money in) arrives. Nothing is left for everyday spending before payday without going overdrawn: a warning worth having in November rather than January.
 
-The sample is shown reopened a month after an earlier review on 20 October, and the plan leads with the most useful finding of all: **Gadgetguard Phone Cover took £4.99 on 8 November, after the student decided to cancel it on 20 October.**
+The sample is shown reopened a month after an earlier review on 20 October, and the plan leads with the most useful finding of all: **Bramblesafe Phone Cover took £4.99 on 8 November, after the student decided to cancel it on 20 October.**
 
 ## Why it matters
 
@@ -98,6 +98,8 @@ python companion/still_paying.py monthly ~/Downloads/statements --history ~/stil
 python companion/still_paying.py budget data --months 12 --out budget.csv
 python companion/still_paying.py template --out template.csv
 ```
+
+The monthly job reads the latest review in the history folder, whether it wrote it (`review-2026-11-28.json`) or you saved it from the app (`still-paying-review-2026-11-28.json`), so decisions you make in the browser carry into the next monthly run. It keeps every review, report, change summary and workbook in that folder, plus a price history across all of them.
 
 **Tests:**
 

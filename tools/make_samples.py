@@ -131,11 +131,11 @@ def build(rng):
     cur.add(dt.date(2026, 3, 4), -2499, "CARD PAYMENT TO IRONWORKS GYM ON 04 MAR", "Card payment")  # charged twice
 
     cover = month_days(START, END, 8, False)
-    plant(cur, cover, [499] * len(cover), "GADGETGUARD PHONE COVER", "Card payment",
-          {"name": "Gadgetguard Phone Cover", "cadence": "monthly", "typical": 499, "kind": "fixed", "category": "insurance"})
+    plant(cur, cover, [499] * len(cover), "BRAMBLESAFE PHONE COVER", "Card payment",
+          {"name": "Bramblesafe Phone Cover", "cadence": "monthly", "typical": 499, "kind": "fixed", "category": "insurance"})
 
-    cur.add(dt.date(2026, 2, 18), -8640, "FENWICK MUTUAL INSURANCE", "Direct debit")
-    truth["candidates"].append({"name": "Fenwick Mutual Insurance", "amount": 8640, "cadence": "yearly"})
+    cur.add(dt.date(2026, 2, 18), -8640, "HOLLYBANK MUTUAL INSURANCE", "Direct debit")
+    truth["candidates"].append({"name": "Hollybank Mutual Insurance", "amount": 8640, "cadence": "yearly"})
 
     savings = month_days(START, END, 28, True)
     plant(cur, savings, [5000] * len(savings), "SAVINGS TRANSFER", "Standing order",
@@ -146,11 +146,11 @@ def build(rng):
           {"name": "Riverwatch Trust", "cadence": "monthly", "typical": 500, "kind": "fixed", "category": "charity"})
 
     prime = month_days(START, END, 23, False)
-    plant(cur, prime, [899] * len(prime), lambda d: "PARCELPOINT PRIME*%s" % "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5)), "Card payment",
-          {"name": "Parcelpoint Prime", "cadence": "monthly", "typical": 899, "kind": "fixed", "category": "memberships"})
+    plant(cur, prime, [899] * len(prime), lambda d: "PARCELWREN PRIME*%s" % "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5)), "Card payment",
+          {"name": "Parcelwren Prime", "cadence": "monthly", "typical": 899, "kind": "fixed", "category": "memberships"})
     for _ in range(9):
         d = START + dt.timedelta(days=rng.randint(0, (END - START).days))
-        cur.add(d, -rng.randint(699, 4599), "PARCELPOINT MKTPLACE*%s" % "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5)), "Card payment")
+        cur.add(d, -rng.randint(699, 4599), "PARCELWREN MKTPLACE*%s" % "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5)), "Card payment")
 
     cloud = month_days(dt.date(2026, 1, 1), END, 11, False)
     plant(cur, cloud, [299] * len(cloud), "APPHAVEN.COM/BILL", "Card payment",
@@ -199,7 +199,7 @@ def build(rng):
         if rng.random() < 0.28:
             cur.add(day, -rng.randint(450, 4800), "GREENGATE SUPERMARKET", "Card payment")
         if rng.random() < 0.06:
-            cur.add(day, -rng.choice([250, 250, 500]), "CITYLINK BUSES", "Card payment")
+            cur.add(day, -rng.choice([250, 250, 500]), "TOWNHOP BUSES", "Card payment")
         if rng.random() < 0.04:
             cur.add(day, -rng.randint(1100, 2600), "NOODLE NOOK TAKEAWAY", "Card payment")
         if rng.random() < 0.03:
