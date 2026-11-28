@@ -88,9 +88,9 @@
           </div>
           <div class="tray" data-field="references">
             <div class="tray-head"><label for="in-references"><span class="tray-n">D</span> Reference list <span class="opt">optional</span></label><span class="tray-count" id="count-references"></span></div>
-            <p class="tray-help">Only if it is not already under a "References" heading in your text. Harvard, APA or numbered.</p>
+            <p class="tray-help">Only if it is not already under a "References" heading in your text. Harvard, APA or numbered, or a RIS or BibTeX export from Zotero, Mendeley or EndNote.</p>
             <textarea id="in-references" data-field="references" spellcheck="false" rows="7"></textarea>
-            <div class="drop" data-field="references" tabindex="-1"><span>Drop a file, or</span> <button type="button" class="btn small" data-pick="references">choose</button></div>
+            <div class="drop" data-field="references" tabindex="-1"><span>Drop a .txt, .ris or .bib file, or</span> <button type="button" class="btn small" data-pick="references">choose</button></div>
             <p class="tray-msg" id="msg-references"></p>
           </div>
           <div class="tray" data-field="prompt">
@@ -156,7 +156,7 @@
               <li><strong>Marks what is checkable</strong> in each sentence with fixed patterns: figures (money, percentages, other numbers with their unit), dates and words like "recently", named studies and reports, vague appeals ("studies show"), people and organisations, direct quotations, citations, links and DOIs, absolute wording ("always", "proven", "the first"), legal, health and money statements, and leftovers from the chat window ("As of my last update", "[Insert source here]", "I hope this helps!").</li>
               <li><strong>Scores each sentence</strong> by adding the points in the table, and ranks the checklist. Every point is shown next to the sentence, so you can see why it was flagged.</li>
               <li><strong>Compares with your notes.</strong> A figure in the text is compared with figures of the same kind in your notes (a percentage with percentages, "14 tonnes" with other tonnes) when the note shares at least two content words with the sentence. The same figure counts as a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.</li>
-              <li><strong>Checks the references</strong> by their shape: years after today, DOIs that are not of the form 10.NNNN/..., broken web addresses, duplicates, journal articles with no volume or pages, very generic journal names, "et al." or placeholders in the list, citations with no entry and entries never cited. Two or more such signs, or a journal article with neither volume nor pages plus one other sign, mark an entry "look it up by hand".</li>
+              <li><strong>Checks the references</strong>, from your text's reference section or from a RIS or BibTeX export, by their shape: years after today, DOIs that are not of the form 10.NNNN/..., broken web addresses, duplicates, journal articles with no volume or pages, very generic journal names, "et al." or placeholders in the list, citations with no entry and entries never cited. Two or more such signs, or a journal article with neither volume nor pages plus one other sign, mark an entry "look it up by hand".</li>
               <li><strong>Compares the draft and your final version.</strong> A word counts as kept word for word when it sits in a run of at least four words that appears, in the same order, in the AI draft. A sentence with 85% or more of its words kept is <em>kept</em>, 30% or more is <em>edited</em>, less than that but sharing at least half its words with an AI sentence is <em>reworded</em>, and anything else is <em>yours</em>.</li>
               <li><strong>Writes the declaration</strong> from your session log, the checks you have marked and the comparison, in four layouts. It always says how many claims are still unchecked.</li>
             </ol>
@@ -170,12 +170,13 @@
               <li><strong>It checks nothing online.</strong> It cannot tell whether a source exists or a figure is true; it tells you where to look. Marking something "verified" is your word, not the tool's.</li>
               <li><strong>It is not a plagiarism or AI detector.</strong> The changes view compares your final text only with the AI draft you paste, and says nothing about anyone else's writing.</li>
               <li>Pattern rules miss things and over-flag others: a claim in plain words with no figure, name or quotation may not be flagged at all, and a harmless "the first" will be.</li>
-              <li>Citations are matched on the first author's surname and the year. Styles other than Harvard, APA and numbered lists are read less well.</li>
+              <li>Citations are matched on the first author's surname and the year, on the number in a numbered list, or on the citation key (<code>[@key]</code> in Markdown, <code>\cite{key}</code> in LaTeX) when the list is a reference manager export. Other styles are read less well.</li>
               <li>Your university's or employer's own rules decide what you must declare. Choose the layout that fits them and edit the text if needed.</li>
             </ul>
             <h2>Formats it reads</h2>
             <ul>
               <li>Texts: pasted text, Markdown, .txt, .md, .html and Word .docx files.</li>
+              <li>Reference lists: pasted Harvard, APA or numbered lists, or RIS (.ris) and BibTeX (.bib) exports from Zotero, Mendeley, EndNote or a library database.</li>
               <li>Session logs: CSV with commas, semicolons or tabs, any column order, UK or ISO dates. Download the template from the Your texts page.</li>
               <li>Projects: the .json file this page saves, which holds your texts, marks and log so you can carry on next time.</li>
             </ul>

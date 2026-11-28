@@ -204,6 +204,26 @@ test('project files round-trip and junk is refused with a reason', function () {
   assert.ok(/newer version/.test(M.readProject('{"format":"checked-by-me project","version":7}').message));
 });
 
+test('reference manager exports: RIS and BibTeX records with citation keys', function () {
+  var keyed = sample('final-version.md').split('## References')[0].replace('(Hartwell et al., 2019)', '[@hartwell2019, p. 115]').replace('Lindqvist (2020)', '\\cite{lindqvist2020}');
+  ['ris', 'bib'].forEach(function (ext) {
+    var a = M.analyse({ draft: sample('ai-draft.md'), final: keyed, references: sample('references.' + ext), asOf: AS_OF });
+    assert.strictEqual(a.refs.format, ext === 'ris' ? 'ris' : 'bibtex');
+    assert.strictEqual(a.refs.entries.length, 9);
+    var byKey = {};
+    a.refs.entries.forEach(function (r) { byKey[r.entry.citeKey] = r; });
+    assert.ok(byKey.hartwell2019.cited >= 1, 'the [@key] citation finds its record');
+    assert.strictEqual(byKey.morrow2021.verdict, 'suspect');
+    assert.ok(byKey.brinmouth2022.issues.some(function (x) { return x.code === 'url-space'; }));
+    assert.ok(byKey.pemberton2031.issues.some(function (x) { return x.code === 'future-year'; }));
+    assert.ok(a.refs.missing.some(function (m) { return m.text === '@lindqvist2020'; }));
+  });
+  var b = M.parseBibtex('@article{k, author = {Maren Haldane and {Kestleford Repair Network}}, title = {Caf{\\\'e}s}, journal={J}, year=2021, pages={1--9}}')[0];
+  assert.strictEqual(b.authors, 'Haldane, Maren and Kestleford Repair Network');
+  assert.strictEqual(b.title, 'Caf\u00e9s');
+  assert.strictEqual(b.pages, '1-9');
+});
+
 test('word files become Markdown-like text with headings, lists and footnotes', function () {
   var t = M.docxText('<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Intro</w:t></w:r></w:p><w:p><w:r><w:t>Text &amp; more</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p>',
     '<w:footnote w:id="0"><w:p><w:r><w:t>x</w:t></w:r></w:p></w:footnote><w:footnote w:id="1"><w:p><w:r><w:t>Smith (2020) Title.</w:t></w:r></w:p></w:footnote>');

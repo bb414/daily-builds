@@ -524,6 +524,9 @@ PIECE_YEAR_RE = re.compile("(?:^|[ ,])(" + YEAR + "[a-z]?|n\\.d\\.)(?=\\Z|[ ,;:]
 NARR_RE = re.compile("([" + CAP + "][" + LET + "'\\-]+(?: (?:et al\\.?|and [" + CAP + "][" + LET + "'\\-]+|& [" + CAP
                      + "][" + LET + "'\\-]+))?) \\((" + YEAR + "[a-z]?|n\\.d\\.)(?:, (pp?\\. ?[0-9]+(?:[-\u2013][0-9]+)?))?\\)", A)
 NUM_CIT_RE = re.compile("\\[([0-9]{1,3}(?: *[-\u2013,] *[0-9]{1,3})*)\\]", A)
+PANDOC_RE = re.compile(r"\[(-?@[A-Za-z0-9_][^\]]*)\]", A)
+LATEX_CITE_RE = re.compile(r"\\(?:cite|citep|citet|parencite|textcite|autocite)\*?(?:\[[^\]]*\]){0,2}\{([^}]+)\}", A)
+_KEY_RES = [(PANDOC_RE, ";", re.compile(r"^ *-?@([A-Za-z0-9_:.\-]*[A-Za-z0-9_])", A)), (LATEX_CITE_RE, ",", re.compile(r"^ *([A-Za-z0-9_:.\-]+)", A))]
 NOT_AUTHOR = {"in", "since", "from", "by", "until", "before", "after", "see", "circa", "around"}
 _CAP_START = re.compile("^[" + CAP + "]", A)
 _PIECE_PREFIX = re.compile(r"^(?:see also|see|e\.g\.,?|cf\.|as cited in) +", AI)
@@ -573,6 +576,17 @@ def find_citations(text):
         if labels:
             out.append({"kind": "numeric", "text": m.group(0), "start": m.start(), "end": m.end(), "authors": "",
                         "year": "", "page": "", "labels": labels})
+    # citation keys from Pandoc Markdown ([@key; @other, p. 4]) and LaTeX (\cite{key,other})
+    for regex, sep, piece_re in _KEY_RES:
+        for m in regex.finditer(text):
+            keys = []
+            for piece in m.group(1).split(sep):
+                km = piece_re.match(piece)
+                if km and km.group(1) not in keys:
+                    keys.append(km.group(1))
+            if keys:
+                out.append({"kind": "key", "text": m.group(0), "start": m.start(), "end": m.end(), "authors": "", "year": "",
+                            "page": "", "labels": keys})
     out.sort(key=lambda c: (c["start"], c["end"]))
     return out
 
@@ -1027,13 +1041,15 @@ def checks_for(kinds, scan):
     if "quote" in kinds:
         out.append("Find the exact quotation in the original, with its page number.")
     if "citation" in kinds:
-        out.append("Open " + quote_list(texts("citation"), 3) + " and check it really supports this sentence.")
+        out.append("Open " + quote_list(texts("citation"), 3) + (" and check it really supports" if len(texts("citation")) == 1
+                                                                 else " and check they really support") + " this sentence.")
     if "study" in kinds:
         out.append("Find the study or report itself, not a summary of it, and check it says this.")
     if "vague" in kinds:
         out.append("Name the source behind " + quote_list(texts("vague"), 2) + ", or cut the appeal to it.")
     if "person" in kinds:
-        out.append("Check " + quote_list(texts("person"), 3) + " exists, holds that role and said or wrote this.")
+        out.append("Check " + quote_list(texts("person"), 3) + (" exists, holds that role and said or wrote this." if len(texts("person")) == 1
+                                                               else " exist, hold those roles and said or wrote this."))
     if "org" in kinds:
         out.append("Check the exact name of " + quote_list(texts("org"), 3) + ".")
     if "date" in kinds:
@@ -1378,7 +1394,7 @@ def _search_pos(pattern, s, flags=A):
 def parse_entry(text, label=""):
     e = {"label": label or "", "text": strip_marks(text), "raw": text, "authors": "", "year": "", "title": "",
          "container": "", "volume": "", "issue": "", "pages": "", "doi": "", "doiMarked": False, "url": "",
-         "urlTail": "", "accessed": "", "publisher": "", "type": "other"}
+         "urlTail": "", "accessed": "", "publisher": "", "type": "other", "citeKey": ""}
     s = text
     am = re.search(r"\(?(?:accessed|retrieved|viewed)(?: on)?:? ([^)\]]+)[)\]]?", s, AI)
     if am:
@@ -1495,6 +1511,230 @@ def parse_entry(text, label=""):
     return e
 
 
+# ---------------------------------------------------------------- reference manager exports (RIS and BibTeX)
+
+def list_names(names):
+    if len(names) <= 1:
+        return "".join(names)
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def first_year(s):
+    m = re.search(r"(?:^|[^0-9])([0-9]{4})(?![0-9])", s or "", A)
+    return m.group(1) if m else ""
+
+
+def structured_entry(f, fmt, raw):
+    """Builds an entry, in the same shape parse_entry gives, from the fields of a reference manager record."""
+    e = {"label": "", "text": "", "raw": raw, "authors": list_names(f["authors"]), "year": f["year"], "title": f["title"],
+         "container": f["container"], "volume": f["volume"], "issue": f["issue"], "pages": f["pages"], "doi": f["doi"],
+         "doiMarked": f["doi"] != "", "url": f["url"], "urlTail": "", "accessed": f["accessed"], "publisher": f["publisher"],
+         "type": f["type"], "citeKey": f["citeKey"], "structured": fmt}
+    t = (e["authors"] + " " if e["authors"] else "") + "(" + (e["year"] or "no year") + ") "
+    if e["type"] == "journal":
+        t += "'" + e["title"] + "', " + e["container"] + ((", " + e["volume"] + ("(" + e["issue"] + ")" if e["issue"] else "")) if e["volume"] else "") \
+            + (", pp. " + e["pages"] if e["pages"] else "") + "."
+    elif e["type"] in ("book", "report"):
+        t += e["title"] + "." + (" In: " + e["container"] + "." if e["container"] else "") + (" " + e["publisher"] + "." if e["publisher"] else "")
+    else:
+        t += e["title"] + "." + (" " + e["container"] + "." if e["container"] else "")
+    if e["doi"]:
+        t += " doi:" + e["doi"]
+    if e["url"]:
+        t += " Available at: " + e["url"] + (" (Accessed: " + e["accessed"] + ")" if e["accessed"] else "")
+    e["text"] = collapse(t.replace(" ,", ","))
+    e["key"] = "r" + fnv(" ".join(words(e["text"])))
+    return e
+
+
+RIS_TYPES = {"JOUR": "journal", "JFULL": "journal", "EJOUR": "journal", "MGZN": "journal", "NEWS": "journal", "BOOK": "book",
+             "EBOOK": "book", "CHAP": "book", "ECHAP": "book", "EDBOOK": "book", "ELEC": "web", "WEB": "web", "BLOG": "web",
+             "RPRT": "report", "GOVDOC": "report", "THES": "report"}
+_RIS_LINE = re.compile(r"^([A-Z][A-Z0-9]) {1,2}-(?: (.*))?\Z", A)
+_DOI_PREFIX = re.compile(r"^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi: ?)", AI)
+
+
+def looks_ris(text):
+    return bool(re.search(r"(?:^|\n)TY {1,2}- ?[A-Z]", text or "", A))
+
+
+def looks_bibtex(text):
+    return bool(re.search(r"(?:^|\n) *@[A-Za-z]+ *[{(]", text or "", A))
+
+
+def parse_ris(text):
+    """Reads a RIS export (Zotero, Mendeley, EndNote, library databases): one record from TY to ER."""
+    lines = clean_chars(text, {}).split("\n")
+    recs, cur, last = [], None, ""
+    for line in lines:
+        ln = trim(line)
+        m = _RIS_LINE.match(ln)
+        if m:
+            tag, val = m.group(1), trim(m.group(2) or "")
+            if tag == "TY":
+                cur = {"type": val, "fields": {}, "raw": [ln]}
+                recs.append(cur)
+                last = ""
+                continue
+            if cur is None:
+                continue
+            cur["raw"].append(ln)
+            if tag == "ER":
+                cur = None
+                continue
+            cur["fields"].setdefault(tag, []).append(val)
+            last = tag
+        elif cur is not None and last and ln != "":
+            arr = cur["fields"][last]
+            arr[-1] = collapse(arr[-1] + " " + ln)
+            cur["raw"].append(ln)
+    out = []
+    for r in recs:
+        f = r["fields"]
+
+        def one(*tags):
+            for t in tags:
+                if t in f and f[t][0] != "":
+                    return f[t][0]
+            return ""
+
+        authors = []
+        for t in ("AU", "A1", "A2"):
+            if t in f and not authors:
+                authors = [x for x in f[t] if x != ""]
+        sp, ep = one("SP"), one("EP")
+        out.append(structured_entry({
+            "authors": authors, "year": first_year(one("PY", "Y1", "DA")), "title": one("TI", "T1", "CT"),
+            "container": one("T2", "JO", "JF", "JA", "BT"), "volume": one("VL"), "issue": one("IS"),
+            "pages": sp + "-" + ep if (sp and ep and ep != sp) else sp, "doi": _DOI_PREFIX.sub("", one("DO"), count=1),
+            "url": one("UR", "L2"), "accessed": one("Y2"), "publisher": one("PB"),
+            "type": RIS_TYPES.get(r["type"], "web" if one("UR") else "other"), "citeKey": one("ID")}, "ris", "\n".join(r["raw"])))
+    return out
+
+
+TEX_ACCENTS = {"'": "\u0301", "`": "\u0300", "^": "\u0302", '"': "\u0308", "~": "\u0303", "=": "\u0304", ".": "\u0307"}
+
+
+def tex_text(s):
+    """Turns BibTeX's TeX markup into plain text: accents, escaped characters, commands and braces."""
+    t = re.sub(r"\\([&%$#_])", r"\1", s)
+    t = re.sub(r"\{?\\(['`^\"~=.])\{?\\?([A-Za-z])\}?\}?", lambda m: m.group(2) + TEX_ACCENTS[m.group(1)], t)
+    t = re.sub(r"\{?\\c\{?([A-Za-z])\}?\}?", lambda m: m.group(1) + "\u0327", t)
+    t = re.sub(r"\\(?:ss)\b", "\u00df", t, flags=A)
+    t = re.sub(r"\\[A-Za-z]+\*? ?", "", t)
+    t = re.sub(r"[{}]", "", t).replace("~", " ").replace("--", "-")
+    return collapse(unicodedata.normalize("NFC", t).replace("\n", " "))
+
+
+def bib_name(name):
+    n = trim(name)
+    if re.match(r"^\{.*\}\Z", n, A):
+        return tex_text(n)
+    plain = tex_text(n)
+    if "," in plain or " " not in plain:
+        return plain
+    parts = plain.split(" ")
+    return parts[-1] + ", " + " ".join(parts[:-1])
+
+
+BIB_TYPES = {"article": "journal", "book": "book", "inbook": "book", "incollection": "book", "booklet": "book",
+             "proceedings": "book", "inproceedings": "book", "conference": "book", "techreport": "report", "report": "report",
+             "phdthesis": "report", "mastersthesis": "report", "thesis": "report", "online": "web", "electronic": "web",
+             "www": "web", "webpage": "web"}
+_BIB_HEAD = re.compile(r"^@([A-Za-z]+) *([{(])", A)
+_BIB_FIELD = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*) *= *", A)
+
+
+def parse_bibtex(text):
+    """Reads a BibTeX export: @type{key, field = {value} or "value" or bare, ...}."""
+    s = clean_chars(text, {})
+    out, i, n = [], 0, len(s)
+    while i < n:
+        at = s.find("@", i)
+        if at < 0:
+            break
+        hm = _BIB_HEAD.match(s[at:at + 60])
+        if not hm:
+            i = at + 1
+            continue
+        typ, opener = hm.group(1).lower(), hm.group(2)
+        close = "}" if opener == "{" else ")"
+        i = at + len(hm.group(0))
+        if typ in ("comment", "string", "preamble"):
+            depth = 1
+            while i < n and depth > 0:
+                if s[i] == opener:
+                    depth += 1
+                elif s[i] == close:
+                    depth -= 1
+                i += 1
+            continue
+        comma, shut = s.find(",", i), s.find(close, i)
+        if comma < 0 or (0 <= shut < comma):
+            i = n if shut < 0 else shut + 1
+            continue
+        key = trim(s[i:comma].replace("\n", " "))
+        i = comma + 1
+        fields = {}
+        while i < n:
+            while i < n and s[i] in " \n,":
+                i += 1
+            if i >= n or s[i] == close:
+                i += 1
+                break
+            nm = _BIB_FIELD.match(s[i:i + 80])
+            if not nm:
+                while i < n and s[i] != "," and s[i] != close:
+                    i += 1
+                continue
+            i += len(nm.group(0))
+            value = ""
+            if s[i:i + 1] == "{":
+                d2, st = 0, i
+                while i < n:
+                    if s[i] == "{":
+                        d2 += 1
+                    elif s[i] == "}":
+                        d2 -= 1
+                        if d2 == 0:
+                            break
+                    i += 1
+                value = s[st + 1:i]
+                i += 1
+            elif s[i:i + 1] == '"':
+                i += 1
+                st2, d3 = i, 0
+                while i < n and not (s[i] == '"' and d3 == 0):
+                    if s[i] == "{":
+                        d3 += 1
+                    elif s[i] == "}":
+                        d3 -= 1
+                    i += 1
+                value = s[st2:i]
+                i += 1
+            else:
+                st3 = i
+                while i < n and s[i] != "," and s[i] != close and s[i] != "\n":
+                    i += 1
+                value = trim(s[st3:i])
+            fields[nm.group(1).lower()] = value
+
+        def get(k):
+            return tex_text(fields[k]) if k in fields else ""
+
+        authors_raw = fields["author"] if "author" in fields else (fields["editor"] if "editor" in fields else "")
+        authors = [] if trim(authors_raw) == "" else [x for x in (bib_name(a) for a in re.split(r" +and +", authors_raw.replace("\n", " "))) if x != ""]
+        url, doi = get("url"), _DOI_PREFIX.sub("", get("doi"), count=1)
+        raw = s[at:i]
+        out.append(structured_entry({
+            "authors": authors, "year": (first_year(get("year")) or get("year")) if get("year") else first_year(get("date")),
+            "title": get("title"), "container": get("journal") or get("journaltitle") or get("booktitle"), "volume": get("volume"),
+            "issue": get("number") or get("issue"), "pages": re.sub(" *[-\u2013]+ *", "-", get("pages")), "doi": doi, "url": url,
+            "accessed": get("urldate"), "publisher": get("publisher") or get("institution") or get("organization") or get("school"),
+            "type": BIB_TYPES.get(typ, "web" if url else "other"), "citeKey": key}, "bibtex", trim(raw)))
+    return out
+
+
 def norm_authors(s):
     return collapse(re.sub(r"[^a-z0-9 ]", " ", strip_accents(s).lower()))
 
@@ -1513,6 +1753,8 @@ def check_url(url, tail):
     if tail:
         issues.append({"code": "url-space", "severity": "problem",
                        "text": 'The web address seems to contain a space ("' + url + " " + tail + '"), so it will not open as written.'})
+    elif " " in url:
+        issues.append({"code": "url-space", "severity": "problem", "text": 'The web address contains a space ("' + url + '"), so it will not open as written.'})
     hm = re.match(r"(?:[a-z]+:?\/*)?([^/?#]+)", url, AI)
     host = hm.group(1).lower() if hm else ""
     if host and ("." not in host or re.search(r"[^a-z0-9.\-:]", host) or re.search(r"\.\.|^-|-\.|\.-", host)):
@@ -1618,7 +1860,18 @@ def check_references(entries, citations, as_of):
     any_label = any(o["entry"]["label"] for o in out)
     for cit in citations:
         hits = []
-        if cit["kind"] == "numeric":
+        if cit["kind"] == "key":
+            for lab in cit["labels"]:
+                fk = -1
+                for r2, o in enumerate(out):
+                    if o["entry"]["citeKey"] and o["entry"]["citeKey"].lower() == lab.lower():
+                        fk = r2
+                        break
+                if fk >= 0:
+                    hits.append(fk)
+                else:
+                    missing.append({"text": "@" + lab, "sentence": cit["sentence"], "near": ""})
+        elif cit["kind"] == "numeric":
             for lab in cit["labels"]:
                 found = -1
                 for r0, o in enumerate(out):
@@ -1713,10 +1966,20 @@ def analyse(inp):
     elif checked_doc["refLines"] or footnotes:
         ref_lines = checked_doc["refLines"]
         ref_source = "final" if has_final else "draft"
+    ref_format, structured = "text", []
+    if ref_source == "list" and looks_ris(inp.get("references")):
+        ref_format, structured, ref_lines = "ris", parse_ris(inp.get("references")), []
+    elif ref_source == "list" and looks_bibtex(inp.get("references")):
+        ref_format, structured, ref_lines = "bibtex", parse_bibtex(inp.get("references")), []
+    if ref_format != "text" and not structured:
+        messages.append("The reference list looks like a " + ("RIS" if ref_format == "ris" else "BibTeX")
+                        + " export but no records could be read from it.")
     split = split_entries(ref_lines)
     for fn in footnotes:
         split.append({"label": fn["label"], "text": fn["text"], "merged": False, "footnote": True})
-    entries = []
+    for se in structured:
+        se["footnote"] = False
+    entries = list(structured)
     for x in split:
         e = parse_entry(x["text"], x["label"])
         e["footnote"] = bool(x.get("footnote"))
@@ -1732,6 +1995,7 @@ def analyse(inp):
                               "page": cc["page"], "labels": cc["labels"], "sentence": s})
     refs = check_references(entries, citations, as_of)
     refs["source"] = ref_source
+    refs["format"] = ref_format
     refs["citations"] = len(citations)
     refs["mergedSplit"] = merged_count
 

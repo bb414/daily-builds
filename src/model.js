@@ -457,6 +457,8 @@
   var PIECE_YEAR_RE = new RegExp('(?:^|[ ,])(' + YEAR + '[a-z]?|n\\.d\\.)(?=$|[ ,;:])');
   var NARR_RE = new RegExp('([' + CAP + '][' + LET + "'\\-]+(?: (?:et al\\.?|and [" + CAP + '][' + LET + "'\\-]+|& [" + CAP + '][' + LET + "'\\-]+))?) \\((" + YEAR + '[a-z]?|n\\.d\\.)(?:, (pp?\\. ?[0-9]+(?:[-\u2013][0-9]+)?))?\\)', 'g');
   var NUM_CIT_RE = /\[([0-9]{1,3}(?: *[-\u2013,] *[0-9]{1,3})*)\]/g;
+  var PANDOC_RE = /\[(-?@[A-Za-z0-9_][^\]]*)\]/g;
+  var LATEX_CITE_RE = /\\(?:cite|citep|citet|parencite|textcite|autocite)\*?(?:\[[^\]]*\]){0,2}\{([^}]+)\}/g;
   var NOT_AUTHOR = { 'in': 1, 'since': 1, 'from': 1, 'by': 1, 'until': 1, 'before': 1, 'after': 1, 'see': 1, 'circa': 1, 'around': 1 };
 
   function citationPiece(piece) {
@@ -512,6 +514,19 @@
         } else if (/^[0-9]+$/.test(parts[p])) labels.push(String(+parts[p]));
       }
       if (labels.length) out.push({ kind: 'numeric', text: m[0], start: m.index, end: m.index + m[0].length, authors: '', year: '', page: '', labels: labels });
+    }
+    // citation keys from Pandoc Markdown ([@key; @other, p. 4]) and LaTeX (\cite{key,other})
+    var keyRes = [[PANDOC_RE, ';', /^ *-?@([A-Za-z0-9_:.\-]*[A-Za-z0-9_])/], [LATEX_CITE_RE, ',', /^ *([A-Za-z0-9_:.\-]+)/]];
+    for (var kr = 0; kr < keyRes.length; kr++) {
+      keyRes[kr][0].lastIndex = 0;
+      while ((m = keyRes[kr][0].exec(text)) !== null) {
+        var keys = [], pieces = m[1].split(keyRes[kr][1]);
+        for (var q = 0; q < pieces.length; q++) {
+          var km = keyRes[kr][2].exec(pieces[q]);
+          if (km && keys.indexOf(km[1]) < 0) keys.push(km[1]);
+        }
+        if (keys.length) out.push({ kind: 'key', text: m[0], start: m.index, end: m.index + m[0].length, authors: '', year: '', page: '', labels: keys });
+      }
     }
     out.sort(function (a, b) { return a.start - b.start || a.end - b.end; });
     return out;
@@ -906,10 +921,10 @@
     if (kinds.leftover) out.push('Delete or replace ' + quoteList(texts('leftover'), 2) + ': it is the AI tool talking, not part of your work.');
     if (kinds.statistic) out.push('Find where ' + quoteList(texts('statistic')) + (texts('statistic').length === 1 ? ' comes' : ' come') + ' from and check the number, the unit, the year and who it covers.');
     if (kinds.quote) out.push('Find the exact quotation in the original, with its page number.');
-    if (kinds.citation) out.push('Open ' + quoteList(texts('citation'), 3) + ' and check it really supports this sentence.');
+    if (kinds.citation) out.push('Open ' + quoteList(texts('citation'), 3) + (texts('citation').length === 1 ? ' and check it really supports' : ' and check they really support') + ' this sentence.');
     if (kinds.study) out.push('Find the study or report itself, not a summary of it, and check it says this.');
     if (kinds.vague) out.push('Name the source behind ' + quoteList(texts('vague'), 2) + ', or cut the appeal to it.');
-    if (kinds.person) out.push('Check ' + quoteList(texts('person'), 3) + ' exists, holds that role and said or wrote this.');
+    if (kinds.person) out.push('Check ' + quoteList(texts('person'), 3) + (texts('person').length === 1 ? ' exists, holds that role and said or wrote this.' : ' exist, hold those roles and said or wrote this.'));
     if (kinds.org) out.push('Check the exact name of ' + quoteList(texts('org'), 3) + '.');
     if (kinds.date) out.push('Check the date' + (texts('date').length > 1 ? 's ' : ' ') + quoteList(texts('date')) + '.');
     if (kinds.url) out.push('Open ' + quoteList(texts('url'), 2) + ' yourself and check it loads and says this.');
@@ -1201,7 +1216,7 @@
 
   function parseEntry(text, label) {
     var e = { label: label || '', text: stripMarks(text), raw: text, authors: '', year: '', title: '', container: '',
-      volume: '', issue: '', pages: '', doi: '', doiMarked: false, url: '', urlTail: '', accessed: '', publisher: '', type: 'other' };
+      volume: '', issue: '', pages: '', doi: '', doiMarked: false, url: '', urlTail: '', accessed: '', publisher: '', type: 'other', citeKey: '' };
     var s = text;
     var am = /\(?(?:accessed|retrieved|viewed)(?: on)?:? ([^)\]]+)[)\]]?/i.exec(s);
     if (am) { e.accessed = trim(am[1].replace(/[.]$/, '')); s = s.slice(0, am.index) + s.slice(am.index + am[0].length); }
@@ -1292,6 +1307,165 @@
   }
   M.parseEntry = parseEntry;
 
+  // ---------------------------------------------------------------- reference manager exports (RIS and BibTeX)
+
+  function listNames(names) {
+    if (names.length <= 1) return names.join('');
+    return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  }
+
+  function firstYear(s) {
+    var m = /(?:^|[^0-9])([0-9]{4})(?![0-9])/.exec(s || '');
+    return m ? m[1] : '';
+  }
+
+  // Builds an entry, in the same shape parseEntry gives, from the fields of a reference manager record.
+  function structuredEntry(f, format, raw) {
+    var e = { label: '', text: '', raw: raw, authors: listNames(f.authors), year: f.year, title: f.title, container: f.container,
+      volume: f.volume, issue: f.issue, pages: f.pages, doi: f.doi, doiMarked: f.doi !== '', url: f.url, urlTail: '', accessed: f.accessed,
+      publisher: f.publisher, type: f.type, citeKey: f.citeKey, structured: format };
+    var t = (e.authors ? e.authors + ' ' : '') + '(' + (e.year || 'no year') + ') ';
+    if (e.type === 'journal') {
+      t += "'" + e.title + "', " + e.container + (e.volume ? ', ' + e.volume + (e.issue ? '(' + e.issue + ')' : '') : '') + (e.pages ? ', pp. ' + e.pages : '') + '.';
+    } else if (e.type === 'book' || e.type === 'report') {
+      t += e.title + '.' + (e.container ? ' In: ' + e.container + '.' : '') + (e.publisher ? ' ' + e.publisher + '.' : '');
+    } else t += e.title + '.' + (e.container ? ' ' + e.container + '.' : '');
+    if (e.doi) t += ' doi:' + e.doi;
+    if (e.url) t += ' Available at: ' + e.url + (e.accessed ? ' (Accessed: ' + e.accessed + ')' : '');
+    e.text = collapse(t.replace(/ ,/g, ','));
+    e.key = 'r' + fnv(words(e.text).join(' '));
+    return e;
+  }
+
+  var RIS_TYPES = { JOUR: 'journal', JFULL: 'journal', EJOUR: 'journal', MGZN: 'journal', NEWS: 'journal', BOOK: 'book', EBOOK: 'book', CHAP: 'book',
+    ECHAP: 'book', EDBOOK: 'book', ELEC: 'web', WEB: 'web', BLOG: 'web', RPRT: 'report', GOVDOC: 'report', THES: 'report' };
+
+  function looksRis(text) { return /(?:^|\n)TY {1,2}- ?[A-Z]/.test(text); }
+  function looksBibtex(text) { return /(?:^|\n) *@[A-Za-z]+ *[{(]/.test(text); }
+  M.looksRis = looksRis;
+  M.looksBibtex = looksBibtex;
+
+  // Reads a RIS export (Zotero, Mendeley, EndNote, library databases): one record from TY to ER.
+  function parseRis(text) {
+    var lines = cleanChars(text, {}).split('\n'), recs = [], cur = null, last = '';
+    for (var i = 0; i < lines.length; i++) {
+      var m = /^([A-Z][A-Z0-9]) {1,2}-(?: (.*))?$/.exec(trim(lines[i]));
+      if (m) {
+        var tag = m[1], val = trim(m[2] || '');
+        if (tag === 'TY') { cur = { type: val, fields: dict(), raw: [trim(lines[i])] }; recs.push(cur); last = ''; continue; }
+        if (!cur) continue;
+        cur.raw.push(trim(lines[i]));
+        if (tag === 'ER') { cur = null; continue; }
+        if (!hasOwn(cur.fields, tag)) cur.fields[tag] = [];
+        cur.fields[tag].push(val);
+        last = tag;
+      } else if (cur && last && trim(lines[i]) !== '') {
+        var arr = cur.fields[last];
+        arr[arr.length - 1] = collapse(arr[arr.length - 1] + ' ' + trim(lines[i]));
+        cur.raw.push(trim(lines[i]));
+      }
+    }
+    return recs.map(function (r) {
+      var f = r.fields;
+      function one() {
+        for (var k = 0; k < arguments.length; k++) if (hasOwn(f, arguments[k]) && f[arguments[k]][0] !== '') return f[arguments[k]][0];
+        return '';
+      }
+      var authors = [];
+      ['AU', 'A1', 'A2'].forEach(function (t) { if (hasOwn(f, t) && !authors.length) authors = f[t].filter(function (x) { return x !== ''; }); });
+      var sp = one('SP'), ep = one('EP');
+      return structuredEntry({ authors: authors, year: firstYear(one('PY', 'Y1', 'DA')), title: one('TI', 'T1', 'CT'), container: one('T2', 'JO', 'JF', 'JA', 'BT'),
+        volume: one('VL'), issue: one('IS'), pages: sp && ep && ep !== sp ? sp + '-' + ep : sp, doi: one('DO').replace(/^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi: ?)/i, ''),
+        url: one('UR', 'L2'), accessed: one('Y2'), publisher: one('PB'), type: hasOwn(RIS_TYPES, r.type) ? RIS_TYPES[r.type] : (one('UR') ? 'web' : 'other'),
+        citeKey: one('ID') }, 'ris', r.raw.join('\n'));
+    });
+  }
+  M.parseRis = parseRis;
+
+  var TEX_ACCENTS = { "'": '\u0301', '`': '\u0300', '^': '\u0302', '"': '\u0308', '~': '\u0303', '=': '\u0304', '.': '\u0307' };
+
+  // Turns BibTeX's TeX markup into plain text: accents, escaped characters, commands and braces.
+  function texText(s) {
+    var t = s.replace(/\\([&%$#_])/g, '$1');
+    t = t.replace(/\{?\\(['`^"~=.])\{?\\?([A-Za-z])\}?\}?/g, function (m0, acc, ch) { return ch + TEX_ACCENTS[acc]; });
+    t = t.replace(/\{?\\c\{?([A-Za-z])\}?\}?/g, function (m0, ch) { return ch + '\u0327'; });
+    t = t.replace(/\\(?:ss)\b/g, '\u00df').replace(/\\[A-Za-z]+\*? ?/g, '');
+    t = t.replace(/[{}]/g, '').replace(/~/g, ' ').replace(/--/g, '-');
+    return collapse(t.normalize('NFC').replace(/\n/g, ' '));
+  }
+  M.texText = texText;
+
+  function bibName(name) {
+    var n = trim(name);
+    if (/^\{.*\}$/.test(n)) return texText(n);
+    var plain = texText(n);
+    if (plain.indexOf(',') >= 0 || plain.indexOf(' ') < 0) return plain;
+    var parts = plain.split(' ');
+    return parts[parts.length - 1] + ', ' + parts.slice(0, -1).join(' ');
+  }
+
+  var BIB_TYPES = { article: 'journal', book: 'book', inbook: 'book', incollection: 'book', booklet: 'book', proceedings: 'book',
+    inproceedings: 'book', conference: 'book', techreport: 'report', report: 'report', phdthesis: 'report', mastersthesis: 'report', thesis: 'report',
+    online: 'web', electronic: 'web', www: 'web', webpage: 'web' };
+
+  // Reads a BibTeX export: @type{key, field = {value} or "value" or bare, ...}.
+  function parseBibtex(text) {
+    var s = cleanChars(text, {}), out = [], i = 0, n = s.length;
+    function skipBlank() { while (i < n && /[ \n,]/.test(s[i])) i++; }
+    while (i < n) {
+      var at = s.indexOf('@', i);
+      if (at < 0) break;
+      var hm = /^@([A-Za-z]+) *([{(])/.exec(s.slice(at, at + 60));
+      if (!hm) { i = at + 1; continue; }
+      var type = hm[1].toLowerCase(), close = hm[2] === '{' ? '}' : ')';
+      i = at + hm[0].length;
+      if (type === 'comment' || type === 'string' || type === 'preamble') {
+        var depth = 1;
+        while (i < n && depth > 0) { if (s[i] === hm[2]) depth++; else if (s[i] === close) depth--; i++; }
+        continue;
+      }
+      var comma = s.indexOf(',', i), shut = s.indexOf(close, i);
+      if (comma < 0 || (shut >= 0 && shut < comma)) { i = shut < 0 ? n : shut + 1; continue; }
+      var key = trim(s.slice(i, comma).replace(/\n/g, ' '));
+      i = comma + 1;
+      var fields = dict();
+      while (i < n) {
+        skipBlank();
+        if (i >= n || s[i] === close) { i++; break; }
+        var nm = /^([A-Za-z][A-Za-z0-9_\-]*) *= */.exec(s.slice(i, i + 80));
+        if (!nm) { while (i < n && s[i] !== ',' && s[i] !== close) i++; continue; }
+        i += nm[0].length;
+        var value = '';
+        if (s[i] === '{') {
+          var d2 = 0, st = i;
+          while (i < n) { if (s[i] === '{') d2++; else if (s[i] === '}') { d2--; if (d2 === 0) break; } i++; }
+          value = s.slice(st + 1, i); i++;
+        } else if (s[i] === '"') {
+          var st2 = ++i, d3 = 0;
+          while (i < n && !(s[i] === '"' && d3 === 0)) { if (s[i] === '{') d3++; else if (s[i] === '}') d3--; i++; }
+          value = s.slice(st2, i); i++;
+        } else {
+          var st3 = i;
+          while (i < n && s[i] !== ',' && s[i] !== close && s[i] !== '\n') i++;
+          value = trim(s.slice(st3, i));
+        }
+        fields[nm[1].toLowerCase()] = value;
+      }
+      var get = function (k) { return hasOwn(fields, k) ? texText(fields[k]) : ''; };
+      var authorsRaw = hasOwn(fields, 'author') ? fields.author : (hasOwn(fields, 'editor') ? fields.editor : '');
+      var authors = trim(authorsRaw) === '' ? [] : authorsRaw.replace(/\n/g, ' ').split(/ +and +/).map(bibName).filter(function (x) { return x !== ''; });
+      var url = get('url'), doi = get('doi').replace(/^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi: ?)/i, '');
+      var raw = s.slice(at, i);
+      out.push(structuredEntry({ authors: authors, year: get('year') ? firstYear(get('year')) || get('year') : firstYear(get('date')), title: get('title'),
+        container: get('journal') || get('journaltitle') || get('booktitle'), volume: get('volume'), issue: get('number') || get('issue'),
+        pages: get('pages').replace(/ *[-\u2013]+ */g, '-'), doi: doi, url: url, accessed: get('urldate'),
+        publisher: get('publisher') || get('institution') || get('organization') || get('school'),
+        type: hasOwn(BIB_TYPES, type) ? BIB_TYPES[type] : (url ? 'web' : 'other'), citeKey: key }, 'bibtex', trim(raw)));
+    }
+    return out;
+  }
+  M.parseBibtex = parseBibtex;
+
   function normAuthors(s) { return collapse(stripAccents(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ')); }
 
   function firstSurname(authors) {
@@ -1305,6 +1479,7 @@
       issues.push({ code: 'url-scheme', severity: 'problem', text: 'The web address starts "' + url.slice(0, url.indexOf('/') + 2) + '": it should start https:// or http://.' });
     }
     if (tail) issues.push({ code: 'url-space', severity: 'problem', text: 'The web address seems to contain a space ("' + url + ' ' + tail + '"), so it will not open as written.' });
+    else if (/ /.test(url)) issues.push({ code: 'url-space', severity: 'problem', text: 'The web address contains a space ("' + url + '"), so it will not open as written.' });
     var hm = /^(?:[a-z]+:?\/*)?([^/?#]+)/i.exec(url);
     var host = hm ? hm[1].toLowerCase() : '';
     if (host && (host.indexOf('.') < 0 || /[^a-z0-9.\-:]/.test(host) || /\.\.|^-|-\.|\.-/.test(host))) {
@@ -1401,6 +1576,15 @@
           if (found >= 0) hits.push(found);
           else missing.push({ text: '[' + cit.labels[l] + ']', sentence: cit.sentence, near: '' });
         }
+      } else if (cit.kind === 'key') {
+        for (var kk = 0; kk < cit.labels.length; kk++) {
+          var fk = -1;
+          for (var r2 = 0; r2 < out.length; r2++) {
+            if (out[r2].entry.citeKey && out[r2].entry.citeKey.toLowerCase() === cit.labels[kk].toLowerCase()) { fk = r2; break; }
+          }
+          if (fk >= 0) hits.push(fk);
+          else missing.push({ text: '@' + cit.labels[kk], sentence: cit.sentence, near: '' });
+        }
       } else {
         var sur = firstSurname(cit.authors), near = '';
         for (var t = 0; t < out.length; t++) {
@@ -1468,9 +1652,14 @@
     } else if (checkedDoc.refLines.length || footnotes.length) {
       refLines = checkedDoc.refLines; refSource = hasFinal ? 'final' : 'draft';
     }
+    var refFormat = 'text', structured = [];
+    if (refSource === 'list' && looksRis(input.references)) { refFormat = 'ris'; structured = parseRis(input.references); refLines = []; }
+    else if (refSource === 'list' && looksBibtex(input.references)) { refFormat = 'bibtex'; structured = parseBibtex(input.references); refLines = []; }
+    if (refFormat !== 'text' && !structured.length) messages.push('The reference list looks like a ' + (refFormat === 'ris' ? 'RIS' : 'BibTeX') + ' export but no records could be read from it.');
     var split = splitEntries(refLines);
     for (var fn = 0; fn < footnotes.length; fn++) split.push({ label: footnotes[fn].label, text: footnotes[fn].text, merged: false, footnote: true });
-    var entries = split.map(function (x) { var e = parseEntry(x.text, x.label); e.footnote = !!x.footnote; return e; });
+    var entries = structured.concat(split.map(function (x) { var e = parseEntry(x.text, x.label); e.footnote = !!x.footnote; return e; }));
+    for (var se = 0; se < structured.length; se++) structured[se].footnote = false;
     var mergedCount = split.filter(function (x) { return x.merged; }).length;
 
     var citations = [];
@@ -1485,6 +1674,7 @@
     }
     var refs = checkReferences(entries, citations, asOf);
     refs.source = refSource;
+    refs.format = refFormat;
     refs.citations = citations.length;
     refs.mergedSplit = mergedCount;
 

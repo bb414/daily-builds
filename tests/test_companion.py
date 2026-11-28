@@ -103,6 +103,12 @@ class Commands(unittest.TestCase):
             with open(os.path.join(d, "a.json"), encoding="utf-8") as fh:
                 self.assertEqual(len(json.load(fh)["claims"]), 11)
 
+    def test_check_reads_a_reference_manager_export(self):
+        code, out, _ = run("check", os.path.join(DATA, "ai-draft.md"), "--references", os.path.join(DATA, "references.bib"), "--as-of", "2026-11-28")
+        self.assertEqual(code, 0)
+        self.assertIn("References: 9 entries, 7 flagged, 1 look made up, 1 cited but not listed.", out)
+        self.assertIn("The web address contains a space", out)
+
     def test_batch_report_covers_every_file_and_explains_bad_ones(self):
         with tempfile.TemporaryDirectory() as d:
             for name in ("ai-draft.md", "messy-paste.txt"):

@@ -91,6 +91,71 @@ Pemberton, L. (2031) *Right to repair: the next decade*. London: Fallow Books.
 Quinlan, R. and Oduya, T. (2018) 'Volunteering and local trade', *Review of Community Enterprise*, 7(1), pp. 45-61. doi:10.555/rce.7.1"""
 
 
+# The same reference list as a reference manager would export it (with the same problems), for box D.
+RECORDS = [
+    {"key": "brinmouth2022", "ris": "ELEC", "bib": "online", "authors": ["{Brinmouth Borough Council}"], "year": "2022",
+     "title": "Market Street footfall monitor 2022", "url": "https://www.brinmouth-bc.org.uk/footfall data", "accessed": "2026-11-03"},
+    {"key": "eicp2022", "ris": "RPRT", "bib": "techreport", "authors": ["{Eastmoor Institute for Circular Practice}"], "year": "2022",
+     "title": "The household value of repair", "publisher": "EICP", "doi": "10.5555/eicp 2022.07"},
+    {"key": "haldane2021", "ris": "BOOK", "bib": "book", "authors": ["Haldane, M."], "year": "2021",
+     "title": "Mending the market: repair and the everyday economy", "publisher": "Wren Lane Press"},
+    {"key": "hartwell2019", "ris": "JOUR", "bib": "article", "authors": ["Hartwell, M.", "Osei, P.", "Lindqvist, A."], "year": "2019",
+     "title": "Repair intentions in UK households", "journal": "Journal of Household Material Flows", "volume": "14", "issue": "2",
+     "pages": ("113", "129"), "doi": "10.5555/jhmf.2019.0142"},
+    {"key": "hartwell2019a", "ris": "JOUR", "bib": "article", "authors": ["Hartwell, M.", "Osei, P.", "Lindqvist, A."], "year": "2019",
+     "title": "Repair intentions in UK households", "journal": "Journal of Household Material Flows", "volume": "14", "issue": "2",
+     "pages": ("113", "129")},
+    {"key": "krn2024", "ris": "ELEC", "bib": "online", "authors": ["{Kestleford Repair Network}"], "year": "2024", "title": "Annual report 2023",
+     "url": "htps://kestleford-repair-network.org.uk/annual-report-2023"},
+    {"key": "morrow2021", "ris": "JOUR", "bib": "article", "authors": ["Morrow, J."], "year": "2021", "title": "The economics of fixing things",
+     "journal": "Journal of Research Studies"},
+    {"key": "pemberton2031", "ris": "BOOK", "bib": "book", "authors": ["Pemberton, L."], "year": "2031", "title": "Right to repair: the next decade",
+     "publisher": "Fallow Books"},
+    {"key": "quinlan2018", "ris": "JOUR", "bib": "article", "authors": ["Quinlan, R.", "Oduya, T."], "year": "2018", "title": "Volunteering and local trade",
+     "journal": "Review of Community Enterprise", "volume": "7", "issue": "1", "pages": ("45", "61"), "doi": "10.555/rce.7.1"},
+]
+
+
+def ris_text():
+    out = []
+    for r in RECORDS:
+        out.append("TY  - " + r["ris"])
+        for a in r["authors"]:
+            out.append("AU  - " + a.strip("{}"))
+        out.append("PY  - " + r["year"] + "///")
+        out.append("TI  - " + r["title"])
+        if r.get("journal"):
+            out.append("T2  - " + r["journal"])
+        for tag, field in (("VL", "volume"), ("IS", "issue"), ("PB", "publisher"), ("DO", "doi"), ("UR", "url"), ("Y2", "accessed")):
+            if r.get(field):
+                out.append(tag + "  - " + r[field])
+        if r.get("pages"):
+            out.append("SP  - " + r["pages"][0])
+            out.append("EP  - " + r["pages"][1])
+        out.append("ID  - " + r["key"])
+        out.append("ER  - ")
+        out.append("")
+    return "\n".join(out)
+
+
+def bib_text():
+    out = ["% Exported from a reference manager (invented records for the Checked by me sample)", ""]
+    for r in RECORDS:
+        out.append("@%s{%s," % (r["bib"], r["key"]))
+        out.append("  author = {%s}," % " and ".join(r["authors"]))
+        out.append("  title = {%s}," % r["title"].replace("UK", "{UK}"))
+        for field, name in (("journal", "journal"), ("volume", "volume"), ("issue", "number"), ("publisher", "publisher"),
+                            ("doi", "doi"), ("url", "url"), ("accessed", "urldate")):
+            if r.get(field):
+                out.append("  %s = {%s}," % (name, r[field]))
+        if r.get("pages"):
+            out.append("  pages = {%s--%s}," % r["pages"])
+        out.append("  year = %s" % r["year"])
+        out.append("}")
+        out.append("")
+    return "\n".join(out)
+
+
 def final_text(f):
     t = FACTS
     return f"""## 2. {TITLE}
@@ -266,6 +331,8 @@ def main(argv):
     write("notes.md", notes_text())
     write("prompt.txt", PROMPT + "\n")
     write("references.txt", REFERENCES + "\n")
+    write("references.ris", ris_text())
+    write("references.bib", bib_text())
     write("messy-paste.txt", messy_text(f))
     # A folder of drafts for the companion's batch command: a final version sits beside its draft as "-final".
     write("drafts/repair-cafes.md", draft_text(f).replace("{REFERENCES}", REFERENCES))

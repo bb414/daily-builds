@@ -366,7 +366,10 @@
       var msg = S.fieldMsgs[f] || '';
       if (a && f === 'draft' && t) msg = (msg ? msg + ' ' : '') + cleaningText(a.cleaning.draft);
       if (a && f === 'final' && t) msg = (msg ? msg + ' ' : '') + cleaningText(a.cleaning.final);
-      if (a && f === 'references' && t && a.refs.source === 'list') msg = (msg ? msg + ' ' : '') + plural(a.refs.entries.length, 'entry', 'entries') + ' read.';
+      if (a && f === 'references' && t && a.refs.source === 'list') {
+        msg = (msg ? msg + ' ' : '') + (a.refs.format === 'text' ? plural(a.refs.entries.length, 'entry', 'entries') + ' read.'
+          : plural(a.refs.entries.length, 'record') + ' read from a ' + (a.refs.format === 'ris' ? 'RIS' : 'BibTeX') + ' export' + (a.refs.entries.some(function (r) { return r.entry.citeKey; }) ? ', with citation keys for [@key] or \\cite{key} citations.' : '.'));
+      }
       if (a && f === 'notes' && t) msg = (msg ? msg + ' ' : '') + plural(a.notesSentences, 'line') + ' of notes to compare against.';
       if (a && f === 'prompt' && t) {
         var asks = [];
@@ -533,6 +536,7 @@
     function f(label, v) { if (v) fields.push('<li><i>' + label + '</i>' + esc(v) + '</li>'); }
     f('type', e.type); f('authors', e.authors); f('year', e.year); f('title', e.title); f('in', e.container);
     f('vol', e.volume + (e.issue ? '(' + e.issue + ')' : '')); f('pages', e.pages); f('publisher', e.publisher); f('doi', e.doi); f('url', e.url + (e.urlTail ? ' ' + e.urlTail : '')); f('accessed', e.accessed);
+    f('key', e.citeKey);
     f('cited', r.cited ? plural(r.cited, 'time') : '');
     var issues = r.issues.map(function (x) { return '<li class="' + x.severity + '">' + esc(x.text) + '</li>'; }).join('');
     var acts = r.verdict === 'ok' ? '<p class="small">Nothing to fix by shape. You still need to have read it.</p>' : '<div class="ref-acts" role="group" aria-label="Mark reference ' + r.number + '">' + ['checked', 'fixed', 'removed'].map(function (k) {
@@ -552,6 +556,8 @@
       return;
     }
     var src = { list: 'the reference list you pasted (box D)', final: 'the reference section of your final version', draft: 'the reference section of the AI draft', none: 'nowhere' }[a.refs.source];
+    if (a.refs.format === 'ris') src = 'the RIS export from your reference manager (box D)';
+    else if (a.refs.format === 'bibtex') src = 'the BibTeX export from your reference manager (box D)';
     var html = '<div class="refs-top"><div class="tally"><b>' + s.refs + '</b><span>entries</span></div><div class="tally' + (s.refUnresolved ? ' hot' : '') + '"><b>' + s.refUnresolved + '</b><span>still to look at</span></div>' +
       '<div class="tally' + (s.refSuspect ? ' hot' : '') + '"><b>' + s.refSuspect + '</b><span>look made up</span></div><div class="tally' + (s.refMissing ? ' hot' : '') + '"><b>' + s.refMissing + '</b><span>cited, not listed</span></div></div>';
     html += '<p class="refs-source">Read from ' + esc(src) + ': ' + esc(plural(a.refs.entries.length, 'entry', 'entries')) + ', with ' + esc(plural(a.refs.citations, 'citation')) + ' in the text. Nothing here was looked up online: search your library catalogue or the publisher\'s site for anything flagged, and check each one says what you cite it for.</p>';
@@ -799,6 +805,7 @@
   function takeFile(field, file) {
     if (!file) return;
     if (/\.json$/i.test(file.name || '')) { openProjectFile(file); return; }
+    if (/\.(ris|bib|bibtex)$/i.test(file.name || '')) field = 'references';
     readFile(file, function (err, text) {
       if (err) {
         if (field === 'sessions') { S.sessionMsgs = [{ text: err, err: true }]; }
@@ -962,7 +969,7 @@
     if (!t) return;
     if (t.hasAttribute('data-go')) { setView(t.getAttribute('data-go')); window.scrollTo(0, $('tabs').getBoundingClientRect().top + window.scrollY - 10); return; }
     if (t.hasAttribute('data-own')) { useOwn(); return; }
-    if (t.hasAttribute('data-pick')) { S.pickField = t.getAttribute('data-pick'); var fp = $('file-pick'); fp.accept = S.pickField === 'sessions' ? '.csv,.tsv,.txt,text/csv' : '.txt,.md,.markdown,.html,.htm,.docx,text/plain,text/markdown'; fp.click(); return; }
+    if (t.hasAttribute('data-pick')) { S.pickField = t.getAttribute('data-pick'); var fp = $('file-pick'); fp.accept = S.pickField === 'sessions' ? '.csv,.tsv,.txt,text/csv' : (S.pickField === 'references' ? '.txt,.md,.ris,.bib,.docx,text/plain' : '.txt,.md,.markdown,.html,.htm,.docx,text/plain,text/markdown'); fp.click(); return; }
     var act = t.getAttribute('data-act');
     if (!act) return;
     var a = S.analysis;

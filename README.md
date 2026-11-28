@@ -28,7 +28,7 @@ Open `app/index.html` (double-click it; no installation, no internet). It opens 
 | A. The AI's draft (needed) | What the assistant gave you | Paste, or .txt, .md, .html, .docx |
 | B. Your final version | What you will hand in. Claims are then checked in this text, and each is labelled kept from the AI, edited, reworded or your own | As above |
 | C. Your notes or sources | Reading or lecture notes, extracts. Figures, years and quotations are compared with them | As above |
-| D. Reference list | Only if it is not under a "References" or "Bibliography" heading in your text. Harvard, APA or numbered | As above |
+| D. Reference list | Only if it is not under a "References" or "Bibliography" heading in your text. Harvard, APA or numbered, or the export from your reference manager | As above, or RIS (.ris) and BibTeX (.bib) exports from Zotero, Mendeley, EndNote or a library database; `data/references.ris` and `data/references.bib` are examples |
 | E. Your prompt | What you asked for. Asking for statistics, quotes or references makes those claims count for more | Paste |
 | F. Session log | One row per AI session: date, assignment, tool, purpose, prompt in brief, what you used, changed and checked, minutes, person | CSV with commas, semicolons or tabs, any column order, UK or ISO dates; `data/session-log-template.csv` is the template (also a download in the app) |
 
@@ -121,7 +121,7 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 - **Tidying.** Text is normalised first (line ends, odd spaces, smart quotes, invisible characters, emoji), Markdown and HTML marks are removed, footnote markers become `[1]`, and the reference section and footnote definitions are set aside. Only plain spaces and newlines are left, which is also what lets the JavaScript and Python versions agree exactly.
 - **Claims.** Each sentence is scanned with fixed patterns for fourteen kinds of checkable content. Each kind adds points (a figure 3, a quotation 3, a person 2, a date 1, a chat leftover 6 and so on), and so do the circumstances: no source in the sentence (+2), a citation missing from the list (+3), a prompt asking for statistics or references (+1), a clash with your notes (+4), wording kept from the AI (+1). Matches with your notes (-2), your own wording (-1) and hedged figures (-1) take points off. Six or more is high risk, three to five medium. The How it works page lists every rule.
 - **Notes.** A figure is compared with figures of the same kind in your notes (percentages with percentages, amounts with amounts, "14 tonnes" with other tonnes) where the note shares at least two content words with the sentence. The same value is a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.
-- **References.** Entries are split (mending broken lines and run-together entries), parsed into author, year, title, journal, volume, pages, DOI and address, checked one by one and against each other, and matched to citations by first author's surname and year (or by number).
+- **References.** Entries are split (mending broken lines and run-together entries) and parsed into author, year, title, journal, volume, pages, DOI and address, or read field by field from a RIS or BibTeX export. They are checked one by one and against each other, and matched to citations by first author's surname and year, by number, or by citation key (`[@hartwell2019]` in Pandoc Markdown, `\cite{hartwell2019}` in LaTeX).
 - **Changes.** A word in your final text counts as the AI's when it sits in a run of four or more words that appears, in order, in the AI draft. Each sentence's share decides kept (85% or more), edited (30% or more), reworded (shares half its words with an AI sentence) or yours, and the closest AI sentence gives a word-level diff.
 - **Declaration.** Built from the sessions logged for this assignment, your marks and the comparison, in four layouts (a university statement, a full log for an appendix, a short statement for a submission box, a note for a manager or client), always stating what is still unchecked.
 
@@ -131,11 +131,10 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 - It is not a plagiarism or AI-writing detector, and its "word for word" share only compares your text with the AI draft you paste.
 - Pattern rules miss claims made in plain words with no figure, name, quotation or citation, and flag some harmless ones ("the first chapter").
 - Notes are compared by shared words, so a note phrased very differently from the sentence will not be found, and two different figures in one note can confuse it.
-- Citation matching uses the first author's surname and the year; numbered styles work, but unusual styles (some law and humanities footnote styles) are read less well.
+- Citation matching uses the first author's surname and the year, a number, or a citation key; unusual styles (some law and humanities footnote styles) are read less well. RIS and BibTeX records are read field by field, so a record with a field in an unusual tag may lose it.
 - The declaration wording is a sensible default, not any particular university's form; choose the layout that fits and edit the text if your institution asks for something specific.
 
 ## What could come next
 
-- Read reference manager exports (RIS and BibTeX from Zotero or Mendeley) so the reference checks start from the exact records.
 - Keep each checked version so a re-check shows only what changed since the last one, with marks carried over.
 - A shared class view for a teacher, built from students' saved project files, showing how AI is being used across an assignment without anyone's text.

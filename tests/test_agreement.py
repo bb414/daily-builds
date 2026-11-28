@@ -215,6 +215,28 @@ class Agreement(unittest.TestCase):
             "Smith J, Jones K. Title of article. J Things. 2020;3(2):10-20. doi: 10.5555/abc", "https://only.a.url/here"]
         self.compare([{"fn": "parseEntry", "args": [r, ""]} for r in lines] + [{"fn": "splitEntries", "args": [sample("messy-paste.txt").split("\n")]}])
 
+    def test_reference_manager_exports(self):
+        ris, bib = sample("references.ris"), sample("references.bib")
+        keyed = sample("final-version.md").split("## References")[0]
+        for old, new in (("(Hartwell et al., 2019)", "[@hartwell2019, p. 115]"), ("(Kestleford Repair Network, 2024)", "[@krn2024]"),
+                         ("(Haldane, 2021, p. 14)", "\\citep[p.~14]{haldane2021}"), ("Lindqvist (2020)", "[@lindqvist2020]")):
+            keyed = keyed.replace(old, new)
+        messy_ris = ("Some heading\r\nTY  - JOUR\nAU  - Brown, A.\nAU  -\nTI  - A long title that\n  continues here\nPY  - 2018/03/01/\n"
+                     "DO  - https://doi.org/10.5555/x.1\nER  -\nTY  - CHAP\nA1  - Caf\u00e9, R\u00e9n\u00e9e\nT1  - Chapter\nBT  - The Book\nY1  - n.d.\n"
+                     "SP  - 5\nER  - \nTY  - WEB\nTI  - No author\nUR  - www.example.com/a\n")
+        messy_bib = ("@Article{ a1 ,\n author = \"Smith, John and {World Health Body} and Jane Q. Public\",\n title = {{The {D}ata \\& the \\'{e}lite\\'s}},"
+                     "\n journal = J. Th., year = {2020}, pages = {1 -- 9}, doi = {doi:10.5555/a},\n}\n@string{x = \"y\"}\n@misc(b2, title={Web, page}, "
+                     "url={https://a.org/x_y}, date={2021-04-05})\n@book{broken\n@book{c3, author={Ng, T. and others}, title={B\\\"{o}k \\c{c} \\ss},"
+                     " year={1750}, publisher={P}}\n@comment{ @article{fake, title={no}} }\n")
+        self.compare([{"fn": "analyse", "args": [{"draft": sample("ai-draft.md"), "references": ris, "asOf": AS_OF}]},
+                      {"fn": "analyse", "args": [{"draft": sample("ai-draft.md"), "final": keyed, "references": bib, "notes": sample("notes.md"), "asOf": AS_OF}]},
+                      {"fn": "analyse", "args": [{"draft": keyed, "references": messy_ris, "asOf": AS_OF}]},
+                      {"fn": "analyse", "args": [{"draft": keyed, "references": messy_bib, "asOf": AS_OF}]},
+                      {"fn": "analyse", "args": [{"draft": keyed, "references": "TY  - JOUR\n", "asOf": AS_OF}]},
+                      {"fn": "parseRis", "args": [messy_ris]}, {"fn": "parseBibtex", "args": [messy_bib]},
+                      {"fn": "parseBibtex", "args": ["@article{x, title={unterminated"]}, {"fn": "parseRis", "args": [""]},
+                      {"fn": "texText", "args": ["Caf\\'{e} \\\"{U}ber \\c{c}a \\textit{ital} 10\\% {A}~B --- \\~n"]}])
+
     def test_word_files(self):
         doc = ('<w:document><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Repair &amp; reuse</w:t></w:r></w:p>'
                '<w:p><w:r><w:t xml:space="preserve">It cut 14 tonnes </w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r>'

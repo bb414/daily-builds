@@ -154,6 +154,17 @@ class App(unittest.TestCase):
         page.wait_for_function("document.getElementById('in-final').value.length > 100")
         self.assert_quiet()
 
+    def test_reference_manager_export_goes_to_the_reference_box(self):
+        page = self.open()
+        page.click("#tab-copy")
+        self.pick(page, "button[data-pick=draft]", os.path.join(DATA, "references.ris"))
+        page.wait_for_function("document.getElementById('in-references').value.indexOf('TY  - JOUR') >= 0")
+        self.assertIn("9 records read from a RIS export", page.inner_text("#msg-references"))
+        page.click("#tab-refs")
+        self.assertIn("RIS export from your reference manager", page.inner_text("#view-refs"))
+        self.assertIn("hartwell2019", page.inner_text("#view-refs"))
+        self.assert_quiet()
+
     def test_session_log_import_explains_bad_rows(self):
         page = self.open()
         page.click("#tab-copy")
