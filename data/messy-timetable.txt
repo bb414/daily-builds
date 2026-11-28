@@ -1,0 +1,12 @@
+Brackenmoor University  Examination timetable, January 2027
+Candidate 2210457    BSc Management and Economics, final year
+
+Module	Title	Date	Time	Length	Room
+MGT3104	Strategic Management	Mon 11 Jan 2027	9.30am	2 hrs	Great Hall
+ECO3112	Behavioural Economics	13/01/2027	14:00	2h	Sports Centre, Hall B
+Module	Title	Date	Time	Length	Room
+FIN3020	Corporate Finance	2027-01-15	09:30	3 hours	Great Hall
+
+LAW3207	Competition and Consumer Law	19-Jan-27	2pm	120 mins	Wren Building 1.12
+DAT3301	Business Analytics	Friday 22nd January 2027	09:30	2:30	Computer Lab 3
+MKT2210	Marketing Research (resit)	TBC	TBC		TBC

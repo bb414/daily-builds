@@ -1,0 +1,580 @@
+{
+ "app": "exam-season",
+ "version": 1,
+ "name": "Priya's January exams",
+ "student": "Priya Nandakumar (invented), final year business analytics",
+ "planFrom": "2026-11-30",
+ "planFromMin": 0,
+ "asOf": null,
+ "settings": {
+  "learnMin": 50,
+  "reviewMin": 25,
+  "breakMin": 10,
+  "taperDays": 3,
+  "papers": 2,
+  "maxShare": 50,
+  "reviewShare": 40,
+  "busyGap": 15,
+  "examGap": 45,
+  "examDay": "after",
+  "paperMax": 180
+ },
+ "exams": [
+  {
+   "id": "fin3020",
+   "code": "FIN3020",
+   "name": "Corporate Finance",
+   "day": "2027-01-15",
+   "start": 570,
+   "duration": 180,
+   "room": "Great Hall",
+   "seat": "G-044",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "law3207",
+   "code": "LAW3207",
+   "name": "Competition and Consumer Law",
+   "day": "2027-01-19",
+   "start": 840,
+   "duration": 120,
+   "room": "Wren Building 1.12",
+   "seat": "8",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "dat3320",
+   "code": "DAT3320",
+   "name": "Machine Learning for Business",
+   "day": "2027-01-20",
+   "start": 570,
+   "duration": 120,
+   "room": "Computer Lab 1",
+   "seat": "PC-07",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "dat3301",
+   "code": "DAT3301",
+   "name": "Business Analytics",
+   "day": "2027-01-22",
+   "start": 570,
+   "duration": 150,
+   "room": "Computer Lab 3",
+   "seat": "PC-02",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  }
+ ],
+ "topics": [
+  {
+   "id": "fin3020-capital-budgeting-and-npv",
+   "code": "FIN3020",
+   "name": "Capital budgeting and NPV",
+   "conf": 4,
+   "size": 300,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-cost-of-capital-wacc",
+   "code": "FIN3020",
+   "name": "Cost of capital (WACC)",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-capital-structure",
+   "code": "FIN3020",
+   "name": "Capital structure",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dividend-policy",
+   "code": "FIN3020",
+   "name": "Dividend policy",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-real-options",
+   "code": "FIN3020",
+   "name": "Real options",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dcf-valuation",
+   "code": "FIN3020",
+   "name": "DCF valuation",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-working-capital",
+   "code": "FIN3020",
+   "name": "Working capital",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-leveraged-buyouts",
+   "code": "FIN3020",
+   "name": "Leveraged buyouts",
+   "conf": 2,
+   "size": 300,
+   "mode": "full",
+   "note": "long reading list"
+  },
+  {
+   "id": "law3207-anti-competitive-agreements",
+   "code": "LAW3207",
+   "name": "Anti-competitive agreements",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-abuse-of-dominance",
+   "code": "LAW3207",
+   "name": "Abuse of dominance",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-merger-control",
+   "code": "LAW3207",
+   "name": "Merger control",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-market-definition",
+   "code": "LAW3207",
+   "name": "Market definition",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-consumer-rights-and-remedies",
+   "code": "LAW3207",
+   "name": "Consumer rights and remedies",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-unfair-contract-terms",
+   "code": "LAW3207",
+   "name": "Unfair contract terms",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-digital-markets-regulation",
+   "code": "LAW3207",
+   "name": "Digital markets regulation",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-enforcement-and-fines",
+   "code": "LAW3207",
+   "name": "Enforcement and fines",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-supervised-learning",
+   "code": "DAT3320",
+   "name": "Supervised learning",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-feature-engineering",
+   "code": "DAT3320",
+   "name": "Feature engineering",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-overfitting-and-validation",
+   "code": "DAT3320",
+   "name": "Overfitting and validation",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-neural-networks",
+   "code": "DAT3320",
+   "name": "Neural networks",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-explainability-shap",
+   "code": "DAT3320",
+   "name": "Explainability (SHAP)",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3320-recommender-systems",
+   "code": "DAT3320",
+   "name": "Recommender systems",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-linear-regression",
+   "code": "DAT3301",
+   "name": "Linear regression",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-logistic-regression",
+   "code": "DAT3301",
+   "name": "Logistic regression",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-decision-trees-and-forests",
+   "code": "DAT3301",
+   "name": "Decision trees and forests",
+   "conf": 4,
+   "size": 300,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-clustering",
+   "code": "DAT3301",
+   "name": "Clustering",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-time-series-forecasting",
+   "code": "DAT3301",
+   "name": "Time series forecasting",
+   "conf": 5,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-model-evaluation",
+   "code": "DAT3301",
+   "name": "Model evaluation",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-data-visualisation",
+   "code": "DAT3301",
+   "name": "Data visualisation",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-a-b-testing",
+   "code": "DAT3301",
+   "name": "A/B testing",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  }
+ ],
+ "week": [
+  {
+   "from": 810,
+   "to": 1200,
+   "minutes": 240
+  },
+  {
+   "from": 540,
+   "to": 1200,
+   "minutes": 360
+  },
+  {
+   "from": 810,
+   "to": 1200,
+   "minutes": 240
+  },
+  {
+   "from": 540,
+   "to": 1200,
+   "minutes": 360
+  },
+  {
+   "from": 540,
+   "to": 1080,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1080,
+   "minutes": 240
+  },
+  {
+   "from": 600,
+   "to": 1080,
+   "minutes": 240
+  }
+ ],
+ "overrides": [
+  {
+   "day": "2026-12-25",
+   "minutes": 0,
+   "label": "Christmas"
+  },
+  {
+   "day": "2026-12-26",
+   "minutes": 0,
+   "label": "Christmas"
+  },
+  {
+   "day": "2027-01-01",
+   "minutes": 0,
+   "label": "New Year's Day"
+  }
+ ],
+ "busy": [
+  {
+   "day": "2026-11-23",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-11-25",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-11-25",
+   "start": 840,
+   "end": 960,
+   "label": "DAT3320 Lecture"
+  },
+  {
+   "day": "2026-11-26",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2026-11-30",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-02",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-02",
+   "start": 840,
+   "end": 960,
+   "label": "DAT3320 Lecture"
+  },
+  {
+   "day": "2026-12-03",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2026-12-07",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-09",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-09",
+   "start": 840,
+   "end": 960,
+   "label": "DAT3320 Lecture"
+  },
+  {
+   "day": "2026-12-10",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2026-12-14",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-16",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-17",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2026-12-21",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-23",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2026-12-24",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2026-12-31",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2027-01-04",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2027-01-06",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2027-01-07",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  },
+  {
+   "day": "2027-01-11",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2027-01-13",
+   "start": 540,
+   "end": 780,
+   "label": "Office job"
+  },
+  {
+   "day": "2027-01-14",
+   "start": 1140,
+   "end": 1260,
+   "label": "Choir"
+  }
+ ],
+ "allDay": [],
+ "sources": [
+  {
+   "kind": "exams",
+   "name": "exam-timetable.csv",
+   "summary": "4 exams"
+  },
+  {
+   "kind": "topics",
+   "name": "topics.csv",
+   "summary": "30 topics in 4 modules"
+  },
+  {
+   "kind": "availability",
+   "name": "availability.csv",
+   "summary": "6 weekday rows and 3 dated changes"
+  },
+  {
+   "kind": "calendar",
+   "name": "busy-calendar.ics",
+   "summary": "25 busy times from 3 events"
+  }
+ ],
+ "done": [],
+ "settled": [],
+ "missed": []
+}

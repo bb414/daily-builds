@@ -1,0 +1,840 @@
+{
+ "app": "exam-season",
+ "version": 1,
+ "name": "Alex's January exams",
+ "student": "Alex Marlow (invented), final year, Brackenmoor University (invented)",
+ "planFrom": "2026-11-30",
+ "planFromMin": 0,
+ "asOf": null,
+ "settings": {
+  "learnMin": 50,
+  "reviewMin": 25,
+  "breakMin": 10,
+  "taperDays": 3,
+  "papers": 2,
+  "maxShare": 50,
+  "reviewShare": 40,
+  "busyGap": 15,
+  "examGap": 45,
+  "examDay": "after",
+  "paperMax": 180
+ },
+ "exams": [
+  {
+   "id": "mgt3104",
+   "code": "MGT3104",
+   "name": "Strategic Management",
+   "day": "2027-01-11",
+   "start": 570,
+   "duration": 120,
+   "room": "Great Hall",
+   "seat": "G-114",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "eco3112",
+   "code": "ECO3112",
+   "name": "Behavioural Economics",
+   "day": "2027-01-13",
+   "start": 840,
+   "duration": 120,
+   "room": "Sports Centre, Hall B",
+   "seat": "B-027",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "fin3020",
+   "code": "FIN3020",
+   "name": "Corporate Finance",
+   "day": "2027-01-15",
+   "start": 570,
+   "duration": 180,
+   "room": "Great Hall",
+   "seat": "G-086",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "law3207",
+   "code": "LAW3207",
+   "name": "Competition and Consumer Law",
+   "day": "2027-01-19",
+   "start": 840,
+   "duration": 120,
+   "room": "Wren Building 1.12",
+   "seat": "41",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "dat3301",
+   "code": "DAT3301",
+   "name": "Business Analytics",
+   "day": "2027-01-22",
+   "start": 570,
+   "duration": 150,
+   "room": "Computer Lab 3",
+   "seat": "PC-19",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  }
+ ],
+ "topics": [
+  {
+   "id": "mgt3104-porter-s-five-forces",
+   "code": "MGT3104",
+   "name": "Porter's five forces",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-resource-based-view",
+   "code": "MGT3104",
+   "name": "Resource-based view",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-dynamic-capabilities",
+   "code": "MGT3104",
+   "name": "Dynamic capabilities",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-corporate-strategy-and-diversification",
+   "code": "MGT3104",
+   "name": "Corporate strategy and diversification",
+   "conf": 5,
+   "size": 300,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-mergers-and-acquisitions",
+   "code": "MGT3104",
+   "name": "Mergers and acquisitions",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-strategy-in-emerging-markets",
+   "code": "MGT3104",
+   "name": "Strategy in emerging markets",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-blue-ocean-strategy",
+   "code": "MGT3104",
+   "name": "Blue ocean strategy",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "mgt3104-business-models-and-platforms",
+   "code": "MGT3104",
+   "name": "Business models and platforms",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-prospect-theory",
+   "code": "ECO3112",
+   "name": "Prospect theory",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-mental-accounting",
+   "code": "ECO3112",
+   "name": "Mental accounting",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-present-bias-and-discounting",
+   "code": "ECO3112",
+   "name": "Present bias and discounting",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-nudges-and-choice-architecture",
+   "code": "ECO3112",
+   "name": "Nudges and choice architecture",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-social-preferences-and-fairness",
+   "code": "ECO3112",
+   "name": "Social preferences and fairness",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-heuristics-and-biases",
+   "code": "ECO3112",
+   "name": "Heuristics and biases",
+   "conf": 1,
+   "size": 120,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "eco3112-behavioural-finance",
+   "code": "ECO3112",
+   "name": "Behavioural finance",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-field-experiments",
+   "code": "ECO3112",
+   "name": "Field experiments",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-capital-budgeting-and-npv",
+   "code": "FIN3020",
+   "name": "Capital budgeting and NPV",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-cost-of-capital-wacc",
+   "code": "FIN3020",
+   "name": "Cost of capital (WACC)",
+   "conf": 1,
+   "size": 180,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "fin3020-capital-structure",
+   "code": "FIN3020",
+   "name": "Capital structure",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dividend-policy",
+   "code": "FIN3020",
+   "name": "Dividend policy",
+   "conf": 1,
+   "size": 180,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "fin3020-real-options",
+   "code": "FIN3020",
+   "name": "Real options",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dcf-valuation",
+   "code": "FIN3020",
+   "name": "DCF valuation",
+   "conf": 2,
+   "size": 300,
+   "mode": "full",
+   "note": "long reading list"
+  },
+  {
+   "id": "fin3020-working-capital",
+   "code": "FIN3020",
+   "name": "Working capital",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-leveraged-buyouts",
+   "code": "FIN3020",
+   "name": "Leveraged buyouts",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-anti-competitive-agreements",
+   "code": "LAW3207",
+   "name": "Anti-competitive agreements",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-abuse-of-dominance",
+   "code": "LAW3207",
+   "name": "Abuse of dominance",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-merger-control",
+   "code": "LAW3207",
+   "name": "Merger control",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-market-definition",
+   "code": "LAW3207",
+   "name": "Market definition",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-consumer-rights-and-remedies",
+   "code": "LAW3207",
+   "name": "Consumer rights and remedies",
+   "conf": 1,
+   "size": 120,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "law3207-unfair-contract-terms",
+   "code": "LAW3207",
+   "name": "Unfair contract terms",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-digital-markets-regulation",
+   "code": "LAW3207",
+   "name": "Digital markets regulation",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "law3207-enforcement-and-fines",
+   "code": "LAW3207",
+   "name": "Enforcement and fines",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-linear-regression",
+   "code": "DAT3301",
+   "name": "Linear regression",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-logistic-regression",
+   "code": "DAT3301",
+   "name": "Logistic regression",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-decision-trees-and-forests",
+   "code": "DAT3301",
+   "name": "Decision trees and forests",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-clustering",
+   "code": "DAT3301",
+   "name": "Clustering",
+   "conf": 5,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-time-series-forecasting",
+   "code": "DAT3301",
+   "name": "Time series forecasting",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-model-evaluation",
+   "code": "DAT3301",
+   "name": "Model evaluation",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-data-visualisation",
+   "code": "DAT3301",
+   "name": "Data visualisation",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "dat3301-a-b-testing",
+   "code": "DAT3301",
+   "name": "A/B testing",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  }
+ ],
+ "week": [
+  {
+   "from": 540,
+   "to": 1260,
+   "minutes": 360
+  },
+  {
+   "from": 540,
+   "to": 1260,
+   "minutes": 360
+  },
+  {
+   "from": 540,
+   "to": 1260,
+   "minutes": 360
+  },
+  {
+   "from": 540,
+   "to": 1260,
+   "minutes": 360
+  },
+  {
+   "from": 540,
+   "to": 1260,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1200,
+   "minutes": 180
+  },
+  {
+   "from": 600,
+   "to": 1140,
+   "minutes": 300
+  }
+ ],
+ "overrides": [
+  {
+   "day": "2026-12-19",
+   "minutes": 120,
+   "label": "Travelling home",
+   "from": 840,
+   "to": 1200
+  },
+  {
+   "day": "2026-12-24",
+   "minutes": 0,
+   "label": "Christmas Eve"
+  },
+  {
+   "day": "2026-12-25",
+   "minutes": 0,
+   "label": "Christmas Day"
+  },
+  {
+   "day": "2026-12-26",
+   "minutes": 0,
+   "label": "Boxing Day"
+  },
+  {
+   "day": "2026-12-31",
+   "minutes": 120,
+   "label": "New Year's Eve",
+   "from": 600,
+   "to": 960
+  },
+  {
+   "day": "2027-01-01",
+   "minutes": 0,
+   "label": "New Year's Day"
+  },
+  {
+   "day": "2027-01-03",
+   "minutes": 120,
+   "label": "Travelling back",
+   "from": 900,
+   "to": 1260
+  }
+ ],
+ "busy": [
+  {
+   "day": "2026-11-23",
+   "start": 600,
+   "end": 720,
+   "label": "MGT3104 Lecture"
+  },
+  {
+   "day": "2026-11-24",
+   "start": 840,
+   "end": 960,
+   "label": "ECO3112 Lecture"
+  },
+  {
+   "day": "2026-11-24",
+   "start": 1080,
+   "end": 1200,
+   "label": "Rugby training"
+  },
+  {
+   "day": "2026-11-25",
+   "start": 540,
+   "end": 660,
+   "label": "FIN3020 Lecture"
+  },
+  {
+   "day": "2026-11-26",
+   "start": 600,
+   "end": 720,
+   "label": "LAW3207 Lecture"
+  },
+  {
+   "day": "2026-11-26",
+   "start": 780,
+   "end": 840,
+   "label": "FIN3020 Seminar"
+  },
+  {
+   "day": "2026-11-27",
+   "start": 660,
+   "end": 780,
+   "label": "DAT3301 Computer lab"
+  },
+  {
+   "day": "2026-11-28",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  },
+  {
+   "day": "2026-11-30",
+   "start": 600,
+   "end": 720,
+   "label": "MGT3104 Lecture"
+  },
+  {
+   "day": "2026-12-01",
+   "start": 840,
+   "end": 960,
+   "label": "ECO3112 Lecture"
+  },
+  {
+   "day": "2026-12-01",
+   "start": 1080,
+   "end": 1200,
+   "label": "Rugby training"
+  },
+  {
+   "day": "2026-12-02",
+   "start": 780,
+   "end": 1080,
+   "label": "Rugby: away fixture"
+  },
+  {
+   "day": "2026-12-03",
+   "start": 780,
+   "end": 840,
+   "label": "FIN3020 Seminar"
+  },
+  {
+   "day": "2026-12-03",
+   "start": 1020,
+   "end": 1260,
+   "label": "Shift at Wren Lane Coffee (evening)"
+  },
+  {
+   "day": "2026-12-04",
+   "start": 660,
+   "end": 780,
+   "label": "DAT3301 Computer lab"
+  },
+  {
+   "day": "2026-12-04",
+   "start": 840,
+   "end": 960,
+   "label": "LAW3207 Lecture (moved)"
+  },
+  {
+   "day": "2026-12-05",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  },
+  {
+   "day": "2026-12-07",
+   "start": 600,
+   "end": 720,
+   "label": "MGT3104 Lecture"
+  },
+  {
+   "day": "2026-12-08",
+   "start": 840,
+   "end": 960,
+   "label": "ECO3112 Lecture"
+  },
+  {
+   "day": "2026-12-08",
+   "start": 1080,
+   "end": 1200,
+   "label": "Rugby training"
+  },
+  {
+   "day": "2026-12-09",
+   "start": 540,
+   "end": 660,
+   "label": "FIN3020 Lecture"
+  },
+  {
+   "day": "2026-12-09",
+   "start": 780,
+   "end": 1050,
+   "label": "Rugby: home fixture"
+  },
+  {
+   "day": "2026-12-10",
+   "start": 600,
+   "end": 720,
+   "label": "LAW3207 Lecture"
+  },
+  {
+   "day": "2026-12-10",
+   "start": 780,
+   "end": 840,
+   "label": "FIN3020 Seminar"
+  },
+  {
+   "day": "2026-12-10",
+   "start": 1020,
+   "end": 1260,
+   "label": "Shift at Wren Lane Coffee (evening)"
+  },
+  {
+   "day": "2026-12-11",
+   "start": 660,
+   "end": 780,
+   "label": "DAT3301 Computer lab"
+  },
+  {
+   "day": "2026-12-12",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  },
+  {
+   "day": "2026-12-15",
+   "start": 1080,
+   "end": 1200,
+   "label": "Rugby training"
+  },
+  {
+   "day": "2026-12-17",
+   "start": 1020,
+   "end": 1260,
+   "label": "Shift at Wren Lane Coffee (evening)"
+  },
+  {
+   "day": "2026-12-19",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  },
+  {
+   "day": "2027-01-06",
+   "start": 660,
+   "end": 720,
+   "label": "Dentist"
+  },
+  {
+   "day": "2027-01-07",
+   "start": 1020,
+   "end": 1260,
+   "label": "Shift at Wren Lane Coffee (evening)"
+  },
+  {
+   "day": "2027-01-07",
+   "start": 1080,
+   "end": 1200,
+   "label": "Consulting Society AGM"
+  },
+  {
+   "day": "2027-01-09",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  },
+  {
+   "day": "2027-01-14",
+   "start": 1020,
+   "end": 1260,
+   "label": "Shift at Wren Lane Coffee (evening)"
+  },
+  {
+   "day": "2027-01-16",
+   "start": 480,
+   "end": 840,
+   "label": "Shift at Wren Lane Coffee"
+  }
+ ],
+ "allDay": [
+  {
+   "day": "2026-12-19",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-20",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-21",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-22",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-23",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-24",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-25",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-26",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-27",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-28",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-29",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-30",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2026-12-31",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2027-01-01",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2027-01-02",
+   "label": "Home for Christmas"
+  },
+  {
+   "day": "2027-01-03",
+   "label": "Home for Christmas"
+  }
+ ],
+ "sources": [
+  {
+   "kind": "exams",
+   "name": "exam-timetable.csv",
+   "summary": "5 exams"
+  },
+  {
+   "kind": "topics",
+   "name": "topics.csv",
+   "summary": "40 topics in 5 modules"
+  },
+  {
+   "kind": "availability",
+   "name": "availability.csv",
+   "summary": "7 weekday rows and 7 dated changes"
+  },
+  {
+   "kind": "calendar",
+   "name": "busy-calendar.ics",
+   "summary": "36 busy times from 19 events, all-day entries on 16 days not counted"
+  }
+ ],
+ "done": [],
+ "settled": [],
+ "missed": []
+}

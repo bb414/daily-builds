@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam season: a revision plan you can follow</title>
+<meta name="description" content="Turn your exam timetable, your topics and the time you actually have into a day-by-day revision plan you can follow, tick off and re-plan. Runs offline; nothing is uploaded.">
+<style>
+/*FONTS*/
+/*STYLE*/
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the planner</a>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <p class="kicker"><span class="tape tape-stripe">Wall planner</span><span class="kicker-text">Study and careers</span><span class="kicker-text" id="kicker-year">Exams 2026/27</span></p>
+      <h1>Exam <span class="hl">season</span></h1>
+      <p class="lede">Turn your exam timetable, your topics and the time you actually have into a day-by-day revision plan you can follow, tick off and re-plan when life gets in the way.</p>
+      <p class="stamp"><span>Runs on your device</span><span>Nothing is uploaded</span><span>Every rule explained</span></p>
+      <div class="hero-actions">
+        <button type="button" class="btn btn-marker" data-action="start-own">Use your own timetable</button>
+        <button type="button" class="btn btn-ghost" data-action="open-project">Open a saved plan</button>
+      </div>
+    </div>
+    <figure class="hero-art" aria-hidden="true">
+      <svg id="hero-svg" viewBox="0 0 600 460" role="presentation" focusable="false">
+        <defs>
+          <pattern id="tapeDots" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#ff8fc3"/><circle cx="4" cy="4" r="1.6" fill="#fff" opacity=".85"/></pattern>
+          <pattern id="tapeStripe" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#7fd4f2"/><rect width="5" height="10" fill="#c9efff"/></pattern>
+          <pattern id="tapeGrid" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#ffe36b"/><path d="M0 0H7M0 0V7" stroke="#e7b400" stroke-width=".8" opacity=".6"/></pattern>
+          <radialGradient id="pinHead" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".25" stop-color="currentColor"/><stop offset="1" stop-color="currentColor"/></radialGradient>
+          <filter id="soft" x="-10%" y="-10%" width="130%" height="130%"><feDropShadow dx="2" dy="5" stdDeviation="5" flood-color="#2a2150" flood-opacity=".28"/></filter>
+          <g id="pin"><ellipse cx="2" cy="9" rx="6" ry="2.4" fill="#2a2150" opacity=".25"/><circle r="8" fill="url(#pinHead)"/><circle r="8" fill="none" stroke="#000" stroke-opacity=".18"/></g>
+        </defs>
+        <!-- the planner poster -->
+        <g filter="url(#soft)">
+          <rect x="60" y="40" width="380" height="330" rx="4" fill="#fffdf6"/>
+        </g>
+        <rect x="60" y="40" width="380" height="46" fill="#1b8fb0"/>
+        <text x="78" y="71" font-family="Shantell Sans, cursive" font-weight="800" font-size="22" fill="#fffdf6" id="hero-month">January 2027</text>
+        <text x="424" y="71" text-anchor="end" font-family="Sometype Mono, monospace" font-size="11" fill="#d8f3ff" letter-spacing="1.5">EXAM SEASON</text>
+        <g id="hero-grid" font-family="Sometype Mono, monospace"></g>
+        <!-- an index card pinned over the corner -->
+        <g transform="translate(395 228) rotate(6)" filter="url(#soft)">
+          <rect width="170" height="112" rx="3" fill="#fffef9"/>
+          <rect y="22" width="170" height="1.6" fill="#ef6b73"/>
+          <g stroke="#a9d8ee" stroke-width="1"><path d="M8 42H162M8 60H162M8 78H162M8 96H162"/></g>
+          <text x="10" y="16" font-family="Sometype Mono, monospace" font-size="10" font-weight="700" fill="#1d2141" id="hero-card-code">TODAY</text>
+          <g font-family="Shantell Sans, cursive" font-size="12.5" fill="#1d2141" id="hero-card-lines">
+            <text x="10" y="38">Prospect theory</text>
+          </g>
+        </g>
+        <use href="#pin" x="478" y="232" style="color:#e2483f"/>
+        <!-- washi tape holding the poster -->
+        <rect x="36" y="28" width="86" height="22" fill="url(#tapeDots)" opacity=".92" transform="rotate(-24 79 39)"/>
+        <rect x="392" y="352" width="80" height="22" fill="url(#tapeStripe)" opacity=".92" transform="rotate(-18 432 363)"/>
+        <!-- the countdown sticker -->
+        <g transform="translate(486 74)">
+          <circle r="62" fill="#ffe74a" filter="url(#soft)"/>
+          <circle r="54" fill="none" stroke="#1d2141" stroke-width="1.5" stroke-dasharray="3 4" opacity=".55"/>
+          <text y="-14" text-anchor="middle" font-family="Sometype Mono, monospace" font-size="11" fill="#1d2141" letter-spacing="1">FIRST EXAM IN</text>
+          <text y="24" text-anchor="middle" font-family="Shantell Sans, cursive" font-weight="800" font-size="40" fill="#1d2141" id="hero-count">32</text>
+          <text y="42" text-anchor="middle" font-family="Sometype Mono, monospace" font-size="11" fill="#1d2141" id="hero-count-label">DAYS</text>
+        </g>
+        <rect x="455" y="10" width="70" height="20" fill="url(#tapeGrid)" opacity=".9" transform="rotate(14 490 20)"/>
+        <!-- a sticky note -->
+        <g transform="translate(18 300) rotate(-7)" filter="url(#soft)">
+          <rect width="112" height="104" fill="#a8f0b7"/>
+          <path d="M0 0H112V10H0Z" fill="#000" opacity=".05"/>
+          <text x="10" y="30" font-family="Shantell Sans, cursive" font-size="13" fill="#1d2141">Missed a day?</text>
+          <text x="10" y="50" font-family="Shantell Sans, cursive" font-size="13" fill="#1d2141">Re-plan from</text>
+          <text x="10" y="70" font-family="Shantell Sans, cursive" font-size="13" fill="#1d2141">today. Ticks</text>
+          <text x="10" y="90" font-family="Shantell Sans, cursive" font-size="13" fill="#1d2141">stay ticked.</text>
+        </g>
+        <!-- a highlighter pen lying across the bottom -->
+        <g transform="translate(170 404) rotate(-9)">
+          <rect x="0" y="0" width="190" height="30" rx="8" fill="#ff7eb9"/>
+          <rect x="0" y="0" width="190" height="9" rx="4" fill="#fff" opacity=".28"/>
+          <rect x="150" y="-2" width="58" height="34" rx="7" fill="#d6337a"/>
+          <path d="M208 6 L232 11 L232 19 L208 24 Z" fill="#3b2a4a"/>
+          <path d="M232 11 L240 13 L240 17 L232 19 Z" fill="#ff7eb9"/>
+          <text x="20" y="20" font-family="Sometype Mono, monospace" font-size="10" font-weight="700" fill="#7a1747" letter-spacing="2">HIGHLIGHT</text>
+        </g>
+        <use href="#pin" x="80" y="56" style="color:#1b8fb0"/>
+      </svg>
+    </figure>
+  </div>
+  <div class="stickers" id="stickers" aria-label="Countdown to each exam"></div>
+</header>
+
+<main id="main">
+  <div id="banner" class="banner" role="status" aria-live="polite"></div>
+  <div class="sheet">
+    <nav class="tabs" role="tablist" aria-label="Planner sections">
+      <button type="button" role="tab" id="tab-exams" aria-controls="view-exams" aria-selected="false" data-view="exams" class="tab t0"><span class="tab-n">1</span><span class="tab-t">Exams and topics</span><span class="tab-s">Load and check</span></button>
+      <button type="button" role="tab" id="tab-time" aria-controls="view-time" aria-selected="false" data-view="time" class="tab t1"><span class="tab-n">2</span><span class="tab-t">Your time</span><span class="tab-s">Week and calendar</span></button>
+      <button type="button" role="tab" id="tab-plan" aria-controls="view-plan" aria-selected="true" data-view="plan" class="tab t2"><span class="tab-n">3</span><span class="tab-t">Plan</span><span class="tab-s">Day by day</span></button>
+      <button type="button" role="tab" id="tab-progress" aria-controls="view-progress" aria-selected="false" data-view="progress" class="tab t3"><span class="tab-n">4</span><span class="tab-t">Progress</span><span class="tab-s">Tick, re-plan, on track?</span></button>
+      <button type="button" role="tab" id="tab-rules" aria-controls="view-rules" aria-selected="false" data-view="rules" class="tab t4"><span class="tab-n">?</span><span class="tab-t">The rules</span><span class="tab-s">How the plan is made</span></button>
+    </nav>
+    <section class="view" id="view-exams" role="tabpanel" aria-labelledby="tab-exams" hidden></section>
+    <section class="view" id="view-time" role="tabpanel" aria-labelledby="tab-time" hidden></section>
+    <section class="view" id="view-plan" role="tabpanel" aria-labelledby="tab-plan"></section>
+    <section class="view" id="view-progress" role="tabpanel" aria-labelledby="tab-progress" hidden></section>
+    <section class="view" id="view-rules" role="tabpanel" aria-labelledby="tab-rules" hidden></section>
+  </div>
+</main>
+
+<footer class="foot">
+  <p>Exam season works entirely in your browser: nothing you load leaves this device. Your plan is kept in this browser as you go; save the plan file to keep it safe or move it to another device. The sample student, university, modules and calendar are invented.</p>
+</footer>
+
+<input type="file" id="file-project" class="visually-hidden" tabindex="-1" aria-label="Open a saved plan file" accept=".json,application/json">
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script id="samples" type="application/json">/*SAMPLES*/</script>
+<script>
+/*MODEL*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>

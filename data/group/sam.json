@@ -1,0 +1,578 @@
+{
+ "app": "exam-season",
+ "version": 1,
+ "name": "Sam's January exams",
+ "student": "Sam Okafor (invented), final year economics",
+ "planFrom": "2026-11-30",
+ "planFromMin": 0,
+ "asOf": null,
+ "settings": {
+  "learnMin": 50,
+  "reviewMin": 25,
+  "breakMin": 10,
+  "taperDays": 3,
+  "papers": 2,
+  "maxShare": 50,
+  "reviewShare": 40,
+  "busyGap": 15,
+  "examGap": 45,
+  "examDay": "after",
+  "paperMax": 180
+ },
+ "exams": [
+  {
+   "id": "eco3112",
+   "code": "ECO3112",
+   "name": "Behavioural Economics",
+   "day": "2027-01-13",
+   "start": 840,
+   "duration": 120,
+   "room": "Sports Centre, Hall B",
+   "seat": "B-131",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "eco3150",
+   "code": "ECO3150",
+   "name": "Econometrics II",
+   "day": "2027-01-14",
+   "start": 570,
+   "duration": 120,
+   "room": "Great Hall",
+   "seat": "G-201",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "fin3020",
+   "code": "FIN3020",
+   "name": "Corporate Finance",
+   "day": "2027-01-15",
+   "start": 570,
+   "duration": 180,
+   "room": "Great Hall",
+   "seat": "G-090",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  },
+  {
+   "id": "eco3160",
+   "code": "ECO3160",
+   "name": "Development Economics",
+   "day": "2027-01-18",
+   "start": 840,
+   "duration": 120,
+   "room": "Wren Building 1.12",
+   "seat": "17",
+   "type": "Unseen examination",
+   "resit": false,
+   "note": ""
+  }
+ ],
+ "topics": [
+  {
+   "id": "eco3112-prospect-theory",
+   "code": "ECO3112",
+   "name": "Prospect theory",
+   "conf": 2,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-mental-accounting",
+   "code": "ECO3112",
+   "name": "Mental accounting",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-present-bias-and-discounting",
+   "code": "ECO3112",
+   "name": "Present bias and discounting",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-nudges-and-choice-architecture",
+   "code": "ECO3112",
+   "name": "Nudges and choice architecture",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-social-preferences-and-fairness",
+   "code": "ECO3112",
+   "name": "Social preferences and fairness",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-heuristics-and-biases",
+   "code": "ECO3112",
+   "name": "Heuristics and biases",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-behavioural-finance",
+   "code": "ECO3112",
+   "name": "Behavioural finance",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3112-field-experiments",
+   "code": "ECO3112",
+   "name": "Field experiments",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3150-panel-data",
+   "code": "ECO3150",
+   "name": "Panel data",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3150-instrumental-variables",
+   "code": "ECO3150",
+   "name": "Instrumental variables",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3150-difference-in-differences",
+   "code": "ECO3150",
+   "name": "Difference in differences",
+   "conf": 1,
+   "size": 120,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "eco3150-time-series-and-unit-roots",
+   "code": "ECO3150",
+   "name": "Time series and unit roots",
+   "conf": 1,
+   "size": 180,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "eco3150-limited-dependent-variables",
+   "code": "ECO3150",
+   "name": "Limited dependent variables",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3150-maximum-likelihood",
+   "code": "ECO3150",
+   "name": "Maximum likelihood",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-capital-budgeting-and-npv",
+   "code": "FIN3020",
+   "name": "Capital budgeting and NPV",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-cost-of-capital-wacc",
+   "code": "FIN3020",
+   "name": "Cost of capital (WACC)",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-capital-structure",
+   "code": "FIN3020",
+   "name": "Capital structure",
+   "conf": 3,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dividend-policy",
+   "code": "FIN3020",
+   "name": "Dividend policy",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-real-options",
+   "code": "FIN3020",
+   "name": "Real options",
+   "conf": 4,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-dcf-valuation",
+   "code": "FIN3020",
+   "name": "DCF valuation",
+   "conf": 5,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "fin3020-working-capital",
+   "code": "FIN3020",
+   "name": "Working capital",
+   "conf": 1,
+   "size": 180,
+   "mode": "full",
+   "note": "missed the lectures"
+  },
+  {
+   "id": "fin3020-leveraged-buyouts",
+   "code": "FIN3020",
+   "name": "Leveraged buyouts",
+   "conf": 2,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-growth-theories",
+   "code": "ECO3160",
+   "name": "Growth theories",
+   "conf": 5,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-poverty-traps",
+   "code": "ECO3160",
+   "name": "Poverty traps",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-microfinance",
+   "code": "ECO3160",
+   "name": "Microfinance",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-aid-effectiveness",
+   "code": "ECO3160",
+   "name": "Aid effectiveness",
+   "conf": 3,
+   "size": 120,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-institutions",
+   "code": "ECO3160",
+   "name": "Institutions",
+   "conf": 4,
+   "size": 180,
+   "mode": "full",
+   "note": ""
+  },
+  {
+   "id": "eco3160-randomised-trials-in-development",
+   "code": "ECO3160",
+   "name": "Randomised trials in development",
+   "conf": 1,
+   "size": 120,
+   "mode": "full",
+   "note": "missed the lectures"
+  }
+ ],
+ "week": [
+  {
+   "from": 600,
+   "to": 1320,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1320,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1320,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1320,
+   "minutes": 300
+  },
+  {
+   "from": 600,
+   "to": 1320,
+   "minutes": 300
+  },
+  {
+   "from": 720,
+   "to": 1080,
+   "minutes": 180
+  },
+  {
+   "from": 660,
+   "to": 1140,
+   "minutes": 240
+  }
+ ],
+ "overrides": [
+  {
+   "day": "2026-12-24",
+   "minutes": 0,
+   "label": "Family visit"
+  },
+  {
+   "day": "2026-12-25",
+   "minutes": 0,
+   "label": "Family visit"
+  },
+  {
+   "day": "2026-12-26",
+   "minutes": 0,
+   "label": "Family visit"
+  },
+  {
+   "day": "2026-12-27",
+   "minutes": 0,
+   "label": "Family visit"
+  },
+  {
+   "day": "2027-01-01",
+   "minutes": 0,
+   "label": "New Year's Day"
+  }
+ ],
+ "busy": [
+  {
+   "day": "2026-11-24",
+   "start": 660,
+   "end": 780,
+   "label": "ECO3150 Lecture"
+  },
+  {
+   "day": "2026-11-25",
+   "start": 840,
+   "end": 1020,
+   "label": "Football"
+  },
+  {
+   "day": "2026-11-26",
+   "start": 900,
+   "end": 1020,
+   "label": "ECO3160 Lecture"
+  },
+  {
+   "day": "2026-11-27",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-11-28",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-01",
+   "start": 660,
+   "end": 780,
+   "label": "ECO3150 Lecture"
+  },
+  {
+   "day": "2026-12-02",
+   "start": 840,
+   "end": 1020,
+   "label": "Football"
+  },
+  {
+   "day": "2026-12-03",
+   "start": 900,
+   "end": 1020,
+   "label": "ECO3160 Lecture"
+  },
+  {
+   "day": "2026-12-04",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-05",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-08",
+   "start": 660,
+   "end": 780,
+   "label": "ECO3150 Lecture"
+  },
+  {
+   "day": "2026-12-09",
+   "start": 840,
+   "end": 1020,
+   "label": "Football"
+  },
+  {
+   "day": "2026-12-10",
+   "start": 900,
+   "end": 1020,
+   "label": "ECO3160 Lecture"
+  },
+  {
+   "day": "2026-12-11",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-12",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-16",
+   "start": 840,
+   "end": 1020,
+   "label": "Football"
+  },
+  {
+   "day": "2026-12-18",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-19",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-25",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2026-12-26",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-01",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-02",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-08",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-09",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-15",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  },
+  {
+   "day": "2027-01-16",
+   "start": 1080,
+   "end": 1439,
+   "label": "Bar shift (Fox and Lantern)"
+  }
+ ],
+ "allDay": [],
+ "sources": [
+  {
+   "kind": "exams",
+   "name": "exam-timetable.csv",
+   "summary": "4 exams"
+  },
+  {
+   "kind": "topics",
+   "name": "topics.csv",
+   "summary": "28 topics in 4 modules"
+  },
+  {
+   "kind": "availability",
+   "name": "availability.csv",
+   "summary": "3 weekday rows and 5 dated changes"
+  },
+  {
+   "kind": "calendar",
+   "name": "busy-calendar.ics",
+   "summary": "26 busy times from 4 events"
+  }
+ ],
+ "done": [],
+ "settled": [],
+ "missed": []
+}

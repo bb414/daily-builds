@@ -1,0 +1,15 @@
+Day,From,To,Hours,Note
+Mon,09:00,21:00,6,
+Tue,09:00,21:00,6,
+Wed,09:00,21:00,6,
+Thu,09:00,21:00,6,
+Fri,09:00,21:00,5,
+Sat,10:00,20:00,3,cafe shift in the morning
+Sun,10:00,19:00,5,
+19/12/2026,14:00,20:00,2,Travelling home
+24/12/2026,,,0,Christmas Eve
+25/12/2026,,,0,Christmas Day
+26/12/2026,,,0,Boxing Day
+31/12/2026,10:00,16:00,2,New Year's Eve
+01/01/2027,,,0,New Year's Day
+03/01/2027,15:00,21:00,2,Travelling back
