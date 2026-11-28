@@ -206,6 +206,23 @@ class Commands(unittest.TestCase):
             run("declare", os.path.join(DATA, "sample-project.json"), "--template", "work", "--md", md, "--as-of", "2026-11-28")
             self.assertTrue(open(md, encoding="utf-8").read().startswith("# Note on AI use"))
 
+    def test_recheck_shows_what_changed_and_records_the_version(self):
+        with tempfile.TemporaryDirectory() as d:
+            new = os.path.join(d, "v3.md")
+            with open(new, "w", encoding="utf-8") as fh:
+                fh.write(sample("final-version.md").replace("56%", "36%").replace("Overall, repair caf\u00e9s", "Overall, as the 2023 figures show, repair caf\u00e9s"))
+            out = os.path.join(d, "updated.json")
+            code, text, _ = run("recheck", os.path.join(DATA, "sample-project.json"), new, "--out", out, "--record", "--as-of", "2026-11-28")
+            self.assertEqual(code, 0)
+            self.assertIn("Compared with the version checked on 2026-11-20", text)
+            self.assertIn("[-56%-] {+36%+}", text)
+            self.assertIn("GONE    (was removed)", text)
+            p = M.read_project(open(out, encoding="utf-8").read())
+            self.assertEqual(p["baseline"]["on"], "2026-11-28")
+            self.assertIn("36%", p["texts"]["final"])
+            code, text, _ = run("recheck", out, new, "--as-of", "2026-11-28")
+            self.assertIn("0 new statements, 0 edited statements, 0 statements gone", text)
+
     def test_diff_and_project(self):
         code, out, _ = run("diff", os.path.join(DATA, "ai-draft.md"), os.path.join(DATA, "final-version.md"), "--as-of", "2026-11-28")
         self.assertEqual(code, 0)

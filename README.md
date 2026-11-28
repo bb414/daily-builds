@@ -16,6 +16,7 @@ The job is the check people should do anyway before submitting, plus the declara
 2. **Reference checks**: citations against the list in both directions, impossible years, malformed DOIs and web addresses, duplicates, and entries that look made up (a vague journal, no volume or pages, "et al." or placeholders in the list), flagged for you to look up by hand.
 3. **Changes**: your final version against the AI draft, with the share of your text that is the AI's word for word, which sentences you kept, edited, reworded or wrote, and what you cut.
 4. **The declaration**: built from your session log, your marks and the comparison, as text to copy, a printable proof report, Markdown and CSV, in four layouts. It always says how many claims are still unchecked. A project file saves everything to reopen next time.
+5. **Re-checking after you revise**: record the version you have worked through, and next time the checklist shows what is new, what you edited (with the mark the old wording had, so you check it again) and what has gone; marks on unchanged sentences carry over.
 
 It checks nothing online and it is not a plagiarism or AI detector: it never looks anything up and it compares your text only with the AI draft you give it. Everything stays in your browser.
 
@@ -45,6 +46,7 @@ The sample (made by `tools/make_samples.py` with seed 2611) is section 2 of an i
 - **The AI draft alone** (356 words): 15 statements worth checking, 7 of them high risk. Five clash with the notes: 140 tonnes of waste (notes: 14), a first café in 2012 (notes: 2014), 56% of households (notes: 36%), £420 a year (notes: £120) and a quotation sharpened from "one of the most practical things" to "the most radical thing". It also flags "As of my last update" (chat leftover), "Studies show" (vague source), "Soldering fumes are harmless" (health), "Volunteers are not legally liable" (legal) and the absolute "always ... proven".
 - **The references** (9 entries): 7 flagged. A space inside a web address, a space inside a DOI, a second copy of the Hartwell entry, a misspelt `htps://`, a book dated 2031, a malformed DOI prefix (10.555), and one entry that looks made up: "Journal of Research Studies" with no volume or pages, never cited. Lindqvist (2020) is cited in the text but missing from the list.
 - **The student's final version** (342 words) fixed the tonnes and the year and cut the soldering advice, but kept the 56%, the £420 and the misquotation: 11 statements, 5 high risk, 3 still clashing with the notes. 76% of its words appear word for word in the AI draft; of its 17 sentences 11 are kept, 3 edited, 1 reworded and 2 the student's own, and 3 AI sentences were cut.
+- **Since the last check.** The student recorded an earlier version on 20 November, corrected the tonnes and cut "Studies show that repair skills are disappearing", then revised. Against that version the checklist shows 1 new statement (the Hartwell finding that replaced the vague claim), 1 edited one (140 tonnes became 14 tonnes, marked corrected before the edit, so to be checked again), 1 gone (marked removed) and 9 unchanged whose marks still apply.
 - **The session log** has six readable rows (a blank row is skipped; the date 31/13/2026 is kept as typed and "ten" minutes left blank, each with a message). Five belong to this essay, so the declaration lists five sessions with Orrery Chat and Fernwrite, gives the 76%, and says "7 statements are not yet marked as checked, including 4 high risk" because only four have been verified so far.
 
 ## Why it matters
@@ -63,6 +65,7 @@ python companion/checked_by_me.py gate data/sample-project.json            # exi
 python companion/checked_by_me.py gate my-essay.md --checklist checklist.csv --level medium
 python companion/checked_by_me.py merge data/team/*.csv --assignment "MGT2210 Group report" --out-csv team-log.csv --out-md team-declaration.md
 python companion/checked_by_me.py declare data/sample-project.json --template appendix --md declaration.md
+python companion/checked_by_me.py recheck data/sample-project.json my-new-version.md --out essay.json --record
 python companion/checked_by_me.py diff data/ai-draft.md data/final-version.md
 python companion/checked_by_me.py project --draft draft.md --final final.md --sessions log.csv --out essay.checked-by-me.json
 ```
@@ -72,6 +75,7 @@ What the companion adds to the app:
 - **`batch`** checks every draft in a folder (.txt, .md, .html, .docx; a file named `something-final.md` is read as the final version of `something.md`) and writes one self-contained HTML proof report plus a one-line-per-file CSV. Useful for a whole term's assignments, or for a teacher looking at a class's drafts with their permission.
 - **`gate`** is a pre-submission check for a team's document workflow (a Git hook, a CI step or a shared-drive script): it exits 1 while any high-risk claim (or, with `--level`, medium or low) is still unmarked, 2 when a file cannot be read, and 0 when everything has been looked at. It reads the marks from saved projects, folders of them, or a draft plus the checklist CSV the app downloads. `--refs` also holds on unmarked references that need fixing or look made up.
 - **`merge`** joins several people's session logs (different column orders, delimiters and date styles) into one log, merges a session two people both logged, and writes a team declaration in Markdown with each session, who ran it and a per-person summary.
+- **`recheck`** takes a saved project and a new version of the text, lists what is new, edited (with a word diff and the old mark) and gone since the version recorded as checked, and with `--out` writes the updated project (`--record` records the new version as checked).
 - **`check`**, **`declare`**, **`diff`** and **`project`** give the app's results from the command line; `project` builds a file the app can open.
 
 ## Tests
@@ -123,6 +127,7 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 - **Notes.** A figure is compared with figures of the same kind in your notes (percentages with percentages, amounts with amounts, "14 tonnes" with other tonnes) where the note shares at least two content words with the sentence. The same value is a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.
 - **References.** Entries are split (mending broken lines and run-together entries) and parsed into author, year, title, journal, volume, pages, DOI and address, or read field by field from a RIS or BibTeX export. They are checked one by one and against each other, and matched to citations by first author's surname and year, by number, or by citation key (`[@hartwell2019]` in Pandoc Markdown, `\cite{hartwell2019}` in LaTeX).
 - **Changes.** A word in your final text counts as the AI's when it sits in a run of four or more words that appears, in order, in the AI draft. Each sentence's share decides kept (85% or more), edited (30% or more), reworded (shares half its words with an AI sentence) or yours, and the closest AI sentence gives a word-level diff.
+- **Re-checking.** A mark belongs to the exact wording of a sentence (its key is a hash of the sentence's words), so it carries over while the sentence is unchanged. When you revise, each statement without a match in the recorded version is paired with the old statement it shares most words with (at least half), shown as edited with a word diff and the old mark; the rest are new, and old statements left over are gone.
 - **Declaration.** Built from the sessions logged for this assignment, your marks and the comparison, in four layouts (a university statement, a full log for an appendix, a short statement for a submission box, a note for a manager or client), always stating what is still unchecked.
 
 ## Limitations
@@ -136,5 +141,4 @@ cd tests && python -m unittest discover -s .      # companion, agreement and bro
 
 ## What could come next
 
-- Keep each checked version so a re-check shows only what changed since the last one, with marks carried over.
 - A shared class view for a teacher, built from students' saved project files, showing how AI is being used across an assignment without anyone's text.

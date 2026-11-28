@@ -198,7 +198,7 @@ test('project files round-trip and junk is refused with a reason', function () {
   var text = sample('sample-project.json');
   var p = M.readProject(text);
   assert.ok(p.ok);
-  assert.strictEqual(M.projectFile({ project: p.project, texts: p.texts, sessions: p.sessions, checks: p.checks, refChecks: p.refChecks, asOf: AS_OF }), text);
+  assert.strictEqual(M.projectFile({ project: p.project, texts: p.texts, sessions: p.sessions, checks: p.checks, refChecks: p.refChecks, baseline: p.baseline, asOf: AS_OF }), text);
   assert.ok(/not valid JSON/.test(M.readProject('nope').message));
   assert.ok(/not a Checked by me project/.test(M.readProject('{"a":1}').message));
   assert.ok(/newer version/.test(M.readProject('{"format":"checked-by-me project","version":7}').message));
@@ -222,6 +222,20 @@ test('reference manager exports: RIS and BibTeX records with citation keys', fun
   assert.strictEqual(b.authors, 'Haldane, Maren and Kestleford Repair Network');
   assert.strictEqual(b.title, 'Caf\u00e9s');
   assert.strictEqual(b.pages, '1-9');
+});
+
+test('re-checking: new, edited and gone statements since the recorded version', function () {
+  var p = M.readProject(sample('sample-project.json'));
+  var a = M.analyse(Object.assign({}, p.texts, { asOf: AS_OF }));
+  var v = M.compareVersions(p.baseline.text, a, p.checks);
+  assert.strictEqual(p.baseline.on, '2026-11-20');
+  assert.deepStrictEqual([v.newClaims.length, v.changed.length, v.gone.length, v.unchanged.length], [1, 1, 1, 9]);
+  assert.ok(a.claims[v.newClaims[0] - 1].text.indexOf('Younger respondents') === 0);
+  assert.strictEqual(v.changed[0].status, 'corrected');
+  assert.ok(v.changed[0].ops.some(function (o) { return o[0] === '-' && o[1] === truth.aiValues.tonnes; }));
+  assert.strictEqual(v.gone[0].status, 'removed');
+  var same = M.compareVersions(p.texts.final, a, p.checks);
+  assert.strictEqual(same.unchanged.length, a.claims.length);
 });
 
 test('word files become Markdown-like text with headings, lists and footnotes', function () {

@@ -1,8 +1,10 @@
 """Builds data/sample-project.json, the partly checked project the app opens with.
 
-The student has worked through some of the checklist already: four statements
-are verified against sources and one reference has been looked up. Marks are
-matched to statements by a phrase in them, so they survive a new seed.
+The student checked an earlier version on 20 November (correcting one figure
+and cutting a vague claim), then revised it: four statements in the current
+version are verified against sources and one reference has been looked up.
+Marks are matched to statements by a phrase in them, so they survive a new
+seed.
 """
 
 import os
@@ -26,6 +28,11 @@ MARKS = [
     ("opened in Brinmouth", "verified", "Annual report 2023, 'Our history' box"),
     ("Footfall on Market Street", "verified", "Brinmouth footfall monitor 2022, table 2"),
     ("runs three monthly repair", "verified", "Network's 'Where we meet' page, read 20 November"),
+]
+# Marks made on the earlier version (20 November) for sentences the student then changed or cut.
+EARLIER_MARKS = [
+    ("tonnes of electrical waste", "corrected", "My notes give a different figure, so I corrected it"),
+    ("Studies show", "removed", "No source for this; replaced it with the survey finding"),
 ]
 REF_MARKS = [
     ("Journal of Household Material Flows, 14(2), pp.", "checked", "Found in the library search: vol. 14, issue 2, pp. 113-129"),
@@ -53,11 +60,18 @@ def build(folder):
         for c in analysis["claims"]:
             if phrase in c["text"]:
                 checks[c["key"]] = {"status": status, "note": note, "on": "2026-11-20", "text": c["text"]}
+    earlier = read(folder, "final-version-earlier.md")
+    before = M.analyse({"draft": earlier, "asOf": AS_OF})
+    for phrase, status, note in EARLIER_MARKS:
+        for c in before["claims"]:
+            if phrase in c["text"] and c["key"] not in checks:
+                checks[c["key"]] = {"status": status, "note": note, "on": "2026-11-20", "text": c["text"]}
     ref_checks = {}
     for phrase, status, note in REF_MARKS:
         for r in analysis["refs"]["entries"]:
             if phrase in r["entry"]["text"]:
                 ref_checks[r["entry"]["key"]] = {"status": status, "note": note, "on": "2026-11-21"}
                 break
-    state = {"project": PROJECT, "texts": texts, "sessions": sessions, "checks": checks, "refChecks": ref_checks, "asOf": AS_OF}
+    state = {"project": PROJECT, "texts": texts, "sessions": sessions, "checks": checks, "refChecks": ref_checks, "asOf": AS_OF,
+             "baseline": {"text": earlier, "on": "2026-11-20"}}
     return M.project_file(state)

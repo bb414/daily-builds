@@ -178,6 +178,14 @@ Overall, repair cafés are a promising and low-cost way for a town to cut electr
 """
 
 
+def earlier_text(f):
+    """The version the student checked on 20 November: the tonnes still wrong and a vague claim still in."""
+    t = final_text(f)
+    t = t.replace("diverted %s tonnes" % FACTS["tonnes"]["true"], "diverted %s tonnes" % f["tonnes"])
+    return t.replace("Younger respondents were more likely to say they lacked the skills to repair things themselves (Hartwell et al., 2019).",
+                     "Studies show that repair skills are disappearing among young people, which makes these events especially valuable for students.")
+
+
 def notes_text():
     t = FACTS
     return f"""# Notes for Essay 2 (MGT2207)
@@ -328,6 +336,7 @@ def main(argv):
 
     write("ai-draft.md", draft_text(f).replace("{REFERENCES}", REFERENCES))
     write("final-version.md", final_text(f).replace("{REFERENCES}", REFERENCES))
+    write("final-version-earlier.md", earlier_text(f).replace("{REFERENCES}", REFERENCES))
     write("notes.md", notes_text())
     write("prompt.txt", PROMPT + "\n")
     write("references.txt", REFERENCES + "\n")

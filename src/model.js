@@ -1761,6 +1761,44 @@
     return n;
   }
 
+  // ---------------------------------------------------------------- re-checking a new version
+
+  // Compares the claims in the text you are checking now with those in the version you recorded as checked:
+  // which are new, which were edited (with the mark the old wording had), which are unchanged (their marks
+  // carry over, because a mark belongs to the exact sentence) and which have gone.
+  function compareVersions(baselineText, a, checks) {
+    var out = { newClaims: [], changed: [], unchanged: [], gone: [] };
+    var prev = analyse({ draft: baselineText || '', asOf: a.asOf });
+    var cur = dict(), before = dict();
+    for (var i = 0; i < a.claims.length; i++) cur[a.claims[i].key] = true;
+    for (var j = 0; j < prev.claims.length; j++) before[prev.claims[j].key] = true;
+    var loose = prev.claims.filter(function (p) { return !hasOwn(cur, p.key); });
+    var used = [];
+    for (var u = 0; u < loose.length; u++) used.push(false);
+    function noteOf(key) { return checks && hasOwn(checks, key) && typeof checks[key].note === 'string' ? checks[key].note : ''; }
+    for (var k = 0; k < a.claims.length; k++) {
+      var c = a.claims[k];
+      if (hasOwn(before, c.key)) { out.unchanged.push(c.q); continue; }
+      var cw = words(c.text), best = -1, bestD = null;
+      for (var l = 0; l < loose.length; l++) {
+        if (used[l]) continue;
+        var d = diceOf(cw, words(loose[l].text));
+        if (d.inter * 2 * 100 >= M.REWORD_DICE * d.total && (bestD === null || d.inter * bestD.total > bestD.inter * d.total)) { best = l; bestD = d; }
+      }
+      if (best >= 0) {
+        used[best] = true;
+        var p = loose[best];
+        out.changed.push({ q: c.q, before: p.text, key: p.key, status: statusOf(checks, p.key), note: noteOf(p.key),
+          ops: lcsOps(p.text.split(' ').filter(function (t) { return t !== ''; }), c.text.split(' ').filter(function (t) { return t !== ''; })) });
+      } else out.newClaims.push(c.q);
+    }
+    for (var g = 0; g < loose.length; g++) {
+      if (!used[g]) out.gone.push({ text: loose[g].text, key: loose[g].key, status: statusOf(checks, loose[g].key), note: noteOf(loose[g].key) });
+    }
+    return out;
+  }
+  M.compareVersions = compareVersions;
+
   // ---------------------------------------------------------------- the session log
 
   var SESSION_FIELDS = ['date', 'assignment', 'tool', 'purpose', 'prompt', 'used', 'changed', 'checked', 'minutes', 'person'];
@@ -2127,7 +2165,9 @@
         return o;
       }),
       checks: cleanChecks(state.checks, M.STATUSES),
-      refChecks: cleanChecks(state.refChecks, M.REF_STATUSES)
+      refChecks: cleanChecks(state.refChecks, M.REF_STATUSES),
+      baseline: { text: state.baseline && typeof state.baseline.text === 'string' ? state.baseline.text : '',
+        on: state.baseline && typeof state.baseline.on === 'string' ? state.baseline.on : '' }
     };
     return JSON.stringify(doc, null, 1) + '\n';
   }
@@ -2151,10 +2191,12 @@
     var texts = {};
     ['draft', 'final', 'prompt', 'references', 'notes'].forEach(function (k) { texts[k] = typeof t[k] === 'string' ? t[k] : ''; });
     var sessions = Array.isArray(data.sessions) ? data.sessions.filter(function (s) { return s && typeof s === 'object' && !Array.isArray(s); }).map(cleanSession) : [];
+    var b = data.baseline && typeof data.baseline === 'object' && !Array.isArray(data.baseline) ? data.baseline : null;
     return { ok: true, project: project, texts: texts, sessions: sessions,
       checks: cleanChecks(data.checks && typeof data.checks === 'object' ? data.checks : {}, M.STATUSES),
       refChecks: cleanChecks(data.refChecks && typeof data.refChecks === 'object' ? data.refChecks : {}, M.REF_STATUSES),
-      saved: typeof data.saved === 'string' ? data.saved : '' };
+      saved: typeof data.saved === 'string' ? data.saved : '',
+      baseline: { text: b && typeof b.text === 'string' ? b.text : '', on: b && typeof b.on === 'string' ? b.on : '' } };
   }
   M.readProject = readProject;
 

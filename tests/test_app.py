@@ -165,6 +165,24 @@ class App(unittest.TestCase):
         self.assertIn("hartwell2019", page.inner_text("#view-refs"))
         self.assert_quiet()
 
+    def test_recording_a_version_and_seeing_what_changed(self):
+        page = self.open()
+        self.assertIn("Since the version you checked on 20 November 2026", page.inner_text("#view-check"))
+        self.assertEqual(page.locator("#view-check .tag.v-new").count(), 1)
+        self.assertEqual(page.locator("#view-check .tag.v-edited").count(), 1)
+        page.click("button[data-act=record]")
+        self.assertIn("This is the version you recorded as checked", page.inner_text("#view-check"))
+        page.click("#tab-copy")
+        page.fill("#in-final", page.input_value("#in-final").replace("found that 56%", "found that 36%"))
+        page.wait_for_timeout(600)
+        page.click("#tab-check")
+        self.assertIn("0 new statements, 1 edited statement", page.inner_text("#view-check .since"))
+        page.check("#f-since")
+        self.assertEqual(page.locator("#view-check li.query").count(), 1)
+        self.assertIn("36%", page.inner_text("#view-check li.query"))
+        page.evaluate("localStorage.clear()")
+        self.assert_quiet()
+
     def test_session_log_import_explains_bad_rows(self):
         page = self.open()
         page.click("#tab-copy")
@@ -199,7 +217,8 @@ class App(unittest.TestCase):
         name, text = self.download(page, lambda: page.click("button[data-act=csv-refs]"))
         self.assertEqual(text, M.refs_csv(a, p["refChecks"]))
         page.click("#tab-declare")
-        state = {"project": p["project"], "sessions": p["sessions"], "checks": p["checks"], "refChecks": p["refChecks"], "asOf": today()}
+        state = {"project": p["project"], "sessions": p["sessions"], "checks": p["checks"], "refChecks": p["refChecks"], "asOf": today(),
+                 "baseline": p["baseline"]}
         d = M.declaration(a, state)
         name, text = self.download(page, lambda: page.click("button[data-act=md-decl]"))
         self.assertTrue(name.endswith(".md"))

@@ -140,7 +140,7 @@ class Agreement(unittest.TestCase):
     def test_exported_files_are_byte_identical(self):
         project = json.loads(sample("sample-project.json"))
         state = {"project": project["project"], "sessions": project["sessions"], "checks": project["checks"],
-                 "refChecks": project["refChecks"], "asOf": AS_OF}
+                 "refChecks": project["refChecks"], "asOf": AS_OF, "baseline": project["baseline"]}
         inp = dict(project["texts"], asOf=AS_OF)
         all_checked = dict(state, checks={c["key"]: {"status": "verified", "note": 'Seen, p. 4, "quoted"'} for c in M.analyse(inp)["claims"]})
         jobs = [{"fn": "outputs", "args": [inp, state]}, {"fn": "outputs", "args": [inp, all_checked]},
@@ -236,6 +236,22 @@ class Agreement(unittest.TestCase):
                       {"fn": "parseRis", "args": [messy_ris]}, {"fn": "parseBibtex", "args": [messy_bib]},
                       {"fn": "parseBibtex", "args": ["@article{x, title={unterminated"]}, {"fn": "parseRis", "args": [""]},
                       {"fn": "texText", "args": ["Caf\\'{e} \\\"{U}ber \\c{c}a \\textit{ital} 10\\% {A}~B --- \\~n"]}])
+
+    def test_version_comparison(self):
+        p = M.read_project(sample("sample-project.json"))
+        jobs = []
+        rng = random.Random(11)
+        for i in range(12):
+            base = make_doc(rng)
+            now = edit_doc(rng, base)
+            a = M.analyse({"draft": now, "asOf": AS_OF})
+            prev = M.analyse({"draft": base, "asOf": AS_OF})
+            checks = {c["key"]: {"status": rng.choice(M.STATUSES), "note": rng.choice(["", "n"])} for c in prev["claims"]}
+            jobs.append({"fn": "compareVersions", "args": [base, a, checks]})
+        a = M.analyse(dict(p["texts"], asOf=AS_OF))
+        jobs.append({"fn": "compareVersions", "args": [p["baseline"]["text"], a, p["checks"]]})
+        jobs.append({"fn": "compareVersions", "args": ["", a, {}]})
+        self.compare(jobs)
 
     def test_word_files(self):
         doc = ('<w:document><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Repair &amp; reuse</w:t></w:r></w:p>'

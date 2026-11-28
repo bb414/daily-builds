@@ -12,7 +12,7 @@
     texts: { draft: '', final: '', prompt: '', references: '', notes: '' },
     sessions: [], project: copy(EMPTY_PROJECT), checks: {}, refChecks: {},
     analysis: null, summary: null, view: 'check', isSample: false, dirty: false,
-    filter: { risk: 'all', kind: 'all', status: 'all', conflicts: false, order: 'risk' },
+    filter: { risk: 'all', kind: 'all', status: 'all', conflicts: false, order: 'risk', since: false }, baseline: { text: '', on: '' }, versions: null,
     showDiff: true, sessionMsgs: [], fieldMsgs: {}, editing: -1, showAllSessions: true, pickField: null
   };
   var today = todayDay();
@@ -72,7 +72,7 @@
   // ---------------------------------------------------------------- state in and out
 
   function state() {
-    return { project: S.project, texts: S.texts, sessions: S.sessions, checks: S.checks, refChecks: S.refChecks, asOf: today };
+    return { project: S.project, texts: S.texts, sessions: S.sessions, checks: S.checks, refChecks: S.refChecks, asOf: today, baseline: S.baseline };
   }
 
   function loadProject(p, opts) {
@@ -82,12 +82,15 @@
     S.sessions = (p.sessions || []).map(M.cleanSession);
     S.checks = p.checks || {};
     S.refChecks = p.refChecks || {};
+    S.baseline = p.baseline && p.baseline.text ? { text: p.baseline.text, on: p.baseline.on || '' } : { text: '', on: '' };
     S.isSample = !!opts.sample;
     S.dirty = false;
     S.sessionMsgs = []; S.fieldMsgs = {}; S.editing = -1;
     FIELDS.forEach(function (f) { $('in-' + f).value = S.texts[f]; });
     analyseNow();
   }
+
+  function checkedText() { return S.texts.final.trim() ? S.texts.final : S.texts.draft; }
 
   function changed() {
     S.dirty = true;
@@ -100,6 +103,7 @@
     FIELDS.forEach(function (f) { input[f] = S.texts[f]; });
     S.analysis = M.analyse(input);
     S.summary = M.summarise(S.analysis, S.checks, S.refChecks);
+    S.versions = S.baseline.text && S.baseline.text.trim() !== checkedText().trim() ? M.compareVersions(S.baseline.text, S.analysis, S.checks) : null;
     renderAll();
   }
 
@@ -421,9 +425,23 @@
   var ORIGIN_WORD = { kept: 'Kept from the AI', edited: 'Edited from the AI', reworded: 'Reworded from the AI', yours: 'Your own words' };
   var NOTES_WORD = { conflict: 'Notes disagree', match: 'Matches your notes', partial: 'Partly in your notes', missing: 'Not in your notes', related: 'Related note' };
 
+  function versionOf(c) {
+    var v = S.versions;
+    if (!v) return null;
+    if (v.newClaims.indexOf(c.q) >= 0) return { kind: 'new' };
+    for (var i = 0; i < v.changed.length; i++) if (v.changed[i].q === c.q) return { kind: 'edited', info: v.changed[i] };
+    return null;
+  }
+
   function claimHtml(c) {
     var ck = S.checks[c.key] || {}, st = M.statusOf(S.checks, c.key);
     var tags = c.kinds.map(function (k) { return '<li class="tag k-' + k + '">' + esc(M.KIND_LABELS[k]) + '</li>'; }).join('');
+    var ver = versionOf(c), verBox = '';
+    if (ver) tags = '<li class="tag v-' + ver.kind + '">' + (ver.kind === 'new' ? 'New since last check' : 'Edited since last check') + '</li>' + tags;
+    if (ver && ver.kind === 'edited') {
+      var was = ver.info.status !== 'unchecked' ? 'Before your edit it was marked ' + STATUS_WORD[ver.info.status].toLowerCase() + (ver.info.note ? ' ("' + ver.info.note + '")' : '') + '. That mark belonged to the old wording, so check it again.' : 'The old wording was not marked.';
+      verBox = '<div class="q-note-box was"><b>Since your last check</b><p class="sx">' + opsHtml(ver.info.ops) + '</p><p>' + esc(was) + '</p></div>';
+    }
     if (c.origin) tags += '<li class="tag o-' + c.origin + '">' + esc(ORIGIN_WORD[c.origin]) + '</li>';
     if (c.notes.status !== 'none') tags += '<li class="tag n-' + c.notes.status + '">' + esc(NOTES_WORD[c.notes.status]) + '</li>';
     var noteBox = '';
@@ -447,7 +465,7 @@
     }).join('');
     return '<li class="query lvl-' + c.level + ' st-' + st + '" id="q' + c.q + '">' +
       '<div class="q-left"><span class="qy"><span>Qy</span><b>' + c.q + '</b></span><span class="q-risk">' + c.level + ' \u00b7 ' + c.score + '</span></div>' +
-      '<div class="q-body"><p class="q-text">' + markedText(c.text, c.spans) + '</p><ul class="q-tags">' + tags + '</ul>' + noteBox +
+      '<div class="q-body"><p class="q-text">' + markedText(c.text, c.spans) + '</p><ul class="q-tags">' + tags + '</ul>' + verBox + noteBox +
       '<ul class="q-todo">' + c.checks.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
       '<details class="q-why"><summary>Why it is flagged: score ' + c.score + '</summary><ul class="why">' + why + '</ul></details></div>' +
       '<div class="q-right"><div class="q-acts" role="group" aria-label="Mark query ' + c.q + '">' + acts + '</div>' +
@@ -471,7 +489,8 @@
     var list = (f.order === 'risk' ? a.ranked.map(function (q) { return a.claims[q - 1]; }) : a.claims.slice()).filter(function (c) {
       var st = M.statusOf(S.checks, c.key);
       return (f.risk === 'all' || c.level === f.risk) && (f.kind === 'all' || c.kinds.indexOf(f.kind) >= 0) &&
-        (f.status === 'all' || (f.status === 'open' ? st === 'unchecked' : st === f.status)) && (!f.conflicts || c.notes.status === 'conflict');
+        (f.status === 'all' || (f.status === 'open' ? st === 'unchecked' : st === f.status)) && (!f.conflicts || c.notes.status === 'conflict') &&
+        (!f.since || !!versionOf(c));
     });
     var total = Math.max(1, s.claims);
     var segs = [['verified', s.verified], ['corrected', s.corrected], ['removed', s.removed]];
@@ -490,19 +509,40 @@
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
       '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
       '<div class="tools-row"><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
+    html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
       ['all', 'high', 'medium', 'low'].map(function (r) { return '<button type="button" class="chip" id="fr-' + r + '" data-act="risk" data-risk="' + r + '" aria-pressed="' + (f.risk === r) + '">' + (r === 'all' ? 'All' : r.charAt(0).toUpperCase() + r.slice(1)) + '</button>'; }).join('') + '</div></fieldset>' +
       '<label><span>What it is</span><select id="f-kind" data-act="kind"><option value="all">Everything</option>' + kindsPresent.map(function (k) { return '<option value="' + k + '"' + (f.kind === k ? ' selected' : '') + '>' + esc(M.KIND_LABELS[k]) + '</option>'; }).join('') + '</select></label>' +
       '<label><span>Status</span><select id="f-status" data-act="status-filter">' + [['all', 'Any'], ['open', 'Still open'], ['verified', 'Verified'], ['corrected', 'Corrected'], ['removed', 'Removed']].map(function (o) { return '<option value="' + o[0] + '"' + (f.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label><span>Order</span><select id="f-order" data-act="order"><option value="risk"' + (f.order === 'risk' ? ' selected' : '') + '>Highest risk first</option><option value="text"' + (f.order === 'text' ? ' selected' : '') + '>As in the text</option></select></label>' +
       (a.notesGiven ? '<label class="check-inline"><input type="checkbox" id="f-conf" data-act="conflicts"' + (f.conflicts ? ' checked' : '') + '> Only where my notes disagree</label>' : '') +
+      (S.versions ? '<label class="check-inline"><input type="checkbox" id="f-since" data-act="since"' + (f.since ? ' checked' : '') + '> Only new or edited since my last check</label>' : '') +
       '<span class="filters-count">' + list.length + ' of ' + a.claims.length + ' shown</span></div>';
     html += list.length ? '<ol class="queries">' + list.map(claimHtml).join('') + '</ol>' : '<div class="empty"><p>No statement matches these filters.</p></div>';
     var keys = {};
     a.claims.forEach(function (c) { keys[c.key] = true; });
+    if (S.versions) S.versions.changed.concat(S.versions.gone).forEach(function (x) { keys[x.key] = true; });
     var orphans = Object.keys(S.checks).filter(function (k) { return !keys[k] && S.checks[k].status !== 'unchecked'; });
     if (orphans.length) html += '<p class="orphans">' + esc(plural(orphans.length, 'mark') + ' from earlier ' + (orphans.length === 1 ? 'belongs' : 'belong') + ' to a sentence that has since changed or gone. ' + (orphans.length === 1 ? 'It is' : 'They are') + ' kept in the project but no longer counted.') + '</p>';
     keepFocus(function () { box.innerHTML = html; });
+  }
+
+  // The strip at the top of the checklist: what changed since the version you recorded as checked.
+  function sinceHtml() {
+    var v = S.versions, b = S.baseline;
+    var record = '<button type="button" class="btn small" data-act="record">Record this version as checked</button>';
+    if (!b.text) {
+      return '<div class="since quiet"><p>When you have worked through this version, record it. Next time you revise, the checklist shows only what is new or edited since then, and marks on unchanged sentences carry over.</p>' + record + '</div>';
+    }
+    var when = b.on && M.parseDate(b.on).day !== null ? M.longDay(M.parseDate(b.on).day) : 'earlier';
+    if (!v) return '<div class="since quiet"><p>This is the version you recorded as checked on ' + esc(when) + '.</p></div>';
+    var gone = v.gone.map(function (g) {
+      return '<li><span class="del">' + esc(M.clip(g.text, 110)) + '</span>' + (g.status !== 'unchecked' ? ' <span class="small">(' + esc(STATUS_WORD[g.status].toLowerCase() + (g.note ? ': ' + g.note : '')) + ')</span>' : '') + '</li>';
+    }).join('');
+    return '<div class="since"><div><h3>Since the version you checked on ' + esc(when) + '</h3><p>' +
+      esc(plural(v.newClaims.length, 'new statement') + ', ' + plural(v.changed.length, 'edited statement') + ' and ' + plural(v.gone.length, 'statement') + ' gone; ' +
+        plural(v.unchanged.length, 'statement') + ' unchanged, whose marks still apply.') + '</p>' +
+      (gone ? '<p class="small">Gone since then:</p><ul class="gone">' + gone + '</ul>' : '') + '</div>' + record + '</div>';
   }
 
   function setMark(key, status) {
@@ -981,6 +1021,12 @@
     else if (act === 'csv-sessions') download(slugName(S.project.assignment || 'ai') + '-session-log.csv', M.sessionsCsv(S.sessions), 'text/csv;charset=utf-8');
     else if (act === 'template') download('session-log-template.csv', M.SESSION_TEMPLATE, 'text/csv;charset=utf-8');
     else if (act === 'print') printReport();
+    else if (act === 'record') {
+      S.baseline = { text: checkedText(), on: M.isoDay(today) };
+      S.filter.since = false;
+      changed(); analyseNow();
+      say('Recorded this version as checked');
+    }
     else if (act === 'save') saveProject();
     else if (act === 'dismiss') { S.restoreOffer = ''; renderNotice(); }
     else if (act === 'restore') {
@@ -1041,6 +1087,7 @@
     else if (act === 'status-filter') { S.filter.status = t.value; renderCheck(); }
     else if (act === 'order') { S.filter.order = t.value; renderCheck(); }
     else if (act === 'conflicts') { S.filter.conflicts = t.checked; renderCheck(); }
+    else if (act === 'since') { S.filter.since = t.checked; renderCheck(); }
     else if (act === 'diff') { S.showDiff = t.checked; renderChanges(); }
     else if (act === 'project' && t.type !== 'text') {
       S.project[t.getAttribute('data-field')] = t.value;

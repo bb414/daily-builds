@@ -5,6 +5,7 @@
     gate      exits non-zero while high-risk claims are unchecked (for a team's workflow)
     merge     several people's session logs into one log and a team declaration
     declare   the declaration from a saved project, as text or Markdown
+    recheck   a new version of a saved project: what is new or edited since the last check
     diff      how much of a final version is still the AI draft's wording
     project   builds a project file the browser app can open
 
@@ -375,6 +376,42 @@ def cmd_declare(args):
     return 0
 
 
+def cmd_recheck(args):
+    as_of = as_of_arg(args.as_of)
+    p = read_project_file(args.project)
+    texts = dict(p["texts"])
+    field = "draft" if args.draft or not texts["final"].strip() else "final"
+    old_text = texts[field]
+    texts[field] = load(args.text, "New version")
+    a = M.analyse(dict(texts, asOf=as_of))
+    base = p["baseline"]["text"] or old_text
+    when = p["baseline"]["on"] or "your last save"
+    v = M.compare_versions(base, a, p["checks"])
+    s = M.summarise(a, p["checks"], p["refChecks"])
+    print("Compared with the version checked on %s: %s, %s, %s gone; %s unchanged (their marks still apply)." % (
+        when, M.plural(len(v["newClaims"]), "new statement"), M.plural(len(v["changed"]), "edited statement"),
+        M.plural(len(v["gone"]), "statement"), M.plural(len(v["unchanged"]), "statement")))
+    for q in v["newClaims"]:
+        c = a["claims"][q - 1]
+        print("\nNEW     Qy %d (%s %d)" % (q, c["level"], c["score"]))
+        print(wrap(c["text"]))
+    for ch in v["changed"]:
+        c = a["claims"][ch["q"] - 1]
+        print("\nEDITED  Qy %d (%s %d)%s" % (ch["q"], c["level"], c["score"],
+                                          ": was %s, check it again" % ch["status"] if ch["status"] != "unchecked" else ""))
+        print(wrap(" ".join(("[-%s-]" % t) if op == "-" else (("{+%s+}" % t) if op == "+" else t) for op, t in ch["ops"])))
+    for g in v["gone"]:
+        print("\nGONE    " + ("(was %s) " % g["status"] if g["status"] != "unchecked" else ""))
+        print(wrap(g["text"]))
+    print("\n%s still unchecked, %d of them high risk." % (M.plural(s["unchecked"], "statement"), s["highUnchecked"]))
+    if args.out:
+        baseline = {"text": M.trim(texts["final"]) and texts["final"] or texts["draft"], "on": M.iso_day(as_of)} if args.record else p["baseline"]
+        write_text(args.out, M.project_file({"project": p["project"], "texts": texts, "sessions": p["sessions"], "checks": p["checks"],
+                                             "refChecks": p["refChecks"], "baseline": baseline, "asOf": as_of}))
+        print("Wrote the updated project to %s%s" % (args.out, " and recorded this version as checked" if args.record else ""))
+    return 0
+
+
 def cmd_diff(args):
     as_of = as_of_arg(args.as_of)
     a = analyse_paths(args.draft, args.final, as_of=as_of)
@@ -461,6 +498,15 @@ def build_parser():
     d.add_argument("--txt", help="write plain text here")
     d.add_argument("--as-of")
     d.set_defaults(func=cmd_declare)
+
+    r = sub.add_parser("recheck", help="what is new or edited in a new version of a saved project")
+    r.add_argument("project", help="a project file saved by the app (.json)")
+    r.add_argument("text", help="the new version (.txt, .md, .html or .docx)")
+    r.add_argument("--draft", action="store_true", help="the new text replaces the AI draft rather than the final version")
+    r.add_argument("--out", help="write the project with the new version here")
+    r.add_argument("--record", action="store_true", help="with --out: record the new version as checked")
+    r.add_argument("--as-of")
+    r.set_defaults(func=cmd_recheck)
 
     f = sub.add_parser("diff", help="how much of a final version is the AI draft's wording")
     f.add_argument("draft")

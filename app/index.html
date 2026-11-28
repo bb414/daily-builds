@@ -365,6 +365,22 @@ select:focus, input:focus { border-color: var(--blue); outline: none; box-shadow
 .empty h3 { font: 400 28px/1.2 var(--serif); margin: 0 0 8px; color: var(--ink); }
 .empty p { margin: 0 auto 12px; max-width: 40em; }
 .orphans { margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+.since {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin: 0 0 12px; padding: 12px 14px;
+  border: 1.5px solid var(--blue); border-left-width: 6px; border-radius: 3px; background: rgba(219, 230, 243, .55);
+}
+.since > div { flex: 1 1 420px; min-width: 0; }
+.since h3 { margin: 0 0 4px; color: var(--blue-2); }
+.since p { margin: 0 0 4px; font-size: 14.5px; }
+.since.quiet { border-color: var(--rule-2); background: rgba(255, 255, 255, .35); }
+.since .gone { margin: 2px 0 0; padding-left: 18px; font: 400 16px/1.4 var(--serif); }
+.since .del, .q-note-box .del { color: var(--red); text-decoration: line-through; }
+.q-note-box.was { border-left-color: var(--blue); background: #e8eff8; }
+.q-note-box.was b { color: var(--blue-2); }
+.q-note-box .sx { font: 400 17px/1.45 var(--serif); margin: 2px 0 4px; }
+.q-note-box .ins { color: var(--blue-2); box-shadow: inset 0 -2px 0 var(--blue); }
+.tag.v-new { color: #fff; background: var(--blue); border-color: var(--blue); }
+.tag.v-edited { color: var(--blue-2); background: var(--blue-wash); border-color: var(--blue); }
 
 /* ---------------------------------------------------------------- references */
 .refs-top { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
@@ -854,11 +870,23 @@ table.weights td.p.neg { color: var(--green); }
    "on": "2026-11-20",
    "text": "Footfall on Market Street rose by 9% on repair café Saturdays, which suggests that independent shops benefit from the extra visitors (Brinmouth Borough Council, 2022)."
   },
+  "q23affac9": {
+   "status": "removed",
+   "note": "No source for this; replaced it with the survey finding",
+   "on": "2026-11-20",
+   "text": "Studies show that repair skills are disappearing among young people, which makes these events especially valuable for students."
+  },
   "q78871c52": {
    "status": "verified",
    "note": "Annual report 2023, 'Our history' box",
    "on": "2026-11-20",
    "text": "The first repair café in the county opened in Brinmouth in 2014, and the model has since spread to most market towns in the region."
+  },
+  "q9b588174": {
+   "status": "corrected",
+   "note": "My notes give a different figure, so I corrected it",
+   "on": "2026-11-20",
+   "text": "According to the network's annual report, its cafés diverted 140 tonnes of electrical waste from landfill in 2023, and the network had 85 volunteers by the end of that year (Kestleford Repair Network, 2024)."
   },
   "qa1a74d27": {
    "status": "verified",
@@ -879,6 +907,10 @@ table.weights td.p.neg { color: var(--green); }
    "note": "Found in the library search: vol. 14, issue 2, pp. 113-129",
    "on": "2026-11-21"
   }
+ },
+ "baseline": {
+  "text": "## 2. Repair cafés and the circular high street\n\nRepair cafés are one of the easiest parts of the circular economy to see on a high street. Volunteers help visitors fix broken household items for free, from toasters and lamps to bicycles and clothing.\n\nIn Kestleford, the Kestleford Repair Network runs three monthly repair cafés. According to the network's annual report, its cafés diverted 140 tonnes of electrical waste from landfill in 2023, and the network had 85 volunteers by the end of that year (Kestleford Repair Network, 2024). The first repair café in the county opened in Brinmouth in 2014, and the model has since spread to most market towns in the region.\n\nWhen I visited the Market Street café in October, most of the twenty or so visitors had brought small kitchen appliances, and about half of the repairs I watched were finished on the day. Repair cafés often reduce waste and may strengthen local communities. A 2019 survey of 1,200 households found that 56% would choose to repair an item rather than replace it if free help were available (Hartwell et al., 2019). Studies show that repair skills are disappearing among young people, which makes these events especially valuable for students.\n\nThe economic case is equally strong. Households save an average of £420 a year by repairing rather than replacing electrical items (Eastmoor Institute for Circular Practice, 2022). Footfall on Market Street rose by 9% on repair café Saturdays, which suggests that independent shops benefit from the extra visitors (Brinmouth Borough Council, 2022). As Dr Maren Haldane of the Eastmoor Institute put it, \"repair is the most radical thing a consumer can do\" (Haldane, 2021, p. 14).\n\nThere are practical issues to manage. Volunteers are not legally liable for faults in items they repair, as long as they follow the venue's safety checklist. Lindqvist (2020) argues that the biggest barrier is not safety but the lack of spare parts.\n\nOverall, repair cafés are a promising and low-cost way for a town to cut electrical waste, and they offer a useful model for a circular high street.\n\n## References\n\nBrinmouth Borough Council (2022) *Market Street footfall monitor 2022*. Available at: https://www.brinmouth-bc.org.uk/footfall data (Accessed: 3 November 2026).\nEastmoor Institute for Circular Practice (2022) *The household value of repair*. Eastmoor: EICP. doi:10.5555/eicp 2022.07\nHaldane, M. (2021) *Mending the market: repair and the everyday economy*. Kestleford: Wren Lane Press.\nHartwell, M., Osei, P. and Lindqvist, A. (2019) 'Repair intentions in UK households', *Journal of Household Material Flows*, 14(2), pp. 113-129. doi:10.5555/jhmf.2019.0142\nHartwell, M., Osei, P. & Lindqvist, A. (2019). Repair intentions in UK households. Journal of Household Material Flows, 14(2), 113-129.\nKestleford Repair Network (2024) *Annual report 2023*. Available at: htps://kestleford-repair-network.org.uk/annual-report-2023\nMorrow, J. (2021) 'The economics of fixing things', *Journal of Research Studies*.\nPemberton, L. (2031) *Right to repair: the next decade*. London: Fallow Books.\nQuinlan, R. and Oduya, T. (2018) 'Volunteering and local trade', *Review of Community Enterprise*, 7(1), pp. 45-61. doi:10.555/rce.7.1\n",
+  "on": "2026-11-20"
  }
 }</script>
 <script>
@@ -2645,6 +2677,44 @@ table.weights td.p.neg { color: var(--green); }
     return n;
   }
 
+  // ---------------------------------------------------------------- re-checking a new version
+
+  // Compares the claims in the text you are checking now with those in the version you recorded as checked:
+  // which are new, which were edited (with the mark the old wording had), which are unchanged (their marks
+  // carry over, because a mark belongs to the exact sentence) and which have gone.
+  function compareVersions(baselineText, a, checks) {
+    var out = { newClaims: [], changed: [], unchanged: [], gone: [] };
+    var prev = analyse({ draft: baselineText || '', asOf: a.asOf });
+    var cur = dict(), before = dict();
+    for (var i = 0; i < a.claims.length; i++) cur[a.claims[i].key] = true;
+    for (var j = 0; j < prev.claims.length; j++) before[prev.claims[j].key] = true;
+    var loose = prev.claims.filter(function (p) { return !hasOwn(cur, p.key); });
+    var used = [];
+    for (var u = 0; u < loose.length; u++) used.push(false);
+    function noteOf(key) { return checks && hasOwn(checks, key) && typeof checks[key].note === 'string' ? checks[key].note : ''; }
+    for (var k = 0; k < a.claims.length; k++) {
+      var c = a.claims[k];
+      if (hasOwn(before, c.key)) { out.unchanged.push(c.q); continue; }
+      var cw = words(c.text), best = -1, bestD = null;
+      for (var l = 0; l < loose.length; l++) {
+        if (used[l]) continue;
+        var d = diceOf(cw, words(loose[l].text));
+        if (d.inter * 2 * 100 >= M.REWORD_DICE * d.total && (bestD === null || d.inter * bestD.total > bestD.inter * d.total)) { best = l; bestD = d; }
+      }
+      if (best >= 0) {
+        used[best] = true;
+        var p = loose[best];
+        out.changed.push({ q: c.q, before: p.text, key: p.key, status: statusOf(checks, p.key), note: noteOf(p.key),
+          ops: lcsOps(p.text.split(' ').filter(function (t) { return t !== ''; }), c.text.split(' ').filter(function (t) { return t !== ''; })) });
+      } else out.newClaims.push(c.q);
+    }
+    for (var g = 0; g < loose.length; g++) {
+      if (!used[g]) out.gone.push({ text: loose[g].text, key: loose[g].key, status: statusOf(checks, loose[g].key), note: noteOf(loose[g].key) });
+    }
+    return out;
+  }
+  M.compareVersions = compareVersions;
+
   // ---------------------------------------------------------------- the session log
 
   var SESSION_FIELDS = ['date', 'assignment', 'tool', 'purpose', 'prompt', 'used', 'changed', 'checked', 'minutes', 'person'];
@@ -3011,7 +3081,9 @@ table.weights td.p.neg { color: var(--green); }
         return o;
       }),
       checks: cleanChecks(state.checks, M.STATUSES),
-      refChecks: cleanChecks(state.refChecks, M.REF_STATUSES)
+      refChecks: cleanChecks(state.refChecks, M.REF_STATUSES),
+      baseline: { text: state.baseline && typeof state.baseline.text === 'string' ? state.baseline.text : '',
+        on: state.baseline && typeof state.baseline.on === 'string' ? state.baseline.on : '' }
     };
     return JSON.stringify(doc, null, 1) + '\n';
   }
@@ -3035,10 +3107,12 @@ table.weights td.p.neg { color: var(--green); }
     var texts = {};
     ['draft', 'final', 'prompt', 'references', 'notes'].forEach(function (k) { texts[k] = typeof t[k] === 'string' ? t[k] : ''; });
     var sessions = Array.isArray(data.sessions) ? data.sessions.filter(function (s) { return s && typeof s === 'object' && !Array.isArray(s); }).map(cleanSession) : [];
+    var b = data.baseline && typeof data.baseline === 'object' && !Array.isArray(data.baseline) ? data.baseline : null;
     return { ok: true, project: project, texts: texts, sessions: sessions,
       checks: cleanChecks(data.checks && typeof data.checks === 'object' ? data.checks : {}, M.STATUSES),
       refChecks: cleanChecks(data.refChecks && typeof data.refChecks === 'object' ? data.refChecks : {}, M.REF_STATUSES),
-      saved: typeof data.saved === 'string' ? data.saved : '' };
+      saved: typeof data.saved === 'string' ? data.saved : '',
+      baseline: { text: b && typeof b.text === 'string' ? b.text : '', on: b && typeof b.on === 'string' ? b.on : '' } };
   }
   M.readProject = readProject;
 
@@ -3121,7 +3195,7 @@ table.weights td.p.neg { color: var(--green); }
     texts: { draft: '', final: '', prompt: '', references: '', notes: '' },
     sessions: [], project: copy(EMPTY_PROJECT), checks: {}, refChecks: {},
     analysis: null, summary: null, view: 'check', isSample: false, dirty: false,
-    filter: { risk: 'all', kind: 'all', status: 'all', conflicts: false, order: 'risk' },
+    filter: { risk: 'all', kind: 'all', status: 'all', conflicts: false, order: 'risk', since: false }, baseline: { text: '', on: '' }, versions: null,
     showDiff: true, sessionMsgs: [], fieldMsgs: {}, editing: -1, showAllSessions: true, pickField: null
   };
   var today = todayDay();
@@ -3181,7 +3255,7 @@ table.weights td.p.neg { color: var(--green); }
   // ---------------------------------------------------------------- state in and out
 
   function state() {
-    return { project: S.project, texts: S.texts, sessions: S.sessions, checks: S.checks, refChecks: S.refChecks, asOf: today };
+    return { project: S.project, texts: S.texts, sessions: S.sessions, checks: S.checks, refChecks: S.refChecks, asOf: today, baseline: S.baseline };
   }
 
   function loadProject(p, opts) {
@@ -3191,12 +3265,15 @@ table.weights td.p.neg { color: var(--green); }
     S.sessions = (p.sessions || []).map(M.cleanSession);
     S.checks = p.checks || {};
     S.refChecks = p.refChecks || {};
+    S.baseline = p.baseline && p.baseline.text ? { text: p.baseline.text, on: p.baseline.on || '' } : { text: '', on: '' };
     S.isSample = !!opts.sample;
     S.dirty = false;
     S.sessionMsgs = []; S.fieldMsgs = {}; S.editing = -1;
     FIELDS.forEach(function (f) { $('in-' + f).value = S.texts[f]; });
     analyseNow();
   }
+
+  function checkedText() { return S.texts.final.trim() ? S.texts.final : S.texts.draft; }
 
   function changed() {
     S.dirty = true;
@@ -3209,6 +3286,7 @@ table.weights td.p.neg { color: var(--green); }
     FIELDS.forEach(function (f) { input[f] = S.texts[f]; });
     S.analysis = M.analyse(input);
     S.summary = M.summarise(S.analysis, S.checks, S.refChecks);
+    S.versions = S.baseline.text && S.baseline.text.trim() !== checkedText().trim() ? M.compareVersions(S.baseline.text, S.analysis, S.checks) : null;
     renderAll();
   }
 
@@ -3530,9 +3608,23 @@ table.weights td.p.neg { color: var(--green); }
   var ORIGIN_WORD = { kept: 'Kept from the AI', edited: 'Edited from the AI', reworded: 'Reworded from the AI', yours: 'Your own words' };
   var NOTES_WORD = { conflict: 'Notes disagree', match: 'Matches your notes', partial: 'Partly in your notes', missing: 'Not in your notes', related: 'Related note' };
 
+  function versionOf(c) {
+    var v = S.versions;
+    if (!v) return null;
+    if (v.newClaims.indexOf(c.q) >= 0) return { kind: 'new' };
+    for (var i = 0; i < v.changed.length; i++) if (v.changed[i].q === c.q) return { kind: 'edited', info: v.changed[i] };
+    return null;
+  }
+
   function claimHtml(c) {
     var ck = S.checks[c.key] || {}, st = M.statusOf(S.checks, c.key);
     var tags = c.kinds.map(function (k) { return '<li class="tag k-' + k + '">' + esc(M.KIND_LABELS[k]) + '</li>'; }).join('');
+    var ver = versionOf(c), verBox = '';
+    if (ver) tags = '<li class="tag v-' + ver.kind + '">' + (ver.kind === 'new' ? 'New since last check' : 'Edited since last check') + '</li>' + tags;
+    if (ver && ver.kind === 'edited') {
+      var was = ver.info.status !== 'unchecked' ? 'Before your edit it was marked ' + STATUS_WORD[ver.info.status].toLowerCase() + (ver.info.note ? ' ("' + ver.info.note + '")' : '') + '. That mark belonged to the old wording, so check it again.' : 'The old wording was not marked.';
+      verBox = '<div class="q-note-box was"><b>Since your last check</b><p class="sx">' + opsHtml(ver.info.ops) + '</p><p>' + esc(was) + '</p></div>';
+    }
     if (c.origin) tags += '<li class="tag o-' + c.origin + '">' + esc(ORIGIN_WORD[c.origin]) + '</li>';
     if (c.notes.status !== 'none') tags += '<li class="tag n-' + c.notes.status + '">' + esc(NOTES_WORD[c.notes.status]) + '</li>';
     var noteBox = '';
@@ -3556,7 +3648,7 @@ table.weights td.p.neg { color: var(--green); }
     }).join('');
     return '<li class="query lvl-' + c.level + ' st-' + st + '" id="q' + c.q + '">' +
       '<div class="q-left"><span class="qy"><span>Qy</span><b>' + c.q + '</b></span><span class="q-risk">' + c.level + ' \u00b7 ' + c.score + '</span></div>' +
-      '<div class="q-body"><p class="q-text">' + markedText(c.text, c.spans) + '</p><ul class="q-tags">' + tags + '</ul>' + noteBox +
+      '<div class="q-body"><p class="q-text">' + markedText(c.text, c.spans) + '</p><ul class="q-tags">' + tags + '</ul>' + verBox + noteBox +
       '<ul class="q-todo">' + c.checks.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
       '<details class="q-why"><summary>Why it is flagged: score ' + c.score + '</summary><ul class="why">' + why + '</ul></details></div>' +
       '<div class="q-right"><div class="q-acts" role="group" aria-label="Mark query ' + c.q + '">' + acts + '</div>' +
@@ -3580,7 +3672,8 @@ table.weights td.p.neg { color: var(--green); }
     var list = (f.order === 'risk' ? a.ranked.map(function (q) { return a.claims[q - 1]; }) : a.claims.slice()).filter(function (c) {
       var st = M.statusOf(S.checks, c.key);
       return (f.risk === 'all' || c.level === f.risk) && (f.kind === 'all' || c.kinds.indexOf(f.kind) >= 0) &&
-        (f.status === 'all' || (f.status === 'open' ? st === 'unchecked' : st === f.status)) && (!f.conflicts || c.notes.status === 'conflict');
+        (f.status === 'all' || (f.status === 'open' ? st === 'unchecked' : st === f.status)) && (!f.conflicts || c.notes.status === 'conflict') &&
+        (!f.since || !!versionOf(c));
     });
     var total = Math.max(1, s.claims);
     var segs = [['verified', s.verified], ['corrected', s.corrected], ['removed', s.removed]];
@@ -3599,19 +3692,40 @@ table.weights td.p.neg { color: var(--green); }
     var html = '<div class="ledger"><div><p class="ledger-lede">' + lede + '</p><div class="meter"><div class="meter-bar" role="img" aria-label="' + esc(s.resolved + ' of ' + s.claims + ' marked') + '">' + bar + '</div><div class="meter-legend">' + legend + '</div></div></div>' +
       '<div><p class="small">Work down from the top. Mark <strong>Verified</strong> only when you have seen the original source, <strong>Corrected</strong> when you fixed the text, or <strong>Removed</strong> when you cut it. Your marks are kept with the project; the checker itself looks nothing up.</p>' +
       '<div class="tools-row"><button type="button" class="btn small" data-act="csv-claims">Checklist (.csv)</button><button type="button" class="btn small" data-act="print">Print the proof report</button></div></div></div>';
+    html += sinceHtml();
     html += '<div class="filters" role="group" aria-label="Filter the checklist"><fieldset><legend>Risk</legend><div class="chips">' +
       ['all', 'high', 'medium', 'low'].map(function (r) { return '<button type="button" class="chip" id="fr-' + r + '" data-act="risk" data-risk="' + r + '" aria-pressed="' + (f.risk === r) + '">' + (r === 'all' ? 'All' : r.charAt(0).toUpperCase() + r.slice(1)) + '</button>'; }).join('') + '</div></fieldset>' +
       '<label><span>What it is</span><select id="f-kind" data-act="kind"><option value="all">Everything</option>' + kindsPresent.map(function (k) { return '<option value="' + k + '"' + (f.kind === k ? ' selected' : '') + '>' + esc(M.KIND_LABELS[k]) + '</option>'; }).join('') + '</select></label>' +
       '<label><span>Status</span><select id="f-status" data-act="status-filter">' + [['all', 'Any'], ['open', 'Still open'], ['verified', 'Verified'], ['corrected', 'Corrected'], ['removed', 'Removed']].map(function (o) { return '<option value="' + o[0] + '"' + (f.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label><span>Order</span><select id="f-order" data-act="order"><option value="risk"' + (f.order === 'risk' ? ' selected' : '') + '>Highest risk first</option><option value="text"' + (f.order === 'text' ? ' selected' : '') + '>As in the text</option></select></label>' +
       (a.notesGiven ? '<label class="check-inline"><input type="checkbox" id="f-conf" data-act="conflicts"' + (f.conflicts ? ' checked' : '') + '> Only where my notes disagree</label>' : '') +
+      (S.versions ? '<label class="check-inline"><input type="checkbox" id="f-since" data-act="since"' + (f.since ? ' checked' : '') + '> Only new or edited since my last check</label>' : '') +
       '<span class="filters-count">' + list.length + ' of ' + a.claims.length + ' shown</span></div>';
     html += list.length ? '<ol class="queries">' + list.map(claimHtml).join('') + '</ol>' : '<div class="empty"><p>No statement matches these filters.</p></div>';
     var keys = {};
     a.claims.forEach(function (c) { keys[c.key] = true; });
+    if (S.versions) S.versions.changed.concat(S.versions.gone).forEach(function (x) { keys[x.key] = true; });
     var orphans = Object.keys(S.checks).filter(function (k) { return !keys[k] && S.checks[k].status !== 'unchecked'; });
     if (orphans.length) html += '<p class="orphans">' + esc(plural(orphans.length, 'mark') + ' from earlier ' + (orphans.length === 1 ? 'belongs' : 'belong') + ' to a sentence that has since changed or gone. ' + (orphans.length === 1 ? 'It is' : 'They are') + ' kept in the project but no longer counted.') + '</p>';
     keepFocus(function () { box.innerHTML = html; });
+  }
+
+  // The strip at the top of the checklist: what changed since the version you recorded as checked.
+  function sinceHtml() {
+    var v = S.versions, b = S.baseline;
+    var record = '<button type="button" class="btn small" data-act="record">Record this version as checked</button>';
+    if (!b.text) {
+      return '<div class="since quiet"><p>When you have worked through this version, record it. Next time you revise, the checklist shows only what is new or edited since then, and marks on unchanged sentences carry over.</p>' + record + '</div>';
+    }
+    var when = b.on && M.parseDate(b.on).day !== null ? M.longDay(M.parseDate(b.on).day) : 'earlier';
+    if (!v) return '<div class="since quiet"><p>This is the version you recorded as checked on ' + esc(when) + '.</p></div>';
+    var gone = v.gone.map(function (g) {
+      return '<li><span class="del">' + esc(M.clip(g.text, 110)) + '</span>' + (g.status !== 'unchecked' ? ' <span class="small">(' + esc(STATUS_WORD[g.status].toLowerCase() + (g.note ? ': ' + g.note : '')) + ')</span>' : '') + '</li>';
+    }).join('');
+    return '<div class="since"><div><h3>Since the version you checked on ' + esc(when) + '</h3><p>' +
+      esc(plural(v.newClaims.length, 'new statement') + ', ' + plural(v.changed.length, 'edited statement') + ' and ' + plural(v.gone.length, 'statement') + ' gone; ' +
+        plural(v.unchanged.length, 'statement') + ' unchanged, whose marks still apply.') + '</p>' +
+      (gone ? '<p class="small">Gone since then:</p><ul class="gone">' + gone + '</ul>' : '') + '</div>' + record + '</div>';
   }
 
   function setMark(key, status) {
@@ -4090,6 +4204,12 @@ table.weights td.p.neg { color: var(--green); }
     else if (act === 'csv-sessions') download(slugName(S.project.assignment || 'ai') + '-session-log.csv', M.sessionsCsv(S.sessions), 'text/csv;charset=utf-8');
     else if (act === 'template') download('session-log-template.csv', M.SESSION_TEMPLATE, 'text/csv;charset=utf-8');
     else if (act === 'print') printReport();
+    else if (act === 'record') {
+      S.baseline = { text: checkedText(), on: M.isoDay(today) };
+      S.filter.since = false;
+      changed(); analyseNow();
+      say('Recorded this version as checked');
+    }
     else if (act === 'save') saveProject();
     else if (act === 'dismiss') { S.restoreOffer = ''; renderNotice(); }
     else if (act === 'restore') {
@@ -4150,6 +4270,7 @@ table.weights td.p.neg { color: var(--green); }
     else if (act === 'status-filter') { S.filter.status = t.value; renderCheck(); }
     else if (act === 'order') { S.filter.order = t.value; renderCheck(); }
     else if (act === 'conflicts') { S.filter.conflicts = t.checked; renderCheck(); }
+    else if (act === 'since') { S.filter.since = t.checked; renderCheck(); }
     else if (act === 'diff') { S.showDiff = t.checked; renderChanges(); }
     else if (act === 'project' && t.type !== 'text') {
       S.project[t.getAttribute('data-field')] = t.value;

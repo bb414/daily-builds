@@ -2082,6 +2082,47 @@ def summarise(a, checks, ref_checks):
     return s
 
 
+# ---------------------------------------------------------------- re-checking a new version
+
+def compare_versions(baseline_text, a, checks):
+    """Compares the claims now with those in the version recorded as checked: new, edited (with the old mark),
+    unchanged (marks carry over, because a mark belongs to the exact sentence) and gone."""
+    out = {"newClaims": [], "changed": [], "unchanged": [], "gone": []}
+    prev = analyse({"draft": baseline_text or "", "asOf": a["asOf"]})
+    cur = set(c["key"] for c in a["claims"])
+    before = set(p["key"] for p in prev["claims"])
+    loose = [p for p in prev["claims"] if p["key"] not in cur]
+    used = [False] * len(loose)
+
+    def note_of(key):
+        c = checks.get(key) if isinstance(checks, dict) else None
+        return c["note"] if isinstance(c, dict) and isinstance(c.get("note"), str) else ""
+
+    for c in a["claims"]:
+        if c["key"] in before:
+            out["unchanged"].append(c["q"])
+            continue
+        cw = words(c["text"])
+        best, best_d = -1, None
+        for l, p in enumerate(loose):
+            if used[l]:
+                continue
+            d = dice_of(cw, words(p["text"]))
+            if d["inter"] * 2 * 100 >= REWORD_DICE * d["total"] and (best_d is None or d["inter"] * best_d["total"] > best_d["inter"] * d["total"]):
+                best, best_d = l, d
+        if best >= 0:
+            used[best] = True
+            p = loose[best]
+            out["changed"].append({"q": c["q"], "before": p["text"], "key": p["key"], "status": status_of(checks, p["key"]),
+                                   "note": note_of(p["key"]), "ops": lcs_ops(_split_tokens(p["text"]), _split_tokens(c["text"]))})
+        else:
+            out["newClaims"].append(c["q"])
+    for g, p in enumerate(loose):
+        if not used[g]:
+            out["gone"].append({"text": p["text"], "key": p["key"], "status": status_of(checks, p["key"]), "note": note_of(p["key"])})
+    return out
+
+
 # ---------------------------------------------------------------- the session log
 
 SESSION_FIELDS = ["date", "assignment", "tool", "purpose", "prompt", "used", "changed", "checked", "minutes", "person"]
@@ -2518,6 +2559,7 @@ def project_file(state):
     texts = state.get("texts") or {}
     as_of = state["asOf"] if isinstance(state.get("asOf"), int) else days_from_civil(2026, 11, 28)
     sessions = sort_sessions([clean_session(x) for x in (state.get("sessions") or [])])
+    b = state.get("baseline")
     doc = {
         "format": FORMAT, "version": VERSION, "saved": iso_day(as_of),
         "project": proj,
@@ -2525,6 +2567,8 @@ def project_file(state):
         "sessions": [{f: x[f] for f in SESSION_FIELDS} for x in sessions],
         "checks": clean_checks(state.get("checks"), STATUSES),
         "refChecks": clean_checks(state.get("refChecks"), REF_STATUSES),
+        "baseline": {"text": b["text"] if isinstance(b, dict) and isinstance(b.get("text"), str) else "",
+                     "on": b["on"] if isinstance(b, dict) and isinstance(b.get("on"), str) else ""},
     }
     return json.dumps(doc, indent=1, ensure_ascii=False) + "\n"
 
@@ -2543,10 +2587,13 @@ def read_project(text):
     t = data.get("texts") if isinstance(data.get("texts"), dict) else {}
     texts = {k: t[k] if isinstance(t.get(k), str) else "" for k in ("draft", "final", "prompt", "references", "notes")}
     sessions = [clean_session(x) for x in data.get("sessions", []) if isinstance(x, dict)] if isinstance(data.get("sessions"), list) else []
+    b = data.get("baseline") if isinstance(data.get("baseline"), dict) else None
     return {"ok": True, "project": project, "texts": texts, "sessions": sessions,
             "checks": clean_checks(data.get("checks") if isinstance(data.get("checks"), dict) else {}, STATUSES),
             "refChecks": clean_checks(data.get("refChecks") if isinstance(data.get("refChecks"), dict) else {}, REF_STATUSES),
-            "saved": data["saved"] if isinstance(data.get("saved"), str) else ""}
+            "saved": data["saved"] if isinstance(data.get("saved"), str) else "",
+            "baseline": {"text": b["text"] if isinstance(b, dict) and isinstance(b.get("text"), str) else "",
+                         "on": b["on"] if isinstance(b, dict) and isinstance(b.get("on"), str) else ""}}
 
 
 # ---------------------------------------------------------------- Word files
