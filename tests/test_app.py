@@ -160,6 +160,23 @@ class AppTest(unittest.TestCase):
         page.wait_for_function("document.querySelector('#view-time').innerText.includes('Read 17 busy times from shift-rota.csv')")
         self.assertIn('Bar (Fox and Lantern)', page.inner_text('#view-time'))
 
+    def test_a_whole_university_timetable_is_cut_down(self):
+        rows = ['Module Code,Module Title,Exam Date,Start Time,Duration (mins)']
+        rows += ['UNI%04d,Module %d,%02d/01/2027,09:30,120' % (i, i, 4 + i % 20) for i in range(300)]
+        rows += ['UNI%04d,Module %d,%02d/01/2027,09:30,120' % (i, i, 4 + i % 20) for i in range(60)]
+        big = self.write('everyone.csv', '\n'.join(rows) + '\n')
+        page = self.open()
+        page.click('#tab-exams')
+        page.set_input_files('#exam-file', big)
+        page.wait_for_selector('#keep-codes')
+        self.assertIn('lists 300 exams', page.inner_text('#view-exams'))
+        self.assertIn('And 30 more notes like these', page.inner_text('#view-exams'), 'sixty repeated rows, thirty notes shown')
+        self.assertNotIn('Read 300 exams', page.inner_text('#view-exams'), 'nothing is read in until you choose')
+        page.fill('#keep-codes', 'uni0007, UNI0011')
+        page.click('[data-form=keep-modules] button[type=submit]')
+        page.wait_for_function("document.querySelectorAll('.exam-row:not(.head)').length === 2")
+        self.assertIn('Kept 2 of the 300 exams', page.inner_text('#view-exams'))
+
     def test_tick_replan_and_block_a_day(self):
         page = self.open()
         page.click('#tab-progress')

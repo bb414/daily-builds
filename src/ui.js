@@ -8,11 +8,10 @@
   var SAMPLES = JSON.parse(document.getElementById('samples').textContent);
   var STORE = 'exam-season-project-v1';
   var VIEWS = ['exams', 'time', 'plan', 'progress', 'topics', 'rules'];
-  var KIND_LETTER = { learn: 'learn', review: 'review', paper: 'paper', final: 'final' };
 
   var state = {
     project: null, plan: null, status: null, summary: null, today: 0, view: 'plan', selected: null, planMode: 'calendar', topicFilter: { code: '', state: '' },
-    weekStart: null, alarm: 0,
+    weekStart: null, alarm: 0, pending: null,
     isSample: true, imports: { exams: null, topics: null, calendar: null, availability: null }, restored: false
   };
 
@@ -146,11 +145,8 @@
   // change re-plans from today, so what is ticked stays ticked.
   function changed(msg) {
     var p = state.project;
-    if (p.planFrom < state.today) {
-      M.replan(p, state.plan, state.today, 0);
-    } else if (p.planFrom > state.today && !p.done.length) {
-      // a plan that has not started yet keeps its start day
-    }
+    // A plan that has not started yet keeps its start day.
+    if (p.planFrom < state.today) M.replan(p, state.plan, state.today, 0);
     if (state.isSample) state.isSample = false;
     recompute();
     persist();
@@ -219,11 +215,41 @@
     }
   }
 
+  var BIG_TIMETABLE = 40;
+
+  function keepPending() {
+    var pend = state.pending;
+    if (!pend) return;
+    var codes = M.parseCodeList($('#keep-codes').value);
+    var kept = M.keepModules(pend.res.exams, codes);
+    if (!kept.length) { toast(codes.length ? 'None of those module codes are in this timetable.' : 'Type your module codes first.'); return; }
+    state.pending = null;
+    var res = { exams: kept, messages: [], skipped: pend.res.exams.length - kept.length, format: pend.res.format };
+    state.imports.exams = { name: pend.name, messages: [{ level: 'info', text: 'Kept ' + kept.length + ' of the ' + pend.res.exams.length + ' exams: the ones for ' + codes.join(', ') + '.' }], count: kept.length, format: pend.res.format };
+    ensureOwn();
+    var p = state.project;
+    p.exams = kept.map(function (e) { return { id: '', code: e.code, name: e.name, day: e.day, start: e.start, duration: e.duration, room: e.room, seat: e.seat, type: e.type, resit: e.resit, tbc: e.tbc, note: e.note }; });
+    addSource('exams', pend.name, res);
+    state.project = M.cleanProject(JSON.parse(M.projectFile(p)), realToday());
+    changed('Kept your ' + kept.length + ' exams.');
+  }
+
   function importExams(text, name) {
     if (text === null) { state.imports.exams = { name: name, messages: [{ level: 'error', text: 'The file could not be read.' }], count: 0 }; renderAll(); return; }
     var res = M.readExams(text, { ref: state.isSample ? realToday() : state.today });
     state.imports.exams = { name: name || 'pasted text', messages: res.messages, count: res.exams.length, format: res.format };
     if (!res.exams.length) { renderAll(); afterImport('[data-drop=exams]', state.imports.exams); return; }
+    if (res.exams.length > BIG_TIMETABLE) {
+      // A whole university's timetable: keep only the student's own modules.
+      state.pending = { res: res, name: name || 'pasted text' };
+      state.imports.exams.count = 0;
+      state.view = 'exams';
+      renderAll();
+      var kc = $('#keep-codes');
+      if (kc) { kc.focus(); kc.scrollIntoView({ block: 'center' }); }
+      return;
+    }
+    state.pending = null;
     ensureOwn();
     var p = state.project;
     p.exams = res.exams.map(function (e) { return { id: e.id, code: e.code, name: e.name, day: e.day, start: e.start, duration: e.duration, room: e.room, seat: e.seat, type: e.type, resit: e.resit, tbc: e.tbc, note: e.note }; });
@@ -435,7 +461,10 @@
 
   function notesHtml(list) {
     if (!list || !list.length) return '';
-    return '<ul class="notes">' + list.map(function (m) { return '<li class="' + esc(m.level) + '">' + esc(m.text) + '</li>'; }).join('') + '</ul>';
+    var shown = list.slice(0, 30);
+    var more = list.length - shown.length;
+    return '<ul class="notes">' + shown.map(function (m) { return '<li class="' + esc(m.level) + '">' + esc(m.text) + '</li>'; }).join('') +
+      (more ? '<li class="info">And ' + more + ' more ' + (more === 1 ? 'note' : 'notes') + ' like these.</li>' : '') + '</ul>';
   }
 
   function importReport(imp, what) {
@@ -449,6 +478,15 @@
     var h = [];
     h.push('<div class="view-head"><div><h2>Exams and topics</h2><p class="intro">Load your exam timetable and list what each exam covers, with how confident you feel (1 is weak, 5 is strong) and how big each topic is. Weak and big topics are planned first.</p></div>' +
       '<div class="btn-row"><button type="button" class="btn btn-small" data-action="save-project">Save plan file</button><button type="button" class="btn btn-small" data-action="open-project">Open a plan file</button></div></div>');
+    if (state.pending) {
+      var pr = state.pending.res;
+      var mine = [];
+      p.topics.forEach(function (t) { if (mine.indexOf(t.code) < 0 && pr.exams.some(function (e) { return e.code === t.code; })) mine.push(t.code); });
+      h.push('<div class="sticky pink" style="margin:0 0 26px;max-width:900px"><b>That is a big timetable.</b> ' + esc(state.pending.name) + ' lists ' + pr.exams.length.toLocaleString('en-GB') +
+        ' exams, far more than one student sits (it looks like the whole university\'s). Type your module codes and only those are kept.' +
+        '<form class="field-row" data-form="keep-modules" style="margin-top:10px"><div class="field" style="flex:1;min-width:200px"><label for="keep-codes">Your module codes</label><input type="text" id="keep-codes" value="' + esc(mine.join(', ')) + '" placeholder="ECO3112, FIN3020, LAW3207"></div>' +
+        '<button type="submit" class="btn btn-small btn-marker">Keep only these</button><button type="button" class="btn-link" data-action="drop-pending">Cancel</button></form></div>');
+    }
     var checks = M.checkInputs(p, plan, state.today);
     if (p.exams.length) {
       h.push('<div class="sticky ' + (checks.some(function (c) { return c.level === 'error'; }) ? 'pink' : checks.length ? '' : 'green') + ' checks-note" style="margin:0 0 26px;max-width:900px"><b>Checks</b> ' +
@@ -1262,6 +1300,7 @@
         ensureOwnKeep(); recompute(); persist(); renderAll();
         toast('Today is blocked and the plan starts again from here.');
         break;
+      case 'drop-pending': state.pending = null; renderAll(); break;
       case 'real-today': p.asOf = null; ensureOwnKeep(); recompute(); persist(); renderAll(); break;
       case 'set-weekday':
         var wdi = parseInt(t.getAttribute('data-wd'), 10);
@@ -1349,6 +1388,8 @@
       changed('Added "' + sp.name + '".');
       var again = $('#nt-' + c);
       if (again) again.focus();
+    } else if (kind === 'keep-modules') {
+      keepPending();
     } else if (kind === 'add-override') {
       var d1 = M.fromIso($('#ov-from').value), d2 = M.fromIso($('#ov-to').value);
       if (d1 === null) return;

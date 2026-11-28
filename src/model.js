@@ -343,16 +343,7 @@ var ExamSeason = (function () {
     return [floorDiv(t, 1440), t - floorDiv(t, 1440) * 1440];
   }
 
-  function londonToUtc(day, min) {
-    var y = ymdFromDay(day)[0];
-    var t = day * 1440 + min;
-    var start = lastSunday(y, 3) * 1440 + 60, end = lastSunday(y, 10) * 1440 + 120;
-    if (t >= start + 60 && t < end) t -= 60;
-    return [floorDiv(t, 1440), t - floorDiv(t, 1440) * 1440];
-  }
-
   M.utcToLondon = utcToLondon;
-  M.londonToUtc = londonToUtc;
 
   // ------------------------------------------------------------------
   // Delimited text
@@ -506,6 +497,48 @@ var ExamSeason = (function () {
     else if (info.either > 0 && info.dmy === 0) out.messages.push({ level: 'info', text: 'Every date could be read either way round, so day first (UK order) was assumed. Check the dates below.' });
   }
 
+  // Text that is mostly control characters or undecodable bytes is not a
+  // timetable: a PDF, a spreadsheet or an image opened as text.
+  function looksBinary(text) {
+    var chars = Array.from(String(text).slice(0, 8000)).slice(0, 4000);
+    var bad = 0;
+    for (var i = 0; i < chars.length; i++) {
+      var c = chars[i].codePointAt(0);
+      if (c < 9 || (c > 13 && c < 32) || c === 0xfffd) bad++;
+    }
+    return chars.length > 0 && bad * 50 > chars.length;
+  }
+  M.looksBinary = looksBinary;
+
+  var BINARY_MESSAGE = 'This does not look like a text file (it may be a PDF, a spreadsheet or an image). Save or export it as CSV, or copy the table and paste it here.';
+
+  // A list of module codes typed by hand: "ECO3112, FIN3020 law3207".
+  function parseCodeList(text) {
+    var out = [];
+    String(text || '').split(/[,;\r\n]+/).forEach(function (piece) {
+      var rest = String(piece).toUpperCase(), f;
+      var found = false;
+      while ((f = findCode(rest)) !== null) {
+        if (out.indexOf(f.code) < 0) out.push(f.code);
+        rest = rest.slice(f.index + f.length);
+        found = true;
+      }
+      if (!found) {
+        piece.split(/[ \t]+/).forEach(function (w) {
+          var c = normCode(w);
+          if (c && out.indexOf(c) < 0) out.push(c);
+        });
+      }
+    });
+    return out;
+  }
+  M.parseCodeList = parseCodeList;
+
+  function keepModules(exams, codes) {
+    return exams.filter(function (e) { return codes.indexOf(e.code) >= 0; });
+  }
+  M.keepModules = keepModules;
+
   function csvCell(v) {
     var s = v === null || v === undefined ? '' : String(v);
     if (/[",\r\n]/.test(s) || /^[ ]|[ ]$/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
@@ -649,6 +682,11 @@ var ExamSeason = (function () {
       return out;
     }
     if (/BEGIN:VCALENDAR/i.test(text)) return readExamsIcs(text, out, opts);
+    if (looksBinary(text)) {
+      out.format = 'binary';
+      out.messages.push({ level: 'error', text: BINARY_MESSAGE });
+      return out;
+    }
     if (trim(text) === '') {
       out.messages.push({ level: 'error', text: 'There was nothing to read.' });
       return out;
@@ -1066,6 +1104,10 @@ var ExamSeason = (function () {
     var out = { topics: [], messages: [], format: '', rows: 0, skipped: 0 };
     if (/^\s*%PDF/.test(text)) {
       out.messages.push({ level: 'error', text: 'This is a PDF file. Copy the list of topics out of it and paste it here instead.' });
+      return out;
+    }
+    if (looksBinary(text)) {
+      out.messages.push({ level: 'error', text: BINARY_MESSAGE });
       return out;
     }
     if (trim(text) === '') {
@@ -1507,6 +1549,10 @@ var ExamSeason = (function () {
   function readBusyTable(text, fromDay, toDay) {
     var out = { busy: [], allDay: [], messages: [], events: 0, skipped: 0 };
     text = String(text === null || text === undefined ? '' : text);
+    if (looksBinary(text)) {
+      out.messages.push({ level: 'error', text: BINARY_MESSAGE });
+      return out;
+    }
     var table = isHtmlTable(text) ? { delim: 'html', rows: htmlRows(text) } : readTable(text);
     var headerAt = -1, map = null;
     for (var i = 0; i < table.rows.length && i < 20; i++) {
@@ -1812,6 +1858,10 @@ var ExamSeason = (function () {
   // the hours you can revise that day ("off" or 0 blocks the day).
   function readAvailability(text, base) {
     var out = { week: (base || defaultWeek()).map(function (w) { return { from: w.from, to: w.to, minutes: w.minutes }; }), overrides: [], messages: [], rows: 0, weekRows: 0 };
+    if (looksBinary(text)) {
+      out.messages.push({ level: 'error', text: BINARY_MESSAGE });
+      return out;
+    }
     var table = readTable(text);
     var headerAt = -1, map = null;
     for (var i = 0; i < table.rows.length && i < 10; i++) {

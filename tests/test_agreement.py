@@ -9,7 +9,7 @@ text, project file). Skipped when Node is not installed.
 import random
 import unittest
 
-from helpers import (DATA, FROM, NODE, TODAY, first_difference, m, plain, py_project_job, run_bridge, sample_text)  # noqa: F401
+from helpers import FROM, NODE, TODAY, first_difference, m, plain, py_project_job, run_bridge, sample_text
 
 
 def random_project(seed):
@@ -191,13 +191,15 @@ class AgreementTest(unittest.TestCase):
             'Course,Date,Time,Length\nABC1001,01/13/2027,9:00 AM,2h\nABC1002,01/08/2027,1:30 PM,90\n', 'Module,Date\nABC1001,02/01/2027\n',
             '<html><body><table><tr><th>Code</th><th>Exam date</th><th>Venue</th></tr><tr><td>XYZ1001</td><td>Tue 12 Jan 2027, 9:30&ndash;11:00</td><td>Hall &amp; Annex</td></tr>'
             '<tr><td>XYZ1002<td>14/01/2027 14:00-16:00<td>Hall</tr></table>', '<table><tr><td>nothing</td></tr></table>',
+            ''.join(chr((i * 37) % 256) for i in range(3000)), 'ABC1234 \x00\x01\x02 11/01/2027',
         ]
         messy_topics = ['Topic\nNo module\n', 'ABC1234:\n- One (9)\n- Two (2, M)\n- Two (2, M)\n', '# Heading without code\n- x\n', '', 'Module,Topic,Confidence,Size\nABC1234,One,high,huge\nABC1234,Two,6,3 lectures\n']
         messy_cals = ['BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=America/New_York:20261201T090000\nDURATION:PT1H30M\nRRULE:FREQ=DAILY;COUNT=3\nSUMMARY:Call\nEND:VEVENT\n'
                       'BEGIN:VEVENT\nDTSTART:20261203T100000\nRRULE:FREQ=MONTHLY;BYMONTHDAY=3\nSUMMARY:Monthly\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:No start\nEND:VEVENT\nEND:VCALENDAR',
                       'nope']
+        code_lists = ['eco3112, FIN 3020; LAW3207\nECO3112', 'nothing here', 'ABC 1234 DEF5678X', '', 'MOD-1001 mod 1002']
         js = run_bridge({'dates': dates, 'times': times, 'durations': durations, 'confidence': conf, 'delimited': delimited, 'folds': folds,
-                         'slugs': slugs, 'codes': codes, 'utc': utc,
+                         'slugs': slugs, 'codes': codes, 'utc': utc, 'codeLists': code_lists,
                          'exams': [{'text': t, 'ref': TODAY} for t in messy_exams], 'topics': [{'text': t, 'exams': []} for t in messy_topics],
                          'calendars': [{'text': t, 'from': FROM, 'to': FROM + 60} for t in messy_cals]})
         self.compare([[m.parse_date(s, 'DMY', 20788), m.parse_date(s, 'MDY', 20788), m.find_date(s, 'DMY', 20788)] for s in dates], js['dates'], 'dates')
@@ -209,6 +211,7 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual([m.slugify(s) for s in slugs], js['slugs'])
         self.compare([[m.find_code(s), m.norm_code(s)] for s in codes], js['codes'], 'codes')
         self.compare([list(m.utc_to_london(a, b)) for a, b in utc], js['utc'], 'utc')
+        self.compare([m.parse_code_list(s) for s in code_lists], js['codeLists'], 'code lists')
         for i, t in enumerate(messy_exams):
             self.compare(m.read_exams(t, ref=TODAY), js['exams'][i], 'messy exams %d' % i)
         for i, t in enumerate(messy_topics):

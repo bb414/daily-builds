@@ -552,6 +552,36 @@ test('how you keep to the plan, by weekday', function () {
   assert.equal(ad2.weekdays[5].suggest, 0);
 });
 
+test('files that are not text are refused plainly, in every reader', function () {
+  var junk = '';
+  for (var i = 0; i < 3000; i++) junk += String.fromCharCode((i * 37) % 256);
+  [M.readExams(junk, {}), M.readTopics(junk, {}), M.readAvailability(junk), M.readBusy(junk, FROM, FROM + 10)].forEach(function (r) {
+    assert.match(r.messages[0].text, /does not look like a text file/);
+  });
+  assert.equal(M.readTopics(junk, {}).topics.length, 0, 'no junk topics');
+  assert.equal(M.looksBinary('Module,Date\nABC1234,11/01/2027\n'), false);
+  assert.equal(M.looksBinary('café résumé ★'), false);
+});
+
+test('a whole university timetable can be cut down to your modules', function () {
+  assert.deepEqual(M.parseCodeList('eco3112, FIN 3020; LAW3207\nECO3112'), ['ECO3112', 'FIN3020', 'LAW3207']);
+  var exams = M.readExams(data('alex/exam-timetable.csv'), { ref: FROM }).exams;
+  assert.deepEqual(M.keepModules(exams, ['FIN3020', 'ZZZ9999']).map(function (e) { return e.code; }), ['FIN3020']);
+});
+
+test('an exam today, and an exam with no free day before it, are reported without errors', function () {
+  var p = freshProject();
+  var exam = D(2027, 1, 13);
+  var st = M.status(p, planOf(p), exam);
+  assert.equal(st.exams[1].verdict, 'today');
+  assert.match(st.exams[1].reasons[0], /^Exam at 14:00, Sports Centre, Hall B\. Good luck\.$/);
+  assert.equal(st.exams[0].verdict, 'sat');
+  var q = freshProject();
+  [1, 2, 3].forEach(function (k) { M.setOverride(q, D(2027, 1, 11) - k, 0, 'Away'); });
+  var st2 = M.status(q, planOf(q), FROM);
+  assert.match(st2.exams[0].reasons.join(' '), /no free day just before it/);
+});
+
 test('a large plan stays quick', function () {
   var p = M.newProject(FROM);
   for (var i = 0; i < 12; i++) {

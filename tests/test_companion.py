@@ -12,7 +12,7 @@ import sys
 import tempfile
 import unittest
 
-from helpers import COMPANION, DATA, FROM, ROOT, TODAY, es, load, m, sample_text
+from helpers import COMPANION, DATA, FROM, TODAY, load, m, sample_text
 
 from examseason import cli, group, report
 
@@ -132,6 +132,21 @@ class CommandLineTest(unittest.TestCase):
         p = m.read_project(text_of(self.path('sam.json')), FROM)['project']
         self.assertTrue(any(b['label'] == 'Bar (Fox and Lantern)' and b['start'] == 0 for b in p['busy']), 'a shift past midnight')
         self.assertEqual(len(p['exams']), 7, "Alex's five from the web page and Sam's four, two of them shared")
+
+    def test_a_whole_university_timetable_and_a_file_that_is_not_text(self):
+        rows = ['Module Code,Module Title,Exam Date,Start Time,Duration (mins)']
+        rows += ['UNI%04d,Module %d,%02d/01/2027,09:30,120' % (i, i, 4 + i % 20) for i in range(80)]
+        with open(self.path('everyone.csv'), 'w', encoding='utf-8') as fh:
+            fh.write('\n'.join(rows) + '\n')
+        code, out = run_cli('plan', '--exams', self.path('everyone.csv'), '--start', '2026-12-01', '--out', self.path('all.json'))
+        self.assertIn('80 exams were read, far more than one student sits', out)
+        code, out = run_cli('plan', '--exams', self.path('everyone.csv'), '--modules', 'uni0003 UNI0005', '--start', '2026-12-01', '--out', self.path('mine.json'))
+        self.assertIn('Kept 2 of the 80 exams: the ones for UNI0003, UNI0005.', out)
+        with open(self.path('photo.csv'), 'wb') as fh:
+            fh.write(bytes((i * 37) % 256 for i in range(3000)))
+        code, out = run_cli('check', self.path('photo.csv'))
+        self.assertEqual(code, 1)
+        self.assertIn('does not look like a text file', out)
 
     def test_plan_from_named_files_merges_duplicate_exams(self):
         code, out = run_cli('plan', '--exams', os.path.join(DATA, 'alex', 'exam-timetable.csv'), '--exams', os.path.join(DATA, 'exam-timetable.ics'),

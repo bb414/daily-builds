@@ -82,6 +82,7 @@ function main() {
   out.slugs = (job.slugs || []).map(function (s) { return M.slugify(s); });
   out.codes = (job.codes || []).map(function (s) { return [M.findCode(s), M.normCode(s)]; });
   out.utc = (job.utc || []).map(function (x) { return M.utcToLondon(x[0], x[1]); });
+  out.codeLists = (job.codeLists || []).map(function (s) { return M.parseCodeList(s); });
   out.cleaned = (job.cleaned || []).map(function (t) { var r = M.readProject(t, 20788); return r.project ? M.projectFile(r.project) : r.messages; });
   out.templates = [M.examTemplate(), M.topicTemplate()];
   process.stdout.write(JSON.stringify(out));

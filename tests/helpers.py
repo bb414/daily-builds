@@ -15,8 +15,7 @@ NODE = shutil.which('node')
 if COMPANION not in sys.path:
     sys.path.insert(0, COMPANION)
 
-import examseason as es  # noqa: E402  (needs the path above)
-from examseason import model as m  # noqa: E402
+from examseason import model as m  # noqa: E402  (needs the path above)
 
 FROM = m.day_from_ymd(2026, 11, 30)
 TODAY = m.day_from_ymd(2026, 12, 10)

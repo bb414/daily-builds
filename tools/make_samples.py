@@ -339,8 +339,8 @@ def main():
     except ImportError:
         print("Wrote the raw samples; the companion is not available, so the plan files were not made.")
         return
-    write("template-exams.csv", es.exam_template(), newline="")
-    write("template-topics.csv", es.topic_template(), newline="")
+    write("template-exams.csv", es.model.exam_template(), newline="")
+    write("template-topics.csv", es.model.topic_template(), newline="")
     write("sample-project.json", es.sample_project(DATA), newline="")
     for who, name, student in [("alex", None, None), ("sam", "Sam's January exams", "Sam Okafor (invented), final year economics"),
                                ("priya", "Priya's January exams", "Priya Nandakumar (invented), final year business analytics")]:

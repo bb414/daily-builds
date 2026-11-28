@@ -9,7 +9,8 @@ AS_OF = m.day_from_ymd(2026, 12, 10)
 
 
 def read(path):
-    with open(path, encoding='utf-8', newline='') as fh:
+    """A file's text as a browser would read it: UTF-8, with undecodable bytes replaced."""
+    with open(path, encoding='utf-8', errors='replace', newline='') as fh:
         return fh.read()
 
 

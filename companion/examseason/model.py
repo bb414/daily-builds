@@ -119,10 +119,6 @@ def weekday(day):
     return ((day % 7) + 7 + 3) % 7
 
 
-def pad2(n):
-    return '%02d' % n
-
-
 def iso_day(day):
     t = ymd_from_day(day)
     return '%d-%02d-%02d' % t
@@ -363,15 +359,6 @@ def utc_to_london(day, minute):
     return (t // 1440, t - (t // 1440) * 1440)
 
 
-def london_to_utc(day, minute):
-    y = ymd_from_day(day)[0]
-    t = day * 1440 + minute
-    start, end = last_sunday(y, 3) * 1440 + 60, last_sunday(y, 10) * 1440 + 120
-    if start + 60 <= t < end:
-        t -= 60
-    return (t // 1440, t - (t // 1440) * 1440)
-
-
 # ----------------------------------------------------------------------
 # Delimited text
 # ----------------------------------------------------------------------
@@ -547,6 +534,41 @@ def date_order_messages(info, out):
         out['messages'].append({'level': 'info', 'text': 'Every date could be read either way round, so day first (UK order) was assumed. Check the dates below.'})
 
 
+def looks_binary(text):
+    """Mostly control characters or undecodable bytes: a PDF, spreadsheet or image opened as text."""
+    chars = str(text)[:4000]
+    bad = sum(1 for ch in chars if ord(ch) < 9 or 13 < ord(ch) < 32 or ord(ch) == 0xfffd)
+    return len(chars) > 0 and bad * 50 > len(chars)
+
+
+BINARY_MESSAGE = 'This does not look like a text file (it may be a PDF, a spreadsheet or an image). Save or export it as CSV, or copy the table and paste it here.'
+
+
+def parse_code_list(text):
+    """A list of module codes typed by hand: "ECO3112, FIN 3020 law3207"."""
+    out = []
+    for piece in re.split(r'[,;\r\n]+', str(text or '')):
+        rest = piece.upper()
+        found = False
+        f = find_code(rest)
+        while f is not None:
+            if f['code'] not in out:
+                out.append(f['code'])
+            rest = rest[f['index'] + f['length']:]
+            found = True
+            f = find_code(rest)
+        if not found:
+            for w in re.split(r'[ \t]+', piece):
+                c = norm_code(w)
+                if c and c not in out:
+                    out.append(c)
+    return out
+
+
+def keep_modules(exams, codes):
+    return [e for e in exams if e['code'] in codes]
+
+
 def csv_cell(v):
     s = '' if v is None else str(v)
     if re.search(r'[",\r\n]', s) or re.search(r'^[ ]|[ ]$', s):
@@ -690,6 +712,10 @@ def read_exams(text, ref=None):
         return out
     if re.search(r'BEGIN:VCALENDAR', text, AI):
         return read_exams_ics(text, out)
+    if looks_binary(text):
+        out['format'] = 'binary'
+        out['messages'].append({'level': 'error', 'text': BINARY_MESSAGE})
+        return out
     if trim(text) == '':
         out['messages'].append({'level': 'error', 'text': 'There was nothing to read.'})
         return out
@@ -1150,6 +1176,9 @@ def read_topics(text, exams=None, code=''):
     out = {'topics': [], 'messages': [], 'format': '', 'rows': 0, 'skipped': 0}
     if re.match(r'^\s*%PDF', text, A):
         out['messages'].append({'level': 'error', 'text': 'This is a PDF file. Copy the list of topics out of it and paste it here instead.'})
+        return out
+    if looks_binary(text):
+        out['messages'].append({'level': 'error', 'text': BINARY_MESSAGE})
         return out
     if trim(text) == '':
         out['messages'].append({'level': 'error', 'text': 'There was nothing to read.'})
@@ -1671,6 +1700,9 @@ def read_busy_table(text, from_day, to_day):
     """Busy times from a rota or spreadsheet: a date, a start and an end (or a length) on each row."""
     out = {'busy': [], 'allDay': [], 'messages': [], 'events': 0, 'skipped': 0}
     text = '' if text is None else str(text)
+    if looks_binary(text):
+        out['messages'].append({'level': 'error', 'text': BINARY_MESSAGE})
+        return out
     table = {'delim': 'html', 'rows': html_rows(text)} if is_html_table(text) else read_table(text)
     header_at, mp = -1, None
     for i in range(min(len(table['rows']), 20)):
@@ -2012,6 +2044,9 @@ AVAIL_SYNONYMS = {
 def read_availability(text, base=None):
     out = {'week': [{'from': w['from'], 'to': w['to'], 'minutes': w['minutes']} for w in (base or default_week())],
            'overrides': [], 'messages': [], 'rows': 0, 'weekRows': 0}
+    if looks_binary(text):
+        out['messages'].append({'level': 'error', 'text': BINARY_MESSAGE})
+        return out
     table = read_table(text)
     header_at, mp = -1, None
     for i in range(min(len(table['rows']), 10)):

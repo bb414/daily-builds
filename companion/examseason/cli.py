@@ -132,7 +132,7 @@ def gather(args):
     return files
 
 
-def build_project(files, start, name):
+def build_project(files, start, name, modules=None):
     p = m.new_project(start)
     p['name'] = name
     if not files['exams']:
@@ -162,6 +162,13 @@ def build_project(files, start, name):
         p['busy'].extend(res['busy'])
         p['allDay'].extend(res['allDay'])
         p['sources'].append({'kind': 'calendar', 'name': os.path.basename(path), 'summary': m.import_summary('calendar', res)})
+    if modules:
+        codes = m.parse_code_list(modules)
+        before = len(p['exams'])
+        p['exams'] = m.keep_modules(p['exams'], codes)
+        print('Kept %d of the %d exams: the ones for %s.' % (len(p['exams']), before, ', '.join(codes)))
+    elif len(p['exams']) > 40:
+        print('Note: %d exams were read, far more than one student sits. Add --modules CODE,CODE to keep only yours.' % len(p['exams']))
     return m.clean_project(json.loads(m.project_file(p)), start)
 
 
@@ -206,7 +213,7 @@ def print_topics(project, plan, today, out=None):
 def cmd_plan(args):
     start = parse_day(args.start, 'start date') if args.start else real_today()
     files = gather(args)
-    p = build_project(files, start, args.name)
+    p = build_project(files, start, args.name, args.modules)
     for src in p['sources']:
         print('%-13s %-24s %s' % (src['kind'], src['name'], src['summary']))
     plan = m.build_plan(p)
@@ -447,7 +454,13 @@ def cmd_check(args):
             res = m.read_busy(text, today - 7, today + 400)
             for b in m.busy_summary(res['busy'])[:20]:
                 print('   %-40s %3d times  %s' % (b['label'][:40], b['count'], m.fmt_hours(b['minutes'])))
-        for msg in res['messages']:
+        for k, msg in enumerate(res['messages']):
+            if k == 40:
+                print('   and %d more notes like these' % (len(res['messages']) - 40))
+            if k >= 40:
+                if msg['level'] == 'error':
+                    status = 1
+                continue
             print('   [%s] %s' % (msg['level'], msg['text']))
             if msg['level'] == 'error':
                 status = 1
@@ -466,6 +479,7 @@ def build_parser():
     p.add_argument('--folder', help='a folder of input files; each one is recognised by its contents')
     p.add_argument('--start', help='first day of the plan (default today)')
     p.add_argument('--name', default='My revision plan', help='a name for the plan')
+    p.add_argument('--modules', help='keep only these module codes from the timetable, for example "ECO3112,FIN3020"')
     p.add_argument('--out', default='revision-plan.json', help='the plan file to write')
     p.add_argument('--ics', help='also write the sessions as a calendar file')
     p.add_argument('--csv', help='also write the sessions as CSV')

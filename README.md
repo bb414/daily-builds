@@ -31,7 +31,8 @@ Everything runs in your browser or on your own computer. Nothing you load is sen
 - **Calendars (.ics)**: weekly, daily, monthly and yearly repeats with an end date or a count, skipped dates, moved and cancelled events, events marked free, overnight events, UTC times (converted to UK time, British Summer Time included) and time zones. All-day entries (birthdays, "Home for Christmas") are listed but not counted as busy, with a button to block those days.
 - **Work rotas (CSV)**: a date, a start and a finish (or hours) on each row, with the role or place if given; shifts past midnight carry on into the next day.
 - **Availability (CSV)**: rows of Day, From, To, Hours and Note, where a day is a weekday, "weekdays", "weekends", a date or a range ("24/12/2026 - 26/12/2026"); 0 or "off" blocks the day.
-- Every row it could not use is listed with the line number and the reason. A PDF or an Excel workbook gets a plain message saying what to do instead.
+- Every row it could not use is listed with the line number and the reason. A PDF, an Excel workbook, an image or any other file that is not text gets a plain message saying what to do instead.
+- **A whole university's timetable** (universities often publish every exam in one file): when a file lists more than 40 exams, the app asks for your module codes and keeps only those (the companion takes `--modules`). A 50,000-row file is read in about a second.
 - **Checks** then look for the slips that make a bad plan, in plain English: an exam at 02:00 (am and pm mixed up), an exam lasting 6 hours or 20 minutes (minutes and hours mixed up), a date more than eight months away (the wrong year), two exams that overlap, a module with no topics, a module whose topics are all left at the default rating, a topic sized at 50 hours, a day with more than ten hours of revision, a week with almost none, and more hours needed than you have.
 
 Templates: [`data/template-exams.csv`](data/template-exams.csv) and [`data/template-topics.csv`](data/template-topics.csv) (also downloadable from the app).
@@ -99,7 +100,7 @@ It does what a browser is not good at:
 ## Tests
 
 ```
-node --test tests/*.test.js                   # the browser model: 29 tests
+node --test tests/*.test.js                   # the browser model: 32 tests
 cd tests && python -m unittest discover        # companion, agreement, browser and repository tests
 ```
 
