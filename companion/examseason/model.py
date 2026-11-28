@@ -1933,7 +1933,8 @@ def clean_project(p, today):
         if day is None:
             continue
         seen_done[d['id']] = True
-        o['done'].append({'id': d['id'], 'day': day, 'min': clamp(int_or(d.get('min'), 0), 0, 1440), 'exam': str_or(d.get('exam'), ''), 'code': str_or(d.get('code'), ''), 'title': str_or(d.get('title'), '')})
+        o['done'].append({'id': d['id'], 'day': day, 'min': clamp(int_or(d.get('min'), 0), 0, 1440), 'exam': str_or(d.get('exam'), ''), 'code': str_or(d.get('code'), ''), 'title': str_or(d.get('title'), ''),
+                          'rating': clamp(int_or(d.get('rating'), 0), 0, 3)})
     o['done'] = sort_by(o['done'], lambda a, b: cmp(a['day'], b['day']) or cmp(a['id'], b['id']))
     for ident in (p.get('settled') if isinstance(p.get('settled'), list) else []):
         if isinstance(ident, str) and ident in seen_done and ident not in o['settled']:
@@ -2268,7 +2269,7 @@ def build_plan(project):
             orphan[t['code']] = orphan.get(t['code'], 0) + 1
             continue
         st = {'t': t, 'exam': ex, 'order': order, 'len': learn_length(t, s), 'count': learn_sessions(t, s), 'done': 0, 'nextK': 1,
-              'learnedDay': None, 'reviews': 0, 'nextR': 1, 'lastReview': None, 'due': None, 'rmax': review_max(t), 'lastDay': None,
+              'learnedDay': None, 'reviews': 0, 'step': 0, 'shaky': 0, 'nextR': 1, 'lastReview': None, 'due': None, 'rmax': review_max(t), 'lastDay': None,
               'planned': 0, 'plannedReviews': 0}
         order += 1
         states.append(st)
@@ -2297,6 +2298,12 @@ def build_plan(project):
         elif p['kind'] == 'review' and p['a'] in st_by_id:
             sr = st_by_id[p['a']]
             sr['reviews'] += 1
+            # How the review went moves the topic along its ladder of gaps.
+            if h.get('rating') == 1:
+                sr['step'] = 0
+                sr['shaky'] += 1
+            else:
+                sr['step'] += 2 if h.get('rating') == 3 else 1
             sr['nextR'] = max(sr['nextR'], _int0(p['b']) + 1)
             sr['lastReview'] = h['day'] if sr['lastReview'] is None else max(sr['lastReview'], h['day'])
             if h['day'] >= frm:
@@ -2311,8 +2318,8 @@ def build_plan(project):
         if st['done'] >= st['count']:
             st['learnedDay'] = frm - 1 if st['t']['id'] not in last_learn else last_learn[st['t']['id']]
             prev = st['learnedDay'] if st['reviews'] == 0 else max(st['lastReview'], st['learnedDay'])
-            if st['reviews'] < st['rmax']:
-                st['due'] = prev + REVIEW_GAPS[min(st['reviews'], len(REVIEW_GAPS) - 1)]
+            if st['step'] < st['rmax']:
+                st['due'] = prev + REVIEW_GAPS[min(st['step'], len(REVIEW_GAPS) - 1)]
 
     busy_by_day = {}
     for b in project['busy']:
@@ -2438,7 +2445,7 @@ def build_plan(project):
 
         def kind_rank(c):
             if c['kind'] == 'review':
-                return 1 if c['st']['reviews'] < 3 else 3
+                return 1 if c['st']['step'] < 3 else 3
             return 0 if d >= c['exam']['learnBy'] - 2 else 2
 
         def cap_for(e):
@@ -2510,7 +2517,7 @@ def build_plan(project):
                 remaining[e['id']] -= c['len']
                 if st['done'] >= st['count']:
                     st['learnedDay'] = d
-                    st['due'] = d + REVIEW_GAPS[min(st['reviews'], len(REVIEW_GAPS) - 1)] if st['reviews'] < st['rmax'] else None
+                    st['due'] = d + REVIEW_GAPS[min(st['step'], len(REVIEW_GAPS) - 1)] if st['step'] < st['rmax'] else None
             elif c['kind'] == 'review':
                 n = st['nextR']
                 se = {'id': 'review:%s:%d' % (st['t']['id'], n), 'kind': 'review', 'day': d, 'start': start, 'end': start + c['len'], 'min': c['len'],
@@ -2518,9 +2525,10 @@ def build_plan(project):
                       'detail': 'Review %d: test yourself, then fill the gaps' % (st['reviews'] + 1)}
                 st['nextR'] += 1
                 st['reviews'] += 1
+                st['step'] += 1
                 st['plannedReviews'] += 1
                 st['lastReview'] = d
-                st['due'] = d + REVIEW_GAPS[min(st['reviews'], len(REVIEW_GAPS) - 1)] if st['reviews'] < st['rmax'] else None
+                st['due'] = d + REVIEW_GAPS[min(st['step'], len(REVIEW_GAPS) - 1)] if st['step'] < st['rmax'] else None
                 state['reviewUsed'] += c['len']
             else:
                 se = {'id': 'final:%s:%s' % (e['id'], st['t']['id']), 'kind': 'final', 'day': d, 'start': start, 'end': start + c['len'], 'min': c['len'],
@@ -2584,7 +2592,7 @@ def build_plan(project):
 
     plan['topics'] = [{'id': st['t']['id'], 'code': st['t']['code'], 'exam': st['exam']['id'], 'name': st['t']['name'], 'conf': st['t']['conf'],
                        'size': st['t']['size'], 'mode': st['t']['mode'], 'sessions': st['count'], 'length': st['len'],
-                       'learnt': st['done'] >= st['count'], 'learnedDay': st['learnedDay'], 'reviews': st['reviews']} for st in states]
+                       'learnt': st['done'] >= st['count'], 'learnedDay': st['learnedDay'], 'reviews': st['reviews'], 'step': st['step'], 'shaky': st['shaky']} for st in states]
     return plan
 
 
@@ -2599,7 +2607,11 @@ def done_map(project):
 def status(project, plan, today):
     s = project['settings']
     done = done_map(project)
-    out = {'today': today, 'exams': [], 'todaySessions': [], 'missed': [], 'doneMin': 0, 'aheadMin': 0, 'missedMin': 0, 'needMin': 0, 'verdict': 'ok'}
+    out = {'today': today, 'exams': [], 'todaySessions': [], 'missed': [], 'doneMin': 0, 'aheadMin': 0, 'missedMin': 0, 'needMin': 0, 'verdict': 'ok', 'shakyNew': 0}
+    settled_set = set(project['settled'])
+    for d in project['done']:
+        if d.get('rating') == 1 and d['id'] not in settled_set:
+            out['shakyNew'] += 1
     by_done, by_ahead, by_missed, by_missed_n = {}, {}, {}, {}
     for d in project['done']:
         by_done[d['exam']] = by_done.get(d['exam'], 0) + d['min']
@@ -2725,9 +2737,86 @@ def tick(project, plan, ident, today, on=True):
     se = plan['byId'].get(ident)
     if not se:
         return project
-    project['done'].append({'id': ident, 'day': min(se['day'], today), 'min': se['min'], 'exam': se['exam'], 'code': se['code'], 'title': session_title(se)})
+    project['done'].append({'id': ident, 'day': min(se['day'], today), 'min': se['min'], 'exam': se['exam'], 'code': se['code'], 'title': session_title(se), 'rating': 0})
     project['done'] = sort_by(project['done'], lambda a, b: cmp(a['day'], b['day']) or cmp(a['id'], b['id']))
     return project
+
+
+def rate(project, plan, ident, today, rating):
+    """Say how a review went: 1 shaky, 2 OK, 3 solid (0 clears it). Ticks it off first if needed."""
+    entry = next((d for d in project['done'] if d['id'] == ident), None)
+    if entry is None:
+        tick(project, plan, ident, today, True)
+        entry = next((d for d in project['done'] if d['id'] == ident), None)
+    if entry is not None:
+        entry['rating'] = clamp(rating, 0, 3)
+    return project
+
+
+RATING_WORD = ['', 'shaky', 'OK', 'solid']
+
+
+def topic_status(project, plan, today):
+    """Where each topic stands today: learning, reviews (and how they went), the next session and a one-word state."""
+    done = done_map(project)
+    by_topic = {}
+    for d in project['done']:
+        p = parse_id(d['id'])
+        tid = p['b'] if p['kind'] == 'final' else p['a']
+        if p['kind'] == 'paper':
+            continue
+        x = by_topic.setdefault(tid, {'learn': 0, 'reviews': [], 'finals': 0, 'last': None})
+        if p['kind'] == 'learn':
+            x['learn'] += 1
+        elif p['kind'] == 'review':
+            x['reviews'].append(d.get('rating') or 0)
+        else:
+            x['finals'] += 1
+        if x['last'] is None or d['day'] > x['last']:
+            x['last'] = d['day']
+    ahead = {}
+    for se in plan['sessions']:
+        if not se['topic'] or se['id'] in done:
+            continue
+        a = ahead.setdefault(se['topic'], {'learn': 0, 'reviews': 0, 'finals': 0, 'next': None, 'missed': 0, 'learnMissed': 0})
+        if se['day'] < today:
+            a['missed'] += 1
+            if se['kind'] == 'learn':
+                a['learnMissed'] += 1
+            continue
+        if se['kind'] == 'learn':
+            a['learn'] += 1
+        elif se['kind'] == 'review':
+            a['reviews'] += 1
+        elif se['kind'] == 'final':
+            a['finals'] += 1
+        if a['next'] is None or se['day'] < a['next']['day'] or (se['day'] == a['next']['day'] and se['start'] < a['next']['start']):
+            a['next'] = {'day': se['day'], 'start': se['start'], 'kind': se['kind'], 'id': se['id']}
+    plan_topic = {t['id']: t for t in plan['topics']}
+    out = []
+    for t in project['topics']:
+        x = by_topic.get(t['id'], {'learn': 0, 'reviews': [], 'finals': 0, 'last': None})
+        a = ahead.get(t['id'], {'learn': 0, 'reviews': 0, 'finals': 0, 'next': None, 'missed': 0, 'learnMissed': 0})
+        total = 0 if t['mode'] == 'drop' else learn_sessions(t, project['settings'])
+        shaky = sum(1 for r in x['reviews'] if r == 1)
+        if t['mode'] == 'drop':
+            state = 'dropped'
+        elif t['id'] not in plan_topic:
+            state = 'not planned'
+        elif x['finals'] > 0:
+            state = 'ready'
+        elif x['learn'] == 0:
+            state = 'not started'
+        elif x['learn'] < total:
+            state = 'learning'
+        elif not x['reviews']:
+            state = 'learnt'
+        else:
+            state = 'reviewing'
+        out.append({'id': t['id'], 'code': t['code'], 'name': t['name'], 'conf': t['conf'], 'mode': t['mode'], 'learnDone': min(x['learn'], total),
+                    'learnTotal': total, 'learnAhead': a['learn'], 'learnMissed': a['learnMissed'], 'reviewsDone': len(x['reviews']), 'ratings': x['reviews'], 'reviewsAhead': a['reviews'],
+                    'finalAhead': a['finals'], 'finalDone': x['finals'] > 0, 'missed': a['missed'], 'last': x['last'], 'next': a['next'], 'shaky': shaky, 'state': state})
+    return out
 
 
 def replan(project, plan, today, now_min=0):
@@ -2900,7 +2989,7 @@ def project_file(project):
         'busy': [{'day': iso_day(b['day']), 'start': b['start'], 'end': b['end'], 'label': b['label']} for b in p['busy']],
         'allDay': [{'day': iso_day(b['day']), 'label': b['label']} for b in p['allDay']],
         'sources': p['sources'],
-        'done': [{'id': d['id'], 'day': iso_day(d['day']), 'min': d['min'], 'exam': d['exam'], 'code': d['code'], 'title': d['title']} for d in p['done']],
+        'done': [{'id': d['id'], 'day': iso_day(d['day']), 'min': d['min'], 'exam': d['exam'], 'code': d['code'], 'title': d['title'], 'rating': d.get('rating') or 0} for d in p['done']],
         'settled': p['settled'],
         'missed': [{'id': d['id'], 'day': iso_day(d['day']), 'min': d['min'], 'exam': d['exam'], 'code': d['code'], 'title': d['title']} for d in p['missed']],
     }

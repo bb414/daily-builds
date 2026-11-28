@@ -158,6 +158,20 @@ class CommandLineTest(unittest.TestCase):
         code, out = run_cli('today', self.path('s.json'), '--date', '2026-12-10')
         self.assertNotIn('Re-planned', out)
 
+    def test_ratings_from_the_command_line_bring_a_topic_back(self):
+        shutil.copy(os.path.join(DATA, 'group', 'alex.json'), self.path('a.json'))
+        p = m.read_project(text_of(self.path('a.json')), FROM)['project']
+        plan = m.build_plan(p)
+        first = [se for se in plan['sessions'] if se['kind'] == 'review'][0]
+        day = m.iso_day(first['day'])
+        run_cli('tick', self.path('a.json'), '--day', day, '--date', day)
+        code, out = run_cli('tick', self.path('a.json'), first['id'], '--rate', 'shaky', '--date', day)
+        code, out = run_cli('today', self.path('a.json'), '--date', m.iso_day(first['day'] + 1))
+        self.assertIn('1 topic back sooner after a shaky review', out)
+        self.assertIn(first['title'], out, 'the shaky topic is reviewed again the next day')
+        code, out = run_cli('status', self.path('a.json'), '--date', m.iso_day(first['day'] + 1), '--topics')
+        self.assertIn('reviews -', out)
+
     def test_tick_status_and_report(self):
         shutil.copy(os.path.join(DATA, 'sample-project.json'), self.path('s.json'))
         code, out = run_cli('tick', self.path('s.json'), '--all-today', '--date', '2026-12-10')
@@ -172,6 +186,7 @@ class CommandLineTest(unittest.TestCase):
         page = text_of(self.path('r.html'))
         self.assertEqual(check_html(page).errors, [])
         self.assertIn('The next fourteen days', page)
+        self.assertIn('Where each topic stands', page)
 
     def test_check_explains_each_file(self):
         code, out = run_cli('check', os.path.join(DATA, 'messy-timetable.txt'), os.path.join(DATA, 'alex', 'availability.csv'),

@@ -75,6 +75,8 @@ def py_project_job(job):
     plan = m.build_plan(p)
     for t in job.get('ticks', []):
         m.tick(p, plan, t[0], t[1], t[2] if len(t) > 2 else True)
+    for rt in job.get('rates', []):
+        m.rate(p, plan, rt[0], rt[1], rt[2])
     if job.get('replan'):
         m.replan(p, plan, job['replan']['day'], job['replan'].get('min', 0))
         plan = m.build_plan(p)
@@ -89,4 +91,5 @@ def py_project_job(job):
         'ics': m.sessions_ics(p, plan, name=p['name']),
         'icsToday': m.sessions_ics(p, plan, from_day=job['today'], to_day=job['today'], exams=False, skip_done=True),
         'dayText': m.day_text(p, plan, job['today']), 'projectFile': m.project_file(p), 'availabilityCsv': m.availability_csv(p),
+        'topics': m.topic_status(p, plan, job['today']),
     })

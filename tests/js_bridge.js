@@ -41,6 +41,7 @@ function runProject(job) {
   var p = read.project;
   var plan = M.buildPlan(p);
   (job.ticks || []).forEach(function (t) { M.tick(p, plan, t[0], t[1], t[2] !== false); });
+  (job.rates || []).forEach(function (r) { M.rate(p, plan, r[0], r[1], r[2]); });
   if (job.replan) {
     M.replan(p, plan, job.replan.day, job.replan.min || 0);
     plan = M.buildPlan(p);
@@ -52,7 +53,8 @@ function runProject(job) {
     messages: read.messages, plan: planOut(plan), status: st, summary: M.summary(p, plan, st),
     csv: M.sessionsCsv(p, plan), statusCsv: M.statusCsv(st), ics: M.sessionsIcs(p, plan, { name: p.name }),
     icsToday: M.sessionsIcs(p, plan, { fromDay: job.today, toDay: job.today, exams: false, skipDone: true }),
-    dayText: M.dayText(p, plan, job.today), projectFile: M.projectFile(p), availabilityCsv: M.availabilityCsv(p)
+    dayText: M.dayText(p, plan, job.today), projectFile: M.projectFile(p), availabilityCsv: M.availabilityCsv(p),
+    topics: M.topicStatus(p, plan, job.today)
   };
 }
 

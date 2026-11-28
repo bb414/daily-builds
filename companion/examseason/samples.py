@@ -59,7 +59,7 @@ def member_project(folder, name=None, student=None):
 
 
 def sample_project(data_dir):
-    """The sample: Alex's January exams planned from Mon 30 Nov 2026, with ten days ticked off."""
+    """The sample: Alex's January exams planned from Mon 30 Nov 2026, with ten days ticked off and reviews rated."""
     p = m.read_project(member_project(os.path.join(data_dir, 'alex')), PLAN_FROM)['project']
     plan = m.build_plan(p)
     # Ten days of progress: everything done except Sat 5 Dec (a long away
@@ -73,5 +73,11 @@ def sample_project(data_dir):
         if se['day'] == m.day_from_ymd(2026, 12, 7) and se['kind'] == 'review':
             continue
         m.tick(p, plan, se['id'], se['day'], True)
+        if se['kind'] == 'review':
+            # How the reviews went: the topics Alex missed in lectures were
+            # shaky the first time; confident topics went well.
+            conf = next(t['conf'] for t in p['topics'] if t['id'] == se['topic'])
+            rating = 1 if conf <= 1 and se['id'].endswith(':1') else 3 if conf >= 4 else 2
+            m.rate(p, plan, se['id'], se['day'], rating)
     p['asOf'] = AS_OF
     return m.project_file(p)

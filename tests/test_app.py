@@ -111,7 +111,7 @@ class AppTest(unittest.TestCase):
         self.assertEqual(page.get_attribute('#tab-rules', 'aria-selected'), 'true')
         page.keyboard.press('Home')
         self.assertEqual(page.get_attribute('#tab-exams', 'aria-selected'), 'true')
-        for view in ['exams', 'time', 'plan', 'progress', 'rules']:
+        for view in ['exams', 'time', 'plan', 'progress', 'topics', 'rules']:
             page.click('#tab-' + view)
             self.assertEqual(page.evaluate(UNLABELLED), [], view)
 
@@ -179,6 +179,25 @@ class AppTest(unittest.TestCase):
         page.wait_for_function("document.querySelector('#view-progress').innerText.includes('Nothing planned today')")
         self.assertTrue(page.locator('#view-progress .card .tick').count() == 0 or True)
 
+    def test_rating_a_review_and_the_topic_tracker(self):
+        page = self.open()
+        page.click('#tab-progress')
+        page.wait_for_selector('#view-progress [data-rate]')
+        self.assertIn('3 reviews were shaky since then', page.inner_text('#view-progress'))
+        page.locator('#view-progress [data-rate="1"]').first.click()
+        page.wait_for_function("document.querySelector('#view-progress').innerText.includes('4 reviews were shaky')")
+        self.assertEqual(page.get_attribute('#view-progress [data-rate="1"] >> nth=0', 'aria-pressed'), 'true')
+        self.assertTrue(page.locator('#view-progress .tick').first.is_checked(), 'rating ticks the session off')
+        page.click('#tab-topics')
+        body = page.inner_text('#view-topics')
+        self.assertIn('Topic tracker', body)
+        self.assertIn('not started: ', body)
+        self.assertEqual(page.locator('.tt tbody tr').count(), 40)
+        page.select_option('#tf-code', 'FIN3020')
+        self.assertEqual(page.locator('.tt tbody tr').count(), 8)
+        page.select_option('#tf-state', 'ready')
+        self.assertIn('No topics match these filters', page.inner_text('#view-topics'))
+
     def test_every_download_opens(self):
         page = self.open()
         page.wait_for_selector('.month')
@@ -242,7 +261,7 @@ class AppTest(unittest.TestCase):
     def test_phone_width_has_no_sideways_scroll(self):
         page = self.open(width=390, height=844)
         page.wait_for_selector('.month')
-        for view in ['plan', 'progress', 'exams', 'time', 'rules']:
+        for view in ['plan', 'progress', 'exams', 'time', 'topics', 'rules']:
             page.click('#tab-' + view)
             width = page.evaluate('document.documentElement.scrollWidth')
             self.assertLessEqual(width, 390, view)

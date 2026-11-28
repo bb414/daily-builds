@@ -20,7 +20,7 @@ Everything runs in your browser or on your own computer. Nothing you load is sen
 2. **Load your exam timetable** under *Exams and topics*: drop the file your student portal gives you (or the timetable page saved from your browser), choose it, or paste the table straight from the web page. Check the list it read, fix anything by hand (dates, times, rooms) and fill in any date still to be confirmed.
 3. **List your topics**: paste one topic per line under a module heading, with confidence (1 weak to 5 strong) and size (S, M, L or hours) in brackets, or load a CSV. Change any rating with one click.
 4. **Tell it about your time** under *Your time*: your usual window and hours for each weekday, days off and short days, and your calendar file (lectures, shifts, matches) or work rota if you have one.
-5. **Follow the plan** under *Plan*, put the calendar file on your phone or print the wall planner, and **tick sessions off** under *Progress*. If a day goes wrong, press **Re-plan from today**.
+5. **Follow the plan** under *Plan*, put the calendar file on your phone or print the wall planner, and **tick sessions off** under *Progress*, saying how each review went (shaky, OK or solid). If a day goes wrong, press **Re-plan from today**. The *Topic tracker* shows where every topic stands.
 6. **Save the plan file** now and then. The app also keeps your plan in this browser between visits.
 
 ### What it reads
@@ -49,6 +49,7 @@ ABC1234,Example module,11/01/2027,09:30,2 hours,Main Hall,101,Unseen exam
 | Sessions (`.csv`) | One row per session with a Done column, for a spreadsheet. |
 | Wall planner | A printable A4 landscape planner, one month per page. |
 | On track? | For each exam: hours needed, done, still planned and missed, a verdict (on track, tight, behind or not enough time) with the reasons, and what to drop or shorten. Also as CSV. |
+| Topic tracker | Every topic's learning (done, planned, missed), each review and how it went, the next session and a one-word state, filterable by module and state. |
 | Today as text | The day's sessions ready to paste into a note or a message. |
 | Plan file (`.json`) | Everything, including your ticks and missed sessions. Open it again in the app (or in the companion) to carry on. |
 
@@ -63,9 +64,9 @@ Planned from Mon 30 November, the plan has **302 sessions on 48 days**: 115 hour
 - Every exam has its day before kept for a final review of every topic, and new topics stop three days before each exam.
 - Three exams are **on track**. Competition and Consumer Law is **tight** (one topic is learnt too late for two spaced reviews) and Business Analytics is **tight** (one of its two past papers cannot be fitted: no free stretch of 2 h 30 min in its last fortnight).
 
-The sample then pretends it is Thu 10 December. Alex has ticked off 50 sessions (37.9 hours) but missed Saturday 5 December (an away fixture ran long), the Tuesday evening sessions on 1 December and one review: 8 sessions, 4.6 hours. Strategic Management, Behavioural Economics and Corporate Finance show **behind**.
+The sample then pretends it is Thu 10 December. Alex has ticked off 50 sessions (37.9 hours) but missed Saturday 5 December (an away fixture ran long), the Tuesday evening sessions on 1 December and one review: 8 sessions, 4.6 hours. Strategic Management, Behavioural Economics and Corporate Finance show **behind**. Alex also rated three first reviews **shaky**, all on topics missed in lectures (Heuristics and biases, Cost of capital and Dividend policy), and the confident topics' reviews **solid**.
 
-Pressing **Re-plan from today** files the 8 sessions as missed, keeps every tick (a topic half learnt carries on from the part it reached), and rebuilds the rest. The three are back **on track**, but Business Analytics becomes **not enough time**: 0.8 hours of first learning (Data visualisation) no longer fits before new topics stop on Mon 18 January. The app suggests switching Data visualisation (confidence 5) to a quick look, which frees about 1.3 hours, or finding room for one more 50-minute session on any of the 29 free days before then. Taking the first suggestion puts it right.
+Pressing **Re-plan from today** files the 8 sessions as missed, keeps every tick (a topic half learnt carries on from the part it reached), and rebuilds the rest. The shaky topics start their ladder of review gaps again: Heuristics and biases and Dividend policy are reviewed again that same day, and Cost of capital first gets the learning part it missed on Saturday. The three are back **on track**, but Business Analytics becomes **not enough time**: 0.8 hours of first learning (Data visualisation) no longer fits before new topics stop on Mon 18 January. The app suggests switching Data visualisation (confidence 5) to a quick look, which frees about 1.3 hours, or finding room for one more 50-minute session on any of the 29 free days before then. Taking the first suggestion puts it right.
 
 ## Why it matters
 
@@ -87,14 +88,14 @@ python companion/exam_season.py group data/group/alex.json data/group/sam.json d
 It does what a browser is not good at:
 
 - **`plan --folder`** reads a whole folder of a student's files and works out which is the timetable, the topics, the availability, the calendars and the rotas from their contents (several calendars and rotas, and an exam timetable in two formats, are merged without counting anything twice).
-- **`today`** is the morning job: run it from cron or a scheduled task and it re-plans from today when sessions were missed, saves the plan file, and writes the day's sessions as text and as an .ics file.
+- **`today`** is the morning job: run it from cron or a scheduled task and it re-plans from today when sessions were missed or a review went badly, saves the plan file, and writes the day's sessions as text and as an .ics file. **`tick`** ticks sessions off from the command line (`--rate shaky` says how a review went) and **`status --topics`** lists where every topic stands.
 - **`group`** is the study-group mode: from each member's plan file it finds, for every module two or more of them are sitting, a weekly 90-minute session when every member taking it is free (inside their window, not busy, not sitting an exam that day, not on a day kept for another exam), spread across the week, ending with a past-paper debrief. Each session focuses on the topics the group as a whole is least sure about. It writes a CSV, one calendar for everyone, an HTML report and, with `--update-members`, each member's plan re-planned around the group sessions. For the sample group (Alex, Sam and Priya), it finds 27 sessions for the four shared modules.
 - **`report`** writes a printable HTML report of a plan: on track per exam, the next fortnight, hours each week and the whole timetable; **`check`** shows how each input file is read without planning anything.
 
 ## Tests
 
 ```
-node --test tests/*.test.js                   # the browser model: 22 tests
+node --test tests/*.test.js                   # the browser model: 26 tests
 cd tests && python -m unittest discover        # companion, agreement, browser and repository tests
 ```
 
@@ -144,7 +145,7 @@ Tests that need Node, Playwright or `icalendar` skip cleanly when they are missi
 3. **Your free time.** Each day's window from your week or a dated change, minus busy times with a gap either side and the exam itself, capped at your hours. On an exam day you revise only after the exam, for half your hours (adjustable).
 4. **Kept days and past papers first.** The day before each exam is kept for a final review of every topic, weakest first. Then two timed past papers per exam are booked as late as possible in its last fortnight, at most one a day.
 5. **Filling each day in time order.** Each free slot gets the best session that fits: first, the unfinished topics of an exam whose new topics stop within three days; then the first three spaced reviews that are due (1, 3 and 7 days apart, then 14 and 28); then new learning for the module with the least slack (hours free before its aim, a week before new topics stop, minus the learning it still needs), weakest and biggest topics first; then later top-up reviews. No module takes more than half a day, two sessions in a row are from different modules, and a topic gets one session a day, unless nothing else fits.
-6. **Progress.** The plan depends only on the inputs, the day it was planned from and the sessions done before then, so ticking never moves it. Re-planning files unticked past sessions as missed, settles every tick and plans again from today.
+6. **Progress.** The plan depends only on the inputs, the day it was planned from and the sessions done before then, so ticking never moves it. Re-planning files unticked past sessions as missed, settles every tick and plans again from today. A review rated shaky sends its topic back to the start of the ladder of gaps (the next review is a day later), OK moves it one step and solid two.
 7. **On track?** Hours needed are first learning, three spaced reviews and a final review per topic, plus the past papers. Learning that does not fit before new topics stop means not enough time; a missing past paper, final review or second review means tight; unticked past sessions mean behind.
 
 The same logic lives in `src/model.js` and `companion/examseason/model.py`; the agreement tests prove they give identical plans and files.

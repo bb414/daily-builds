@@ -1741,7 +1741,7 @@ var ExamSeason = (function () {
       var day = dayOr(d.day, null);
       if (day === null) return;
       seenDone[d.id] = true;
-      o.done.push({ id: d.id, day: day, min: clamp(intOr(d.min, 0), 0, 1440), exam: strOr(d.exam, ''), code: strOr(d.code, ''), title: strOr(d.title, '') });
+      o.done.push({ id: d.id, day: day, min: clamp(intOr(d.min, 0), 0, 1440), exam: strOr(d.exam, ''), code: strOr(d.code, ''), title: strOr(d.title, ''), rating: clamp(intOr(d.rating, 0), 0, 3) });
     });
     o.done.sort(function (a, b) { return cmp(a.day, b.day) || cmp(a.id, b.id); });
     (Array.isArray(p.settled) ? p.settled : []).forEach(function (id) { if (typeof id === 'string' && seenDone[id] && o.settled.indexOf(id) < 0) o.settled.push(id); });
@@ -2042,7 +2042,7 @@ var ExamSeason = (function () {
       if (!ex) { orphan[t.code] = (orphan[t.code] || 0) + 1; return; }
       var st = {
         t: t, exam: ex, order: order++, len: learnLength(t, s), count: learnSessions(t, s), done: 0, nextK: 1,
-        learnedDay: null, reviews: 0, nextR: 1, lastReview: null, due: null, rmax: reviewMax(t), lastDay: null,
+        learnedDay: null, reviews: 0, step: 0, shaky: 0, nextR: 1, lastReview: null, due: null, rmax: reviewMax(t), lastDay: null,
         planned: 0, plannedReviews: 0
       };
       states.push(st);
@@ -2070,6 +2070,9 @@ var ExamSeason = (function () {
       } else if (p.kind === 'review' && stById[p.a]) {
         var sr = stById[p.a];
         sr.reviews++;
+        // How the review went moves the topic along its ladder of gaps:
+        // shaky starts it again, OK moves one step, solid moves two.
+        if (h.rating === 1) { sr.step = 0; sr.shaky++; } else sr.step += h.rating === 3 ? 2 : 1;
         sr.nextR = Math.max(sr.nextR, (parseInt(p.b, 10) || 0) + 1);
         sr.lastReview = sr.lastReview === null ? h.day : Math.max(sr.lastReview, h.day);
         if (h.day >= from) sr.lastDay = h.day;
@@ -2085,7 +2088,7 @@ var ExamSeason = (function () {
       if (st.done >= st.count) {
         st.learnedDay = lastLearn[st.t.id] === undefined ? from - 1 : lastLearn[st.t.id];
         var prev = st.reviews === 0 ? st.learnedDay : Math.max(st.lastReview, st.learnedDay);
-        if (st.reviews < st.rmax) st.due = prev + REVIEW_GAPS[Math.min(st.reviews, REVIEW_GAPS.length - 1)];
+        if (st.step < st.rmax) st.due = prev + REVIEW_GAPS[Math.min(st.step, REVIEW_GAPS.length - 1)];
       }
     });
 
@@ -2237,7 +2240,7 @@ var ExamSeason = (function () {
       // three days before new topics stop for an exam, its unfinished
       // learning comes first of all.
       function kindRank(c) {
-        if (c.kind === 'review') return c.st.reviews < 3 ? 1 : 3;
+        if (c.kind === 'review') return c.st.step < 3 ? 1 : 3;
         return d >= c.exam.learnBy - 2 ? 0 : 2;
       }
 
@@ -2307,7 +2310,7 @@ var ExamSeason = (function () {
           remaining[e.id] -= c.len;
           if (st.done >= st.count) {
             st.learnedDay = d;
-            st.due = st.reviews < st.rmax ? d + REVIEW_GAPS[Math.min(st.reviews, REVIEW_GAPS.length - 1)] : null;
+            st.due = st.step < st.rmax ? d + REVIEW_GAPS[Math.min(st.step, REVIEW_GAPS.length - 1)] : null;
           }
         } else if (c.kind === 'review') {
           var n = st.nextR;
@@ -2317,9 +2320,10 @@ var ExamSeason = (function () {
           };
           st.nextR++;
           st.reviews++;
+          st.step++;
           st.plannedReviews++;
           st.lastReview = d;
-          st.due = st.reviews < st.rmax ? d + REVIEW_GAPS[Math.min(st.reviews, REVIEW_GAPS.length - 1)] : null;
+          st.due = st.step < st.rmax ? d + REVIEW_GAPS[Math.min(st.step, REVIEW_GAPS.length - 1)] : null;
           reviewUsed += c.len;
         } else {
           se = {
@@ -2388,7 +2392,7 @@ var ExamSeason = (function () {
     plan.topics = states.map(function (st) {
       return {
         id: st.t.id, code: st.t.code, exam: st.exam.id, name: st.t.name, conf: st.t.conf, size: st.t.size, mode: st.t.mode,
-        sessions: st.count, length: st.len, learnt: st.done >= st.count, learnedDay: st.learnedDay, reviews: st.reviews
+        sessions: st.count, length: st.len, learnt: st.done >= st.count, learnedDay: st.learnedDay, reviews: st.reviews, step: st.step, shaky: st.shaky
       };
     });
     return plan;
@@ -2411,7 +2415,10 @@ var ExamSeason = (function () {
   function status(project, plan, today) {
     var s = project.settings;
     var done = doneMap(project);
-    var out = { today: today, exams: [], todaySessions: [], missed: [], doneMin: 0, aheadMin: 0, missedMin: 0, needMin: 0, verdict: 'ok' };
+    var out = { today: today, exams: [], todaySessions: [], missed: [], doneMin: 0, aheadMin: 0, missedMin: 0, needMin: 0, verdict: 'ok', shakyNew: 0 };
+    var settledSet = {};
+    project.settled.forEach(function (id) { settledSet[id] = true; });
+    project.done.forEach(function (d) { if (d.rating === 1 && !settledSet[d.id]) out.shakyNew++; });
     var byExamDone = {}, byExamAhead = {}, byExamMissed = {}, byExamMissedN = {};
     project.done.forEach(function (d) {
       byExamDone[d.exam] = (byExamDone[d.exam] || 0) + d.min;
@@ -2530,11 +2537,80 @@ var ExamSeason = (function () {
     if (idx >= 0) return project;
     var se = plan.byId[id];
     if (!se) return project;
-    project.done.push({ id: id, day: Math.min(se.day, today), min: se.min, exam: se.exam, code: se.code, title: sessionTitle(se) });
+    project.done.push({ id: id, day: Math.min(se.day, today), min: se.min, exam: se.exam, code: se.code, title: sessionTitle(se), rating: 0 });
     project.done.sort(function (a, b) { return cmp(a.day, b.day) || cmp(a.id, b.id); });
     return project;
   }
   M.tick = tick;
+
+  // Say how a review went: 1 shaky, 2 OK, 3 solid (0 clears it). Ticks the
+  // session off first if it was not already.
+  function rate(project, plan, id, today, rating) {
+    var entry = null;
+    project.done.forEach(function (d) { if (d.id === id) entry = d; });
+    if (!entry) {
+      tick(project, plan, id, today, true);
+      project.done.forEach(function (d) { if (d.id === id) entry = d; });
+    }
+    if (entry) entry.rating = clamp(rating, 0, 3);
+    return project;
+  }
+  M.rate = rate;
+
+  var RATING_WORD = ['', 'shaky', 'OK', 'solid'];
+  M.RATING_WORD = RATING_WORD;
+
+  // Where each topic stands today: learning parts done and still planned,
+  // reviews done (with how they went) and planned, the next session, and a
+  // one-word state.
+  function topicStatus(project, plan, today) {
+    var done = doneMap(project);
+    var byTopic = {};
+    project.done.forEach(function (d) {
+      var p = parseId(d.id);
+      var tid = p.kind === 'final' ? p.b : p.a;
+      if (p.kind === 'paper') return;
+      var x = byTopic[tid] = byTopic[tid] || { learn: 0, reviews: [], finals: 0, last: null };
+      if (p.kind === 'learn') x.learn++;
+      else if (p.kind === 'review') x.reviews.push(d.rating || 0);
+      else x.finals++;
+      if (x.last === null || d.day > x.last) x.last = d.day;
+    });
+    var ahead = {};
+    plan.sessions.forEach(function (se) {
+      if (!se.topic || done[se.id]) return;
+      var a = ahead[se.topic] = ahead[se.topic] || { learn: 0, reviews: 0, finals: 0, next: null, missed: 0, learnMissed: 0 };
+      if (se.day < today) { a.missed++; if (se.kind === 'learn') a.learnMissed++; return; }
+      if (se.kind === 'learn') a.learn++;
+      else if (se.kind === 'review') a.reviews++;
+      else if (se.kind === 'final') a.finals++;
+      if (a.next === null || se.day < a.next.day || (se.day === a.next.day && se.start < a.next.start)) a.next = { day: se.day, start: se.start, kind: se.kind, id: se.id };
+    });
+    var planTopic = {};
+    plan.topics.forEach(function (t) { planTopic[t.id] = t; });
+    var out = [];
+    project.topics.forEach(function (t) {
+      var x = byTopic[t.id] || { learn: 0, reviews: [], finals: 0, last: null };
+      var a = ahead[t.id] || { learn: 0, reviews: 0, finals: 0, next: null, missed: 0, learnMissed: 0 };
+      var total = t.mode === 'drop' ? 0 : learnSessions(t, project.settings);
+      var shaky = x.reviews.filter(function (r) { return r === 1; }).length;
+      var state;
+      if (t.mode === 'drop') state = 'dropped';
+      else if (!planTopic[t.id]) state = 'not planned';
+      else if (x.finals > 0) state = 'ready';
+      else if (x.learn === 0) state = 'not started';
+      else if (x.learn < total) state = 'learning';
+      else if (x.reviews.length === 0) state = 'learnt';
+      else state = 'reviewing';
+      out.push({
+        id: t.id, code: t.code, name: t.name, conf: t.conf, mode: t.mode, learnDone: Math.min(x.learn, total), learnTotal: total,
+        learnAhead: a.learn, learnMissed: a.learnMissed, reviewsDone: x.reviews.length, ratings: x.reviews, reviewsAhead: a.reviews, finalAhead: a.finals,
+        finalDone: x.finals > 0, missed: a.missed, last: x.last, next: a.next, shaky: shaky, state: state
+      });
+    });
+    return out;
+  }
+  M.topicStatus = topicStatus;
 
   // Re-plan from a day (and time): sessions planned before it that were not
   // done are kept as "missed", everything done so far is settled, and the
@@ -2734,7 +2810,7 @@ var ExamSeason = (function () {
       busy: p.busy.map(function (b) { return { day: isoDay(b.day), start: b.start, end: b.end, label: b.label }; }),
       allDay: p.allDay.map(function (b) { return { day: isoDay(b.day), label: b.label }; }),
       sources: p.sources,
-      done: p.done.map(function (d) { return { id: d.id, day: isoDay(d.day), min: d.min, exam: d.exam, code: d.code, title: d.title }; }),
+      done: p.done.map(function (d) { return { id: d.id, day: isoDay(d.day), min: d.min, exam: d.exam, code: d.code, title: d.title, rating: d.rating || 0 }; }),
       settled: p.settled,
       missed: p.missed.map(function (d) { return { id: d.id, day: isoDay(d.day), min: d.min, exam: d.exam, code: d.code, title: d.title }; })
     };

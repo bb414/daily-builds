@@ -7,11 +7,11 @@
   var M = ExamSeason;
   var SAMPLES = JSON.parse(document.getElementById('samples').textContent);
   var STORE = 'exam-season-project-v1';
-  var VIEWS = ['exams', 'time', 'plan', 'progress', 'rules'];
+  var VIEWS = ['exams', 'time', 'plan', 'progress', 'topics', 'rules'];
   var KIND_LETTER = { learn: 'learn', review: 'review', paper: 'paper', final: 'final' };
 
   var state = {
-    project: null, plan: null, status: null, summary: null, today: 0, view: 'plan', selected: null, planMode: 'calendar',
+    project: null, plan: null, status: null, summary: null, today: 0, view: 'plan', selected: null, planMode: 'calendar', topicFilter: { code: '', state: '' },
     isSample: true, imports: { exams: null, topics: null, calendar: null, availability: null }, restored: false
   };
 
@@ -715,13 +715,26 @@
     return out.join('');
   }
 
+  function ratingOf(id) {
+    var d = state.project.done;
+    for (var i = 0; i < d.length; i++) if (d[i].id === id) return d[i].rating || 0;
+    return 0;
+  }
+
   function sessionRow(s, allowTick) {
     var plan = state.plan;
     var done = isDone(s.id);
     var col = plan.byExam[s.exam].colour;
+    var rate = '';
+    if (s.kind === 'review' && allowTick) {
+      var r = ratingOf(s.id);
+      rate = '<span class="rate" role="group" aria-label="How did the review of ' + esc(s.title) + ' go?">' + [1, 2, 3].map(function (k) {
+        return '<button type="button" class="r' + k + '" data-rate="' + k + '" data-id="' + esc(s.id) + '" aria-pressed="' + (done && r === k) + '">' + (k === 1 ? 'Shaky' : k === 2 ? 'OK' : 'Solid') + '</button>';
+      }).join('') + '</span>';
+    }
     return '<div class="sess m' + col + (done ? ' is-done' : '') + '"><input type="checkbox" class="tick" data-id="' + esc(s.id) + '"' + (done ? ' checked' : '') + (allowTick ? '' : ' disabled') + ' aria-label="Done: ' + esc(M.sessionTitle(s)) + '">' +
-      '<span class="t">' + M.fmtTime(s.start) + '–' + M.fmtTime(s.end) + '</span><span class="what"><span class="kind">' + esc(M.KIND_WORD[s.kind]) + '</span><b>' + esc(s.code) + ' ' + esc(s.kind === 'paper' ? s.title : s.title) + '</b>' +
-      '<span class="det">' + esc(s.detail) + '</span></span></div>';
+      '<span class="t">' + M.fmtTime(s.start) + '–' + M.fmtTime(s.end) + '</span><span class="what"><span class="kind">' + esc(M.KIND_WORD[s.kind]) + '</span><b>' + esc(s.code) + ' ' + esc(s.title) + '</b>' +
+      '<span class="det">' + esc(s.detail) + '</span>' + rate + '</span></div>';
   }
 
   function dayDetailHtml(day, by) {
@@ -804,6 +817,7 @@
     st.missed.forEach(function (s) { missedMin += s.min; });
     h.push('<div class="card taped" style="--tape:repeating-linear-gradient(45deg,#ff9fcb 0 6px,#ffd0e5 6px 12px)"><div class="card-head"><h3>Fell behind?</h3></div><div class="card-body">' +
       (missedN ? '<p><b class="mono">' + missedN + '</b> sessions (' + hoursText(missedMin) + ') from ' + esc(M.fmtShort(p.planFrom)) + ' to ' + esc(M.fmtShort(today - 1)) + ' are not ticked off.</p>' : '<p>Nothing missed since the plan was made on ' + esc(M.fmtShort(p.planFrom)) + '.</p>') +
+      (st.shakyNew ? '<p><b class="mono">' + st.shakyNew + '</b> ' + (st.shakyNew === 1 ? 'review was' : 'reviews were') + ' shaky since then: re-planning brings ' + (st.shakyNew === 1 ? 'that topic' : 'those topics') + ' back the next day.</p>' : '') +
       '<div class="btn-row"><button type="button" class="btn btn-small btn-marker" data-action="replan"' + (missedN || p.planFrom < today ? '' : '') + '>Re-plan from today</button></div>' +
       '<p class="hint" style="margin-top:8px">Re-planning keeps every tick, files the unticked sessions as missed, and rebuilds the rest of the plan from today with the same rules.</p>' +
       '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn btn-small" data-action="block-today">Can\'t revise today: block it and re-plan</button></div></div></div>');
@@ -858,7 +872,67 @@
   }
 
   // ------------------------------------------------------------------
-  // View 5: the rules in plain English
+  // View 5: the topic tracker
+  // ------------------------------------------------------------------
+
+  var STATE_ORDER = ['not started', 'learning', 'learnt', 'reviewing', 'ready', 'not planned', 'dropped'];
+
+  function renderTopics() {
+    var p = state.project, plan = state.plan, today = state.today;
+    var rows = M.topicStatus(p, plan, today);
+    var f = state.topicFilter;
+    var counts = {};
+    rows.forEach(function (r) { counts[r.state] = (counts[r.state] || 0) + 1; });
+    var h = ['<div class="view-head"><div><h2>Topic tracker</h2><p class="intro">Every topic and where it stands on ' + esc(M.fmtShort(today)) + ': learning done and still planned, each review and how it went, and what comes next. Rate a review when you tick it off; once you re-plan, a shaky one brings the topic back the next day and a solid one stretches the gap.</p></div></div>'];
+    h.push('<div class="state-counts">' + STATE_ORDER.filter(function (k) { return counts[k]; }).map(function (k) {
+      return '<span class="state s-' + k.replace(' ', '-') + '">' + esc(k) + ': ' + counts[k] + '</span>';
+    }).join('') + '</div>');
+    var codes = [];
+    rows.forEach(function (r) { if (codes.indexOf(r.code) < 0) codes.push(r.code); });
+    h.push('<div class="filters"><div class="field"><label for="tf-code">Module</label><select id="tf-code" data-filter="code"><option value="">All modules</option>' +
+      codes.map(function (c) { return '<option value="' + esc(c) + '"' + (f.code === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="tf-state">State</label><select id="tf-state" data-filter="state"><option value="">Any state</option>' +
+      STATE_ORDER.map(function (k) { return '<option value="' + esc(k) + '"' + (f.state === k ? ' selected' : '') + '>' + esc(k) + '</option>'; }).join('') + '</select></div></div>');
+    if (!rows.length) h.push('<p class="sticky" style="max-width:520px">No topics yet. Add them under <button type="button" class="btn-link" data-go="exams">Exams and topics</button>.</p>');
+    h.push('<div class="module-cards">');
+    var shown = 0;
+    codes.forEach(function (code) {
+      if (f.code && f.code !== code) return;
+      var list = rows.filter(function (r) { return r.code === code && (!f.state || r.state === f.state); });
+      if (!list.length) return;
+      shown += list.length;
+      var ex = null;
+      plan.exams.forEach(function (e) { if (e.code === code && ex === null) ex = e; });
+      var col = examColour(code);
+      h.push('<div class="card mod taped plain m' + col + '"><div class="card-head"><div><h3>' + esc(code) + ' ' + esc(ex ? ex.name : '') + '</h3><div class="small muted">' +
+        (ex ? 'Exam ' + esc(M.fmtDay(ex.day)) : 'No upcoming exam') + '</div></div></div><div class="card-body"><table class="tt"><thead><tr><th scope="col">Topic</th><th scope="col">Learning</th><th scope="col">Reviews</th><th scope="col">Next</th><th scope="col">State</th></tr></thead><tbody>');
+      list.forEach(function (r) {
+        var blocks = '';
+        for (var i = 0; i < r.learnTotal; i++) blocks += '<i class="' + (i < r.learnDone ? 'd' : i < r.learnDone + r.learnAhead ? '' : i < r.learnDone + r.learnAhead + r.learnMissed ? 'x' : 'n') + '"></i>';
+        var dots = r.ratings.map(function (k) { return '<i class="r' + k + '" title="' + (k ? M.RATING_WORD[k] : 'not rated') + '"></i>'; }).join('');
+        for (var j = 0; j < r.reviewsAhead; j++) dots += '<i class="p" title="planned"></i>';
+        if (r.finalDone) dots += '<i class="f r3" title="final review done"></i>';
+        else if (r.finalAhead) dots += '<i class="f p" title="final review planned"></i>';
+        var next = r.next ? esc(M.fmtShort(r.next.day)) + ' ' + M.fmtTime(r.next.start) + ' <span class="muted">' + esc(M.KIND_WORD[r.next.kind].toLowerCase()) + '</span>' : '<span class="muted">nothing planned</span>';
+        var confC = ['', '#ff9b8f', '#ffc27a', '#ffe74a', '#b8eb7d', '#82e297'][r.conf];
+        var notFitted = Math.max(0, r.learnTotal - r.learnDone - r.learnAhead - r.learnMissed);
+        var learnLabel = r.learnDone + ' of ' + r.learnTotal + ' learning sessions done' + (r.learnAhead ? ', ' + r.learnAhead + ' planned' : '') + (r.learnMissed ? ', ' + r.learnMissed + ' missed' : '') + (notFitted ? ', ' + notFitted + ' not fitted' : '');
+        var revLabel = r.reviewsDone + ' reviews done' + (r.shaky ? ' (' + r.shaky + ' shaky)' : '') + ', ' + r.reviewsAhead + ' planned' + (r.finalDone ? ', final review done' : r.finalAhead ? ', final review planned' : '');
+        h.push('<tr><td class="tn"><span class="cdot" style="background:' + confC + '" title="confidence ' + r.conf + '">' + r.conf + '</span>' + esc(r.name) + (r.mode === 'quick' ? ' <span class="tag">quick</span>' : '') + '</td>' +
+          '<td><span class="blocks" role="img" aria-label="' + esc(learnLabel) + '">' + blocks + '</span></td>' +
+          '<td><span class="dots" role="img" aria-label="' + esc(revLabel) + '">' + dots + '</span></td>' +
+          '<td class="next">' + next + '</td><td><span class="state s-' + r.state.replace(' ', '-') + '">' + esc(r.state) + '</span></td></tr>');
+      });
+      h.push('</tbody></table></div></div>');
+    });
+    h.push('</div>');
+    if (rows.length && !shown) h.push('<p class="muted">No topics match these filters.</p>');
+    h.push('<p class="small muted" style="margin-top:14px">Learning: filled squares are done, open ones planned, striped ones missed (re-plan to fit them back in), red ones did not fit. Reviews: red was shaky, yellow OK, green solid, grey not rated; dashed circles are planned; the square is the final review.</p>');
+    $('#view-topics').innerHTML = h.join('');
+  }
+
+  // ------------------------------------------------------------------
+  // View 6: the rules in plain English
   // ------------------------------------------------------------------
 
   function renderRules() {
@@ -873,6 +947,7 @@
       ['m5', 'A taper into each exam', '<p>New topics stop ' + s.taperDays + ' days before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
       ['m0', 'The day before is kept for that exam', '<p>The day before each exam (or the nearest free day up to three days before) is kept for it: one final review of every topic, weakest first, and nothing new. On an exam day you ' + (s.examDay === 'after' ? 'revise only after the exam, for at most half your usual hours' : s.examDay === 'off' ? 'do no revision' : 'revise your normal hours around the exam') + '.</p>'],
       ['m1', 'Your time comes first', '<p>Sessions only go inside your window for the day, up to your hours, never over a busy time from your calendar (with ' + s.busyGap + ' minutes either side) or within ' + s.examGap + ' minutes of an exam. Each session is followed by a ' + s.breakMin + '-minute break. Blocked days get nothing.</p>'],
+      ['m4', 'Shaky, OK or solid', '<p>When you tick a review off you can say how it went. Once you re-plan, a shaky review starts that topic\'s ladder of gaps again (it comes back the next day), OK moves it one step and solid moves it two. Unrated reviews count as OK.</p>'],
       ['m2', 'Ticks, misses and re-planning', '<p>Ticking a session never moves the plan. Re-planning keeps every tick, files unticked past sessions as missed and builds the rest again from today with the same rules, counting what is already done (a topic half learnt carries on from where it was). Any change to your exams, topics or time re-plans from today in the same way.</p>'],
       ['m3', 'On track, tight or short', '<p>Hours needed per exam are first learning, three spaced reviews and a final review per topic, plus the past papers. <b>Not enough time</b> means some first learning does not fit before new topics stop; you are shown which strong topics to switch to a quick look and how much extra time a day would cover it. <b>Tight</b> means a past paper, a final review or two spaced reviews could not fit. <b>Behind</b> means sessions before today were not ticked.</p>'],
       ['m4', 'Same answer every time', '<p>The plan is deterministic: the same inputs always give the same plan, in this app and in the Python companion (the tests check they agree session by session and byte by byte). Nothing is random and nothing is sent anywhere.</p>'],
@@ -903,6 +978,7 @@
     else if (state.view === 'time') renderTime();
     else if (state.view === 'plan') renderPlan();
     else if (state.view === 'progress') renderProgress();
+    else if (state.view === 'topics') renderTopics();
     else renderRules();
     try { localStorage.setItem(STORE + '-view', state.view); } catch (e) { /* storage blocked */ }
   }
@@ -968,12 +1044,21 @@
   function ensureOwnKeep() { if (state.isSample) state.isSample = false; }
 
   function onClick(ev) {
-    var t = ev.target.closest('[data-action],[data-view],[data-go],[data-day],[data-conf],[data-mode]');
+    var t = ev.target.closest('[data-action],[data-view],[data-go],[data-day],[data-conf],[data-mode],[data-rate]');
     if (!t) return;
     if (t.hasAttribute('data-view') && t.getAttribute('role') === 'tab') { go(t.getAttribute('data-view')); return; }
     if (t.hasAttribute('data-go')) { go(t.getAttribute('data-go')); window.scrollTo(0, $('.sheet').getBoundingClientRect().top + window.pageYOffset - 10); return; }
     if (t.hasAttribute('data-mode')) { state.planMode = t.getAttribute('data-mode'); renderPlan(); return; }
     if (t.hasAttribute('data-conf')) { topicField(parseInt(t.getAttribute('data-topic'), 10), 'conf', t.getAttribute('data-conf')); return; }
+    if (t.hasAttribute('data-rate')) {
+      var rid = t.getAttribute('data-id'), rk = parseInt(t.getAttribute('data-rate'), 10);
+      M.rate(state.project, state.plan, rid, state.today, ratingOf(rid) === rk && isDone(rid) ? 0 : rk);
+      ticked();
+      var back = $('[data-rate="' + rk + '"][data-id="' + rid.replace(/"/g, '') + '"]');
+      if (back) back.focus();
+      if (rk === 1) toast('Marked shaky: re-plan and this topic comes back the next day.');
+      return;
+    }
     if (t.classList.contains('cell') && t.hasAttribute('data-day')) {
       state.selected = parseInt(t.getAttribute('data-day'), 10);
       renderPlan();
@@ -1064,6 +1149,7 @@
     if (t.id === 'topic-file' && t.files[0]) { var f2 = t.files[0]; readFile(f2, function (txt) { importTopics(txt, f2.name, false); }); return; }
     if (t.id === 'cal-file' && t.files[0]) { var f3 = t.files[0]; readFile(f3, function (txt) { importCalendar(txt, f3.name); }); return; }
     if (t.id === 'avail-file' && t.files[0]) { var f4 = t.files[0]; readFile(f4, function (txt) { importAvailability(txt, f4.name); }); return; }
+    if (t.hasAttribute('data-filter')) { state.topicFilter[t.getAttribute('data-filter')] = t.value; renderTopics(); var fb = $('#' + t.id); if (fb) fb.focus(); return; }
     if (t.id === 'today-is') {
       var d = M.fromIso(t.value);
       if (d !== null) { state.project.asOf = d === realToday() ? null : d; ensureOwnKeep(); recompute(); persist(); renderAll(); }

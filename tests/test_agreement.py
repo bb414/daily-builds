@@ -107,6 +107,8 @@ class AgreementTest(unittest.TestCase):
             {'project': text, 'today': TODAY},
             {'project': text, 'today': TODAY, 'replan': {'day': TODAY, 'min': 0}},
             {'project': text, 'today': TODAY, 'ticks': [[todays[0], TODAY], [later[0], TODAY], [p['done'][0]['id'], TODAY, False]], 'replan': {'day': TODAY, 'min': 780}},
+            {'project': text, 'today': TODAY, 'rates': [[r, TODAY, k] for r, k in zip([se['id'] for se in plan['sessions'] if se['kind'] == 'review' and se['day'] <= TODAY][:9], [1, 3, 2, 0, 1, 1, 3, 3, 2])],
+             'replan': {'day': TODAY, 'min': 0}},
             {'project': text, 'today': TODAY + 5, 'replan': {'day': TODAY + 5, 'min': 0}, 'overrides': [{'day': TODAY + 6, 'minutes': 0, 'label': 'Ill'}, {'day': TODAY + 9, 'minutes': 60, 'label': 'Short day'}]},
             {'project': text, 'today': m.day_from_ymd(2027, 1, 14)},
             {'project': text, 'today': m.day_from_ymd(2027, 2, 1)},
@@ -129,6 +131,7 @@ class AgreementTest(unittest.TestCase):
             job = {'project': text, 'today': today}
             if seed % 3 == 0:
                 job['ticks'] = ticks_for(text, today, seed)
+                job['rates'] = [[t[0], t[1], (seed + i) % 4] for i, t in enumerate(job['ticks']) if t[0].startswith('review:')]
                 job['replan'] = {'day': today, 'min': [0, 615][seed % 2]}
             jobs.append(job)
         self.run_projects(jobs)

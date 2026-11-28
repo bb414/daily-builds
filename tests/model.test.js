@@ -369,6 +369,48 @@ test('ticking never moves the plan; re-planning keeps ticks and files misses', f
   assert.match(next[0].detail, new RegExp('part ' + (ks.length + 1) + ' of'));
 });
 
+test('review ratings move a topic along its ladder once you re-plan', function () {
+  function nextReviewAfter(rating) {
+    var p = freshProject();
+    var plan = planOf(p);
+    var first = plan.sessions.filter(function (se) { return se.kind === 'review' && se.topic === 'eco3112-heuristics-and-biases'; })[0];
+    // Tick everything up to and including that review's day, rating that review.
+    plan.sessions.forEach(function (se) { if (se.day <= first.day) M.tick(p, plan, se.id, se.day, true); });
+    M.rate(p, plan, first.id, first.day, rating);
+    M.replan(p, plan, first.day + 1, 0);
+    var again = planOf(p).sessions.filter(function (se) { return se.kind === 'review' && se.topic === first.topic; })[0];
+    return again.day - first.day;
+  }
+  assert.equal(nextReviewAfter(1), 1, 'shaky: back the next day');
+  assert.equal(nextReviewAfter(2), 3, 'OK: the usual next gap');
+  assert.equal(nextReviewAfter(3), 7, 'solid: skips a step');
+  var p = sampleProject();
+  var plan = planOf(p);
+  var st = M.status(p, plan, TODAY);
+  assert.equal(st.shakyNew, 3, 'three shaky reviews in the sample since the plan was made');
+  M.replan(p, plan, TODAY, 0);
+  assert.equal(M.status(p, planOf(p), TODAY).shakyNew, 0, 'settled by the re-plan');
+});
+
+test('the topic tracker says where each topic stands', function () {
+  var p = sampleProject();
+  var plan = planOf(p);
+  var rows = M.topicStatus(p, plan, TODAY);
+  assert.equal(rows.length, 40);
+  var by = {};
+  rows.forEach(function (r) { by[r.id] = r; });
+  var wacc = by['fin3020-cost-of-capital-wacc'];
+  assert.equal(wacc.state, 'learning', 'its last learning part fell on the missed Saturday');
+  assert.equal(wacc.learnDone, wacc.learnTotal - 1);
+  assert.equal(wacc.learnMissed, 1);
+  assert.deepEqual(wacc.ratings, [1, 2], 'its first review was shaky, the second OK');
+  assert.equal(by['fin3020-dividend-policy'].state, 'reviewing');
+  var counts = {};
+  rows.forEach(function (r) { counts[r.state] = (counts[r.state] || 0) + 1; });
+  assert.ok(counts['not started'] > 0 && counts.learning > 0 && counts.reviewing > 0);
+  rows.forEach(function (r) { if (r.next) assert.ok(r.next.day >= TODAY); });
+});
+
 test('on track, behind, tight and short, with what to drop', function () {
   var p = sampleProject();
   var plan = planOf(p);

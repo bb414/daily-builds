@@ -69,6 +69,7 @@ def plan_report(project, today):
                        VERDICT_COLOUR[r['verdict']], esc(r['headline']), bar, m.fmt_hours(r['need']), m.fmt_hours(r['done']), m.fmt_hours(r['ahead']),
                        (' &middot; missed %s' % m.fmt_hours(r['missed'])) if r['missed'] else '', ''.join('<li>%s</li>' % esc(x) for x in r['reasons'])))
     out.append('</div>')
+    out.append('<h2>Where each topic stands</h2>' + topics_table(project, plan, today, colour))
     out.append('<h2>The next fourteen days</h2>')
     out.append(sessions_table(plan, done, colour, today, today + 13))
     out.append('<h2>Hours each week</h2>' + week_table(plan))
@@ -99,6 +100,26 @@ def sessions_table(plan, done, colour, first, last):
                 '' if se['kind'] == 'paper' else esc(se['title'])))
     rows.append('</tbody></table>')
     return '\n'.join(rows) if any_rows else '<p class="small">Nothing planned in these days.</p>'
+
+
+RATING_COLOUR = ['#c9cbd8', '#ff8f80', '#ffe74a', '#82e297']
+
+
+def topics_table(project, plan, today, colour):
+    rows = m.topic_status(project, plan, today)
+    exam_of = {e['code']: e for e in plan['exams']}
+    out = ['<table><thead><tr><th>Topic</th><th>Confidence</th><th>Learning</th><th>Reviews</th><th>Next</th><th>State</th></tr></thead><tbody>']
+    for r in rows:
+        e = exam_of.get(r['code'])
+        chip = HL[colour[e['id']]] if e else '#eee'
+        dots = ''.join('<span title="%s" style="display:inline-block;width:11px;height:11px;border-radius:50%%;border:1px solid #1d2141;background:%s;margin-right:2px"></span>' % (
+            m.RATING_WORD[k] or 'not rated', RATING_COLOUR[k]) for k in r['ratings'])
+        nxt = '%s %s, %s' % (m.fmt_short(r['next']['day']), m.fmt_time(r['next']['start']), m.KIND_WORD[r['next']['kind']].lower()) if r['next'] else 'nothing planned'
+        out.append('<tr><td><span class="chip" style="background:%s">%s</span> %s</td><td class="mono">%d</td><td class="mono">%d of %d%s</td><td>%s%s</td><td class="small">%s</td><td>%s</td></tr>' % (
+            chip, esc(r['code']), esc(r['name']), r['conf'], r['learnDone'], r['learnTotal'], ' (%d missed)' % r['learnMissed'] if r['learnMissed'] else '',
+            dots, ' <span class="small">+%d planned</span>' % r['reviewsAhead'] if r['reviewsAhead'] else '', esc(nxt), esc(r['state'])))
+    out.append('</tbody></table>')
+    return '\n'.join(out)
 
 
 def week_table(plan):

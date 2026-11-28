@@ -180,6 +180,20 @@ def print_status(project, plan, today, out=None):
     return st
 
 
+def print_topics(project, plan, today, out=None):
+    out = out or sys.stdout
+    rows = m.topic_status(project, plan, today)
+    code = None
+    for r in rows:
+        if r['code'] != code:
+            code = r['code']
+            print('\n%s' % code, file=out)
+        marks = ''.join('-' if k == 1 else '+' if k == 3 else 'o' for k in r['ratings'])
+        nxt = '%s %s %s' % (m.fmt_short(r['next']['day']), m.fmt_time(r['next']['start']), m.KIND_WORD[r['next']['kind']].lower()) if r['next'] else 'nothing planned'
+        print('  %-38s conf %d  learnt %d/%d  reviews %-6s %-12s next %s' % (r['name'][:38], r['conf'], r['learnDone'], r['learnTotal'], marks or '.', r['state'], nxt), file=out)
+    print('\nReviews: - shaky, o OK, + solid.', file=out)
+
+
 def cmd_plan(args):
     start = parse_day(args.start, 'start date') if args.start else real_today()
     files = gather(args)
@@ -225,7 +239,8 @@ def cmd_today(args):
     st = m.status(p, plan, today)
     missed = st['missed']
     replanned = False
-    if args.replan == 'always' or (args.replan == 'auto' and missed):
+    shaky = st['shakyNew']
+    if args.replan == 'always' or (args.replan == 'auto' and (missed or shaky)):
         # Re-plan from the start of the day unless a time is given (or it is
         # really today, when sessions already past are not planned again).
         start_min = now_minutes(args.now) if args.now else (0 if args.date else now_minutes(''))
@@ -235,7 +250,8 @@ def cmd_today(args):
     text = m.day_text(p, plan, today)
     head = []
     if replanned:
-        head.append('Re-planned from %s: %s filed as missed, every tick kept.' % (m.fmt_short(today), m.plural(len(missed), 'session')))
+        head.append('Re-planned from %s: %s filed as missed, every tick kept%s.' % (
+            m.fmt_short(today), m.plural(len(missed), 'session'), ', %s back sooner after a shaky review' % m.plural(shaky, 'topic') if shaky else ''))
     elif missed:
         head.append('%s before today %s not ticked off (not re-planned: --replan never).' % (m.plural(len(missed), 'session'), 'is' if len(missed) == 1 else 'are'))
     out_text = ('\n'.join(head) + '\n\n' if head else '') + text
@@ -268,6 +284,7 @@ def cmd_tick(args):
     if not ids:
         raise SystemExit('Name the sessions to tick (their ids are in the CSV), or use --all-today or --day YYYY-MM-DD.')
     changed = 0
+    rating = {'shaky': 1, 'ok': 2, 'solid': 3}.get(args.rate or '', 0)
     for ident in ids:
         if ident not in plan['byId'] and not args.undo:
             print('Not in the plan: %s' % ident, file=sys.stderr)
@@ -276,6 +293,8 @@ def cmd_tick(args):
         m.tick(p, plan, ident, today, not args.undo)
         if len(p['done']) != before:
             changed += 1
+        if rating and not args.undo and ident.startswith('review:'):
+            m.rate(p, plan, ident, today, rating)
     write_text(args.project, m.project_file(p))
     print('%s %s. Updated %s' % ('Unticked' if args.undo else 'Ticked', m.plural(changed, 'session'), args.project))
     return 0
@@ -286,6 +305,8 @@ def cmd_status(args):
     p = load_project(args.project, today)
     plan = m.build_plan(p)
     st = print_status(p, plan, today)
+    if args.topics:
+        print_topics(p, plan, today)
     if args.csv:
         write_text(args.csv, m.status_csv(st))
         print('Wrote %s' % args.csv)
@@ -408,6 +429,7 @@ def build_parser():
     k.add_argument('--all-today', action='store_true', help="tick every session planned for today")
     k.add_argument('--day', help='tick every session planned for this day')
     k.add_argument('--undo', action='store_true', help='untick instead')
+    k.add_argument('--rate', choices=['shaky', 'ok', 'solid'], help='how the review(s) went; a shaky one comes back sooner after the next re-plan')
     k.add_argument('--date', help='treat this day as today')
     k.set_defaults(func=cmd_tick)
 
@@ -415,6 +437,7 @@ def build_parser():
     s.add_argument('project')
     s.add_argument('--date')
     s.add_argument('--csv', help='write the table as CSV')
+    s.add_argument('--topics', action='store_true', help='also list every topic: learning, reviews and what is next')
     s.set_defaults(func=cmd_status)
 
     r = sub.add_parser('report', help='an HTML report of a plan file')

@@ -841,7 +841,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (learn, part 1 of 5)"
+   "title": "ECO3112 Behavioural finance (learn, part 1 of 5)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-heuristics-and-biases:1",
@@ -849,7 +850,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Heuristics and biases (learn, part 1 of 4)"
+   "title": "ECO3112 Heuristics and biases (learn, part 1 of 4)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-present-bias-and-discounting:1",
@@ -857,7 +859,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Present bias and discounting (learn, part 1 of 3)"
+   "title": "ECO3112 Present bias and discounting (learn, part 1 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-cost-of-capital-wacc:1",
@@ -865,7 +868,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (learn, part 1 of 6)"
+   "title": "FIN3020 Cost of capital (WACC) (learn, part 1 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dcf-valuation:1",
@@ -873,7 +877,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 DCF valuation (learn, part 1 of 8)"
+   "title": "FIN3020 DCF valuation (learn, part 1 of 8)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:1",
@@ -881,7 +886,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 1 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 1 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-resource-based-view:1",
@@ -889,7 +895,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Resource-based view (learn, part 1 of 3)"
+   "title": "MGT3104 Resource-based view (learn, part 1 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-behavioural-finance:2",
@@ -897,7 +904,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (learn, part 2 of 5)"
+   "title": "ECO3112 Behavioural finance (learn, part 2 of 5)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-heuristics-and-biases:2",
@@ -905,7 +913,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Heuristics and biases (learn, part 2 of 4)"
+   "title": "ECO3112 Heuristics and biases (learn, part 2 of 4)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-cost-of-capital-wacc:2",
@@ -913,7 +922,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (learn, part 2 of 6)"
+   "title": "FIN3020 Cost of capital (WACC) (learn, part 2 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:2",
@@ -921,7 +931,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 2 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 2 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-behavioural-finance:3",
@@ -929,7 +940,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (learn, part 3 of 5)"
+   "title": "ECO3112 Behavioural finance (learn, part 3 of 5)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-heuristics-and-biases:3",
@@ -937,7 +949,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Heuristics and biases (learn, part 3 of 4)"
+   "title": "ECO3112 Heuristics and biases (learn, part 3 of 4)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-cost-of-capital-wacc:3",
@@ -945,7 +958,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (learn, part 3 of 6)"
+   "title": "FIN3020 Cost of capital (WACC) (learn, part 3 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dcf-valuation:3",
@@ -953,7 +967,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 DCF valuation (learn, part 3 of 8)"
+   "title": "FIN3020 DCF valuation (learn, part 3 of 8)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:3",
@@ -961,7 +976,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 3 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 3 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-behavioural-finance:4",
@@ -969,7 +985,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (learn, part 4 of 5)"
+   "title": "ECO3112 Behavioural finance (learn, part 4 of 5)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-heuristics-and-biases:4",
@@ -977,7 +994,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Heuristics and biases (learn, part 4 of 4)"
+   "title": "ECO3112 Heuristics and biases (learn, part 4 of 4)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-cost-of-capital-wacc:4",
@@ -985,7 +1003,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (learn, part 4 of 6)"
+   "title": "FIN3020 Cost of capital (WACC) (learn, part 4 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-blue-ocean-strategy:1",
@@ -993,7 +1012,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Blue ocean strategy (learn, part 1 of 3)"
+   "title": "MGT3104 Blue ocean strategy (learn, part 1 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-resource-based-view:2",
@@ -1001,7 +1021,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Resource-based view (learn, part 2 of 3)"
+   "title": "MGT3104 Resource-based view (learn, part 2 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-behavioural-finance:5",
@@ -1009,7 +1030,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (learn, part 5 of 5)"
+   "title": "ECO3112 Behavioural finance (learn, part 5 of 5)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-cost-of-capital-wacc:5",
@@ -1017,7 +1039,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (learn, part 5 of 6)"
+   "title": "FIN3020 Cost of capital (WACC) (learn, part 5 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:4",
@@ -1025,7 +1048,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 4 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 4 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-blue-ocean-strategy:2",
@@ -1033,7 +1057,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Blue ocean strategy (learn, part 2 of 3)"
+   "title": "MGT3104 Blue ocean strategy (learn, part 2 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-resource-based-view:3",
@@ -1041,7 +1066,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Resource-based view (learn, part 3 of 3)"
+   "title": "MGT3104 Resource-based view (learn, part 3 of 3)",
+   "rating": 0
   },
   {
    "id": "review:eco3112-heuristics-and-biases:1",
@@ -1049,7 +1075,8 @@
    "min": 25,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Heuristics and biases (review)"
+   "title": "ECO3112 Heuristics and biases (review)",
+   "rating": 1
   },
   {
    "id": "learn:eco3112-present-bias-and-discounting:3",
@@ -1057,7 +1084,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Present bias and discounting (learn, part 3 of 3)"
+   "title": "ECO3112 Present bias and discounting (learn, part 3 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-social-preferences-and-fairness:1",
@@ -1065,7 +1093,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Social preferences and fairness (learn, part 1 of 3)"
+   "title": "ECO3112 Social preferences and fairness (learn, part 1 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:5",
@@ -1073,7 +1102,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 5 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 5 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-blue-ocean-strategy:3",
@@ -1081,7 +1111,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Blue ocean strategy (learn, part 3 of 3)"
+   "title": "MGT3104 Blue ocean strategy (learn, part 3 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-porter-s-five-forces:1",
@@ -1089,7 +1120,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Porter's five forces (learn, part 1 of 2)"
+   "title": "MGT3104 Porter's five forces (learn, part 1 of 2)",
+   "rating": 0
   },
   {
    "id": "review:fin3020-cost-of-capital-wacc:1",
@@ -1097,7 +1129,8 @@
    "min": 25,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (review)"
+   "title": "FIN3020 Cost of capital (WACC) (review)",
+   "rating": 1
   },
   {
    "id": "learn:eco3112-social-preferences-and-fairness:2",
@@ -1105,7 +1138,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Social preferences and fairness (learn, part 2 of 3)"
+   "title": "ECO3112 Social preferences and fairness (learn, part 2 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dcf-valuation:4",
@@ -1113,7 +1147,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 DCF valuation (learn, part 4 of 8)"
+   "title": "FIN3020 DCF valuation (learn, part 4 of 8)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dividend-policy:6",
@@ -1121,7 +1156,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (learn, part 6 of 6)"
+   "title": "FIN3020 Dividend policy (learn, part 6 of 6)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-dynamic-capabilities:1",
@@ -1129,7 +1165,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Dynamic capabilities (learn, part 1 of 2)"
+   "title": "MGT3104 Dynamic capabilities (learn, part 1 of 2)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-porter-s-five-forces:2",
@@ -1137,7 +1174,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Porter's five forces (learn, part 2 of 2)"
+   "title": "MGT3104 Porter's five forces (learn, part 2 of 2)",
+   "rating": 0
   },
   {
    "id": "learn:eco3112-social-preferences-and-fairness:3",
@@ -1145,7 +1183,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Social preferences and fairness (learn, part 3 of 3)"
+   "title": "ECO3112 Social preferences and fairness (learn, part 3 of 3)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dcf-valuation:5",
@@ -1153,7 +1192,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 DCF valuation (learn, part 5 of 8)"
+   "title": "FIN3020 DCF valuation (learn, part 5 of 8)",
+   "rating": 0
   },
   {
    "id": "learn:mgt3104-dynamic-capabilities:2",
@@ -1161,7 +1201,8 @@
    "min": 50,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Dynamic capabilities (learn, part 2 of 2)"
+   "title": "MGT3104 Dynamic capabilities (learn, part 2 of 2)",
+   "rating": 0
   },
   {
    "id": "review:eco3112-behavioural-finance:2",
@@ -1169,7 +1210,8 @@
    "min": 25,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Behavioural finance (review)"
+   "title": "ECO3112 Behavioural finance (review)",
+   "rating": 2
   },
   {
    "id": "review:fin3020-dividend-policy:1",
@@ -1177,7 +1219,8 @@
    "min": 25,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Dividend policy (review)"
+   "title": "FIN3020 Dividend policy (review)",
+   "rating": 1
   },
   {
    "id": "review:mgt3104-porter-s-five-forces:1",
@@ -1185,7 +1228,8 @@
    "min": 25,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Porter's five forces (review)"
+   "title": "MGT3104 Porter's five forces (review)",
+   "rating": 3
   },
   {
    "id": "review:mgt3104-resource-based-view:2",
@@ -1193,7 +1237,8 @@
    "min": 25,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Resource-based view (review)"
+   "title": "MGT3104 Resource-based view (review)",
+   "rating": 3
   },
   {
    "id": "learn:eco3112-nudges-and-choice-architecture:1",
@@ -1201,7 +1246,8 @@
    "min": 50,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Nudges and choice architecture (learn, part 1 of 4)"
+   "title": "ECO3112 Nudges and choice architecture (learn, part 1 of 4)",
+   "rating": 0
   },
   {
    "id": "learn:fin3020-dcf-valuation:6",
@@ -1209,7 +1255,8 @@
    "min": 50,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 DCF valuation (learn, part 6 of 8)"
+   "title": "FIN3020 DCF valuation (learn, part 6 of 8)",
+   "rating": 0
   },
   {
    "id": "review:eco3112-social-preferences-and-fairness:1",
@@ -1217,7 +1264,8 @@
    "min": 25,
    "exam": "eco3112",
    "code": "ECO3112",
-   "title": "ECO3112 Social preferences and fairness (review)"
+   "title": "ECO3112 Social preferences and fairness (review)",
+   "rating": 2
   },
   {
    "id": "review:fin3020-cost-of-capital-wacc:2",
@@ -1225,7 +1273,8 @@
    "min": 25,
    "exam": "fin3020",
    "code": "FIN3020",
-   "title": "FIN3020 Cost of capital (WACC) (review)"
+   "title": "FIN3020 Cost of capital (WACC) (review)",
+   "rating": 2
   },
   {
    "id": "review:mgt3104-dynamic-capabilities:1",
@@ -1233,7 +1282,8 @@
    "min": 25,
    "exam": "mgt3104",
    "code": "MGT3104",
-   "title": "MGT3104 Dynamic capabilities (review)"
+   "title": "MGT3104 Dynamic capabilities (review)",
+   "rating": 3
   }
  ],
  "settled": [],
