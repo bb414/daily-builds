@@ -142,10 +142,10 @@ Tests skip cleanly when Node, Playwright or Chromium is missing.
 
 | Part | Language | Lines (roughly) |
 |---|---|---|
-| The model: reading exports, matching, statistics, rules, days, the review, files (`src/model.js`) | JavaScript | 2,160 |
+| The model: reading exports, matching, statistics, rules, days, the review, files (`src/model.js`) | JavaScript | 2,170 |
 | The interface (`src/ui.js`, `src/style.css`, `src/shell.html` with the hand-drawn hero) | JavaScript, CSS, HTML | 2,390 |
 | The companion (`companion/`): the same model (about 2,900 lines), plus the weekly job, team review, period and weekly reports and the command line (about 900) | Python | 3,830 |
-| Tests (`tests/`) | JavaScript, Python | 1,380 |
+| Tests (`tests/`) | JavaScript, Python | 1,410 |
 | Sample generator, build and screenshot tools (`tools/`) | Python | 780 |
 
 `tools/build_app.py` writes `app/index.html` from `src/` with the fonts and samples embedded; `tools/make_samples.py` makes every sample file from a fixed seed.
@@ -164,7 +164,7 @@ Tests skip cleanly when Node, Playwright or Chromium is missing.
 
 - It is not financial advice and does not suggest trades.
 - Profit counts when a position closes. Open positions are listed but not valued: an export has no current price.
-- Positions opened before the first export cannot be matched; their closing fills are listed and left out (or set the account to long only).
+- Positions opened before the first export are counted only once you type in the opening date and price; until then their closing fills are listed and left out of the figures.
 - One fixed exchange rate per currency for totals; each trade keeps its own currency.
 - Options are treated as contracts with a multiplier; exercise, assignment and expiry rows are not modelled.
 - Times are used as written, without time zones. Two fills that are identical in every field and second are told apart only by their count within each file.
