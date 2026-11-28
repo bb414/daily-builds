@@ -29,6 +29,7 @@ Everything runs in your browser or on your own computer. Nothing you load is sen
 - Column names used by UK banks and apps: Date, Transaction date, Posted, Completed date; Description, Name, Payee, Counter party, Details, Narrative; Amount, Paid out and Paid in, Money out and Money in, Debit and Credit, a separate debit or credit marker; plus payment type, category, balance, currency and status columns where they exist. Unfamiliar names are worked out from the contents, and you can always choose the columns yourself.
 - Amounts written as `-12.99`, `£1,234.56`, `(24.99)`, `18.30 DR`, `5.00 CR`, `£18.00-` or `12,50`. Credit card exports where spending is positive are recognised (and you can switch the sign by hand).
 - Dates as `14/03/2026`, `14-03-26`, `2026-03-14`, `14 Mar 2026`, `Sat 14 Mar 2026`, `March 14, 2026` or timestamps. If every date could be read either way, UK order is assumed and the app says so.
+- OFX downloads (the Money and Quicken format many banks offer, in its older SGML form or as XML) and QIF files, including Quicken's `28/11'26` dates.
 - Declined, reversed and pending rows are left out, because no money left the account.
 
 The file [`data/template.csv`](data/template.csv) shows the layout that always reads cleanly:
@@ -51,9 +52,9 @@ Date,Description,Type,Amount,Balance
 
 ## A worked example
 
-The app opens with four invented exports for a fictional student (every company is made up): a current account in the signed-amount layout, a credit card export with four lines of account details above a "Paid out / Paid in" header, a spending app export with ISO dates and notes, and a deliberately messy re-export of the current account's last two months.
+The app opens with five invented exports for a fictional student (every company is made up): a current account in the signed-amount layout, a credit card export with four lines of account details above a "Paid out / Paid in" header, a spending app export with ISO dates and notes, a savings account as an OFX download, and a deliberately messy re-export of the current account's last two months. A sixth sample, [`data/bills-account.qif`](data/bills-account.qif), is a housemates' bills account in QIF form for trying the import on.
 
-It reads 749 payments from the 754 rows, notices that the messy file is the current account again (100% of its payments match, so its 97 payments are counted once, leaving 652), lists the 5 rows it could not use with the reason for each (a date of "TBC", an amount of "n/a", the impossible date 32/10/2026, a repeated header and a total line), and matches 10 transfers between the student's own accounts.
+It reads 772 payments from the 777 rows, notices that the messy file is the current account again (100% of its payments match, so its 97 payments are counted once, leaving 675), lists the 5 rows it could not use with the reason for each (a date of "TBC", an amount of "n/a", the impossible date 32/10/2026, a repeated header and a total line), and matches 21 transfers between the student's own accounts, including every monthly £50 into savings.
 
 It finds **22 regular payments**: weekly, fortnightly, every-four-weeks and monthly ones, card payments, direct debits and standing orders. Committed spending comes to **£838.93 a month (£10,067.13 a year)**, of which £621.31 is essentials, not counting £50 a month to savings or the credit card repayment that only moves money between the student's accounts. Among the checks:
 
@@ -145,6 +146,5 @@ The same logic lives in `src/model.js` and `companion/stillpaying/`; the agreeme
 
 ## What could come next
 
-- Reading OFX and QIF files, which some banks offer alongside CSV.
 - Suggesting cheaper switches for the essentials (broadband and phone contracts that have passed their minimum term).
 - A shared-house mode that splits the household bills between housemates and works out who owes what.

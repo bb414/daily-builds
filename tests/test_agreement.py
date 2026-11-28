@@ -7,7 +7,7 @@ skipped, with a message, when node is not installed.
 
 import unittest
 
-from helpers import NODE, SAMPLES, first_difference, plain, run_bridge, sample_files, sample_text, sp, truncate
+from helpers import NODE, OTHER_FORMATS, SAMPLES, first_difference, plain, run_bridge, sample_files, sample_text, sp, truncate
 from stillpaying.outputs import ics_fold
 from stillpaying.parsing import map_header
 
@@ -88,6 +88,17 @@ ACCOUNT_NAMES = ['current-account.csv', 'messy-export.csv', 'Statement_2026-11-2
                  '\u00dftatement.txt', 'credit-card-statement-2026-11.tsv', 'my.bank.export.csv', '2026.csv']
 
 EDGE_FILES = {
+    'xml.ofx': ('<?xml version="1.0" encoding="UTF-8"?>\n<?OFX OFXHEADER="200" VERSION="220"?>\n<OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS>'
+                '<CCSTMTRS><CURDEF>GBP</CURDEF><CCACCTFROM><ACCTID>1</ACCTID></CCACCTFROM><BANKTRANLIST>'
+                + ''.join('<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>2026%02d14120000.000[0:GMT]</DTPOSTED><TRNAMT>-7.99</TRNAMT>'
+                          '<NAME>NOTEBOOK APP &amp; SYNC</NAME><MEMO>Monthly plan</MEMO></STMTTRN>' % m for m in range(1, 8))
+                + '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><TRNAMT>-1.00</TRNAMT><NAME>NO DATE</NAME></STMTTRN>'
+                + '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260230</DTPOSTED><TRNAMT>-1.00</TRNAMT><NAME>BAD DATE</NAME></STMTTRN>'
+                + '<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260301</DTPOSTED><TRNAMT>abc</TRNAMT><NAME>BAD AMOUNT</NAME></STMTTRN>'
+                '</BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>'),
+    'us-dates.qif': ('!Type:CCard\n' + ''.join('D%d/%d/2026\nU-12.50\nT-12.50\nPSTREAMING CO\nMMonthly\nLEntertainment\n^\n' % (m, 15) for m in range(1, 7))
+                     + 'D13/45/2026\nT-1\nPBROKEN\n^\nD1/2/2026\nPNO AMOUNT\n^\nT-3.00\nPNO DATE\n^\n'),
+
     'headerless.csv': '03/09/2026,NETFLIX.COM,-10.99,412.10\n05/09/2026,GREENGATE SUPERMARKET,-23.10,389.00\n'
                       '03/10/2026,NETFLIX.COM,-10.99,378.01\n12/10/2026,CAMPUS CAFE PAYROLL,412.50,790.51\n'
                       '03/11/2026,NETFLIX.COM,-10.99,779.52\n20/11/2026,GREENGATE SUPERMARKET,-18.45,761.07\n'
@@ -157,6 +168,9 @@ def analysis_jobs(earlier_project):
     """Every analysis compared between the two versions, as (label, job) pairs."""
     jobs = [(name, {'files': sample_files([name]), 'decisions': DECISIONS}) for name in SAMPLES]
     jobs.append(('all four samples', {'files': sample_files(), 'decisions': DECISIONS}))
+    for name in OTHER_FORMATS:
+        jobs.append((name, {'files': sample_files([name]), 'decisions': DECISIONS}))
+    jobs.append(('all six samples', {'files': sample_files(SAMPLES + OTHER_FORMATS), 'decisions': DECISIONS}))
     jobs.append(('all four, no decisions, later date', {'files': sample_files(), 'asOf': '2027-01-20',
                                                         'budgetMonths': 3, 'icsDays': 200, 'icsIncludeIncome': True}))
     jobs.append(('choices carried', {

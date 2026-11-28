@@ -20,7 +20,7 @@ from .present import changes_markdown, flag_label, headline, price_history_csv, 
 from .report import render_report
 
 WIDTH = 100
-EXTENSIONS = ('.csv', '.tsv', '.txt')
+EXTENSIONS = ('.csv', '.tsv', '.txt', '.ofx', '.qfx', '.qif')
 OWN_OUTPUTS = re.compile(r'^(regular-payments|price-history|budget-\d+-months)\.csv$', re.IGNORECASE)
 REVIEW_NAME = re.compile(r'^review-(\d{4}-\d{2}-\d{2})\.json$')
 
@@ -47,7 +47,7 @@ def read_text(path):
 def collect_exports(paths):
     """The exports named on the command line, plus notes about anything left out.
 
-    A folder gives every .csv, .tsv and .txt file directly inside it, sorted
+    A folder gives every .csv, .tsv, .txt, .ofx, .qfx and .qif file directly inside it, sorted
     by name, apart from the files this tool writes and the blank template.
     """
     files, notes = [], []
@@ -416,7 +416,7 @@ def build_parser():
     commands = parser.add_subparsers(dest='command', metavar='command', required=True)
 
     scan = commands.add_parser('scan', help='read exports and write the register, budget, calendar, review and report',
-                               description='Read bank exports (files, or folders of .csv, .tsv and .txt files) and '
+                               description='Read bank exports (CSV, TSV, OFX or QIF files, or folders of them) and '
                                            'write regular-payments.csv, budget-12-months.csv, upcoming.ics, '
                                            'review.json and report.html.')
     scan.add_argument('paths', nargs='+', metavar='PATH', help='an export file or a folder of them')

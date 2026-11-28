@@ -331,6 +331,56 @@ def write_messy(cur, path, rng):
         f.write("﻿" + "\r\n".join(lines) + "\r\n")
 
 
+def write_ofx(cur, path, rng):
+    """A savings account as an OFX download (the older SGML form, as most banks still send it)."""
+    rows = []
+    for d, p, desc, kind, _, _ in cur.sorted():
+        if desc == "SAVINGS TRANSFER":
+            rows.append((d, -p, "SAVINGS TRANSFER FROM CURRENT", "XFER"))
+    month = dt.date(2025, 12, 31)
+    balance = 120000
+    while month <= END:
+        interest = max(1, balance * 3 // 1200)
+        rows.append((month, interest, "INTEREST PAID", "INT"))
+        balance += interest + 5000
+        nxt = month + dt.timedelta(days=1)
+        month = dt.date(nxt.year + (nxt.month == 12), nxt.month % 12 + 1, 1) - dt.timedelta(days=1)
+    rows.append((dt.date(2026, 1, 19), -20000, "TRANSFER TO CURRENT", "XFER"))
+    rows.sort()
+    out = ["OFXHEADER:100", "DATA:OFXSGML", "VERSION:102", "SECURITY:NONE", "ENCODING:USASCII", "CHARSET:1252",
+           "COMPRESSION:NONE", "OLDFILEUID:NONE", "NEWFILEUID:NONE", "",
+           "<OFX>", "<SIGNONMSGSRSV1><SONRS><STATUS><CODE>0<SEVERITY>INFO</STATUS><DTSERVER>20261128090000<LANGUAGE>ENG</SONRS></SIGNONMSGSRSV1>",
+           "<BANKMSGSRSV1><STMTTRNRS><TRNUID>1<STATUS><CODE>0<SEVERITY>INFO</STATUS>",
+           "<STMTRS><CURDEF>GBP<BANKACCTFROM><BANKID>000000<ACCTID>00004417<ACCTTYPE>SAVINGS</BANKACCTFROM>",
+           "<BANKTRANLIST><DTSTART>20251201<DTEND>20261127"]
+    for i, (d, p, desc, kind) in enumerate(rows):
+        out += ["<STMTTRN>", "<TRNTYPE>" + kind, "<DTPOSTED>" + d.strftime("%Y%m%d") + "000000[0:GMT]",
+                "<TRNAMT>" + ("-" if p < 0 else "") + money(p), "<FITID>%08d" % (i + 1), "<NAME>" + desc, "</STMTTRN>"]
+    out += ["</BANKTRANLIST>", "<LEDGERBAL><BALAMT>%s<DTASOF>20261127</LEDGERBAL>" % money(balance), "</STMTRS></STMTTRNRS></BANKMSGSRSV1>", "</OFX>"]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write("\r\n".join(out) + "\r\n")
+
+
+def write_qif(path, rng):
+    """A joint bills account kept by housemates, as a QIF file with Quicken's apostrophe years."""
+    rows = []
+    for d in month_days(dt.date(2026, 4, 1), END, 1, True):
+        rows.append((d, -11800, "DOWNSHIRE COUNCIL TAX", "DD"))
+    for d in month_days(dt.date(2026, 2, 1), END, 6, True):
+        rows.append((d, -3140, "WESTWATER WATER SERVICES", "DD"))
+    for d in month_days(dt.date(2026, 2, 1), END, 1, False):
+        rows.append((d - dt.timedelta(days=rng.randint(1, 4)), 7500, "FROM HOUSEMATES BILLS POT", ""))
+    rows.sort()
+    out = ["!Type:Bank"]
+    for d, p, desc, num in rows:
+        out += ["D%02d/%02d'%02d" % (d.day, d.month, d.year % 100), "T" + ("-" if p < 0 else "") + money(p), "P" + desc]
+        if num:
+            out.append("N" + num)
+        out.append("^")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write("\r\n".join(out) + "\r\n")
+
+
 TEMPLATE = [
     ["Date", "Description", "Type", "Amount", "Balance"],
     ["01/11/2026", "HARBOUR LETTINGS RENT", "Standing order", "-525.00", "812.40"],
@@ -348,6 +398,10 @@ def main():
     write_card(card, os.path.join(DATA, "credit-card.csv"))
     write_app(app, os.path.join(DATA, "spending-app.csv"), rng)
     write_messy(cur, os.path.join(DATA, "messy-export.csv"), rng)
+    # A second random stream, so adding these files leaves the ones above unchanged.
+    rng2 = random.Random(SEED + 1)
+    write_ofx(cur, os.path.join(DATA, "savings-account.ofx"), rng2)
+    write_qif(os.path.join(DATA, "bills-account.qif"), rng2)
     with open(os.path.join(DATA, "template.csv"), "w", encoding="utf-8", newline="") as f:
         f.write("﻿" + "\r\n".join(",".join(r) for r in TEMPLATE) + "\r\n")
     with open(os.path.join(DATA, "sample-truth.json"), "w", encoding="utf-8") as f:

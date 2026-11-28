@@ -5,6 +5,7 @@ given for skipped rows and the line numbers they are recorded against.
 """
 
 import math
+import re
 
 from .common import collapse_spaces, js_keys, js_regex, js_string, js_trim, text_or
 from .dates import MONTHS, valid_day
@@ -111,7 +112,7 @@ def full_year(y):
 _WEEKDAY_PREFIX = js_regex(r'^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+', 'i')
 _ISO_DATE = js_regex(r'^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s])')
 _YEAR_FIRST = js_regex(r'^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})(?:$|\s)')
-_COMPACT = js_regex(r'^(\d{4})(\d{2})(\d{2})(?:\d{6})?(?:\.\d+)?(?:\[.*\])?$')
+_COMPACT = js_regex(r'^(\d{4})(\d{2})(\d{2})(?:\d{4}(?:\d{2})?)?(?:\.\d+)?(?:\s*\[.*\])?$')
 _NUMERIC_PAIR = js_regex(r'^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})(?:$|[\sT,])')
 _DAY_MONTH_NAME = js_regex(r'^(\d{1,2})(?:st|nd|rd|th)?[\s\-\/.]*([A-Za-z]{3,9})\.?[\s\-\/.,]*'
                            r'(\d{2}|\d{4})(?:$|[\sT,])')
@@ -702,6 +703,197 @@ def default_account(name):
     return n[0].upper() + n[1:]
 
 
+def _line_at(text, index):
+    return text.count('\n', 0, index) + 1
+
+
+def _new_result(name, fmt, options):
+    return {'name': name or 'statement', 'format': fmt, 'account': options.get('account') or default_account(name),
+            'transactions': [], 'skipped': [], 'warnings': [], 'layout': None, 'ok': False, 'rowCount': 0,
+            'blankRows': 0}
+
+
+OFX_TYPES = {'DIRECTDEBIT': 'Direct debit', 'REPEATPMT': 'Standing order', 'POS': 'Card payment', 'ATM': 'Cash machine',
+             'XFER': 'Transfer', 'CHECK': 'Cheque', 'PAYMENT': 'Payment', 'FEE': 'Fee', 'SRVCHG': 'Service charge',
+             'INT': 'Interest', 'DIV': 'Dividend', 'DEP': 'Deposit', 'DIRECTDEP': 'Bank credit', 'CASH': 'Cash',
+             'CREDIT': 'Credit', 'DEBIT': 'Debit', 'OTHER': ''}
+# [\s\S] in the JavaScript means any character, which is "." with DOTALL here.
+_STMTTRN = re.compile(r'<STMTTRN>(.*?)(?:</STMTTRN>|(?=<STMTTRN>)|(?=</BANKTRANLIST>))', re.IGNORECASE | re.DOTALL)
+_CARD_STATEMENT = js_regex(r'<CCSTMTRS>|<CCACCTFROM>', 'i')
+_SPACES = js_regex(r'\s+')
+
+
+def _ofx_get(block, tag):
+    m = js_regex('<' + tag + '>([^<\\r\\n]*)', 'i').search(block)
+    return js_trim(m.group(1)) if m else ''
+
+
+def _ofx_unescape(s):
+    return (s.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&apos;', "'")
+            .replace('&amp;', '&'))
+
+
+def parse_ofx(text, name=None, options=None):
+    """Read an OFX file (the Money and Quicken download many banks offer), in SGML or XML form."""
+    options = options or {}
+    text = strip_bom(text_or(text))
+    result = _new_result(name, 'ofx', options)
+    cur = _ofx_get(text, 'CURDEF').upper()
+    is_card = bool(_CARD_STATEMENT.search(text))
+    for m in _STMTTRN.finditer(text):
+        block, line = m.group(1), _line_at(text, m.start())
+        result['rowCount'] += 1
+        date_text = _ofx_get(block, 'DTPOSTED') or _ofx_get(block, 'DTUSER')
+        amount_text = _ofx_get(block, 'TRNAMT')
+        nm, memo = _ofx_unescape(_ofx_get(block, 'NAME')), _ofx_unescape(_ofx_get(block, 'MEMO'))
+        raw = ('<STMTTRN> ' + ' | '.join(x for x in [date_text, amount_text, nm, memo] if x))[:160]
+        if not date_text:
+            result['skipped'].append({'line': line, 'reason': 'No date in this transaction', 'raw': raw})
+            continue
+        day = parse_date(date_text, 'DMY')
+        if day is None:
+            result['skipped'].append({'line': line, 'reason': 'Could not read the date "' + date_text[:30] + '"', 'raw': raw})
+            continue
+        amount = parse_amount(amount_text)
+        if amount is None:
+            reason = ('Could not read the amount "' + amount_text[:20] + '"') if amount_text else 'No amount in this transaction'
+            result['skipped'].append({'line': line, 'reason': reason, 'raw': raw})
+            continue
+        if amount == 0:
+            result['skipped'].append({'line': line, 'reason': 'A zero amount, so nothing was paid', 'raw': raw})
+            continue
+        trn_type = _ofx_get(block, 'TRNTYPE').upper()
+        desc = _SPACES.sub(' ', nm or memo or '(no description)')
+        result['transactions'].append({'day': day, 'amount': amount, 'desc': desc, 'memo': _SPACES.sub(' ', memo) if nm else '',
+                                       'type': OFX_TYPES.get(trn_type, trn_type), 'category': '',
+                                       'account': result['account'], 'source': result['name'], 'line': line})
+    if not result['rowCount']:
+        result['error'] = 'This OFX file has no transactions in it.'
+        finish_range(result)
+        return result
+    if cur and cur != 'GBP':
+        result['warnings'].append('This file is in ' + cur + '. Amounts are used as they are.')
+    result['layout'] = {'format': 'ofx', 'description': 'an OFX download (the Money and Quicken format) for a '
+                        + ('credit card' if is_card else 'bank account')
+                        + ', with dates from DTPOSTED, signed amounts from TRNAMT and payees from NAME',
+                        'mapping': None, 'headers': None}
+    result['ok'] = len(result['transactions']) > 0
+    if not result['ok']:
+        result['error'] = 'No payments could be read from this file. The transactions it skipped are listed with reasons.'
+    finish_range(result)
+    return result
+
+
+_LINE_BREAKS = js_regex(r'\r\n|\n|\r')
+_QIF_YEAR = js_regex(r"'\s*(\d{1,2})$")
+_ALL_DIGITS = js_regex(r'^\d+$')
+
+
+def _qif_date(s):
+    """Quicken writes years after 2000 as 28/11'26 or 11/28' 6."""
+    s = _QIF_YEAR.sub(lambda m: '/' + ('0' + m.group(1) if len(m.group(1)) == 1 else m.group(1)), s, count=1)
+    return s.replace("'", '/')
+
+
+def parse_qif(text, name=None, options=None):
+    """Read a QIF file (the older Quicken interchange format): one field per line, records ending in ^."""
+    options = options or {}
+    text = strip_bom(text_or(text))
+    result = _new_result(name, 'qif', options)
+    records, rec = [], None
+    for i, line in enumerate(_LINE_BREAKS.split(text)):
+        if not js_trim(line):
+            continue
+        if line[0] == '!':
+            continue
+        if rec is None:
+            rec = {'line': i + 1, 'fields': {}}
+        if line[0] == '^':
+            records.append(rec)
+            rec = None
+            continue
+        code, val = line[0], js_trim(line[1:])
+        if code not in rec['fields']:
+            rec['fields'][code] = val
+    if rec is not None and rec['fields']:
+        records.append(rec)
+    if options.get('dateOrder'):
+        date_order = options['dateOrder']
+    else:
+        info = detect_date_order([_qif_date(r['fields'].get('D', '')) for r in records])
+        date_order = info['order']
+        if info['ambiguous']:
+            result['warnings'].append(WARN_AMBIGUOUS)
+    for r in records:
+        result['rowCount'] += 1
+        f = r['fields']
+        raw = ' | '.join(k + f[k] for k in js_keys(f))[:160]
+        if not f.get('D'):
+            result['skipped'].append({'line': r['line'], 'reason': 'No date in this record', 'raw': raw})
+            continue
+        day = parse_date(_qif_date(f['D']), date_order)
+        if day is None:
+            result['skipped'].append({'line': r['line'], 'reason': 'Could not read the date "' + f['D'][:30] + '"', 'raw': raw})
+            continue
+        at = f['T'] if 'T' in f else f.get('U')
+        amount = parse_amount(at)
+        if amount is None:
+            reason = ('Could not read the amount "' + at[:20] + '"') if at else 'No amount in this record'
+            result['skipped'].append({'line': r['line'], 'reason': reason, 'raw': raw})
+            continue
+        if amount == 0:
+            result['skipped'].append({'line': r['line'], 'reason': 'A zero amount, so nothing was paid', 'raw': raw})
+            continue
+        desc = _SPACES.sub(' ', f.get('P') or f.get('M') or '(no description)')
+        number = f.get('N') or ''
+        result['transactions'].append({'day': day, 'amount': amount, 'desc': desc,
+                                       'memo': _SPACES.sub(' ', f.get('M') or '') if f.get('P') else '',
+                                       'type': number if number and not _ALL_DIGITS.search(number) else '',
+                                       'category': f.get('L') or '', 'account': result['account'],
+                                       'source': result['name'], 'line': r['line']})
+    if not result['rowCount']:
+        result['error'] = 'This QIF file has no transactions in it.'
+        finish_range(result)
+        return result
+    result['layout'] = {'format': 'qif', 'description': 'a QIF file (the Quicken interchange format), with dates from D ('
+                        + ('month first' if date_order == 'MDY' else 'day first') + '), amounts from T and payees from P',
+                        'mapping': None, 'headers': None, 'dateOrder': date_order}
+    result['ok'] = len(result['transactions']) > 0
+    if not result['ok']:
+        result['error'] = 'No payments could be read from this file. The records it skipped are listed with reasons.'
+    finish_range(result)
+    return result
+
+
+_OFX_HEADER = js_regex(r'^\s*OFXHEADER\s*:', 'i')
+_OFX_XML = js_regex(r'^\s*<\?xml[^>]*>\s*<\?OFX', 'i')
+_OFX_START = js_regex(r'^\s*<OFX>', 'i')
+_OFX_TAG = js_regex(r'<OFX>', 'i')
+_OFX_TRN = js_regex(r'<STMTTRN>', 'i')
+_QIF_HEADER = js_regex(r'^\s*!(Type|Account|Option)', 'i')
+_QIF_SHAPE = js_regex(r'^\s*D[^\r\n]+\r?\n(?:[A-Z][^\r\n]*\r?\n)*?T-?[\d.,]+\r?\n')
+_QIF_END = js_regex(r'\n\^')
+
+
+def sniff_format(text):
+    """What kind of file this is, from its content rather than its name."""
+    full = strip_bom(text_or(text))
+    head = full[:4000]
+    if (_OFX_HEADER.search(head) or _OFX_XML.search(head) or _OFX_START.search(head)
+            or (_OFX_TAG.search(head) and _OFX_TRN.search(text_or(text)))):
+        return 'ofx'
+    if _QIF_HEADER.search(head):
+        return 'qif'
+    if _QIF_SHAPE.search(head) and _QIF_END.search(head):
+        return 'qif'
+    return 'csv'
+
+
 def parse_statement(text, name=None, options=None):
-    """Read any supported file: delimited text (CSV, TSV, pasted tables)."""
+    """Read any supported file: delimited text (CSV, TSV, pasted tables), OFX or QIF."""
+    fmt = sniff_format(text)
+    if fmt == 'ofx':
+        return parse_ofx(text, name, options)
+    if fmt == 'qif':
+        return parse_qif(text, name, options)
     return parse_csv(text, name, options)

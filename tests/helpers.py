@@ -11,6 +11,8 @@ DATA = os.path.join(ROOT, 'data')
 COMPANION = os.path.join(ROOT, 'companion')
 BRIDGE = os.path.join(ROOT, 'tests', 'js_bridge.js')
 SAMPLES = ['current-account.csv', 'credit-card.csv', 'spending-app.csv', 'messy-export.csv']
+# Samples in the other formats banks offer.
+OTHER_FORMATS = ['savings-account.ofx', 'bills-account.qif']
 NODE = shutil.which('node')
 
 if COMPANION not in sys.path:

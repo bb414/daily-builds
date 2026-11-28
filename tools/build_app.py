@@ -34,6 +34,7 @@ SAMPLES = [
     ("credit-card.csv", None),
     ("spending-app.csv", None),
     ("messy-export.csv", None),
+    ("savings-account.ofx", None),
 ]
 
 

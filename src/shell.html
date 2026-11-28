@@ -148,13 +148,13 @@
     <div class="view-head">
       <p class="view-kicker">Step 1 of 4</p>
       <h2>Bring in your statements</h2>
-      <p class="view-intro">Download a CSV export from your banking app or website (most let you choose a date range: a full year finds yearly renewals too) and drop it here. Add as many accounts or months as you like; overlapping months are only counted once.</p>
+      <p class="view-intro">Download a CSV export from your banking app or website (or an OFX or QIF file, if that is what your bank offers; most let you choose a date range: a full year finds yearly renewals too) and drop it here. Add as many accounts or months as you like; overlapping months are only counted once.</p>
     </div>
     <div class="intake">
       <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-describedby="drop-help">
         <svg class="inlet" viewBox="0 0 120 90" aria-hidden="true"><rect x="22" y="6" width="56" height="44" rx="4" fill="#fbf7ee" stroke="#13312d" stroke-width="3" transform="rotate(-8 50 28)"/><path d="M32 18h30M32 26h36M32 34h24" stroke="#b4643a" stroke-width="3" stroke-linecap="round" transform="rotate(-8 50 28)"/><path d="M14 52h92l-14 18H28z" fill="#b4643a" stroke="#13312d" stroke-width="3"/><rect x="48" y="70" width="24" height="18" fill="#c06c3d" stroke="#13312d" stroke-width="3"/></svg>
         <p class="drop-title">Drop bank exports here</p>
-        <p class="drop-help" id="drop-help">CSV, TSV or text files from any bank app, card or spending app. You can also drop a saved review (.json) to carry on where you left off.</p>
+        <p class="drop-help" id="drop-help">CSV, TSV, OFX or QIF files from any bank app, card or spending app. You can also drop a saved review (.json) to carry on where you left off.</p>
         <div class="drop-actions">
           <button type="button" class="btn btn-copper" data-action="choose-files">Choose files</button>
           <button type="button" class="btn btn-plain" data-action="download-template">Download the template</button>
@@ -212,7 +212,7 @@
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<input type="file" id="file-input" multiple accept=".csv,.tsv,.txt,.json,text/csv,text/plain,application/json" hidden>
+<input type="file" id="file-input" multiple accept=".csv,.tsv,.txt,.ofx,.qfx,.qif,.json,text/csv,text/plain,application/json" hidden>
 <input type="file" id="review-input" accept=".json,application/json" hidden>
 <script type="application/json" id="sample-files">/*SAMPLES*/</script>
 <script>

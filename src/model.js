@@ -201,7 +201,7 @@
     if (m) return { kind: 'fixed', day: validDay(+m[1], +m[2], +m[3]) };
     m = /^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})(?:$|\s)/.exec(t);
     if (m) return { kind: 'fixed', day: validDay(+m[1], +m[2], +m[3]) };
-    m = /^(\d{4})(\d{2})(\d{2})(?:\d{6})?(?:\.\d+)?(?:\[.*\])?$/.exec(t);
+    m = /^(\d{4})(\d{2})(\d{2})(?:\d{4}(?:\d{2})?)?(?:\.\d+)?(?:\s*\[.*\])?$/.exec(t);
     if (m) return { kind: 'fixed', day: validDay(+m[1], +m[2], +m[3]) };
     m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})(?:$|[\sT,])/.exec(t);
     if (m) return { kind: 'pair', a: +m[1], b: +m[2], y: fullYear(m[3]) };
@@ -547,7 +547,117 @@
   }
 
   /** Read any supported file: delimited text (CSV, TSV, pasted tables). */
+  function lineAt(text, index) {
+    var n = 1;
+    for (var i = 0; i < index; i++) if (text.charCodeAt(i) === 10) n++;
+    return n;
+  }
+  function newResult(name, format, options) {
+    return { name: name || 'statement', format: format, account: options.account || defaultAccount(name), transactions: [], skipped: [], warnings: [], layout: null, ok: false, rowCount: 0, blankRows: 0 };
+  }
+  var OFX_TYPES = { DIRECTDEBIT: 'Direct debit', REPEATPMT: 'Standing order', POS: 'Card payment', ATM: 'Cash machine', XFER: 'Transfer', CHECK: 'Cheque', PAYMENT: 'Payment', FEE: 'Fee', SRVCHG: 'Service charge', INT: 'Interest', DIV: 'Dividend', DEP: 'Deposit', DIRECTDEP: 'Bank credit', CASH: 'Cash', CREDIT: 'Credit', DEBIT: 'Debit', OTHER: '' };
+
+  /**
+   * Read an OFX file (the Money and Quicken download many banks offer). Works
+   * for the older SGML form, where values have no closing tags, and for XML.
+   */
+  function parseOfx(text, name, options) {
+    options = options || {};
+    text = stripBom(String(text || ''));
+    var result = newResult(name, 'ofx', options);
+    var re = /<STMTTRN>([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>)|(?=<\/BANKTRANLIST>))/gi, m;
+    var get = function (block, tag) {
+      var mm = new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i').exec(block);
+      return mm ? mm[1].trim() : '';
+    };
+    var unescape = function (s) { return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'); };
+    var cur = get(text, 'CURDEF').toUpperCase();
+    var isCard = /<CCSTMTRS>|<CCACCTFROM>/i.test(text);
+    while ((m = re.exec(text))) {
+      var block = m[1], line = lineAt(text, m.index);
+      result.rowCount++;
+      var dateText = get(block, 'DTPOSTED') || get(block, 'DTUSER');
+      var amountText = get(block, 'TRNAMT');
+      var nm = unescape(get(block, 'NAME')), memo = unescape(get(block, 'MEMO'));
+      var raw = ('<STMTTRN> ' + [dateText, amountText, nm, memo].filter(Boolean).join(' | ')).slice(0, 160);
+      if (!dateText) { result.skipped.push({ line: line, reason: 'No date in this transaction', raw: raw }); continue; }
+      var day = parseDate(dateText, 'DMY');
+      if (day === null) { result.skipped.push({ line: line, reason: 'Could not read the date "' + dateText.slice(0, 30) + '"', raw: raw }); continue; }
+      var amount = parseAmount(amountText);
+      if (amount === null) { result.skipped.push({ line: line, reason: amountText ? 'Could not read the amount "' + amountText.slice(0, 20) + '"' : 'No amount in this transaction', raw: raw }); continue; }
+      if (amount === 0) { result.skipped.push({ line: line, reason: 'A zero amount, so nothing was paid', raw: raw }); continue; }
+      var trnType = get(block, 'TRNTYPE').toUpperCase();
+      var desc = (nm || memo || '(no description)').replace(/\s+/g, ' ');
+      result.transactions.push({ day: day, amount: amount, desc: desc, memo: nm ? memo.replace(/\s+/g, ' ') : '', type: OFX_TYPES[trnType] !== undefined ? OFX_TYPES[trnType] : trnType, category: '', account: result.account, source: result.name, line: line });
+    }
+    if (!result.rowCount) { result.error = 'This OFX file has no transactions in it.'; finishRange(result); return result; }
+    if (cur && cur !== 'GBP') result.warnings.push('This file is in ' + cur + '. Amounts are used as they are.');
+    result.layout = { format: 'ofx', description: 'an OFX download (the Money and Quicken format) for a ' + (isCard ? 'credit card' : 'bank account') + ', with dates from DTPOSTED, signed amounts from TRNAMT and payees from NAME', mapping: null, headers: null };
+    result.ok = result.transactions.length > 0;
+    if (!result.ok) result.error = 'No payments could be read from this file. The transactions it skipped are listed with reasons.';
+    finishRange(result);
+    return result;
+  }
+
+  /** Read a QIF file (the older Quicken interchange format): one field per line, records ending in ^. */
+  function parseQif(text, name, options) {
+    options = options || {};
+    text = stripBom(String(text || ''));
+    var result = newResult(name, 'qif', options);
+    var lines = text.split(/\r\n|\n|\r/);
+    var records = [], rec = null;
+    lines.forEach(function (l, i) {
+      if (!l.trim()) return;
+      if (l.charAt(0) === '!') return;
+      if (!rec) rec = { line: i + 1, fields: {} };
+      if (l.charAt(0) === '^') { records.push(rec); rec = null; return; }
+      var code = l.charAt(0), val = l.slice(1).trim();
+      if (rec.fields[code] === undefined) rec.fields[code] = val;
+    });
+    if (rec && Object.keys(rec.fields).length) records.push(rec);
+    var qifDate = function (s) {
+      // Quicken writes years after 2000 as 28/11'26 or 11/28' 6.
+      return s.replace(/'\s*(\d{1,2})$/, function (m0, y) { return '/' + (y.length === 1 ? '0' + y : y); }).replace(/'/g, '/');
+    };
+    var order = options.dateOrder || detectDateOrder(records.map(function (r) { return qifDate(r.fields.D || ''); }));
+    var dateOrder = typeof order === 'string' ? order : order.order;
+    if (typeof order !== 'string' && order.ambiguous) result.warnings.push('Every date in this file could be read either way, so they were read the UK way (day first). Switch to month first if your bank is not in the UK.');
+    records.forEach(function (r) {
+      result.rowCount++;
+      var f = r.fields;
+      var raw = Object.keys(f).map(function (k) { return k + f[k]; }).join(' | ').slice(0, 160);
+      if (!f.D) { result.skipped.push({ line: r.line, reason: 'No date in this record', raw: raw }); return; }
+      var day = parseDate(qifDate(f.D), dateOrder);
+      if (day === null) { result.skipped.push({ line: r.line, reason: 'Could not read the date "' + f.D.slice(0, 30) + '"', raw: raw }); return; }
+      var at = f.T !== undefined ? f.T : f.U;
+      var amount = parseAmount(at);
+      if (amount === null) { result.skipped.push({ line: r.line, reason: at ? 'Could not read the amount "' + at.slice(0, 20) + '"' : 'No amount in this record', raw: raw }); return; }
+      if (amount === 0) { result.skipped.push({ line: r.line, reason: 'A zero amount, so nothing was paid', raw: raw }); return; }
+      var desc = (f.P || f.M || '(no description)').replace(/\s+/g, ' ');
+      result.transactions.push({ day: day, amount: amount, desc: desc, memo: f.P ? (f.M || '').replace(/\s+/g, ' ') : '', type: f.N && !/^\d+$/.test(f.N) ? f.N : '', category: f.L || '', account: result.account, source: result.name, line: r.line });
+    });
+    if (!result.rowCount) { result.error = 'This QIF file has no transactions in it.'; finishRange(result); return result; }
+    result.layout = { format: 'qif', description: 'a QIF file (the Quicken interchange format), with dates from D (' + (dateOrder === 'MDY' ? 'month first' : 'day first') + '), amounts from T and payees from P', mapping: null, headers: null, dateOrder: dateOrder };
+    result.ok = result.transactions.length > 0;
+    if (!result.ok) result.error = 'No payments could be read from this file. The records it skipped are listed with reasons.';
+    finishRange(result);
+    return result;
+  }
+
+  /** What kind of file this is, from its content rather than its name. */
+  function sniffFormat(text) {
+    var head = stripBom(String(text || '')).slice(0, 4000);
+    if (/^\s*OFXHEADER\s*:/i.test(head) || /^\s*<\?xml[^>]*>\s*<\?OFX/i.test(head) || /^\s*<OFX>/i.test(head) || (/<OFX>/i.test(head) && /<STMTTRN>/i.test(text))) return 'ofx';
+    if (/^\s*!(Type|Account|Option)/i.test(head)) return 'qif';
+    if (/^\s*D[^\r\n]+\r?\n(?:[A-Z][^\r\n]*\r?\n)*?T-?[\d.,]+\r?\n/.test(head) && /\n\^/.test(head)) return 'qif';
+    return 'csv';
+  }
+
+  /** Read any supported file: delimited text (CSV, TSV, pasted tables), OFX or QIF. */
   function parseStatement(text, name, options) {
+    var format = sniffFormat(text);
+    if (format === 'ofx') return parseOfx(text, name, options);
+    if (format === 'qif') return parseQif(text, name, options);
     return parseCsv(text, name, options);
   }
 
@@ -1802,7 +1912,7 @@
     roundHalfUp: roundHalfUp, money: money, plainMoney: plainMoney, parseAmount: parseAmount,
     dateShape: dateShape, detectDateOrder: detectDateOrder, parseDate: parseDate,
     parseDelimited: parseDelimited, sniffDelimiter: sniffDelimiter, mapHeader: mapHeader, headerKey: headerKey, inferColumns: inferColumns,
-    parseCsv: parseCsv, parseStatement: parseStatement, mergeStatements: mergeStatements, linkSameAccounts: linkSameAccounts, METHODS: METHODS, defaultAccount: defaultAccount,
+    parseCsv: parseCsv, parseOfx: parseOfx, parseQif: parseQif, sniffFormat: sniffFormat, parseStatement: parseStatement, mergeStatements: mergeStatements, linkSameAccounts: linkSameAccounts, METHODS: METHODS, defaultAccount: defaultAccount,
     cleanDescription: cleanDescription, payeeKey: payeeKey, displayName: displayName, groupKeys: groupKeys,
     categorise: categorise, paymentMethod: paymentMethod, fitCadence: fitCadence, anchorDay: anchorDay, amountProfile: amountProfile,
     explainGroup: explainGroup, findRegulars: findRegulars, matchTransfers: matchTransfers, forecast: forecast, monthTotals: monthTotals,
