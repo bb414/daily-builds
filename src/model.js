@@ -1251,7 +1251,8 @@
       s.status = 'active';
       s.nextDue = upcoming.length ? upcoming[0].due : null;
       if (s.nextDue !== null && s.nextDue < asOf) s.late = true;
-      if (cad.days <= 32 && s.first - covStart >= cad.days * 0.8 && s.first >= covEnd - 3 * cad.days) s.isNew = true;
+      // New if it started within the last three steps, or the last three months for shorter cadences.
+      if (cad.days <= 32 && s.first - covStart >= cad.days * 0.8 && s.first >= covEnd - Math.max(3 * cad.days, CADENCE_BY_ID.quarterly.days)) s.isNew = true;
     }
     s.coverageEnd = covEnd;
     s.coverageStart = covStart;
@@ -1360,8 +1361,11 @@
     var best = monthly.slice().sort(function (a, b) { return b.monthly - a.monthly || cmp(a.id, b.id); })[0];
     var next = best.nextDue;
     if (next === null) return null;
+    // Step on from nominal dates, so a payment rolled into the next month does not skip one.
+    var nominal = scheduleFrom(best, lastNominal(best), 1)[0].nominal;
     while (next < asOf) {
-      var sched = scheduleFrom(best, next, 1);
+      var sched = scheduleFrom(best, nominal, 1);
+      nominal = sched[0].nominal;
       next = sched[0].due;
     }
     return { seriesId: best.id, name: best.name, next: next, typical: best.typical, cadence: best.cadence };
@@ -1704,7 +1708,7 @@
     return JSON.stringify({
       format: 'still-paying-review', version: 1, reviewedOn: iso(state.reviewedOn !== undefined ? state.reviewedOn : state.result.asOf),
       accounts: (state.accounts || []).map(function (a) { return { account: a.account, files: a.files }; }),
-      transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], details: state.details || {}
+      transactions: tx, decisions: decisions, known: known, aliases: state.aliases || {}, names: state.names || {}, manual: state.manual || [], overrides: state.overrides || {}, details: state.details || {}
     }, null, 1);
   }
   function readProject(text) {
@@ -1726,7 +1730,7 @@
     });
     return {
       reviewedOn: fromIso(data.reviewedOn), transactions: tx, decisions: decisions, known: data.known || {},
-      aliases: data.aliases || {}, names: data.names || {}, manual: data.manual || [], details: data.details || {}, accounts: data.accounts || [], badRows: bad
+      aliases: data.aliases || {}, names: data.names || {}, manual: data.manual || [], overrides: data.overrides || {}, details: data.details || {}, accounts: data.accounts || [], badRows: bad
     };
   }
 
