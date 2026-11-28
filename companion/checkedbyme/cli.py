@@ -4,6 +4,7 @@
     batch     every draft in a folder, written up as one HTML proof report
     gate      exits non-zero while high-risk claims are unchecked (for a team's workflow)
     merge     several people's session logs into one log and a team declaration
+    cohort    a class or team overview from several people's saved projects (HTML and CSV)
     declare   the declaration from a saved project, as text or Markdown
     recheck   a new version of a saved project: what is new or edited since the last check
     annotate  a proof copy: the text with query numbers and every query in full (Markdown)
@@ -23,6 +24,7 @@ import textwrap
 
 from . import model as M
 from .files import DRAFT_SUFFIXES, ReadError, final_pairs, read_text, write_text
+from .cohort import cohort_csv, cohort_report, collect, observations
 from .report import batch_report
 
 LEVEL_RANK = {"low": 0, "medium": 1, "high": 2}
@@ -345,6 +347,25 @@ def cmd_merge(args):
     return 0
 
 
+def cmd_cohort(args):
+    as_of = as_of_arg(args.as_of)
+    rows, problems = collect(args.paths, as_of, args.anonymise)
+    for p in problems:
+        print("  Not read: " + p)
+    if not rows:
+        print("No project files could be read.")
+        return 2
+    label = args.label or (os.path.basename(os.path.abspath(args.paths[0])) if len(args.paths) == 1 else "group")
+    write_text(args.out, cohort_report(rows, problems, label, as_of))
+    print("Read %s; the overview is in %s" % (M.plural(len(rows), "project"), args.out))
+    for o in observations(rows):
+        print(wrap("- " + o, 2))
+    if args.csv:
+        write_text(args.csv, cohort_csv(rows))
+        print("Wrote one row per project to %s" % args.csv)
+    return 0
+
+
 def read_project_file(path):
     try:
         with open(path, encoding="utf-8-sig") as fh:
@@ -509,6 +530,15 @@ def build_parser():
     m.add_argument("--out-md", help="write a team declaration in Markdown")
     m.add_argument("--as-of")
     m.set_defaults(func=cmd_merge)
+
+    co = sub.add_parser("cohort", help="a class or team overview from saved project files")
+    co.add_argument("paths", nargs="+", help="project files (.json) or folders of them")
+    co.add_argument("--out", default="checked-by-me-overview.html", help="the HTML overview to write")
+    co.add_argument("--csv", help="also write one row per project as CSV")
+    co.add_argument("--anonymise", action="store_true", help="replace names with Person 1, Person 2 and so on")
+    co.add_argument("--label", help="a name for the group, such as the module code")
+    co.add_argument("--as-of")
+    co.set_defaults(func=cmd_cohort)
 
     d = sub.add_parser("declare", help="the declaration from a saved project")
     d.add_argument("project", help="a project file saved by the app (.json)")

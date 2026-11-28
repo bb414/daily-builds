@@ -730,7 +730,7 @@ table.weights td.p.neg { color: var(--green); }
               <li><strong>Scores each sentence</strong> by adding the points in the table, and ranks the checklist. Every point is shown next to the sentence, so you can see why it was flagged.</li>
               <li><strong>Compares with your notes.</strong> A figure in the text is compared with figures of the same kind in your notes (a percentage with percentages, "14 tonnes" with other tonnes) when the note shares at least two content words with the sentence. The same figure counts as a match; a different one in a note sharing three or more words is a conflict. Quotations are compared word by word.</li>
               <li><strong>Checks the references</strong>, from your text's reference section or from a RIS or BibTeX export, by their shape: years after today, DOIs that are not of the form 10.NNNN/..., broken web addresses, duplicates, journal articles with no volume or pages, very generic journal names, "et al." or placeholders in the list, citations with no entry and entries never cited. Two or more such signs, or a journal article with neither volume nor pages plus one other sign, mark an entry "look it up by hand".</li>
-              <li><strong>Compares the draft and your final version.</strong> A word counts as kept word for word when it sits in a run of at least four words that appears, in the same order, in the AI draft. A sentence with 85% or more of its words kept is <em>kept</em>, 30% or more is <em>edited</em>, less than that but sharing at least half its words with an AI sentence is <em>reworded</em>, and anything else is <em>yours</em>.</li>
+              <li><strong>Compares the draft and your final version.</strong> A word counts as kept word for word when it sits in a run of at least four words that appears, in the same order, in the AI draft (citations are left out, since they read the same whoever types them). A sentence with 85% or more of its words kept is <em>kept</em>, 30% or more is <em>edited</em>, less than that but sharing at least half its words with an AI sentence is <em>reworded</em>, and anything else is <em>yours</em>.</li>
               <li><strong>Writes the declaration</strong> from your session log, the checks you have marked and the comparison, in four layouts. It always says how many claims are still unchecked.</li>
             </ol>
           </div>
@@ -1926,13 +1926,25 @@ table.weights td.p.neg { color: var(--green); }
 
   // ---------------------------------------------------------------- what changed between the AI draft and your final version
 
+  // Citations are left out of the wording comparison: "(Hartwell et al., 2019)" is the same whoever writes it.
+  function withoutCitations(text) {
+    var cits = findCitations(text), out = '', at = 0;
+    for (var i = 0; i < cits.length; i++) {
+      if (cits[i].start < at) continue;
+      out += text.slice(at, cits[i].start) + ' ';
+      at = cits[i].end;
+    }
+    return out + text.slice(at);
+  }
+  M.withoutCitations = withoutCitations;
+
   function bodySentences(doc) {
     var out = [], para = 0;
     for (var b = 0; b < doc.blocks.length; b++) {
       var block = doc.blocks[b];
       if (block.kind === 'heading') continue;
       var parts = splitSentences(block.text);
-      for (var p = 0; p < parts.length; p++) out.push({ text: parts[p], para: para, block: b, toks: words(parts[p]) });
+      for (var p = 0; p < parts.length; p++) out.push({ text: parts[p], para: para, block: b, toks: words(withoutCitations(parts[p])) });
       para++;
     }
     return out;
@@ -2912,6 +2924,11 @@ table.weights td.p.neg { color: var(--green); }
     if (!sessions.length) warnings.push('No sessions in the log for this assignment: add at least the session that produced the AI draft.');
     if (sum.highUnchecked) warnings.push(plural(sum.highUnchecked, 'high-risk statement is', 'high-risk statements are') + ' still unchecked. The declaration says so.');
     if (!name) warnings.push('Add your name so the declaration can be signed.');
+    if (p.level === 'none' && sessions.length) warnings.push('You chose "I did not use AI tools", but your log has ' + plural(sessions.length, 'session') + ' for this work.');
+    if (a.changes && (p.level === 'none' || p.level === 'planning') && a.changes.keptShare >= 10) {
+      warnings.push('You chose "' + (p.level === 'none' ? 'I did not use AI tools' : 'ideas and planning only') + '", but ' + a.changes.keptShare +
+        '% of your final text is the AI draft\'s wording, word for word. Choose the description that fits.');
+    }
     var blocks = [];
     function para(text) { blocks.push({ type: 'p', text: text }); }
     function heading(text) { blocks.push({ type: 'h', text: text }); }

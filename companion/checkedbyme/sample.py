@@ -7,7 +7,9 @@ Marks are matched to statements by a phrase in them, so they survive a new
 seed.
 """
 
+import math
 import os
+import random
 
 from . import model as M
 
@@ -43,6 +45,27 @@ AS_OF = M.days_from_civil(2026, 11, 28)
 def read(folder, name):
     with open(os.path.join(folder, name), encoding="utf-8") as fh:
         return fh.read()
+
+
+def build_project(texts, sessions_text, project, mark_share, seed):
+    """A classmate's saved project: the riskiest statements are marked first, as a careful student would."""
+    rng = random.Random(seed)
+    sessions = M.parse_sessions(sessions_text)["sessions"] if sessions_text else []
+    a = M.analyse(dict(texts, asOf=AS_OF))
+    n = int(math.floor(len(a["claims"]) * mark_share + 0.5))
+    checks = {}
+    for q in a["ranked"][:n]:
+        c = a["claims"][q - 1]
+        status = rng.choice(["verified", "verified", "verified", "corrected", "removed"])
+        checks[c["key"]] = {"status": status, "note": rng.choice(["Checked against the report", "Library copy", "Lecture notes, week 6", ""]),
+                            "on": "2026-11-2%d" % rng.randint(0, 7), "text": c["text"]}
+    ref_checks = {}
+    if mark_share >= 1:
+        for r in a["refs"]["entries"]:
+            if r["verdict"] != "ok":
+                ref_checks[r["entry"]["key"]] = {"status": "checked", "note": "Looked up in the library search", "on": "2026-11-27"}
+    return M.project_file({"project": project, "texts": texts, "sessions": sessions, "checks": checks, "refChecks": ref_checks,
+                           "asOf": AS_OF})
 
 
 def build(folder):

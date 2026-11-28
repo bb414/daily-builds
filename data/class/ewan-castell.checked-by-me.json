@@ -1,0 +1,89 @@
+{
+ "format": "checked-by-me project",
+ "version": 1,
+ "saved": "2026-11-28",
+ "project": {
+  "title": "Repair cafés and the circular high street",
+  "assignment": "MGT2207 Essay 2",
+  "course": "MGT2207 Operations and the Circular Economy",
+  "institution": "University of Eastmoor",
+  "person": "Ewan Castell",
+  "date": "",
+  "level": "none",
+  "template": "statement"
+ },
+ "texts": {
+  "draft": "",
+  "final": "## Repair cafés and the high street\n\nKestleford's repair network runs three cafés a month. Its annual report for 2023 says volunteers kept 14 tonnes of electrical goods out of landfill that year, with 85 volunteers on the books by December (Kestleford Repair Network, 2024).\n\nIn a survey of 1,200 households, 36% said they would repair rather than replace an item if help were free (Hartwell et al., 2019). The savings for each household are modest, at about £120 a year (Eastmoor Institute for Circular Practice, 2022), but the council counted 9% more visitors on Market Street on repair café Saturdays (Brinmouth Borough Council, 2022).\n\nRepair cafés will not fix the high street on their own. They do bring people into town, and they keep things in use for longer.\n\n## References\n\nBrinmouth Borough Council (2022) *Market Street footfall monitor 2022*. Available at: https://www.brinmouth-bc.org.uk/footfall data (Accessed: 3 November 2026).\nEastmoor Institute for Circular Practice (2022) *The household value of repair*. Eastmoor: EICP. doi:10.5555/eicp 2022.07\nHaldane, M. (2021) *Mending the market: repair and the everyday economy*. Kestleford: Wren Lane Press.\nHartwell, M., Osei, P. and Lindqvist, A. (2019) 'Repair intentions in UK households', *Journal of Household Material Flows*, 14(2), pp. 113-129. doi:10.5555/jhmf.2019.0142\nHartwell, M., Osei, P. & Lindqvist, A. (2019). Repair intentions in UK households. Journal of Household Material Flows, 14(2), 113-129.\nKestleford Repair Network (2024) *Annual report 2023*. Available at: htps://kestleford-repair-network.org.uk/annual-report-2023\nMorrow, J. (2021) 'The economics of fixing things', *Journal of Research Studies*.\nPemberton, L. (2031) *Right to repair: the next decade*. London: Fallow Books.\nQuinlan, R. and Oduya, T. (2018) 'Volunteering and local trade', *Review of Community Enterprise*, 7(1), pp. 45-61. doi:10.555/rce.7.1\n",
+  "prompt": "",
+  "references": "",
+  "notes": "# Notes for Essay 2 (MGT2207)\n\n## Kestleford Repair Network, Annual report 2023 (published 2024)\n- Three cafés, monthly, in Kestleford.\n- Diverted 14 tonnes of electrical waste from landfill in 2023.\n- 85 volunteers at the end of 2023.\n- First repair café in the county: Brinmouth, 2014.\n\n## Hartwell, Osei and Lindqvist (2019), Journal of Household Material Flows 14(2) 113-129\n- Survey of 1,200 households in three UK regions.\n- 36% said they would choose to repair rather than replace if free help were available.\n- Younger respondents more likely to say they lacked the skills (no trend data, so not \"disappearing\").\n\n## Eastmoor Institute for Circular Practice (2022), The household value of repair\n- Households that repair save about £120 a year on electrical items.\n\n## Brinmouth Borough Council, Market Street footfall monitor 2022\n- Market Street footfall up 9% on repair café Saturdays compared with other Saturdays.\n\n## Haldane (2021) Mending the market, p. 14\n- Quote: \"repair is one of the most practical things a consumer can do\"\n\n## Seminar 6: safety and liability\n- Volunteers should not assume they are covered: ask the venue about insurance and liability.\n- Soldering: use extraction or good ventilation, because the fumes irritate the lungs.\n"
+ },
+ "sessions": [],
+ "checks": {
+  "q0eea9d04": {
+   "status": "verified",
+   "note": "Lecture notes, week 6",
+   "on": "2026-11-27",
+   "text": "In a survey of 1,200 households, 36% said they would repair rather than replace an item if help were free (Hartwell et al., 2019)."
+  },
+  "q9ae1ce24": {
+   "status": "removed",
+   "note": "Library copy",
+   "on": "2026-11-22",
+   "text": "The savings for each household are modest, at about £120 a year (Eastmoor Institute for Circular Practice, 2022), but the council counted 9% more visitors on Market Street on repair café Saturdays (Brinmouth Borough Council, 2022)."
+  },
+  "qba652f9f": {
+   "status": "verified",
+   "note": "Library copy",
+   "on": "2026-11-23",
+   "text": "Its annual report for 2023 says volunteers kept 14 tonnes of electrical goods out of landfill that year, with 85 volunteers on the books by December (Kestleford Repair Network, 2024)."
+  }
+ },
+ "refChecks": {
+  "r0f88e0cc": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "r20cd0b18": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "r269486ba": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "r43fb0342": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "r7e313b30": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "r95687894": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "ra3b88ff2": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  },
+  "rd121310d": {
+   "status": "checked",
+   "note": "Looked up in the library search",
+   "on": "2026-11-27"
+  }
+ },
+ "baseline": {
+  "text": "",
+  "on": ""
+ }
+}

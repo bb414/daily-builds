@@ -132,7 +132,7 @@ class Commands(unittest.TestCase):
             rows = M.parse_csv(open(out_csv, encoding="utf-8").read())["rows"]
             self.assertEqual(len(rows), 5)
             self.assertEqual(rows[1][0], "ai-draft.md + ai-draft-final.md")
-            self.assertEqual(rows[1][7], "76")
+            self.assertEqual(rows[1][7], "74")
 
     def test_gate_holds_until_high_risk_claims_are_marked(self):
         code, out, _ = run("gate", os.path.join(DATA, "sample-project.json"), "--as-of", "2026-11-28")
@@ -193,6 +193,40 @@ class Commands(unittest.TestCase):
             self.assertIn("about 90 minutes in all", md)
             self.assertIn("| 10 November 2026 | Ana, Dev Okonedo | Orrery Chat |", md)
 
+    def test_cohort_overview_of_a_class(self):
+        with tempfile.TemporaryDirectory() as d:
+            out, csv_path = os.path.join(d, "o.html"), os.path.join(d, "o.csv")
+            with open(os.path.join(d, "junk.json"), "w") as fh:
+                fh.write("[]")
+            code, text, _ = run("cohort", os.path.join(DATA, "class"), os.path.join(d, "junk.json"), "--out", out, "--csv", csv_path,
+                                "--label", "MGT2207", "--as-of", "2026-11-28")
+            self.assertEqual(code, 0)
+            text = " ".join(text.split())
+            self.assertIn("Read 8 projects", text)
+            self.assertIn("Not read: junk.json", text)
+            self.assertIn("1 still contains text from the chat window", text)
+            self.assertIn("declared less AI use than the comparison with their AI draft shows (Hana Ellery, Jude Fairweather)", text)
+            page = open(out, encoding="utf-8").read()
+            self.assertIn("median AI wording kept", page)
+            self.assertNotIn("Repair caf\u00e9s have become", page, "nobody's text is shown")
+            self.assertNotIn("<script", page)
+            rows = M.parse_csv(open(csv_path, encoding="utf-8").read())["rows"]
+            self.assertEqual(len(rows), 9)
+            by = {r[0]: r for r in rows[1:]}
+            self.assertEqual(by["Ewan Castell"][7], "")
+            self.assertEqual(by["Hana Ellery"][-1], "yes")
+            self.assertEqual(by["Tomas Brightwater"][-2], "yes")
+            run("cohort", os.path.join(DATA, "class"), "--out", out, "--csv", csv_path, "--anonymise", "--as-of", "2026-11-28")
+            page = open(out, encoding="utf-8").read()
+            self.assertNotIn("Hana Ellery", page)
+            self.assertIn("Person 1", page)
+
+    def test_declaration_warns_when_the_declared_level_does_not_match(self):
+        p = M.read_project(open(os.path.join(DATA, "class", "hana-ellery.checked-by-me.json"), encoding="utf-8").read())
+        a = M.analyse(dict(p["texts"], asOf=AS_OF))
+        d = M.declaration(a, {"project": p["project"], "sessions": p["sessions"], "checks": p["checks"], "asOf": AS_OF})
+        self.assertTrue(any("ideas and planning only" in w and "98%" in w for w in d["warnings"]), d["warnings"])
+
     def test_declare_gives_the_same_text_as_the_model(self):
         p = M.read_project(sample("sample-project.json"))
         a = M.analyse(dict(p["texts"], asOf=AS_OF))
@@ -240,7 +274,7 @@ class Commands(unittest.TestCase):
     def test_diff_and_project(self):
         code, out, _ = run("diff", os.path.join(DATA, "ai-draft.md"), os.path.join(DATA, "final-version.md"), "--as-of", "2026-11-28")
         self.assertEqual(code, 0)
-        self.assertIn("76% of the 342 words in the final text appear word for word", out)
+        self.assertIn("74% of the 314 words in the final text appear word for word", out)
         self.assertIn("CUT        Soldering fumes", out)
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "p.json")

@@ -1171,13 +1171,24 @@ def score_claim(kinds, scan, ctx):
 
 # ---------------------------------------------------------------- what changed between the AI draft and your final version
 
+def without_citations(text):
+    """Citations are left out of the wording comparison: "(Hartwell et al., 2019)" is the same whoever writes it."""
+    out, at = "", 0
+    for c in find_citations(text):
+        if c["start"] < at:
+            continue
+        out += text[at:c["start"]] + " "
+        at = c["end"]
+    return out + text[at:]
+
+
 def body_sentences(doc):
     out, para = [], 0
     for b, block in enumerate(doc["blocks"]):
         if block["kind"] == "heading":
             continue
         for p in split_sentences(block["text"]):
-            out.append({"text": p, "para": para, "block": b, "toks": words(p)})
+            out.append({"text": p, "para": para, "block": b, "toks": words(without_citations(p))})
         para += 1
     return out
 
@@ -2375,6 +2386,12 @@ def declaration(a, state):
         warnings.append(plural(s["highUnchecked"], "high-risk statement is", "high-risk statements are") + " still unchecked. The declaration says so.")
     if not name:
         warnings.append("Add your name so the declaration can be signed.")
+    if p.get("level") == "none" and sessions:
+        warnings.append('You chose "I did not use AI tools", but your log has ' + plural(len(sessions), "session") + " for this work.")
+    if a["changes"] and p.get("level") in ("none", "planning") and a["changes"]["keptShare"] >= 10:
+        warnings.append('You chose "' + ("I did not use AI tools" if p.get("level") == "none" else "ideas and planning only")
+                        + '", but %d%% of your final text is the AI draft\'s wording, word for word. Choose the description that fits.'
+                        % a["changes"]["keptShare"])
     blocks = []
 
     def para(text):

@@ -1009,13 +1009,25 @@
 
   // ---------------------------------------------------------------- what changed between the AI draft and your final version
 
+  // Citations are left out of the wording comparison: "(Hartwell et al., 2019)" is the same whoever writes it.
+  function withoutCitations(text) {
+    var cits = findCitations(text), out = '', at = 0;
+    for (var i = 0; i < cits.length; i++) {
+      if (cits[i].start < at) continue;
+      out += text.slice(at, cits[i].start) + ' ';
+      at = cits[i].end;
+    }
+    return out + text.slice(at);
+  }
+  M.withoutCitations = withoutCitations;
+
   function bodySentences(doc) {
     var out = [], para = 0;
     for (var b = 0; b < doc.blocks.length; b++) {
       var block = doc.blocks[b];
       if (block.kind === 'heading') continue;
       var parts = splitSentences(block.text);
-      for (var p = 0; p < parts.length; p++) out.push({ text: parts[p], para: para, block: b, toks: words(parts[p]) });
+      for (var p = 0; p < parts.length; p++) out.push({ text: parts[p], para: para, block: b, toks: words(withoutCitations(parts[p])) });
       para++;
     }
     return out;
@@ -1995,6 +2007,11 @@
     if (!sessions.length) warnings.push('No sessions in the log for this assignment: add at least the session that produced the AI draft.');
     if (sum.highUnchecked) warnings.push(plural(sum.highUnchecked, 'high-risk statement is', 'high-risk statements are') + ' still unchecked. The declaration says so.');
     if (!name) warnings.push('Add your name so the declaration can be signed.');
+    if (p.level === 'none' && sessions.length) warnings.push('You chose "I did not use AI tools", but your log has ' + plural(sessions.length, 'session') + ' for this work.');
+    if (a.changes && (p.level === 'none' || p.level === 'planning') && a.changes.keptShare >= 10) {
+      warnings.push('You chose "' + (p.level === 'none' ? 'I did not use AI tools' : 'ideas and planning only') + '", but ' + a.changes.keptShare +
+        '% of your final text is the AI draft\'s wording, word for word. Choose the description that fits.');
+    }
     var blocks = [];
     function para(text) { blocks.push({ type: 'p', text: text }); }
     function heading(text) { blocks.push({ type: 'h', text: text }); }
