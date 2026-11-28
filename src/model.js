@@ -1516,11 +1516,13 @@
   function fmtQty(q) {
     if (q === null || q === undefined) return '';
     var v = rnd(q);
+    var neg = v < 0;
+    if (neg) v = -v;
     var whole = String(Math.floor(v / QTY_SCALE));
     var frac = String(v % QTY_SCALE);
     while (frac.length < 6) frac = '0' + frac;
     frac = frac.replace(/0+$/, '');
-    return group3(whole) + (frac ? '.' + frac : '');
+    return (neg ? '-' : '') + group3(whole) + (frac ? '.' + frac : '');
   }
   M.fmtQty = fmtQty;
   function fmtDate(day) { var c = civil(day); return DAY_NAMES[weekday(day)] + ' ' + c[2] + ' ' + MONTH_NAMES[c[1] - 1] + ' ' + c[0]; }
@@ -1630,8 +1632,10 @@
       if (top.net > 0) notes.push(top.label + ' made the most: ' + money(top.net, base, { sign: true }) + ' over ' + plural(top.n, 'trade') + ' (' + top.wins + ' won).');
       if (bottom.net < 0) notes.push(bottom.label + ' cost the most: ' + money(bottom.net, base, { sign: true }) + ' over ' + plural(bottom.n, 'trade') + ' (' + bottom.wins + ' won).');
     }
-    if (rv.broke.n) {
+    if (rv.broke.n && rv.kept.n) {
       notes.push(plural(rv.broke.n, 'trade') + ' broke at least one rule and made ' + money(rv.broke.net, base, { sign: true }) + '; the ' + plural(rv.kept.n, 'trade') + ' that kept to every rule made ' + money(rv.kept.net, base, { sign: true }) + '.');
+    } else if (rv.broke.n) {
+      notes.push((rv.broke.n === 1 ? 'The only trade' : 'All ' + rv.broke.n + ' trades') + ' broke at least one rule, and made ' + money(rv.broke.net, base, { sign: true }) + ' between them.');
     } else {
       notes.push('Every trade kept to the rules this week.');
     }
@@ -1682,7 +1686,7 @@
       L.push('Rule breaches: none');
     }
     if (rv.byMistake.length) L.push('Mistakes tagged: ' + rv.byMistake.map(function (r) { return r.label + ' x' + r.n + ' (' + money(r.net, base, { sign: true }) + ')'; }).join('; '));
-    if (rv.openAtEnd.length) L.push('Open at the end of the week: ' + rv.openAtEnd.map(function (o) { return o.symbol + ' ' + (o.dir > 0 ? 'long ' : 'short ') + fmtQty(o.q) + ' at ' + fmtPrice(o.avgEntry); }).join('; '));
+    if (rv.openAtEnd.length) L.push('Open at the end of the week: ' + rv.openAtEnd.map(function (o) { return o.symbol + ' ' + (o.dir > 0 ? 'long ' : 'short ') + fmtQty(o.q) + ' at ' + fmtPrice(rnd(o.avgEntry / 100) * 100); }).join('; '));
     if (rv.unattachedFees) L.push('Fees not tied to a trade: ' + money(rv.unattachedFees, base));
     if (rv.notes.length) {
       L.push('');

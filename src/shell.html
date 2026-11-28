@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Round trips: a trade journal from your own fills</title>
+<meta name="description" content="Turn the fills export from your broker or trading-challenge platform into round-trip trades and an honest weekly review. Runs in your browser; nothing is uploaded.">
+<style>
+/*FONTS*/
+/*STYLE*/
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the journal</a>
+
+<header class="desk" id="top">
+  <div class="desk-inner">
+    <div class="hero-copy">
+      <p class="kicker"><span class="ticket-no" id="ticket-no">TICKET 0001</span><span>Trade journal</span><span class="dot" aria-hidden="true"></span><span>from your own fills</span></p>
+      <h1><span>Round</span> <span>trips</span></h1>
+      <p class="lede">Turn the fills export from your broker or trading-challenge platform into round-trip trades, then review the week honestly: what you really made after fees, which setups work and which rules you broke.</p>
+      <ul class="stamps" aria-label="About this tool">
+        <li>Runs on your device</li>
+        <li>Nothing is uploaded</li>
+        <li class="stamp-red">Not financial advice</li>
+      </ul>
+      <div class="hero-actions">
+        <button type="button" class="btn btn-brass" data-go="fills" id="hero-own">Use your own fills</button>
+        <button type="button" class="btn btn-paper" id="hero-open">Open a journal file</button>
+      </div>
+    </div>
+    <figure class="hero-scene" aria-hidden="true">
+      <svg viewBox="0 0 680 440" role="presentation" focusable="false">
+        <defs>
+          <linearGradient id="g-brass" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#7a5718"/><stop offset=".28" stop-color="#d8b25a"/><stop offset=".5" stop-color="#f3dc92"/><stop offset=".72" stop-color="#c89a3e"/><stop offset="1" stop-color="#6e4d14"/>
+          </linearGradient>
+          <linearGradient id="g-brass-v" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#e9cb7a"/><stop offset="1" stop-color="#8a621c"/>
+          </linearGradient>
+          <linearGradient id="g-glass" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#cfe3ee" stop-opacity=".30"/><stop offset=".25" stop-color="#ffffff" stop-opacity=".10"/><stop offset=".8" stop-color="#cfe3ee" stop-opacity=".06"/><stop offset="1" stop-color="#cfe3ee" stop-opacity=".28"/>
+          </linearGradient>
+          <linearGradient id="g-plinth" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#6b3f22"/><stop offset="1" stop-color="#3a2112"/>
+          </linearGradient>
+          <linearGradient id="g-pencil" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#f6d65a"/><stop offset=".5" stop-color="#e9bd2c"/><stop offset="1" stop-color="#b88a12"/>
+          </linearGradient>
+          <filter id="f-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="5"/><feOffset dx="6" dy="9"/><feComponentTransfer><feFuncA type="linear" slope=".45"/></feComponentTransfer>
+            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <path id="tape-path" d="M236 238 C292 246 318 292 372 332 S470 402 540 392 S630 352 700 380"/>
+        </defs>
+
+        <!-- a coffee ring left on the desk -->
+        <g opacity=".22" fill="none" stroke="#1a0d05">
+          <ellipse cx="612" cy="330" rx="44" ry="40" stroke-width="5"/>
+          <ellipse cx="616" cy="333" rx="40" ry="36" stroke-width="1.5"/>
+        </g>
+
+        <!-- the stock ticker under its glass dome -->
+        <g filter="url(#f-shadow)">
+          <rect x="44" y="214" width="200" height="44" rx="6" fill="url(#g-plinth)"/>
+          <rect x="40" y="206" width="208" height="12" rx="4" fill="url(#g-brass)"/>
+          <rect x="60" y="226" width="168" height="4" rx="2" fill="#2a170b" opacity=".5"/>
+          <g class="ticker-works">
+            <rect x="130" y="120" width="10" height="88" fill="url(#g-brass-v)"/>
+            <rect x="96" y="150" width="8" height="58" fill="url(#g-brass-v)"/>
+            <rect x="182" y="140" width="8" height="68" fill="url(#g-brass-v)"/>
+            <circle cx="122" cy="148" r="28" fill="none" stroke="url(#g-brass)" stroke-width="6"/>
+            <circle cx="122" cy="148" r="6" fill="#d8b25a"/>
+            <g stroke="#b88d3c" stroke-width="3"><line x1="122" y1="124" x2="122" y2="172"/><line x1="98" y1="148" x2="146" y2="148"/><line x1="105" y1="131" x2="139" y2="165"/><line x1="105" y1="165" x2="139" y2="131"/></g>
+            <circle cx="180" cy="170" r="18" fill="none" stroke="url(#g-brass)" stroke-width="5"/>
+            <circle cx="180" cy="170" r="4" fill="#e9cb7a"/>
+            <rect x="150" y="188" width="70" height="14" rx="7" fill="#2d2a27"/>
+            <rect x="200" y="180" width="40" height="10" rx="3" fill="#efe5c6"/>
+          </g>
+          <path d="M62 207 C62 128 88 58 146 52 C204 58 230 128 230 207 Z" fill="url(#g-glass)" stroke="#e8f2f7" stroke-opacity=".55" stroke-width="2"/>
+          <path d="M84 196 C82 140 98 92 128 72" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+          <path d="M206 120 C212 140 214 160 214 182" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="146" cy="48" r="8" fill="url(#g-brass)"/>
+        </g>
+
+        <!-- ticker tape running out across the desk -->
+        <g class="tape-ribbon">
+          <use href="#tape-path" fill="none" stroke="#2a1a10" stroke-opacity=".35" stroke-width="30" transform="translate(4 7)"/>
+          <use href="#tape-path" fill="none" stroke="#d9cfb0" stroke-width="26"/>
+          <use href="#tape-path" fill="none" stroke="#f4ecd4" stroke-width="22"/>
+          <text class="tape-text"><textPath href="#tape-path" startOffset="6" id="hero-tape">HGRB 43.60 &#9650; PLMB 18.31 &#9660; LKFZ6 5,120.50 &#9650;</textPath></text>
+        </g>
+
+        <!-- the brass closing bell on its bracket -->
+        <g filter="url(#f-shadow)" transform="translate(22 -12)">
+          <rect x="520" y="18" width="136" height="26" rx="4" fill="url(#g-plinth)"/>
+          <circle cx="534" cy="31" r="4" fill="#d8b25a"/><circle cx="642" cy="31" r="4" fill="#d8b25a"/>
+          <path d="M586 44 L586 66" stroke="url(#g-brass-v)" stroke-width="8"/>
+          <path d="M548 172 C552 150 556 104 568 86 C574 76 580 72 588 72 C596 72 602 76 608 86 C620 104 624 150 628 172 C640 176 646 182 646 186 L530 186 C530 182 536 176 548 172 Z" fill="url(#g-brass)"/>
+          <path d="M562 160 C566 128 568 104 578 90" fill="none" stroke="#fff4c8" stroke-opacity=".7" stroke-width="5" stroke-linecap="round"/>
+          <rect x="530" y="184" width="116" height="7" rx="3" fill="#8a621c"/>
+          <line x1="588" y1="190" x2="588" y2="206" stroke="#5a4012" stroke-width="3"/>
+          <circle cx="588" cy="212" r="8" fill="url(#g-brass)"/>
+          <path d="M596 72 C640 64 650 110 632 140" fill="none" stroke="#efe5c6" stroke-width="3" stroke-dasharray="1 5" stroke-linecap="round" opacity=".7"/>
+          <g class="bell-ring" fill="none" stroke="#f3dc92" stroke-width="3" stroke-linecap="round">
+            <path d="M516 120 C506 132 506 150 516 162"/><path d="M502 112 C488 130 488 152 502 170"/>
+            <path d="M660 120 C670 132 670 150 660 162"/>
+          </g>
+          <text x="588" y="236" text-anchor="middle" class="svg-plate">CLOSE 16:00</text>
+        </g>
+
+        <!-- the carbon-copy ticket stack, top copy written up from your best trade -->
+        <g transform="translate(-6 36) rotate(-7 432 220)" filter="url(#f-shadow)">
+          <rect x="344" y="104" width="196" height="214" rx="3" fill="#f2c4bd"/>
+          <rect x="337" y="98" width="196" height="214" rx="3" fill="#f6e58c"/>
+          <rect x="330" y="92" width="196" height="214" rx="3" fill="#fbf8ef"/>
+          <rect x="330" y="92" width="196" height="30" fill="#26307a"/>
+          <text x="342" y="111" class="svg-ticket-head">ORDER TICKET</text>
+          <text x="514" y="112" text-anchor="end" class="svg-ticket-no" id="hero-ticket-no">No. 0048</text>
+          <g class="svg-form">
+            <rect x="342" y="134" width="12" height="12" fill="none" stroke="#26307a" stroke-width="1.5"/>
+            <text x="360" y="145">BUY</text>
+            <rect x="404" y="134" width="12" height="12" fill="none" stroke="#b8321f" stroke-width="1.5"/>
+            <text x="422" y="145">SELL</text>
+            <path id="hero-tick" d="M343 140 L348 145 L357 132" fill="none" stroke="#26307a" stroke-width="2.4" stroke-linecap="round"/>
+            <text x="342" y="176">QTY</text><line x1="372" y1="178" x2="514" y2="178"/>
+            <text x="342" y="206">SYMBOL</text><line x1="392" y1="208" x2="514" y2="208"/>
+            <text x="342" y="236">PRICE</text><line x1="384" y1="238" x2="514" y2="238"/>
+            <text x="342" y="266">NET P&amp;L</text><line x1="398" y1="268" x2="514" y2="268"/>
+            <text x="342" y="294">SETUP</text><line x1="384" y1="296" x2="514" y2="296"/>
+          </g>
+          <g class="svg-ink">
+            <text x="378" y="174" id="hero-qty">2,000</text>
+            <text x="398" y="204" id="hero-symbol">GLBM</text>
+            <text x="388" y="234" id="hero-price" class="svg-ink-small">10.39</text>
+            <text x="404" y="264" id="hero-net">+$1,030</text>
+            <text x="390" y="292" id="hero-setup" class="svg-ink-small">Pullback</text>
+          </g>
+        </g>
+
+        <!-- the pencilled journal -->
+        <g filter="url(#f-shadow)">
+          <path d="M28 300 L168 286 L176 432 L36 440 Z" fill="#f7f1df"/>
+          <path d="M168 286 L312 296 L306 436 L176 432 Z" fill="#fbf6e6"/>
+          <path d="M168 286 L176 432" stroke="#c9bb96" stroke-width="3"/>
+          <g stroke="#b9c8e0" stroke-width="1">
+            <line x1="44" y1="326" x2="166" y2="314"/><line x1="45" y1="346" x2="167" y2="335"/><line x1="46" y1="366" x2="168" y2="356"/><line x1="47" y1="386" x2="169" y2="377"/><line x1="48" y1="406" x2="170" y2="398"/>
+            <line x1="180" y1="314" x2="300" y2="322"/><line x1="180" y1="335" x2="299" y2="343"/><line x1="181" y1="356" x2="298" y2="364"/><line x1="181" y1="377" x2="297" y2="385"/><line x1="182" y1="398" x2="296" y2="406"/>
+          </g>
+          <line x1="60" y1="300" x2="66" y2="436" stroke="#d9776a" stroke-width="1.2"/>
+          <g class="svg-pencil" transform="rotate(-4 100 340)">
+            <text x="70" y="320" id="hero-week">w/c 23 Nov</text>
+            <text x="70" y="341" id="hero-line1">net +$1,596</text>
+            <text x="70" y="362" id="hero-line2">won 11 of 21</text>
+            <text x="70" y="383" id="hero-line3">PF 1.46</text>
+          </g>
+          <g class="svg-pencil" transform="rotate(3 240 350)">
+            <text x="186" y="322" id="hero-line4">rules broken: 7</text>
+            <text x="186" y="343" id="hero-line5">best: ORB</text>
+            <text x="186" y="364" id="hero-line6">fix: stops</text>
+            <path d="M186 380 l6 6 l12 -14" fill="none" stroke="#4a4640" stroke-width="2" stroke-linecap="round"/>
+          </g>
+        </g>
+        <!-- a pencil laid across the page -->
+        <g transform="rotate(-38 300 380)" filter="url(#f-shadow)">
+          <rect x="214" y="372" width="150" height="16" fill="url(#g-pencil)"/>
+          <line x1="214" y1="377" x2="364" y2="377" stroke="#b88a12" stroke-width="1"/>
+          <line x1="214" y1="383" x2="364" y2="383" stroke="#fff3b0" stroke-width="1" opacity=".7"/>
+          <rect x="364" y="371" width="16" height="18" fill="url(#g-brass)"/>
+          <rect x="380" y="372" width="14" height="16" rx="3" fill="#e98b86"/>
+          <path d="M214 372 L186 380 L214 388 Z" fill="#e8c9a0"/>
+          <path d="M194 377.5 L186 380 L194 382.5 Z" fill="#2d2a27"/>
+        </g>
+      </svg>
+    </figure>
+  </div>
+  <div class="tape" aria-hidden="true"><div class="tape-run" id="tape-run"></div></div>
+</header>
+
+<section class="headline" id="headline" aria-label="The week at a glance"></section>
+
+<div class="desk-body">
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-fills" aria-controls="view-fills" aria-selected="false" tabindex="-1" class="tab tab-canary"><span class="tab-no">1</span><span class="tab-name">Fills</span><span class="tab-sub">Import and matching</span></button>
+    <button type="button" role="tab" id="tab-trades" aria-controls="view-trades" aria-selected="false" tabindex="-1" class="tab tab-pink"><span class="tab-no">2</span><span class="tab-name">Trades</span><span class="tab-sub">The journal</span></button>
+    <button type="button" role="tab" id="tab-review" aria-controls="view-review" aria-selected="true" tabindex="0" class="tab tab-white"><span class="tab-no">3</span><span class="tab-name">Review</span><span class="tab-sub">The week, honestly</span></button>
+    <button type="button" role="tab" id="tab-rules" aria-controls="view-rules" aria-selected="false" tabindex="-1" class="tab tab-sky"><span class="tab-no">4</span><span class="tab-name">Rules</span><span class="tab-sub">And position size</span></button>
+    <button type="button" role="tab" id="tab-how" aria-controls="view-how" aria-selected="false" tabindex="-1" class="tab tab-buff"><span class="tab-no">5</span><span class="tab-name">How it works</span><span class="tab-sub">And its limits</span></button>
+  </nav>
+
+  <div class="blotter">
+    <div class="notice" id="notice" role="status"></div>
+    <main id="main" tabindex="-1">
+      <section class="view" id="view-fills" role="tabpanel" aria-labelledby="tab-fills" hidden></section>
+      <section class="view" id="view-trades" role="tabpanel" aria-labelledby="tab-trades" hidden></section>
+      <section class="view" id="view-review" role="tabpanel" aria-labelledby="tab-review"></section>
+      <section class="view" id="view-rules" role="tabpanel" aria-labelledby="tab-rules" hidden></section>
+      <section class="view" id="view-how" role="tabpanel" aria-labelledby="tab-how" hidden></section>
+    </main>
+  </div>
+</div>
+
+<footer class="foot">
+  <p><strong>Round trips</strong> reads exports in your browser and keeps them there. Sample data is invented: the team, accounts, tickers and the Larkfield 50 index future are all made up. Not financial advice: it describes trades you have already made.</p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-exports" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
+<input type="file" id="file-journal" accept=".json,application/json" hidden>
+
+<script id="samples" type="application/json">/*SAMPLES*/</script>
+<script>
+/*MODEL*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>

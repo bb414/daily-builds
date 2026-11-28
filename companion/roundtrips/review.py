@@ -99,9 +99,12 @@ def review_notes(rv):
             notes.append(top['label'] + ' made the most: ' + money(top['net'], base, sign=True) + ' over ' + plural(top['n'], 'trade') + ' (%d won).' % top['wins'])
         if bottom['net'] < 0:
             notes.append(bottom['label'] + ' cost the most: ' + money(bottom['net'], base, sign=True) + ' over ' + plural(bottom['n'], 'trade') + ' (%d won).' % bottom['wins'])
-    if rv['broke']['n']:
+    if rv['broke']['n'] and rv['kept']['n']:
         notes.append(plural(rv['broke']['n'], 'trade') + ' broke at least one rule and made ' + money(rv['broke']['net'], base, sign=True) + '; the '
                      + plural(rv['kept']['n'], 'trade') + ' that kept to every rule made ' + money(rv['kept']['net'], base, sign=True) + '.')
+    elif rv['broke']['n']:
+        notes.append(('The only trade' if rv['broke']['n'] == 1 else 'All %d trades' % rv['broke']['n']) + ' broke at least one rule, and made '
+                     + money(rv['broke']['net'], base, sign=True) + ' between them.')
     else:
         notes.append('Every trade kept to the rules this week.')
     if s['avgHoldWin'] is not None and s['avgHoldLoss'] is not None and s['avgHoldLoss'] >= s['avgHoldWin'] * 1.5 and s['avgHoldLoss'] >= 120:
@@ -158,7 +161,7 @@ def review_text(rv, result):
     if rv['byMistake']:
         lines.append('Mistakes tagged: ' + '; '.join(r['label'] + ' x%d (' % r['n'] + money(r['net'], base, sign=True) + ')' for r in rv['byMistake']))
     if rv['openAtEnd']:
-        lines.append('Open at the end of the week: ' + '; '.join(o['symbol'] + (' long ' if o['dir'] > 0 else ' short ') + fmt_qty(o['q']) + ' at ' + fmt_price(o['avgEntry'])
+        lines.append('Open at the end of the week: ' + '; '.join(o['symbol'] + (' long ' if o['dir'] > 0 else ' short ') + fmt_qty(o['q']) + ' at ' + fmt_price(rnd(o['avgEntry'] / 100) * 100)
                                                                for o in rv['openAtEnd']))
     if rv['unattachedFees']:
         lines.append('Fees not tied to a trade: ' + money(rv['unattachedFees'], base))

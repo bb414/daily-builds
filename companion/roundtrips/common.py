@@ -454,9 +454,12 @@ def fmt_qty(q):
     if q is None:
         return ''
     v = rnd(q)
+    neg = v < 0
+    if neg:
+        v = -v
     whole = str(math.floor(v / QTY_SCALE))
     frac = str(v % QTY_SCALE).rjust(6, '0').rstrip('0')
-    return group3(whole) + ('.' + frac if frac else '')
+    return ('-' if neg else '') + group3(whole) + ('.' + frac if frac else '')
 
 
 def fmt_date(day):

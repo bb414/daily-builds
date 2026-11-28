@@ -1,0 +1,575 @@
+{
+ "app": "round-trips",
+ "version": 1,
+ "saved": "2026-11-28",
+ "settings": {
+  "base": "USD",
+  "dateOrder": "auto",
+  "fx": [],
+  "multipliers": [],
+  "accounts": [
+   {
+    "name": "KES-EQ-0418",
+    "start": "100000",
+    "currency": "USD",
+    "longOnly": false
+   }
+  ],
+  "rules": {
+   "maxRiskPct": {
+    "on": true,
+    "value": "1",
+    "unit": ""
+   },
+   "maxDailyLoss": {
+    "on": true,
+    "value": "2",
+    "unit": "pct"
+   },
+   "maxTradesPerDay": {
+    "on": true,
+    "value": "6",
+    "unit": ""
+   },
+   "noAddingToLoser": {
+    "on": true,
+    "value": "",
+    "unit": ""
+   },
+   "maxLossR": {
+    "on": true,
+    "value": "1.5",
+    "unit": ""
+   },
+   "needPlannedRisk": {
+    "on": true,
+    "value": "",
+    "unit": ""
+   }
+  },
+  "setups": [
+   "Opening range break",
+   "Pullback",
+   "Gap fade",
+   "Breakout",
+   "Reversal",
+   "News",
+   "Swing"
+  ],
+  "mistakes": [
+   "Chased entry",
+   "Moved stop",
+   "Added to a loser",
+   "Oversized",
+   "Early exit",
+   "Revenge trade",
+   "No plan"
+  ]
+ },
+ "sources": [],
+ "journal": [
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-02T14:02:29",
+   "setup": "Pullback",
+   "stop": "10.02",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-04T10:52:39",
+   "setup": "News",
+   "stop": "9.89",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-04T11:36:39",
+   "setup": "Gap fade",
+   "stop": "9.70",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-05T14:25:17",
+   "setup": "Breakout",
+   "stop": "9.80",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-06T11:44:08",
+   "setup": "News",
+   "stop": "9.68",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-12T09:37:29",
+   "setup": "",
+   "stop": "9.63",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-13T13:18:56",
+   "setup": "Gap fade",
+   "stop": "9.98",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|GLBM|2026-11-25T11:30:13",
+   "setup": "Pullback",
+   "stop": "10.46",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|HGRB|2026-11-02T13:02:01",
+   "setup": "Pullback",
+   "stop": "42.19",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|HGRB|2026-11-12T10:17:29",
+   "setup": "Gap fade",
+   "stop": "44.34",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|HGRB|2026-11-12T10:50:43",
+   "setup": "",
+   "stop": "44.17",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|HGRB|2026-11-18T10:34:55",
+   "setup": "Opening range break",
+   "stop": "46.45",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-02T14:21:29",
+   "setup": "Gap fade",
+   "stop": "125.73",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-04T11:16:39",
+   "setup": "Gap fade",
+   "stop": "123.35",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-06T10:52:32",
+   "setup": "News",
+   "stop": "122.97",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-10T10:59:21",
+   "setup": "Gap fade",
+   "stop": "123.12",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-11T13:36:13",
+   "setup": "Opening range break",
+   "stop": "",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-16T15:38:43",
+   "setup": "",
+   "stop": "121.05",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-18T15:09:09",
+   "setup": "Breakout",
+   "stop": "115.85",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|ORSM|2026-11-20T12:26:18",
+   "setup": "Breakout",
+   "stop": "116.77",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-03T09:39:07",
+   "setup": "Gap fade",
+   "stop": "18.70",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-05T11:11:42",
+   "setup": "Pullback",
+   "stop": "",
+   "risk": "731.50",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-09T12:56:05",
+   "setup": "",
+   "stop": "17.77",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-09T14:01:57",
+   "setup": "News",
+   "stop": "18.19",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-09T14:20:57",
+   "setup": "",
+   "stop": "17.81",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-16T15:01:43",
+   "setup": "Breakout",
+   "stop": "19.00",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-18T15:14:09",
+   "setup": "Pullback",
+   "stop": "",
+   "risk": "666.90",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|PLMB|2026-11-23T10:23:33",
+   "setup": "Opening range break",
+   "stop": "",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": "Clean break with volume."
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-05T09:48:13",
+   "setup": "",
+   "stop": "234.85",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-10T09:51:11",
+   "setup": "Gap fade",
+   "stop": "231.23",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Moved stop"
+   ],
+   "notes": "Moved the stop when it got close."
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-17T09:32:21",
+   "setup": "Gap fade",
+   "stop": "232.53",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-17T10:17:10",
+   "setup": "Opening range break",
+   "stop": "230.57",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-17T14:52:39",
+   "setup": "Breakout",
+   "stop": "229.54",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Chased entry"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-20T13:21:14",
+   "setup": "Breakout",
+   "stop": "238.03",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Oversized"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-20T14:35:11",
+   "setup": "Breakout",
+   "stop": "239.24",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-23T13:43:51",
+   "setup": "Pullback",
+   "stop": "235.45",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Oversized"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|QLSW|2026-11-24T12:05:15",
+   "setup": "Breakout",
+   "stop": "",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Oversized"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-03T09:49:07",
+   "setup": "Gap fade",
+   "stop": "27.56",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-03T09:56:07",
+   "setup": "Gap fade",
+   "stop": "",
+   "risk": "683.10",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-03T11:05:17",
+   "setup": "Pullback",
+   "stop": "",
+   "risk": "484.50",
+   "target": "",
+   "mistakes": [
+    "Added to a loser"
+   ],
+   "notes": "Thought it would bounce. It did not."
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-09T09:53:29",
+   "setup": "Gap fade",
+   "stop": "27.89",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-09T12:47:05",
+   "setup": "Breakout",
+   "stop": "27.53",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-10T11:24:21",
+   "setup": "Pullback",
+   "stop": "27.26",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|SMSH|2026-11-11T13:17:13",
+   "setup": "Breakout",
+   "stop": "26.19",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": "Held for the target as planned."
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-05T14:35:17",
+   "setup": "Opening range break",
+   "stop": "68.32",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-10T10:22:21",
+   "setup": "Opening range break",
+   "stop": "73.17",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": "Clean break with volume."
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-11T14:15:13",
+   "setup": "Pullback",
+   "stop": "71.54",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-13T11:23:17",
+   "setup": "Pullback",
+   "stop": "72.36",
+   "risk": "",
+   "target": "",
+   "mistakes": [
+    "Oversized"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-13T12:43:56",
+   "setup": "Pullback",
+   "stop": "71.81",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-18T10:24:55",
+   "setup": "Opening range break",
+   "stop": "",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-19T09:50:00",
+   "setup": "Opening range break",
+   "stop": "73.00",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-20T14:43:11",
+   "setup": "Breakout",
+   "stop": "72.44",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-23T14:01:51",
+   "setup": "Opening range break",
+   "stop": "70.00",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": "Clean break with volume."
+  },
+  {
+   "id": "KES-EQ-0418|THBF|2026-11-25T09:52:41",
+   "setup": "Gap fade",
+   "stop": "68.99",
+   "risk": "",
+   "target": "",
+   "mistakes": [],
+   "notes": ""
+  }
+ ],
+ "fills": [],
+ "feeRows": [],
+ "seq": 0
+}

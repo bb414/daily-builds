@@ -143,14 +143,15 @@ def split_fill(rng, qty, lot):
     return [s for s in sizes if s > 0]
 
 
-def equities(rng, book):
+def equities(rng, book, account=EQ_ACCOUNT, first=START, last=END, over_n=6, tilt_n=3, mistake_scale=1.0, open_at_end=True):
+    """A challenge account's equity fills. The defaults make the main sample; the team members use other settings."""
     rows = []
     prices = {s: p for s, p in EQUITIES}
     order_no = [100230]
     busy_until = {}
     equity = 100000.0
-    over_days = set(rng.sample(list(trading_days(START, END)), 6))
-    tilt_days = set(rng.sample([d for d in trading_days(START, END) if d not in over_days], 3))
+    over_days = set(rng.sample(list(trading_days(first, last)), over_n))
+    tilt_days = set(rng.sample([d for d in trading_days(first, last) if d not in over_days], tilt_n))
 
     def next_order():
         order_no[0] += rng.randint(1, 9)
@@ -166,10 +167,10 @@ def equities(rng, book):
             p = price if i == 0 else round_to(price + rng.choice([-0.01, 0.0, 0.01]), 0.01)
             s = sec + (0 if i == 0 else rng.randint(0, 2))
             status = "Filled" if i == len(parts) - 1 else "Partially Filled"
-            out.append([EQ_ACCOUNT, day, s, symbol, action, part, p, commission(part), oid, status])
+            out.append([account, day, s, symbol, action, part, p, commission(part), oid, status])
         return out
 
-    for day in trading_days(START, END):
+    for day in trading_days(first, last):
         for s in prices:
             prices[s] = round(prices[s] * math.exp(rng.gauss(0.0004, 0.017)), 2)
         close = EARLY_CLOSE.get(day, 16 * 3600)
@@ -192,13 +193,13 @@ def equities(rng, book):
                 continue
             mistakes = []
             roll = rng.random()
-            if roll < 0.07:
+            if roll < 0.07 * mistake_scale:
                 mistakes.append("Added to a loser")
-            elif roll < 0.12:
+            elif roll < 0.12 * mistake_scale:
                 mistakes.append("Moved stop")
-            elif roll < 0.20:
+            elif roll < 0.20 * mistake_scale:
                 mistakes.append("Chased entry")
-            elif roll < 0.25:
+            elif roll < 0.25 * mistake_scale:
                 mistakes.append("Early exit")
             if day in tilt_days and day_loss < -900 and rng.random() < 0.8:
                 mistakes.append("Revenge trade")
@@ -223,8 +224,7 @@ def equities(rng, book):
             stop = round_to(entry - direction * stop_dist, 0.01)
             oid = next_order()
             trade_rows = fill_rows(day, sec, symbol, open_side, qty, entry, oid)
-            first = trade_rows[0]
-            trade_id = "%s|%s|%s" % (EQ_ACCOUNT, symbol, iso_stamp(day, first[2]))
+            trade_id = "%s|%s|%s" % (account, symbol, iso_stamp(day, trade_rows[0][2]))
             t = trade_rows[-1][2] + rng.randint(20, 240)
             total_in = qty
             avg_in = entry
@@ -288,14 +288,15 @@ def equities(rng, book):
             symbol = rng.choice([s for s, _ in EQUITIES])
             sec = rng.randint(9 * 3600 + 40 * 60, 15 * 3600)
             status = "Rejected" if rng.random() < 0.15 else "Cancelled"
-            rows.append([EQ_ACCOUNT, day, sec, symbol, rng.choice(["Buy", "Sell Short"]), rng.randint(1, 30) * 10, round_to(prices[symbol] * 0.99, 0.01), 0.0, next_order(), status])
-    # One position is still open when the export ends: bought on the last afternoon, held over the weekend.
-    symbol = "GLBM"
-    entry = round_to(prices[symbol] * 1.004, 0.01)
-    sec = 12 * 3600 + 41 * 60 + 7
-    rows += fill_rows(END, sec, symbol, "Buy", 2000, entry, next_order())
-    book.note("%s|%s|%s" % (EQ_ACCOUNT, symbol, iso_stamp(END, sec)), setup="Breakout", stop=price_text(round_to(entry - 0.22, 0.01)),
-              notes="Holding over the weekend; stop stays in.")
+            rows.append([account, day, sec, symbol, rng.choice(["Buy", "Sell Short"]), rng.randint(1, 30) * 10, round_to(prices[symbol] * 0.99, 0.01), 0.0, next_order(), status])
+    if open_at_end:
+        # One position is still open when the export ends: bought on the last afternoon, held over the weekend.
+        symbol = "GLBM"
+        entry = round_to(prices[symbol] * 1.004, 0.01)
+        sec = 12 * 3600 + 41 * 60 + 7
+        rows += fill_rows(END, sec, symbol, "Buy", 2000, entry, next_order())
+        book.note("%s|%s|%s" % (account, symbol, iso_stamp(END, sec)), setup="Breakout", stop=price_text(round_to(entry - 0.22, 0.01)),
+                  notes="Holding over the weekend; stop stays in.")
     rows.sort(key=lambda r: (r[1], r[2]))
     lines = ["Account,Trade Date,Time (ET),Symbol,Action,Quantity,Price,Commission,Currency,Order ID,Status"]
     for r in rows:
@@ -535,6 +536,40 @@ def write(name, text):
         fh.write(text)
 
 
+# Three invented team members, four weeks each, for the companion's team review.
+TEAM = [
+    ("priya", "KES-EQ-0418", 20, dict(over_n=0, tilt_n=0, mistake_scale=0.3)),
+    ("tom", "KES-EQ-0419", 13, dict(over_n=7, tilt_n=2, mistake_scale=1.3)),
+    ("kasia", "KES-EQ-0420", 16, dict(over_n=1, tilt_n=1, mistake_scale=1.6)),
+]
+TEAM_START = date(2026, 11, 2)
+
+
+def team_samples():
+    for folder, account, seed, cfg in TEAM:
+        book = Book()
+        text = equities(random.Random(SEED + seed), book, account=account, first=TEAM_START, last=END, open_at_end=False, **cfg)
+        os.makedirs(os.path.join(DATA, "team", folder), exist_ok=True)
+        write(os.path.join("team", folder, "fills.csv"), text)
+        st = settings()
+        st["accounts"] = [{"name": account, "start": "100000", "currency": "USD", "longOnly": False}]
+        st["fx"], st["multipliers"] = [], []
+        project = {"app": "round-trips", "version": 1, "saved": "2026-11-28", "settings": st, "sources": [],
+                   "journal": sorted(book.journal, key=lambda e: e["id"]), "fills": [], "feeRows": [], "seq": 0}
+        write(os.path.join("team", folder, "journal.json"), json.dumps(project, indent=1, ensure_ascii=False) + "\n")
+
+
+def weekly_samples(text):
+    """Two overlapping exports of the equities account, as a weekly job would receive them."""
+    lines = text.splitlines(keepends=True)
+    head, body = lines[0], lines[1:]
+    os.makedirs(os.path.join(DATA, "weekly"), exist_ok=True)
+    first = [l for l in body if l.split(",")[1] <= "2026-11-20"]
+    second = [l for l in body if "2026-11-16" <= l.split(",")[1]]
+    write(os.path.join("weekly", "export-2026-11-20.csv"), head + "".join(first))
+    write(os.path.join("weekly", "export-2026-11-27.csv"), head + "".join(second))
+
+
 def main():
     os.makedirs(DATA, exist_ok=True)
     rng = random.Random(SEED)
@@ -546,6 +581,8 @@ def main():
     write("futures-messy.csv", fut_text)
     write("dealing-account.csv", uk_text)
     write("template.csv", template_csv())
+    team_samples()
+    weekly_samples(eq_text)
     journal = sorted(book.journal, key=lambda e: e["id"])
     project = {"app": "round-trips", "version": 1, "saved": "2026-11-28", "settings": settings(), "sources": [], "journal": journal,
                "fills": [], "feeRows": [], "seq": 0}
