@@ -417,8 +417,16 @@
     }
     var headers = headerIdx >= 0 ? rows[headerIdx].map(function (h) { return String(h).trim(); }) : null;
     if (!map) {
-      map = inferColumns(rows);
-      if (map) result.warnings.push('No header row was found, so the columns were worked out from what they contain. Check the column choices below.');
+      // A first row of plain words is a header with names this tool does not know.
+      var fi = 0;
+      while (fi < rows.length && !rows[fi].some(function (c) { return String(c).trim(); })) fi++;
+      var looksHeader = fi < rows.length - 1 && rows[fi].length > 1 && rows[fi].every(function (c) { return !dateShape(c) && parseAmount(c) === null; });
+      map = inferColumns(looksHeader ? rows.slice(fi + 1) : rows);
+      if (map && looksHeader) {
+        headerIdx = fi;
+        headers = rows[fi].map(function (h) { return String(h).trim(); });
+        result.warnings.push('The column names were not ones this tool knows, so the columns were worked out from what they contain. Check them with Change columns.');
+      } else if (map) result.warnings.push('No header row was found, so the columns were worked out from what they contain. Check the column choices below.');
     }
     if (!map || map.date === undefined || !hasAmountRole(map)) {
       result.error = 'Could not find a date column and an amount column. Choose the columns by hand, or download the template to see the layout that always works.';

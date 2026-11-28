@@ -443,6 +443,8 @@ _CONTROL_CHARS = js_regex(r'[\u0000-\u0008]')
 _SIGN_OUT = js_regex(r'^(d|dr|debit|out|money out|paid out|withdrawal)')
 _SIGN_IN = js_regex(r'^(c|cr|credit|in|money in|paid in|deposit)')
 
+WARN_UNKNOWN_HEADER = ('The column names were not ones this tool knows, so the columns were worked out from what '
+                       'they contain. Check them with Change columns.')
 WARN_NO_HEADER = ('No header row was found, so the columns were worked out from what they contain. '
                   'Check the column choices below.')
 WARN_FLIPPED = ('Most amounts in this file are positive, so positive amounts were read as money spent (the way '
@@ -496,8 +498,18 @@ def parse_csv(text, name=None, options=None):
             mapping = options['mapping']
     headers = [js_trim(js_string(h)) for h in rows[header_idx]] if header_idx >= 0 else None
     if mapping is None:
-        mapping = infer_columns(rows)
-        if mapping:
+        # A first row of plain words is a header with names this tool does not know.
+        fi = 0
+        while fi < len(rows) and not any(js_trim(js_string(c)) for c in rows[fi]):
+            fi += 1
+        looks_header = (fi < len(rows) - 1 and len(rows[fi]) > 1
+                        and all(date_shape(c) is None and parse_amount(c) is None for c in rows[fi]))
+        mapping = infer_columns(rows[fi + 1:] if looks_header else rows)
+        if mapping and looks_header:
+            header_idx = fi
+            headers = [js_trim(js_string(h)) for h in rows[fi]]
+            result['warnings'].append(WARN_UNKNOWN_HEADER)
+        elif mapping:
             result['warnings'].append(WARN_NO_HEADER)
     if mapping is None or 'date' not in mapping or not has_amount_role(mapping):
         result['error'] = ('Could not find a date column and an amount column. Choose the columns by hand, '

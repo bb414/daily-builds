@@ -416,8 +416,8 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   .hero-art { max-width: 620px; justify-self: center; width: 100%; }
   .meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pipe-run .tab-sub { display: none; }
-  .intake, .grid-2, .reg-detail, .how { grid-template-columns: 1fr; }
-  .savings, .grid-3 { grid-template-columns: 1fr; }
+  .intake, .grid-2, .reg-detail, .how { grid-template-columns: minmax(0, 1fr); }
+  .savings, .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 720px) {
   body { font-size: 15.5px; background-size: 48px 48px, 48px 48px, 48px 48px; }

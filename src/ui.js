@@ -129,7 +129,7 @@
     var s = money(p);
     var m = /^(-?\u00a3)([\d,]+)\.(\d\d)$/.exec(s);
     if (!m) return esc(s);
-    return '<span>' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span>,</span>' : '<span class="digit">' + c + '</span>'; }).join('') + '<span class="pence">.' + m[3] + '</span>';
+    return '<span class="sr-only">' + esc(s) + '</span><span aria-hidden="true">' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span aria-hidden="true">,</span>' : '<span class="digit" aria-hidden="true">' + c + '</span>'; }).join('') + '<span class="pence" aria-hidden="true">.' + m[3] + '</span>';
   }
   function renderMeters() {
     var el = $('#meters');

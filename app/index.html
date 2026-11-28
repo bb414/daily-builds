@@ -432,8 +432,8 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
   .hero-art { max-width: 620px; justify-self: center; width: 100%; }
   .meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pipe-run .tab-sub { display: none; }
-  .intake, .grid-2, .reg-detail, .how { grid-template-columns: 1fr; }
-  .savings, .grid-3 { grid-template-columns: 1fr; }
+  .intake, .grid-2, .reg-detail, .how { grid-template-columns: minmax(0, 1fr); }
+  .savings, .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 720px) {
   body { font-size: 15.5px; background-size: 48px 48px, 48px 48px, 48px 48px; }
@@ -1131,8 +1131,16 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     }
     var headers = headerIdx >= 0 ? rows[headerIdx].map(function (h) { return String(h).trim(); }) : null;
     if (!map) {
-      map = inferColumns(rows);
-      if (map) result.warnings.push('No header row was found, so the columns were worked out from what they contain. Check the column choices below.');
+      // A first row of plain words is a header with names this tool does not know.
+      var fi = 0;
+      while (fi < rows.length && !rows[fi].some(function (c) { return String(c).trim(); })) fi++;
+      var looksHeader = fi < rows.length - 1 && rows[fi].length > 1 && rows[fi].every(function (c) { return !dateShape(c) && parseAmount(c) === null; });
+      map = inferColumns(looksHeader ? rows.slice(fi + 1) : rows);
+      if (map && looksHeader) {
+        headerIdx = fi;
+        headers = rows[fi].map(function (h) { return String(h).trim(); });
+        result.warnings.push('The column names were not ones this tool knows, so the columns were worked out from what they contain. Check them with Change columns.');
+      } else if (map) result.warnings.push('No header row was found, so the columns were worked out from what they contain. Check the column choices below.');
     }
     if (!map || map.date === undefined || !hasAmountRole(map)) {
       result.error = 'Could not find a date column and an amount column. Choose the columns by hand, or download the template to see the layout that always works.';
@@ -2654,7 +2662,7 @@ fieldset.decide { margin: 0; padding: 0; min-width: 0; }
     var s = money(p);
     var m = /^(-?\u00a3)([\d,]+)\.(\d\d)$/.exec(s);
     if (!m) return esc(s);
-    return '<span>' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span>,</span>' : '<span class="digit">' + c + '</span>'; }).join('') + '<span class="pence">.' + m[3] + '</span>';
+    return '<span class="sr-only">' + esc(s) + '</span><span aria-hidden="true">' + m[1] + '</span>' + m[2].split('').map(function (c) { return c === ',' ? '<span aria-hidden="true">,</span>' : '<span class="digit" aria-hidden="true">' + c + '</span>'; }).join('') + '<span class="pence" aria-hidden="true">.' + m[3] + '</span>';
   }
   function renderMeters() {
     var el = $('#meters');
