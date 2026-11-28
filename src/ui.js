@@ -646,7 +646,7 @@
       fig('Average exit', t.qtyOut ? avgPrice(t.avgExit) : '') +
       fig('Orders in, out', t.entryOrders + ', ' + t.exitOrders) +
       fig('Risk at the stop', t.initialRisk === null ? 'no stop' : M.money(t.initialRisk, cur)) +
-      fig('Most at risk', t.maxRisk === null ? 'no stop' : M.money(t.maxRisk, cur)) +
+      fig(t.initialRisk === null && t.maxRisk !== null ? 'Planned risk' : 'Most at risk', t.maxRisk === null ? 'no stop' : M.money(t.maxRisk, cur)) +
       fig('Multiplier', M.fmtNum(t.mult, 2).replace(/\.00$/, '') + ' ' + cur) +
       '</dl>';
     if (t.netBase !== null && cur !== base() && t.status === 'closed') html += '<p class="hint">In ' + esc(base()) + ': ' + esc(m(t.netBase, { sign: true })) + ' at ' + esc(String(t.rate)) + '.</p>';

@@ -107,14 +107,14 @@ The companion gives exactly the same trades, figures, breaches, review text and 
 ## Tests
 
 ```
-node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, days, files (25 tests)
-python -m unittest discover -s tests  # companion (13), agreement (10) and browser (13) tests
+node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, days, files (26 tests)
+python -m unittest discover -s tests  # companion (13), agreement (10) and browser (15) tests
 ```
 
 - `tests/model.test.js`: the browser model on its own.
 - `tests/test_companion.py`: reading, the jobs only the companion does, the command line and a scan for em dashes.
 - `tests/test_agreement.py`: runs the model from `app/index.html` in Node and the Python package on the same inputs (the samples, edited journals and settings, the team, the weekly exports, edge-case files and twelve randomly generated exports with fractional quantities, reversals and futures) and requires every trade, statistic, breach and review to match, and every CSV and journal file to be byte for byte the same. It also checks that `app/index.html` is up to date with `src/`.
-- `tests/test_app.py`: Playwright drives the app in Chromium: the sample on opening, keyboard tabs, uploading files including a bad one, writing up a trade, every download opened and checked, saving, reopening and merging next week's export, the app inside a frame, no sideways scroll at 390px, a label on every control, no console errors and no network requests.
+- `tests/test_app.py`: Playwright drives the app in Chromium: the sample on opening, keyboard tabs, uploading files including a bad one, writing up a trade, every download opened and checked, saving, reopening and merging next week's export, the app inside a frame, no sideways scroll at 390px, a phone ticket opening under its trade, clearing your own journal asking twice, a label on every control, no console errors and no network requests.
 
 Tests skip cleanly when Node, Playwright or Chromium is missing.
 
@@ -143,9 +143,9 @@ Tests skip cleanly when Node, Playwright or Chromium is missing.
 | Part | Language | Lines (roughly) |
 |---|---|---|
 | The model: reading exports, matching, statistics, rules, days, the review, files (`src/model.js`) | JavaScript | 2,160 |
-| The interface (`src/ui.js`, `src/style.css`, `src/shell.html` with the hand-drawn hero) | JavaScript, CSS, HTML | 2,340 |
-| The companion (`companion/`): the same model (about 2,900 lines), plus the weekly job, team review, period and weekly reports and the command line (about 900) | Python | 3,820 |
-| Tests (`tests/`) | JavaScript, Python | 1,340 |
+| The interface (`src/ui.js`, `src/style.css`, `src/shell.html` with the hand-drawn hero) | JavaScript, CSS, HTML | 2,390 |
+| The companion (`companion/`): the same model (about 2,900 lines), plus the weekly job, team review, period and weekly reports and the command line (about 900) | Python | 3,830 |
+| Tests (`tests/`) | JavaScript, Python | 1,380 |
 | Sample generator, build and screenshot tools (`tools/`) | Python | 780 |
 
 `tools/build_app.py` writes `app/index.html` from `src/` with the fonts and samples embedded; `tools/make_samples.py` makes every sample file from a fixed seed.
