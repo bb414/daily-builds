@@ -666,13 +666,14 @@ EXAM_SYNONYMS = {
     'code': ['module code', 'module', 'course code', 'unit code', 'code', 'paper code', 'subject code', 'module id', 'exam code', 'component code', 'assessment code', 'module ref', 'module no'],
     'name': ['module title', 'module name', 'title', 'course title', 'course name', 'course', 'unit title', 'unit name', 'unit', 'paper', 'paper title', 'exam title', 'subject', 'module description', 'assessment title', 'examination', 'exam', 'exam name'],
     'date': ['date', 'exam date', 'day date', 'date of exam', 'examination date', 'day', 'exam day', 'date and time', 'date time', 'start date', 'when'],
-    'start': ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at', 'session', 'am pm', 'am or pm', 'exam session'],
+    'start': ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at'],
     'end': ['end', 'end time', 'finish', 'finish time', 'to', 'until', 'ends', 'exam end'],
     'duration': ['duration', 'length', 'duration mins', 'duration minutes', 'duration hrs', 'duration hours', 'exam duration', 'mins', 'minutes', 'hours', 'hrs', 'length mins', 'length hours'],
     'room': ['venue', 'room', 'location', 'building', 'hall', 'exam venue', 'exam room', 'place', 'centre', 'campus'],
     'seat': ['seat', 'seat no', 'seat number', 'desk', 'desk number', 'desk no'],
     'type': ['type', 'assessment type', 'exam type', 'component', 'sitting', 'attempt', 'kind', 'format', 'mode', 'assessment', 'period'],
     'notes': ['notes', 'note', 'comments', 'comment', 'information', 'info', 'details', 'additional information', 'remarks'],
+    'session': ['session', 'am pm', 'am or pm', 'exam session', 'time of day'],
 }
 
 EXAM_KEYWORDS = [
@@ -933,8 +934,15 @@ def exam_from_cells(cells, mp, unit, ref, line, messages, order='DMY'):
         if end is None:
             end = end_from_date
     from_session = False
+    sess_cell = cell(cells, mp.get('session'))
+    if start is None and sess_cell:
+        tsx = find_times(sess_cell)
+        if tsx:
+            start = tsx[0]['min']
     if start is None:
         start = session_start(start_cell) if start_cell else None
+        if start is None and sess_cell:
+            start = session_start(sess_cell)
         if start is None and day is not None:
             start = session_start(date_cell)
         from_session = start is not None
@@ -991,10 +999,11 @@ def read_exam_lines(text, out, ref):
         if not raw:
             continue
         code, paper = find_code(raw), None
-        if not code:
+        date = find_date(raw, 'DMY', ref)
+        # A board paper code counts only on a line that also has a date.
+        if not code and date:
             paper = find_board_code(raw)
             code = paper
-        date = find_date(raw, 'DMY', ref)
         if not code and not date:
             if not out['exams']:
                 continue
@@ -2646,11 +2655,12 @@ def build_plan(project):
             remaining[st['exam']['id']] += (st['count'] - st['done']) * st['len']
 
     # With time to spare, a module's new learning goes at a steady pace
-    # that would finish it a little (a quarter) faster than its aim needs,
-    # instead of filling the first weeks and leaving the last ones empty.
+    # that would finish it a quarter early against a target a week before
+    # its aim (so two weeks before new topics stop, leaving room for
+    # reviews), instead of filling the first weeks and leaving the rest empty.
     # Time to spare means the learning and the first three reviews still
-    # to do take under four fifths of the free time before the aim, for
-    # the module and for the plan as a whole.
+    # to do take under four fifths of the free time: before the module's
+    # target, and before the last aim for the plan as a whole.
     credit = {e['id']: 0 for e in plan['exams']}
     last_aim = max([frm] + [e['aimBy'] for e in plan['exams']])
 
@@ -2669,9 +2679,9 @@ def build_plan(project):
         if need and need['total'] * 5 < cap_between(x, min(last_aim - frm, n_days - 1)) * 4:
             free0 = max(0, dd['cap'] - dd['used'])
             for e in plan['exams']:
-                if remaining[e['id']] <= 0 or d > e['aimBy']:
+                if remaining[e['id']] <= 0 or d > e['aimBy'] - 7:
                     continue
-                span = cap_between(x, min(e['aimBy'] - frm, n_days - 1))
+                span = cap_between(x, min(e['aimBy'] - 7 - frm, n_days - 1))
                 if span <= 0 or need['byExam'][e['id']] * 5 >= span * 4:
                     continue
                 credit[e['id']] += ceil_div(remaining[e['id']] * free0 * 5, span * 4)

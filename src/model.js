@@ -631,13 +631,14 @@ var ExamSeason = (function () {
     code: ['module code', 'module', 'course code', 'unit code', 'code', 'paper code', 'subject code', 'module id', 'exam code', 'component code', 'assessment code', 'module ref', 'module no'],
     name: ['module title', 'module name', 'title', 'course title', 'course name', 'course', 'unit title', 'unit name', 'unit', 'paper', 'paper title', 'exam title', 'subject', 'module description', 'assessment title', 'examination', 'exam', 'exam name'],
     date: ['date', 'exam date', 'day date', 'date of exam', 'examination date', 'day', 'exam day', 'date and time', 'date time', 'start date', 'when'],
-    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at', 'session', 'am pm', 'am or pm', 'exam session'],
+    start: ['start', 'start time', 'time', 'begins', 'from', 'exam start', 'starts', 'start at'],
     end: ['end', 'end time', 'finish', 'finish time', 'to', 'until', 'ends', 'exam end'],
     duration: ['duration', 'length', 'duration mins', 'duration minutes', 'duration hrs', 'duration hours', 'exam duration', 'mins', 'minutes', 'hours', 'hrs', 'length mins', 'length hours'],
     room: ['venue', 'room', 'location', 'building', 'hall', 'exam venue', 'exam room', 'place', 'centre', 'campus'],
     seat: ['seat', 'seat no', 'seat number', 'desk', 'desk number', 'desk no'],
     type: ['type', 'assessment type', 'exam type', 'component', 'sitting', 'attempt', 'kind', 'format', 'mode', 'assessment', 'period'],
-    notes: ['notes', 'note', 'comments', 'comment', 'information', 'info', 'details', 'additional information', 'remarks']
+    notes: ['notes', 'note', 'comments', 'comment', 'information', 'info', 'details', 'additional information', 'remarks'],
+    session: ['session', 'am pm', 'am or pm', 'exam session', 'time of day']
   };
 
   var EXAM_KEYWORDS = [
@@ -874,8 +875,14 @@ var ExamSeason = (function () {
     }
     if (start === null) { start = startFromDate; if (end === null) end = endFromDate; }
     var fromSession = false;
+    var sessCell = cell(cells, map.session);
+    if (start === null && sessCell) {
+      var tsx = findTimes(sessCell);
+      if (tsx.length) start = tsx[0].min;
+    }
     if (start === null) {
       start = startCell ? sessionStart(startCell) : null;
+      if (start === null && sessCell) start = sessionStart(sessCell);
       if (start === null && day !== null) start = sessionStart(dateCell);
       fromSession = start !== null;
     }
@@ -923,8 +930,9 @@ var ExamSeason = (function () {
       var raw = squash(lines[i]), line = i + 1;
       if (!raw) continue;
       var code = findCode(raw), paper = null;
-      if (!code) { paper = findBoardCode(raw); code = paper; }
       var date = findDate(raw, 'DMY', ref);
+      // A board paper code counts only on a line that also has a date.
+      if (!code && date) { paper = findBoardCode(raw); code = paper; }
       if (!code && !date) {
         if (out.exams.length === 0) continue;
         out.messages.push({ level: 'info', line: line, text: 'Line ' + line + ' was not read: no module code or date in "' + firstChars(raw, 60) + '".' });
@@ -2405,11 +2413,12 @@ var ExamSeason = (function () {
     states.forEach(function (st) { if (st.done < st.count) remaining[st.exam.id] += (st.count - st.done) * st.len; });
 
     // With time to spare, a module's new learning goes at a steady pace
-    // that would finish it a little (a quarter) faster than its aim needs,
-    // instead of filling the first weeks and leaving the last ones empty.
+    // that would finish it a quarter early against a target a week before
+    // its aim (so two weeks before new topics stop, leaving room for
+    // reviews), instead of filling the first weeks and leaving the rest empty.
     // Time to spare means the learning and the first three reviews still
-    // to do take under four fifths of the free time before the aim, for
-    // the module and for the plan as a whole.
+    // to do take under four fifths of the free time: before the module's
+    // target, and before the last aim for the plan as a whole.
     var credit = {}, lastAim = from;
     plan.exams.forEach(function (e) { credit[e.id] = 0; lastAim = Math.max(lastAim, e.aimBy); });
     function needLeft() {
@@ -2444,8 +2453,8 @@ var ExamSeason = (function () {
       if (need && need.total * 5 < capBetween(x, Math.min(lastAim - from, nDays - 1)) * 4) {
         var free0 = Math.max(0, dd.cap - dd.used);
         plan.exams.forEach(function (e) {
-          if (remaining[e.id] <= 0 || d > e.aimBy) return;
-          var span = capBetween(x, Math.min(e.aimBy - from, nDays - 1));
+          if (remaining[e.id] <= 0 || d > e.aimBy - 7) return;
+          var span = capBetween(x, Math.min(e.aimBy - 7 - from, nDays - 1));
           if (span <= 0 || need.byExam[e.id] * 5 >= span * 4) return;
           credit[e.id] += ceilDiv(remaining[e.id] * free0 * 5, span * 4);
           paced[e.id] = true;

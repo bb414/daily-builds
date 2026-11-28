@@ -24,6 +24,8 @@
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 
+  function later(fn) { setTimeout(fn, 0); }
+
   function esc(s) {
     return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
@@ -1136,7 +1138,7 @@
       ['m0', 'How long each topic needs', '<p>A topic\'s size is the first learning it needs at middling confidence: S is 2 hours, M is 3, L is 5 (XS 1, XL 7), or the hours you type. Confidence scales it: 1 needs 150%, 2 needs 125%, 3 needs 100%, 4 needs 75% and 5 needs 50%. That is rounded up to whole ' + s.learnMin + '-minute learning sessions. A topic marked Quick gets one ' + s.reviewMin + '-minute look and one review; Drop leaves it out.</p>'],
       ['m1', 'Weak and heavy topics first', '<p>Within each module, topics are learnt in order of confidence (weakest first), then size (biggest first), then the order you listed them. So the topics most likely to go wrong get the most time and the most reviews.</p>'],
       ['m2', 'Which module next', '<p>Every module aims to finish its new topics a week before they stop (see the taper), so its last topics still get reviews. The next learning session goes to the module with the least slack: the hours of free time left before that aim, minus the hours of learning it still needs. Early exams come first without starving later ones.</p>' +
-        (s.pace === 'spread' ? '<p>When a module has time to spare, its new topics go at a steady pace that would finish them a quarter sooner than they need to, so days stay lighter and the last weeks still have reviews. (Choose "as early as possible" under Your time to use every free hour instead.)</p>' : '<p>New topics are learnt as early as your free time allows (you chose "as early as possible" under Your time).</p>')],
+        (s.pace === 'spread' ? '<p>When a module has time to spare, its new topics go at a steady pace that finishes them about two weeks before they stop, so days stay lighter and the last weeks are kept for reviews. (Choose "as early as possible" under Your time to use every free hour instead.)</p>' : '<p>New topics are learnt as early as your free time allows (you chose "as early as possible" under Your time).</p>')],
       ['m3', 'Mixed, never one module all day', '<p>No module takes more than ' + s.maxShare + '% of a day\'s revision, and two sessions in a row are from different modules, whenever another module has something to do. A topic gets at most one session a day. These only relax when nothing else fits.</p>'],
       ['m4', 'Spaced reviews at growing gaps', '<p>Once a topic is learnt, it comes back for ' + s.reviewMin + '-minute reviews ' + gaps.join(', ').replace(/, ([0-9]+)$/, ' and $1') + ' days apart, each gap counted from the review before. The first three reviews come before new learning (up to ' + s.reviewShare + '% of a day); later top-ups only fill spare time. A review that slips simply happens the next free day.</p>'],
       ['m5', 'A taper into each exam', '<p>New topics stop ' + plural(s.taperDays, 'day') + ' before each exam. In the two weeks before it, ' + s.papers + ' timed past papers (as long as the exam, up to ' + M.fmtDur(s.paperMax) + ') are booked as late as possible, at most one a day and never on another exam\'s day.</p>'],
@@ -1399,10 +1401,14 @@
       if (again) again.focus();
       return;
     }
-    if (t.hasAttribute('data-exam')) { examField(parseInt(t.getAttribute('data-exam'), 10), t.getAttribute('data-field'), t.value); return; }
-    if (t.hasAttribute('data-topic') && t.hasAttribute('data-field')) { topicField(parseInt(t.getAttribute('data-topic'), 10), t.getAttribute('data-field'), t.value); return; }
-    if (t.hasAttribute('data-week')) { weekField(parseInt(t.getAttribute('data-week'), 10), t.getAttribute('data-field'), t.value); return; }
-    if (t.hasAttribute('data-setting')) { settingField(t.getAttribute('data-setting'), t.value); return; }
+    // Field edits are applied once the focus has moved (after Tab, say), so
+    // the redraw puts the focus back where the student went next.
+    var idx = parseInt(t.getAttribute('data-exam') || t.getAttribute('data-topic') || t.getAttribute('data-week'), 10);
+    var field = t.getAttribute('data-field'), value = t.value;
+    if (t.hasAttribute('data-exam')) { later(function () { examField(idx, field, value); }); return; }
+    if (t.hasAttribute('data-topic') && t.hasAttribute('data-field')) { later(function () { topicField(idx, field, value); }); return; }
+    if (t.hasAttribute('data-week')) { later(function () { weekField(idx, field, value); }); return; }
+    if (t.hasAttribute('data-setting')) { var key = t.getAttribute('data-setting'); later(function () { settingField(key, value); }); return; }
     if (t.id === 'set-preset') {
       var pr = PRESETS.filter(function (x) { return x[0] === t.value; })[0];
       if (pr) {

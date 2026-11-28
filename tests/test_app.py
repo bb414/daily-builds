@@ -176,6 +176,14 @@ class AppTest(unittest.TestCase):
         page.keyboard.press('Enter')
         page.wait_for_function("document.querySelector('button[data-topic=\"0\"][data-conf=\"4\"]').getAttribute('aria-pressed') === 'true'")
         self.assertEqual(page.evaluate("document.activeElement.getAttribute('data-conf')"), '4')
+        # Editing a title and pressing Tab lands on the next field, even though the page is redrawn.
+        page.click('.exam-row:not(.head) input[data-field=name] >> nth=0')
+        page.keyboard.press('End')
+        page.keyboard.type(' (A level)')
+        page.keyboard.press('Tab')
+        page.wait_for_function("document.querySelector('.module-cards').innerText.includes('(A level)') || document.querySelector('.exam-row:not(.head) input[data-field=name]').value.includes('(A level)')")
+        page.wait_for_timeout(100)
+        self.assertEqual(page.evaluate("document.activeElement.getAttribute('data-field')"), 'day')
         # Removing every topic asks for a second press (no pop-up, so it works in a frame too).
         page.click('[data-action=clear-topics]')
         self.assertIn('Press again', page.inner_text('[data-action=clear-topics]'))
