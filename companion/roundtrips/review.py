@@ -138,6 +138,33 @@ def review_notes(rv):
     return notes
 
 
+def review_short(rv):
+    """The review in a few lines, for a chat message."""
+    s, base, lines = rv['stats'], rv['base'], []
+    who = ' (' + rv['account'] + ')' if rv['account'] else ''
+    if not s['n']:
+        lines.append(rv['label'] + who + ': no trades closed.')
+    else:
+        lines.append(rv['label'] + who + ': ' + money(s['net'], base, sign=True) + ' after fees from ' + plural(s['n'], 'trade') + ', ' + fmt_pct(s['winRate'])
+                     + ' won, profit factor ' + ('n/a' if s['profitFactor'] is None else fmt_num(s['profitFactor'], 2)) + ', fees ' + money(s['fees'], base))
+        setups = [r for r in rv['bySetup'] if r['key'] != '(no setup)']
+        if setups:
+            line = 'Best setup: ' + setups[0]['label'] + ' ' + money(setups[0]['net'], base, sign=True)
+            if len(setups) > 1 and setups[-1]['net'] < 0:
+                line += '; worst: ' + setups[-1]['label'] + ' ' + money(setups[-1]['net'], base, sign=True)
+            lines.append(line)
+    if rv['breaches']:
+        lines.append('Rule breaches: %d (' % len(rv['breaches']) + ', '.join(x['broken'] + ' x%d' % rv['breachCount'][x['id']] for x in RULES if rv['breachCount'].get(x['id'])) + ')')
+    else:
+        lines.append('Rule breaches: none')
+    if rv['whatIf']['combined'] != rv['whatIf']['actual']:
+        lines.append('Keeping to the rules: about ' + money(rv['whatIf']['combined'], base, sign=True) + ' (an estimate)')
+    if rv['untagged'] or rv['noRisk']:
+        lines.append('Still to write up: ' + plural(rv['untagged'], 'trade') + ' with no setup, ' + plural(rv['noRisk'], 'trade') + ' with no stop')
+    lines.append('Not financial advice.')
+    return '\n'.join(lines) + '\n'
+
+
 def trade_name(t):
     return t['symbol'] + ' ' + ('long' if t['dir'] > 0 else 'short') + ' ' + fmt_short(t['openDay'])
 

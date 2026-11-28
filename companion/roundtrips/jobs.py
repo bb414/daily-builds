@@ -164,6 +164,7 @@ def weekly_job(journal_path, inbox, out_dir, archive=None, week=None, account=''
     if settings_path and not os.path.exists(journal_path):
         state['settings'] = copy.deepcopy(load_state(settings_path)['settings'])
     before = len(state['fills'])
+    closed_before = {t['id'] for t in analyse(state)['closed']} if state['fills'] else set()
     paths = exports_in(inbox) if inbox and os.path.isdir(inbox) else []
     files = [{'name': os.path.basename(p), 'text': read_text(p)} for p in paths]
     imp = import_files(state, files)
@@ -171,7 +172,7 @@ def weekly_job(journal_path, inbox, out_dir, archive=None, week=None, account=''
     res = analyse(new_state)
     if week is None:
         week = latest_week(res, account)
-    summary = {'inbox': [], 'added': len(new_state['fills']) - before, 'fills': len(new_state['fills']), 'week': week, 'written': [], 'archived': [], 'problems': []}
+    summary = {'inbox': [], 'added': len(new_state['fills']) - before, 'newlyClosed': len([t for t in res['closed'] if t['id'] not in closed_before]), 'fills': len(new_state['fills']), 'week': week, 'written': [], 'archived': [], 'problems': []}
     for p, rep in zip(paths, imp['reports']):
         summary['inbox'].append({'file': os.path.basename(p), 'ok': rep['ok'], 'added': rep['added'], 'duplicates': rep['duplicates'], 'skipped': rep['counts']['skipped'],
                                  'error': rep['error']})

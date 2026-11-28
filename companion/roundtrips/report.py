@@ -198,6 +198,90 @@ def weekly_report(result, rv, text):
     return page('Weekly trade review, ' + rv['label'], ''.join(body))
 
 
+MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+
+def calendar_html(ledger, base, start, end):
+    """Month grids of each trading day's realised result after fees, with week totals."""
+    from .common import civil, days_from_civil, weekday as wd
+    by_day = {d['day']: d for d in ledger}
+    out = []
+    c0, c1 = civil(start), civil(end)
+    y, mo = c0[0], c0[1]
+    while (y, mo) <= (c1[0], c1[1]):
+        first = days_from_civil(y, mo, 1)
+        nxt = days_from_civil(y + 1, 1, 1) if mo == 12 else days_from_civil(y, mo + 1, 1)
+        rows = []
+        w = first - wd(first)
+        while w < nxt:
+            cells, total, any_day = [], 0, False
+            for k in range(7):
+                day = w + k
+                x = by_day.get(day)
+                if day < first or day >= nxt:
+                    cells.append('<td></td>')
+                elif not x:
+                    cells.append('<td class="muted">%d</td>' % civil(day)[2])
+                else:
+                    total += x['realised']
+                    any_day = True
+                    cells.append('<td style="background:%s"><span class="muted">%d</span><br><strong class="%s">%s</strong>%s</td>' % (
+                        'rgba(38,48,122,.1)' if x['realised'] > 0 else ('rgba(179,48,29,.1)' if x['realised'] < 0 else 'transparent'), civil(day)[2], cls(x['realised']),
+                        e(money(x['realised'], base, sign=True, whole=True)), '<br><span class="loss">LIMIT</span>' if x['limitHit'] else ''))
+            cells.append('<td class="n %s">%s</td>' % (cls(total), e(money(total, base, sign=True, whole=True)) if any_day else ''))
+            rows.append('<tr>%s</tr>' % ''.join(cells))
+            w += 7
+        out.append('<h3>%s %d</h3><table><thead><tr>%s<th class="n">Week</th></tr></thead><tbody>%s</tbody></table>' % (
+            MONTHS[mo - 1], y, ''.join('<th>%s</th>' % d for d in ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')), ''.join(rows)))
+        y, mo = (y + 1, 1) if mo == 12 else (y, mo + 1)
+    return ''.join(out)
+
+
+def period_report(result, start, end, account=''):
+    """A report for any span of days (a month, a term, a whole challenge): weeks, days, setups, rules and what keeping to them would have changed."""
+    from .common import to_iso
+    from .days import day_ledger
+    from .stats import breakdown, filter_trades, stats, start_balance, weekly, what_if
+    base = result['settings']['base']
+    trades = filter_trades(result['closed'], account, start, end)
+    before = filter_trades(result['closed'], account, None, start - 1)
+    start_bal = start_balance(result, [account] if account else result['accounts']) + sum(t['netBase'] for t in usable(before))
+    s = stats(trades, start_bal)
+    breaches = [b for b in result['breaches'] if (not account or b['account'] == account) and start <= b['day'] <= end]
+    wi = what_if(result, account, start, end)
+    title = '%s to %s' % (fmt_day_month_year(start), fmt_day_month_year(end))
+    body = ['<header><div class="kicker">Round trips &middot; period report</div><h1>%s</h1><p>%s, %s closed. All figures after fees, in %s.</p><span class="stamp">Not financial advice</span></header>'
+            % (e(title), e(account or 'all accounts'), e(plural(s['n'], 'trade')), e(base))]
+    body.append('<section class="sheet"><h2>The period</h2>%s</section>' % stat_grid(s, base))
+    wk = weekly(trades)
+    wrows = ''.join('<tr><td>%s</td><td class="n">%d</td><td class="n %s">%s</td><td class="n">%s</td><td class="n">%d</td></tr>' % (
+        e(fmt_day_month_year(w['week'])), w['n'], cls(w['net']), e(money(w['net'], base, sign=True)), e(fmt_pct(w['wins'] / w['n'])),
+        len([b for b in breaches if w['week'] <= b['day'] <= w['week'] + 6])) for w in wk)
+    body.append('<section class="sheet"><h2>Week by week</h2><table><thead><tr><th>Week of</th><th class="n">Trades</th><th class="n">Net</th><th class="n">Won</th><th class="n">Breaches</th></tr></thead><tbody>%s</tbody></table></section>' % wrows)
+    body.append('<section class="sheet"><h2>Running total after fees</h2>%s</section>' % equity_svg([t for t in result['closed'] if not account or t['account'] == account], base, (start, end)))
+    ledger = [d for d in day_ledger(result, account) if start <= d['day'] <= end]
+    if ledger:
+        body.append('<section class="sheet"><h2>Day by day</h2>%s<p class="muted">%d of %d trading days ended up; the daily loss limit was hit on %d.</p></section>' % (
+            calendar_html(ledger, base, ledger[0]['day'], ledger[-1]['day']), len([d for d in ledger if d['realised'] > 0]), len(ledger), len([d for d in ledger if d['limitHit']])))
+    body.append('<section class="sheet"><h2>By setup</h2>%s<h2 style="margin-top:16px">By symbol</h2>%s</section>' % (
+        bars(breakdown(trades, 'setup'), base, sub=lambda r: '%s, %s won%s' % (plural(r['n'], 'trade'), fmt_pct(r['winRate']), ', average ' + fmt_r(r['avgR']) if r['avgR'] is not None else '')),
+        bars(breakdown(trades, 'symbol'), base)))
+    counts = {}
+    for b in breaches:
+        counts[b['rule']] = counts.get(b['rule'], 0) + 1
+    from .matching import RULES
+    body.append('<section class="sheet"><h2>Rules</h2><table><tbody>%s</tbody></table>'
+                '<p>If every rule had been kept: about <strong class="%s">%s</strong> instead of <strong class="%s">%s</strong> (skipping %s the rules ruled out %s, sizing %s within the limit %s, taking %s as planned %s). An estimate: other trades are left as they were.</p></section>' % (
+                    ''.join('<tr><td>%s</td><td class="n">%d</td></tr>' % (e(x['label']), counts.get(x['id'], 0)) for x in RULES),
+                    cls(wi['combined']), e(money(wi['combined'], base, sign=True)), cls(wi['actual']), e(money(wi['actual'], base, sign=True)),
+                    e(plural(wi['skip']['n'], 'trade')), e(money(wi['skip']['change'], base, sign=True)), e(plural(wi['size']['n'], 'trade')), e(money(wi['size']['change'], base, sign=True)),
+                    e(plural(wi['cap']['n'], 'stop')), e(money(wi['cap']['change'], base, sign=True))))
+    mistakes = [r for r in breakdown(trades, 'mistake') if r['key'] != '(none tagged)']
+    if mistakes:
+        body.append('<section class="sheet"><h2>What the mistakes cost</h2>%s</section>' % bars(mistakes, base, sub=lambda r: plural(r['n'], 'trade')))
+    return page('Trade report, ' + title, ''.join(body))
+
+
 def team_report(team, base, week):
     """The team review: one row per member with risk-adjusted figures and rule breaches."""
     body = ['<header><div class="kicker">Round trips &middot; team review</div><h1>Team review</h1><p>%s %s. All figures after fees, in %s.</p><span class="stamp">Not financial advice</span></header>'

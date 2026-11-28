@@ -54,7 +54,7 @@ function runCase(job) {
   [''].concat(result.accounts).forEach(function (a) {
     result.weeks.forEach(function (w) {
       var rv = M.weekReview(result, { week: w, account: a });
-      out.reviews.push({ week: w, account: a, review: rv, text: M.reviewText(rv, result) });
+      out.reviews.push({ week: w, account: a, review: rv, text: M.reviewText(rv, result), short: M.reviewShort(rv) });
     });
   });
   out.days = {};

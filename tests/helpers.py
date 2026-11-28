@@ -69,7 +69,7 @@ def run_case(job):
     for a in [''] + result['accounts']:
         for w in result['weeks']:
             rv = rt.week_review(result, w, a)
-            out['reviews'].append({'week': w, 'account': a, 'review': rv, 'text': rt.review_text(rv, result)})
+            out['reviews'].append({'week': w, 'account': a, 'review': rv, 'text': rt.review_text(rv, result), 'short': rt.review_short(rv)})
     out['days'] = {}
     for a in [''] + result['accounts']:
         ledger = rt.day_ledger(result, a)

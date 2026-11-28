@@ -2779,6 +2779,30 @@ button.cal-cell:hover { border-color: var(--ink); }
   }
   M.reviewText = reviewText;
 
+  // The review in a few lines, for a chat message.
+  function reviewShort(rv) {
+    var s = rv.stats, base = rv.base, L = [];
+    var who = rv.account ? ' (' + rv.account + ')' : '';
+    if (!s.n) {
+      L.push(rv.label + who + ': no trades closed.');
+    } else {
+      L.push(rv.label + who + ': ' + money(s.net, base, { sign: true }) + ' after fees from ' + plural(s.n, 'trade') + ', ' + fmtPct(s.winRate) + ' won, profit factor ' +
+        (s.profitFactor === null ? 'n/a' : fmtNum(s.profitFactor, 2)) + ', fees ' + money(s.fees, base));
+      var setups = rv.bySetup.filter(function (r) { return r.key !== '(no setup)'; });
+      if (setups.length) {
+        var line = 'Best setup: ' + setups[0].label + ' ' + money(setups[0].net, base, { sign: true });
+        if (setups.length > 1 && setups[setups.length - 1].net < 0) line += '; worst: ' + setups[setups.length - 1].label + ' ' + money(setups[setups.length - 1].net, base, { sign: true });
+        L.push(line);
+      }
+    }
+    L.push('Rule breaches: ' + (rv.breaches.length ? rv.breaches.length + ' (' + RULES.filter(function (x) { return rv.breachCount[x.id]; }).map(function (x) { return x.broken + ' x' + rv.breachCount[x.id]; }).join(', ') + ')' : 'none'));
+    if (rv.whatIf.combined !== rv.whatIf.actual) L.push('Keeping to the rules: about ' + money(rv.whatIf.combined, base, { sign: true }) + ' (an estimate)');
+    if (rv.untagged || rv.noRisk) L.push('Still to write up: ' + plural(rv.untagged, 'trade') + ' with no setup, ' + plural(rv.noRisk, 'trade') + ' with no stop');
+    L.push('Not financial advice.');
+    return L.join('\n') + '\n';
+  }
+  M.reviewShort = reviewShort;
+
   /* ---------- position size ---------- */
 
   // How many shares or contracts to trade so a stop-out loses no more than the chosen risk.
@@ -3013,7 +3037,9 @@ button.cal-cell:hover { border-color: var(--ink); }
     view: 'review',
     dirty: {},
     review: { week: null, account: '', all: false },
-    trades: { account: '', week: '', setup: '', outcome: '', needs: false, q: '', selected: null, limit: 80 },
+    trades: { account: '', week: '', setup: '', outcome: '', needs: false, fresh: false, q: '', selected: null, limit: 80 },
+    opened: null,
+    chat: 'full',
     fills: { account: '', symbol: '', limit: 60 },
     breakdown: 'setup',
     days: { account: '', day: null },
@@ -3073,6 +3099,7 @@ button.cal-cell:hover { border-color: var(--ink); }
   }
 
   function startFresh() {
+    S.opened = null;
     S.base = M.emptyState();
     S.files = [];
     S.sample = false;
@@ -3112,9 +3139,32 @@ button.cal-cell:hover { border-color: var(--ink); }
     S.sample = false;
     S.review = { week: null, account: '', all: false };
     S.trades.selected = null;
+    S.opened = null;
     reimport();
+    S.opened = snapshot(label || 'the journal');
+    renderNotice();
     toast('Opened ' + (label || 'the journal') + ': ' + S.state.fills.length + ' fills, ' + S.base.journal.length + ' journal entries' + (pr.error ? '. ' + pr.error : ''));
     return true;
+  }
+
+  // What the journal held when it was opened, to show what next week's export added.
+  function breachKey(b) { return [b.rule, b.trade, b.account, b.day, b.sec === null ? '' : b.sec].join('|'); }
+  function snapshot(label) {
+    var closed = {}, breaches = {};
+    S.result.closed.forEach(function (t) { closed[t.id] = true; });
+    S.result.breaches.forEach(function (b) { breaches[breachKey(b)] = true; });
+    return { label: label, fills: S.state.fills.length, closed: closed, breaches: breaches };
+  }
+  function sinceOpened() {
+    if (!S.opened || !S.result) return null;
+    var fresh = S.result.closed.filter(function (t) { return !S.opened.closed[t.id]; });
+    var net = 0;
+    fresh.forEach(function (t) { if (t.netBase !== null) net += t.netBase; });
+    return {
+      fills: S.state.fills.length - S.opened.fills, trades: fresh, net: net,
+      breaches: S.result.breaches.filter(function (b) { return !S.opened.breaches[breachKey(b)]; }).length,
+      needs: fresh.filter(function (t) { return !t.setup || t.plannedRisk === null; }).length
+    };
   }
 
   /* ---------- small output helpers ---------- */
@@ -3256,6 +3306,13 @@ button.cal-cell:hover { border-color: var(--ink); }
 
   function renderNotice() {
     var el = $('#notice');
+    var since = sinceOpened();
+    if (since && since.fills > 0) {
+      el.innerHTML = '<p><strong>Since you opened ' + esc(S.opened.label) + ':</strong> ' + M.plural(since.fills, 'new fill') + ', ' + M.plural(since.trades.length, 'trade') + ' closed (' + esc(m(since.net, { sign: true })) + ' after fees), ' +
+        M.plural(since.breaches, 'new rule breach', 'new rule breaches') + '. ' + (since.needs ? M.plural(since.needs, 'of them needs', 'of them need') + ' a setup or a stop.' : 'All of them are written up.') + '</p>' +
+        '<div class="btn-row"><button type="button" class="btn btn-ink btn-small" data-action="write-new">Write up the new trades</button><button type="button" class="btn btn-line btn-small" data-action="review-latest">Review the latest week</button><button type="button" class="btn btn-line btn-small" data-action="save">Save journal file</button></div>';
+      return;
+    }
     if (S.resume) {
       el.innerHTML = '<p><strong>Pick up where you left off.</strong> A journal you were working on is saved in this browser (' + esc(S.resume.when.slice(0, 10)) + ').</p>' +
         '<div class="btn-row"><button type="button" class="btn btn-ink btn-small" data-action="resume">Reopen it</button><button type="button" class="btn btn-line btn-small" data-action="forget">Forget it</button></div>';
@@ -3500,6 +3557,7 @@ button.cal-cell:hover { border-color: var(--ink); }
       if (f.outcome === 'open' && t.status !== 'open') return false;
       if (f.outcome === 'breach' && !t.breaches.length) return false;
       if (f.needs && t.setup && t.plannedRisk !== null) return false;
+      if (f.fresh && S.opened && S.opened.closed[t.id]) return false;
       if (f.q && (t.symbol + ' ' + t.setup + ' ' + t.notes + ' ' + t.mistakes.join(' ')).toLowerCase().indexOf(f.q.toLowerCase()) < 0) return false;
       return true;
     }).sort(function (a, b) { return (b.openT - a.openT) || M.cmp(a.id, b.id); });
@@ -3521,6 +3579,7 @@ button.cal-cell:hover { border-color: var(--ink); }
       '<label class="field"><span>Outcome</span><select id="tr-outcome">' + [['', 'Any'], ['win', 'Winners'], ['loss', 'Losers'], ['open', 'Still open'], ['breach', 'Broke a rule']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === f.outcome ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>Search</span><input type="search" id="tr-q" value="' + esc(f.q) + '" placeholder="Symbol, setup, note"></label>' +
       '<label class="check"><input type="checkbox" id="tr-needs"' + (f.needs ? ' checked' : '') + '> Needs journal notes</label>' +
+      (S.opened ? '<label class="check"><input type="checkbox" id="tr-fresh"' + (f.fresh ? ' checked' : '') + '> New since the journal was opened</label>' : '') +
       '</div>';
     html += '<div class="split">';
     // The list.
@@ -3645,14 +3704,14 @@ button.cal-cell:hover { border-color: var(--ink); }
     // The weekly review sheet.
     if (!S.review.all && S.review.week !== null) {
       var rv = M.weekReview(res, { week: S.review.week, account: S.review.account });
-      var text = M.reviewText(rv, res);
+      var text = S.chat === 'short' ? M.reviewShort(rv) : M.reviewText(rv, res);
       html += '<article class="ticket review-sheet" id="review-sheet"><div class="ticket-head"><h2>Weekly review</h2><span class="mono">' + esc(rv.label) + ' &middot; ' + esc(S.review.account || 'all accounts') + '</span></div>';
       html += reviewStatsHtml(rv.stats, rv);
       html += '<h3>What the week says</h3><ul class="notes-list">' + rv.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>';
       if (rv.bySetup.length) html += '<h3>By setup</h3>' + barRows(rv.bySetup, function (x) { return x.n + (x.n === 1 ? ' trade' : ' trades') + ', ' + x.wins + ' won' + (x.avgR !== null ? ', avg ' + M.fmtR(x.avgR) : ''); });
       html += '<h3>Rule breaches this week</h3>' + (rv.breaches.length ? breachListHtml(rv.breaches) : '<p class="muted">None.</p>');
       if (rv.openAtEnd.length) html += '<h3>Open at the end of the week</h3><p>' + rv.openAtEnd.map(function (o) { return esc(o.symbol + ' ' + (o.dir > 0 ? 'long ' : 'short ') + M.fmtQty(o.q) + ' at ' + avgPrice(o.avgEntry)); }).join('; ') + '</p>';
-      html += '<div class="no-print"><h3>For the team chat</h3><label class="sr" for="review-text">Review as text</label><textarea class="copy-text" id="review-text" readonly>' + esc(text) + '</textarea>' +
+      html += '<div class="no-print"><h3>For the team chat</h3><div class="seg" role="group" aria-label="Length of the text"><button type="button" data-action="chat-short" aria-pressed="' + (S.chat === 'short') + '">Short</button><button type="button" data-action="chat-full" aria-pressed="' + (S.chat !== 'short') + '">Full</button></div><label class="sr" for="review-text">Review as text</label><textarea class="copy-text" id="review-text" readonly>' + esc(text) + '</textarea>' +
         '<div class="btn-row" style="margin-top:10px"><button type="button" class="btn btn-ink" data-action="copy-review">Copy for the team chat</button><button type="button" class="btn btn-line" data-action="print-review">Print the review</button><button type="button" class="btn btn-line" data-action="review-txt">Download as text</button></div></div>';
       html += '<p class="hint" style="margin-top:12px">Not financial advice: a record of trades already made.</p></article>';
     } else {
@@ -4171,6 +4230,21 @@ button.cal-cell:hover { border-color: var(--ink); }
         var nxt = list.filter(function (t) { return t.id !== S.trades.selected; })[0];
         if (nxt) { S.trades.selected = nxt.id; S.dirty.trades = true; renderView('trades'); focusTicket(); } else toast('Every closed trade has a setup and a stop or planned risk');
         break;
+      case 'write-new':
+        S.trades.account = ''; S.trades.week = ''; S.trades.setup = ''; S.trades.outcome = ''; S.trades.q = ''; S.trades.needs = true; S.trades.fresh = true; S.trades.selected = null;
+        S.dirty.trades = true;
+        show('trades');
+        break;
+      case 'review-latest':
+        S.review.all = false; S.review.week = null;
+        reanalyse();
+        show('review');
+        break;
+      case 'chat-short': case 'chat-full':
+        S.chat = action === 'chat-short' ? 'short' : 'full';
+        S.dirty.review = true;
+        renderView('review');
+        break;
       case 'copy-review': copyText(document.getElementById('review-text').value, document.getElementById('review-text')); break;
       case 'review-txt': download('weekly-review-' + M.toIso(S.review.week) + '.txt', document.getElementById('review-text').value, 'text/plain;charset=utf-8'); break;
       case 'print-review':
@@ -4188,7 +4262,7 @@ button.cal-cell:hover { border-color: var(--ink); }
     S.trades.selected = id;
     // Make sure the filters let the trade show.
     var f = S.trades;
-    if ((f.account && f.account !== t.account) || f.week || f.setup || f.outcome || f.needs || f.q) { f.account = ''; f.week = ''; f.setup = ''; f.outcome = ''; f.needs = false; f.q = ''; }
+    if ((f.account && f.account !== t.account) || f.week || f.setup || f.outcome || f.needs || f.fresh || f.q) { f.account = ''; f.week = ''; f.setup = ''; f.outcome = ''; f.needs = false; f.fresh = false; f.q = ''; }
     S.dirty.trades = true;
     show('trades');
     var row = document.querySelector('[data-select="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
@@ -4241,7 +4315,7 @@ button.cal-cell:hover { border-color: var(--ink); }
     if (id === 'days-account') { S.days.account = el.value; S.days.day = null; S.dirty.days = true; renderView('days'); return; }
     if (id === 'fills-account') { S.fills.account = el.value; S.fills.symbol = ''; S.dirty.fills = true; renderView('fills'); return; }
     if (id === 'fills-symbol') { S.fills.symbol = el.value; S.dirty.fills = true; renderView('fills'); return; }
-    if (id === 'tr-account' || id === 'tr-week' || id === 'tr-setup' || id === 'tr-outcome' || id === 'tr-needs') {
+    if (id === 'tr-account' || id === 'tr-week' || id === 'tr-setup' || id === 'tr-outcome' || id === 'tr-needs' || id === 'tr-fresh') {
       var key = id.slice(3);
       S.trades[key] = el.type === 'checkbox' ? el.checked : el.value;
       S.trades.selected = null;

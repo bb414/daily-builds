@@ -5,6 +5,7 @@ Commands
   review    print the weekly review for the team chat, and optionally write it as HTML
   weekly    merge an inbox of new exports into a running journal and write a dated review
   team      a team review across a folder of members' exports (HTML and CSV)
+  period    a report for a month or any span of days (HTML), with weeks, days, setups and rules
   size      position size for a planned trade
   check     show how each export was read: columns, dates and every row set aside
   template  write the CSV template
@@ -20,7 +21,7 @@ from .jobs import latest_week, load_state, read_text, team_review, weekly_job, w
 from .matching import analyse, import_files
 from .outputs import breaches_csv, fills_csv, position_size, template_csv, trades_csv
 from .parsing import read_export
-from .report import weekly_report
+from .report import period_report, weekly_report
 from .review import review_text, week_review
 from .stats import start_balance, stats
 
@@ -105,7 +106,7 @@ def cmd_weekly(args):
             print('  %s: %d new fills, %d already in the journal, %d rows set aside' % (f['file'], f['added'], f['duplicates'], f['skipped']))
         else:
             print('  %s: not read (%s)' % (f['file'], f['error']))
-    print('Journal now holds %s (%d new).' % (plural(summary['fills'], 'fill'), summary['added']))
+    print('Journal now holds %s (%d new); %s closed since the last run.' % (plural(summary['fills'], 'fill'), summary['added'], plural(summary['newlyClosed'], 'trade')))
     if summary['week'] is None:
         print('No closed trades yet, so no review was written.')
         return 0
@@ -118,6 +119,27 @@ def cmd_weekly(args):
         print()
         sys.stdout.write(summary['text'])
     return 1 if summary['problems'] else 0
+
+
+def cmd_period(args):
+    st, res = _load(args)
+    if args.month:
+        parts = args.month.split('-')
+        try:
+            y, mo = int(parts[0]), int(parts[1])
+            start = from_iso('%04d-%02d-01' % (y, mo))
+            end = (from_iso('%04d-01-01' % (y + 1)) if mo == 12 else from_iso('%04d-%02d-01' % (y, mo + 1))) - 1
+        except (ValueError, IndexError, TypeError):
+            raise SystemExit('Give the month as YYYY-MM, for example 2026-10.')
+    else:
+        days = [t['closeDay'] for t in res['closed']]
+        start = from_iso(args.start_date) if args.start_date else (min(days) if days else None)
+        end = from_iso(args.end_date) if args.end_date else (max(days) if days else None)
+    if start is None or end is None or end < start:
+        raise SystemExit('Give a month (--month 2026-10) or dates (--from 2026-10-01 --to 2026-10-31) with closed trades in between.')
+    write_text(args.out, period_report(res, start, end, args.account_filter or ''))
+    print('Wrote %s for %s to %s' % (args.out, to_iso(start), to_iso(end)))
+    return 0
 
 
 def cmd_team(args):
@@ -222,6 +244,15 @@ def build_parser():
     sp.add_argument('--start', help='starting balance for any account without one')
     sp.add_argument('--out', default='team-review', help='folder for team-review.html and team-review.csv')
     sp.set_defaults(func=cmd_team)
+
+    sp = sub.add_parser('period', help='a report for a month or any span of days')
+    common(sp)
+    sp.add_argument('--month', help='a month, as YYYY-MM')
+    sp.add_argument('--from', dest='start_date', help='first day, YYYY-MM-DD')
+    sp.add_argument('--to', dest='end_date', help='last day, YYYY-MM-DD')
+    sp.add_argument('--for-account', dest='account_filter', help='one account only')
+    sp.add_argument('--out', default='period-report.html')
+    sp.set_defaults(func=cmd_period)
 
     sp = sub.add_parser('size', help='position size for a planned trade')
     sp.add_argument('--equity', required=True, help='account size')

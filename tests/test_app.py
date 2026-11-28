@@ -184,6 +184,12 @@ class AppTest(unittest.TestCase):
         page.set_input_files('#file-exports', os.path.join(DATA, 'weekly', 'export-2026-11-27.csv'))
         page.wait_for_function("document.querySelector('#toast').textContent.indexOf('35 new fills') >= 0")
         self.assertIn('62 already in the journal', page.inner_text('.sources'))
+        notice = page.inner_text('#notice')
+        self.assertIn('Since you opened', notice)
+        self.assertIn('35 new fills', notice)
+        page.click('[data-action="write-new"]')
+        self.assertTrue(page.is_checked('#tr-fresh'))
+        self.assertGreater(page.locator('.trade-row').count(), 0)
         self.assertIn('of 524 fills', page.inner_text('#view-fills'))
 
     def test_adding_the_opening_of_a_position_bought_before_the_exports(self):
@@ -260,6 +266,12 @@ class AppTest(unittest.TestCase):
 
     def test_copy_and_print_the_review(self):
         page = self.open()
+        page.click('[data-action="chat-short"]')
+        short = page.input_value('#review-text')
+        self.assertTrue(short.startswith('w/c 23 Nov 2026: +$1,595.71 after fees from 21 trades'))
+        self.assertLess(len(short.splitlines()), 8)
+        page.click('[data-action="chat-full"]')
+        self.assertTrue(page.input_value('#review-text').startswith('WEEKLY TRADE REVIEW'))
         page.evaluate('window.print = function () { window.__printed = document.body.classList.contains("print-review"); }')
         page.click('[data-action="print-review"]')
         self.assertTrue(page.evaluate('window.__printed'))

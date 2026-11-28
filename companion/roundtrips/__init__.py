@@ -15,8 +15,8 @@ from .outputs import breaches_csv, csv_cell, fills_csv, position_size, project_f
 from .parsing import classify_side, clean_account_name, norm_header, parse_delimited, read_export, sniff_delimiter, symbol_root
 from .days import day_detail, day_ledger, days_csv
 from .jobs import discover_members, team_csv, team_review, weekly_job
-from .report import equity_svg, team_report, weekly_report
-from .review import review_text, trade_name, week_review
+from .report import calendar_html, equity_svg, period_report, team_report, weekly_report
+from .review import review_short, review_text, trade_name, week_review
 from .stats import BREAKDOWNS, HOLD_BUCKETS, SKIP_RULES, breakdown, filter_trades, hold_bucket, r_histogram, start_balance, stats, usable, weekly, what_if
 
 __all__ = [name for name in dir() if not name.startswith('_')]

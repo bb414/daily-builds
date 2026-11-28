@@ -1924,6 +1924,30 @@
   }
   M.reviewText = reviewText;
 
+  // The review in a few lines, for a chat message.
+  function reviewShort(rv) {
+    var s = rv.stats, base = rv.base, L = [];
+    var who = rv.account ? ' (' + rv.account + ')' : '';
+    if (!s.n) {
+      L.push(rv.label + who + ': no trades closed.');
+    } else {
+      L.push(rv.label + who + ': ' + money(s.net, base, { sign: true }) + ' after fees from ' + plural(s.n, 'trade') + ', ' + fmtPct(s.winRate) + ' won, profit factor ' +
+        (s.profitFactor === null ? 'n/a' : fmtNum(s.profitFactor, 2)) + ', fees ' + money(s.fees, base));
+      var setups = rv.bySetup.filter(function (r) { return r.key !== '(no setup)'; });
+      if (setups.length) {
+        var line = 'Best setup: ' + setups[0].label + ' ' + money(setups[0].net, base, { sign: true });
+        if (setups.length > 1 && setups[setups.length - 1].net < 0) line += '; worst: ' + setups[setups.length - 1].label + ' ' + money(setups[setups.length - 1].net, base, { sign: true });
+        L.push(line);
+      }
+    }
+    L.push('Rule breaches: ' + (rv.breaches.length ? rv.breaches.length + ' (' + RULES.filter(function (x) { return rv.breachCount[x.id]; }).map(function (x) { return x.broken + ' x' + rv.breachCount[x.id]; }).join(', ') + ')' : 'none'));
+    if (rv.whatIf.combined !== rv.whatIf.actual) L.push('Keeping to the rules: about ' + money(rv.whatIf.combined, base, { sign: true }) + ' (an estimate)');
+    if (rv.untagged || rv.noRisk) L.push('Still to write up: ' + plural(rv.untagged, 'trade') + ' with no setup, ' + plural(rv.noRisk, 'trade') + ' with no stop');
+    L.push('Not financial advice.');
+    return L.join('\n') + '\n';
+  }
+  M.reviewShort = reviewShort;
+
   /* ---------- position size ---------- */
 
   // How many shares or contracts to trade so a stop-out loses no more than the chosen risk.
