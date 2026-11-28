@@ -1,0 +1,248 @@
+{
+ "series": [
+  {
+   "name": "Harbour Lettings Rent",
+   "cadence": "monthly",
+   "typical": 52500,
+   "kind": "fixed",
+   "category": "housing",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Brightspark Energy",
+   "cadence": "monthly",
+   "kind": "variable",
+   "category": "energy",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Hilltop Broadband",
+   "cadence": "monthly",
+   "typical": 2640,
+   "kind": "stepped",
+   "category": "telecoms",
+   "flags": [
+    "rise"
+   ],
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Mobi-moto Sim Only",
+   "cadence": "monthly",
+   "typical": 1200,
+   "kind": "fixed",
+   "category": "telecoms",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Ironworks Gym",
+   "cadence": "monthly",
+   "typical": 2499,
+   "kind": "fixed",
+   "category": "gym",
+   "flags": [
+    "double"
+   ],
+   "count": 13,
+   "account": "Current account"
+  },
+  {
+   "name": "Gadgetguard Phone Cover",
+   "cadence": "monthly",
+   "typical": 499,
+   "kind": "fixed",
+   "category": "insurance",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Savings Transfer",
+   "cadence": "monthly",
+   "typical": 5000,
+   "kind": "fixed",
+   "category": "savings",
+   "count": 11,
+   "account": "Current account"
+  },
+  {
+   "name": "Riverwatch Trust",
+   "cadence": "monthly",
+   "typical": 500,
+   "kind": "fixed",
+   "category": "charity",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Parcelpoint Prime",
+   "cadence": "monthly",
+   "typical": 899,
+   "kind": "fixed",
+   "category": "memberships",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Apphaven.com/bill",
+   "cadence": "monthly",
+   "typical": 299,
+   "kind": "fixed",
+   "category": "other",
+   "flags": [
+    "same-payee"
+   ],
+   "count": 11,
+   "account": "Current account"
+  },
+  {
+   "name": "Apphaven.com/bill",
+   "cadence": "monthly",
+   "typical": 999,
+   "kind": "fixed",
+   "category": "other",
+   "flags": [
+    "same-payee"
+   ],
+   "count": 6,
+   "account": "Current account"
+  },
+  {
+   "name": "Pixelbox TV",
+   "cadence": "monthly",
+   "typical": 699,
+   "kind": "fixed",
+   "category": "tv",
+   "status": "stopped",
+   "count": 8,
+   "account": "Current account"
+  },
+  {
+   "name": "Tunewave Music",
+   "cadence": "monthly",
+   "typical": 1199,
+   "kind": "stepped",
+   "category": "music",
+   "flags": [
+    "rise"
+   ],
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Fieldfare Veg Box",
+   "cadence": "weekly",
+   "typical": 1550,
+   "kind": "fixed",
+   "category": "food",
+   "flags": [
+    "new"
+   ],
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Tidyup Cleaning",
+   "cadence": "fortnightly",
+   "typical": 1800,
+   "kind": "fixed",
+   "category": "household",
+   "count": 24,
+   "account": "Current account"
+  },
+  {
+   "name": "Campus Bike Hire",
+   "cadence": "four-weekly",
+   "typical": 900,
+   "kind": "fixed",
+   "category": "transport",
+   "count": 12,
+   "account": "Current account"
+  },
+  {
+   "name": "Streamcrate.tv",
+   "cadence": "monthly",
+   "typical": 899,
+   "kind": "fixed",
+   "category": "tv",
+   "flags": [
+    "overlap",
+    "new"
+   ],
+   "count": 3,
+   "account": "Credit card"
+  },
+  {
+   "name": "Cloudlocker Storage",
+   "cadence": "monthly",
+   "typical": 179,
+   "kind": "fixed",
+   "category": "software",
+   "count": 6,
+   "account": "Credit card"
+  },
+  {
+   "name": "The Daily Lantern",
+   "cadence": "monthly",
+   "typical": 899,
+   "kind": "stepped",
+   "category": "news",
+   "flags": [
+    "intro"
+   ],
+   "count": 6,
+   "account": "Credit card"
+  },
+  {
+   "name": "Reelhouse+",
+   "cadence": "monthly",
+   "typical": 599,
+   "kind": "fixed",
+   "category": "tv",
+   "flags": [
+    "overlap"
+   ],
+   "count": 4,
+   "account": "Spending app"
+  },
+  {
+   "name": "Lingoleap Language",
+   "cadence": "monthly",
+   "typical": 1199,
+   "kind": "stepped",
+   "category": "learning",
+   "flags": [
+    "intro",
+    "new"
+   ],
+   "count": 3,
+   "account": "Spending app"
+  }
+ ],
+ "candidates": [
+  {
+   "name": "Fenwick Mutual Insurance",
+   "amount": 8640,
+   "cadence": "yearly"
+  },
+  {
+   "name": "Quillhost Annual Plan",
+   "amount": 7188,
+   "cadence": "yearly"
+  },
+  {
+   "name": "Chessmate Premium Annual",
+   "amount": 3999,
+   "cadence": "yearly"
+  }
+ ],
+ "income": [
+  {
+   "name": "Campus Cafe Payroll",
+   "cadence": "monthly"
+  }
+ ]
+}
