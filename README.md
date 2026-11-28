@@ -107,8 +107,8 @@ The companion gives exactly the same trades, figures, breaches, review text and 
 ## Tests
 
 ```
-node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, files (20 tests)
-python -m unittest discover -s tests  # companion, agreement and browser tests
+node --test tests/*.test.js          # the model in Node: parsing, matching, statistics, rules, days, files (25 tests)
+python -m unittest discover -s tests  # companion (13), agreement (10) and browser (13) tests
 ```
 
 - `tests/model.test.js`: the browser model on its own.
@@ -142,11 +142,11 @@ Tests skip cleanly when Node, Playwright or Chromium is missing.
 
 | Part | Language | Lines (roughly) |
 |---|---|---|
-| The model: reading exports, matching, statistics, rules, review, files (`src/model.js`) | JavaScript | 1,880 |
-| The interface (`src/ui.js`, `src/style.css`, `src/shell.html` with the hand-drawn hero) | JavaScript, CSS, HTML | 2,040 |
-| The companion (`companion/`): the same model, plus the weekly job, team review, reports and command line | Python | 2,440 |
-| Tests (`tests/`) | JavaScript, Python | 1,110 |
-| Sample generator, build and screenshot tools (`tools/`) | Python | 750 |
+| The model: reading exports, matching, statistics, rules, days, the review, files (`src/model.js`) | JavaScript | 2,160 |
+| The interface (`src/ui.js`, `src/style.css`, `src/shell.html` with the hand-drawn hero) | JavaScript, CSS, HTML | 2,340 |
+| The companion (`companion/`): the same model (about 2,900 lines), plus the weekly job, team review, period and weekly reports and the command line (about 900) | Python | 3,820 |
+| Tests (`tests/`) | JavaScript, Python | 1,340 |
+| Sample generator, build and screenshot tools (`tools/`) | Python | 780 |
 
 `tools/build_app.py` writes `app/index.html` from `src/` with the fonts and samples embedded; `tools/make_samples.py` makes every sample file from a fixed seed.
 
